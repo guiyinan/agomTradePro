@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-11-02",
+  "updated_at": "2026-11-03",
   "status": "frozen_pending_evidence_gate",
   "transition_plan_internal_writer_scopes": [
     "apps/decision_rhythm/application/workspace_services.py",
@@ -194,6 +194,7 @@
     "apps/simulated_trading/interface/owner_order_submission_views.py::OwnerOrderPreviewAPIView.post",
     "apps/simulated_trading/interface/performance_views.py::AccountBackfillAPIView.post",
     "apps/simulated_trading/interface/performance_views.py::AccountBenchmarksAPIView.put",
+    "apps/simulated_trading/interface/portfolio_risk_views.py::PortfolioPressureRunAPIView.post",
     "apps/simulated_trading/interface/sdk_contract_views.py::AccountResetAPIView.post",
     "apps/simulated_trading/interface/sdk_contract_views.py::PositionCloseAPIView.post",
     "apps/simulated_trading/interface/tui_views.py::InspectionNotificationConfigAPIView.patch",
@@ -332,6 +333,7 @@
     "The simulated fee-correction SDK exposes those same three writes with single-attempt transport and validated responses. It never enables a policy, applies a correction or retries implicitly. Unknown outcomes require operation-specific readback or original-material replay; a missing correction receipt is not proof of no effects. post_once and put_once remain classified mutation calls.",
     "Agent protocol transitions are included because lease and submitting can cause external execution side effects.",
     "Owner M1 risk-policy publish and revoke require authenticated current-owner scope, explicit validated terms or revocation reason, and scoped idempotency; they write risk revision and audit records only, do not change financial ledgers or authorize orders, and inventory classification is not preview qualification.",
+    "Owner portfolio pressure-run POST is an authenticated current-owner, CSRF-protected, explicitly confirmed and idempotent simulation analysis write; it creates or exactly replays only the existing ScenarioRunEvidence, keeps scope simulation_only and must_not_execute=true, and does not create orders, alter reservations or financial ledgers, activate policy, or authorize execution. Registration records the existing stateful write and grants no additional permission or production qualification.",
     "Transition-plan internal writers freeze both the default-enabled legacy chain and its canonical replacement; inventory presence does not approve either path."
   ]
 }

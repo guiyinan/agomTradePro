@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 6486,
+    "current_surface_references": 6553,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -19739,6 +19739,82 @@
       "text": "revision=latest,"
     },
     {
+      "path": "apps/risk_center/application/portfolio_capacity.py",
+      "text": "\"\"\"Assess one requested security against its current-session resource snapshot.\"\"\""
+    },
+    {
+      "path": "apps/risk_center/application/portfolio_pressure_projection_builder.py",
+      "text": "Current capacity comes only from an exact, source-qualified same-session"
+    },
+    {
+      "path": "apps/risk_center/application/portfolio_pressure_projection_builder.py",
+      "text": "\"\"\"Adapt the exact account snapshot to the Domain SELL reservation summary.\"\"\""
+    },
+    {
+      "path": "apps/risk_center/application/portfolio_pressure_report.py",
+      "text": "\"summary\": summary,"
+    },
+    {
+      "path": "apps/risk_center/application/portfolio_pressure_report.py",
+      "text": "_CHECK_KEYS = frozenset({\"dimension\", \"status\", \"reason_codes\", \"summary\", \"details\"})"
+    },
+    {
+      "path": "apps/risk_center/application/portfolio_pressure_report.py",
+      "text": "and type(mapping.get(\"summary\")) is str"
+    },
+    {
+      "path": "apps/risk_center/application/portfolio_pressure_report.py",
+      "text": "summary: str,"
+    },
+    {
+      "path": "apps/risk_center/application/portfolio_pressure_report.py",
+      "text": "summary=_pressure_summary(assessment.status),"
+    },
+    {
+      "path": "apps/risk_center/application/portfolio_risk_contracts.py",
+      "text": "summary: str"
+    },
+    {
+      "path": "apps/risk_center/application/portfolio_risk_policy.py",
+      "text": "\"\"\"Read one current policy for the requested simulation account and cutoff.\"\"\""
+    },
+    {
+      "path": "apps/risk_center/application/portfolio_risk_report.py",
+      "text": "\"\"\"Classify source freshness and binding without promoting disclosure to realtime.\"\"\""
+    },
+    {
+      "path": "apps/risk_center/application/portfolio_risk_report.py",
+      "text": "\"summary\": ("
+    },
+    {
+      "path": "apps/risk_center/application/portfolio_risk_report.py",
+      "text": "\"summary\": ("
+    },
+    {
+      "path": "apps/risk_center/application/portfolio_risk_report.py",
+      "text": "\"summary\": ("
+    },
+    {
+      "path": "apps/risk_center/application/portfolio_risk_report.py",
+      "text": "\"summary\": ("
+    },
+    {
+      "path": "apps/risk_center/application/portfolio_risk_report.py",
+      "text": "\"summary\": \"来源时钟、覆盖或资格未能满足显式策略。\","
+    },
+    {
+      "path": "apps/risk_center/application/portfolio_risk_report.py",
+      "text": "\"summary\": capacity_summary,"
+    },
+    {
+      "path": "apps/risk_center/application/portfolio_risk_snapshot.py",
+      "text": "\"\"\"Match one source record to a unique current-policy manifest reference.\"\"\""
+    },
+    {
+      "path": "apps/risk_center/application/portfolio_risk_snapshot.py",
+      "text": "exposure adds every active and proposed BUY at its larger accepted/current"
+    },
+    {
       "path": "apps/risk_center/application/scenario_dtos.py",
       "text": "\"\"\"Read projection for one definition and its latest eligible revision.\"\"\""
     },
@@ -19861,6 +19937,50 @@
     {
       "path": "apps/risk_center/domain/m1_rebalance_risk_policy.py",
       "text": "\"\"\"Typed, reproducible M1 falsification summary for the current preview.\"\"\""
+    },
+    {
+      "path": "apps/risk_center/domain/portfolio_baseline_risk.py",
+      "text": "The denominator is current pre-trade gross NAV. Active remaining cash holds"
+    },
+    {
+      "path": "apps/risk_center/domain/portfolio_baseline_risk.py",
+      "text": "carries the latest real baseline/snapshot clock and a lossless digest of the"
+    },
+    {
+      "path": "apps/risk_center/domain/portfolio_capacity.py",
+      "text": "\"\"\"Actual current-session use plus active holds and proposed orders for one scope.\"\"\""
+    },
+    {
+      "path": "apps/risk_center/domain/portfolio_capacity.py",
+      "text": "\"\"\"Require a hashed, current policy with exact units and source precision.\"\"\""
+    },
+    {
+      "path": "apps/risk_center/domain/portfolio_capacity.py",
+      "text": "sessions. Current-session executed use, active remaining BUY/SELL orders, and"
+    },
+    {
+      "path": "apps/risk_center/domain/portfolio_exit_pressure.py",
+      "text": "\"\"\"A current position plus ordered stress-window capacity inputs.\"\"\""
+    },
+    {
+      "path": "apps/risk_center/domain/portfolio_exit_pressure.py",
+      "text": "current exposure until an actual fill changes the owner projection; a"
+    },
+    {
+      "path": "apps/risk_center/domain/portfolio_exit_pressure.py",
+      "text": "raise ValueError(\"pending sell quantity cannot exceed current position quantity\")"
+    },
+    {
+      "path": "apps/risk_center/domain/portfolio_risk_snapshot.py",
+      "text": "A missing order measure or current price leaves the asset amount unknown. SELL"
+    },
+    {
+      "path": "apps/risk_center/domain/portfolio_risk_snapshot.py",
+      "text": "\"\"\"Add held and pending BUY exposure, using the larger accepted/current value."
+    },
+    {
+      "path": "apps/risk_center/domain/portfolio_risk_snapshot.py",
+      "text": "\"\"\"One current-session execution sum, retaining unresolved legacy scope.\"\"\""
     },
     {
       "path": "apps/risk_center/domain/price_submission_range.py",
@@ -21719,6 +21839,118 @@
       "text": "summary dict with keys: account_id, initial_capital_written,"
     },
     {
+      "path": "apps/simulated_trading/application/portfolio_risk_calendar.py",
+      "text": "\"\"\"Build the application reader from explicit current-identity/calendar ports.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/portfolio_risk_calendar.py",
+      "text": "\"\"\"Read exact current-reference identity evidence from its owning Application.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/portfolio_risk_calendar.py",
+      "text": "\"\"\"Return current exact-exchange calendar facts for one risk context.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/portfolio_risk_calendar.py",
+      "text": "\"\"\"Return one current selected identity without inferring its exchange.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/portfolio_risk_calendar.py",
+      "text": "current += timedelta(days=1)"
+    },
+    {
+      "path": "apps/simulated_trading/application/portfolio_risk_calendar.py",
+      "text": "current = common_start"
+    },
+    {
+      "path": "apps/simulated_trading/application/portfolio_risk_calendar.py",
+      "text": "if all(day_map.get(current) is True for day_map in day_maps):"
+    },
+    {
+      "path": "apps/simulated_trading/application/portfolio_risk_calendar.py",
+      "text": "sessions.append(current)"
+    },
+    {
+      "path": "apps/simulated_trading/application/portfolio_risk_calendar.py",
+      "text": "while current <= common_end:"
+    },
+    {
+      "path": "apps/simulated_trading/application/portfolio_risk_execution_gate.py",
+      "text": "\"\"\"Require a current full risk pass before any trade is committed.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/portfolio_risk_preparation.py",
+      "text": "\"summary\": ("
+    },
+    {
+      "path": "apps/simulated_trading/application/portfolio_risk_preparation.py",
+      "text": "\"summary\": ("
+    },
+    {
+      "path": "apps/simulated_trading/application/portfolio_risk_preparation.py",
+      "text": "\"summary\": \"账户输入尚未满足风险核验条件\","
+    },
+    {
+      "path": "apps/simulated_trading/application/portfolio_risk_pressure_runner.py",
+      "text": "\"summary\": summary,"
+    },
+    {
+      "path": "apps/simulated_trading/application/portfolio_risk_pressure_runner.py",
+      "text": "summary: str,"
+    },
+    {
+      "path": "apps/simulated_trading/application/portfolio_risk_pressure_runner.py",
+      "text": "summary=\"退出压力输入尚未形成可复核结果\","
+    },
+    {
+      "path": "apps/simulated_trading/application/portfolio_risk_preview_gate.py",
+      "text": "\"\"\"Preserve the preview amounts and attach the current explained risk result.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/portfolio_risk_public.py",
+      "text": "\"\"\"Assess one complete read-only preview using the current owner-scoped inputs.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/portfolio_risk_public.py",
+      "text": "\"\"\"Revalidate one actual locked submission against current risk inputs.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/portfolio_risk_service.py",
+      "text": "\"\"\"Read the current account constraints without creating orders or evidence.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/portfolio_risk_service.py",
+      "text": "\"runtime_config_sha256\": current.normalized_config_sha256,"
+    },
+    {
+      "path": "apps/simulated_trading/application/portfolio_risk_service.py",
+      "text": "\"summary\": summary,"
+    },
+    {
+      "path": "apps/simulated_trading/application/portfolio_risk_service.py",
+      "text": "current = self._runtime.policy_reader.read_policy("
+    },
+    {
+      "path": "apps/simulated_trading/application/portfolio_risk_service.py",
+      "text": "current is None"
+    },
+    {
+      "path": "apps/simulated_trading/application/portfolio_risk_service.py",
+      "text": "or current.industry_policy.policy_version != qualification.policy_version"
+    },
+    {
+      "path": "apps/simulated_trading/application/portfolio_risk_service.py",
+      "text": "or current.normalized_config_sha256 != qualification.runtime_config_sha256"
+    },
+    {
+      "path": "apps/simulated_trading/application/portfolio_risk_service.py",
+      "text": "report: PortfolioRiskReportPayload, *, dimension: str, reasons: tuple[str, ...], summary: str"
+    },
+    {
+      "path": "apps/simulated_trading/application/portfolio_risk_service.py",
+      "text": "summary=\"清单输入已变化或仍不完整，请重新生成后查看风险\","
+    },
+    {
       "path": "apps/simulated_trading/application/ports.py",
       "text": "\"\"\"Current market regime reads required by auto-trading.\"\"\""
     },
@@ -23399,6 +23631,26 @@
       "text": "summary=\"账户时点持仓估值表\","
     },
     {
+      "path": "apps/simulated_trading/interface/portfolio_risk_views.py",
+      "text": "\"\"\"Return only the current approved choice catalog under account read scope.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/interface/portfolio_risk_views.py",
+      "text": "summary = serializers.CharField()"
+    },
+    {
+      "path": "apps/simulated_trading/interface/portfolio_risk_views.py",
+      "text": "summary=\"明确运行一次本人模拟账户退出压力情景\","
+    },
+    {
+      "path": "apps/simulated_trading/interface/portfolio_risk_views.py",
+      "text": "summary=\"读取有权查看的模拟账户风险约束\","
+    },
+    {
+      "path": "apps/simulated_trading/interface/portfolio_risk_views.py",
+      "text": "summary=\"读取本人模拟账户可选的已审批压力情景\","
+    },
+    {
       "path": "apps/simulated_trading/interface/sdk_contract_views.py",
       "text": "\"\"\"Close shares through the exact current-reference simulated ledger.\"\"\""
     },
@@ -24217,6 +24469,22 @@
     {
       "path": "apps/terminal/application/tui_owner_order_submission_result.py",
       "text": "summary = ("
+    },
+    {
+      "path": "apps/terminal/application/tui_portfolio_risk_result.py",
+      "text": "\"business_summary\": summary,"
+    },
+    {
+      "path": "apps/terminal/application/tui_portfolio_risk_result.py",
+      "text": "line = f\"{dimension}：{outcome_label}；{summary}\""
+    },
+    {
+      "path": "apps/terminal/application/tui_portfolio_risk_result.py",
+      "text": "summary = ("
+    },
+    {
+      "path": "apps/terminal/application/tui_portfolio_risk_result.py",
+      "text": "summary = _display(check.get(\"summary\"), missing=\"未提供检查说明\")"
     },
     {
       "path": "apps/terminal/application/tui_reference_price_result.py",

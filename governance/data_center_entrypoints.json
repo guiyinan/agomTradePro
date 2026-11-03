@@ -9,9 +9,9 @@
       "celery_dispatch_edge": 18,
       "celery_task": 130,
       "compatibility_facade": 95,
-      "current_data_surface": 103,
+      "current_data_surface": 104,
       "dynamic_import_edge": 14,
-      "management_command": 49,
+      "management_command": 50,
       "management_command_edge": 65,
       "mcp_tool": 40,
       "migration_evidence": 14,
@@ -26,17 +26,17 @@
       "script": 19,
       "sdk": 57,
       "terminal_tui": 32,
-      "test_evidence": 121,
+      "test_evidence": 122,
       "workflow_step": 11
     },
     "by_status": {
-      "active_public": 904,
+      "active_public": 905,
       "adjacent_operational": 343,
-      "candidate-review": 39,
-      "compatibility": 138,
+      "candidate-review": 40,
+      "compatibility": 139,
       "retired_blocked": 0
     },
-    "total": 1424
+    "total": 1427
   },
   "entries": [
     {
@@ -6091,6 +6091,16 @@
     },
     {
       "category": "current_data_surface",
+      "evidence": "governed current-data contract; source_files=4",
+      "id": "current_data_surface:governance/current_data_contracts.json:simulated_trading.owner_portfolio_risk_report:Owner/read-scoped simulated portfolio risk report and explicitly confirmed pressure assessment; simulation_only and must_not_execute, with no order or account-ledger effects",
+      "locator": "Owner/read-scoped simulated portfolio risk report and explicitly confirmed pressure assessment; simulation_only and must_not_execute, with no order or account-ledger effects",
+      "path": "governance/current_data_contracts.json",
+      "status": "active_public",
+      "symbol": "simulated_trading.owner_portfolio_risk_report",
+      "target": ""
+    },
+    {
+      "category": "current_data_surface",
       "evidence": "governed current-data contract; source_files=23",
       "id": "current_data_surface:governance/current_data_contracts.json:simulated_trading.readonly_rebalance_preview:Owner-scoped current simulated-account inspection preview only: one coherent ledger/active-hold snapshot, formal current quotes, exact local-purpose identity/classification, sealed Risk quantity terms and FeeV2. This read surface does not execute or mutate financial ledgers. Explicit per-request targets may use verified no-strategy target differences; unavailable strategy selection never grants manual mode.",
       "locator": "Owner-scoped current simulated-account inspection preview only: one coherent ledger/active-hold snapshot, formal current quotes, exact local-purpose identity/classification, sealed Risk quantity terms and FeeV2. This read surface does not execute or mutate financial ledgers. Explicit per-request targets may use verified no-strategy target differences; unavailable strategy selection never grants manual mode.",
@@ -6767,6 +6777,16 @@
       "path": "apps/operational_readiness/management/commands/inspect_personal_readiness_evidence.py",
       "status": "compatibility",
       "symbol": "inspect_personal_readiness_evidence",
+      "target": ""
+    },
+    {
+      "category": "management_command",
+      "evidence": "cross-app command consumer of Data Center",
+      "id": "management_command:apps/risk_center/management/commands/admit_portfolio_risk_source.py:admit_portfolio_risk_source:",
+      "locator": "",
+      "path": "apps/risk_center/management/commands/admit_portfolio_risk_source.py",
+      "status": "compatibility",
+      "symbol": "admit_portfolio_risk_source",
       "target": ""
     },
     {
@@ -13941,6 +13961,16 @@
     },
     {
       "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/unit/risk_center/test_scenario_models.py:test_scenario_models:",
+      "locator": "",
+      "path": "tests/unit/risk_center/test_scenario_models.py",
+      "status": "candidate-review",
+      "symbol": "test_scenario_models",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
       "evidence": "reviewed deterministic contract evidence for shared transaction-scoped advisory locks",
       "id": "test_evidence:tests/unit/shared/infrastructure/test_postgres_advisory_lock.py:test_postgres_advisory_lock:",
       "locator": "",
@@ -14291,7 +14321,7 @@
   },
   "source_contract_counts": {
     "celery_tasks": 95,
-    "current_data_contracts": 103,
+    "current_data_contracts": 104,
     "legacy_entrypoints_and_wrappers": 0,
     "operational_governance_rules": 45,
     "runtime_config_keys": 48
