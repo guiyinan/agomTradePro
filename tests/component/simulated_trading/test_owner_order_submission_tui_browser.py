@@ -9,30 +9,92 @@ import threading
 import time
 from collections.abc import Iterator
 from dataclasses import dataclass
+from datetime import UTC
+from datetime import date as date
 from datetime import datetime as datetime
 from datetime import time as datetime_time
 from datetime import timedelta as timedelta
 from datetime import tzinfo as tzinfo
 from decimal import Decimal
+from importlib import import_module
 from pathlib import Path
 from typing import Any, cast
 from urllib.parse import parse_qs, urlsplit
+from zoneinfo import ZoneInfo
 
 import pytest
 from django.apps import apps
 from django.conf import settings
 from django.db import connection
 from django.db.backends.utils import CursorWrapper
+from django.urls import reverse
 from django.utils import timezone as django_timezone
 from playwright.sync_api import Route, expect, sync_playwright
 
+import apps.simulated_trading.application.portfolio_risk_public as portfolio_risk_public
 from apps.data_center.application.sina_quote_capture import SinaQuoteCapture
+from apps.risk_center.application.portfolio_exit_pressure_ports import (
+    PortfolioPressureProjectionProviderProtocol,
+    ScenarioPressureClockProtocol,
+)
+from apps.risk_center.application.portfolio_exit_pressure_use_cases import (
+    RunPortfolioExitPressureUseCase,
+    portfolio_pressure_run_id,
+)
+from apps.risk_center.application.portfolio_pressure_report import (
+    bind_portfolio_pressure_evidence_hash,
+    report_payload_from_object,
+)
+from apps.risk_center.application.portfolio_risk_runtime import (
+    PortfolioPressureApplicationFactory,
+    PortfolioRiskRuntime,
+)
+from apps.risk_center.application.scenario_dtos import ScenarioMarketDataDTO
+from apps.risk_center.application.scenario_ports import (
+    PortfolioSnapshotProviderProtocol,
+    ScenarioMarketDataProviderProtocol,
+    ScenarioRunEvidenceReadWriteRepositoryProtocol,
+)
+from apps.risk_center.application.scenario_use_cases import PreviewScenarioImpactUseCase
+from apps.risk_center.domain.portfolio_risk_sources import SourceObservationPrecision
+from apps.risk_center.domain.scenarios import (
+    AssetReturnSeries,
+    HistoricalReturnPoint,
+    HistoricalWindowParameters,
+    ScenarioRevision,
+    ScenarioRunEvidence,
+)
+from apps.risk_center.infrastructure.models import (
+    RiskPolicyAuditModel,
+    ScenarioRunEvidenceModel,
+    StressScenarioRevisionModel,
+)
+from apps.risk_center.infrastructure.portfolio_risk_execution_evidence_repository import (
+    DjangoPortfolioRiskExecutionEvidenceWriter,
+)
+from apps.risk_center.infrastructure.scenario_repositories import DjangoScenarioRepository
+from apps.simulated_trading.application.portfolio_risk_context import (
+    PortfolioRiskClock,
+    PortfolioRiskPressureRunner,
+)
+from apps.simulated_trading.application.portfolio_risk_pressure_runner import (
+    PortfolioRiskPressureRunnerService,
+)
+from apps.simulated_trading.application.portfolio_risk_public import PortfolioRiskService
+from apps.simulated_trading.application.portfolio_risk_service import (
+    OwnerScopedPortfolioRiskService,
+)
+from apps.simulated_trading.composition import build_observer_grant_repository
 from apps.simulated_trading.infrastructure.models import (
     PositionModel,
     SimulatedAccountModel,
     SimulatedOrderReservationModel,
     SimulatedTradeModel,
 )
+from apps.simulated_trading.infrastructure.portfolio_risk_resource_repository import (
+    DjangoPortfolioRiskResourceRepository,
+)
+from apps.terminal.infrastructure.tui_adapters import TuiInternalActionExecutor
 from shared.infrastructure.async_runtime import run_sync_compatible
 from tests.component.equity.test_research_snapshot_tui_browser import (
     loopback_python_network_guard,
@@ -52,6 +114,9 @@ from tests.component.simulated_trading.test_auto_trading_current_reference_t1 im
 )
 from tests.component.simulated_trading.test_auto_trading_current_reference_t1 import (
     KNOWLEDGE_AT as KNOWLEDGE_AT,
+)
+from tests.component.simulated_trading.test_auto_trading_current_reference_t1 import (
+    SECURITY_ID as SECURITY_ID,
 )
 from tests.component.simulated_trading.test_auto_trading_current_reference_t1 import (
     _clear_runtime_profile_history as _clear_runtime_profile_history,
@@ -85,11 +150,15 @@ from tests.support import ash03_auto_calendar_fixture as auto_calendar_fixture
 from tests.support import ash03_auto_uow_fixture as auto_uow_fixture
 from tests.support.ash03_auto_calendar_clock_v2 import freeze_auto_uow_fixture_clocks_native
 from tests.support.native_postgres_database import assert_native_postgres_test_database
+from tests.unit.simulated_trading import test_portfolio_risk_service as synthetic_risk_fixtures
 
 SCREEN = "simulated-trading.order-entry"
+ACCOUNT_SCREEN = "execution.accounts"
 PREVIEW_ACTION_PATH = "/api/tui/actions/simulated-trading.order-preview/run/"
 CONFIRM_ACTION_PATH = "/api/tui/actions/simulated-trading.order-confirm/run/"
 READBACK_ACTION_PATH = "/api/tui/actions/simulated-trading.order-by-key/run/"
+PRESSURE_ACTION_PATH = "/api/tui/actions/simulated-trading.portfolio-pressure-run/run/"
+OPERATOR_GOVERNANCE_QUEUE_PATH = "/api/tui/operator/governance-queue/"
 
 pytestmark = pytest.mark.django_db(transaction=True)
 
@@ -157,6 +226,316 @@ def _aware_datetime(value: object) -> datetime:
     parsed = datetime.fromisoformat(normalized)
     assert parsed.tzinfo is not None and parsed.utcoffset() is not None
     return parsed
+
+
+class _TuiSyntheticRiskClock:
+    """Keep test Risk cutoffs on the same server clock as the owner order flow."""
+
+    def now(self) -> datetime:
+        """Return the server clock without substituting any source observation time."""
+
+        return django_timezone.now().astimezone(UTC)
+
+
+class _SyntheticScenarioMarketDataProvider(ScenarioMarketDataProviderProtocol):
+    """Inject explicit typed market facts while keeping Scenario calculation real."""
+
+    def __init__(self) -> None:
+        """Track exact typed provider calls for evidence and replay assertions."""
+
+        self.reads: list[tuple[str, tuple[str, ...], datetime]] = []
+
+    def get_market_data(
+        self,
+        revision: ScenarioRevision,
+        *,
+        asset_codes: tuple[str, ...],
+        as_of_time: datetime,
+    ) -> ScenarioMarketDataDTO:
+        """Return synthetic date-precision observations bound to the stored revision."""
+
+        parameters = revision.parameters
+        if not isinstance(parameters, HistoricalWindowParameters):
+            raise AssertionError("the selected migrated Scenario must be historical-window typed")
+        if not asset_codes or len(asset_codes) != len(set(asset_codes)):
+            raise AssertionError("the actual Scenario snapshot must contain unique assets")
+        self.reads.append((revision.revision_id, asset_codes, as_of_time))
+        first_date = parameters.start_date
+        second_date = min(parameters.end_date, first_date + timedelta(days=1))
+        dates = (first_date,) if first_date == second_date else (first_date, second_date)
+        returns = (Decimal("-0.20"), Decimal("-0.10"))
+        series = tuple(
+            AssetReturnSeries(
+                asset_code=asset_code,
+                points=tuple(
+                    HistoricalReturnPoint(observed_on=observed_on, value=returns[index])
+                    for index, observed_on in enumerate(dates)
+                ),
+            )
+            for asset_code in asset_codes
+        )
+        return ScenarioMarketDataDTO(
+            return_series=series,
+            evidence_ids=tuple(
+                f"synthetic-component-scenario-market:{revision.revision_id}:{asset_code}"
+                for asset_code in asset_codes
+            ),
+            observed_at=None,
+            published_at=as_of_time - timedelta(seconds=1),
+            must_not_use_for_decision=False,
+            blocked_reason="",
+            observed_on=dates[-1],
+            observation_precision=SourceObservationPrecision.DATE,
+        )
+
+
+class _RealScenarioUseCaseFactory(PortfolioPressureApplicationFactory):
+    """Build the real Scenario preview/persist use case around typed source facts."""
+
+    def __init__(
+        self,
+        *,
+        repository: DjangoScenarioRepository,
+        market_data_provider: ScenarioMarketDataProviderProtocol,
+    ) -> None:
+        """Reuse one actual ORM repository and an explicit synthetic market-data port."""
+
+        self._repository = repository
+        self._market_data_provider = market_data_provider
+
+    def build(
+        self,
+        *,
+        portfolio_provider: PortfolioSnapshotProviderProtocol,
+        projection_provider: PortfolioPressureProjectionProviderProtocol,
+        clock: ScenarioPressureClockProtocol,
+    ) -> RunPortfolioExitPressureUseCase:
+        """Build the production Scenario use case and ORM evidence repository."""
+
+        return RunPortfolioExitPressureUseCase(
+            preview=PreviewScenarioImpactUseCase(
+                scenario_repository=self._repository,
+                portfolio_provider=portfolio_provider,
+                market_data_provider=self._market_data_provider,
+            ),
+            run_evidence_repository=self._repository,
+            projection_provider=projection_provider,
+            clock=clock,
+        )
+
+
+class _TuiSyntheticRiskPolicyReader:
+    """Parse one explicit test policy at each exact application cutoff."""
+
+    def __init__(self, *, configuration: dict[str, object]) -> None:
+        """Keep the normalized test values stable while the real cutoff advances."""
+
+        self._configuration = configuration
+
+    def read_policy(
+        self,
+        *,
+        as_of: datetime,
+        business_date: date,
+        account_id: int,
+    ) -> synthetic_risk_fixtures.PortfolioRiskPolicyReadResult:
+        """Return actual typed runtime evidence aligned to this exact read clock."""
+
+        account_ids = self._configuration.get("account_ids")
+        if not isinstance(account_ids, list) or account_id not in account_ids:
+            raise AssertionError("synthetic runtime profile is not scoped to the owner account")
+        created_at = as_of - timedelta(minutes=3)
+        effective_at = as_of - timedelta(minutes=2)
+        generated_at = as_of - timedelta(minutes=1)
+        evidence = synthetic_risk_fixtures.ActiveRuntimeValueEvidence(
+            environment="test",
+            definition_key=synthetic_risk_fixtures.SIMULATED_PORTFOLIO_RISK_DEFINITION_KEY,
+            value=self._configuration,
+            profile_id="synthetic-risk-profile-tui",
+            profile_key="synthetic-risk-profile",
+            profile_version=12,
+            profile_content_hash="e" * 64,
+            snapshot_id="synthetic-risk-snapshot-tui",
+            snapshot_hash="f" * 64,
+            created_at=created_at,
+            known_at=created_at,
+            activated_at=effective_at,
+            snapshot_generated_at=generated_at,
+            effective_at=effective_at,
+            as_of=as_of,
+        )
+        policy = synthetic_risk_fixtures.parse_portfolio_risk_policy_bundle(
+            evidence,
+            business_date=business_date,
+            as_of=as_of,
+        )
+        return synthetic_risk_fixtures.PortfolioRiskPolicyReadResult(
+            policy=policy,
+            reason_codes=(),
+        )
+
+
+def _install_synthetic_risk_service(
+    *,
+    monkeypatch: pytest.MonkeyPatch,
+    account_id: int,
+    owner_id: int,
+    asset_code: str,
+    security_id: str,
+    scenario_market_data_provider: ScenarioMarketDataProviderProtocol | None = None,
+) -> OwnerScopedPortfolioRiskService:
+    """Bind synthetic Risk facts to the real owner service, ledger and audit.
+
+    Valuation, industry membership, capacity, session state, policy and calendar
+    are explicit synthetic test facts. They are not official source acceptance.
+    The order-market path remains the original captured or retained Sina source.
+    """
+
+    as_of = django_timezone.now().astimezone(UTC)
+    business_date = as_of.astimezone(ZoneInfo("Asia/Shanghai")).date()
+    for name, value in (
+        ("_AS_OF", as_of),
+        ("_BUSINESS_DATE", business_date),
+        ("_SESSION", business_date),
+        ("_ACCOUNT_ID", account_id),
+        ("_OWNER_ID", owner_id),
+        ("_ASSET_CODE", asset_code),
+        ("_SECURITY_ID", security_id),
+    ):
+        monkeypatch.setattr(synthetic_risk_fixtures, name, value)
+
+    configuration = synthetic_risk_fixtures._configuration()
+    clock = cast(PortfolioRiskClock, _TuiSyntheticRiskClock())
+    if scenario_market_data_provider is None:
+        pressure_factory = cast(
+            PortfolioPressureApplicationFactory,
+            synthetic_risk_fixtures._UnusedPressureFactory(),
+        )
+        pressure_repository = cast(ScenarioRunEvidenceReadWriteRepositoryProtocol, object())
+    else:
+        scenario_repository = DjangoScenarioRepository()
+        pressure_factory = _RealScenarioUseCaseFactory(
+            repository=scenario_repository,
+            market_data_provider=scenario_market_data_provider,
+        )
+        pressure_repository = scenario_repository
+    runtime = PortfolioRiskRuntime(
+        policy_reader=cast(
+            synthetic_risk_fixtures.PortfolioRiskPolicyReader,
+            _TuiSyntheticRiskPolicyReader(configuration=configuration),
+        ),
+        assets_reader=cast(
+            synthetic_risk_fixtures.PortfolioRiskAssetsReader,
+            synthetic_risk_fixtures._AssetsReader(),
+        ),
+        baseline_reader=cast(
+            synthetic_risk_fixtures.PortfolioBaselinePolicyReader,
+            synthetic_risk_fixtures._BaselineReader(synthetic_risk_fixtures._baseline_policy()),
+        ),
+        execution_evidence_writer=DjangoPortfolioRiskExecutionEvidenceWriter(using="default"),
+        pressure_factory=pressure_factory,
+        pressure_evidence_repository=pressure_repository,
+    )
+    calendar_reader = cast(
+        synthetic_risk_fixtures.PortfolioRiskCalendarReader,
+        synthetic_risk_fixtures._CalendarReader(),
+    )
+    pressure_runner: PortfolioRiskPressureRunner
+    if scenario_market_data_provider is None:
+        pressure_runner = cast(
+            PortfolioRiskPressureRunner,
+            synthetic_risk_fixtures._UnusedPressureRunner(),
+        )
+    else:
+        pressure_runner = PortfolioRiskPressureRunnerService(
+            runtime=runtime,
+            code_version="synthetic-ash07-tui-pressure-journey",
+            clock=clock,
+        )
+
+    def build_service(using: str) -> PortfolioRiskService:
+        """Use one actual ledger alias for resource reads and the evidence writer."""
+
+        if using != "default":
+            raise AssertionError("the browser fixture must use its isolated default database")
+        resources = DjangoPortfolioRiskResourceRepository(
+            using=using,
+            observer_grant_repository=build_observer_grant_repository(using=using),
+        )
+        return OwnerScopedPortfolioRiskService(
+            resources=resources,
+            runtime=runtime,
+            clock=clock,
+            business_timezone=ZoneInfo("Asia/Shanghai"),
+            code_version="synthetic-ash07-tui-journey",
+            using=using,
+            pressure_runner=pressure_runner,
+            calendar_reader=calendar_reader,
+        )
+
+    monkeypatch.setattr(portfolio_risk_public, "_service_factory", build_service)
+    return build_service("default")
+
+
+def _synthetic_risk_audits(*, account_id: int, owner_id: int) -> list[RiskPolicyAuditModel]:
+    """Read actual execution-audit rows belonging to this exact synthetic account."""
+
+    def read_rows() -> list[RiskPolicyAuditModel]:
+        rows = RiskPolicyAuditModel.objects.filter(
+            target_type=RiskPolicyAuditModel.TARGET_POLICY,
+            action="portfolio_preexecution",
+            actor_id=owner_id,
+        ).order_by("pk")
+        return [row for row in rows if row.after.get("account_id") == account_id]
+
+    return run_sync_compatible(read_rows)
+
+
+def _assert_synthetic_risk_audit(*, account_id: int, owner_id: int) -> None:
+    """Prove an actual allowed report retained independent synthetic source clocks."""
+
+    matches = _synthetic_risk_audits(account_id=account_id, owner_id=owner_id)
+    assert len(matches) == 1
+    report = matches[0].after.get("risk_result")
+    assert isinstance(report, dict)
+    assert report["account_id"] == account_id
+    assert report["outcome"] == "allowed"
+    assert report["scope"] == "simulation_only"
+    assert report["must_not_execute"] is True
+    assert report["must_not_use_for_decision"] is False
+    assert report["freshness"] == "qualified_snapshot"
+    assert report["reliability"] == "source_bound"
+    report_as_of = _aware_datetime(report.get("as_of"))
+    source_rows = report.get("sources")
+    assert isinstance(source_rows, list) and len(source_rows) == 4
+    for source in source_rows:
+        assert isinstance(source, dict)
+        assert type(source.get("source_id")) is str
+        assert source["source_id"].startswith("synthetic-source:")
+        assert source["observation_precision"] == "timestamp"
+        observed_at = _aware_datetime(source.get("observed_at"))
+        available_at = _aware_datetime(source.get("available_at"))
+        known_at = _aware_datetime(source.get("known_at"))
+        cutoff = _aware_datetime(source.get("cutoff"))
+        valid_until = _aware_datetime(source.get("valid_until"))
+        assert observed_at < available_at <= known_at <= cutoff == report_as_of < valid_until
+
+    retained_inputs = matches[0].after.get("input_snapshot")
+    assert isinstance(retained_inputs, dict)
+    risk_inputs_json = retained_inputs.get("risk_input_snapshot_json")
+    assert type(risk_inputs_json) is str
+    risk_inputs = json.loads(risk_inputs_json)
+    assert risk_inputs["as_of"] == report["as_of"]
+    assert risk_inputs["account_snapshot"]["account_id"] == account_id
+    proposal = risk_inputs["proposals"][0]
+    assert proposal["side"] == "sell"
+    assert type(proposal["fee_cap"]) is str
+    assert Decimal(proposal["fee_cap"]) >= 0
+    assert (
+        risk_inputs["runtime_policy"]["industry_policy"]["taxonomy_id"]
+        == "synthetic-industry-taxonomy"
+    )
+    assert "synthetic-only" in risk_inputs["calendar"]["canonical_evidence_json"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -372,6 +751,94 @@ def _retained_close_historical_clock(
     return _RetainedCloseReplay(capture=capture, index_path=index_path, clock=clock)
 
 
+@pytest.fixture
+def _synthetic_pressure_dashboard_calendar(
+    public_order_context: tuple[_QualifiedCallerContext, list[str]],
+    monkeypatch: pytest.MonkeyPatch,
+) -> Iterator[None]:
+    """Install a local provider transport for the dashboard's unrelated queue read.
+
+    The provider rows reuse the explicit weekday schedule already published by
+    the auto-caller fixture. They are synthetic UI-support data, not a claim
+    about statutory exchange sessions or production calendar authority.
+    """
+
+    from apps.data_center import provider_runtime
+    from apps.data_center.application.interface_services import (
+        save_provider_settings_payload,
+    )
+    from apps.data_center.application.market_calendar import (
+        load_cn_market_calendar_evidence,
+    )
+    from apps.data_center.infrastructure import _provider_adapter_akshare
+    from apps.data_center.infrastructure.models import ProviderConfigModel
+
+    fixture_context, _order_market_calls = public_order_context
+    local_today = AS_OF.astimezone(ZoneInfo(fixture_context.calendar.timezone_name)).date()
+    calendar_start = local_today - timedelta(days=45)
+    provider_start = calendar_start - timedelta(days=7)
+    provider_end = local_today + timedelta(days=7)
+    schedule = auto_calendar_fixture._calendar_rows(
+        fixture_context.calendar.exchange,
+        start=provider_start,
+        end=provider_end,
+    )
+    published_states = {
+        item.calendar_date: item.is_open for item in fixture_context.calendar.snapshot.days
+    }
+    for _exchange, encoded_date, is_open, _previous_open_date in schedule:
+        calendar_date = datetime.strptime(encoded_date, "%Y%m%d").date()
+        published_state = published_states.get(calendar_date)
+        if published_state is not None and bool(is_open) != published_state:
+            raise AssertionError("synthetic provider schedule differs from the published fixture")
+
+    class _SyntheticCalendarTransport:
+        """Return only the locally generated open dates required by the reader."""
+
+        def tool_trade_date_hist_sina(self) -> object:
+            """Expose an explicit synthetic AKShare-shaped calendar response."""
+
+            import pandas as pd
+
+            open_dates = [
+                datetime.strptime(encoded_date, "%Y%m%d").date().isoformat()
+                for _exchange, encoded_date, is_open, _previous_open_date in schedule
+                if is_open == 1
+            ]
+            return pd.DataFrame({"trade_date": open_dates})
+
+    transport = _SyntheticCalendarTransport()
+    with auto_calendar_fixture._runtime_public_write_clock():
+        settings_payload = save_provider_settings_payload(
+            default_source="akshare",
+            enable_failover=False,
+            failover_tolerance=0.01,
+            actor="pytest.ash07-pressure-calendar-fixture",
+        )
+    if settings_payload.get("status") != "active":
+        raise AssertionError("synthetic dashboard calendar provider settings are blocked")
+    ProviderConfigModel._default_manager.create(
+        name="ash07-pressure-browser-synthetic-calendar",
+        source_type="akshare",
+        is_active=True,
+        priority=1,
+        extra_config={},
+        description="explicit local synthetic calendar rows for the pressure TUI fixture",
+    )
+    monkeypatch.setattr(
+        _provider_adapter_akshare,
+        "get_akshare_module",
+        lambda: transport,
+    )
+    provider_runtime.reset_registry()
+    load_cn_market_calendar_evidence.cache_clear()
+    try:
+        yield
+    finally:
+        load_cn_market_calendar_evidence.cache_clear()
+        provider_runtime.reset_registry()
+
+
 def _configure_retained_historical_close_source(
     *,
     monkeypatch: pytest.MonkeyPatch,
@@ -549,7 +1016,7 @@ def test_ordinary_owner_previews_confirms_and_reads_original_order_in_tui(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Preview without business writes, confirm once, then recover by-key in TUI."""
+    """Use the fixture Sina quote and explicit synthetic Risk facts for the owner flow."""
 
     fixture_context, capture_calls = public_order_context
     # The qualified fixture pins this shared module used by terminal execution;
@@ -566,6 +1033,20 @@ def test_ordinary_owner_previews_confirms_and_reads_original_order_in_tui(
             "cash_known",
             "cash_reconciliation_status",
         ]
+    )
+    _install_synthetic_risk_service(
+        monkeypatch=monkeypatch,
+        account_id=cast(int, account.pk),
+        owner_id=fixture_context.owner_id,
+        asset_code=ASSET_CODE,
+        security_id=SECURITY_ID,
+    )
+    assert (
+        _synthetic_risk_audits(
+            account_id=cast(int, account.pk),
+            owner_id=fixture_context.owner_id,
+        )
+        == []
     )
     initial_state = _business_state(account, position)
     assert initial_state["reservation_count"] == 0
@@ -834,6 +1315,13 @@ def test_ordinary_owner_previews_confirms_and_reads_original_order_in_tui(
             assert preview.get("response", {}).get("status_code") == 200
             assert preview.get("view_model", {}).get("outcome") == "success"
             assert preview_simulated_dml == []
+            assert (
+                _synthetic_risk_audits(
+                    account_id=cast(int, account.pk),
+                    owner_id=fixture_context.owner_id,
+                )
+                == []
+            )
             assert _business_state(account, position) == initial_state
             assert capture_calls == [ASSET_CODE]
 
@@ -996,6 +1484,10 @@ def test_ordinary_owner_previews_confirms_and_reads_original_order_in_tui(
             assert readback_simulated_dml == []
             assert capture_calls == [ASSET_CODE]
             assert _business_state(account, position) == after_confirm
+            _assert_synthetic_risk_audit(
+                account_id=cast(int, account.pk),
+                owner_id=fixture_context.owner_id,
+            )
 
             readback_view = readback.get("view_model")
             assert isinstance(readback_view, dict)
@@ -1085,7 +1577,7 @@ def test_close_snapshot_owner_previews_confirms_and_reads_original_order_in_tui(
     monkeypatch: pytest.MonkeyPatch,
     preserve_account_authority_generation: None,
 ) -> None:
-    """Prove the current-clock close flow against an actual public Sina capture."""
+    """Keep the actual public Sina close capture; only the separate Risk inputs are synthetic."""
 
     owner_context = live_owner_context
     desktop = viewport[0] > 500
@@ -1134,7 +1626,7 @@ def test_retained_historical_close_snapshot_owner_previews_confirms_and_reads_or
     preserve_account_authority_generation: None,
     loopback_only_python_network: list[str],
 ) -> None:
-    """Prove the close UI with an unchanged R9/R10 capture under a local history clock."""
+    """Replay the unchanged retained Sina capture with separate synthetic Risk inputs."""
 
     replay = _retained_close_historical_clock
     if replay is None:
@@ -1177,6 +1669,699 @@ def test_retained_historical_close_snapshot_owner_previews_confirms_and_reads_or
     assert loopback_only_python_network == []
 
 
+def _seeded_legacy_pressure_revision_id() -> str:
+    """Reapply the existing idempotent migration seed in a reused component DB."""
+
+    migration = import_module("apps.risk_center.migrations.0004_seed_legacy_stress_scenarios")
+    seed_legacy_scenarios = getattr(migration, "seed_legacy_scenarios", None)
+    if not callable(seed_legacy_scenarios):
+        raise AssertionError("the existing legacy Scenario migration seed is unavailable")
+    seed_legacy_scenarios(apps, None)
+
+    def read_revision_id() -> str:
+        revision = StressScenarioRevisionModel._default_manager.get(
+            definition__scenario_key="historical.cn_equity.2015_crash",
+            version=1,
+            status="approved",
+        )
+        return str(revision.revision_id)
+
+    return run_sync_compatible(read_revision_id)
+
+
+def _scenario_run_evidence_count() -> int:
+    """Count only existing Scenario run evidence rows in the test database."""
+
+    return run_sync_compatible(lambda: ScenarioRunEvidenceModel._default_manager.count())
+
+
+def _capture_pressure_api_reports(
+    monkeypatch: pytest.MonkeyPatch,
+) -> list[dict[str, object]]:
+    """Capture real internal pressure API payloads without replacing their execution."""
+
+    captured: list[dict[str, object]] = []
+    original_execute = TuiInternalActionExecutor.execute
+
+    def execute_and_capture(
+        executor: TuiInternalActionExecutor,
+        *,
+        method: str,
+        endpoint: str,
+        params: dict[str, Any],
+        body: dict[str, Any],
+        user: Any,
+        session: Any | None = None,
+        idempotency_key: str | None = None,
+    ) -> dict[str, Any]:
+        result = original_execute(
+            executor,
+            method=method,
+            endpoint=endpoint,
+            params=params,
+            body=body,
+            user=user,
+            session=session,
+            idempotency_key=idempotency_key,
+        )
+        if method.upper() == "POST" and endpoint.rstrip("/").endswith(
+            "/portfolio-risk/pressure-run"
+        ):
+            payload = result.get("payload")
+            if isinstance(payload, dict):
+                captured.append(cast(dict[str, object], payload))
+        return result
+
+    monkeypatch.setattr(TuiInternalActionExecutor, "execute", execute_and_capture)
+    return captured
+
+
+def _scenario_run_evidence_diagnostic(run_id: str) -> dict[str, object]:
+    """Return safe identity and snapshot-presence metadata for one expected run."""
+
+    def read_summary() -> dict[str, object]:
+        manager = ScenarioRunEvidenceModel._default_manager.db_manager("default")
+        row = (
+            manager.filter(run_id=run_id)
+            .values(
+                "run_id",
+                "scenario_revision_id",
+                "result_hash",
+            )
+            .first()
+        )
+        return {
+            "total_rows": manager.count(),
+            "matching_row": row,
+            "matching_snapshots_complete": manager.filter(
+                run_id=run_id,
+                input_snapshot_json__isnull=False,
+                result_snapshot_json__isnull=False,
+            ).exists(),
+        }
+
+    return run_sync_compatible(read_summary)
+
+
+def _pressure_api_report_diagnostic(payload: dict[str, object]) -> dict[str, object]:
+    """Select non-sensitive report identity and pressure status for failure output."""
+
+    checks = payload.get("checks")
+    pressure_check = (
+        next(
+            (
+                item
+                for item in checks
+                if isinstance(item, dict) and item.get("dimension") == "exit_pressure"
+            ),
+            None,
+        )
+        if isinstance(checks, list)
+        else None
+    )
+    details = pressure_check.get("details") if pressure_check is not None else None
+    details = details if isinstance(details, dict) else {}
+    return {
+        "account_id": payload.get("account_id"),
+        "as_of": payload.get("as_of"),
+        "outcome": payload.get("outcome"),
+        "scope": payload.get("scope"),
+        "must_not_execute": payload.get("must_not_execute"),
+        "pressure_status": pressure_check.get("status") if pressure_check else None,
+        "pressure_reason_codes": pressure_check.get("reason_codes") if pressure_check else None,
+        "pressure_summary": pressure_check.get("summary") if pressure_check else None,
+        "run_evidence_id": details.get("run_evidence_id"),
+        "run_evidence_persisted": details.get("run_evidence_persisted"),
+    }
+
+
+def _read_scenario_run_evidence(run_id: str) -> ScenarioRunEvidence | None:
+    """Read the exact persisted record through the real Risk Center repository."""
+
+    return run_sync_compatible(lambda: DjangoScenarioRepository().get_run_evidence(run_id))
+
+
+def test_owner_tui_runs_real_portfolio_pressure_and_replays_saved_evidence(
+    public_order_context: tuple[_QualifiedCallerContext, list[str]],
+    _synthetic_pressure_dashboard_calendar: None,
+    live_server: Any,
+    subprocess_policy: None,
+    loopback_only_python_network: list[str],
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Run the real owner TUI/API/service/Scenario/ORM flow with typed synthetic source ports."""
+
+    del _synthetic_pressure_dashboard_calendar
+    fixture_context, _order_market_calls = public_order_context
+    assert django_timezone.now() == AS_OF
+    account = fixture_context.account
+    account_id = cast(int, account.pk)
+    position = _persist_sell_position(account)
+    account.current_market_value = position.market_value
+    account.total_value = account.current_cash + position.market_value
+    account.save(
+        update_fields=[
+            "current_market_value",
+            "total_value",
+            "cash_known",
+            "cash_reconciliation_status",
+        ]
+    )
+    revision_id = _seeded_legacy_pressure_revision_id()
+    synthetic_market_data = _SyntheticScenarioMarketDataProvider()
+    _install_synthetic_risk_service(
+        monkeypatch=monkeypatch,
+        account_id=account_id,
+        owner_id=fixture_context.owner_id,
+        asset_code=ASSET_CODE,
+        security_id=SECURITY_ID,
+        scenario_market_data_provider=synthetic_market_data,
+    )
+    pressure_api_reports = _capture_pressure_api_reports(monkeypatch)
+
+    client, csrf_token = _owner_session_client(fixture_context.owner_id)
+    session_cookie = client.cookies[settings.SESSION_COOKIE_NAME].value
+    csrf_cookie = client.cookies[settings.CSRF_COOKIE_NAME].value
+    assert csrf_cookie == csrf_token
+    options_url = reverse(
+        "api_simulated_trading:portfolio-pressure-scenarios",
+        kwargs={"account_id": account_id},
+    )
+    report_url = reverse(
+        "api_simulated_trading:portfolio-risk-report",
+        kwargs={"account_id": account_id},
+    )
+    pressure_url = reverse(
+        "api_simulated_trading:portfolio-pressure-run",
+        kwargs={"account_id": account_id},
+    )
+    evidence_count_before = _scenario_run_evidence_count()
+    initial_state = _business_state(account, position)
+
+    options_response = client.get(options_url, secure=True, HTTP_ORIGIN="https://testserver")
+    assert options_response.status_code == 200, options_response.content
+    assert options_response["Content-Type"].startswith("application/json")
+    options_payload = options_response.json()
+    assert options_payload["account_id"] == account_id
+    assert options_payload["scope"] == "simulation_only"
+    assert options_payload["read_only"] is True
+    selected_option = next(
+        option for option in options_payload["options"] if option["value"] == revision_id
+    )
+    assert selected_option["label"] == "2015股灾 · v1"
+
+    screen_metadata_response = client.get("/api/tui/screens/execution.accounts/")
+    assert screen_metadata_response.status_code == 200, screen_metadata_response.content
+    assert screen_metadata_response["Content-Type"].startswith("application/json")
+    screen_metadata = screen_metadata_response.json()
+    assert screen_metadata["screen"]["key"] == ACCOUNT_SCREEN
+    pressure_action_metadata = next(
+        action
+        for action in screen_metadata["actions"]
+        if action["key"] == "simulated-trading.portfolio-pressure-run"
+    )
+    pressure_ui_key = pressure_action_metadata["ui_key"]
+    assert type(pressure_ui_key) is str and pressure_ui_key.startswith("task-")
+    assert len(pressure_ui_key) == 15 and all(
+        character in "0123456789abcdef" for character in pressure_ui_key[5:]
+    )
+    pressure_fields = pressure_action_metadata["fields"]
+    account_field_metadata = next(
+        field for field in pressure_fields if field["key"] == "account_id"
+    )
+    scenario_field_metadata = next(
+        field for field in pressure_fields if field["key"] == "scenario_version_id"
+    )
+    assert account_field_metadata["binding"] == "path"
+    assert account_field_metadata["required"] is True
+    assert scenario_field_metadata["options_lookup"] == "approved_portfolio_pressure_scenarios"
+    assert _scenario_run_evidence_count() == evidence_count_before
+
+    report_response = client.get(report_url, secure=True, HTTP_ORIGIN="https://testserver")
+    assert report_response.status_code == 200, report_response.content
+    assert report_response["Content-Type"].startswith("application/json")
+    base_report = report_response.json()
+    assert base_report["account_id"] == account_id
+    assert base_report["scope"] == "simulation_only"
+    assert base_report["must_not_execute"] is True
+    assert base_report["checks"]
+    assert all(item["dimension"] != "exit_pressure" for item in base_report["checks"])
+    assert _scenario_run_evidence_count() == evidence_count_before
+
+    action_requests: list[dict[str, object]] = []
+    scenario_catalogue_requests: list[tuple[int, str]] = []
+    browser_network_events: list[dict[str, object]] = []
+    page_errors: list[str] = []
+    browser_errors: list[dict[str, str]] = []
+    nonlocal_browser_attempts: list[str] = []
+
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch(headless=True)
+        browser_context = browser.new_context(viewport={"width": 1440, "height": 1000})
+        browser_context.add_cookies(
+            [
+                {
+                    "name": settings.SESSION_COOKIE_NAME,
+                    "value": session_cookie,
+                    "url": live_server.url,
+                },
+                {
+                    "name": settings.CSRF_COOKIE_NAME,
+                    "value": csrf_cookie,
+                    "url": live_server.url,
+                },
+            ]
+        )
+
+        def local_only(route: Route) -> None:
+            """Keep this ordinary-owner browser journey on the local TUI origin."""
+
+            target = urlsplit(route.request.url)
+            expected = urlsplit(live_server.url)
+            if target.scheme not in {"http", "https"} or target.netloc != expected.netloc:
+                nonlocal_browser_attempts.append(route.request.url)
+                route.abort("blockedbyclient")
+                return
+            route.continue_()
+
+        browser_context.route("**/*", local_only)
+        page = browser_context.new_page()
+
+        def record_request(browser_request: Any) -> None:
+            """Retain actual TUI action identity and the account-scoped catalog requests."""
+
+            path = urlsplit(browser_request.url).path
+            browser_network_events.append(
+                {
+                    "event": "request",
+                    "method": browser_request.method,
+                    "path": path,
+                }
+            )
+            if path == PRESSURE_ACTION_PATH:
+                action_requests.append(
+                    {
+                        "method": browser_request.method,
+                        "idempotency_key": browser_request.headers.get("idempotency-key", ""),
+                        "body": browser_request.post_data_json,
+                    }
+                )
+            elif path.startswith(
+                f"/api/simulated-trading/accounts/{account_id}/portfolio-risk/scenarios/"
+            ):
+                scenario_catalogue_requests.append(
+                    (
+                        account_id,
+                        browser_request.method,
+                    )
+                )
+
+        def record_response(browser_response: Any) -> None:
+            """Retain response metadata and the known blocked queue body for assertions."""
+
+            browser_request = browser_response.request
+            response_path = urlsplit(browser_response.url).path
+            response_event: dict[str, object] = {
+                "event": "response",
+                "method": browser_request.method,
+                "path": response_path,
+                "status": browser_response.status,
+            }
+            if response_path == OPERATOR_GOVERNANCE_QUEUE_PATH and browser_response.status >= 400:
+                response_payload = browser_response.json()
+                (tmp_path / "governance-queue-error.json").write_text(
+                    json.dumps(
+                        {"status": browser_response.status, "payload": response_payload},
+                        ensure_ascii=False,
+                        indent=2,
+                    ),
+                    encoding="utf-8",
+                )
+                response_event["payload"] = response_payload
+            browser_network_events.append(response_event)
+
+        def record_console_error(message: Any) -> None:
+            """Retain browser error text and the exact resource URL reported by Chromium."""
+
+            if message.type != "error":
+                return
+            location = message.location
+            location_url = location.get("url") if isinstance(location, dict) else None
+            browser_errors.append(
+                {"text": str(message.text), "location_url": str(location_url or "")}
+            )
+
+        page.on("request", record_request)
+        page.on("response", record_response)
+        page.on("pageerror", lambda error: page_errors.append(str(error)))
+        page.on("console", record_console_error)
+
+        def write_pressure_form_diagnostic() -> None:
+            """Save real metadata, rendered forms, modal, page and network state on failure."""
+
+            browser_state = page.evaluate("""() => {
+                    const visible = (element) => {
+                        if (!element || element.hidden) return false;
+                        const style = window.getComputedStyle(element);
+                        return style.display !== "none"
+                            && style.visibility !== "hidden"
+                            && element.getClientRects().length > 0;
+                    };
+                    const formState = (form) => ({
+                        ui_key: form.getAttribute("data-action-ui-key"),
+                        hidden: Boolean(form.hidden),
+                        visible: visible(form),
+                        class_name: String(form.className || ""),
+                        controls: Array.from(form.querySelectorAll("input,select,textarea"))
+                            .map((control) => ({
+                                key: String(control.name || control.id || ""),
+                                type: String(control.type || control.tagName || ""),
+                                disabled: Boolean(control.disabled),
+                                hidden: Boolean(control.hidden),
+                                options_lookup_status: String(
+                                    control.dataset.optionsLookupStatus || ""
+                                ),
+                                options_lookup_account_id: String(
+                                    control.dataset.optionsLookupAccountId || ""
+                                ),
+                                option_count: control.tagName === "SELECT"
+                                    ? control.options.length : null,
+                            })),
+                    });
+                    const actions = document.querySelector("[data-actions-panel]");
+                    const modal = document.querySelector("[data-tui-modal]");
+                    return {
+                        title: document.title,
+                        screen_title: document.querySelector("[data-screen-title]")?.textContent || "",
+                        screen_status: document.querySelector("[data-screen-status]")?.textContent || "",
+                        workbench_status: document.querySelector("[data-workbench-status]")?.textContent || "",
+                        body_text: String(document.body.innerText || "").slice(0, 12000),
+                        actions_panel: {
+                            present: Boolean(actions),
+                            host_hidden: Boolean(actions?.hidden),
+                            shell_hidden: Boolean(actions?.closest(".tui-actions-panel")?.hidden),
+                            visible: visible(actions),
+                            text: String(actions?.innerText || "").slice(0, 8000),
+                            forms: Array.from(actions?.querySelectorAll(
+                                "form[data-action-ui-key]"
+                            ) || []).map(formState),
+                        },
+                        forms: Array.from(document.querySelectorAll(
+                            "form[data-action-ui-key]"
+                        )).map(formState),
+                        row_actions: Array.from(document.querySelectorAll(
+                            "[data-dashboard-row-action]"
+                        )).map((button) => ({
+                            key: String(button.dataset.rowActionKey || ""),
+                            label: String(button.getAttribute("aria-label") || ""),
+                            visible: visible(button),
+                            disabled: Boolean(button.disabled),
+                        })),
+                        modal: {
+                            present: Boolean(modal),
+                            hidden: Boolean(modal?.hidden),
+                            visible: visible(modal),
+                            text: String(modal?.innerText || "").slice(0, 4000),
+                        },
+                    };
+                }""")
+            diagnostic = {
+                "screen_metadata": {
+                    "screen_key": screen_metadata["screen"]["key"],
+                    "chrome_mode": screen_metadata["screen"].get("chrome_mode"),
+                    "pressure_action": {
+                        "key": pressure_action_metadata["key"],
+                        "ui_key": pressure_action_metadata["ui_key"],
+                        "fields": pressure_action_metadata["fields"],
+                    },
+                },
+                "browser_state": browser_state,
+                "page_errors": page_errors,
+                "console_errors": browser_errors,
+                "network_events": browser_network_events,
+            }
+            (tmp_path / "pressure-form-not-found.json").write_text(
+                json.dumps(diagnostic, ensure_ascii=False, indent=2) + "\n",
+                encoding="utf-8",
+            )
+            page.screenshot(
+                path=str(tmp_path / "pressure-form-not-found.png"),
+                full_page=True,
+            )
+
+        try:
+            page.goto(
+                f"{live_server.url}/tui/?screen={ACCOUNT_SCREEN}",
+                wait_until="networkidle",
+            )
+            account_panel = page.locator('[data-dashboard-panel="simulated-accounts"]')
+            expect(account_panel).to_be_visible()
+            account_row = account_panel.locator("tbody tr").filter(has_text=account.account_name)
+            expect(account_row).to_have_count(1)
+            expect(account_row).to_contain_text(str(account_id))
+            account_row.locator('summary[aria-label="更多行操作"]').click()
+            pressure_action = account_row.locator(
+                "[data-dashboard-row-action]"
+                f'[aria-label="对 {account.account_name} 运行模拟退出压力核对"]'
+            )
+            expect(pressure_action).to_be_visible()
+            pressure_action.click()
+
+            form = page.locator(f'form[data-action-ui-key="{pressure_ui_key}"]:visible')
+            try:
+                expect(form).to_be_visible()
+            except AssertionError:
+                write_pressure_form_diagnostic()
+                raise
+            scenario_field = form.locator('[name="scenario_version_id"]')
+            scenario_option = scenario_field.locator(f'option[value="{revision_id}"]')
+            expect(scenario_option).to_have_count(1)
+            expect(scenario_option).to_have_text("2015股灾 · v1")
+            assert scenario_field.input_value() == ""
+            scenario_field.select_option(revision_id)
+
+            with page.expect_response(
+                lambda response: urlsplit(response.url).path == PRESSURE_ACTION_PATH
+            ) as confirmation_response:
+                form.locator(".tui-action-submit").click()
+            confirmation_http = confirmation_response.value
+            assert confirmation_http.status == 200
+            confirmation_payload = confirmation_http.json()
+            assert confirmation_payload["confirmation_required"] is True
+            assert _scenario_run_evidence_count() == evidence_count_before
+            page.locator("[data-confirm-action]").wait_for(state="visible")
+
+            with page.expect_response(
+                lambda response: urlsplit(response.url).path == PRESSURE_ACTION_PATH
+            ) as pressure_response:
+                page.locator("[data-confirm-action]").click()
+            pressure_http = pressure_response.value
+            assert pressure_http.status == 200
+            pressure_payload = pressure_http.json()
+            assert pressure_payload["confirmation_required"] is False
+            assert pressure_payload["response"]["status_code"] == 200
+            assert pressure_payload["outcome"] == "success"
+            view_model = pressure_payload["view_model"]
+            assert view_model["kind"] == "detail"
+            assert view_model["scope"] == "simulation_only"
+            assert view_model["must_not_execute"] is True
+            assert view_model["fields"]
+            rendered_checks = next(
+                field["value"] for field in view_model["fields"] if field["key"] == "checks"
+            )
+            assert "退出压力" in rendered_checks
+            assert "已审批压力情景" not in str(view_model)
+            expect(
+                page.locator('[data-dashboard-panel="simulated-account-workspace"]')
+            ).to_contain_text("已审批情景下的模拟退出容量覆盖当前持仓")
+            assert revision_id not in page.locator("body").inner_text()
+
+            assert len(action_requests) == 2
+            final_request = action_requests[-1]
+            assert final_request["method"] == "POST"
+            idempotency_key = final_request["idempotency_key"]
+            assert type(idempotency_key) is str and idempotency_key
+            request_body = final_request["body"]
+            assert isinstance(request_body, dict)
+            request_params = request_body.get("params")
+            assert isinstance(request_params, dict)
+            assert str(request_params.get("account_id")) == str(account_id)
+            assert request_params.get("scenario_version_id") == revision_id
+            assert scenario_catalogue_requests
+            assert all(item == (account_id, "GET") for item in scenario_catalogue_requests)
+            run_id = portfolio_pressure_run_id(
+                actor_user_id=fixture_context.owner_id,
+                account_id=account_id,
+                idempotency_key=idempotency_key,
+            )
+            assert (
+                len(pressure_api_reports) == 1
+            ), "the real internal pressure API response was not captured"
+            report_diagnostic = _pressure_api_report_diagnostic(pressure_api_reports[-1])
+            evidence_diagnostic = _scenario_run_evidence_diagnostic(run_id)
+            assert report_diagnostic["run_evidence_persisted"] is True, (
+                f"pressure response did not claim persisted evidence: {report_diagnostic}; "
+                f"ORM evidence metadata: {evidence_diagnostic}"
+            )
+            assert report_diagnostic["run_evidence_id"] == run_id, (
+                f"pressure response run id differs from the submitted key: {report_diagnostic}; "
+                f"ORM evidence metadata: {evidence_diagnostic}"
+            )
+            assert _scenario_run_evidence_count() == evidence_count_before + 1, (
+                f"Scenario evidence count did not increase; pressure response: "
+                f"{report_diagnostic}; ORM evidence metadata: {evidence_diagnostic}"
+            )
+        finally:
+            browser_context.close()
+            browser.close()
+
+    evidence = _read_scenario_run_evidence(run_id)
+    assert evidence is not None
+    assert evidence.run_id == run_id
+    assert evidence.scenario_revision_id == revision_id
+    assert evidence.as_of_time == AS_OF
+    assert evidence.result_hash
+    assert evidence.input_snapshot_json is not None
+    assert evidence.result_snapshot_json is not None
+    input_snapshot = json.loads(evidence.input_snapshot_json)
+    result_snapshot = json.loads(evidence.result_snapshot_json)
+    assert input_snapshot["schema"] == "simulated-account-pressure-input.v1"
+    assert input_snapshot["command"] == {
+        "actor_user_id": fixture_context.owner_id,
+        "account_id": account_id,
+        "scenario_version_id": revision_id,
+        "idempotency_key": idempotency_key,
+        "confirmed": True,
+    }
+    assert input_snapshot["request"]["scenario_revision_id"] == revision_id
+    assert input_snapshot["account_projection"]["account_snapshot"]["account_id"] == account_id
+    assert input_snapshot["account_projection"]["portfolio_snapshot_id"] == (
+        evidence.portfolio_snapshot_id
+    )
+    assert input_snapshot["original_report_json"] == (
+        input_snapshot["account_projection"]["original_report_json"]
+    )
+    base_report_snapshot = json.loads(input_snapshot["original_report_json"])
+    assert base_report_snapshot["checks"]
+    assert all(item["dimension"] != "exit_pressure" for item in base_report_snapshot["checks"])
+    assert base_report_snapshot["policy_version"] == "synthetic-risk-profile@12"
+    baseline_check = next(
+        item for item in base_report_snapshot["checks"] if item["dimension"] == "baseline_risk"
+    )
+    baseline_source_sha256 = baseline_check["details"]["baseline_source_sha256"]
+    assert type(baseline_source_sha256) is str and len(baseline_source_sha256) == 64
+    assert evidence.allocation_policy_version.startswith("portfolio-risk-binding:")
+    assert evidence.allocation_policy_version != base_report_snapshot["policy_version"]
+    assert input_snapshot["request"]["allocation_policy_version"] == (
+        evidence.allocation_policy_version
+    )
+    assert input_snapshot["account_projection"]["allocation_policy_version"] == (
+        evidence.allocation_policy_version
+    )
+    scenario_context = input_snapshot["scenario_context"]
+    assert scenario_context["revision"]["revision_id"] == revision_id
+    market_data = scenario_context["market_data"]
+    assert market_data["evidence_ids"] == [
+        f"synthetic-component-scenario-market:{revision_id}:{ASSET_CODE}"
+    ]
+    assert market_data["observation_precision"] == "date"
+    assert market_data["observed_at"] is None
+    assert market_data["observed_on"] < evidence.as_of_time.date().isoformat()
+    assert result_snapshot["schema"] == "simulated-account-pressure-result.v1"
+    assert result_snapshot["scenario_revision"]["revision_id"] == revision_id
+    assert result_snapshot["scenario_impact"]["result_hash"]
+    assert result_snapshot["assessment"]["result_hash"]
+    report_template = report_payload_from_object(result_snapshot["public_report_template"])
+    assert report_template is not None
+    pressure_check = next(
+        item for item in report_template["checks"] if item["dimension"] == "exit_pressure"
+    )
+    assert pressure_check["details"]["run_evidence_id"] == run_id
+    assert pressure_check["details"]["run_evidence_persisted"] is True
+    assert pressure_check["details"]["must_not_execute"] is True
+    assert pressure_check["details"]["execution_permitted"] is False
+    assert len(synthetic_market_data.reads) == 1
+    assert _business_state(account, position) == initial_state
+
+    replay_at = evidence.as_of_time + timedelta(seconds=10)
+    monkeypatch.setattr(django_timezone, "now", lambda: replay_at)
+    replay_response = client.post(
+        pressure_url,
+        {"scenario_version_id": revision_id, "confirmed": True},
+        format="json",
+        secure=True,
+        HTTP_IDEMPOTENCY_KEY=cast(str, idempotency_key),
+        HTTP_X_CSRFTOKEN=csrf_token,
+        HTTP_ORIGIN="https://testserver",
+    )
+    assert replay_response.status_code == 200, replay_response.content
+    assert replay_response["Content-Type"].startswith("application/json")
+    expected_original_report = bind_portfolio_pressure_evidence_hash(
+        report_template,
+        evidence.result_hash,
+    )
+    assert replay_response.json() == expected_original_report
+    assert replay_response.json()["as_of"] == evidence.as_of_time.isoformat()
+    assert replay_at > evidence.as_of_time
+    assert len(synthetic_market_data.reads) == 1
+    assert _scenario_run_evidence_count() == evidence_count_before + 1
+    assert _business_state(account, position) == initial_state
+
+    read_only_options = client.get(options_url, secure=True, HTTP_ORIGIN="https://testserver")
+    read_only_report = client.get(report_url, secure=True, HTTP_ORIGIN="https://testserver")
+    assert read_only_options.status_code == 200
+    assert read_only_options["Content-Type"].startswith("application/json")
+    assert read_only_report.status_code == 200
+    assert read_only_report["Content-Type"].startswith("application/json")
+    assert _scenario_run_evidence_count() == evidence_count_before + 1
+    assert _read_scenario_run_evidence(run_id) == evidence
+    assert _business_state(account, position) == initial_state
+    governance_queue_responses = [
+        event
+        for event in browser_network_events
+        if event.get("event") == "response"
+        and event.get("method") == "GET"
+        and event.get("path") == OPERATOR_GOVERNANCE_QUEUE_PATH
+    ]
+    expected_governance_queue_error = {
+        "error": "Production coverage universe config is not initialized",
+        "code": "MISSING_CONFIG",
+        "success": False,
+        "must_not_use_for_decision": True,
+        "blocked_reason": "governance_queue_unavailable",
+    }
+    assert governance_queue_responses
+    assert all(event.get("status") == 503 for event in governance_queue_responses)
+    assert all(
+        event.get("payload") == expected_governance_queue_error
+        for event in governance_queue_responses
+    )
+    failed_http_responses: list[dict[str, object]] = []
+    for event in browser_network_events:
+        status = event.get("status")
+        if event.get("event") == "response" and isinstance(status, int) and status >= 400:
+            failed_http_responses.append(event)
+    assert failed_http_responses == governance_queue_responses
+    expected_queue_origin = urlsplit(live_server.url)
+    expected_queue_console_errors = [
+        error
+        for error in browser_errors
+        if (
+            urlsplit(error["location_url"]).scheme == expected_queue_origin.scheme
+            and urlsplit(error["location_url"]).netloc == expected_queue_origin.netloc
+            and urlsplit(error["location_url"]).path == OPERATOR_GOVERNANCE_QUEUE_PATH
+            and "503" in error["text"]
+        )
+    ]
+    assert browser_errors == expected_queue_console_errors
+    # Chromium may coalesce repeated HTTP diagnostics; each emitted error is scoped above.
+    assert len(expected_queue_console_errors) <= len(governance_queue_responses)
+    assert page_errors == []
+    assert nonlocal_browser_attempts == []
+    assert loopback_only_python_network == []
+
+
 @pytest.fixture
 def _native_close_snapshot_browser_database(django_db_use_migrations: bool) -> None:
     """Limit live close-source browser acceptance to an isolated Native PG database."""
@@ -1201,7 +2386,7 @@ def _run_close_snapshot_owner_browser_journey(
     browser_clock_origin: datetime | None,
     simulation_clock_metadata: dict[str, object],
 ) -> None:
-    """Run one authenticated TUI preview, explicit confirm, and original readback."""
+    """Run owner preview, confirm, and readback with synthetic Risk facts and the original market source."""
 
     preflight_quote = evidence.preflight_capture.quote
     assert preflight_quote is not None and preflight_quote.last_price is not None
@@ -1220,6 +2405,21 @@ def _run_close_snapshot_owner_browser_journey(
     account.current_market_value = position.market_value
     account.total_value = account.current_cash + position.market_value
     account.save(update_fields=("current_market_value", "total_value"))
+
+    _install_synthetic_risk_service(
+        monkeypatch=monkeypatch,
+        account_id=cast(int, account.pk),
+        owner_id=owner_context.owner_id,
+        asset_code=live_close_helpers.ASSET_CODE,
+        security_id=live_close_helpers.SECURITY_ID,
+    )
+    assert (
+        _synthetic_risk_audits(
+            account_id=cast(int, account.pk),
+            owner_id=owner_context.owner_id,
+        )
+        == []
+    )
 
     initial_state = _business_state(account, position)
     assert initial_state["reservation_count"] == 0
@@ -1489,6 +2689,13 @@ def _run_close_snapshot_owner_browser_journey(
             assert preview.get("response", {}).get("status_code") == 200
             assert preview.get("view_model", {}).get("outcome") == "success"
             assert preview_simulated_dml == []
+            assert (
+                _synthetic_risk_audits(
+                    account_id=cast(int, account.pk),
+                    owner_id=owner_context.owner_id,
+                )
+                == []
+            )
             assert _business_state(account, position) == initial_state
             assert len(evidence.routed_captures) == 1
 
@@ -1680,6 +2887,10 @@ def _run_close_snapshot_owner_browser_journey(
             assert readback_simulated_dml == []
             assert len(evidence.routed_captures) == 1
             assert _business_state(account, position) == after_confirm
+            _assert_synthetic_risk_audit(
+                account_id=cast(int, account.pk),
+                owner_id=owner_context.owner_id,
+            )
 
             readback_view = readback.get("view_model")
             assert isinstance(readback_view, dict)

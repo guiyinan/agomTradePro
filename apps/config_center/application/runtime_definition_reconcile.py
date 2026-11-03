@@ -14,6 +14,19 @@ from apps.config_center.domain.runtime_config import (
 
 DEFAULT_RUNTIME_DEFINITIONS: tuple[RuntimeConfigDefinition, ...] = (
     RuntimeConfigDefinition(
+        key="risk_center.simulated_portfolio_risk",
+        namespace="risk_center",
+        owner_app="risk_center",
+        value_type=RuntimeValueType.TYPED_JSON,
+        criticality=RuntimeConfigCriticality.CRITICAL,
+        reload_mode=RuntimeConfigReloadMode.IMMEDIATE,
+        description=(
+            "Versioned simulation-only sector, ETF, capacity and exit-pressure policy "
+            "with immutable retained-source references. No implicit financial defaults."
+        ),
+        user_impact="Missing or unqualified risk inputs cannot authorize simulated orders.",
+    ),
+    RuntimeConfigDefinition(
         key="data_center.provider.failover_tolerance",
         namespace="data_center",
         owner_app="data_center",

@@ -169,10 +169,12 @@
             advancedToggle.textContent = state.showAdvancedQueries || !hasPrimary ? "隐藏高级" : "显示高级";
         }
     }
+
     function bindRenderedActionForms(root = els.actions) {
         root.querySelectorAll("[data-action-ui-key]").forEach((form) => {
             if (form.dataset.submitBound) return;
             form.dataset.submitBound = 'true';
+            bindPressureScenarioForm(form);
             form.addEventListener("input", (event) => handleOrderOperationScopeChange(form, event));
             form.addEventListener("change", (event) => {
                 handleFeeScopeChange(form, event);
@@ -459,22 +461,6 @@
             }
         }
         return undefined;
-    }
-
-    function formFieldElement(form, fieldKey) {
-        if (!form || !form.elements) {
-            return null;
-        }
-        const byName = typeof form.elements.namedItem === "function"
-            ? form.elements.namedItem(fieldKey)
-            : null;
-        if (byName) {
-            if (typeof byName.length === "number" && !byName.tagName) {
-                return byName[0] || null;
-            }
-            return byName;
-        }
-        return form.querySelector(`[name="${CSS.escape(fieldKey)}"]`);
     }
 
     function revealActionFormInPanel(action, screenSpec = state.screen) {
@@ -881,6 +867,8 @@
             setStatus("任务未找到");
             return;
         }
+        const pressureScenarioSelection = await preparePressureScenarioAction(action, form);
+        if (pressureScenarioSelection === false) return;
         resultContinuations.preserveDispatchedTargetRequests(
             String(state.screen?.screen?.key || ""),
         );
@@ -944,6 +932,17 @@
                 return;
             }
             let params = options.params ? { ...options.params } : (form ? await collectParams(form, action) : {});
+            if (pressureScenarioSelection) {
+                const current = pressureScenarioLookupContext(form);
+                if (
+                    current.accountId !== pressureScenarioSelection.accountId
+                    || String(params.account_id ?? "") !== pressureScenarioSelection.accountId
+                    || String(params.scenario_version_id ?? "") !== pressureScenarioSelection.revisionId
+                ) {
+                    setStatus("账户或已选情景已变化，请重新选择后继续。");
+                    return;
+                }
+            }
             if (sourceDescriptor.status === "readback_pending") {
                 showUnknownContinuation(action, sourceDescriptor.targetActionKey);
                 return;
@@ -1202,7 +1201,7 @@
                 restoreDashboardActionPanel(options);
                 const confirmationOptions = { ...options };
                 delete confirmationOptions.continuationRetry;
-                showActionConfirmation(result, actualActionKey, params, confirmationOptions);
+                showActionConfirmation(result, actualActionKey, params, confirmationOptions, pressureScenarioSelection ? form : null);
                 updateRawDrawer();
                 setStatus("等待确认");
                 return;

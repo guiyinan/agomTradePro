@@ -12,6 +12,9 @@ from apps.risk_center.execution_settlement_composition import (
 from apps.risk_center.m1_rebalance_risk_policy_composition import (
     build_m1_risk_policy_application,
 )
+from apps.simulated_trading.application.portfolio_risk_preview_gate import (
+    ConfiguredPortfolioRiskPreviewGate,
+)
 from apps.simulated_trading.application.rebalance_plan_preview import (
     ReadOnlyRebalancePlanPreviewBuilder,
 )
@@ -67,6 +70,7 @@ def build_readonly_rebalance_plan_preview_builder(
         quantity_rule_reader=build_execution_settlement_v3_rule_reader(),
         resource_snapshot_reader=DjangoRebalanceResourceSnapshotRepository(using=DEFAULT_DB_ALIAS),
         position_rule_evaluator=strategy_gateway,
+        portfolio_risk_gate=ConfiguredPortfolioRiskPreviewGate(),
         risk_policy_qualifier=risk_policy_application.qualify,
         risk_policy_account_source_reader=DjangoM1RiskPolicyAccountSourceReader(
             using=DEFAULT_DB_ALIAS,

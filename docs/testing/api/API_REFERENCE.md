@@ -603,6 +603,54 @@ Content-Type: application/json
 
 ---
 
+### 9.4 模拟账户组合风险报告与退出压力情景
+
+以下接口使用 `/api/simulated-trading` 路由。三者都要求已登录会话（DRF `SessionAuthentication`）；两个 GET 要求目标模拟账户读取权限，压力 POST 要求该账户 Owner 权限。跨账户或无权访问返回 `403`。API Token 认证不满足这里的会话要求；SDK 的 `username/password` 模式会通过站点登录建立 Django 会话并附带 CSRF，可使用现有通用请求方法。当前 SDK 没有组合风险专用方法，MCP 服务器使用 API Token 且没有对应 capability。
+
+| 端点 | 方法 | 描述 |
+|---|---|---|
+| `/api/simulated-trading/accounts/{account_id}/portfolio-risk/` | GET | 只读读取账户组合风险报告；不接受查询参数 |
+| `/api/simulated-trading/accounts/{account_id}/portfolio-risk/scenarios/` | GET | 只读读取当前可选的已审批压力情景及其版本值；不接受查询参数 |
+| `/api/simulated-trading/accounts/{account_id}/portfolio-risk/pressure-run/` | POST | 由账户 Owner 明确确认后运行一次模拟退出压力核对 |
+
+两个 GET 接口只读取数据。空情景目录返回空列表，不会选用默认情景。压力运行只能通过专用 `/pressure-run/` 子资源提交。它只接受 `application/json`，请求体必须且只能包含 `scenario_version_id` 与字面值 `confirmed: true`，并要求 `Idempotency-Key`（1–192 个字符且不含空白）。由于使用浏览器会话，POST 还受 CSRF 校验。运行会记录压力核对结果，不提交订单、不释放预留、不更改现金或持仓；同一键绑定不同输入返回 `409`。
+
+| 运行结果字段 | 含义 |
+|---|---|
+| `outcome` | `allowed`、`blocked`、`partial` 或 `unknown` 描述风险检查结果；HTTP `200` 不等同于交易许可 |
+| `freshness` | `qualified_snapshot` 表示来源/规则通过本次报告配置的有效期核验；`expired` 表示有效期已过；`unknown` 表示无法确认 |
+| `reliability` | `source_bound` 表示来源已绑定；`partial` 表示证据覆盖不完整；`unknown` 表示来源可靠性无法确认 |
+| `must_not_use_for_decision` | `true` 时不得据此作决策。单个来源的限制也会原样保留，不能由客户端忽略 |
+| `scope` / `must_not_execute` | 固定为 `simulation_only` / `true`；压力结果没有下单或实盘执行权限 |
+
+`unknown`、`expired` 或 `partial` 不是零值或完整覆盖。来源禁止标记、用途限制或覆盖不足都必须继续显示为限制；不能因为 `outcome` 是 `allowed` 就把这些字段解释成交易许可。报告可以给出来源时点、用途和覆盖说明；普通界面不应展示内部证据哈希。
+
+| 状态码 | 边界 |
+|---|---|
+| `200` | 报告或情景目录读取成功，或压力核对完成；仍需按业务结果字段解释 |
+| `400` | 参数、确认、JSON 类型或幂等标识无效 |
+| `403` | 未登录、账户超出读取范围，或非 Owner 请求运行压力核对 |
+| `409` | 幂等键已绑定到不同压力输入 |
+| `503` | 一致性读取或风险评估暂不可用；不会回退为通过 |
+| `405` | 对只读报告/情景目录提交 POST，或对压力运行路由提交 GET 等不支持的方法 |
+
+SDK 会话调用示例（`scenario_version_id` 应取自情景目录的 `value`；账户 Owner 必须先明确确认）：
+
+```python
+from agomtradepro import AgomTradeProClient
+
+client = AgomTradeProClient(username=owner_username, password=owner_password)
+report = client.get("api/simulated-trading/accounts/42/portfolio-risk/")
+options = client.get("api/simulated-trading/accounts/42/portfolio-risk/scenarios/")
+result = client.post(
+    "api/simulated-trading/accounts/42/portfolio-risk/pressure-run/",
+    json={"scenario_version_id": options["options"][0]["value"], "confirmed": True},
+    idempotency_key=stable_run_key,
+)
+```
+
+当前 SDK 没有组合风险专用方法，MCP 没有对应 capability；SDK 的 `risk_center` 情景管理与此处按账户运行退出压力核对是不同用途。OpenAPI 应由 Root 在正式整合时生成并核对 `schema.yml`、`docs/testing/api/openapi.yaml` 与 `docs/testing/api/openapi.json`。
+
 ## 10. 审计分析 (Audit)
 
 ### 10.1 审计 API

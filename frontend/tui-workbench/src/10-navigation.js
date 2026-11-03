@@ -227,21 +227,28 @@
             return `<input id="${escapeHtml(id)}" name="${escapeHtml(field.key)}" type="hidden" value="${escapeHtml(value)}">`;
         }
         if (field.input_type === "select") {
+            const lookupKey = String(field.options_lookup || "");
+            const usesPressureScenarioLookup = lookupKey === "approved_portfolio_pressure_scenarios";
             const options = field.options || [];
             const hasEmptyOption = options.some((option) => (typeof option === "string" ? option : option.value) === "");
             const emptyOption = !field.required && value === "" && !hasEmptyOption
                 ? '<option value=""></option>'
                 : "";
+            const lookupPlaceholder = usesPressureScenarioLookup
+                ? '<option value="">先选择模拟账户以读取已审批情景</option>'
+                : "";
             return `
                 <label class="tui-field" for="${escapeHtml(id)}">
                     <span>${escapeHtml(field.label)}</span>
-                    <select id="${escapeHtml(id)}" name="${escapeHtml(field.key)}" ${required}>
-                        ${emptyOption}${options.map((option) => {
+                    <select id="${escapeHtml(id)}" name="${escapeHtml(field.key)}" ${required} ${usesPressureScenarioLookup ? `disabled data-options-lookup="${escapeHtml(lookupKey)}"` : ""}>
+                        ${lookupPlaceholder}${emptyOption}${options.map((option) => {
                             const optionValue = typeof option === "string" ? option : option.value;
                             const optionLabel = typeof option === "string" ? option : option.label;
                             return `<option value="${escapeHtml(optionValue)}" ${String(optionValue) === String(value) ? "selected" : ""}>${escapeHtml(optionLabel)}</option>`;
                         }).join("")}
                     </select>
+                    ${usesPressureScenarioLookup ? `<small class="tui-field-help" data-options-lookup-status="${escapeHtml(field.key)}" role="status">先选择模拟账户，再选择情景名称和业务版本。</small>` : ""}
+                    ${usesPressureScenarioLookup ? `<button class="tui-field-lookup-retry" type="button" data-options-lookup-retry="${escapeHtml(field.key)}" hidden>重新读取已审批情景</button>` : ""}
                 </label>
             `;
         }

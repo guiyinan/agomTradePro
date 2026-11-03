@@ -841,6 +841,10 @@ get_account_performance(account_id, start_date, end_date)
 
 ### Simulated Trading Inspection Tools
 
+当前列出的 MCP capability 不包含账户级组合风险报告、已审批压力情景目录或退出压力运行。这些服务端路由只接受登录 Django 会话，压力运行还要求 CSRF 和账户 Owner 的明确确认；当前 Token MCP 客户端不能调用，不能通过通用工具绕过这一边界。Python SDK 的 `username/password` 会话模式可以使用其现有通用 HTTP 方法，但这不是 MCP capability。已有 `risk_center.*` 情景管理能力用于读取或管理 Risk Center 情景版本，并不替代账户级压力核对。
+
+组合风险报告中的 `unknown` 表示所需信息无法确认，`expired` 表示核对时点已超出来源或规则有效期，`partial` 表示覆盖不完整；不可把这些结果补成零或完整值。来源禁止、用途限制或 `must_not_use_for_decision: true` 都应作为阻断信息保留。压力情景目录只读；若将来通过受支持的 Owner 浏览器流程运行压力核对，必须先明确确认，结果固定为 `simulation_only` 且 `must_not_execute: true`。
+
 ```
 list_simulated_accounts(status, limit)
 get_simulated_account(account_id)

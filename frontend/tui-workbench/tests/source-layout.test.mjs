@@ -12,6 +12,8 @@ const sourceNames = [
     "12-experience.js",
     "15-workspace-state.js",
     "20-dashboard.js",
+    "21-dashboard-row-actions.js",
+    "29-pressure-scenario-lookup.js",
     "30-actions.js",
     "31-form-inputs.js",
     "32-continuation-ui.js",

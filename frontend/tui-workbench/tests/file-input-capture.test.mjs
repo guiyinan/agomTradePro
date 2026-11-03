@@ -8,6 +8,24 @@ import test from "node:test";
 const sourceRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../src");
 const captureSource = readFileSync(resolve(sourceRoot, "31-form-inputs.js"), "utf8");
 
+function cssEscape(value) {
+    const identifier = String(value);
+    if (!/^[_a-zA-Z][-_a-zA-Z0-9]*$/.test(identifier)) {
+        throw new Error("test fixture field keys must be CSS-safe identifiers");
+    }
+    return identifier;
+}
+
+function mockForm(elements) {
+    return {
+        elements,
+        querySelector(selector) {
+            const match = /^\[name="([^"]+)"\]$/.exec(selector);
+            return match ? elements[match[1]] || null : null;
+        },
+    };
+}
+
 function createRuntime() {
     class MockFileReader {
         listeners = new Map();
@@ -25,10 +43,10 @@ function createRuntime() {
     }
 
     const context = {
+        CSS: { escape: cssEscape },
         FileReader: MockFileReader,
         TextDecoder,
         maxTextFileBytes: 2_097_152,
-        formFieldElement: (form, fieldKey) => form.elements[fieldKey] || null,
         coerceFieldValue: (_field, value) => String(value ?? ""),
     };
     vm.createContext(context);
@@ -70,12 +88,10 @@ test("opt-in file capture preserves BOM, CRLF, UTF-8 and the exact Unicode filen
     const original = "\uFEFF委托编号,费用\r\n001,0.80\r\n";
     const payload = new TextEncoder().encode(original);
     const params = await runtime.collectParams(
-        {
-            elements: {
-                csv_text: { files: [file("费用原件.csv", payload)] },
-                original_filename: { value: "spoofed.csv" },
-            },
-        },
+        mockForm({
+            csv_text: { files: [file("费用原件.csv", payload)] },
+            original_filename: { value: "spoofed.csv" },
+        }),
         { fields: filenameFields },
     );
 
@@ -113,12 +129,10 @@ test("opt-in capture checks actual bytes, refuses empty files, and does not subm
     );
 
     const params = await runtime.collectParams(
-        {
-            elements: {
-                csv_text: { files: [] },
-                original_filename: { value: "stale.csv" },
-            },
-        },
+        mockForm({
+            csv_text: { files: [] },
+            original_filename: { value: "stale.csv" },
+        }),
         { fields: filenameFields },
     );
     assert.equal(Object.hasOwn(params, "csv_text"), false);
@@ -146,7 +160,7 @@ test("opt-in file capture rejects malformed filename bindings before reading", a
     ];
     await assert.rejects(
         runtime.collectParams(
-            { elements: { csv_text: { files: [file("x.csv", new TextEncoder().encode("x"))] } } },
+            mockForm({ csv_text: { files: [file("x.csv", new TextEncoder().encode("x"))] } }),
             { fields: spoofable },
         ),
         /文件名字段/,

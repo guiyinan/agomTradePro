@@ -4,10 +4,12 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from decimal import Decimal
+from importlib import import_module
 
 import pytest
 from django.core.exceptions import ValidationError
-from django.db import IntegrityError, transaction
+from django.db import IntegrityError, connection, transaction
+from django.db.migrations.executor import MigrationExecutor
 
 from apps.risk_center.application.scenario_dtos import (
     ActivateScenarioSetCommandDTO,
@@ -30,8 +32,31 @@ from apps.risk_center.infrastructure.scenario_repositories import DjangoScenario
 NOW = datetime(2026, 8, 5, 8, 0, tzinfo=UTC)
 
 
+@pytest.fixture
+def canonical_legacy_scenario_seed(db: None) -> None:
+    """Restore the real idempotent 0004 seed inside this test's rollback transaction.
+
+    The ASH07 runner reuses its PostgreSQL test database. Earlier transaction-style
+    suites can flush migrated rows while leaving the migration ledger applied, so
+    these migration-data contracts must reapply the canonical seed locally.
+    """
+
+    del db
+    migration_apps = (
+        MigrationExecutor(connection)
+        .loader.project_state([("risk_center", "0004_seed_legacy_stress_scenarios")])
+        .apps
+    )
+    seed_migration = import_module("apps.risk_center.migrations.0004_seed_legacy_stress_scenarios")
+    with connection.schema_editor() as schema_editor:
+        seed_migration.seed_legacy_scenarios(migration_apps, schema_editor)
+
+
 @pytest.mark.django_db
-def test_seeded_legacy_alias_resolves_to_a_valid_immutable_revision() -> None:
+def test_seeded_legacy_alias_resolves_to_a_valid_immutable_revision(
+    canonical_legacy_scenario_seed: None,
+) -> None:
+    del canonical_legacy_scenario_seed
     repository = DjangoScenarioRepository()
 
     revision = repository.get_revision("2015_crash")
@@ -109,7 +134,10 @@ def test_repository_allocates_next_version_and_rejects_stale_base() -> None:
 
 
 @pytest.mark.django_db
-def test_activation_is_single_scope_and_optimistically_locked() -> None:
+def test_activation_is_single_scope_and_optimistically_locked(
+    canonical_legacy_scenario_seed: None,
+) -> None:
+    del canonical_legacy_scenario_seed
     repository = DjangoScenarioRepository()
     scenario_revision = repository.get_revision("2020_covid")
     assert scenario_revision is not None
@@ -171,9 +199,14 @@ def test_activation_is_single_scope_and_optimistically_locked() -> None:
 
 
 @pytest.mark.django_db
-def test_database_rejects_duplicate_definition_version() -> None:
-    seeded = StressScenarioRevisionModel._default_manager.select_related("definition").first()
-    assert seeded is not None
+def test_database_rejects_duplicate_definition_version(
+    canonical_legacy_scenario_seed: None,
+) -> None:
+    del canonical_legacy_scenario_seed
+    seeded = StressScenarioRevisionModel._default_manager.select_related("definition").get(
+        definition__scenario_key="historical.cn_equity.2015_crash",
+        version=1,
+    )
     with pytest.raises(IntegrityError):
         with transaction.atomic():
             StressScenarioRevisionModel._default_manager.bulk_create(

@@ -68,11 +68,20 @@ class DjangoPerformanceAccountRepository:
 class DjangoObserverGrantRepository:
     """ObserverGrantRepositoryProtocol 实现。"""
 
+    def __init__(self, *, using: str = DEFAULT_DB_ALIAS) -> None:
+        """Bind existing observer authorization reads to one database alias."""
+
+        if type(using) is not str or not using or using.strip() != using:
+            raise ValueError("using must be a nonempty database alias")
+        self._using = using
+
     def has_valid_grant(self, owner_user_id: int, observer_user_id: int) -> bool:
+        """Return whether an active owner-issued observer grant is currently valid."""
+
         PortfolioObserverGrantModel = get_portfolio_observer_grant_model()
 
         try:
-            grant = PortfolioObserverGrantModel._default_manager.get(
+            grant = PortfolioObserverGrantModel._default_manager.using(self._using).get(
                 owner_user_id=owner_user_id,
                 observer_user_id=observer_user_id,
                 status="active",

@@ -11101,7 +11101,10 @@
         ],
         "apps/simulated_trading/application/execution_settlement_uow.py": [
           "SettlementExecutionPlanV3(",
-          "_validate_identity_reader_result("
+          "_validate_identity_reader_result(",
+          "def _validate_reservation_plan_bundle_binding(",
+          "_validate_plan_bundle_binding(plan, bundle, as_of)",
+          "code=\"ORDER_RESERVATION_PLAN_STALE\""
         ],
         "apps/simulated_trading/infrastructure/execution_settlement_plan_binding_repository.py": [
           "if version == 3:",
@@ -11143,11 +11146,12 @@
           "def find_idempotent_reservation(",
           "def reserve_order(",
           "with transaction.atomic(using=self._using):",
-          "_validate_plan_bundle_binding(",
+          "_validate_reservation_plan_bundle_binding(",
           "fee_policy.validate_at(now)",
           "current_session = plan.calendar_evidence.current_open_session(now)",
           "source_snapshot_at=now",
-          "def cancel_order("
+          "def cancel_order(",
+          "reservation_locked=True"
         ],
         "apps/simulated_trading/infrastructure/order_reservation_codec.py": [
           "def decode_order_reservation(",
@@ -11159,7 +11163,8 @@
         ],
         "apps/simulated_trading/execution_settlement_composition.py": [
           "def build_reserve_simulated_order_use_case(",
-          "DjangoSimulatedOrderReservationRepository(using=using)",
+          "DjangoSimulatedOrderReservationRepository(",
+          "portfolio_risk_guard=ConfiguredPortfolioRiskLockedOrderGuard(using=using)",
           "def build_cancel_simulated_order_reservation_use_case("
         ],
         "apps/simulated_trading/domain/execution_instrument_classification.py": [
@@ -13471,6 +13476,79 @@
         }
       ],
       "notes": "Opt-in live-source tests require actual qualified after-close source clocks, Native PostgreSQL and no frozen decision clock; skipped cases are not positive acceptance. Raw original bytes/hash and actual local response completion are retained. Usage TTL is measured from local availability and never relabels source age as fresh. Original intraday V1/V2 session/TTL gates remain independent. Partial fills in the owner acceptance are declared synthetic events passed through the ordinary local fill writer. Default policy is absent/empty and grants no permission; enabling close purpose never enables accounts or starts strategy/BUY legs."
+    },
+    {
+      "id": "simulated_trading.owner_portfolio_risk_report",
+      "surface": "Owner/read-scoped simulated portfolio risk report and explicitly confirmed pressure assessment; simulation_only and must_not_execute, with no order or account-ledger effects",
+      "source_files": [
+        "apps/risk_center/application/portfolio_risk_contracts.py",
+        "apps/simulated_trading/application/portfolio_risk_service.py",
+        "apps/simulated_trading/interface/portfolio_risk_views.py",
+        "apps/simulated_trading/interface/api_urls.py"
+      ],
+      "required_markers": {
+        "apps/risk_center/application/portfolio_risk_contracts.py": [
+          "PortfolioRiskReportPayload",
+          "freshness: Literal[\"qualified_snapshot\", \"expired\", \"unknown\"]",
+          "reliability: Literal[\"source_bound\", \"partial\", \"unknown\"]",
+          "must_not_use_for_decision: bool",
+          "scope: Literal[\"simulation_only\"]",
+          "must_not_execute: Literal[True]"
+        ],
+        "apps/simulated_trading/application/portfolio_risk_service.py": [
+          "def get_report(",
+          "def run_pressure("
+        ],
+        "apps/simulated_trading/interface/portfolio_risk_views.py": [
+          "authentication_classes = (SessionAuthentication,)",
+          "http_method_names = (\"get\", \"options\")",
+          "http_method_names = (\"post\", \"options\")",
+          "if body.get(\"confirmed\") is not True:"
+        ],
+        "apps/simulated_trading/interface/api_urls.py": [
+          "accounts/<int:account_id>/portfolio-risk/",
+          "accounts/<int:account_id>/portfolio-risk/scenarios/",
+          "accounts/<int:account_id>/portfolio-risk/pressure-run/"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "unknown_report_is_not_execution_permission",
+          "test_file": "tests/unit/simulated_trading/interface/test_portfolio_risk_views.py",
+          "test_function": "test_get_returns_unknown_business_report_as_json_without_running_pressure"
+        },
+        {
+          "case": "pressure_requires_literal_confirmation",
+          "test_file": "tests/unit/simulated_trading/interface/test_portfolio_risk_views.py",
+          "test_function": "test_post_requires_literal_confirmation_before_calling_application"
+        },
+        {
+          "case": "pressure_and_catalog_methods_are_narrow",
+          "test_file": "tests/unit/simulated_trading/interface/test_portfolio_risk_views.py",
+          "test_function": "test_portfolio_risk_root_route_rejects_post"
+        },
+        {
+          "case": "pressure_run_route_rejects_read_method",
+          "test_file": "tests/unit/simulated_trading/interface/test_portfolio_risk_views.py",
+          "test_function": "test_pressure_run_route_rejects_get"
+        },
+        {
+          "case": "approved_scenario_catalog_is_read_only",
+          "test_file": "tests/unit/simulated_trading/interface/test_portfolio_risk_views.py",
+          "test_function": "test_pressure_options_route_rejects_post"
+        },
+        {
+          "case": "source_veto_stays_non_executable",
+          "test_file": "tests/unit/simulated_trading/interface/test_portfolio_risk_views.py",
+          "test_function": "test_source_qualified_veto_report_remains_non_executable"
+        },
+        {
+          "case": "owner_and_observer_reads_do_not_write",
+          "test_file": "tests/unit/simulated_trading/test_portfolio_risk_service.py",
+          "test_function": "test_observer_can_read_but_cannot_write_or_create_execution_evidence"
+        }
+      ],
+      "notes": "GET reports and the approved Scenario catalog are read-only. Pressure execution is available only through the explicit pressure-run POST, requires literal confirmation under SessionAuthentication/CSRF, and records only the simulation assessment; its report always has scope=simulation_only and must_not_execute=true. unknown, expired, partial, or source-prohibition evidence remains visible and cannot be converted into a passing or executable result. HTTP 200 reports a business outcome and is not itself permission to trade."
     }
   ]
 }

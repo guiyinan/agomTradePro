@@ -54,6 +54,7 @@ def _validate_field(action: dict[str, Any], field: dict[str, Any]) -> None:
         raise TuiMetadataValidationError(
             f"Select field must define options: {action['key']}.{field_key}"
         )
+    _validate_options_lookup(action=action, field=field)
     if field.get("aliases") is not None and not _is_string_list(field.get("aliases")):
         raise TuiMetadataValidationError(
             f"Action field aliases must be a string list: {action['key']}.{field_key}"
@@ -87,6 +88,40 @@ def _validate_field(action: dict[str, Any], field: dict[str, Any]) -> None:
     ):
         raise TuiMetadataValidationError(
             f"Sensitive/copyable field must use string value_type: {action['key']}.{field_key}"
+        )
+
+
+def _validate_options_lookup(action: dict[str, Any], field: dict[str, Any]) -> None:
+    """Allow only the account-scoped approved pressure Scenario selector lookup."""
+
+    lookup = field.get("options_lookup")
+    if lookup is None:
+        return
+    if lookup != "approved_portfolio_pressure_scenarios":
+        raise TuiMetadataValidationError(
+            f"Action field has unsupported options_lookup: {action['key']}.{field['key']}"
+        )
+    if (
+        action.get("key") != "simulated-trading.portfolio-pressure-run"
+        or action.get("method") != "POST"
+        or action.get("endpoint")
+        != "/api/simulated-trading/accounts/<int:account_id>/portfolio-risk/pressure-run/"
+        or action.get("risk") != "write"
+        or action.get("confirmation_required") is not True
+        or action.get("audit_required") is not True
+        or action.get("session_auth_required") is not True
+        or field.get("key") != "scenario_version_id"
+        or field.get("input_type") != "select"
+        or field.get("value_type") != "string"
+        or field.get("presentation_semantic") != "primary_selector"
+        or field.get("binding") != "body"
+        or field.get("required") is not True
+        or field.get("default", "") not in (None, "")
+        or field.get("options") != []
+    ):
+        raise TuiMetadataValidationError(
+            f"Action field has an invalid approved pressure Scenario lookup contract: "
+            f"{action['key']}.{field['key']}"
         )
 
 
@@ -189,3 +224,32 @@ def _default_field_presentation_semantic(field_key: str) -> str:
     } or normalized.endswith("_prompt"):
         return "prompt_text"
     return "identifier"
+
+
+def _validate_options_lookup_scope(*, action: dict[str, Any], fields: list[dict[str, Any]]) -> None:
+    """Bind the pressure Scenario catalog lookup to its required account path field."""
+
+    lookup_fields = [field for field in fields if field.get("options_lookup") is not None]
+    if not lookup_fields:
+        return
+    if len(lookup_fields) != 1:
+        raise TuiMetadataValidationError(
+            f"Action can declare only one options lookup: {action['key']}"
+        )
+    account_fields = [field for field in fields if field.get("key") == "account_id"]
+    if len(account_fields) != 1:
+        raise TuiMetadataValidationError(
+            f"Approved pressure Scenario lookup requires one account_id field: {action['key']}"
+        )
+    account_field = account_fields[0]
+    if (
+        account_field.get("binding") != "path"
+        or account_field.get("input_type") != "number"
+        or account_field.get("value_type") != "integer"
+        or account_field.get("required") is not True
+        or account_field.get("min") != 1
+    ):
+        raise TuiMetadataValidationError(
+            f"Approved pressure Scenario lookup requires a positive account path selector: "
+            f"{action['key']}"
+        )

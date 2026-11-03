@@ -2784,6 +2784,224 @@ test("production shell exposes screen address and restores it after Escape", asy
     }
 });
 
+test("approved pressure Scenario selector loads account choices and submits only the selected revision value", async () => {
+    const pressureAction = action("simulated-trading.portfolio-pressure-run", {
+        label: "明确运行模拟退出压力核对",
+        method: "POST",
+        risk: "write",
+        effect: "execute",
+        task_tier: "support",
+        confirmation_required: true,
+        sequence: 10,
+        fields: [
+            {
+                key: "account_id",
+                label: "模拟账户",
+                binding: "path",
+                input_type: "select",
+                value_type: "integer",
+                required: true,
+                presentation_semantic: "primary_selector",
+                options: [
+                    { value: "42", label: "账户 42" },
+                    { value: "43", label: "账户 43" },
+                    { value: "44", label: "账户 44" },
+                ],
+            },
+            {
+                key: "scenario_version_id",
+                label: "已审批压力情景",
+                binding: "body",
+                input_type: "select",
+                value_type: "string",
+                required: true,
+                presentation_semantic: "primary_selector",
+                options: [],
+                options_lookup: "approved_portfolio_pressure_scenarios",
+            },
+        ],
+    });
+    pressureAction.endpoint = "/api/simulated-trading/accounts/<int:account_id>/portfolio-risk/pressure-run/";
+    pressureAction.audit_required = true;
+    pressureAction.session_auth_required = true;
+    const pressureScreen = {
+        ...screen,
+        actions: [pressureAction],
+        screen: {
+            ...screen.screen,
+            label: "模拟账户",
+            summary: "读取账户压力情景。",
+            default_action_key: pressureAction.key,
+        },
+    };
+    const actionRequests = [];
+    let runCount = 0;
+    const { browser, page, requestLog, browserErrors } = await openHarness(
+        "https://app.test/?screen=test.grid",
+        {
+            screen: pressureScreen,
+            waitForInitialRows: false,
+            actionRunMock: ({ actionKey }) => {
+                if (actionKey !== pressureAction.key) return null;
+                runCount += 1;
+                return runCount === 1
+                    ? {
+                        action: pressureAction,
+                        confirmation_required: true,
+                        confirmation: { title: "确认操作", message: "确认运行已选择的模拟压力核对。" },
+                        view_model: { kind: "message", title: "等待确认", status: "等待" },
+                    }
+                    : {
+                        action: pressureAction,
+                        view_model: { kind: "detail", title: "完成", status: "已保存核对证据" },
+                    };
+            },
+        },
+    );
+    try {
+        const accountCatalogRequests = [];
+        await page.route("**/portfolio-risk/scenarios/", async (route) => {
+            const path = new URL(route.request().url()).pathname;
+            const accountId = Number(path.match(/accounts\/(\d+)\//)?.[1] || 0);
+            accountCatalogRequests.push(accountId);
+            if (accountId === 42) await delay(100);
+            const options = accountId === 42
+                ? [{ value: "revision-from-account-42", label: "旧账户情景 · v1" }]
+                : accountId === 43
+                    ? [{ value: "approved-revision-43", label: "流动性压力 · v4" }]
+                    : [];
+            await route.fulfill({
+                status: 200,
+                contentType: "application/json",
+                body: JSON.stringify({
+                    account_id: accountId,
+                    options,
+                    scope: "simulation_only",
+                    read_only: true,
+                }),
+            });
+        });
+        page.on("request", (request) => {
+            if (request.url().includes("/actions/simulated-trading.portfolio-pressure-run/run/")) {
+                actionRequests.push(request.postDataJSON());
+            }
+        });
+
+        const form = page.locator('form[data-action-ui-key="simulated-trading.portfolio-pressure-run"]');
+        const accountField = form.locator('[name="account_id"]');
+        const scenarioField = form.locator('[name="scenario_version_id"]');
+        await accountField.selectOption("44");
+        await page.waitForFunction(() => document.querySelector(
+            'form[data-action-ui-key="simulated-trading.portfolio-pressure-run"] [name="scenario_version_id"]',
+        )?.dataset.optionsLookupStatus === "empty");
+        assert.equal(await scenarioField.isDisabled(), true);
+        assert.match(
+            await form.locator('[data-options-lookup-status="scenario_version_id"]').innerText(),
+            /联系负责人完成配置与审批后重试/,
+        );
+        assert.equal(await scenarioField.inputValue(), "");
+        await form.locator(".tui-action-submit").click();
+        await page.waitForFunction(() => document.querySelector("[data-workbench-status]")?.textContent
+            === "请读取并选择一个当前可用的已审批压力情景后继续。");
+        assert.equal(actionRequests.length, 0);
+        assert.deepEqual(accountCatalogRequests, [44]);
+
+        await accountField.selectOption("42");
+        await accountField.selectOption("43");
+        await page.waitForFunction(() => {
+            const selector = document.querySelector(
+                'form[data-action-ui-key="simulated-trading.portfolio-pressure-run"] [name="scenario_version_id"]',
+            );
+            return selector?.querySelector('option[value="approved-revision-43"]')?.textContent
+                === "流动性压力 · v4";
+        });
+        await delay(150);
+
+        assert.deepEqual(accountCatalogRequests.slice(0, 3), [44, 42, 43]);
+        assert.equal(await scenarioField.inputValue(), "");
+        assert.equal(await scenarioField.locator('option[value="revision-from-account-42"]').count(), 0);
+        assert.equal(await page.locator("body").innerText().then((text) => text.includes("approved-revision-43")), false);
+        assert.equal(
+            await page.locator("body").innerText().then((text) => text.includes("/portfolio-risk/scenarios/")),
+            false,
+        );
+
+        await scenarioField.selectOption("approved-revision-43");
+        await form.locator(".tui-action-submit").click();
+        try {
+            await page.locator("[data-confirm-action]").waitFor();
+        } catch (error) {
+            const failureState = await page.evaluate(() => {
+                const formElement = document.querySelector(
+                    'form[data-action-ui-key="simulated-trading.portfolio-pressure-run"]',
+                );
+                const account = formElement?.querySelector('[name="account_id"]');
+                const scenario = formElement?.querySelector('[name="scenario_version_id"]');
+                const grid = document.querySelector(".tui-workspace-grid");
+                const actions = document.querySelector(".tui-actions-panel");
+                return {
+                    screenTitle: document.querySelector("[data-screen-title]")?.textContent || "",
+                    workbenchStatus: document.querySelector("[data-workbench-status]")?.textContent || "",
+                    formConnected: Boolean(formElement?.isConnected),
+                    formHidden: formElement?.hidden ?? null,
+                    account: {
+                        value: account?.value ?? null,
+                        disabled: account?.disabled ?? null,
+                    },
+                    scenario: {
+                        value: scenario?.value ?? null,
+                        disabled: scenario?.disabled ?? null,
+                        lookupStatus: scenario?.dataset.optionsLookupStatus || "",
+                        lookupAccountId: scenario?.dataset.optionsLookupAccountId || "",
+                        generation: scenario?.dataset.optionsLookupGeneration || "",
+                        options: scenario
+                            ? Array.from(scenario.options).map((option) => ({ value: option.value, label: option.textContent || "" }))
+                            : [],
+                    },
+                    confirmationCount: document.querySelectorAll("[data-confirm-action]").length,
+                    modalHidden: document.querySelector("[data-tui-modal]")?.hidden ?? null,
+                    gridClass: grid?.className || "",
+                    gridTemplateAreas: grid ? window.getComputedStyle(grid).gridTemplateAreas : "",
+                    actionsDisplay: actions ? window.getComputedStyle(actions).display : "",
+                    actionsVisible: Boolean(
+                        actions && actions.getBoundingClientRect().width > 0
+                        && actions.getBoundingClientRect().height > 0,
+                    ),
+                };
+            });
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            const pressureRequests = requestLog.filter((line) => (
+                line.includes("portfolio-risk/scenarios")
+                || line.includes("portfolio-pressure-run")
+                || line.includes("/api/tui/screens/test.grid/")
+            ));
+            throw new Error(
+                `${errorMessage}\nPressure selector state: ${JSON.stringify(failureState)}`
+                + `\nScenario catalogue account IDs: ${JSON.stringify(accountCatalogRequests)}`
+                + `\nPressure action requests: ${JSON.stringify(actionRequests)}`
+                + `\nRelevant requests: ${JSON.stringify(pressureRequests)}`
+                + `\nBrowser errors: ${JSON.stringify(browserErrors)}`,
+            );
+        }
+        await page.locator("[data-confirm-action]").click();
+        await page.waitForFunction(() => document.querySelector("[data-workbench-status]")?.textContent === "操作完成");
+
+        assert.equal(actionRequests.length, 2);
+        assert.ok(actionRequests.every((request) => (
+            request.params.scenario_version_id === "approved-revision-43"
+            && String(request.params.account_id) === "43"
+        )));
+        assert.deepEqual(accountCatalogRequests, [44, 42, 43, 43, 43]);
+        assert.equal(await page.locator("body").innerText().then((text) => text.includes("approved-revision-43")), false);
+        assert.equal(
+            await page.locator("body").innerText().then((text) => text.includes("/portfolio-risk/scenarios/")),
+            false,
+        );
+    } finally {
+        await browser.close();
+    }
+});
+
 test("primary list selectors update the same panel without truncating requested rows", async () => {
     const filterScreen = structuredClone(dashboardScreen);
     filterScreen.actions = [action("test.list", { fields: [
@@ -3256,6 +3474,398 @@ test("editable dashboard row action opens a form before sending the update", asy
             user_id: 42,
             username: "updated-user",
         });
+    } finally {
+        await browser.close();
+    }
+});
+
+const pressureDashboardHarnessHtml = harnessHtml
+    .replace('<div data-tui-app data-user-key="test-user">', '<div class="tui-app" data-tui-app data-user-key="test-user">')
+    .replace('<aside data-rail-panel>', '<aside class="tui-rail tui-module-rail" data-rail-panel>')
+    .replace('<div class="tui-workspace-grid">', '<main class="tui-shell"><section class="tui-workspace"><div class="tui-workspace-grid">')
+    .replace('<section class="tui-panel"><div class="tui-panel-body" data-actions-panel></div></section>', '<section class="tui-panel tui-actions-panel"><div class="tui-panel-body" data-actions-panel></div></section>')
+    .replace('<section><span data-screen-title>', '<section class="tui-panel tui-main-panel"><span data-screen-title>')
+    .replace('<section class="tui-panel" data-inspector-panel-shell>', '<section class="tui-panel tui-inspector-panel" data-inspector-panel-shell>')
+    .replace('  </div>\n  <button data-raw-toggle>', '  </div></section></main>\n  <button data-raw-toggle>');
+
+test("account row pressure action hydrates its lookup and scopes the dashboard task", async () => {
+    const accountsAction = action("simulated-trading.accounts", {
+        label: "读取模拟账户",
+        view_type: "datagrid",
+        task_tier: "primary",
+    });
+    accountsAction.module_key = "simulated-trading";
+    accountsAction.endpoint = "/api/simulated-trading/accounts/";
+    accountsAction.screen_key = "test.dashboard";
+    const existingRowActionSpecs = [
+        ["simulated-trading.account-detail", "查看 {account_name}", false],
+        ["simulated-trading.inspection-notification", "查看 {account_name} 的巡检通知", false],
+        ["simulated-trading.inspection-notification-update", "编辑 {account_name} 的巡检通知", true],
+        ["simulated-trading.account-delete", "删除 {account_name}", true],
+    ];
+    const existingRowActions = existingRowActionSpecs.map(([key]) => {
+        const item = action(key, { label: key });
+        item.module_key = "simulated-trading";
+        item.screen_key = "test.dashboard";
+        return item;
+    });
+    const pressureAction = action("simulated-trading.portfolio-pressure-run", {
+        label: "运行模拟退出压力核对",
+        method: "POST",
+        risk: "write",
+        effect: "execute",
+        task_tier: "support",
+        confirmation_required: true,
+        fields: [
+            {
+                key: "account_id",
+                label: "模拟账户编号",
+                binding: "path",
+                input_type: "number",
+                value_type: "integer",
+                required: true,
+                presentation_semantic: "primary_selector",
+                min: 1,
+            },
+            {
+                key: "scenario_version_id",
+                label: "已审批压力情景",
+                binding: "body",
+                input_type: "select",
+                value_type: "string",
+                required: true,
+                presentation_semantic: "primary_selector",
+                options: [],
+                options_lookup: "approved_portfolio_pressure_scenarios",
+            },
+            {
+                key: "confirmed",
+                label: "已确认操作",
+                binding: "body",
+                input_type: "hidden",
+                value_type: "boolean",
+                required: true,
+                default: true,
+            },
+        ],
+    });
+    pressureAction.ui_key = "task-e1e467ae89";
+    pressureAction.module_key = "simulated-trading";
+    pressureAction.screen_key = "test.dashboard";
+    pressureAction.endpoint = "/api/simulated-trading/accounts/<int:account_id>/portfolio-risk/pressure-run/";
+    const pressureScreen = {
+        module: { key: "simulated-trading", label: "模拟交易" },
+        screen: {
+            key: "test.dashboard",
+            label: "模拟账户",
+            status: "online",
+            chrome_mode: "",
+            summary: "从账户行进入模拟退出压力核对。",
+            view_type: "datagrid",
+            audience: "authenticated",
+            entry_state: { mode: "dashboard" },
+            workflow: {},
+            default_action_key: accountsAction.key,
+            dashboard_panels: [
+                {
+                    key: "simulated-accounts",
+                    title: "我的投资账户",
+                    kind: "datagrid",
+                    user_priority: "p0",
+                    presentation_semantic: "primary_list",
+                    action_key: accountsAction.key,
+                    columns: [
+                        { key: "account_id", label: "账户 ID" },
+                        { key: "account_name", label: "账户名称" },
+                    ],
+                    row_actions: [
+                        ...existingRowActionSpecs.map(([actionKey, labelTemplate, refresh]) => ({
+                            action_key: actionKey,
+                            label_template: labelTemplate,
+                            param_map: { account_id: "account_id" },
+                            result_panel_key: "simulated-account-workspace",
+                            ...(refresh ? { refresh_panel_key: "simulated-accounts" } : {}),
+                        })),
+                        {
+                            action_key: pressureAction.key,
+                            label_template: "对 {account_name} 运行模拟退出压力核对",
+                            param_map: { account_id: "account_id" },
+                            result_panel_key: "simulated-account-workspace",
+                            refresh_panel_key: "simulated-accounts",
+                        },
+                    ],
+                },
+                {
+                    key: "simulated-account-workspace",
+                    title: "压力核对结果",
+                    kind: "detail",
+                    user_priority: "p2",
+                    presentation_semantic: "supporting_detail",
+                    empty_message: "从账户列表选择模拟退出压力核对。",
+                },
+            ],
+            user_experience: {
+                journey: "dashboard",
+                primary_task: "查看模拟账户",
+                primary_outcome: "读取账户状态并可明确运行压力核对",
+                empty_state_hint: "先创建模拟账户。",
+                next_step_hint: "从目标账户行运行已审批压力情景。",
+            },
+        },
+        actions: [accountsAction, ...existingRowActions, pressureAction],
+    };
+    const actionRequests = [];
+    const accountCatalogRequests = [];
+    let pressureRunCount = 0;
+    const { browser, page, requestLog, browserErrors } = await openHarness(
+        "https://app.test/?screen=test.dashboard",
+        {
+            dashboardScreen: pressureScreen,
+            html: pressureDashboardHarnessHtml,
+            waitForInitialRows: false,
+            actionRunMock: ({ actionKey }) => {
+                if (actionKey === accountsAction.key) {
+                    return {
+                        action: accountsAction,
+                        view_model: {
+                            kind: "datagrid",
+                            title: "我的投资账户",
+                            status: "正常",
+                            columns: [
+                                { key: "account_id", label: "账户 ID" },
+                                { key: "account_name", label: "账户名称" },
+                            ],
+                            rows: [{ account_id: 43, account_name: "模拟账户 43" }],
+                            total: 1,
+                        },
+                    };
+                }
+                if (actionKey === pressureAction.key) {
+                    pressureRunCount += 1;
+                    return pressureRunCount === 1
+                        ? {
+                            action: pressureAction,
+                            confirmation_required: true,
+                            confirmation: {
+                                title: "确认操作",
+                                message: "确认运行已选择的模拟压力核对。",
+                            },
+                            view_model: { kind: "message", title: "等待确认", status: "等待" },
+                        }
+                        : {
+                            action: pressureAction,
+                            view_model: {
+                                kind: "detail",
+                                title: "压力核对完成",
+                                status: "已保存",
+                                fields: [{
+                                    key: "pressure_run_outcome",
+                                    label: "模拟退出压力核对",
+                                    value: "压力核对完成 · 已保存",
+                                }],
+                            },
+                        };
+                }
+                return null;
+            },
+        },
+    );
+    try {
+        await page.route("**/portfolio-risk/scenarios/", async (route) => {
+            const path = new URL(route.request().url()).pathname;
+            const accountId = Number(path.match(/accounts\/(\d+)\//)?.[1] || 0);
+            accountCatalogRequests.push(accountId);
+            await route.fulfill({
+                status: 200,
+                contentType: "application/json",
+                body: JSON.stringify({
+                    account_id: accountId,
+                    options: accountId === 43
+                        ? [{ value: "revision-43", label: "流动性压力 · v4" }]
+                        : [],
+                    scope: "simulation_only",
+                    read_only: true,
+                }),
+            });
+        });
+        page.on("request", (request) => {
+            if (request.url().includes(`/actions/${pressureAction.key}/run/`)) {
+                actionRequests.push(request.postDataJSON());
+            }
+        });
+
+        const accountPanel = page.locator('[data-dashboard-panel="simulated-accounts"]');
+        const accountRow = accountPanel.locator(".tui-mini-table tbody tr").first();
+        const moreActions = accountPanel.locator('summary[aria-label="更多行操作"]');
+        const siblingTaskForm = page.locator(
+            `[data-actions-panel] form[data-action-ui-key="${existingRowActions[0].ui_key}"]`,
+        );
+        try {
+            await accountRow.waitFor({ state: "visible" });
+            const dashboardBeforeAction = await page.evaluate(() => {
+                const grid = document.querySelector(".tui-workspace-grid");
+                const actions = document.querySelector(".tui-actions-panel");
+                return {
+                    isDashboard: Boolean(grid?.classList.contains("is-dashboard")),
+                    gridTemplateAreas: grid ? window.getComputedStyle(grid).gridTemplateAreas : "",
+                    actionsVisible: Boolean(
+                        actions && actions.getBoundingClientRect().width > 0
+                        && actions.getBoundingClientRect().height > 0,
+                    ),
+                };
+            });
+            assert.equal(dashboardBeforeAction.isDashboard, true);
+            assert.equal(dashboardBeforeAction.gridTemplateAreas, '"main"');
+            assert.equal(dashboardBeforeAction.actionsVisible, false);
+            assert.equal(await accountRow.locator("[data-dashboard-row-action]").count(), 5);
+            await siblingTaskForm.waitFor({ state: "attached" });
+            await siblingTaskForm.evaluate((form) => {
+                form.hidden = false;
+                form.closest(".tui-action-group")?.removeAttribute("hidden");
+            });
+            assert.equal(await siblingTaskForm.evaluate((form) => form.hidden), false);
+            await moreActions.waitFor({ state: "visible" });
+            await moreActions.click();
+        } catch (error) {
+            const dashboardDom = await page.evaluate(() => {
+                const panel = document.querySelector('[data-dashboard-panel="simulated-accounts"]');
+                return {
+                    screenTitle: document.querySelector("[data-screen-title]")?.textContent || "",
+                    workbenchStatus: document.querySelector("[data-workbench-status]")?.textContent || "",
+                    panelKind: panel?.getAttribute("data-panel-kind") || null,
+                    panelPriority: panel?.getAttribute("data-panel-priority") || null,
+                    panelText: panel?.textContent || null,
+                    panelHtml: panel?.innerHTML || null,
+                    tableCount: panel?.querySelectorAll("table").length || 0,
+                    bodyRowCount: panel?.querySelectorAll("tbody tr").length || 0,
+                    rowActionLabels: Array.from(panel?.querySelectorAll("[data-dashboard-row-action]") || [])
+                        .map((button) => button.getAttribute("aria-label") || ""),
+                    summaries: Array.from(panel?.querySelectorAll("summary") || [])
+                        .map((summary) => ({ text: summary.textContent || "", label: summary.getAttribute("aria-label") || "" })),
+                };
+            });
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            throw new Error(
+                `${errorMessage}\nPressure dashboard DOM: ${JSON.stringify(dashboardDom)}`
+                + `\nBrowser console: ${JSON.stringify(browserErrors)}`
+                + `\nAction requests: ${JSON.stringify(actionRequests)}`
+                + `\nScenario catalogue requests: ${JSON.stringify(accountCatalogRequests)}`
+                + `\nRequest log: ${JSON.stringify(requestLog)}`,
+            );
+        }
+        const rowAction = accountPanel.locator(
+            '[data-dashboard-row-action][aria-label="对 模拟账户 43 运行模拟退出压力核对"]',
+        );
+        await rowAction.waitFor({ state: "visible" });
+        await rowAction.click();
+        const pressureFormSelector = `form[data-action-ui-key="${pressureAction.ui_key}"]`;
+        const form = page.locator(`${pressureFormSelector}:visible`);
+        await form.waitFor({ state: "visible" });
+        const dashboardLayout = await page.evaluate(() => {
+            const grid = document.querySelector(".tui-workspace-grid");
+            const actionPanel = document.querySelector(".tui-actions-panel");
+            const actionForm = document.querySelector(
+                'form[data-action-ui-key="task-e1e467ae89"]',
+            );
+            const gridStyle = grid ? window.getComputedStyle(grid) : null;
+            const panelStyle = actionPanel ? window.getComputedStyle(actionPanel) : null;
+            const panelRect = actionPanel?.getBoundingClientRect();
+            return {
+                isDashboard: Boolean(grid?.classList.contains("is-dashboard")),
+                gridTemplateAreas: gridStyle?.gridTemplateAreas || "",
+                actionPanelDisplay: panelStyle?.display || "",
+                actionPanelVisible: Boolean(
+                    panelRect && panelRect.width > 0 && panelRect.height > 0
+                ),
+                formConnected: Boolean(actionForm?.isConnected),
+            };
+        });
+        assert.equal(dashboardLayout.isDashboard, true);
+        assert.match(dashboardLayout.gridTemplateAreas, /actions/);
+        assert.match(dashboardLayout.gridTemplateAreas, /main/);
+        assert.equal(dashboardLayout.actionPanelDisplay, "flex");
+        assert.equal(dashboardLayout.actionPanelVisible, true);
+        assert.equal(dashboardLayout.formConnected, true);
+        const persistentForm = await form.elementHandle();
+        assert.equal(
+            await page.locator("[data-actions-panel]").locator(pressureFormSelector).count(),
+            1,
+        );
+        assert.equal(await form.getAttribute("data-dashboard-panel-key"), "simulated-accounts");
+        assert.equal(await siblingTaskForm.isVisible(), false);
+        assert.equal(await page.locator("[data-actions-panel] .tui-action-group:visible").count(), 1);
+        assert.equal(await page.locator("[data-actions-panel] [data-action-filter]:visible").count(), 0);
+        assert.equal(await page.locator("[data-actions-panel] [data-toggle-support]:visible").count(), 0);
+        assert.equal(await page.locator("[data-actions-panel] [data-toggle-advanced]:visible").count(), 0);
+        assert.equal(await form.locator('[name="account_id"]').inputValue(), "43");
+        const scenarioField = form.locator('[name="scenario_version_id"]');
+        await page.waitForFunction((uiKey) => {
+            const selector = document.querySelector(
+                `form[data-action-ui-key="${CSS.escape(uiKey)}"] [name="scenario_version_id"]`,
+            );
+            return selector?.dataset.optionsLookupStatus === "ready";
+        }, pressureAction.ui_key);
+        assert.equal(await scenarioField.inputValue(), "");
+        assert.equal(await scenarioField.locator('option[value="revision-43"]').textContent(), "流动性压力 · v4");
+
+        await scenarioField.selectOption("revision-43");
+        await form.locator(".tui-action-submit").click();
+        await page.locator("[data-confirm-action]").waitFor();
+        assert.deepEqual(accountCatalogRequests, [43, 43]);
+        assert.equal(actionRequests.length, 1);
+        assert.equal(await persistentForm.evaluate((element) => element.isConnected), true);
+        await page.locator("[data-confirm-action]").click();
+        const resultPanel = page.locator('[data-dashboard-panel="simulated-account-workspace"]');
+        try {
+            await resultPanel.getByText("压力核对完成 · 已保存", { exact: true }).waitFor({ state: "visible" });
+        } catch (error) {
+            const dashboardDom = await page.evaluate(() => {
+                const result = document.querySelector('[data-dashboard-panel="simulated-account-workspace"]');
+                const accounts = document.querySelector('[data-dashboard-panel="simulated-accounts"]');
+                return {
+                    workbenchStatus: document.querySelector("[data-workbench-status]")?.textContent || "",
+                    resultPanelHtml: result?.innerHTML || null,
+                    accountsPanelHtml: accounts?.innerHTML || null,
+                };
+            });
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            throw new Error(
+                `${errorMessage}\nPressure result DOM: ${JSON.stringify(dashboardDom)}`
+                + `\nBrowser console: ${JSON.stringify(browserErrors)}`
+                + `\nAction requests: ${JSON.stringify(actionRequests)}`
+                + `\nScenario catalogue requests: ${JSON.stringify(accountCatalogRequests)}`
+                + `\nRequest log: ${JSON.stringify(requestLog)}`,
+            );
+        }
+
+        assert.equal(await persistentForm.evaluate((element) => element.isConnected), true);
+        assert.equal(await form.isVisible(), true);
+        assert.equal(await siblingTaskForm.isVisible(), false);
+        assert.deepEqual(accountCatalogRequests, [43, 43, 43]);
+        assert.equal(actionRequests.length, 2);
+        assert.ok(actionRequests.every((request) => (
+            String(request.params.account_id) === "43"
+            && request.params.scenario_version_id === "revision-43"
+        )));
+
+        await page.locator('[data-screen-key="test.grid"]').click();
+        await page.waitForFunction(() => document.querySelector("[data-screen-title]")?.textContent === "测试表格");
+        await page.locator('[data-screen-key="test.dashboard"]').click();
+        await page.waitForFunction(() => document.querySelector("[data-screen-title]")?.textContent === "模拟账户");
+        await page.locator('[data-dashboard-panel="simulated-accounts"]').waitFor({ state: "visible" });
+        const restoredDashboard = await page.evaluate(() => {
+            const grid = document.querySelector(".tui-workspace-grid");
+            const actions = document.querySelector(".tui-actions-panel");
+            return {
+                gridTemplateAreas: grid ? window.getComputedStyle(grid).gridTemplateAreas : "",
+                actionsVisible: Boolean(
+                    actions && actions.getBoundingClientRect().width > 0
+                    && actions.getBoundingClientRect().height > 0,
+                ),
+            };
+        });
+        assert.equal(restoredDashboard.gridTemplateAreas, '"main"');
+        assert.equal(restoredDashboard.actionsVisible, false);
     } finally {
         await browser.close();
     }
@@ -4183,9 +4793,17 @@ test("audit wide tables retain columns and conditional row tasks in the full lis
         }
         await queue.locator('[data-panel-full-list]').click();
         assert.equal(await page.locator('[data-dashboard-row-action]').count(), 2);
+        const receipt = page.locator('[data-dashboard-panel="receipt"]');
+        const receiptResponse = page.waitForResponse((response) => (
+            response.url().includes('/actions/test.admin-read/run/')
+            && response.status() === 200
+        ));
         await page.locator('[data-dashboard-row-action]').first().click();
-        await page.locator('[data-dashboard-panel]').first().waitFor();
-        assert.equal(await page.locator('[data-dashboard-panel="receipt"] details').getAttribute('open'), '');
+        await receiptResponse;
+        await receipt.getByText('可用', { exact: true }).waitFor({ state: 'visible' });
+        const receiptDetails = receipt.locator('details');
+        await receiptDetails.waitFor({ state: 'visible' });
+        assert.equal(await receiptDetails.getAttribute('open'), '');
     } finally { await browser.close(); }
 });
 

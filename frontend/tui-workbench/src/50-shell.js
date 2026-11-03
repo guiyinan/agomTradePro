@@ -114,7 +114,7 @@
         form.querySelector("select, input, textarea")?.focus();
     }
 
-    function showActionConfirmation(result, actionKey, params, options = {}) {
+    function showActionConfirmation(result, actionKey, params, options = {}, selectionForm = null) {
         const confirmation = result.confirmation || {};
         const actions = Array.isArray(state.screen?.actions) ? state.screen.actions : [];
         const action = actions.find(item => item?.key === actionKey);
@@ -166,7 +166,7 @@
                 return;
             }
             closeModal({ cancel: false });
-            runAction(actionKey, null, {
+            runAction(actionKey, selectionForm, {
                 ...options,
                 confirmed: true,
                 params: confirmationParams,

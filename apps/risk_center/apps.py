@@ -43,6 +43,10 @@ class RiskCenterConfig(AppConfig):
     verbose_name = "风控中心"
 
     def ready(self) -> None:
+        """Register lazy risk adapters without creating policies or financial rows."""
+        from apps.risk_center.application.portfolio_risk_runtime import (
+            configure_portfolio_risk_runtime,
+        )
         from apps.risk_center.application.repository_provider import (
             configure_risk_center_repositories,
         )
@@ -67,6 +71,7 @@ class RiskCenterConfig(AppConfig):
         from apps.risk_center.infrastructure.scenario_repositories import (
             DjangoScenarioRepository,
         )
+        from apps.risk_center.portfolio_risk_composition import build_portfolio_risk_runtime
         from core.integration.research_integrity_registry import (
             configure_scenario_forecast_reference_checker,
         )
@@ -89,3 +94,4 @@ class RiskCenterConfig(AppConfig):
         )
         configure_scenario_governance_repository(DjangoScenarioGovernanceRepository())
         configure_scenario_forecast_reference_checker(_is_scenario_forecast_reference_valid)
+        configure_portfolio_risk_runtime(build_portfolio_risk_runtime)

@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from apps.terminal.infrastructure.tui_metadata_runtime_injection_simulated_trading_owner_actions import (
-    build_account_stop_loss_check_action,
+    build_owner_risk_actions,
 )
 from apps.terminal.infrastructure.tui_metadata_runtime_injection_simulated_trading_owner_actions import (
     confirmed_body_field as _confirmed_body_field,
@@ -880,7 +880,7 @@ RUNTIME_SIMULATED_TRADING_ACTIONS: tuple[dict[str, Any], ...] = (
         ],
         "view_model": {"kind": "detail"},
     },
-    build_account_stop_loss_check_action(),
+    *build_owner_risk_actions(),
 )
 
 

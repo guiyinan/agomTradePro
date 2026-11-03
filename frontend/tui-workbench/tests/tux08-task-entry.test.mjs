@@ -29,6 +29,7 @@ const context = {
     actionMetaLabel: () => "读取",
     actionSubmitLabel: (action) => String(action.submit_label || "执行"),
     isActionCompleted: () => false,
+    bindPressureScenarioForm: () => {},
     operatorText: (value) => String(value || ""),
     triggerActionForm: (form) => triggerCalls.push(form),
     document: {},

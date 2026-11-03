@@ -31,6 +31,8 @@ const workbenchSegments = [
     "frontend/tui-workbench/src/12-experience.js",
     "frontend/tui-workbench/src/15-workspace-state.js",
     "frontend/tui-workbench/src/20-dashboard.js",
+    "frontend/tui-workbench/src/21-dashboard-row-actions.js",
+    "frontend/tui-workbench/src/29-pressure-scenario-lookup.js",
     "frontend/tui-workbench/src/30-actions.js",
     "frontend/tui-workbench/src/31-form-inputs.js",
     "frontend/tui-workbench/src/32-continuation-ui.js",

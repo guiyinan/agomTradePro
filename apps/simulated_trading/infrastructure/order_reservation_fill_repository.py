@@ -33,6 +33,12 @@ from apps.simulated_trading.application.order_reservation_fill import (
     LocalSimulatedFillEventV1,
     SimulatedOrderFillResult,
 )
+from apps.simulated_trading.application.portfolio_risk_execution_gate import (
+    PortfolioRiskLockedFillGuard,
+)
+from apps.simulated_trading.application.portfolio_risk_locked_transition import (
+    revalidate_locked_portfolio_fill,
+)
 from apps.simulated_trading.domain.execution_settlement_calendar import ExecutionCalendarEvidence
 from apps.simulated_trading.domain.execution_settlement_primitives import (
     SimulatedSettlementContractError,
@@ -194,6 +200,7 @@ class DjangoSimulatedOrderFillRepository:
         event_reader: LocalSimulatedFillEventReader | None = None,
         initial_position_mark_reader: InitialPositionMarkReader | None = None,
         current_calendar_reader: PublishedExecutionCalendarReader | None = None,
+        portfolio_risk_guard: PortfolioRiskLockedFillGuard | None = None,
         using: str = DEFAULT_DB_ALIAS,
     ) -> None:
         """Select the database and explicitly configured event, mark and current-calendar readers.
@@ -210,6 +217,7 @@ class DjangoSimulatedOrderFillRepository:
         self._event_reader = event_reader
         self._initial_position_mark_reader = initial_position_mark_reader
         self._current_calendar_reader = current_calendar_reader
+        self._portfolio_risk_guard = portfolio_risk_guard
         self._request_reader = DjangoSimulatedOrderFillRequestReader(using=using)
 
     def resolve_fill_request(
@@ -404,7 +412,14 @@ class DjangoSimulatedOrderFillRepository:
                         "PENDING_SETTLEMENT_INVALID",
                         "缺少持仓时存在未结算买入，不能建立新的持仓基线",
                     )
-                now = _aware_now(clock)
+                now = revalidate_locked_portfolio_fill(
+                    guard=self._portfolio_risk_guard,
+                    intent=chain.intent,
+                    event=checked_event,
+                    execution_session=settlement_proof.fill_market_session,
+                    as_of=_aware_now(clock),
+                    read_clock=lambda: _aware_now(clock),
+                )
                 identity_as_of = local_daily_match_fill_identity_as_of(
                     using=self._using,
                     account=account,

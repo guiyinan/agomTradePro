@@ -372,6 +372,21 @@ class OrderReservation:
         )
 
     @property
+    def remaining_quantity(self) -> Decimal:
+        """Return the unfilled active quantity for either side, without netting."""
+
+        self.__post_init__()
+        if self.status is not OrderReservationStatus.ACTIVE:
+            return _ZERO_SHARES
+        return _subtract(self.quantity, self.filled_quantity, _SHARE_SCALE, "remaining_quantity")
+
+    @property
+    def remaining_order_notional(self) -> Decimal:
+        """Value only the active unfilled quantity at its accepted limit price."""
+
+        return _notional(self.remaining_quantity, self.limit_price, allow_zero=True)
+
+    @property
     def remaining_buy_notional(self) -> Decimal | None:
         """Return remaining active BUY shares valued at their accepted limit price.
 
@@ -383,15 +398,7 @@ class OrderReservation:
         self.__post_init__()
         if self.side is not SimulatedTradeSide.BUY:
             return None
-        if self.status is not OrderReservationStatus.ACTIVE:
-            return _ZERO_MONEY
-        remaining_quantity = _subtract(
-            self.quantity,
-            self.filled_quantity,
-            _SHARE_SCALE,
-            "remaining_buy_quantity",
-        )
-        return _notional(remaining_quantity, self.limit_price, allow_zero=True)
+        return self.remaining_order_notional
 
     @property
     def remaining_shares(self) -> Decimal:

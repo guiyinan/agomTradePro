@@ -199,6 +199,23 @@ client.simulated_trading.list_daily_inspections(account_id, limit, inspection_da
 
 `close_position` 必须显式给出整数股数、十进制字符串价格和稳定键；旧两参数调用需迁移。单次请求不会自动重试或跟随重定向；结果未知时保留原意图和键，核对后显式重试。成功必须包含绑定同一交易的完整回执与 `replayed`，不能仅凭 HTTP 200 判断完成。
 
+账户级组合风险报告、已审批压力情景目录和退出压力运行目前没有 SDK 专用方法。服务端路由要求 `SessionAuthentication`；Token 认证不能调用。现有 `AgomTradeProClient(username=..., password=...)` 登录模式会保留 Django 会话并为 POST 附加 CSRF，可以按下例使用已公开的通用请求方法；这仍受服务端账户读取/Owner 权限校验。
+
+```python
+client = AgomTradeProClient(username=owner_username, password=owner_password)
+report = client.get("api/simulated-trading/accounts/42/portfolio-risk/")
+options = client.get("api/simulated-trading/accounts/42/portfolio-risk/scenarios/")
+result = client.post(
+    "api/simulated-trading/accounts/42/portfolio-risk/pressure-run/",
+    json={"scenario_version_id": options["options"][0]["value"], "confirmed": True},
+    idempotency_key=stable_run_key,
+)
+```
+
+运行只可由账户 Owner 发起，必须先明确确认，并对同一输入重用稳定幂等键。已有 `client.risk_center` 情景 API 管理 Risk Center 情景版本，并不等同于按模拟账户运行压力核对。
+
+`unknown` 表示信息不能确认，`expired` 表示有效期不覆盖核对时点，`partial` 表示覆盖不完整；这些状态不能补成零或完整值。`must_not_use_for_decision: true` 表示不得据此作决策。压力结果始终是 `simulation_only` 且 `must_not_execute: true`。
+
 ## Equity Module
 
 ```python

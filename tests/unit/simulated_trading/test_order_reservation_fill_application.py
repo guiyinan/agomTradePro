@@ -997,13 +997,18 @@ def test_unknown_event_kind_is_blocked_instead_of_becoming_a_regular_fill(
     event = replace(scenario.event, event_kind=LocalSimulatedFillEventKind.UNKNOWN)
     source = _Source(event)
     repository = _Repository([scenario.context])
+    logger = logging.getLogger("apps.simulated_trading.application.order_reservation_fill")
+    logger.addHandler(caplog.handler)
 
-    with caplog.at_level(
-        logging.WARNING,
-        logger="apps.simulated_trading.application.order_reservation_fill",
-    ):
-        with pytest.raises(SimulatedTradeExecutionBlocked) as captured:
-            _use_case(repository, _Clock(), _binding(source)).execute(_command(scenario))
+    try:
+        with caplog.at_level(
+            logging.WARNING,
+            logger="apps.simulated_trading.application.order_reservation_fill",
+        ):
+            with pytest.raises(SimulatedTradeExecutionBlocked) as captured:
+                _use_case(repository, _Clock(), _binding(source)).execute(_command(scenario))
+    finally:
+        logger.removeHandler(caplog.handler)
 
     assert captured.value.code == "SIMULATED_FILL_EVENT_KIND_UNKNOWN"
     assert repository.apply_calls == []

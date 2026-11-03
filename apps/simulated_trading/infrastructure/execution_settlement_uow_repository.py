@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from datetime import date, datetime
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal
 from typing import TypeAlias
 
 from django.db import transaction
@@ -19,6 +19,12 @@ from apps.simulated_trading.application.execution_settlement_uow import (
     SimulatedTradeExecutionClock,
     SimulatedTradeIdempotencyConflict,
     _validate_plan_bundle_binding,
+)
+from apps.simulated_trading.application.portfolio_risk_execution_gate import (
+    PortfolioRiskLockedOrderGuard,
+)
+from apps.simulated_trading.application.portfolio_risk_locked_transition import (
+    revalidate_locked_portfolio_order,
 )
 from apps.simulated_trading.domain.close_snapshot_execution_market_audit import (
     CloseSnapshotExecutionMarketAuditV1,
@@ -38,9 +44,11 @@ from apps.simulated_trading.domain.execution_settlement_uow import (
     SimulatedTradeExecutionReceipt,
     SimulatedTradeIntent,
     SimulatedTradeSide,
-    _execution_quantity_deny_code,
     validate_ledger_money,
     validate_ledger_quantity,
+)
+from apps.simulated_trading.infrastructure.execution_settlement_stop_loss_threshold import (
+    normalize_locked_stop_loss_pct,
 )
 from apps.simulated_trading.infrastructure.fee_policy_v2_repository import (
     DjangoFeePolicyV2Repository,
@@ -76,6 +84,9 @@ from .execution_settlement_plan_binding_repository import (
 )
 from .execution_settlement_position_validation import (
     validate_execution_position as _validate_execution_position,
+)
+from .execution_settlement_position_validation import (
+    validate_execution_rule_quantity,
 )
 from .execution_settlement_uow_clock import _aware_time
 from .order_reservation_fill_account_history import (
@@ -127,60 +138,18 @@ class DjangoSimulatedTradeExecutionRepository:
     paths and leave all UoW metadata NULL.
     """
 
-    def __init__(self, *, using: str) -> None:
+    _validate_rule_quantity = staticmethod(validate_execution_rule_quantity)
+
+    def __init__(
+        self, *, using: str, portfolio_risk_guard: PortfolioRiskLockedOrderGuard | None = None
+    ) -> None:
         """Bind the complete ledger operation to one explicit Django database alias."""
 
         if type(using) is not str or not using or using.strip() != using:
             raise ValueError("using must be a nonempty database alias")
         self._using = using
         self._fee_policy_repository = DjangoFeePolicyV2Repository(using=using)
-
-    @staticmethod
-    def _normalize_locked_stop_loss_pct(value: object) -> Decimal | None:
-        """Convert the locked account FloatField through its exact decimal text."""
-
-        if value is None:
-            return None
-        if type(value) not in (int, float) or type(value) is bool:
-            raise SimulatedTradeExecutionBlocked(
-                "locked account stop-loss threshold is invalid",
-                code="AUTO_STOP_LOSS_THRESHOLD_INVALID",
-            )
-        try:
-            return Decimal(str(value))
-        except (InvalidOperation, TypeError, ValueError) as error:
-            raise SimulatedTradeExecutionBlocked(
-                "locked account stop-loss threshold is invalid",
-                code="AUTO_STOP_LOSS_THRESHOLD_INVALID",
-            ) from error
-
-    def _validate_rule_quantity(
-        self,
-        *,
-        intent: SimulatedTradeIntent,
-        bundle: ExecutionSettlementBundleV3,
-        locked_position: tuple[Decimal, Decimal] | None = None,
-    ) -> None:
-        """Enforce one V3 quantity rule, using locked balance only for SELL exceptions."""
-
-        rule = bundle.execution_submission_v2.execution_rule_v1
-        quantity_rule = (
-            rule.buy_quantity if intent.side is SimulatedTradeSide.BUY else rule.sell_quantity
-        )
-        deny_code = _execution_quantity_deny_code(
-            side=intent.side,
-            quantity=intent.quantity,
-            minimum=quantity_rule.minimum,
-            step=quantity_rule.step,
-            maximum=quantity_rule.maximum,
-            sell_odd_lot_mode=rule.sell_odd_lot_mode.value,
-            locked_position=locked_position,
-        )
-        if deny_code is not None:
-            raise SimulatedTradeExecutionBlocked(
-                "trade quantity violates the exact Risk V3 quantity rule",
-                code=deny_code,
-            )
+        self._portfolio_risk_guard = portfolio_risk_guard
 
     def get_execution_fee_policy(
         self,
@@ -338,7 +307,7 @@ class DjangoSimulatedTradeExecutionRepository:
                     bundle=execution_bundle,
                     as_of=plan.pre_read_at,
                 )
-                self._validate_rule_quantity(
+                validate_execution_rule_quantity(
                     intent=intent,
                     bundle=execution_bundle,
                 )
@@ -357,6 +326,16 @@ class DjangoSimulatedTradeExecutionRepository:
                 require_v4_pending_chain_match(pending_rows=pending_rows, entries=v4_chains)
                 pending_scope = self._pending_scope_for_rows(pending_rows)
                 now = self._now(clock)
+                if self._portfolio_risk_guard is not None:
+                    now = revalidate_locked_portfolio_order(
+                        guard=self._portfolio_risk_guard,
+                        intent=intent,
+                        fee_cap=plan.fee_breakdown.total_fee,
+                        as_of=now,
+                        execution_session=plan.calendar_evidence.current_open_session(now),
+                        read_clock=lambda: self._now(clock),
+                        read_execution_session=plan.calendar_evidence.current_open_session,
+                    )
                 try:
                     _validate_plan_bundle_binding(
                         plan=plan,
@@ -416,7 +395,7 @@ class DjangoSimulatedTradeExecutionRepository:
                         locked_position=locked_position,
                         held_shares=active_shares_held,
                     )
-                self._validate_rule_quantity(
+                validate_execution_rule_quantity(
                     intent=intent,
                     bundle=execution_bundle,
                     locked_position=locked_position,
@@ -464,9 +443,7 @@ class DjangoSimulatedTradeExecutionRepository:
                         execution_bundle=execution_bundle,
                         quote=market_quote,
                         account_auto_trading_enabled=account.auto_trading_enabled,
-                        account_stop_loss_pct=self._normalize_locked_stop_loss_pct(
-                            account.stop_loss_pct
-                        ),
+                        account_stop_loss_pct=normalize_locked_stop_loss_pct(account.stop_loss_pct),
                         position_total_quantity=locked_position[0],
                         position_total_cost=position_total_cost,
                         position_cost_basis_known=position_cost_basis_known,

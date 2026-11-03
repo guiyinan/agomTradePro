@@ -789,6 +789,7 @@ function loadOrderScopeEventHarness(action, initialState) {
         window: { clearTimeout() {} },
         currentAction: key => key === action.key ? action : null,
         actionRefFromForm: value => value.dataset.actionUiKey,
+        bindPressureScenarioForm() {},
         formFieldElement(value, key) {
             return Object.hasOwn(formValues, key) ? { value: formValues[key] } : null;
         },

@@ -86,6 +86,22 @@ class ScenarioRunEvidenceRepositoryProtocol(Protocol):
 
     def save_run_evidence(self, evidence: ScenarioRunEvidence) -> ScenarioRunEvidence:
         """Persist exact run inputs and the deterministic result digest."""
+        ...
+
+
+class ScenarioRunEvidenceReaderProtocol(Protocol):
+    """Read retained run evidence after an owning application checks scope."""
+
+    def get_run_evidence(self, run_id: str) -> ScenarioRunEvidence | None:
+        """Return the exact immutable evidence row, including optional snapshots."""
+
+
+class ScenarioRunEvidenceReadWriteRepositoryProtocol(
+    ScenarioRunEvidenceRepositoryProtocol,
+    ScenarioRunEvidenceReaderProtocol,
+    Protocol,
+):
+    """Compose the existing save and read ports for a replayable pressure runner."""
 
 
 class PortfolioSnapshotProviderProtocol(Protocol):
@@ -120,4 +136,6 @@ __all__ = [
     "ScenarioQueryRepositoryProtocol",
     "ScenarioRevisionRepositoryProtocol",
     "ScenarioRunEvidenceRepositoryProtocol",
+    "ScenarioRunEvidenceReaderProtocol",
+    "ScenarioRunEvidenceReadWriteRepositoryProtocol",
 ]

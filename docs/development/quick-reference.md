@@ -700,6 +700,9 @@ Celery 正常发布自动生成一次业务键；直接 `.run()` 或绕过任务
 | `/api/account/accounts/{id}/m1-risk-policy-revisions/` | POST | 当前账户 Owner 发布一个 M1 风险版本 |
 | `/api/account/accounts/{id}/m1-risk-policy-revisions/{risk_policy_version}/revoke/` | POST | 当前账户 Owner 追加撤销指定 M1 风险版本 |
 | `/api/simulated-trading/manual-trade/` | POST | 手动交易 |
+| `/api/simulated-trading/accounts/{id}/portfolio-risk/` | GET | 只读读取当前账户组合风险报告（浏览器会话、账户读取权限） |
+| `/api/simulated-trading/accounts/{id}/portfolio-risk/scenarios/` | GET | 读取可选的已审批压力情景（只读） |
+| `/api/simulated-trading/accounts/{id}/portfolio-risk/pressure-run/` | POST | 明确确认后运行一次模拟压力核对（Owner、浏览器会话） |
 
 创建账户的 `initial_capital` 最多 15 位数字（含 2 位小数），与持久化金额字段一致。
 `fee_config_id` 尚未接入创建用例，只接受省略或 `null`；非空值返回字段校验错误，
@@ -722,6 +725,10 @@ Owner 授权后重试会重放原回执；同键改体返回 `409`。发布/撤�
 `temporary_target_weights`；`auto_create_proposal` 默认 `false`。常规响应的 `reports[0].plan`
 是只读调仓预览，不提交订单；只有显式开启既有 proposal 选项才创建调仓提案。缺少、撤销或
 无法确认的 M1 风险版本不会被默认值替代，相关 BUY 会保持阻断。
+
+组合风险报告 GET 与已审批压力情景目录 GET 都是只读。只有专用 `/pressure-run/` POST 可运行压力核对；该操作必须由账户 Owner 使用登录会话提交明确确认和稳定的 `Idempotency-Key`；响应固定为 `scope: "simulation_only"`、`must_not_execute: true`，不下单、不改变现金或持仓。当前 MCP 仅使用 API Token；SDK 的 Token 模式也不适用，但已有 `username/password` 会话模式会登录并处理 CSRF，可通过现有通用 `get/post` 调用这些路由，目前没有风险专用 SDK 方法。任何调用仍必须通过服务端会话和 Owner 权限检查。
+
+风险报告中的 `unknown` 表示所需信息无法确认，`expired` 表示来源或规则的有效期不覆盖本次核对时点，`partial` 表示覆盖不完整；它们都不能按零或完整覆盖处理。来源限制或 `must_not_use_for_decision: true` 表示该来源不得用于决策。`allowed` 只描述本次模拟风险检查结果，不代表交易许可。
 
 ### Setup Wizard API
 

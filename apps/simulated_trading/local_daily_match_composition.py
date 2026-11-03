@@ -32,6 +32,9 @@ from apps.simulated_trading.application.order_reservation_fill import (
 from apps.simulated_trading.application.order_reservation_fill_calendar import (
     OrderFillSettlementCalendarResolver,
 )
+from apps.simulated_trading.application.portfolio_risk_execution_gate import (
+    ConfiguredPortfolioRiskLockedOrderGuard,
+)
 from apps.simulated_trading.execution_settlement_composition import (
     build_current_published_execution_calendar_reader,
 )
@@ -171,6 +174,7 @@ def build_apply_local_daily_match_with_calendar(
     return ApplySimulatedOrderFillUseCase(
         repository=DjangoSimulatedOrderFillRepository(
             using=using,
+            portfolio_risk_guard=ConfiguredPortfolioRiskLockedOrderGuard(using=using),
             event_reader=event_reader,
             initial_position_mark_reader=build_initial_position_mark_with_calendar(
                 runtime_environment=runtime_environment,

@@ -28,6 +28,9 @@ class SimulatedTradingConfig(AppConfig):
         from apps.simulated_trading.application.daily_inspection_selection import (
             configure_daily_inspection_strategy_selection_reader,
         )
+        from apps.simulated_trading.application.portfolio_risk_public import (
+            configure_portfolio_risk_service,
+        )
         from apps.simulated_trading.execution_current_reference_composition import (
             build_automatic_trade_execution_bridge,
         )
@@ -43,6 +46,7 @@ class SimulatedTradingConfig(AppConfig):
         from apps.simulated_trading.m1_risk_policy_composition import (
             build_strategy_m1_risk_source_reader,
         )
+        from apps.simulated_trading.portfolio_risk_composition import build_portfolio_risk_service
         from core.integration.portfolio_account_access import (
             register_portfolio_account_access_checker,
         )
@@ -56,3 +60,4 @@ class SimulatedTradingConfig(AppConfig):
         register_simulated_trading_consumer_gateways()
         register_simulated_trading_share_gateway()
         register_portfolio_account_access_checker(get_account_access)
+        configure_portfolio_risk_service(build_portfolio_risk_service)

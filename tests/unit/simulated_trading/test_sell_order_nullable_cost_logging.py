@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterator
 from dataclasses import replace
 from datetime import date
 
@@ -21,6 +22,18 @@ from apps.simulated_trading.domain.entities import (
 
 _LOGGER_NAME = "apps.simulated_trading.application.use_cases"
 _EXECUTION_DATE = date(2026, 10, 19)
+
+
+@pytest.fixture(autouse=True)
+def _capture_sell_use_case_logs(caplog: pytest.LogCaptureFixture) -> Iterator[None]:
+    """Capture the app logger directly because the configured apps logger stops propagation."""
+
+    logger = logging.getLogger(_LOGGER_NAME)
+    logger.addHandler(caplog.handler)
+    try:
+        yield
+    finally:
+        logger.removeHandler(caplog.handler)
 
 
 class _AccountRepository:

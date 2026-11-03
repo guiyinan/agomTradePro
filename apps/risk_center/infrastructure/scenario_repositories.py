@@ -30,6 +30,7 @@ from apps.risk_center.domain.scenarios import (
     ScenarioSetRevision,
     ScenarioSourceType,
     ScenarioType,
+    canonical_scenario_snapshot_json,
     scenario_parameters_from_mapping,
     scenario_parameters_to_dict,
 )
@@ -58,6 +59,79 @@ def _json_default(value: object) -> str:
 
 def _json_safe(value: object) -> object:
     return json.loads(json.dumps(value, ensure_ascii=False, default=_json_default))
+
+
+def _snapshot_model_value(snapshot_json: str | None) -> dict[str, object] | None:
+    """Decode canonical snapshot text for Django's JSONField boundary."""
+
+    if snapshot_json is None:
+        return None
+    decoded: object = json.loads(snapshot_json)
+    if type(decoded) is not dict:
+        raise ValueError("scenario run snapshots must encode JSON objects")
+    return cast(dict[str, object], decoded)
+
+
+def _snapshot_text(model_value: object) -> str | None:
+    """Return a canonical text form for a persisted JSON snapshot object."""
+
+    if model_value is None:
+        return None
+    if type(model_value) is not dict:
+        raise ValueError("persisted scenario run snapshot is not a JSON object")
+    return canonical_scenario_snapshot_json(cast(dict[str, object], model_value))
+
+
+def _run_evidence_to_domain(model: ScenarioRunEvidenceModel) -> ScenarioRunEvidence:
+    """Map a complete persisted run row without reconstructing missing evidence."""
+
+    raw_ids: object = model.data_evidence_ids
+    if type(raw_ids) is not list or any(type(item) is not str for item in raw_ids):
+        raise ValueError("persisted scenario run evidence ids are malformed")
+    return ScenarioRunEvidence(
+        run_id=str(model.run_id),
+        scenario_revision_id=str(model.scenario_revision.revision_id),
+        scenario_set_revision_id=(
+            str(model.scenario_set_revision.revision_id)
+            if model.scenario_set_revision is not None
+            else None
+        ),
+        portfolio_snapshot_id=model.portfolio_snapshot_id,
+        portfolio_snapshot_hash=model.portfolio_snapshot_hash,
+        as_of_time=model.as_of_time,
+        data_evidence_ids=tuple(cast(list[str], raw_ids)),
+        result_hash=model.result_hash,
+        allocation_policy_version=model.allocation_policy_version,
+        code_version=model.code_version,
+        must_not_use_for_decision=model.must_not_use_for_decision,
+        blocked_reason=model.blocked_reason,
+        created_at=model.created_at,
+        input_snapshot_json=_snapshot_text(model.input_snapshot_json),
+        result_snapshot_json=_snapshot_text(model.result_snapshot_json),
+    )
+
+
+def _same_run_evidence_content(
+    existing: ScenarioRunEvidence,
+    requested: ScenarioRunEvidence,
+) -> bool:
+    """Compare an idempotent run's business content while ignoring insertion time."""
+
+    return (
+        existing.scenario_revision_id == requested.scenario_revision_id
+        and existing.scenario_set_revision_id == requested.scenario_set_revision_id
+        and existing.portfolio_snapshot_id == requested.portfolio_snapshot_id
+        and existing.portfolio_snapshot_hash == requested.portfolio_snapshot_hash
+        and existing.as_of_time == requested.as_of_time
+        and existing.data_evidence_ids == requested.data_evidence_ids
+        and existing.result_hash == requested.result_hash
+        and existing.allocation_policy_version == requested.allocation_policy_version
+        and existing.code_version == requested.code_version
+        and existing.must_not_use_for_decision == requested.must_not_use_for_decision
+        and existing.blocked_reason == requested.blocked_reason
+        and existing.input_snapshot_json == requested.input_snapshot_json
+        and existing.result_snapshot_json == requested.result_snapshot_json
+    )
 
 
 def _definition_to_domain(model: StressScenarioDefinitionModel) -> ScenarioDefinition:
@@ -520,27 +594,69 @@ class DjangoScenarioRepository:
             ).first()
             if scenario_set_revision is None:
                 raise ValueError("scenario set revision for run evidence does not exist")
-        existing = ScenarioRunEvidenceModel._default_manager.filter(run_id=evidence.run_id).first()
-        if existing is not None:
-            if existing.result_hash != evidence.result_hash:
-                raise ValueError("scenario run id already exists with different evidence")
-            return evidence
-        ScenarioRunEvidenceModel._default_manager.create(
-            run_id=evidence.run_id,
-            scenario_revision=scenario_revision,
-            scenario_set_revision=scenario_set_revision,
-            portfolio_snapshot_id=evidence.portfolio_snapshot_id,
-            portfolio_snapshot_hash=evidence.portfolio_snapshot_hash,
-            as_of_time=evidence.as_of_time,
-            data_evidence_ids=list(evidence.data_evidence_ids),
-            result_hash=evidence.result_hash,
-            allocation_policy_version=evidence.allocation_policy_version,
-            code_version=evidence.code_version,
-            must_not_use_for_decision=evidence.must_not_use_for_decision,
-            blocked_reason=evidence.blocked_reason,
-            created_at=evidence.created_at,
+        existing = (
+            ScenarioRunEvidenceModel._default_manager.select_related(
+                "scenario_revision",
+                "scenario_set_revision",
+            )
+            .filter(run_id=evidence.run_id)
+            .first()
         )
+        if existing is not None:
+            existing_evidence = _run_evidence_to_domain(existing)
+            if not _same_run_evidence_content(existing_evidence, evidence):
+                raise ValueError("scenario run id already exists with different evidence")
+            return existing_evidence
+        try:
+            with transaction.atomic():
+                ScenarioRunEvidenceModel._default_manager.create(
+                    run_id=evidence.run_id,
+                    scenario_revision=scenario_revision,
+                    scenario_set_revision=scenario_set_revision,
+                    portfolio_snapshot_id=evidence.portfolio_snapshot_id,
+                    portfolio_snapshot_hash=evidence.portfolio_snapshot_hash,
+                    as_of_time=evidence.as_of_time,
+                    data_evidence_ids=list(evidence.data_evidence_ids),
+                    result_hash=evidence.result_hash,
+                    allocation_policy_version=evidence.allocation_policy_version,
+                    code_version=evidence.code_version,
+                    must_not_use_for_decision=evidence.must_not_use_for_decision,
+                    blocked_reason=evidence.blocked_reason,
+                    created_at=evidence.created_at,
+                    input_snapshot_json=_snapshot_model_value(evidence.input_snapshot_json),
+                    result_snapshot_json=_snapshot_model_value(evidence.result_snapshot_json),
+                )
+        except IntegrityError as error:
+            raced_model = (
+                ScenarioRunEvidenceModel._default_manager.select_related(
+                    "scenario_revision",
+                    "scenario_set_revision",
+                )
+                .filter(run_id=evidence.run_id)
+                .first()
+            )
+            if raced_model is None:
+                raise
+            raced_evidence = _run_evidence_to_domain(raced_model)
+            if _same_run_evidence_content(raced_evidence, evidence):
+                return raced_evidence
+            raise ValueError("scenario run id already exists with different evidence") from error
         return evidence
+
+    def get_run_evidence(self, run_id: str) -> ScenarioRunEvidence | None:
+        """Read one immutable run row and preserve legacy snapshot absence."""
+
+        model = (
+            ScenarioRunEvidenceModel._default_manager.select_related(
+                "scenario_revision",
+                "scenario_set_revision",
+            )
+            .filter(run_id=run_id)
+            .first()
+        )
+        if model is None:
+            return None
+        return _run_evidence_to_domain(model)
 
 
 __all__ = ["DjangoScenarioRepository"]

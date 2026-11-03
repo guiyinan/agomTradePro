@@ -57,6 +57,109 @@ def _account_stop_loss_scope_field() -> dict[str, Any]:
     }
 
 
+def _portfolio_risk_account_id_field() -> dict[str, Any]:
+    """Bind an explicitly selected owner account to the risk task path."""
+
+    return {
+        "key": "account_id",
+        "label": "模拟账户编号",
+        "binding": "path",
+        "input_type": "number",
+        "value_type": "integer",
+        "required": True,
+        "presentation_semantic": "primary_selector",
+        "min": 1,
+    }
+
+
+def build_owner_risk_actions() -> tuple[dict[str, Any], ...]:
+    """Build the owner's report, pressure run and existing stop-loss actions in order."""
+
+    return (
+        build_portfolio_risk_report_action(),
+        build_portfolio_pressure_run_action(),
+        build_account_stop_loss_check_action(),
+    )
+
+
+def build_portfolio_risk_report_action() -> dict[str, Any]:
+    """Build an owner-scoped, read-only account risk report action."""
+
+    return {
+        "key": "simulated-trading.portfolio-risk-report",
+        "label": "读取已授权模拟账户风险",
+        "endpoint": "/api/simulated-trading/accounts/<int:account_id>/portfolio-risk/",
+        "method": "GET",
+        "intent": "read_owner_portfolio_risk_constraints",
+        "risk": "read",
+        "audience": "authenticated",
+        "effect": "read",
+        "screen_key": "execution.accounts",
+        "module_key": "daily-decisions",
+        "view_type": "detail",
+        "description": (
+            "只读展示有权查看的模拟账户风险约束、版本、来源时点、覆盖和未知原因；"
+            "不会运行情景或改变账户。"
+        ),
+        "source": "approved:runtime-simulated-trading",
+        "task_group": "06 模拟交易记录",
+        "sequence": 788,
+        "task_tier": "support",
+        "raw_debug": False,
+        "fields": [_portfolio_risk_account_id_field()],
+        "view_model": {"kind": "detail"},
+    }
+
+
+def build_portfolio_pressure_run_action() -> dict[str, Any]:
+    """Build a separately confirmed simulation-only pressure evidence action."""
+
+    return {
+        "key": "simulated-trading.portfolio-pressure-run",
+        "label": "明确运行模拟退出压力核对",
+        "endpoint": (
+            "/api/simulated-trading/accounts/<int:account_id>/portfolio-risk/pressure-run/"
+        ),
+        "method": "POST",
+        "intent": "run_owner_portfolio_exit_pressure",
+        "risk": "write",
+        "audience": "authenticated",
+        "effect": "execute",
+        "confirmation_required": True,
+        "audit_required": True,
+        "session_auth_required": True,
+        "screen_key": "execution.accounts",
+        "module_key": "daily-decisions",
+        "view_type": "detail",
+        "description": (
+            "对本人模拟账户明确运行一个已审批压力情景，只保存情景核对证据；"
+            "不下单、不撮合、不释放预留或改写账户。"
+        ),
+        "source": "approved:runtime-simulated-trading",
+        "task_group": "06 模拟交易记录",
+        "sequence": 789,
+        "task_tier": "support",
+        "raw_debug": False,
+        "fields": [
+            _portfolio_risk_account_id_field(),
+            {
+                "key": "scenario_version_id",
+                "label": "已审批压力情景",
+                "binding": "body",
+                "input_type": "select",
+                "value_type": "string",
+                "required": True,
+                "presentation_semantic": "primary_selector",
+                "options": [],
+                "options_lookup": "approved_portfolio_pressure_scenarios",
+                "placeholder": "先选择模拟账户，再选择情景名称和业务版本",
+            },
+            confirmed_body_field(),
+        ],
+        "view_model": {"kind": "detail"},
+    }
+
+
 def build_account_stop_loss_check_action() -> dict[str, Any]:
     """Build the explicitly confirmed account stop-loss check action."""
 

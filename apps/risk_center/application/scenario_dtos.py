@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from decimal import Decimal
 
+from apps.risk_center.domain.portfolio_risk_sources import SourceObservationPrecision
 from apps.risk_center.domain.scenarios import (
     AssetReturnSeries,
     ScenarioDefinition,
@@ -21,7 +22,7 @@ from apps.risk_center.domain.scenarios import (
 
 
 def _require_aware(field_name: str, value: datetime) -> None:
-    if value.tzinfo is None or value.utcoffset() is None:
+    if not isinstance(value, datetime) or value.tzinfo is None or value.utcoffset() is None:
         raise ValueError(f"{field_name} must be timezone-aware")
 
 
@@ -88,16 +89,32 @@ class ScenarioMarketDataDTO:
 
     return_series: tuple[AssetReturnSeries, ...]
     evidence_ids: tuple[str, ...]
-    observed_at: datetime
+    observed_at: datetime | None
     published_at: datetime
     must_not_use_for_decision: bool = False
     blocked_reason: str = ""
+    observed_on: date | None = None
+    observation_precision: SourceObservationPrecision = SourceObservationPrecision.TIMESTAMP
 
     def __post_init__(self) -> None:
-        _require_aware("ScenarioMarketDataDTO.observed_at", self.observed_at)
+        if not isinstance(self.observation_precision, SourceObservationPrecision):
+            raise TypeError("ScenarioMarketDataDTO.observation_precision is unsupported")
         _require_aware("ScenarioMarketDataDTO.published_at", self.published_at)
-        if self.published_at < self.observed_at:
-            raise ValueError("market data published_at cannot precede observed_at")
+        if self.observation_precision is SourceObservationPrecision.TIMESTAMP:
+            if self.observed_at is None or self.observed_on is not None:
+                raise ValueError("timestamp precision requires observed_at and forbids observed_on")
+            _require_aware("ScenarioMarketDataDTO.observed_at", self.observed_at)
+            if self.published_at.astimezone(UTC) < self.observed_at.astimezone(UTC):
+                raise ValueError("market data published_at cannot precede observed_at")
+        elif self.observation_precision is SourceObservationPrecision.DATE:
+            if self.observed_at is not None or type(self.observed_on) is not date:
+                raise ValueError(
+                    "date precision requires observed_on without a synthetic observed_at"
+                )
+        elif self.observed_at is not None or self.observed_on is not None:
+            raise ValueError("unknown observation precision cannot carry an observation clock")
+        if type(self.must_not_use_for_decision) is not bool:
+            raise TypeError("must_not_use_for_decision must be a boolean")
         if self.must_not_use_for_decision:
             if not self.blocked_reason.strip():
                 raise ValueError("blocked market data requires blocked_reason")

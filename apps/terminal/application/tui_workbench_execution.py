@@ -12,6 +12,7 @@ from django.utils import timezone
 
 from apps.terminal.application.tui_audit import verified_reauth_evidence
 from apps.terminal.application.tui_order_history_result import order_operation_confirmation_message
+from apps.terminal.application.tui_portfolio_risk_result import portfolio_pressure_task_outcome
 from apps.terminal.application.tui_research_snapshot_result import (
     TuiResearchProfessionalTarget,
 )
@@ -343,7 +344,7 @@ class TuiWorkbenchExecutionMixin:
                     else request_params
                 ),
             )
-            outcome = self._execution_outcome(safe_payload, status_code)
+            outcome = self._execution_outcome(safe_payload, status_code, action_key=action_key)
             fee_action = action_key.startswith("simulated-trading.fee-correction-")
             fee_recovery = view_model.pop("_fee_recovery", None)
             m1_risk_mutation = action_key in {
@@ -718,10 +719,14 @@ class TuiWorkbenchExecutionMixin:
             **self._result_head_payload(view_model),
         }
 
-    def _execution_outcome(self, payload: Any, status_code: int) -> str:
+    def _execution_outcome(
+        self, payload: Any, status_code: int, *, action_key: str | None = None
+    ) -> str:
         """Preserve a bounded owner outcome separately from transport success."""
         if status_code >= 400:
             return "failed"
+        if action_key == "simulated-trading.portfolio-pressure-run" and 200 <= status_code < 300:
+            return portfolio_pressure_task_outcome(payload)
         if isinstance(payload, dict):
             data = payload.get("data")
             source = (

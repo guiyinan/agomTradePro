@@ -8,6 +8,7 @@ Source ownership:
 - `10-navigation.js`: catalog, screen entry, user-experience metadata, and workflow navigation.
 - `15-workspace-state.js`: safe session-local state restoration and read-only run observation.
 - `20-dashboard.js`: dashboard layout, panels, semantic detail rendering, and panel actions.
+- `29-pressure-scenario-lookup.js`: account-bound approved Scenario revision choices and pre-submit revalidation.
 - `30-actions.js`: action grouping, forms, row parameter mapping, action execution, and dashboard result coordination.
 - `40-views.js`: view-model rendering, grids, charts, inspectors, pagination, and export-ready data handling.
 - `45-pagination.js`: list/panel paging controls and retained-table query recovery.

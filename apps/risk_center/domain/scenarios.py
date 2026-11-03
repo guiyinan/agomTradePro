@@ -2,18 +2,38 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
 import statistics
 from collections.abc import Mapping, Sequence
-from dataclasses import asdict, dataclass, field, is_dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
 from decimal import Decimal, InvalidOperation
-from enum import Enum
+from enum import Enum, StrEnum
 from typing import cast
 
+from apps.risk_center.domain.scenario_serialization import _json_value as _json_value
+from apps.risk_center.domain.scenario_serialization import (
+    canonical_scenario_snapshot_json,
+    scenario_run_snapshot_hash,
+    stable_content_hash,
+)
 
-class ScenarioType(str, Enum):
+
+class _LegacyStringEnum(StrEnum):
+    """Keep the legacy ``str, Enum`` display and formatting contract."""
+
+    def __str__(self) -> str:
+        """Preserve the legacy enum-qualified string representation."""
+
+        return Enum.__str__(self)
+
+    def __format__(self, format_spec: str) -> str:
+        """Preserve the legacy string-value formatting behavior."""
+
+        return str.__format__(self, format_spec)
+
+
+class ScenarioType(_LegacyStringEnum):
     """Stable scenario calculation types."""
 
     HISTORICAL_WINDOW = "historical_window"
@@ -36,7 +56,7 @@ class ScenarioType(str, Enum):
         raise ValueError("unsupported scenario parameters")
 
 
-class ScenarioRevisionStatus(str, Enum):
+class ScenarioRevisionStatus(_LegacyStringEnum):
     """Immutable revision lifecycle labels."""
 
     CANDIDATE = "candidate"
@@ -48,14 +68,14 @@ class ScenarioRevisionStatus(str, Enum):
     REJECTED = "rejected"
 
 
-class ScenarioDefinitionStatus(str, Enum):
+class ScenarioDefinitionStatus(_LegacyStringEnum):
     """Definition availability states."""
 
     ACTIVE = "active"
     RETIRED = "retired"
 
 
-class ScenarioSourceType(str, Enum):
+class ScenarioSourceType(_LegacyStringEnum):
     """Origin of an immutable scenario revision."""
 
     HUMAN = "human"
@@ -65,21 +85,21 @@ class ScenarioSourceType(str, Enum):
     LEGACY_CODE_MIGRATION = "legacy_code_migration"
 
 
-class RollingMetric(str, Enum):
+class RollingMetric(_LegacyStringEnum):
     """Supported rolling-window selection metrics."""
 
     CUMULATIVE_RETURN = "cumulative_return"
     REALIZED_VOLATILITY = "realized_volatility"
 
 
-class RollingDirection(str, Enum):
+class RollingDirection(_LegacyStringEnum):
     """Supported rolling-window ordering directions."""
 
     MINIMUM = "minimum"
     MAXIMUM = "maximum"
 
 
-class ShockUnit(str, Enum):
+class ShockUnit(_LegacyStringEnum):
     """Finite shock units; arbitrary expressions are intentionally absent."""
 
     PERCENT = "percent"
@@ -88,7 +108,7 @@ class ShockUnit(str, Enum):
     CORRELATION = "correlation"
 
 
-class ProbabilitySource(str, Enum):
+class ProbabilitySource(_LegacyStringEnum):
     """Keep subjective probabilities separate from model inference."""
 
     SUBJECTIVE = "subjective"
@@ -361,34 +381,20 @@ class ScenarioDefinition:
         _require_aware("ScenarioDefinition.created_at", self.created_at)
 
 
-def _json_value(value: object) -> object:
-    if isinstance(value, Enum):
-        return value.value
-    if isinstance(value, Decimal):
-        return format(value.normalize(), "f")
-    if isinstance(value, datetime):
-        return value.astimezone(UTC).isoformat()
-    if isinstance(value, date):
-        return value.isoformat()
-    if is_dataclass(value) and not isinstance(value, type):
-        return _json_value(asdict(value))
-    if isinstance(value, Mapping):
-        return {str(key): _json_value(item) for key, item in value.items()}
-    if isinstance(value, (tuple, list)):
-        return [_json_value(item) for item in value]
-    return value
+def _require_canonical_snapshot_json(field_name: str, value: str) -> None:
+    """Reject snapshot text that is invalid, non-object, or not canonical JSON."""
 
-
-def stable_content_hash(payload: Mapping[str, object]) -> str:
-    """Return the canonical SHA-256 digest for JSON-safe business content."""
-
-    encoded = json.dumps(
-        _json_value(payload),
-        ensure_ascii=False,
-        sort_keys=True,
-        separators=(",", ":"),
-    ).encode("utf-8")
-    return hashlib.sha256(encoded).hexdigest()
+    if type(value) is not str or not value:
+        raise ValueError(f"{field_name} must be canonical JSON text")
+    try:
+        decoded: object = json.loads(value)
+    except json.JSONDecodeError as error:
+        raise ValueError(f"{field_name} must be valid JSON") from error
+    if type(decoded) is not dict:
+        raise ValueError(f"{field_name} must encode a JSON object")
+    payload = cast(dict[str, object], decoded)
+    if canonical_scenario_snapshot_json(payload) != value:
+        raise ValueError(f"{field_name} must use canonical JSON encoding")
 
 
 @dataclass(frozen=True)
@@ -592,6 +598,8 @@ class ScenarioRunEvidence:
     must_not_use_for_decision: bool = False
     blocked_reason: str = ""
     created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    input_snapshot_json: str | None = None
+    result_snapshot_json: str | None = None
 
     def __post_init__(self) -> None:
         for field_name, value in (
@@ -605,6 +613,17 @@ class ScenarioRunEvidence:
             _require_nonblank(field_name, value)
         _require_aware("ScenarioRunEvidence.as_of_time", self.as_of_time)
         _require_aware("ScenarioRunEvidence.created_at", self.created_at)
+        if (self.input_snapshot_json is None) != (self.result_snapshot_json is None):
+            raise ValueError("scenario run input and result snapshots must be stored together")
+        if self.input_snapshot_json is not None and self.result_snapshot_json is not None:
+            _require_canonical_snapshot_json("input_snapshot_json", self.input_snapshot_json)
+            _require_canonical_snapshot_json("result_snapshot_json", self.result_snapshot_json)
+            expected_result_hash = scenario_run_snapshot_hash(
+                input_snapshot_json=self.input_snapshot_json,
+                result_snapshot_json=self.result_snapshot_json,
+            )
+            if self.result_hash != expected_result_hash:
+                raise ValueError("scenario run result_hash must bind its snapshots")
         if self.must_not_use_for_decision:
             _require_nonblank("blocked_reason", self.blocked_reason)
         else:
@@ -628,6 +647,40 @@ class PortfolioExposure:
         _require_nonblank("PortfolioExposure.asset_code", self.asset_code)
         if not self.weight.is_finite() or self.weight < 0 or self.weight > 1:
             raise ValueError("PortfolioExposure.weight must be in [0, 1]")
+        loading_keys: list[str] = []
+        for key, value in self.attributes:
+            if not key.startswith("factor_loading:"):
+                continue
+            factor = key.removeprefix("factor_loading:")
+            _require_nonblank("PortfolioExposure factor loading key", factor)
+            if key in loading_keys:
+                raise ValueError("PortfolioExposure has duplicate factor loadings")
+            loading_keys.append(key)
+            try:
+                loading = Decimal(value)
+            except InvalidOperation as error:
+                raise ValueError("PortfolioExposure factor loading must be decimal text") from error
+            if not loading.is_finite() or not Decimal("0") <= loading <= Decimal("1"):
+                raise ValueError("PortfolioExposure factor loading must be in [0, 1]")
+
+
+def scenario_factor_loading_attribute(
+    factor_code: str,
+    loading: Decimal,
+) -> tuple[str, str]:
+    """Encode one explicit, conservative factor exposure on a scenario asset."""
+
+    _require_nonblank("scenario factor code", factor_code)
+    if (
+        type(loading) is not Decimal
+        or not loading.is_finite()
+        or not Decimal("0") <= loading <= Decimal("1")
+    ):
+        raise ValueError("scenario factor loading must be an exact Decimal in [0, 1]")
+    value = format(loading, "f")
+    if "." in value:
+        value = value.rstrip("0").rstrip(".")
+    return (f"factor_loading:{factor_code}", value or "0")
 
 
 @dataclass(frozen=True)
@@ -904,9 +957,39 @@ def _select_rolling_window(
 
 
 def _matches(exposure: PortfolioExposure, target_kind: str, target: str) -> bool:
+    """Preserve legacy exact matching while honoring explicit factor loadings."""
+
+    return _match_loading(exposure, target_kind, target) > 0
+
+
+def _match_loading(exposure: PortfolioExposure, target_kind: str, target: str) -> Decimal:
+    """Return exact asset/class match or the bounded loading for one factor."""
+
     if target_kind == "asset":
-        return exposure.asset_code == target
-    return dict(exposure.attributes).get(target_kind) == target
+        return Decimal("1") if exposure.asset_code == target else Decimal("0")
+    attributes = dict(exposure.attributes)
+    if target_kind == "factor":
+        loading_text = attributes.get(f"factor_loading:{target}")
+        if loading_text is not None:
+            try:
+                loading = Decimal(loading_text)
+            except InvalidOperation as error:
+                raise ValueError("scenario factor loading must be decimal text") from error
+            if not loading.is_finite() or not Decimal("0") <= loading <= Decimal("1"):
+                raise ValueError("scenario factor loading must be in [0, 1]")
+            return loading
+        return Decimal("1") if attributes.get("factor") == target else Decimal("0")
+    return Decimal("1") if attributes.get(target_kind) == target else Decimal("0")
+
+
+def scenario_exposure_loading(
+    exposure: PortfolioExposure,
+    target_kind: str,
+    target: str,
+) -> Decimal:
+    """Return the exact factor loading used for one typed Scenario target."""
+
+    return _match_loading(exposure, target_kind, target)
 
 
 def _shock_return(shock: ParametricShock) -> Decimal:
@@ -1012,9 +1095,10 @@ def evaluate_scenario(
                 exposure.weight
                 * sum(
                     (
-                        _shock_return(shock)
+                        _match_loading(exposure, shock.target_kind, shock.target)
+                        * _shock_return(shock)
                         for shock in parameters.shocks
-                        if _matches(exposure, shock.target_kind, shock.target)
+                        if _match_loading(exposure, shock.target_kind, shock.target) > 0
                     ),
                     Decimal("0"),
                 )
@@ -1028,9 +1112,10 @@ def evaluate_scenario(
             exposure.weight
             * sum(
                 (
-                    impact.cumulative_return
+                    _match_loading(exposure, impact.target_kind, impact.target)
+                    * impact.cumulative_return
                     for impact in parameters.asset_impacts
-                    if _matches(exposure, impact.target_kind, impact.target)
+                    if _match_loading(exposure, impact.target_kind, impact.target) > 0
                 ),
                 Decimal("0"),
             )
@@ -1070,8 +1155,12 @@ __all__ = [
     "ScenarioType",
     "ShockUnit",
     "calculate_scenario_revision_hash",
+    "canonical_scenario_snapshot_json",
     "evaluate_scenario",
+    "scenario_run_snapshot_hash",
     "scenario_parameters_from_mapping",
     "scenario_parameters_to_dict",
+    "scenario_factor_loading_attribute",
+    "scenario_exposure_loading",
     "stable_content_hash",
 ]

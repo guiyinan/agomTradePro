@@ -610,6 +610,27 @@ def _validate_plan_bundle_binding(
             )
 
 
+def _validate_reservation_plan_bundle_binding(
+    plan: SettlementExecutionPlan | SettlementExecutionPlanV2 | SettlementExecutionPlanV3,
+    bundle: ExecutionSettlementBundleV3,
+    as_of: datetime,
+    *,
+    reservation_locked: bool = False,
+) -> None:
+    """Give only locked reservation revalidation a stable stale-plan code."""
+
+    try:
+        _validate_plan_bundle_binding(plan, bundle, as_of)
+    except SimulatedTradeExecutionBlocked as error:
+        if not reservation_locked or error.code != SimulatedTradeExecutionBlocked.default_code:
+            raise
+        raise SimulatedTradeExecutionBlocked(
+            "reservation evidence expired or changed before ledger locks completed",
+            code="ORDER_RESERVATION_PLAN_STALE",
+            details=error.details,
+        ) from error
+
+
 def _validate_quantity_preflight(
     intent: SimulatedTradeIntent,
     bundle: ExecutionSettlementBundleV3,

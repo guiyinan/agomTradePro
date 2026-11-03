@@ -14,6 +14,11 @@ from django.db import models, router
 from django.db.models.base import ModelBase
 from django.utils import timezone
 
+from apps.risk_center.domain.scenarios import (
+    canonical_scenario_snapshot_json,
+    scenario_run_snapshot_hash,
+)
+
 PCT_VALIDATORS = [MinValueValidator(0.0), MaxValueValidator(1.0)]
 _M1_RISK_AUDIT_WRITE_TOKEN = object()
 
@@ -753,6 +758,8 @@ class ScenarioRunEvidenceModel(ImmutableScenarioRecordMixin):
     must_not_use_for_decision = models.BooleanField(default=False, db_index=True)
     blocked_reason = models.CharField(max_length=160, blank=True, default="")
     created_at = models.DateTimeField(default=timezone.now, db_index=True)
+    input_snapshot_json = models.JSONField(null=True, blank=True)
+    result_snapshot_json = models.JSONField(null=True, blank=True)
 
     class Meta:
         app_label = "risk_center"
@@ -768,11 +775,42 @@ class ScenarioRunEvidenceModel(ImmutableScenarioRecordMixin):
                 name="risk_scn_run_portfolio",
             ),
         ]
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    models.Q(
+                        input_snapshot_json__isnull=True,
+                        result_snapshot_json__isnull=True,
+                    )
+                    | models.Q(
+                        input_snapshot_json__isnull=False,
+                        result_snapshot_json__isnull=False,
+                    )
+                ),
+                name="risk_scn_run_snapshot_pair_ck",
+            )
+        ]
 
     def clean(self) -> None:
         """Enforce decision-usable and blocked evidence shapes."""
 
         super().clean()
+        if (self.input_snapshot_json is None) != (self.result_snapshot_json is None):
+            raise ValidationError("Input and result snapshots must be stored together.")
+        if self.input_snapshot_json is not None and self.result_snapshot_json is not None:
+            if (
+                type(self.input_snapshot_json) is not dict
+                or type(self.result_snapshot_json) is not dict
+            ):
+                raise ValidationError("Run evidence snapshots must be JSON objects.")
+            input_json = canonical_scenario_snapshot_json(self.input_snapshot_json)
+            result_json = canonical_scenario_snapshot_json(self.result_snapshot_json)
+            expected_hash = scenario_run_snapshot_hash(
+                input_snapshot_json=input_json,
+                result_snapshot_json=result_json,
+            )
+            if self.result_hash != expected_hash:
+                raise ValidationError("Run result hash must bind both retained snapshots.")
         if self.must_not_use_for_decision:
             if not self.blocked_reason.strip():
                 raise ValidationError({"blocked_reason": "Blocked evidence requires a reason."})

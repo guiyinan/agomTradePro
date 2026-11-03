@@ -15,15 +15,22 @@ class DataCenterConfig(AppConfig):
             configure_egress_rule_repository,
             configure_egress_transport,
         )
+        from apps.data_center.application.raw_landing_public import (
+            configure_raw_landing_reader,
+            configure_raw_landing_writer,
+        )
         from apps.data_center.infrastructure.egress_repositories import (
             EgressAuditRepository,
             EgressRoutingRuleRepository,
         )
         from apps.data_center.infrastructure.egress_transport import EgressHttpTransport
+        from apps.data_center.infrastructure.raw_landing_repositories import RawLandingRepository
 
         configure_egress_rule_repository(EgressRoutingRuleRepository())
         configure_egress_audit_writer(EgressAuditRepository())
         configure_egress_transport(EgressHttpTransport())
+        configure_raw_landing_reader(RawLandingRepository)
+        configure_raw_landing_writer(RawLandingRepository)
         from apps.data_center.application.config_summary_service import (
             configure_data_center_config_summary_repository,
         )

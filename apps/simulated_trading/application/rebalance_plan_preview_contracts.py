@@ -7,6 +7,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Literal
 
+from apps.risk_center.application.portfolio_risk_contracts import PortfolioRiskReportPayload
 from apps.risk_center.domain.m1_rebalance_risk_policy import M1RiskFalsification
 from apps.simulated_trading.application.rebalance_preview_reference_close import (
     PricePublicationReference,
@@ -221,6 +222,7 @@ class RebalancePlanPreview:
     risk_context: RebalancePlanRiskContext
     allocation_items: tuple[RebalancePlanPreviewItem, ...]
     asset_items: tuple[RebalancePlanPreviewItem, ...]
+    portfolio_risk: PortfolioRiskReportPayload | None = None
 
     def to_payload(self) -> dict[str, object]:
         """Return the complete user-facing, JSON-safe preview."""
@@ -253,6 +255,7 @@ class RebalancePlanPreview:
             "risk_context": self.risk_context.to_payload(),
             "allocation_items": [item.to_payload() for item in self.allocation_items],
             "asset_items": [item.to_payload() for item in self.asset_items],
+            "portfolio_risk": self.portfolio_risk,
         }
 
 

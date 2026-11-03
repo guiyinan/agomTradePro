@@ -880,15 +880,20 @@ def test_unknown_event_kind_is_logged_safely_and_rejected(
         event_kind=LocalSimulatedFillEventKind.UNKNOWN,
     )
     logger_name = "apps.simulated_trading.infrastructure.order_reservation_fill_snapshot_codec"
-    with caplog.at_level(logging.WARNING, logger=logger_name):
-        with pytest.raises(SimulatedSettlementContractError):
-            encode_order_reservation_fill_snapshot(
-                event=unknown,
-                economics=fixture.economics,
-                reservation_id=unknown.reservation_id,
-                fill_sequence=1,
-                plan_snapshot_hash=PLAN_HASH,
-            )
+    logger = logging.getLogger(logger_name)
+    logger.addHandler(caplog.handler)
+    try:
+        with caplog.at_level(logging.WARNING, logger=logger_name):
+            with pytest.raises(SimulatedSettlementContractError):
+                encode_order_reservation_fill_snapshot(
+                    event=unknown,
+                    economics=fixture.economics,
+                    reservation_id=unknown.reservation_id,
+                    fill_sequence=1,
+                    plan_snapshot_hash=PLAN_HASH,
+                )
+    finally:
+        logger.removeHandler(caplog.handler)
 
     warnings = [record for record in caplog.records if record.name == logger_name]
     assert len(warnings) == 1

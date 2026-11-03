@@ -37,6 +37,12 @@ _TEST_SINGLE_OWNER_POLICY_PUBLICATION_SETTINGS: dict[str, object] = {
     "ttl_seconds": 300,
 }
 
+# Generic fixtures satisfy critical-key presence without inventing risk limits;
+# this unsupported policy schema remains fail-closed if a test reads it.
+_TEST_UNCONFIGURED_PORTFOLIO_RISK_POLICY: dict[str, object] = {
+    "schema_version": "unconfigured-test-fixture",
+}
+
 
 def configure_critical_runtime() -> None:
     """Seed explicit fail-closed audit values for an isolated test database."""
@@ -54,6 +60,7 @@ def configure_critical_runtime() -> None:
             "account.single_owner_policy.publication_settings": (
                 _TEST_SINGLE_OWNER_POLICY_PUBLICATION_SETTINGS
             ),
+            "risk_center.simulated_portfolio_risk": _TEST_UNCONFIGURED_PORTFOLIO_RISK_POLICY,
         },
         actor="test-runtime-bootstrap",
         reason="seed complete critical runtime values for account tests",

@@ -48,6 +48,9 @@ from apps.terminal.application.tui_metadata_field_validation import (
 from apps.terminal.application.tui_metadata_field_validation import (
     _validate_file_input_contract as _validate_file_input_contract,
 )
+from apps.terminal.application.tui_metadata_field_validation import (
+    _validate_options_lookup_scope as _validate_options_lookup_scope,
+)
 from apps.terminal.application.tui_metadata_filter_validation import (
     TuiMetadataValidationError as TuiMetadataValidationError,
 )
@@ -60,6 +63,10 @@ from apps.terminal.application.tui_metadata_filter_validation import (
 from apps.terminal.application.tui_metadata_filter_validation import (
     validate_dashboard_panel_action_kind as _validate_dashboard_panel_action_kind,
 )
+from apps.terminal.application.tui_metadata_shape_validation import (
+    _require_fields as _require_fields,
+)
+from apps.terminal.application.tui_metadata_shape_validation import _unique_keys as _unique_keys
 
 try:
     from jsonschema import Draft202012Validator  # type: ignore[import-untyped]
@@ -188,6 +195,7 @@ def validate_tui_metadata(payload: dict[str, Any]) -> dict[str, Any]:
             field.setdefault("placeholder", "")
             _validate_field(action, field)
         _validate_file_input_contract(action, fields)
+        _validate_options_lookup_scope(action=action, fields=fields)
         view_model = action.setdefault("view_model", {})
         if not isinstance(view_model, dict):
             raise TuiMetadataValidationError(
@@ -697,24 +705,6 @@ def _require_list(payload: dict[str, Any], key: str) -> list[dict[str, Any]]:
         if not isinstance(item, dict):
             raise TuiMetadataValidationError(f"{key} entries must be objects")
     return value
-
-
-def _require_fields(item: dict[str, Any], label: str, fields: tuple[str, ...]) -> None:
-    for field in fields:
-        if field not in item or item[field] in (None, ""):
-            raise TuiMetadataValidationError(f"{label} missing required field: {field}")
-
-
-def _unique_keys(items: list[dict[str, Any]], label: str) -> set[str]:
-    keys: set[str] = set()
-    for item in items:
-        key = str(item.get("key") or "")
-        if not key:
-            raise TuiMetadataValidationError(f"{label} entry missing key")
-        if key in keys:
-            raise TuiMetadataValidationError(f"Duplicate {label} key: {key}")
-        keys.add(key)
-    return keys
 
 
 def _validate_field_alias_registry(registry: Any) -> None:

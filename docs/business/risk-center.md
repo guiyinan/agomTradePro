@@ -232,3 +232,34 @@ TUI 入口：`/tui/#/risk-center.overview`。
 - Web 控制台：页面渲染、保存/预览/例外操作入口。
 - TUI：risk-center 运行时 metadata 注入、屏幕和确认型写动作暴露。
 - MCP：注册 smoke test 和工具执行 smoke test。
+
+## 11. ASH-07 来源原件准入
+
+为模拟组合风险准备来源时，使用本地原件和单独整理的 admission JSON：
+
+```powershell
+python manage.py admit_portfolio_risk_source `
+  --document .tmp/portfolio-risk-input.json `
+  --original-body .tmp/source-original.bin
+```
+
+命令默认只校验并生成候选，不写入数据库。确认材料、source clocks、用途限制和显式 normalized facts 后，才添加 `--write` 将候选写入 Data Center 已有 RawPayload；它不会改策略、账本或其他配置。
+
+Admission JSON 使用 `ash07.source_admission_request.v1`，包含 `kind`、精确资产/来源记录标识、原始 URL（未知时为 `null`）、真实本地 `captured_at`、`source_evidence` 和已明确标准化的 `facts`。原件 bytes 单独由 `--original-body` 提供。命令不会解析 body、推断 normalized facts，或从接收时间补源观测、有效期、单位、taxonomy、覆盖率或阈值。原件 hash 绑定实际 bytes；manifest hash 标识最终 retained payload，二者用途不同。
+
+`captured_at` 和 source timestamp 必须是带时区 ISO datetime；date-only source 只填 `observed_on`，未知 precision 的观测字段填 `null`。facts 中的日期用 ISO date，精确小数用十进制字符串，未知单位/值使用 `null`；不要提交 JSON 浮点数。
+
+未知 source clocks 必须显式留空；禁止用途、`must_not_use_for_decision` 和限制标记会原样保留。数据缺少当前 reader schema 必需的 taxonomy 或其他事实时，准入失败，不会套默认值。只对已确认可安全留存的公开原件使用 `--write`；原件不能在准入时脱敏，因为改写 bytes 会破坏原件 hash。
+
+`captured_at` 必须是原件被本地完整接收的真实带时区时间，不能用命令运行时间替代。写入仅创建现有 RawPayload 记录，不自动添加运行策略引用；之后的 policy source reference 必须显式绑定命令返回的 `raw_payload_hash`。
+
+
+## 12. 模拟组合风险与委托准入
+
+模拟组合风险报告保留当前持仓、已执行用量、有效买卖预留和拟新增订单的完整约束。未成交卖单不减少账面行业/ETF暴露，也不释放未来卖出收入。行业、ETF重复暴露、来源资格与gross流动性容量均使用同一版本化输入；资料未知、过期或禁止决策用途时不能准入。
+
+风险总览与具体委托准入分别呈现。SELL仅沿用既有总仓、单仓、现金不足和现金底线的买入限额豁免，报告仍如实保留这些现有超限；硬排除、来源、身份与权限、gross容量、停牌及行业/ETF约束继续有效。BUY保留全部检查。完整预览包含不同方向时，各行保留准入结论，整体预览的拒绝结果不会伪装为通过。正式落账还必须通过原有费用、报价、卖出数量、T+1与结算门禁。
+
+普通执行、委托受理和既有成交落账在账户锁内重验，并把方向、真实费用依据、来源/策略版本、原风险报告及具体准入理由随同一事务写入既有Risk审计。后续原有成交门禁失败时，风险审计与业务变更一起回滚。压力运行只生成可回读的模拟情景证据，使用同一提交键重试返回原报告，不能产生交易。
+
+接口与TUI证据的实际通过状态以ASH-07整单元验收索引为准；人工归一化facts、合成测试来源和官方原件资格分别记录。

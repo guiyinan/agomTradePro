@@ -191,6 +191,11 @@ def test_active_profile_passes_reconciled_definition_validation() -> None:
     values = [
         RuntimeConfigValue(
             profile_id=profile.profile_id,
+            definition_key="risk_center.simulated_portfolio_risk",
+            value_json={"schema_version": "unsupported-test-fixture"},
+        ),
+        RuntimeConfigValue(
+            profile_id=profile.profile_id,
             definition_key="data_center.provider.failover_tolerance",
             value_json=0.025,
         ),
@@ -260,7 +265,7 @@ def test_active_profile_passes_reconciled_definition_validation() -> None:
     report = service.validate_active_profile("development")
 
     assert report["valid"] is True
-    assert report["validated"] == 6
+    assert report["validated"] == 7
     assert report["errors"] == ()
 
 
@@ -287,6 +292,7 @@ def test_active_profile_reports_missing_critical_definition() -> None:
 
     assert report["valid"] is False
     assert report["errors"] == (
+        "missing_critical_definition:risk_center.simulated_portfolio_risk",
         "missing_critical_definition:data_center.provider.failover_tolerance",
         "missing_critical_definition:account.creation_evidence.settings",
         "missing_critical_definition:account.single_owner_policy.publication_settings",

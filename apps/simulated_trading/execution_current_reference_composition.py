@@ -88,8 +88,8 @@ from apps.simulated_trading.infrastructure.account_repository import (
 from apps.simulated_trading.infrastructure.automatic_trading_invocation_repository import (
     DjangoAutoTradingInvocationRepository,
 )
-from apps.simulated_trading.infrastructure.execution_settlement_uow_repository import (
-    DjangoSimulatedTradeExecutionRepository,
+from apps.simulated_trading.infrastructure.portfolio_risk_execution_repository import (
+    DjangoPortfolioRiskExecutionRepository,
 )
 from apps.simulated_trading.infrastructure.position_repository import DjangoPositionRepository
 from apps.simulated_trading.infrastructure.trade_repository import DjangoTradeRepository
@@ -790,6 +790,12 @@ def _runtime_environment_from_settings_module() -> str:
     return "development"
 
 
+def get_simulated_execution_runtime_environment() -> str:
+    """Reuse the execution composition's configured runtime environment mapping."""
+
+    return _runtime_environment_from_settings_module()
+
+
 class _ServerUTCClock:
     """Provide the server's aware UTC time to the manual caller and locked UOW."""
 
@@ -943,7 +949,7 @@ def _build_current_reference_manual_execution_components() -> (
         calendar_reader=calendar_reader,
         clock=clock,
     )
-    repository = DjangoSimulatedTradeExecutionRepository(using=DEFAULT_DB_ALIAS)
+    repository = DjangoPortfolioRiskExecutionRepository(using=DEFAULT_DB_ALIAS)
     trade_reader = DjangoTradeRepository()
     manual_use_case = ExecuteCurrentReferenceManualTradeUseCase(
         identity_reader=identity_reader,

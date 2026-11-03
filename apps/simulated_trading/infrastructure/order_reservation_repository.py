@@ -16,12 +16,18 @@ from apps.simulated_trading.application.execution_settlement_uow import (
     SimulatedTradeExecutionBlocked,
     SimulatedTradeExecutionClock,
     SimulatedTradeIdempotencyConflict,
-    _validate_plan_bundle_binding,
+    _validate_reservation_plan_bundle_binding,
 )
 from apps.simulated_trading.application.order_submission_market import (
     OrderSubmissionAccountState,
     OwnerOrderStoredReadback,
     SimulatedOrderSubmissionGuard,
+)
+from apps.simulated_trading.application.portfolio_risk_execution_gate import (
+    PortfolioRiskLockedOrderGuard,
+)
+from apps.simulated_trading.application.portfolio_risk_locked_transition import (
+    revalidate_locked_portfolio_order,
 )
 from apps.simulated_trading.domain.execution_current_reference import (
     SettlementExecutionPlanV3,
@@ -30,6 +36,7 @@ from apps.simulated_trading.domain.execution_fee_policy_v2 import SimulatedFeePo
 from apps.simulated_trading.domain.execution_settlement_identity import (
     SettlementExecutionPlanV2,
 )
+from apps.simulated_trading.domain.execution_settlement_primitives import SimulatedTradeSide
 from apps.simulated_trading.domain.execution_settlement_uow import (
     SimulatedTradeIntent,
     TradeFeeBreakdown,
@@ -124,7 +131,11 @@ class DjangoSimulatedOrderReservationRepository:
     """Create, replay, inspect, and cancel holds without writing trade rows."""
 
     def __init__(
-        self, *, using: str, submission_guard: SimulatedOrderSubmissionGuard | None = None
+        self,
+        *,
+        using: str,
+        submission_guard: SimulatedOrderSubmissionGuard | None = None,
+        portfolio_risk_guard: PortfolioRiskLockedOrderGuard | None = None,
     ) -> None:
         """Bind all reservation writes and reads to one explicit database alias."""
 
@@ -133,6 +144,7 @@ class DjangoSimulatedOrderReservationRepository:
         self._using = using
         self._execution = DjangoSimulatedTradeExecutionRepository(using=using)
         self._submission_guard = submission_guard
+        self._portfolio_risk_guard = portfolio_risk_guard
 
     def require_owned_active_account(self, *, account_id: int, user_id: int) -> None:
         """Authorize a new preview before any outbound source capture occurs."""
@@ -338,7 +350,7 @@ class DjangoSimulatedOrderReservationRepository:
                 code="ORDER_RESERVATION_FEE_POLICY_INVALID",
             )
         try:
-            _validate_plan_bundle_binding(
+            _validate_reservation_plan_bundle_binding(
                 plan=plan,
                 bundle=execution_bundle,
                 as_of=plan.pre_read_at,
@@ -453,11 +465,23 @@ class DjangoSimulatedOrderReservationRepository:
                 )
                 pending_scope = self._execution._pending_scope_for_rows(pending_rows)
                 now = self._execution._now(clock)
-                try:
-                    _validate_plan_bundle_binding(
-                        plan=plan,
-                        bundle=execution_bundle,
+                if self._portfolio_risk_guard is not None:
+                    now = revalidate_locked_portfolio_order(
+                        guard=self._portfolio_risk_guard,
+                        intent=intent,
+                        fee_cap=(
+                            cast(Decimal, request.fee_budget)
+                            if intent.side is SimulatedTradeSide.BUY
+                            else plan.fee_breakdown.total_fee
+                        ),
+                        execution_session=plan.calendar_evidence.current_open_session(now),
                         as_of=now,
+                        read_clock=lambda: self._execution._now(clock),
+                        read_execution_session=plan.calendar_evidence.current_open_session,
+                    )
+                try:
+                    _validate_reservation_plan_bundle_binding(
+                        plan, execution_bundle, now, reservation_locked=True
                     )
                     fee_policy.validate_at(now)
                     current_session = plan.calendar_evidence.current_open_session(now)

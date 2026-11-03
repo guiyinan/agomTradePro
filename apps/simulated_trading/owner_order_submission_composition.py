@@ -64,6 +64,9 @@ from apps.simulated_trading.application.owner_order_submission import (
     OwnerOrderSubmissionUseCase,
     identity_binding_hash,
 )
+from apps.simulated_trading.application.portfolio_risk_execution_gate import (
+    ConfiguredPortfolioRiskLockedOrderGuard,
+)
 from apps.simulated_trading.close_snapshot_stop_loss_composition import (
     build_close_stop_loss_audit,
     capture_close_stop_loss_observation,
@@ -904,7 +907,9 @@ class _GuardedRepositoryFactory:
     ) -> DjangoSimulatedOrderReservationRepository:
         """Keep the public commit on the guarded default-alias writer."""
         return DjangoSimulatedOrderReservationRepository(
-            using=DEFAULT_DB_ALIAS, submission_guard=guard
+            using=DEFAULT_DB_ALIAS,
+            submission_guard=guard,
+            portfolio_risk_guard=ConfiguredPortfolioRiskLockedOrderGuard(using=DEFAULT_DB_ALIAS),
         )
 
 
@@ -931,7 +936,10 @@ def build_owner_order_submission_use_case(
     return OwnerOrderSubmissionUseCase(
         identity_reader=identities,
         preparer=preparer,
-        repository=DjangoSimulatedOrderReservationRepository(using=DEFAULT_DB_ALIAS),
+        repository=DjangoSimulatedOrderReservationRepository(
+            using=DEFAULT_DB_ALIAS,
+            portfolio_risk_guard=ConfiguredPortfolioRiskLockedOrderGuard(using=DEFAULT_DB_ALIAS),
+        ),
         repository_factory=_GuardedRepositoryFactory(),
         market_factory=PurposeOrderMarketFactory(
             intraday=_SinaMarketFactory(environment=environment, clock=clock, preparer=preparer),

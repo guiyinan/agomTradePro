@@ -14,6 +14,7 @@ from apps.simulated_trading.application.execution_settlement_uow import (
 )
 from apps.simulated_trading.application.rebalance_resource_snapshot import (
     ActiveRebalanceReservation,
+    RebalanceExactPositionBalance,
     RebalanceResourceSnapshot,
 )
 from apps.simulated_trading.domain.order_reservation import (
@@ -139,6 +140,8 @@ class DjangoRebalanceResourceSnapshotRepository:
                     remaining_cash=reservation.remaining_cash,
                     remaining_shares=reservation.remaining_shares,
                     remaining_buy_notional=reservation.remaining_buy_notional,
+                    remaining_quantity=reservation.remaining_quantity,
+                    remaining_amount=reservation.remaining_order_notional,
                 )
             )
 
@@ -176,6 +179,18 @@ class DjangoRebalanceResourceSnapshotRepository:
             account=account,
             positions=positions,
             active_reservations=tuple(snapshot_rows),
+            exact_cash=(account_model.current_cash if account_model.cash_known else None),
+            exact_position_balances=tuple(
+                RebalanceExactPositionBalance(
+                    asset_code=row.asset_code,
+                    quantity=row.quantity,
+                    available_quantity=(
+                        row.available_quantity if row.available_quantity_known else None
+                    ),
+                )
+                for row in position_models
+            ),
+            exact_balances_complete=True,
         )
 
 

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from apps.risk_center.application.scenario_dtos import (
     ActivateScenarioSetCommandDTO,
@@ -15,14 +15,17 @@ from apps.risk_center.application.scenario_dtos import (
     ScenarioSummaryDTO,
     ScenarioValidationDTO,
 )
+from apps.risk_center.application.scenario_impact_context import ScenarioImpactContext
 from apps.risk_center.application.scenario_ports import (
     PortfolioSnapshotProviderProtocol,
     ScenarioActivationRepositoryProtocol,
     ScenarioMarketDataProviderProtocol,
     ScenarioQueryRepositoryProtocol,
     ScenarioRevisionRepositoryProtocol,
+    ScenarioRunEvidenceReaderProtocol,
     ScenarioRunEvidenceRepositoryProtocol,
 )
+from apps.risk_center.domain.portfolio_risk_sources import SourceObservationPrecision
 from apps.risk_center.domain.scenarios import (
     PortfolioExposure,
     ScenarioActivation,
@@ -112,6 +115,29 @@ class ListScenarioRevisionsUseCase:
         return revisions
 
 
+class GetScenarioRunEvidenceUseCase:
+    """Read an immutable run and its retained inputs/results for review."""
+
+    def __init__(self, repository: ScenarioRunEvidenceReaderProtocol) -> None:
+        self._repository = repository
+
+    def execute(self, run_id: str) -> ScenarioRunEvidence:
+        """Return one run after the caller establishes account access."""
+
+        if type(run_id) is not str or not run_id.strip():
+            raise ScenarioNotFoundError("stress scenario run not found")
+        try:
+            canonical_run_id = str(UUID(run_id))
+        except ValueError as error:
+            raise ScenarioNotFoundError("stress scenario run not found") from error
+        if canonical_run_id != run_id:
+            raise ScenarioNotFoundError("stress scenario run not found")
+        evidence = self._repository.get_run_evidence(canonical_run_id)
+        if evidence is None:
+            raise ScenarioNotFoundError("stress scenario run not found")
+        return evidence
+
+
 class GetActiveScenarioSetUseCase:
     """Read the active scenario-set revision for one runtime scope."""
 
@@ -178,12 +204,24 @@ def _validate_inputs(
         raise ScenarioRunBlockedError("portfolio_snapshot_id_mismatch")
     if snapshot.as_of_time > request.as_of_time:
         raise ScenarioRunBlockedError("portfolio_snapshot_from_future")
-    if market_data.observed_at > request.as_of_time:
-        raise ScenarioRunBlockedError("market_observation_from_future")
-    if market_data.published_at > request.as_of_time:
-        raise ScenarioRunBlockedError("market_publication_from_future")
     if market_data.must_not_use_for_decision:
         raise ScenarioRunBlockedError(market_data.blocked_reason)
+    if not market_data.evidence_ids or any(not item.strip() for item in market_data.evidence_ids):
+        raise ScenarioRunBlockedError("scenario_market_data_evidence_missing")
+    if market_data.published_at > request.as_of_time:
+        raise ScenarioRunBlockedError("market_publication_from_future")
+    if market_data.observation_precision is SourceObservationPrecision.TIMESTAMP:
+        if market_data.observed_at is None:
+            raise ScenarioRunBlockedError("market_observation_clock_missing")
+        if market_data.observed_at > request.as_of_time:
+            raise ScenarioRunBlockedError("market_observation_from_future")
+    elif market_data.observation_precision is SourceObservationPrecision.DATE:
+        if market_data.observed_on is None:
+            raise ScenarioRunBlockedError("market_observation_date_missing")
+        if market_data.observed_on >= request.as_of_time.date():
+            raise ScenarioRunBlockedError("market_observation_date_not_before_cutoff")
+    else:
+        raise ScenarioRunBlockedError("market_observation_precision_unknown")
 
 
 def _calculate_impact(
@@ -224,6 +262,11 @@ class PreviewScenarioImpactUseCase:
     def execute(self, request: ScenarioRunRequestDTO) -> ScenarioImpact:
         """Return an impact only when every input is exact and decision-usable."""
 
+        return self.execute_with_context(request).impact
+
+    def execute_with_context(self, request: ScenarioRunRequestDTO) -> ScenarioImpactContext:
+        """Return the impact and exact source objects fetched for this preview."""
+
         revision = self._scenarios.get_revision(request.scenario_revision_id)
         if revision is None:
             raise ScenarioNotFoundError("stress scenario revision not found")
@@ -244,7 +287,14 @@ class PreviewScenarioImpactUseCase:
             as_of_time=request.as_of_time,
         )
         _validate_inputs(request, snapshot, data)
-        return _calculate_impact(revision, snapshot, data)
+        impact = _calculate_impact(revision, snapshot, data)
+        return ScenarioImpactContext(
+            request=request,
+            revision=revision,
+            snapshot=snapshot,
+            market_data=data,
+            impact=impact,
+        )
 
 
 class RunPortfolioStressTestUseCase:
@@ -321,6 +371,7 @@ __all__ = [
     "CreateScenarioRevisionDraftUseCase",
     "GetActiveScenarioSet",
     "GetActiveScenarioSetUseCase",
+    "GetScenarioRunEvidenceUseCase",
     "GetScenarioRevisionUseCase",
     "ListScenarioRevisionsUseCase",
     "ListScenarioDefinitions",
@@ -330,6 +381,7 @@ __all__ = [
     "RunPortfolioStressTest",
     "RunPortfolioStressTestUseCase",
     "ScenarioConfigurationError",
+    "ScenarioImpactContext",
     "ScenarioNotFoundError",
     "ScenarioRunBlockedError",
     "ValidateScenarioRevision",

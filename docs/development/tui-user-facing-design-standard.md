@@ -390,6 +390,15 @@ Hard rules:
 - `endpoint_url` must use text input.
 - `api_token`, `endpoint_url`, and `prompt_text` must use `value_type: string`.
 
+The approved simulated-portfolio pressure selector may declare the fixed
+`options_lookup: approved_portfolio_pressure_scenarios` token. It requires one
+positive, required integer `account_id` path field and a select field. The runtime
+loads only the named account-scoped read directory; metadata cannot supply a URL.
+Changing the account clears the selection and rejects late responses. Empty or
+failed directories explain the next step and keep execution unavailable. The user
+selects a named approved revision; no option is selected automatically. Confirmation
+rechecks the account-bound selection and never creates or approves a scenario.
+
 ## Self-Service Pattern
 
 For self-service screens such as `screen:capability-router.self-service`, the first screen must expose:
@@ -680,6 +689,10 @@ Ordinary and unidentified actors receive `debug.raw_available: false` and
 continuation exclusion and output redaction remain mandatory. Business outcomes,
 including partial/blocked/failed and nullable counts, retain owner semantics in
 all modes. This repository contract does not establish production/user acceptance.
+
+For the confirmed simulated pressure action, only an exact
+`run_evidence_persisted: true` completes the command; false or missing evidence
+blocks it, while the embedded risk verdict remains independent.
 
 The experience validator is included in the repository cache contract fingerprint.
 The runtime manifest also binds experience projection, workbench execution,

@@ -42,6 +42,9 @@ from apps.simulated_trading.application.order_reservation import (
     CancelSimulatedOrderReservationUseCase,
     ReserveSimulatedOrderUseCase,
 )
+from apps.simulated_trading.application.portfolio_risk_execution_gate import (
+    ConfiguredPortfolioRiskLockedOrderGuard,
+)
 from apps.simulated_trading.domain.execution_settlement_calendar import (
     CalendarPublicationReference,
     ExchangeCalendarDay,
@@ -52,14 +55,14 @@ from apps.simulated_trading.domain.execution_settlement_calendar import (
 from apps.simulated_trading.domain.execution_settlement_primitives import (
     CalendarEvidenceValidationError,
 )
-from apps.simulated_trading.infrastructure.execution_settlement_uow_repository import (
-    DjangoSimulatedTradeExecutionRepository,
-)
 from apps.simulated_trading.infrastructure.fee_policy_v2_repository import (
     DjangoFeePolicyV2Repository,
 )
 from apps.simulated_trading.infrastructure.order_reservation_repository import (
     DjangoSimulatedOrderReservationRepository,
+)
+from apps.simulated_trading.infrastructure.portfolio_risk_execution_repository import (
+    DjangoPortfolioRiskExecutionRepository,
 )
 from core.exceptions import AgomTradeProException
 from core.integration.config_center_runtime import get_active_runtime_value
@@ -82,7 +85,7 @@ def build_execute_settlement_bound_simulated_trade_use_case(
     ``using``.
     """
 
-    repository = DjangoSimulatedTradeExecutionRepository(using=using)
+    repository = DjangoPortfolioRiskExecutionRepository(using=using)
     return ExecuteSettlementBoundSimulatedTradeUseCase(
         rule_reader=rule_reader,
         identity_reader=identity_reader,
@@ -115,7 +118,9 @@ def build_reserve_simulated_order_use_case(
     )
     return ReserveSimulatedOrderUseCase(
         preparer=preparer,
-        repository=DjangoSimulatedOrderReservationRepository(using=using),
+        repository=DjangoSimulatedOrderReservationRepository(
+            using=using, portfolio_risk_guard=ConfiguredPortfolioRiskLockedOrderGuard(using=using)
+        ),
         clock=clock,
     )
 
@@ -127,7 +132,9 @@ def build_cancel_simulated_order_reservation_use_case(
 ) -> CancelSimulatedOrderReservationUseCase:
     """Compose idempotent local cancellation without requiring fresh market sources."""
     return CancelSimulatedOrderReservationUseCase(
-        repository=DjangoSimulatedOrderReservationRepository(using=using),
+        repository=DjangoSimulatedOrderReservationRepository(
+            using=using, portfolio_risk_guard=ConfiguredPortfolioRiskLockedOrderGuard(using=using)
+        ),
         clock=clock,
     )
 
@@ -144,7 +151,7 @@ def build_release_due_simulated_settlements_use_case(
     blocks when the injected calendar reader cannot provide valid evidence.
     """
 
-    repository = DjangoSimulatedTradeExecutionRepository(using=using)
+    repository = DjangoPortfolioRiskExecutionRepository(using=using)
     return ReleaseDueSimulatedSettlementsUseCase(
         calendar_reader=calendar_reader,
         repository=repository,

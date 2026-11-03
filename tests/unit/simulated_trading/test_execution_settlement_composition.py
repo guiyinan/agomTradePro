@@ -18,6 +18,9 @@ from apps.simulated_trading.application.fee_policy_v2 import (
     CreateFeePolicyVersionUseCase,
     FeePolicyVersionStorageUnavailable,
 )
+from apps.simulated_trading.application.portfolio_risk_execution_gate import (
+    ConfiguredPortfolioRiskLockedOrderGuard,
+)
 from apps.simulated_trading.domain.execution_settlement_identity import (
     ExecutionInstrumentIdentityEvidenceV1,
 )
@@ -32,6 +35,9 @@ from apps.simulated_trading.infrastructure.execution_settlement_uow_repository i
 )
 from apps.simulated_trading.infrastructure.fee_policy_v2_repository import (
     DjangoFeePolicyV2Repository,
+)
+from apps.simulated_trading.infrastructure.portfolio_risk_execution_repository import (
+    DjangoPortfolioRiskExecutionRepository,
 )
 
 
@@ -67,6 +73,20 @@ class _Clock:
         return datetime(2026, 10, 16, tzinfo=UTC)
 
 
+def _assert_guarded_repository(
+    repository: DjangoSimulatedTradeExecutionRepository, *, using: str
+) -> None:
+    """Require the production risk guard and ledger to share one database alias."""
+
+    assert isinstance(repository, DjangoSimulatedTradeExecutionRepository)
+    assert type(repository) is DjangoPortfolioRiskExecutionRepository
+    assert repository._using == using
+    guard = repository._portfolio_risk_guard
+    assert isinstance(guard, ConfiguredPortfolioRiskLockedOrderGuard)
+    assert type(guard) is ConfiguredPortfolioRiskLockedOrderGuard
+    assert guard._using == using
+
+
 def test_trade_composition_requires_ports_and_shares_alias_bound_repository() -> None:
     rule_reader = _RuleReader()
     calendar_reader = _CalendarReader()
@@ -83,8 +103,7 @@ def test_trade_composition_requires_ports_and_shares_alias_bound_repository() ->
 
     assert type(use_case) is ExecuteSettlementBoundSimulatedTradeUseCase
     repository = use_case._repository
-    assert type(repository) is DjangoSimulatedTradeExecutionRepository
-    assert repository._using == "execution_test"
+    _assert_guarded_repository(repository, using="execution_test")
     assert use_case._fee_policy_reader is repository
     assert use_case._rule_reader is rule_reader
     assert use_case._identity_reader is identity_reader
@@ -103,8 +122,7 @@ def test_release_composition_requires_calendar_and_explicit_database_alias() -> 
     )
 
     assert type(use_case) is ReleaseDueSimulatedSettlementsUseCase
-    assert type(use_case._repository) is DjangoSimulatedTradeExecutionRepository
-    assert use_case._repository._using == "release_test"
+    _assert_guarded_repository(use_case._repository, using="release_test")
     assert use_case._calendar_reader is calendar_reader
     assert use_case._clock is clock
 

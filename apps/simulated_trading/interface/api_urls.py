@@ -35,6 +35,11 @@ from .performance_views import (
     AccountValuationSnapshotAPIView,
     AccountValuationTimelineAPIView,
 )
+from .portfolio_risk_views import (
+    PortfolioPressureOptionsAPIView,
+    PortfolioPressureRunAPIView,
+    PortfolioRiskReportAPIView,
+)
 from .sdk_contract_views import AccountResetAPIView, PositionCloseAPIView
 from .tui_views import InspectionNotificationConfigAPIView
 from .views import (
@@ -89,6 +94,9 @@ urlpatterns = [
                     "/api/simulated-trading/accounts/{account_id}/valuation-snapshot/",
                     "/api/simulated-trading/accounts/{account_id}/valuation-timeline/",
                     "/api/simulated-trading/accounts/{account_id}/benchmarks/",
+                    "/api/simulated-trading/accounts/{account_id}/portfolio-risk/",
+                    "/api/simulated-trading/accounts/{account_id}/portfolio-risk/scenarios/",
+                    "/api/simulated-trading/accounts/{account_id}/portfolio-risk/pressure-run/",
                 ],
             }
         ),
@@ -99,6 +107,21 @@ urlpatterns = [
         "accounts/batch-delete/", AccountBatchDeleteAPIView.as_view(), name="account-batch-delete"
     ),
     path("accounts/<int:account_id>/", AccountDetailAPIView.as_view(), name="account-detail"),
+    path(
+        "accounts/<int:account_id>/portfolio-risk/",
+        PortfolioRiskReportAPIView.as_view(),
+        name="portfolio-risk-report",
+    ),
+    path(
+        "accounts/<int:account_id>/portfolio-risk/scenarios/",
+        PortfolioPressureOptionsAPIView.as_view(),
+        name="portfolio-pressure-scenarios",
+    ),
+    path(
+        "accounts/<int:account_id>/portfolio-risk/pressure-run/",
+        PortfolioPressureRunAPIView.as_view(),
+        name="portfolio-pressure-run",
+    ),
     path(
         "accounts/<int:account_id>/orders/preview/",
         OwnerOrderPreviewAPIView.as_view(),

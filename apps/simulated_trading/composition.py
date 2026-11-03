@@ -1,5 +1,7 @@
 """Concrete dependency composition for Simulated Trading workflows."""
 
+from django.db import DEFAULT_DB_ALIAS
+
 from apps.account.application.physical_account_row_observation import (
     ExactPhysicalSimulatedAccountRowProvider,
 )
@@ -46,9 +48,11 @@ def build_account_physical_row_provider() -> ExactPhysicalSimulatedAccountRowPro
     )
 
 
-def build_observer_grant_repository() -> ObserverGrantRepositoryProtocol:
+def build_observer_grant_repository(
+    *, using: str = DEFAULT_DB_ALIAS
+) -> ObserverGrantRepositoryProtocol:
     """Build the observer authorization repository."""
-    return DjangoObserverGrantRepository()
+    return DjangoObserverGrantRepository(using=using)
 
 
 def build_daily_net_value_repository() -> DailyNetValueRepositoryProtocol:

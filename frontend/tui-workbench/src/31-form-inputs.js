@@ -131,3 +131,19 @@
             reader.readAsText(file, "utf-8");
         });
     }
+
+    function formFieldElement(form, fieldKey) {
+        if (!form || !form.elements) {
+            return null;
+        }
+        const byName = typeof form.elements.namedItem === "function"
+            ? form.elements.namedItem(fieldKey)
+            : null;
+        if (byName) {
+            if (typeof byName.length === "number" && !byName.tagName) {
+                return byName[0] || null;
+            }
+            return byName;
+        }
+        return form.querySelector(`[name="${CSS.escape(fieldKey)}"]`);
+    }

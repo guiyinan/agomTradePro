@@ -3452,6 +3452,9 @@
         "backtest": {
           "imports": 1
         },
+        "risk_center": {
+          "imports": 2
+        },
         "terminal": {
           "imports": 3
         }
@@ -3597,6 +3600,10 @@
           "get_storage_capacity_observation_service",
           "get_storage_capacity_profile_service"
         ],
+        "application/runtime_value_evidence.py": [
+          "ActiveRuntimeValueEvidence",
+          "read_active_runtime_value_evidence"
+        ],
         "application/storage_budget.py": [
           "StorageBudgetQueryPort",
           "StoragePressureGuard",
@@ -3641,7 +3648,7 @@
         ]
       },
       "layers": {
-        "application": 19,
+        "application": 20,
         "domain": 5,
         "infrastructure": 15,
         "interface": 6,
@@ -4080,7 +4087,7 @@
           "imports": 6
         },
         "risk_center": {
-          "imports": 6
+          "imports": 12
         },
         "sector": {
           "imports": 7
@@ -5361,6 +5368,13 @@
           "RawLandingRepositoryPort",
           "SchemaFingerprintRepositoryPort"
         ],
+        "application/raw_landing_public.py": [
+          "RawPayloadLandingNotConfigured",
+          "configure_raw_landing_reader",
+          "configure_raw_landing_writer",
+          "get_retained_raw_payload",
+          "land_raw_payload"
+        ],
         "application/read_facade.py": [
           "DataCenterReadFacade",
           "build_data_center_read_facade"
@@ -5594,7 +5608,7 @@
         ]
       },
       "layers": {
-        "application": 178,
+        "application": 179,
         "domain": 52,
         "infrastructure": 234,
         "interface": 32,
@@ -9514,12 +9528,18 @@
           "imports": 2
         },
         "simulated_trading": {
-          "imports": 60
+          "imports": 108
         }
       },
       "depends_on": {
+        "config_center": {
+          "imports": 2,
+          "target_layers": [
+            "application"
+          ]
+        },
         "data_center": {
-          "imports": 6,
+          "imports": 12,
           "target_layers": [
             "application",
             "domain"
@@ -9660,6 +9680,130 @@
           "PublishM1RiskPolicyRevisionUseCase",
           "RevokeM1RiskPolicyRevisionUseCase"
         ],
+        "application/portfolio_baseline_risk.py": [
+          "PortfolioBaselinePolicyReadResult",
+          "PortfolioBaselinePolicyReader"
+        ],
+        "application/portfolio_capacity.py": [
+          "PortfolioCapacityAssessmentRequest",
+          "PortfolioCapacityAssessmentService",
+          "PortfolioCapacityRiskPort"
+        ],
+        "application/portfolio_exit_pressure_dtos.py": [
+          "PortfolioPressureProjection",
+          "RunPortfolioExitPressureCommand"
+        ],
+        "application/portfolio_exit_pressure_ports.py": [
+          "PortfolioPressureProjectionProviderProtocol",
+          "ScenarioPressureClockProtocol",
+          "ScenarioPressurePreviewProtocol"
+        ],
+        "application/portfolio_exit_pressure_use_cases.py": [
+          "PortfolioExitPressureRunResult",
+          "RunPortfolioExitPressureUseCase",
+          "portfolio_pressure_run_id"
+        ],
+        "application/portfolio_industry_exposure.py": [
+          "AssessPortfolioIndustryExposureUseCase",
+          "IndustryExposurePolicyReader",
+          "PortfolioIndustryExposureInputUnavailableError",
+          "PortfolioIndustryExposureProjectionReader",
+          "PortfolioIndustryExposureQuery"
+        ],
+        "application/portfolio_pressure_catalogue.py": [
+          "list_approved_portfolio_pressure_options"
+        ],
+        "application/portfolio_pressure_factor_projection.py": [
+          "PressureHeldAsset",
+          "build_scenario_factor_attributes",
+          "etf_upper_industry_loading",
+          "portfolio_scenario_factor_targets",
+          "validate_exit_shock_assumption"
+        ],
+        "application/portfolio_pressure_projection_builder.py": [
+          "PortfolioPressureProjectionBuildResult",
+          "build_portfolio_pressure_projection"
+        ],
+        "application/portfolio_pressure_report.py": [
+          "bind_portfolio_pressure_evidence_hash",
+          "build_portfolio_pressure_report_template",
+          "decode_portfolio_risk_report_json",
+          "report_payload_from_object"
+        ],
+        "application/portfolio_risk_assets.py": [
+          "PortfolioRiskAssetIdentity",
+          "PortfolioRiskAssetInputs",
+          "PortfolioRiskAssetsReadRequest",
+          "PortfolioRiskAssetsReadResult",
+          "PortfolioRiskAssetsReader"
+        ],
+        "application/portfolio_risk_contracts.py": [
+          "PortfolioPressureOptionPayload",
+          "PortfolioPressureOptionsPayload",
+          "PortfolioRiskCheckPayload",
+          "PortfolioRiskOrderAdmissionPayload",
+          "PortfolioRiskOrderDecisionPayload",
+          "PortfolioRiskReportPayload",
+          "PortfolioRiskSourcePayload"
+        ],
+        "application/portfolio_risk_deadlines.py": [
+          "portfolio_risk_execution_deadline"
+        ],
+        "application/portfolio_risk_execution_evidence.py": [
+          "PortfolioRiskExecutionEvidence",
+          "PortfolioRiskExecutionEvidenceWriter"
+        ],
+        "application/portfolio_risk_order_admission.py": [
+          "build_portfolio_risk_order_admission",
+          "portfolio_risk_order_admission_is_effective"
+        ],
+        "application/portfolio_risk_policy.py": [
+          "PortfolioRiskPolicyBundle",
+          "PortfolioRiskPolicyConfigurationError",
+          "PortfolioRiskPolicyReadResult",
+          "PortfolioRiskPolicyReader",
+          "PortfolioRiskSourceReference",
+          "parse_portfolio_risk_policy_bundle"
+        ],
+        "application/portfolio_risk_report.py": [
+          "PortfolioRiskReportBuildResult",
+          "build_portfolio_risk_report"
+        ],
+        "application/portfolio_risk_runtime.py": [
+          "PortfolioPressureApplicationFactory",
+          "PortfolioRiskRuntime",
+          "PortfolioRiskRuntimeFactory",
+          "configure_portfolio_risk_runtime",
+          "get_portfolio_risk_runtime"
+        ],
+        "application/portfolio_risk_snapshot.py": [
+          "PortfolioRiskAssessmentResult",
+          "assess_simulated_portfolio_risk"
+        ],
+        "application/portfolio_risk_source_admission.py": [
+          "PortfolioRiskAdmissionManifestFactory",
+          "PortfolioRiskCapacityValueFacts",
+          "PortfolioRiskCapacityWindowFacts",
+          "PortfolioRiskETFConstituentFacts",
+          "PortfolioRiskETFReportFacts",
+          "PortfolioRiskExecutionSessionStateFacts",
+          "PortfolioRiskIndustryMembershipFacts",
+          "PortfolioRiskRawPayloadWriter",
+          "PortfolioRiskSourceAdmissionDocument",
+          "PortfolioRiskSourceAdmissionError",
+          "PortfolioRiskSourceAdmissionRequest",
+          "PortfolioRiskSourceAdmissionResult",
+          "PortfolioRiskSourceAdmissionUseCase",
+          "PortfolioRiskValuationFacts",
+          "parse_portfolio_risk_source_admission_request"
+        ],
+        "application/portfolio_risk_source_codec.py": [
+          "PortfolioRiskSourcePayload",
+          "decode_portfolio_risk_source_evidence",
+          "decode_portfolio_risk_source_payload",
+          "encode_portfolio_risk_source_payload",
+          "evidence_from_portfolio_risk_source_payload"
+        ],
         "application/quick_wins.py": [
           "BuildDecisionScorecard",
           "BuildFixedIncomeSpreadRadar",
@@ -9720,6 +9864,9 @@
           "configure_scenario_governance_repository",
           "get_scenario_governance_facade"
         ],
+        "application/scenario_impact_context.py": [
+          "ScenarioImpactContext"
+        ],
         "application/scenario_inputs.py": [
           "build_revision_command",
           "build_validation_revision"
@@ -9730,6 +9877,8 @@
           "ScenarioMarketDataProviderProtocol",
           "ScenarioQueryRepositoryProtocol",
           "ScenarioRevisionRepositoryProtocol",
+          "ScenarioRunEvidenceReadWriteRepositoryProtocol",
+          "ScenarioRunEvidenceReaderProtocol",
           "ScenarioRunEvidenceRepositoryProtocol"
         ],
         "application/scenario_public.py": [
@@ -9753,6 +9902,7 @@
           "CreateScenarioRevisionDraftUseCase",
           "GetActiveScenarioSetUseCase",
           "GetScenarioRevisionUseCase",
+          "GetScenarioRunEvidenceUseCase",
           "ListScenarioDefinitionsUseCase",
           "ListScenarioRevisionsUseCase",
           "PreviewScenarioImpactUseCase",
@@ -9829,12 +9979,12 @@
         ]
       },
       "layers": {
-        "application": 24,
-        "domain": 18,
-        "infrastructure": 23,
+        "application": 47,
+        "domain": 31,
+        "infrastructure": 30,
         "interface": 11,
-        "management": 1,
-        "root": 7
+        "management": 2,
+        "root": 9
       },
       "orm_models": {
         "infrastructure/models.py": [
@@ -10707,7 +10857,7 @@
           ]
         },
         "risk_center": {
-          "imports": 60,
+          "imports": 108,
           "target_layers": [
             "application",
             "domain",
@@ -11170,6 +11320,64 @@
           "UnifiedCashFlowRepositoryProtocol",
           "ValuationSnapshotRepositoryProtocol"
         ],
+        "application/portfolio_risk_calendar.py": [
+          "PortfolioRiskCalendarReadRequest",
+          "PortfolioRiskCalendarReadResult",
+          "PortfolioRiskCalendarReader",
+          "PortfolioRiskCurrentIdentityReader",
+          "PortfolioRiskPublishedCalendarReader",
+          "build_portfolio_risk_calendar_reader"
+        ],
+        "application/portfolio_risk_context.py": [
+          "PortfolioRiskClock",
+          "PortfolioRiskPressureRunner",
+          "PreparedPortfolioRisk"
+        ],
+        "application/portfolio_risk_execution_gate.py": [
+          "ConfiguredPortfolioRiskLockedOrderGuard",
+          "PortfolioRiskLockedFillGuard",
+          "PortfolioRiskLockedOrderGuard"
+        ],
+        "application/portfolio_risk_locked_transition.py": [
+          "revalidate_locked_portfolio_fill",
+          "revalidate_locked_portfolio_order"
+        ],
+        "application/portfolio_risk_preparation.py": [
+          "PortfolioRiskContextBuilder",
+          "combine_risk_outcomes"
+        ],
+        "application/portfolio_risk_pressure_runner.py": [
+          "PortfolioRiskPressureRunnerService"
+        ],
+        "application/portfolio_risk_preview_gate.py": [
+          "ConfiguredPortfolioRiskPreviewGate",
+          "PortfolioRiskPreviewGate"
+        ],
+        "application/portfolio_risk_public.py": [
+          "PortfolioRiskAccountAccessDenied",
+          "PortfolioRiskService",
+          "PortfolioRiskUnavailable",
+          "assess_owner_portfolio_preview",
+          "configure_portfolio_risk_service",
+          "get_owner_portfolio_pressure_options",
+          "get_owner_portfolio_risk",
+          "run_owner_portfolio_pressure",
+          "validate_owner_portfolio_order",
+          "validate_owner_portfolio_reserved_fill",
+          "verify_owner_portfolio_qualification"
+        ],
+        "application/portfolio_risk_qualification.py": [
+          "PortfolioRiskExecutionQualification"
+        ],
+        "application/portfolio_risk_resource_ports.py": [
+          "AccountSnapshotReadResult",
+          "PortfolioRiskAccountScope",
+          "PortfolioRiskIdentityIssue",
+          "PortfolioRiskResourceSnapshotReaderProtocol"
+        ],
+        "application/portfolio_risk_service.py": [
+          "OwnerScopedPortfolioRiskService"
+        ],
         "application/ports.py": [
           "AccountPerformanceRepositoryProtocol",
           "AccountPerformanceUpdate",
@@ -11299,6 +11507,7 @@
         ],
         "application/rebalance_resource_snapshot.py": [
           "ActiveRebalanceReservation",
+          "RebalanceExactPositionBalance",
           "RebalanceResourceSnapshot",
           "RebalanceResourceSnapshotReader"
         ],
@@ -11433,6 +11642,9 @@
           "accounts/",
           "accounts/batch-delete/",
           "accounts/<int:account_id>/",
+          "accounts/<int:account_id>/portfolio-risk/",
+          "accounts/<int:account_id>/portfolio-risk/scenarios/",
+          "accounts/<int:account_id>/portfolio-risk/pressure-run/",
           "accounts/<int:account_id>/orders/preview/",
           "accounts/<int:account_id>/orders/by-key/<str:order_key>/confirm/",
           "accounts/<int:account_id>/orders/by-key/<str:order_key>/",
@@ -11480,12 +11692,12 @@
         ]
       },
       "layers": {
-        "application": 91,
+        "application": 103,
         "domain": 35,
-        "infrastructure": 120,
-        "interface": 31,
+        "infrastructure": 124,
+        "interface": 32,
         "management": 7,
-        "root": 27
+        "root": 28
       },
       "orm_models": {
         "infrastructure/models.py": [
@@ -12215,6 +12427,10 @@
         "application/tui_owner_order_submission_result.py": [
           "project_tui_owner_order_submission_result"
         ],
+        "application/tui_portfolio_risk_result.py": [
+          "portfolio_pressure_task_outcome",
+          "project_portfolio_risk_result"
+        ],
         "application/tui_reference_price_result.py": [
           "project_reference_price_context"
         ],
@@ -12346,7 +12562,7 @@
         ]
       },
       "layers": {
-        "application": 50,
+        "application": 52,
         "domain": 5,
         "infrastructure": 95,
         "interface": 9,

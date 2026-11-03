@@ -17,6 +17,7 @@ from apps.terminal.application.tui_order_match_result import project_tui_order_m
 from apps.terminal.application.tui_owner_order_submission_result import (
     project_tui_owner_order_submission_result,
 )
+from apps.terminal.application.tui_portfolio_risk_result import project_portfolio_risk_result
 from apps.terminal.application.tui_research_snapshot_result import (
     project_tui_research_snapshot_result,
 )
@@ -91,6 +92,11 @@ class TuiWorkbenchSpecializedResultMixin(
         """Project owner results into task-specific user-facing summaries."""
 
         action_key = str(action.get("key") or "")
+        if action_key in {
+            "simulated-trading.portfolio-risk-report",
+            "simulated-trading.portfolio-pressure-run",
+        }:
+            return project_portfolio_risk_result(payload, http_status=status_code)
         if action_key in {
             "simulated-trading.fee-correction-policy",
             "simulated-trading.fee-correction-policy-save",

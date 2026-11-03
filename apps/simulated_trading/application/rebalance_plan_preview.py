@@ -10,6 +10,7 @@ from apps.account.application.market_price_contracts import MarketPriceProvider,
 from apps.risk_center.application.m1_rebalance_risk_policy import (
     GetM1RiskPolicyQualificationUseCase,
 )
+from apps.simulated_trading.application import rebalance_plan_preview_contracts
 from apps.simulated_trading.application.execution_current_reference_classification import (
     CurrentReferenceClassificationReader,
 )
@@ -21,6 +22,7 @@ from apps.simulated_trading.application.m1_rebalance_risk_policy import (
 from apps.simulated_trading.application.manual_trade_execution import (
     CurrentReferenceManualIdentityReader,
 )
+from apps.simulated_trading.application.portfolio_risk_preview_gate import PortfolioRiskPreviewGate
 from apps.simulated_trading.application.rebalance_plan_preview_assembly import (
     empty_rebalance_plan_preview,
     finish_rebalance_plan_preview,
@@ -28,10 +30,10 @@ from apps.simulated_trading.application.rebalance_plan_preview_assembly import (
 from apps.simulated_trading.application.rebalance_plan_preview_contracts import (
     RebalancePlanPreview,
     RebalancePlanPreviewItem,
-    RebalancePlanRiskContext,
     StrategyPolicyApplicability,
     TargetMode,
 )
+from apps.simulated_trading.application.rebalance_preview_blocked import _blocked_preview
 from apps.simulated_trading.application.rebalance_preview_context import (
     build_rebalance_plan_risk_context,
     normalize_cutoff,
@@ -92,6 +94,8 @@ from apps.simulated_trading.domain.rebalance_preview_math import (
 from apps.simulated_trading.domain.temporary_rebalance_targets import TemporarySecurityTargets
 from apps.strategy.application.execution_gateway import StrategySelectionState
 
+RebalancePlanRiskContext = rebalance_plan_preview_contracts.RebalancePlanRiskContext
+
 
 class ReadOnlyRebalancePlanPreviewBuilder:
     """Build a read-only inspection preview from exact current source ports."""
@@ -111,6 +115,7 @@ class ReadOnlyRebalancePlanPreviewBuilder:
         strategy_risk_source_reader: StrategyM1RiskSourceReader | None = None,
         reference_close_reader: ReferenceClosePriceReader | None = None,
         reference_price_basis: ReferencePriceBasis = "market",
+        portfolio_risk_gate: PortfolioRiskPreviewGate | None = None,
     ) -> None:
         """Bind the formal price, current-reference identity and FeeV2 ports."""
 
@@ -132,6 +137,7 @@ class ReadOnlyRebalancePlanPreviewBuilder:
         self._risk_policy_account_source_reader = risk_policy_account_source_reader
         self._strategy_risk_source_reader = strategy_risk_source_reader
         self._reference_price_basis = reference_price_basis
+        self._portfolio_risk_gate = portfolio_risk_gate
 
     def build(
         self,
@@ -420,7 +426,7 @@ class ReadOnlyRebalancePlanPreviewBuilder:
             prices=price_results,
         )
 
-        return finish_rebalance_plan_preview(
+        preview = finish_rebalance_plan_preview(
             cutoff=cutoff,
             financial_snapshot_read_at=resource_snapshot.read_at,
             reason_codes=(),
@@ -439,6 +445,11 @@ class ReadOnlyRebalancePlanPreviewBuilder:
             m1_stop_loss_observation=m1_stop_loss_observation,
             projected_buy_position_amount_by_asset=projected_buy_amount_by_asset,
         )
+        if self._portfolio_risk_gate is not None:
+            return self._portfolio_risk_gate.qualify_preview(
+                preview=preview, user_id=user_id, account_id=account.account_id
+            )
+        return preview
 
     def _allocation_items(
         self,
@@ -971,46 +982,6 @@ class ReadOnlyRebalancePlanPreviewBuilder:
             target_mode=target_mode,
             price_publication=price_publication,
         )
-
-
-def _blocked_preview(
-    *,
-    as_of: datetime,
-    financial_snapshot_read_at: datetime | None = None,
-    reason_codes: tuple[str, ...],
-    risk_context: RebalancePlanRiskContext,
-    allocation_items: tuple[RebalancePlanPreviewItem, ...],
-) -> RebalancePlanPreview:
-    """Keep invalid target configuration visible without inventing asset rows."""
-
-    return RebalancePlanPreview(
-        status="blocked",
-        reason_codes=reason_codes,
-        as_of=as_of,
-        financial_snapshot_read_at=financial_snapshot_read_at,
-        portfolio_value=None,
-        cash_before=None,
-        reserved_cash=None,
-        available_cash_before=None,
-        projected_cash_after_sells=None,
-        estimated_sell_gross=None,
-        estimated_sell_fees=None,
-        estimated_sell_net=None,
-        estimated_buy_gross=None,
-        estimated_buy_fees=None,
-        estimated_buy_total=None,
-        projected_cash_after_buys=None,
-        funding_status="unknown",
-        sell_before_buy={
-            "required": False,
-            "sell_asset_codes": [],
-            "buy_asset_codes": [],
-            "sequence": "sell_then_buy",
-        },
-        risk_context=risk_context,
-        allocation_items=allocation_items,
-        asset_items=(),
-    )
 
 
 __all__: tuple[str, ...] = (

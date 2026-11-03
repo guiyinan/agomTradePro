@@ -74,6 +74,7 @@ ALLOWED_TUI_FIELD_KEYS = {
     "max_bytes",
     "min",
     "options",
+    "options_lookup",
     "placeholder",
     "presentation_semantic",
     "required",

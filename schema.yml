@@ -20419,6 +20419,181 @@ paths:
               schema:
                 $ref: '#/components/schemas/OwnerOrderOperationErrorResponse'
           description: ''
+  /api/simulated-trading/accounts/{account_id}/orders/by-key/{order_key}/:
+    get:
+      operationId: api_simulated_trading_accounts_by_account_id_orders_by_key_by_order_key_get
+      description: Use the non-secret owner-scoped locator without reading or refreshing
+        market data.
+      summary: 核对本人原预览的模拟订单
+      parameters:
+      - in: path
+        name: account_id
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: order_key
+        schema:
+          type: string
+        required: true
+      tags:
+      - simulated-trading
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OwnerOrderSubmissionResponse'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OwnerOrderOperationErrorResponse'
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OwnerOrderOperationErrorResponse'
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OwnerOrderOperationErrorResponse'
+          description: ''
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OwnerOrderOperationErrorResponse'
+          description: ''
+  /api/simulated-trading/accounts/{account_id}/orders/by-key/{order_key}/confirm/:
+    post:
+      operationId: api_simulated_trading_accounts_by_account_id_orders_by_key_by_order_key_confirm_post
+      description: Accept only literal confirmation and the complete original preview
+        token.
+      summary: 确认本人模拟订单预留
+      parameters:
+      - in: path
+        name: account_id
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: order_key
+        schema:
+          type: string
+        required: true
+      tags:
+      - simulated-trading
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OwnerOrderConfirmRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OwnerOrderSubmissionResponse'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OwnerOrderOperationErrorResponse'
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OwnerOrderOperationErrorResponse'
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OwnerOrderOperationErrorResponse'
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OwnerOrderOperationErrorResponse'
+          description: ''
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OwnerOrderOperationErrorResponse'
+          description: ''
+  /api/simulated-trading/accounts/{account_id}/orders/preview/:
+    post:
+      operationId: api_simulated_trading_accounts_by_account_id_orders_preview_post
+      description: Validate intent and active session before asking the application
+        for a preview.
+      summary: 预览本人模拟订单
+      parameters:
+      - in: path
+        name: account_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - simulated-trading
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OwnerOrderDraftRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OwnerOrderSubmissionResponse'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OwnerOrderOperationErrorResponse'
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OwnerOrderOperationErrorResponse'
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OwnerOrderOperationErrorResponse'
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OwnerOrderOperationErrorResponse'
+          description: ''
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OwnerOrderOperationErrorResponse'
+          description: ''
   /api/simulated-trading/accounts/{account_id}/performance/:
     get:
       operationId: api_simulated_trading_accounts_by_account_id_performance_get
@@ -20476,6 +20651,138 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PerformanceReportResponse'
+          description: ''
+  /api/simulated-trading/accounts/{account_id}/portfolio-risk/:
+    get:
+      operationId: api_simulated_trading_accounts_by_account_id_portfolio_risk_get
+      description: 只读返回账户版本、资源快照、检查结果和原始来源时点；allowed/blocked/partial/unknown 都是业务结果，不代表交易许可。
+      summary: 读取有权查看的模拟账户风险约束
+      parameters:
+      - in: path
+        name: account_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - simulated-trading
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortfolioRiskReportResponse'
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortfolioRiskErrorResponse'
+          description: ''
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortfolioRiskErrorResponse'
+          description: ''
+  /api/simulated-trading/accounts/{account_id}/portfolio-risk/pressure-run/:
+    post:
+      operationId: api_simulated_trading_accounts_by_account_id_portfolio_risk_pressure_run_post
+      description: 仅保存既有 ScenarioRunEvidence，不生成订单、不释放预留或改变账户账本；需要已审批情景版本、浏览器会话、幂等键和明确确认。
+      summary: 明确运行一次本人模拟账户退出压力情景
+      parameters:
+      - in: path
+        name: account_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - simulated-trading
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PortfolioPressureRunRequestRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PortfolioPressureRunRequestRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PortfolioPressureRunRequestRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortfolioRiskReportResponse'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortfolioRiskErrorResponse'
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortfolioRiskErrorResponse'
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortfolioRiskErrorResponse'
+          description: ''
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortfolioRiskErrorResponse'
+          description: ''
+  /api/simulated-trading/accounts/{account_id}/portfolio-risk/scenarios/:
+    get:
+      operationId: api_simulated_trading_accounts_by_account_id_portfolio_risk_scenarios_get
+      description: 只读返回当前账户有权使用的情景名称、业务版本和对应不可变版本值；不会创建、审批、激活或运行情景。
+      summary: 读取本人模拟账户可选的已审批压力情景
+      parameters:
+      - in: path
+        name: account_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - simulated-trading
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortfolioPressureOptionsResponse'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortfolioRiskErrorResponse'
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortfolioRiskErrorResponse'
+          description: ''
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortfolioRiskErrorResponse'
           description: ''
   /api/simulated-trading/accounts/{account_id}/positions/:
     get:
@@ -24790,9 +25097,8 @@ components:
           title: 温度参数
         max_tokens:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 2147483647
           minimum: 1
-          format: int64
           title: 最大Token数
         approval_mode:
           allOf:
@@ -24844,9 +25150,8 @@ components:
           title: 温度参数
         max_tokens:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 2147483647
           minimum: 1
-          format: int64
           title: 最大Token数
         approval_mode:
           allOf:
@@ -26715,9 +27020,8 @@ components:
           title: 是否启用
         sort_order:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          maximum: 2147483647
+          minimum: -2147483648
           title: 排序
         children_count:
           type: integer
@@ -26761,9 +27065,8 @@ components:
           title: 是否启用
         sort_order:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          maximum: 2147483647
+          minimum: -2147483648
           title: 排序
       required:
       - code
@@ -27090,6 +27393,12 @@ components:
             type: integer
           description: 指定本人可管理的模拟账户；省略时使用本人启用自动交易的账户，空数组表示不执行
           maxItems: 10000
+        market_purpose:
+          $ref: '#/components/schemas/MarketPurposeEnum'
+        execution_scope:
+          $ref: '#/components/schemas/ExecutionScopeEnum'
+        confirmed:
+          type: boolean
     AutoTradingRunResponse:
       type: object
       description: Describe normalized account and trade counts from one API run.
@@ -27156,6 +27465,12 @@ components:
         error:
           type: string
           nullable: true
+        market_purpose:
+          type: string
+        execution_scope:
+          type: string
+        market_notice:
+          type: string
       required:
       - accounts
       - buy_count
@@ -29239,9 +29554,8 @@ components:
           title: 是否启用
         precision:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          maximum: 2147483647
+          minimum: -2147483648
           title: 小数位数
         created_at:
           type: string
@@ -30216,6 +30530,14 @@ components:
         * `parallel` - parallel
         * `tool` - tool
         * `hybrid` - hybrid
+    ExecutionScopeEnum:
+      enum:
+      - daily_simulation
+      - account_stop_loss_only
+      type: string
+      description: |-
+        * `daily_simulation` - daily_simulation
+        * `account_stop_loss_only` - account_stop_loss_only
     ExperienceSummary:
       type: object
       description: 经验总结序列化器
@@ -31199,6 +31521,16 @@ components:
         * `dividend` - 分红
         * `interest` - 利息
         * `adjustment` - 调整
+    FreshnessEnum:
+      enum:
+      - qualified_snapshot
+      - expired
+      - unknown
+      type: string
+      description: |-
+        * `qualified_snapshot` - qualified_snapshot
+        * `expired` - expired
+        * `unknown` - unknown
     GenerateCandidateRequestRequest:
       type: object
       description: 生成候选请求序列化器
@@ -32153,6 +32485,14 @@ components:
       - message
       - success
       - trade
+    MarketPurposeEnum:
+      enum:
+      - local_simulation_only
+      - close_snapshot_simulation
+      type: string
+      description: |-
+        * `local_simulation_only` - local_simulation_only
+        * `close_snapshot_simulation` - close_snapshot_simulation
     MaxStopLossApplicabilityEnum:
       enum:
       - applicable
@@ -32883,6 +33223,18 @@ components:
         * `noop` - noop
         * `blocked` - blocked
         * `failed` - failed
+    Outcome667Enum:
+      enum:
+      - allowed
+      - blocked
+      - partial
+      - unknown
+      type: string
+      description: |-
+        * `allowed` - allowed
+        * `blocked` - blocked
+        * `partial` - partial
+        * `unknown` - unknown
     OutcomeB7aEnum:
       enum:
       - matched
@@ -33030,6 +33382,63 @@ components:
       description: |-
         * `cancelled` - cancelled
         * `completed` - completed
+    OwnerOrderConfirmRequest:
+      type: object
+      description: Confirm the exact original preview, retaining its server-created
+        order key.
+      properties:
+        preview_token:
+          type: string
+          minLength: 1
+          maxLength: 131072
+        confirmed:
+          type: boolean
+        market_purpose:
+          $ref: '#/components/schemas/MarketPurposeEnum'
+      required:
+      - confirmed
+      - preview_token
+    OwnerOrderDraftRequest:
+      type: object
+      description: Describe user intent; security mapping, clocks and source facts
+        stay server-owned.
+      properties:
+        asset_code:
+          type: string
+          minLength: 1
+          maxLength: 100
+        asset_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        side:
+          $ref: '#/components/schemas/SideEa8Enum'
+        quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,16}(?:\.\d{0,6})?$
+        limit_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,14}(?:\.\d{0,6})?$
+        fee_budget:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,16}(?:\.\d{0,2})?$
+          nullable: true
+        reason:
+          type: string
+          maxLength: 200
+        market_purpose:
+          allOf:
+          - $ref: '#/components/schemas/MarketPurposeEnum'
+          default: local_simulation_only
+      required:
+      - asset_code
+      - asset_name
+      - limit_price
+      - quantity
+      - side
     OwnerOrderFillAppliedResponse:
       type: object
       description: Describe only identities and economics carried by the immutable
@@ -33192,6 +33601,50 @@ components:
       required:
       - code
       - message
+      - success
+    OwnerOrderSubmissionResponse:
+      type: object
+      description: Publish local order resources and safe provenance without raw source
+        bodies.
+      properties:
+        success:
+          type: boolean
+        outcome:
+          type: string
+        execution_submitted:
+          type: boolean
+        purpose:
+          type: string
+        market_purpose:
+          type: string
+        message:
+          type: string
+        continuation: {}
+        order_id:
+          type: integer
+        account_id:
+          type: integer
+        order_key:
+          type: string
+        replayed:
+          type: boolean
+        order: {}
+        market: {}
+        market_qualification: {}
+        market_notice:
+          type: string
+        read_only:
+          type: boolean
+      required:
+      - account_id
+      - execution_submitted
+      - market_purpose
+      - message
+      - order
+      - outcome
+      - purpose
+      - read_only
+      - replayed
       - success
     PaginatedAIProviderConfigList:
       type: object
@@ -34148,9 +34601,8 @@ components:
           title: 温度参数
         max_tokens:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 2147483647
           minimum: 1
-          format: int64
           title: 最大Token数
         approval_mode:
           allOf:
@@ -34290,9 +34742,8 @@ components:
           title: 是否启用
         sort_order:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          maximum: 2147483647
+          minimum: -2147483648
           title: 排序
     PatchedAssetClassRequest:
       type: object
@@ -34960,9 +35411,8 @@ components:
           title: 最大换手率
         lookback_period:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          maximum: 2147483647
+          minimum: -2147483648
           title: 回溯周期（天）
         regime_allocations:
           title: 象限配置
@@ -34970,9 +35420,8 @@ components:
           title: 动量周期
         top_n:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          maximum: 2147483647
+          minimum: -2147483648
           title: 选资产数量
         is_active:
           type: boolean
@@ -35011,9 +35460,8 @@ components:
           description: 空列表表示所有可投资产
         priority:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          maximum: 2147483647
+          minimum: -2147483648
           title: 优先级
         is_enabled:
           type: boolean
@@ -35051,9 +35499,8 @@ components:
       properties:
         account_id:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          maximum: 2147483647
+          minimum: -2147483648
           title: 关联账户ID
           description: 关联的模拟账户ID
         title:
@@ -35097,9 +35544,8 @@ components:
           description: 过期后无法访问
         max_access_count:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          maximum: 2147483647
+          minimum: -2147483648
           nullable: true
           title: 最大访问次数
           description: null 表示无限制
@@ -35125,9 +35571,8 @@ components:
           title: 策略类型
         version:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 2147483647
           minimum: 0
-          format: int64
           default: 1
           title: 版本号
         is_active:
@@ -35854,6 +36299,53 @@ components:
           type: integer
           nullable: true
           title: 基准货币
+    PortfolioPressureOptionResponse:
+      type: object
+      description: Render one human-readable approved Scenario option with its bound
+        revision value.
+      properties:
+        value:
+          type: string
+          maxLength: 160
+        label:
+          type: string
+      required:
+      - label
+      - value
+    PortfolioPressureOptionsResponse:
+      type: object
+      description: Return the read-only, account-scoped options accepted by the pressure
+        form.
+      properties:
+        account_id:
+          type: integer
+        options:
+          type: array
+          items:
+            $ref: '#/components/schemas/PortfolioPressureOptionResponse'
+        scope:
+          $ref: '#/components/schemas/Scope818Enum'
+        read_only:
+          type: boolean
+      required:
+      - account_id
+      - options
+      - read_only
+      - scope
+    PortfolioPressureRunRequestRequest:
+      type: object
+      description: Accept only a selected immutable Scenario revision and literal
+        confirmation.
+      properties:
+        scenario_version_id:
+          type: string
+          minLength: 1
+          maxLength: 160
+        confirmed:
+          type: boolean
+      required:
+      - confirmed
+      - scenario_version_id
     PortfolioRequest:
       type: object
       description: 投资组合序列化器
@@ -35870,6 +36362,150 @@ components:
           type: integer
           nullable: true
           title: 基准货币
+    PortfolioRiskCheckResponse:
+      type: object
+      description: Serialize one user-facing risk constraint and its bounded details.
+      properties:
+        dimension:
+          type: string
+        status:
+          $ref: '#/components/schemas/Status667Enum'
+        reason_codes:
+          type: array
+          items:
+            type: string
+        summary:
+          type: string
+        details: {}
+      required:
+      - details
+      - dimension
+      - reason_codes
+      - status
+      - summary
+    PortfolioRiskErrorResponse:
+      type: object
+      description: Return bounded interface errors without internal exception details.
+      properties:
+        detail:
+          type: string
+      required:
+      - detail
+    PortfolioRiskReportResponse:
+      type: object
+      description: Describe an ordinary user's versioned, non-executable risk report.
+      properties:
+        account_id:
+          type: integer
+        as_of:
+          type: string
+        outcome:
+          $ref: '#/components/schemas/Outcome667Enum'
+        policy_version:
+          type: string
+          nullable: true
+        resource_snapshot_hash:
+          type: string
+        checks:
+          type: array
+          items:
+            $ref: '#/components/schemas/PortfolioRiskCheckResponse'
+        sources:
+          type: array
+          items:
+            $ref: '#/components/schemas/PortfolioRiskSourceResponse'
+        freshness:
+          $ref: '#/components/schemas/FreshnessEnum'
+        reliability:
+          $ref: '#/components/schemas/PortfolioRiskReportResponseReliabilityEnum'
+        must_not_use_for_decision:
+          type: boolean
+        scope:
+          $ref: '#/components/schemas/Scope818Enum'
+        must_not_execute:
+          type: boolean
+      required:
+      - account_id
+      - as_of
+      - checks
+      - freshness
+      - must_not_execute
+      - must_not_use_for_decision
+      - outcome
+      - policy_version
+      - reliability
+      - resource_snapshot_hash
+      - scope
+      - sources
+    PortfolioRiskReportResponseReliabilityEnum:
+      enum:
+      - source_bound
+      - partial
+      - unknown
+      type: string
+      description: |-
+        * `source_bound` - source_bound
+        * `partial` - partial
+        * `unknown` - unknown
+    PortfolioRiskSourceResponse:
+      type: object
+      description: Publish source identity, original clocks, coverage, and restrictions.
+      properties:
+        source_id:
+          type: string
+        source_record_id:
+          type: string
+        raw_payload_sha256:
+          type: string
+          nullable: true
+        observed_at:
+          type: string
+          nullable: true
+        observed_on:
+          type: string
+          nullable: true
+        observation_precision:
+          type: string
+        available_at:
+          type: string
+          nullable: true
+        known_at:
+          type: string
+          nullable: true
+        cutoff:
+          type: string
+        valid_until:
+          type: string
+          nullable: true
+        purpose:
+          type: string
+        restrictions:
+          type: array
+          items:
+            type: string
+        must_not_use_for_decision:
+          type: boolean
+        coverage_fraction:
+          type: string
+          nullable: true
+        coverage_basis:
+          type: string
+      required:
+      - available_at
+      - coverage_basis
+      - coverage_fraction
+      - cutoff
+      - known_at
+      - must_not_use_for_decision
+      - observation_precision
+      - observed_at
+      - observed_on
+      - purpose
+      - raw_payload_sha256
+      - restrictions
+      - source_id
+      - source_record_id
+      - valid_until
     PortfolioRotationConfig:
       type: object
       description: |-
@@ -36300,9 +36936,8 @@ components:
           title: 来源
         source_id:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          maximum: 2147483647
+          minimum: -2147483648
           nullable: true
           title: 来源ID
       required:
@@ -36362,9 +36997,8 @@ components:
           title: 来源
         source_id:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          maximum: 2147483647
+          minimum: -2147483648
           nullable: true
           title: 来源ID
       required:
@@ -37723,9 +38357,8 @@ components:
           title: 最大换手率
         lookback_period:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          maximum: 2147483647
+          minimum: -2147483648
           title: 回溯周期（天）
         regime_allocations:
           title: 象限配置
@@ -37733,9 +38366,8 @@ components:
           title: 动量周期
         top_n:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          maximum: 2147483647
+          minimum: -2147483648
           title: 选资产数量
         is_active:
           type: boolean
@@ -37789,9 +38421,8 @@ components:
           title: 最大换手率
         lookback_period:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          maximum: 2147483647
+          minimum: -2147483648
           title: 回溯周期（天）
         regime_allocations:
           title: 象限配置
@@ -37799,9 +38430,8 @@ components:
           title: 动量周期
         top_n:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          maximum: 2147483647
+          minimum: -2147483648
           title: 选资产数量
         is_active:
           type: boolean
@@ -37951,9 +38581,8 @@ components:
           readOnly: true
         display_order:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          maximum: 2147483647
+          minimum: -2147483648
           title: 展示顺序
       required:
       - key
@@ -38005,9 +38634,8 @@ components:
           description: 空列表表示所有可投资产
         priority:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          maximum: 2147483647
+          minimum: -2147483648
           title: 优先级
         is_enabled:
           type: boolean
@@ -38056,9 +38684,8 @@ components:
           title: 目标权重
         priority:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          maximum: 2147483647
+          minimum: -2147483648
           title: 优先级
         is_enabled:
           type: boolean
@@ -38101,9 +38728,8 @@ components:
           description: 空列表表示所有可投资产
         priority:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          maximum: 2147483647
+          minimum: -2147483648
           title: 优先级
         is_enabled:
           type: boolean
@@ -38384,6 +39010,11 @@ components:
       - scenario_key
       - scenario_set_revision_id
       - target_version
+    Scope818Enum:
+      enum:
+      - simulation_only
+      type: string
+      description: '* `simulation_only` - simulation_only'
     ScreenStocksRequestRequest:
       type: object
       description: 筛选个股请求序列化器
@@ -38866,9 +39497,8 @@ components:
           readOnly: true
         account_id:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          maximum: 2147483647
+          minimum: -2147483648
           title: 关联账户ID
           description: 关联的模拟账户ID
         short_code:
@@ -38920,9 +39550,8 @@ components:
           description: 过期后无法访问
         max_access_count:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          maximum: 2147483647
+          minimum: -2147483648
           nullable: true
           title: 最大访问次数
           description: null 表示无限制
@@ -38976,9 +39605,8 @@ components:
       properties:
         account_id:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          maximum: 2147483647
+          minimum: -2147483648
           title: 关联账户ID
           description: 关联的模拟账户ID
         title:
@@ -39022,9 +39650,8 @@ components:
           description: 过期后无法访问
         max_access_count:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          maximum: 2147483647
+          minimum: -2147483648
           nullable: true
           title: 最大访问次数
           description: null 表示无限制
@@ -39082,6 +39709,18 @@ components:
         * `unresolved` - unresolved
         * `fenced` - fenced
         * `unknown` - unknown
+    Status667Enum:
+      enum:
+      - allowed
+      - blocked
+      - partial
+      - unknown
+      type: string
+      description: |-
+        * `allowed` - allowed
+        * `blocked` - blocked
+        * `partial` - partial
+        * `unknown` - unknown
     Strategy:
       type: object
       description: 策略序列化器
@@ -39102,9 +39741,8 @@ components:
           title: 策略类型
         version:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 2147483647
           minimum: 0
-          format: int64
           default: 1
           title: 版本号
         is_active:
@@ -39178,9 +39816,8 @@ components:
           title: 策略类型
         version:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 2147483647
           minimum: 0
-          format: int64
           default: 1
           title: 版本号
         is_active:
@@ -39254,9 +39891,8 @@ components:
           title: 执行时间
         execution_duration_ms:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          maximum: 2147483647
+          minimum: -2147483648
           title: 执行时长(ms)
         execution_result:
           description: 详细执行信息
@@ -39293,9 +39929,8 @@ components:
           title: 执行时间
         execution_duration_ms:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          maximum: 2147483647
+          minimum: -2147483648
           title: 执行时长(ms)
         is_success:
           type: boolean
@@ -39330,9 +39965,8 @@ components:
           title: 策略类型
         version:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 2147483647
           minimum: 0
-          format: int64
           default: 1
           title: 版本号
         is_active:

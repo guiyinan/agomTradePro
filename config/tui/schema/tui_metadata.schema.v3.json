@@ -335,6 +335,9 @@
             ]
           }
         },
+        "options_lookup": {
+          "const": "approved_portfolio_pressure_scenarios"
+        },
         "binding": { "enum": ["path", "query", "body"] },
         "min": { "type": "number" },
         "max": { "type": "number" },

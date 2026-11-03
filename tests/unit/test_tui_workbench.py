@@ -1152,6 +1152,7 @@ def test_tui_simulated_accounts_cover_legacy_hubs_and_account_lifecycle(
         "simulated-trading.strategy-unbind",
         "simulated-trading.inspection-notification",
         "simulated-trading.inspection-notification-update",
+        "simulated-trading.portfolio-pressure-run",
     }
     assert expected <= actions.keys()
     assert actions["simulated-trading.accounts"]["view_type"] == "datagrid"
@@ -1160,6 +1161,15 @@ def test_tui_simulated_accounts_cover_legacy_hubs_and_account_lifecycle(
     assert actions["simulated-trading.account-create"]["task_tier"] == "advanced"
     assert actions["simulated-trading.account-delete"]["confirmation_required"] is True
     assert actions["simulated-trading.strategy-bind"]["confirmation_required"] is True
+    pressure_action = actions["simulated-trading.portfolio-pressure-run"]
+    assert pressure_action["confirmation_required"] is True
+    assert pressure_action["task_tier"] == "support"
+    assert (
+        next(field for field in pressure_action["fields"] if field["key"] == "scenario_version_id")[
+            "options_lookup"
+        ]
+        == "approved_portfolio_pressure_scenarios"
+    )
 
     loaded = PublishedTuiMetadataRepository().load_published()
     raw_actions = {action["key"]: action for action in loaded["actions"]}
@@ -1181,6 +1191,14 @@ def test_tui_simulated_accounts_cover_legacy_hubs_and_account_lifecycle(
     )
     assert account_panel["action_key"] == "simulated-trading.accounts"
     assert account_panel["user_priority"] == "p0"
+    pressure_row_action = next(
+        descriptor
+        for descriptor in account_panel["row_actions"]
+        if descriptor["action_key"] == "simulated-trading.portfolio-pressure-run"
+    )
+    assert pressure_row_action["param_map"] == {"account_id": "account_id"}
+    assert pressure_row_action["result_panel_key"] == "simulated-account-workspace"
+    assert pressure_row_action["refresh_panel_key"] == "simulated-accounts"
     create_panel = next(
         panel for panel in payload["screen"]["dashboard_panels"] if panel["key"] == "account-create"
     )
@@ -3817,6 +3835,10 @@ def test_tui_admin_config_center_runtime_action_handles_active_model_without_upd
                     "authorization_source_version": "v1",
                     "authorization_content_hash": "c" * 64,
                     "ttl_seconds": 300,
+                },
+                # Satisfy critical-key presence without granting any risk limits.
+                "risk_center.simulated_portfolio_risk": {
+                    "schema_version": "unconfigured-test-fixture",
                 },
                 "data_center.provider.failover_tolerance": 0.01,
                 "audit.system_event.mode": "off",
