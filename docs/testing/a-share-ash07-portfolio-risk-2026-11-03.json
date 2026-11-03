@@ -123,5 +123,29 @@
     "mocked_boundary_tests_passed": 4,
     "entrypoint_projection": "generator validates updated adjacent operational import edge; unchanged architecture/module map reuse R34",
     "source_and_portfolio_behavior_unchanged": true
+  },
+  "public_source_followup_cnindex": {
+    "index": {
+      "path": ".tmp/ash07-risk-20261103/integration/source-qualification-followup-cnindex.json",
+      "sha256": "88fd34b534e9fe501b7c550f6f1a4efadf8bb0b68ead3b760bb66f122f132ab8"
+    },
+    "observed_on": "2026-11-03",
+    "capture_known_at": "2026-11-03T13:59:36.774295+00:00",
+    "taxonomy_standard": "CNI listed company industry classification, 2019 revision",
+    "source_origin_available_at": null,
+    "source_origin_valid_until": null,
+    "same_day_bounded_membership_supported": true,
+    "whole_unit_positive_qualified": false,
+    "approval_fixture_is_not_runtime_policy": true,
+    "owner_decision": "Retain current fail-closed source expiry gate, or authorize a bounded simulation contract that separately records conservative proven-available time and policy-derived acceptance deadline while keeping vendor publication/expiry unknown. No contract, policy threshold or gate changed in this follow-up."
+  },
+  "latest_code_ci": {
+    "head": "3fdf52be1b9922dd121d33239de03905bec9f03c",
+    "triggered": 7,
+    "all_success": true,
+    "artifact": {
+      "path": ".tmp/ash07-risk-20261103/integration/fourth-delivery-ci-3fdf52be.json",
+      "sha256": "9873090ddfd48477559fa07fc7ec78fc3110c0bfdacbf45ad0e4198dc980a726"
+    }
   }
 }
