@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from hashlib import sha256
 
@@ -30,7 +30,7 @@ from apps.risk_center.domain.portfolio_risk_sources import (
 )
 
 BUSINESS_DATE = date(2026, 11, 3)
-CUTOFF = datetime(2026, 11, 3, 10, 0, tzinfo=timezone.utc)
+CUTOFF = datetime(2026, 11, 3, 10, 0, tzinfo=UTC)
 PURPOSE = "portfolio_risk_daily"
 INDUSTRY_COVERAGE_BASIS = "official_nav_weight"
 
@@ -175,6 +175,30 @@ def _projection(*assets: PortfolioRiskAsset) -> PortfolioExposureProjection:
     )
 
 
+def test_complete_coverage_rejects_inconsistent_explicit_item_counts() -> None:
+    with pytest.raises(ValueError, match="complete coverage item counts must match"):
+        PortfolioRiskCoverage(
+            status=CoverageStatus.COMPLETE,
+            precision_basis=INDUSTRY_COVERAGE_BASIS,
+            reported_weight_fraction=Decimal("1"),
+            expected_item_count=2,
+            observed_item_count=1,
+        )
+
+
+def test_complete_coverage_keeps_absent_item_counts_unknown() -> None:
+    coverage = PortfolioRiskCoverage(
+        status=CoverageStatus.COMPLETE,
+        precision_basis=INDUSTRY_COVERAGE_BASIS,
+        reported_weight_fraction=Decimal("1"),
+        expected_item_count=None,
+        observed_item_count=None,
+    )
+
+    assert coverage.expected_item_count is None
+    assert coverage.observed_item_count is None
+
+
 def test_direct_equities_in_one_industry_breach_the_versioned_limit() -> None:
     assessment = assess_portfolio_industry_exposure(
         policy=_policy(max_weight=Decimal("0.30")),
@@ -200,6 +224,8 @@ def test_partial_etf_remainder_bounds_overlap_without_counting_the_fund_twice() 
             coverage=_coverage(
                 fraction=Decimal("0.85"),
                 status=CoverageStatus.PARTIAL,
+                expected=4,
+                observed=3,
             ),
         ),
         constituents=(
@@ -267,6 +293,46 @@ def test_partial_etf_remainder_bounds_overlap_without_counting_the_fund_twice() 
     assert assessment.source_evidence
     assert all(item.original_payload_sha256 is not None for item in assessment.source_evidence)
     assert assessment.outcome is ExposureOutcome.WITHIN_LIMIT
+
+
+def test_complete_etf_report_with_missing_disclosed_rows_is_fully_unknown() -> None:
+    report = ETFConstituentReport(
+        report_date=date(2026, 6, 30),
+        source_evidence=_source(
+            "etf-holdings-incomplete-complete",
+            observed_on=date(2026, 6, 30),
+            effective_on=date(2026, 6, 30),
+            coverage=_coverage(
+                fraction=Decimal("1"),
+                status=CoverageStatus.COMPLETE,
+                expected=1,
+                observed=1,
+            ),
+        ),
+        constituents=(),
+    )
+    asset = PortfolioRiskAsset(
+        asset_code="510006.SH",
+        kind=PortfolioAssetKind.ETF,
+        projected_market_value=Decimal("100"),
+        valuation_evidence=_source("valuation-incomplete-complete"),
+        industry_membership=None,
+        etf_report=report,
+    )
+
+    assessment = assess_portfolio_industry_exposure(
+        policy=_policy(minimum_industry_coverage=Decimal("0")),
+        projection=_projection(asset),
+    )
+
+    bound = assessment.etf_bounds[0]
+    assert bound.known_industry_market_value == Decimal("0")
+    assert bound.unknown_market_value == Decimal("100")
+    assert bound.unknown_security_market_value == Decimal("100")
+    assert assessment.unknown_industry_market_value == Decimal("100")
+    assert assessment.unknown_security_market_value == Decimal("100")
+    assert assessment.outcome is ExposureOutcome.BLOCKED
+    assert "ETF_LOOKTHROUGH_COVERAGE_UNTRUSTED" in assessment.reason_codes
 
 
 def test_untrusted_etf_coverage_uses_the_whole_fund_as_unknown_and_blocks() -> None:

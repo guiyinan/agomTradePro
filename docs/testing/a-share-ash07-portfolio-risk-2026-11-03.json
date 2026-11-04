@@ -493,7 +493,7 @@
   },
   "exit_stress_owner_dom_delivery": {
     "date": "2026-11-04",
-    "status": "development gates passed; commit and exact CI pending",
+    "status": "Committed ab8deab71 and actual5CI success; Source constructor followup tested by current correction batch, unchanged renderer DOM evidence scoped reuse",
     "candidate_id": "d0d041d8a551f18836fb784ea94e4172db553a6a027a3488fd6205e67a2289d9",
     "passed": 68,
     "failed": 0,
@@ -578,7 +578,12 @@
         ]
       }
     ],
-    "visual_review": "Both R95 screenshots opened and reviewed: known NAV/units and unknown/blocked/no-auto-execution text visible."
+    "visual_review": "Both R95 screenshots opened and reviewed: known NAV/units and unknown/blocked/no-auto-execution text visible.",
+    "commit": "ab8deab7104ed92be5671ae7b3601d5d0f82eac2",
+    "ci_proof": {
+      "path": ".tmp/ash07-risk-20261104/integration/pressure-owner-dom-final-ab8deab71.json",
+      "sha256": "012b2f6a9fc29dc5d5e0c02baf8c6abbd243def9a97fafa6e6ad5209eccc3468"
+    }
   },
   "owner_current_source_preparation_delivery": {
     "date": "2026-11-04",
@@ -601,6 +606,44 @@
     "actual_same_day_industry_ready": false,
     "owner_decision": "Keep same-day industry contract, recheckafter16; noT1reference",
     "remaining": "Actualsame-dayindustryoriginals thenfreshSina+completeordinaryOwner/ETFfinancialbatch, notfulfilledbythispreparation",
-    "ci": "ExactnewpushedHEAD mustbeverified; noqualificationfrompriorHEADCI"
+    "ci": {
+      "head": "db26a04ceb1997f4075c2c5949b3cfeedd8c585d",
+      "status": "All5actualsuccess",
+      "proof": ".tmp/ash07-risk-20261104/integration/owner-source-preparation-db26a04ce-final-db26a04ce.json",
+      "sha256": "8e53749cda676c1adc26e7e673a97849fe7af88beb21f101eee0da0b81e592f1"
+    },
+    "followup": "TwoOwnerETFtest/helperfiles andSourcecountinvariant qualified bycoverage_concurrency_closure; originalR96/R97kept historical, no currentfinancialpass"
+  },
+  "coverage_concurrency_closure": {
+    "date": "2026-11-04",
+    "status": "Complete development correction batch passed; exact commit CI checked externally after push; fullGoalactive",
+    "candidate_id": "8066650e3b3752a5eb9000e344f81869256db66540e1e9c24c8f28689b46cdcd",
+    "production_changes": [
+      "PortfolioRiskCoverage rejects explicitly contradictory COMPLETE counts, unknowncounts remainNone"
+    ],
+    "capacity": "Production unchanged; globalfalse alwaysfailclosed. UnsafeinferencefromoneknownrowNOTADOPT; regression evidence added",
+    "complete_modules": 27,
+    "passed": 345,
+    "failed": 0,
+    "skipped": 0,
+    "fixture_closure_cases": 347,
+    "fixture_unresolved": 0,
+    "incremental_mypy": 0,
+    "full_debt": 0,
+    "typing_reuse": "R103 exact production inputandbaseHEAD, actualincremental/fullDebt0; onlyfinal testfixtureimport changed, oneR104 complete runtime green",
+    "native_risk_cases": 2,
+    "current_owner_scenario_cases": 2,
+    "public_etf_nav_assertion": "Preparation only: actualcash+holdingsNAV,currencyandallknownindustry/securitybounds. ActualMain/ETF8financialNOTRUN.",
+    "source_industry_latest": "Actual17:00Nov4 CNIHTTP200data=null; same-daycontractkept; noT1",
+    "prior_failures": [
+      "R102342pass1newORMfixtureUOWbindingfailure+9legacyUTCstylefindings",
+      "R103344pass1missingledgerfixture, allstatic0; finalR104345actualpass"
+    ],
+    "index": {
+      "path": ".tmp/ash07-risk-20261104/integration/closure-audit/delivery-index.json",
+      "sha256": "6c858f9f1f0dbe82930bf80fd3f0c42de01b479dfdedc6bcd217a6f2a08967c0"
+    },
+    "source_code_manifest": ".tmp/ash07-risk-20261104/integration/closure-audit/owner-financial-source-code.json",
+    "remaining": "Qualifiedsame-dayindustryoriginal thenfreshSinaandactualcompletecurrentMain/ETFfinancial8case; noGoal/unitclosure/release/production/liveorders/REFhandoff"
   }
 }

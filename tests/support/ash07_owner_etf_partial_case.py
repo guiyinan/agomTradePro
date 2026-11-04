@@ -620,12 +620,15 @@ def assert_public_etf_partial_risk_report(
     *,
     etf_asset_code: str,
     etf_market_value: Decimal,
+    expected_portfolio_nav: Decimal,
+    expected_money_unit: str,
     minimum_lookthrough_coverage: Decimal,
     facts: RetainedQ3ReportFacts,
     source_code_to_asset_code: Mapping[str, str],
     direct_holding_market_values: Mapping[str, Decimal],
+    industry_codes_by_asset: Mapping[str, str],
 ) -> None:
-    """Assert the public report preserves overlap bounds and rejects Q3 coverage."""
+    """Check the public ETF result against exact NAV, overlap, and unknown bounds."""
 
     if set(source_code_to_asset_code) != _Q3_OVERRIDES:
         raise AssertionError("the partial case may map only the two exact bank report codes")
@@ -633,14 +636,24 @@ def assert_public_etf_partial_risk_report(
         type(etf_market_value) is not Decimal
         or not etf_market_value.is_finite()
         or etf_market_value <= 0
+        or type(expected_portfolio_nav) is not Decimal
+        or not expected_portfolio_nav.is_finite()
+        or expected_portfolio_nav <= 0
         or type(minimum_lookthrough_coverage) is not Decimal
         or not minimum_lookthrough_coverage.is_finite()
         or minimum_lookthrough_coverage <= 0
         or minimum_lookthrough_coverage > 1
     ):
         raise AssertionError(
-            "public-report expectations need explicit finite positive policy values"
+            "public-report expectations need explicit finite positive NAV and policy values"
         )
+    _require_token(expected_money_unit, "expected_money_unit")
+    if set(industry_codes_by_asset) != set(direct_holding_market_values):
+        raise AssertionError("industry source codes must cover each direct bank holding exactly")
+    if set(source_code_to_asset_code.values()) != set(industry_codes_by_asset):
+        raise AssertionError("ETF bank rows and direct holdings must share exact identities")
+    for industry_code in industry_codes_by_asset.values():
+        _require_token(industry_code, "industry_code")
     if payload.get("outcome") != "blocked" or payload.get("must_not_execute") is not True:
         raise AssertionError("partial Q3 ETF risk report must remain blocked from execution")
     if facts.reported_weight_fraction >= minimum_lookthrough_coverage:
@@ -656,6 +669,22 @@ def assert_public_etf_partial_risk_report(
     if "ETF_LOOKTHROUGH_COVERAGE_BELOW_POLICY_MINIMUM" not in reasons:
         raise AssertionError("the report did not expose the Q3 coverage-floor reason")
     details = _require_mapping(check.get("details"), "exposure details")
+    if _decimal_text(details.get("portfolio_market_value")) != expected_portfolio_nav:
+        raise AssertionError("exposure denominator differs from actual cash plus holdings NAV")
+    nav_check = _one_mapping(
+        payload.get("checks"),
+        predicate=lambda item: item.get("dimension") == "pre_trade_gross_nav",
+        label="pre_trade_gross_nav check",
+    )
+    nav_details = _require_mapping(nav_check.get("details"), "pre-trade NAV details")
+    if (
+        nav_check.get("status") != "allowed"
+        or nav_details.get("basis")
+        != "actual_cash_plus_settled_holdings_at_qualified_current_price"
+        or _decimal_text(nav_details.get("pre_trade_gross_nav")) != expected_portfolio_nav
+        or nav_details.get("money_unit") != expected_money_unit
+    ):
+        raise AssertionError("public NAV must use the exact cash, holdings, and declared currency")
     coverage = _decimal_text(details.get("etf_lookthrough_coverage_fraction"))
     if coverage != facts.reported_weight_fraction:
         raise AssertionError("public ETF look-through fraction differs from the ten rows")
@@ -678,6 +707,65 @@ def assert_public_etf_partial_risk_report(
         raise AssertionError(
             "public unknown security amount does not retain the undisclosed remainder"
         )
+
+    industry_known_values: dict[str, Decimal] = {}
+    for asset_code, direct_value in direct_holding_market_values.items():
+        industry_code = industry_codes_by_asset[asset_code]
+        industry_known_values[industry_code] = (
+            industry_known_values.get(industry_code, Decimal("0")) + direct_value
+        )
+    for row in facts.constituents:
+        asset_code = source_code_to_asset_code.get(row.source_stock_code)
+        if asset_code is None:
+            continue
+        industry_code = industry_codes_by_asset[asset_code]
+        row_value = exact_decimal_product(etf_market_value, row.weight_fraction)
+        industry_known_values[industry_code] = (
+            industry_known_values.get(industry_code, Decimal("0")) + row_value
+        )
+    industry_bounds = _string_list(details.get("industry_bounds"), "industry bounds")
+    if len(industry_bounds) != len(industry_known_values):
+        raise AssertionError("public industry bounds do not match the exact source-bound sectors")
+    for industry_code, known_value in industry_known_values.items():
+        lower_weight, upper_weight = _weight_bounds_for_code(
+            industry_bounds,
+            code=industry_code,
+            label="industry bound",
+        )
+        if lower_weight != known_value / expected_portfolio_nav:
+            raise AssertionError(
+                "industry lower weight does not use exact known value over full NAV"
+            )
+        if upper_weight != (known_value + expected_unknown_industry) / expected_portfolio_nav:
+            raise AssertionError(
+                "industry upper weight does not use full NAV and unknown remainder"
+            )
+
+    security_known_values = dict(direct_holding_market_values)
+    for row in facts.constituents:
+        asset_code = source_code_to_asset_code.get(row.source_stock_code, row.source_stock_code)
+        security_known_values[asset_code] = security_known_values.get(
+            asset_code, Decimal("0")
+        ) + exact_decimal_product(etf_market_value, row.weight_fraction)
+    security_bounds = _string_list(details.get("security_bounds"), "security bounds")
+    if len(security_bounds) != len(security_known_values):
+        raise AssertionError(
+            "public security bounds do not match the disclosed constituent identities"
+        )
+    for asset_code, known_value in security_known_values.items():
+        lower_weight, upper_weight = _weight_bounds_for_code(
+            security_bounds,
+            code=asset_code,
+            label="security bound",
+        )
+        if lower_weight != known_value / expected_portfolio_nav:
+            raise AssertionError(
+                "security lower weight does not use exact known value over full NAV"
+            )
+        if upper_weight != (known_value + expected_unknown_security) / expected_portfolio_nav:
+            raise AssertionError(
+                "security upper weight does not use full NAV and unknown remainder"
+            )
 
     etf_detail = _one_text(
         details.get("etf_bounds"),
@@ -961,6 +1049,26 @@ def _parse_colon_detail(value: str) -> dict[str, str]:
         if separator:
             result[key] = content
     return result
+
+
+def _weight_bounds_for_code(
+    values: list[str],
+    *,
+    code: str,
+    label: str,
+) -> tuple[Decimal, Decimal]:
+    """Parse one public lower/upper weight detail for an exact report identity."""
+
+    value = _one_text(
+        values,
+        predicate=lambda item: item.startswith(f"{code}:"),
+        label=f"{label} for {code}",
+    )
+    range_text = value[len(code) + 1 :].partition("/")[0]
+    lower_text, separator, upper_text = range_text.partition("..")
+    if not separator or not lower_text or not upper_text:
+        raise AssertionError(f"{label} for {code} has no explicit lower/upper weights")
+    return _decimal_text(lower_text), _decimal_text(upper_text)
 
 
 __all__ = (

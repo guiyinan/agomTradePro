@@ -1,6 +1,7 @@
 """Pure tests for exact account snapshots and conservative BUY exposure projection."""
 
-from datetime import date, datetime, timedelta, timezone
+from dataclasses import replace
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from types import SimpleNamespace
 from typing import cast
@@ -20,6 +21,7 @@ from apps.risk_center.application.portfolio_risk_policy import (
 )
 from apps.risk_center.application.portfolio_risk_snapshot import (
     _assess_capacities,
+    _capacity_usage_for_pair,
     _project_pre_trade_nav,
     _qualified_current_price,
     _requested_asset_codes,
@@ -43,7 +45,7 @@ from apps.risk_center.domain.portfolio_risk_snapshot import (
     value_held_quantity,
 )
 
-_AS_OF = datetime(2026, 11, 3, 8, 0, tzinfo=timezone.utc)
+_AS_OF = datetime(2026, 11, 3, 8, 0, tzinfo=UTC)
 _BUSINESS_DATE = date(2026, 11, 3)
 
 
@@ -384,6 +386,280 @@ def test_current_holding_without_capacity_source_is_unknown_without_proposal() -
     assert reasons == ["CAPACITY_OBSERVATION_MISSING"]
 
 
+def test_complete_usage_collection_keeps_incomplete_row_local_to_its_asset() -> None:
+    """A complete collection scopes an explicitly incomplete row to its asset."""
+
+    snapshot = AccountSnapshot(
+        account_id=12,
+        owner_user_id=4,
+        snapshot_id="account-snapshot-scoped-incomplete-usage",
+        read_at=_AS_OF - timedelta(seconds=1),
+        cash=Decimal("1000"),
+        money_unit="CNY",
+        holdings=(
+            HeldPosition(
+                asset_code="600036",
+                security_id="SSE:600036",
+                quantity=Decimal("100"),
+                available_quantity=Decimal("100"),
+            ),
+            HeldPosition(
+                asset_code="601398",
+                security_id="SSE:601398",
+                quantity=Decimal("100"),
+                available_quantity=Decimal("100"),
+            ),
+        ),
+        active_orders=(),
+        executed_usage=(
+            ExecutedUsage(
+                asset_code="600036",
+                security_id=None,
+                execution_session=None,
+                quantity=Decimal("10"),
+                amount=Decimal("100"),
+                complete=False,
+            ),
+            ExecutedUsage(
+                asset_code="600036",
+                security_id="SSE:600036",
+                execution_session=_BUSINESS_DATE,
+                quantity=None,
+                amount=None,
+                complete=False,
+            ),
+            ExecutedUsage(
+                asset_code="601398",
+                security_id="SSE:601398",
+                execution_session=_BUSINESS_DATE,
+                quantity=Decimal("3"),
+                amount=Decimal("30"),
+                complete=True,
+            ),
+        ),
+        active_orders_complete=True,
+        execution_session=_BUSINESS_DATE,
+        executed_usage_complete=True,
+    )
+    policy = _policy_bundle(
+        snapshot_id="runtime-snapshot-scoped-incomplete-usage",
+        snapshot_hash="7" * 64,
+    )
+    first_asset = PortfolioRiskAssetInputs(
+        asset_code="600036",
+        security_id="SSE:600036",
+        kind=None,
+        price=None,
+        quantity_unit="share",
+        price_unit=None,
+        valuation_evidence=None,
+        industry_membership=None,
+        etf_report=None,
+        capacity_observation=None,
+    )
+    second_asset = PortfolioRiskAssetInputs(
+        asset_code="601398",
+        security_id="SSE:601398",
+        kind=None,
+        price=None,
+        quantity_unit="share",
+        price_unit=None,
+        valuation_evidence=None,
+        industry_membership=None,
+        etf_report=None,
+        capacity_observation=None,
+    )
+
+    unresolved, unresolved_reasons = _capacity_usage_for_pair(
+        snapshot=snapshot,
+        proposals=(),
+        policy=policy,
+        asset=first_asset,
+        source_reference_bindings=(),
+        as_of=_AS_OF,
+        business_date=_BUSINESS_DATE,
+    )
+    exact_other_asset, exact_other_reasons = _capacity_usage_for_pair(
+        snapshot=snapshot,
+        proposals=(),
+        policy=policy,
+        asset=second_asset,
+        source_reference_bindings=(),
+        as_of=_AS_OF,
+        business_date=_BUSINESS_DATE,
+    )
+
+    assert unresolved_reasons == ["CAPACITY_EXECUTED_USAGE_SCOPE_UNKNOWN"]
+    assert unresolved.volume.value is None
+    assert unresolved.amount.value is None
+    assert unresolved.executed_usage_complete is False
+    assert exact_other_reasons == []
+    assert exact_other_asset.volume.value == Decimal("3")
+    assert exact_other_asset.amount.value == Decimal("30")
+    assert exact_other_asset.executed_usage_complete is True
+
+
+def test_global_usage_incomplete_blocks_even_when_one_known_asset_row_exists() -> None:
+    """Known incomplete rows cannot prove that a globally incomplete read is exhaustive."""
+
+    complete_snapshot = AccountSnapshot(
+        account_id=12,
+        owner_user_id=4,
+        snapshot_id="account-snapshot-known-incomplete-usage",
+        read_at=_AS_OF - timedelta(seconds=1),
+        cash=Decimal("1000"),
+        money_unit="CNY",
+        holdings=(),
+        active_orders=(),
+        executed_usage=(
+            ExecutedUsage(
+                asset_code="600036",
+                security_id=None,
+                execution_session=None,
+                quantity=Decimal("10"),
+                amount=Decimal("100"),
+                complete=False,
+            ),
+            ExecutedUsage(
+                asset_code="601398",
+                security_id="SSE:601398",
+                execution_session=_BUSINESS_DATE,
+                quantity=Decimal("3"),
+                amount=Decimal("30"),
+                complete=True,
+            ),
+        ),
+        active_orders_complete=True,
+        execution_session=_BUSINESS_DATE,
+        executed_usage_complete=True,
+    )
+    global_incomplete_snapshot = replace(
+        complete_snapshot,
+        snapshot_id="account-snapshot-global-incomplete-known-row",
+        executed_usage_complete=False,
+    )
+    policy = _policy_bundle(
+        snapshot_id="runtime-snapshot-global-incomplete-known-row",
+        snapshot_hash="9" * 64,
+    )
+    assets = (
+        PortfolioRiskAssetInputs(
+            asset_code="600036",
+            security_id="SSE:600036",
+            kind=None,
+            price=None,
+            quantity_unit="share",
+            price_unit=None,
+            valuation_evidence=None,
+            industry_membership=None,
+            etf_report=None,
+            capacity_observation=None,
+        ),
+        PortfolioRiskAssetInputs(
+            asset_code="601398",
+            security_id="SSE:601398",
+            kind=None,
+            price=None,
+            quantity_unit="share",
+            price_unit=None,
+            valuation_evidence=None,
+            industry_membership=None,
+            etf_report=None,
+            capacity_observation=None,
+        ),
+    )
+
+    results = tuple(
+        _capacity_usage_for_pair(
+            snapshot=global_incomplete_snapshot,
+            proposals=(),
+            policy=policy,
+            asset=asset,
+            source_reference_bindings=(),
+            as_of=_AS_OF,
+            business_date=_BUSINESS_DATE,
+        )
+        for asset in assets
+    )
+
+    assert tuple(result.executed_usage_complete for result, _reasons in results) == (
+        False,
+        False,
+    )
+    assert tuple(reasons for _result, reasons in results) == (
+        ["CAPACITY_EXECUTED_USAGE_SNAPSHOT_INCOMPLETE"],
+        ["CAPACITY_EXECUTED_USAGE_SNAPSHOT_INCOMPLETE"],
+    )
+
+
+@pytest.mark.parametrize(
+    "usage",
+    [
+        (),
+        (
+            ExecutedUsage(
+                asset_code="601398",
+                security_id="SSE:601398",
+                execution_session=date(2026, 11, 2),
+                quantity=None,
+                amount=None,
+                complete=False,
+            ),
+        ),
+    ],
+)
+def test_unscoped_execution_gap_remains_global_unknown(
+    usage: tuple[ExecutedUsage, ...],
+) -> None:
+    """An unexplained global completeness failure cannot be inferred as zero."""
+
+    snapshot = AccountSnapshot(
+        account_id=12,
+        owner_user_id=4,
+        snapshot_id="account-snapshot-global-incomplete-usage",
+        read_at=_AS_OF - timedelta(seconds=1),
+        cash=Decimal("1000"),
+        money_unit="CNY",
+        holdings=(),
+        active_orders=(),
+        executed_usage=usage,
+        active_orders_complete=True,
+        execution_session=_BUSINESS_DATE,
+        executed_usage_complete=False,
+    )
+
+    policy = _policy_bundle(
+        snapshot_id="runtime-snapshot-global-incomplete-usage",
+        snapshot_hash="8" * 64,
+    )
+    asset = PortfolioRiskAssetInputs(
+        asset_code="601398",
+        security_id="SSE:601398",
+        kind=None,
+        price=None,
+        quantity_unit="share",
+        price_unit=None,
+        valuation_evidence=None,
+        industry_membership=None,
+        etf_report=None,
+        capacity_observation=None,
+    )
+    result, reasons = _capacity_usage_for_pair(
+        snapshot=snapshot,
+        proposals=(),
+        policy=policy,
+        asset=asset,
+        source_reference_bindings=(),
+        as_of=_AS_OF,
+        business_date=_BUSINESS_DATE,
+    )
+
+    assert result.volume.value is None
+    assert result.amount.value is None
+    assert result.executed_usage_complete is False
+    assert reasons == ["CAPACITY_EXECUTED_USAGE_SNAPSHOT_INCOMPLETE"]
+
+
 def test_zero_quantity_holding_does_not_request_unavailable_or_stale_sources() -> None:
     """A zero row makes no source request; empty source proof remains unqualified."""
 
@@ -550,7 +826,7 @@ def test_snapshot_keeps_unresolved_execution_scope_without_fabricated_values() -
         account_id=1,
         owner_user_id=2,
         snapshot_id="snap-1",
-        read_at=datetime(2026, 11, 3, 1, 0, tzinfo=timezone.utc),
+        read_at=datetime(2026, 11, 3, 1, 0, tzinfo=UTC),
         cash=Decimal("1000"),
         money_unit="CNY",
         holdings=(
@@ -604,7 +880,7 @@ def test_snapshot_rejects_naive_read_clock_and_duplicate_active_order_ids() -> N
             account_id=1,
             owner_user_id=2,
             snapshot_id="snap-duplicate-order",
-            read_at=datetime(2026, 11, 3, 1, 0, tzinfo=timezone.utc),
+            read_at=datetime(2026, 11, 3, 1, 0, tzinfo=UTC),
             cash=Decimal("100"),
             money_unit="CNY",
             holdings=(),
@@ -663,7 +939,7 @@ def test_missing_cash_stays_unknown_instead_of_becoming_zero_nav() -> None:
         account_id=1,
         owner_user_id=2,
         snapshot_id="snap-cash-unknown",
-        read_at=datetime(2026, 11, 3, 1, 0, tzinfo=timezone.utc),
+        read_at=datetime(2026, 11, 3, 1, 0, tzinfo=UTC),
         cash=None,
         money_unit="CNY",
         holdings=(),
@@ -680,7 +956,7 @@ def test_missing_cash_stays_unknown_instead_of_becoming_zero_nav() -> None:
         resolved_assets={},
         source_reference_bindings=(),
         business_date=date(2026, 11, 3),
-        as_of=datetime(2026, 11, 3, 1, 1, tzinfo=timezone.utc),
+        as_of=datetime(2026, 11, 3, 1, 1, tzinfo=UTC),
     )
 
     assert holdings_value == Decimal("0")
@@ -695,7 +971,7 @@ def test_cash_with_nonmatching_money_unit_cannot_enter_nav() -> None:
         account_id=1,
         owner_user_id=2,
         snapshot_id="snap-unit-mismatch",
-        read_at=datetime(2026, 11, 3, 1, 0, tzinfo=timezone.utc),
+        read_at=datetime(2026, 11, 3, 1, 0, tzinfo=UTC),
         cash=Decimal("100"),
         money_unit="USD",
         holdings=(),
@@ -715,7 +991,7 @@ def test_cash_with_nonmatching_money_unit_cannot_enter_nav() -> None:
         resolved_assets={},
         source_reference_bindings=(),
         business_date=date(2026, 11, 3),
-        as_of=datetime(2026, 11, 3, 1, 1, tzinfo=timezone.utc),
+        as_of=datetime(2026, 11, 3, 1, 1, tzinfo=UTC),
     )
 
     assert holdings_value == Decimal("0")
@@ -744,7 +1020,7 @@ def test_missing_valuation_source_or_wrong_price_unit_does_not_supply_price() ->
         valuation_evidence=None,
         security_id="SSE:600036",
     )
-    as_of = datetime(2026, 11, 3, 1, 1, tzinfo=timezone.utc)
+    as_of = datetime(2026, 11, 3, 1, 1, tzinfo=UTC)
 
     assert (
         _qualified_current_price(

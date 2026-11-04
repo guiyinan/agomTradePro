@@ -36,7 +36,11 @@ class SourceObservationPrecision(StrEnum):
 
 @dataclass(frozen=True, slots=True)
 class PortfolioRiskCoverage:
-    """Coverage facts carried with a source, without assuming missing rows are zero."""
+    """Carry coverage facts without treating absent counts or rows as zero.
+
+    Missing item counts remain unknown; a complete report may then rely on
+    explicit full-weight evidence instead of inventing a count.
+    """
 
     status: CoverageStatus
     precision_basis: str
@@ -62,6 +66,8 @@ class PortfolioRiskCoverage:
                 raise ValueError("coverage item counts are outside their valid range")
         if self.status is CoverageStatus.COMPLETE:
             count_evidence = counts[0] is not None and counts[0] == counts[1]
+            if counts[0] is not None and not count_evidence:
+                raise ValueError("complete coverage item counts must match")
             weight_evidence = self.reported_weight_fraction == Decimal("1")
             if not count_evidence and not weight_evidence:
                 raise ValueError("complete coverage requires exact count or full-weight evidence")

@@ -65,7 +65,10 @@ from apps.data_center.infrastructure.tushare_instrument_reference_source import 
     TushareStockBasicClientPort,
 )
 from apps.risk_center.domain.portfolio_exposure_types import PortfolioAssetKind
-from apps.risk_center.domain.portfolio_risk_snapshot import exact_decimal_product
+from apps.risk_center.domain.portfolio_risk_snapshot import (
+    exact_decimal_product,
+    exact_decimal_sum,
+)
 from apps.risk_center.source_admission_composition import (
     build_portfolio_risk_source_admission_use_case,
 )
@@ -912,16 +915,29 @@ def test_owner_get_real_q3_etf_partial_source_report(
         for position in positions
         if position.current_price is not None
     }
+    industry_codes_by_asset = {
+        source_request.asset_code: _token(
+            _mapping(source_request.facts, "bank industry membership facts").get("industry_code"),
+            "bank industry membership industry_code",
+        )
+        for source_request in bank_industry_requests
+    }
+    expected_portfolio_nav = exact_decimal_sum(
+        (account.current_cash, exact_etf_value, *tuple(direct_values.values()))
+    )
     assert_public_etf_partial_risk_report(
         report,
         etf_asset_code=identity["asset_code"],
         etf_market_value=exact_etf_value,
+        expected_portfolio_nav=expected_portfolio_nav,
+        expected_money_unit=str(unit_mapping["canonical_money_unit"]),
         minimum_lookthrough_coverage=Decimal(
             str(risk_policy["industry"]["minimum_etf_lookthrough_coverage"])
         ),
         facts=facts,
         source_code_to_asset_code=source_code_to_asset_code,
         direct_holding_market_values=direct_values,
+        industry_codes_by_asset=industry_codes_by_asset,
     )
 
     account.refresh_from_db()

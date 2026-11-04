@@ -128,3 +128,13 @@ R96 七文件样式/编译门通过，八用例依赖闭包无缺项；首轮实
 实际 16 点后原件核对：Tushare 两银行 `trade_date=20261104` 的精确日线已取得、校验并留档；Source Native 只读配置、无 M1/PriceBar/金融发布，零其他客户端后停止。R99 自有记录钩子提前读流导致截断失败，未记成供应商错误；R100 改为原 SDK 完整校验后观察相同 capture 对象，两证券重取通过。国证当日 09:55、15:01、16:01 查询仍为空；11/03 变体及行业指数样本均只给旧日期，Sina/MSN/SSE/CAPCO/CSRC 路径也未证明合格同日成员。Owner 已明确保留同日契约，未启用 T-1。当前唯一来源缺口是同日行业原件；新浪报价与实际金融八项仍未运行，不用现有准备替代正向验收。
 
 原件仅本机可用，唯一索引 `.tmp/ash07-risk-20261104/integration/owner-source-preparation/delivery-index.json`，SHA-256 `4fc2f27ef4903d3f9d2902ff31ac8a986f1c7c69fb32be86da476c1f6f2dc628`。当前生产字节未改，沿用已验证生产门，不新增模型/入口/路由/生成投影；七测试/辅助文件按整组交付，CI 按新 pushed HEAD 核查。ASH07/Goal 保持 active，REF/CAL/deferred 的既有边界不变。
+
+### 完整覆盖与当前并发退出补齐（2026-11-04）
+
+唯一生产修复是 `PortfolioRiskCoverage`：显式 COMPLETE 项数不等时不能再凭权重 100% 忽略缺项；未知计数仍为 None，合法 PARTIAL 已知权重和残余保留。现有 ETF 行数校验已足够，未加重复分支。普通 Owner ETF 公开断言新增实际现金加持仓的 NAV、币种及行业/证券上下界分母核对；该当前金融用例仍未运行，不能由 Domain 算术代证。
+
+容量调查的放行提案未采用：全局 executed-usage 不完整，即使有已知资产行也不能证明集合完整，继续全资产 unknown；只有集合明确完整才可按行隔离。新增两种边界及 legacy/精确成交真实仓储补证，精确行经既有合成 V3 UOW 构造，未放宽成交绑定约束。当前 Native 双 BUY 实际验证后单锁内读到 `[0,1]` 个活动委托，容量拒绝后仅一 hold/audit；执行规则到期 UOW 回滚亦实际通过。它是 typed synthetic 来源与账户，不是当前市场原件正向。
+
+R104 同一候选 27 完整模块 **345 passed/0 skipped**，含两项 Native、当前普通 Owner 行业同步/三种退出 Scenario 及六项保留来源/单位/历史日期契约；347 项收集依赖闭包无缺项。所有样式通过；R103 实际增量/全生产债务均 0，生产输入与本候选逐字节一致，仅最终测试 fixture 导入不同，按精确范围复用类型证据。Native 零其他客户端后停止，未建库。R102 的 ORM 半绑定夹具及旧 UTC 样式失败、R103 遗漏 ledger fixture 的失败原件保留；只有 R104 计完整运行通过，未拼接多轮测试。
+
+原件唯一索引 `.tmp/ash07-risk-20261104/integration/closure-audit/delivery-index.json`，SHA-256 `6c858f9f1f0dbe82930bf80fd3f0c42de01b479dfdedc6bcd217a6f2a08967c0`，候选 `8066650e3b3752a5eb9000e344f81869256db66540e1e9c24c8f28689b46cdcd`。未变 DOM 呈现按原件范围复用，记录中的旧 pending 提交状态补为已证实的 ab8/db26 CI 事实。后续金融 runner 已绑定最新七文件与本批证明、要求所有实际适用的当前 HEAD CI；尚未执行金融八项。17:00 真实国证当日响应仍为空，Owner 同日契约不变；ASH07/Goal 保持 active，REF/CAL/deferred、实仓/自动下单/部署边界不变。
