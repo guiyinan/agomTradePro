@@ -625,6 +625,8 @@ Content-Type: application/json
 
 `unknown`、`expired` 或 `partial` 不是零值或完整覆盖。来源禁止标记、用途限制或覆盖不足都必须继续显示为限制；不能因为 `outcome` 是 `allowed` 就把这些字段解释成交易许可。报告可以给出来源时点、用途和覆盖说明；普通界面不应展示内部证据哈希。
 
+每项来源可选带有 `clock_evidence_proof`，用于解释该来源通过的受策略约束时钟证明；没有适用证明时字段可以省略。证明中的策略截止时间与来源自身时钟分开：`observed_at`、`observed_on`、`available_at`、`valid_until` 仍表示来源证据本身，未由供应方提供的 `available_at` 或 `valid_until` 保持 `null`，不能拿策略截止时间补写。若 `clock_evidence_mode` 为 `policy_bounded_close_snapshot_state`，`reported_trading_state: "TRADING"` 只描述报价时点，`full_session_state: "unknown"` 保留全天状态未知；`policy_acceptance_deadline` 是该模拟证明可用的最早策略边界，不代表供应方声明的失效时间，也不授予交易权限。
+
 | 状态码 | 边界 |
 |---|---|
 | `200` | 报告或情景目录读取成功，或压力核对完成；仍需按业务结果字段解释 |

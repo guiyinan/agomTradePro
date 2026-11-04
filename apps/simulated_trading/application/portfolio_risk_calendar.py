@@ -232,9 +232,6 @@ class _ConfiguredPortfolioRiskCalendarReader:
             if identity.selection.selected_at != as_of:
                 reasons.append("PORTFOLIO_RISK_CALENDAR_IDENTITY_CUTOFF_MISMATCH")
                 continue
-            if source.must_not_use_for_decision or source.must_not_execute:
-                reasons.append("PORTFOLIO_RISK_CALENDAR_IDENTITY_PROHIBITED")
-                continue
             if source.identity_valid_from > as_of:
                 reasons.append("PORTFOLIO_RISK_CALENDAR_IDENTITY_NOT_YET_VALID")
                 continue
@@ -242,7 +239,7 @@ class _ConfiguredPortfolioRiskCalendarReader:
                 reasons.append("PORTFOLIO_RISK_CALENDAR_IDENTITY_EXPIRED")
                 continue
             try:
-                source.validate_at(as_of=as_of)
+                identity.validate_at(as_of=as_of)
             except IdentityEvidenceValidationError as error:
                 reasons.append(error.code)
                 continue

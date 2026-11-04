@@ -84,6 +84,7 @@ from apps.simulated_trading.execution_current_reference_composition import (
 from apps.simulated_trading.infrastructure.models import (
     PositionModel,
     SimulatedAccountModel,
+    SimulatedOrderFillReceiptModel,
     SimulatedOrderReservationModel,
     SimulatedTradeModel,
 )
@@ -150,6 +151,103 @@ _RETAINED_2026_11_03_CANDIDATE = (
     / "a-real-source-e2e"
     / "real-source-owner-risk-candidate.json"
 )
+
+
+class _LiveFillClock:
+    """Read actual UTC time for both locked risk evaluation and final verification."""
+
+    def now(self) -> datetime:
+        """Return a new server clock observation without freezing market facts."""
+
+        return timezone.now().astimezone(UTC)
+
+
+def _source_body_hashes_for_asset(
+    *,
+    sources: object,
+    source_reference_bindings: object,
+    asset_code: str,
+) -> set[str]:
+    """Join vendor-body hashes to one asset only through its exact report pins."""
+
+    if type(sources) is not list or type(source_reference_bindings) is not list:
+        raise AssertionError("risk source rows and reference bindings must be JSON lists")
+    scopes_by_record: dict[str, set[tuple[str, str, str, str]]] = {}
+    expected_scopes: set[tuple[str, str, str, str]] = set()
+    for raw_binding in source_reference_bindings:
+        if type(raw_binding) is not dict:
+            raise AssertionError("risk source reference binding must be a JSON object")
+        kind = raw_binding.get("kind")
+        bound_asset = raw_binding.get("asset_code")
+        security_id = raw_binding.get("security_id")
+        source_record_id = raw_binding.get("source_record_id")
+        if (
+            type(kind) is not str
+            or not kind.strip()
+            or type(bound_asset) is not str
+            or not bound_asset.strip()
+            or type(security_id) is not str
+            or not security_id.strip()
+            or type(source_record_id) is not str
+            or not source_record_id.strip()
+        ):
+            raise AssertionError("source binding lacks its exact kind, asset, security, or record")
+        scope = (bound_asset, security_id, kind, source_record_id)
+        scopes_by_record.setdefault(source_record_id, set()).add(scope)
+        if bound_asset == asset_code:
+            expected_scopes.add(scope)
+    if not expected_scopes:
+        raise AssertionError(f"no exact source pins were reported for {asset_code}")
+
+    observed_scopes: set[tuple[str, str, str, str]] = set()
+    body_hashes: set[str] = set()
+    expected_records = {scope[3] for scope in expected_scopes}
+    for raw_source in sources:
+        if type(raw_source) is not dict:
+            raise AssertionError("risk source must be a JSON object")
+        source_record_id = raw_source.get("source_record_id")
+        if type(source_record_id) is not str or source_record_id not in expected_records:
+            continue
+        if "clock_evidence_proof" not in raw_source:
+            possible_scopes = scopes_by_record[source_record_id]
+            if len(possible_scopes) != 1:
+                raise AssertionError(
+                    "an unscoped source row cannot identify a shared pinned source record"
+                )
+            source_scope = next(iter(possible_scopes))
+        else:
+            proof = raw_source["clock_evidence_proof"]
+            if type(proof) is not dict:
+                raise AssertionError("clock evidence proof must be a typed JSON object")
+            proof_asset = proof.get("asset_code")
+            proof_security = proof.get("security_id")
+            proof_kind = proof.get("source_kind")
+            proof_record = proof.get("source_record_id")
+            if (
+                type(proof_asset) is not str
+                or type(proof_security) is not str
+                or type(proof_kind) is not str
+                or type(proof_record) is not str
+                or proof_record != source_record_id
+            ):
+                raise AssertionError("clock proof record differs from its source row")
+            source_scope = (proof_asset, proof_security, proof_kind, proof_record)
+            if source_scope not in scopes_by_record[source_record_id]:
+                raise AssertionError("clock proof scope is not present in the pinned bindings")
+            if proof.get("original_body_sha256") != raw_source.get("raw_payload_sha256"):
+                raise AssertionError("clock proof body hash differs from the source evidence hash")
+        if source_scope[0] != asset_code:
+            continue
+        if source_scope not in expected_scopes or source_scope in observed_scopes:
+            raise AssertionError("source evidence is unpinned or duplicated for this asset")
+        body_hash = raw_source.get("raw_payload_sha256")
+        if type(body_hash) is not str or not body_hash:
+            raise AssertionError("asset-scoped source evidence has no vendor-body hash")
+        observed_scopes.add(source_scope)
+        body_hashes.add(body_hash)
+    if observed_scopes != expected_scopes or not body_hashes:
+        raise AssertionError(f"source evidence does not cover the exact pins for {asset_code}")
+    return body_hashes
 
 
 class _TwoBankStockBasicSession(_Session):
@@ -317,7 +415,8 @@ def _persisted_reference_snapshot(monkeypatch: pytest.MonkeyPatch) -> tuple[Any,
         provider_contract=contract,
         exchange_suffix_crosswalk=crosswalk,
     )
-    candidate = source.fetch_candidate(run_id=uuid4(), ingested_run_id=uuid4())
+    snapshot_run_id = uuid4()
+    candidate = source.fetch_candidate(run_id=snapshot_run_id, ingested_run_id=uuid4())
     repository = DjangoInstrumentReferenceSnapshotRepository(
         cast(RawAuditRepositoryProtocol, audits),
         payloads,
@@ -332,7 +431,7 @@ def _persisted_reference_snapshot(monkeypatch: pytest.MonkeyPatch) -> tuple[Any,
     )
     mapping_record = SaveInstrumentReferenceMappingUseCase(repository).execute(mapping)
     content = InstrumentReferenceSnapshotContent(
-        run_id=uuid4(),
+        run_id=snapshot_run_id,
         mapping_record=mapping_record,
         fetch_rounds=(InstrumentReferenceFetchRound(fetch_round_id=uuid4(), candidate=candidate),),
     )
@@ -609,6 +708,7 @@ def test_owner_tui_current_public_risk_sources_and_scenario_replay(
     monkeypatch: pytest.MonkeyPatch,
     _publish_real_calendar: _RealCalendarPublisher,
     runtime_role: dict[str, object],
+    tmp_path: Path,
 ) -> None:
     """Qualify current real source facts through owner TUI and persist real Scenario evidence."""
 
@@ -618,28 +718,6 @@ def test_owner_tui_current_public_risk_sources_and_scenario_replay(
     candidate_path = _candidate_path()
     candidate = _load_candidate(candidate_path)
     business_date = date.fromisoformat(candidate["business_date"])
-    requests = admission_builder.build_real_source_admission_requests(candidate_path)
-    if not requests:
-        raise AssertionError("source candidate must yield exact typed admission requests")
-    if len(requests) != 8:
-        raise AssertionError(
-            "two holdings require exact industry, valuation, capacity, and state refs"
-        )
-    for request in requests:
-        capture = request.sina_capture
-        if capture is None:
-            continue
-        if capture.body != request.original_body or capture.quote is None:
-            raise AssertionError("Sina typed capture must be the exact admitted original response")
-        if capture.quote.previous_close is None or capture.quote.last_price is None:
-            raise AssertionError("close-only simulation requires source-provided prior/last prices")
-        if capture.quote.reported_trading_state.value != "trading":
-            raise AssertionError("the vendor quote-time state does not qualify as TRADING")
-    unit_mapping = admission_builder.verify_source_unit_mapping(candidate)
-    assert unit_mapping["canonical_quantity_unit"] == "share"
-    assert unit_mapping["canonical_money_unit"] == "CNY"
-    assert unit_mapping["numeric_scale"] == "1"
-
     configure_critical_runtime()
     provider_settings = save_provider_settings_payload(
         default_source="tushare",
@@ -682,64 +760,6 @@ def test_owner_tui_current_public_risk_sources_and_scenario_replay(
     ):
         raise AssertionError("Risk account must use a separately approved ordinary test Owner")
     _seed_baseline(account_id)
-
-    # Each body remains an exact retained original; the RawPayload manifest hash
-    # is a separate policy pin and never substitutes for original-body SHA-256.
-    raw_payloads: dict[tuple[str, str, str, str], str] = {}
-    admission_use_case = build_portfolio_risk_source_admission_use_case()
-    for request in requests:
-        if request.original_url is None or not request.original_body:
-            raise AssertionError("each admitted source must preserve URL and original bytes")
-        receipt = request.capture_receipt
-        if receipt is None:
-            raise AssertionError("trusted capture adapter did not attach a typed receipt")
-        body_hash = hashlib.sha256(request.original_body).hexdigest()
-        if request.source_evidence.original_payload_sha256 != body_hash:
-            raise AssertionError("admission facts are not bound to the retained original body")
-        result = admission_use_case.execute(request, persist=True)
-        if not result.stored or result.payload.fetched_at != receipt.response_completed_at:
-            raise AssertionError("RawPayload did not preserve the trusted local capture clock")
-        if result.payload.payload_hash == f"sha256:{body_hash}":
-            raise AssertionError("manifest identity must remain distinct from source-body hash")
-        raw_payloads[
-            (request.kind, request.asset_code, request.security_id, request.source_record_id)
-        ] = result.payload.payload_hash
-
-    names: dict[str, str] = {}
-    for identity in candidate["identity_resolution"]["records"]:
-        source_path = Path(identity["sse_record_path"])
-        if not source_path.is_absolute():
-            source_path = _REPOSITORY_ROOT / source_path
-        source_bytes = source_path.read_bytes()
-        if hashlib.sha256(source_bytes).hexdigest() != identity["sse_record_sha256"]:
-            raise AssertionError("official SSE identity source hash differs")
-        company_payload = json.loads(source_bytes.decode("utf-8-sig"))
-        company_rows = company_payload.get("result")
-        if type(company_rows) is not list or len(company_rows) != 1:
-            raise AssertionError("official SSE company identity row is not unique")
-        row = company_rows[0]
-        if row.get("A_STOCK_CODE") != identity["sse_company_code"]:
-            raise AssertionError("official SSE source code differs from the local selector")
-        names[identity["asset_code"]] = row["COMPANY_ABBR"]
-
-    positions = _seed_positions(
-        account,
-        candidate=candidate,
-        names=names,
-        business_date=business_date,
-    )
-    assert len(positions) == 2
-    ledger_before = (
-        account.current_cash,
-        account.current_market_value,
-        account.total_value,
-        tuple(
-            (position.asset_code, position.quantity, position.available_quantity)
-            for position in positions
-        ),
-        SimulatedTradeModel.objects.filter(account=account).count(),
-        SimulatedOrderReservationModel.objects.filter(account=account).count(),
-    )
 
     with monkeypatch.context() as identity_patch:
         reference_repository, source_snapshot = _persisted_reference_snapshot(identity_patch)
@@ -799,6 +819,111 @@ def test_owner_tui_current_public_risk_sources_and_scenario_replay(
             market=classification.rule_market,
             board=classification.board,
         )
+
+    # Use the existing explicit Fee V2 fixture once per exact market/board.
+    fee_scopes = sorted(
+        {
+            (rule_market_by_asset[asset_code], board_by_asset[asset_code])
+            for asset_code in rule_market_by_asset
+        }
+    )
+    with monkeypatch.context() as fee_patch:
+        fee_patch.setattr(
+            auto_fixture, "AS_OF", timezone.now().astimezone(UTC) + timedelta(minutes=1)
+        )
+        for fee_market, fee_board in fee_scopes:
+            auto_fixture._seed_fee_policy(
+                account_id=account_id,
+                market=fee_market,
+                board=fee_board,
+            )
+
+    # ASH-03 requires both calendar and execution-rule knowledge before capture.
+    # Keep their real clocks; collect new original quotes only after setup.
+    candidate_path = admission_builder.refresh_current_quote_candidate(
+        candidate_path=candidate_path,
+        output_dir=tmp_path / "after-calendar-rule-quotes",
+    )
+    candidate = _load_candidate(candidate_path)
+    requests = admission_builder.build_real_source_admission_requests(candidate_path)
+    if not requests:
+        raise AssertionError("source candidate must yield exact typed admission requests")
+    if len(requests) != 8:
+        raise AssertionError(
+            "two holdings require exact industry, valuation, capacity, and state refs"
+        )
+    for request in requests:
+        capture = request.sina_capture
+        if capture is None:
+            continue
+        if capture.body != request.original_body or capture.quote is None:
+            raise AssertionError("Sina typed capture must be the exact admitted original response")
+        if capture.quote.previous_close is None or capture.quote.last_price is None:
+            raise AssertionError("close-only simulation requires source-provided prior/last prices")
+        if capture.quote.reported_trading_state.value != "trading":
+            raise AssertionError("the vendor quote-time state does not qualify as TRADING")
+    unit_mapping = admission_builder.verify_source_unit_mapping(candidate)
+    assert unit_mapping["canonical_quantity_unit"] == "share"
+    assert unit_mapping["canonical_money_unit"] == "CNY"
+    assert unit_mapping["numeric_scale"] == "1"
+
+    # Each body remains an exact retained original; the RawPayload manifest hash
+    # is a separate policy pin and never substitutes for original-body SHA-256.
+    raw_payloads: dict[tuple[str, str, str, str], str] = {}
+    admission_use_case = build_portfolio_risk_source_admission_use_case()
+    for request in requests:
+        if request.original_url is None or not request.original_body:
+            raise AssertionError("each admitted source must preserve URL and original bytes")
+        receipt = request.capture_receipt
+        if receipt is None:
+            raise AssertionError("trusted capture adapter did not attach a typed receipt")
+        body_hash = hashlib.sha256(request.original_body).hexdigest()
+        if request.source_evidence.original_payload_sha256 != body_hash:
+            raise AssertionError("admission facts are not bound to the retained original body")
+        result = admission_use_case.execute(request, persist=True)
+        if not result.stored or result.payload.fetched_at != receipt.response_completed_at:
+            raise AssertionError("RawPayload did not preserve the trusted local capture clock")
+        if result.payload.payload_hash == f"sha256:{body_hash}":
+            raise AssertionError("manifest identity must remain distinct from source-body hash")
+        raw_payloads[
+            (request.kind, request.asset_code, request.security_id, request.source_record_id)
+        ] = result.payload.payload_hash
+
+    names: dict[str, str] = {}
+    for identity in candidate["identity_resolution"]["records"]:
+        source_path = Path(identity["sse_record_path"])
+        if not source_path.is_absolute():
+            source_path = _REPOSITORY_ROOT / source_path
+        source_bytes = source_path.read_bytes()
+        if hashlib.sha256(source_bytes).hexdigest() != identity["sse_record_sha256"]:
+            raise AssertionError("official SSE identity source hash differs")
+        company_payload = json.loads(source_bytes.decode("utf-8-sig"))
+        company_rows = company_payload.get("result")
+        if type(company_rows) is not list or len(company_rows) != 1:
+            raise AssertionError("official SSE company identity row is not unique")
+        row = company_rows[0]
+        if row.get("A_STOCK_CODE") != identity["sse_company_code"]:
+            raise AssertionError("official SSE source code differs from the local selector")
+        names[identity["asset_code"]] = row["COMPANY_ABBR"]
+
+    positions = _seed_positions(
+        account,
+        candidate=candidate,
+        names=names,
+        business_date=business_date,
+    )
+    assert len(positions) == 2
+    ledger_before = (
+        account.current_cash,
+        account.current_market_value,
+        account.total_value,
+        tuple(
+            (position.asset_code, position.quantity, position.available_quantity)
+            for position in positions
+        ),
+        SimulatedTradeModel.objects.filter(account=account).count(),
+        SimulatedOrderReservationModel.objects.filter(account=account).count(),
+    )
 
     source_references: list[dict[str, object]] = []
     for request in requests:
@@ -900,6 +1025,9 @@ def test_owner_tui_current_public_risk_sources_and_scenario_replay(
     report_response = client.get(report_url, secure=True, HTTP_ORIGIN="https://testserver")
     assert report_response.status_code == 200, report_response.content
     report = report_response.json()
+    (tmp_path / "owner-current-risk-before.json").write_text(
+        json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
     assert report["account_id"] == account_id
     assert report["scope"] == "simulation_only"
     assert report["must_not_execute"] is True
@@ -1188,11 +1316,14 @@ def test_owner_tui_current_public_risk_sources_and_scenario_replay(
             "inspection_date": business_date.isoformat(),
             "auto_create_proposal": False,
             "reference_price_basis": "published_close",
-            "temporary_target_weights": f"{sell_asset},0",
+            "temporary_target_weights": "\n".join(
+                f"{position.asset_code},0" for position in positions
+            ),
         },
         format="json",
         **common_headers,
     )
+    (tmp_path / "owner-current-plan-response.json").write_bytes(plan_response.content)
     assert plan_response.status_code == 200, plan_response.content
     plan_body = plan_response.json()
     assert plan_body["success"] is True
@@ -1289,6 +1420,7 @@ def test_owner_tui_current_public_risk_sources_and_scenario_replay(
         format="json",
         **common_headers,
     )
+    (tmp_path / "owner-current-order-preview-response.json").write_bytes(preview_response.content)
     assert preview_response.status_code == 200, preview_response.content
     preview = preview_response.json()
     assert preview["read_only"] is True
@@ -1306,6 +1438,7 @@ def test_owner_tui_current_public_risk_sources_and_scenario_replay(
         format="json",
         **common_headers,
     )
+    (tmp_path / "owner-current-order-confirm-response.json").write_bytes(confirm_response.content)
     assert confirm_response.status_code == 200, confirm_response.content
     assert confirm_response.json()["purpose"] == "close_snapshot_simulation"
     reservation = SimulatedOrderReservationModel.objects.get(
@@ -1336,6 +1469,9 @@ def test_owner_tui_current_public_risk_sources_and_scenario_replay(
     )
     assert held_report_response.status_code == 200, held_report_response.content
     held_report = held_report_response.json()
+    (tmp_path / "owner-current-risk-with-reservation.json").write_text(
+        json.dumps(held_report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
     assert held_report["account_id"] == account_id
     assert held_report["policy_version"] == report["policy_version"]
     assert held_report["outcome"] == "allowed", held_report["checks"]
@@ -1370,6 +1506,16 @@ def test_owner_tui_current_public_risk_sources_and_scenario_replay(
     fill_at = timezone.now().astimezone(UTC)
     fill_quantity = reservation.quantity
     assert fill_quantity == planned_sell_quantity
+    positions_before_fill = {
+        position.asset_code: (
+            cast(int, position.pk),
+            position.quantity,
+            position.available_quantity,
+        )
+        for position in positions
+    }
+    assert sell_asset in positions_before_fill
+    assert positions_before_fill[sell_asset][1] == fill_quantity
     synthetic_fill = close_flow.LocalSimulatedFillEventV1(
         source_namespace="test.fixture.ash07-owner-close-fill",
         source_version="fixture-v1",
@@ -1443,10 +1589,64 @@ def test_owner_tui_current_public_risk_sources_and_scenario_replay(
         event=synthetic_fill,
         expected_event_payload_hash=synthetic_fill.event_payload_hash,
         settlement_proof=settlement_proof,
-        clock=close_flow._FixedClock(fill_at),
+        clock=_LiveFillClock(),
     )
     assert fill_result.replayed is False
     assert fill_result.economics == expected_fill
+    persisted_trade = SimulatedTradeModel.objects.get(
+        pk=fill_result.trade_id,
+        account_id=account_id,
+    )
+    expected_fees = expected_fill.incremental_fees
+    persisted_fee_values = (
+        persisted_trade.commission,
+        persisted_trade.transfer_fee,
+        persisted_trade.stamp_duty,
+        persisted_trade.slippage,
+    )
+    assert persisted_trade.asset_code == sell_asset
+    assert persisted_trade.action == close_flow.SimulatedTradeSide.SELL.value
+    assert persisted_trade.quantity == fill_quantity
+    assert persisted_trade.price == retained_quote.last_price
+    assert persisted_trade.amount == expected_fill.gross_amount
+    assert persisted_fee_values == (
+        expected_fees.commission,
+        expected_fees.transfer_fee,
+        expected_fees.stamp_duty,
+        expected_fees.slippage,
+    )
+    assert persisted_trade.total_cost == expected_fees.total_fee
+    assert persisted_trade.fee_amounts_known is True
+    assert any(value > 0 for value in persisted_fee_values)
+    assert reservation.account_id == account_id
+    assert reservation.owner_user_id == owner_id
+    assert reservation.idempotency_key == order_key
+    fill_receipt = SimulatedOrderFillReceiptModel.objects.get(
+        reservation_id=reservation.pk,
+        trade_id=persisted_trade.pk,
+    )
+    assert fill_receipt.reservation_id == reservation.pk
+    assert fill_receipt.trade_id == persisted_trade.pk
+    assert fill_receipt.source_event_id == synthetic_fill.source_event_id
+    assert fill_receipt.source_namespace == synthetic_fill.source_namespace
+    assert fill_receipt.plan_snapshot_hash == reservation.plan_snapshot_hash
+    assert fill_receipt.receipt_hash == persisted_trade.request_payload_hash
+    event_payload = fill_receipt.source_event_payload
+    assert event_payload["reservation_id"] == reservation.pk
+    assert event_payload["account_id"] == account_id
+    assert event_payload["user_id"] == owner_id
+    assert event_payload["order_idempotency_key"] == order_key
+    assert event_payload["plan_snapshot_hash"] == reservation.plan_snapshot_hash
+    receipt_identity = fill_receipt.economics_payload["reservation_identity"]
+    assert receipt_identity["account_id"] == account_id
+    assert receipt_identity["security_id"] == reservation.security_id
+    assert receipt_identity["idempotency_key"] == order_key
+    receipt_fees = fill_receipt.economics_payload["incremental_fees"]
+    assert Decimal(str(receipt_fees["commission"])) == expected_fees.commission
+    assert Decimal(str(receipt_fees["transfer_fee"])) == expected_fees.transfer_fee
+    assert Decimal(str(receipt_fees["stamp_duty"])) == expected_fees.stamp_duty
+    assert Decimal(str(receipt_fees["slippage"])) == expected_fees.slippage
+    assert Decimal(str(receipt_fees["total_fee"])) == expected_fees.total_fee
     assert (
         RiskPolicyAuditModel.objects.filter(
             actor_id=owner_id,
@@ -1492,13 +1692,29 @@ def test_owner_tui_current_public_risk_sources_and_scenario_replay(
     assert "test.fixture" in synthetic_fill.source_namespace
 
     reservation.refresh_from_db()
-    sell_position.refresh_from_db()
     account.refresh_from_db()
+    assert quantity_before_fill == fill_quantity
+    assert not PositionModel.objects.filter(
+        pk=positions_before_fill[sell_asset][0],
+        account_id=account_id,
+    ).exists()
+    persisted_positions = tuple(
+        PositionModel.objects.filter(account_id=account_id).order_by("asset_code", "pk")
+    )
+    surviving_assets = set(positions_before_fill).difference({sell_asset})
+    persisted_by_asset = {position.asset_code: position for position in persisted_positions}
+    assert set(persisted_by_asset) == surviving_assets
+    for asset_code in surviving_assets:
+        original_id, original_quantity, original_available = positions_before_fill[asset_code]
+        persisted_position = persisted_by_asset[asset_code]
+        assert persisted_position.pk == original_id
+        assert persisted_position.quantity == original_quantity
+        assert persisted_position.available_quantity == original_available
     net_proceeds = expected_fill.gross_amount - expected_fill.incremental_fees.total_fee
     assert account.current_cash == cash_before_fill + net_proceeds
     assert account.current_market_value == market_value_before_fill - sell_mark_before_fill
     assert account.total_value == account.current_cash + account.current_market_value
-    assert sell_position.quantity == quantity_before_fill - fill_quantity
+    assert quantity_before_fill - fill_quantity == 0
     post_fill_response = client.get(
         report_url,
         secure=True,
@@ -1506,17 +1722,21 @@ def test_owner_tui_current_public_risk_sources_and_scenario_replay(
     )
     assert post_fill_response.status_code == 200, post_fill_response.content
     post_fill_report = post_fill_response.json()
+    (tmp_path / "owner-current-risk-post-fill.json").write_text(
+        json.dumps(post_fill_report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
     assert post_fill_report["account_id"] == account_id
     assert post_fill_report["policy_version"] == report["policy_version"]
     assert post_fill_report["outcome"] == "allowed", post_fill_report["checks"]
-    for position in positions:
-        position.refresh_from_db()
     retained_prices = {
         quote["risk_asset_code"]: Decimal(quote["quote"]["last_price"])
         for quote in candidate["sina_quotes"]
     }
     expected_holdings_value = sum(
-        (position.quantity * retained_prices[position.asset_code] for position in positions),
+        (
+            position.quantity * retained_prices[position.asset_code]
+            for position in persisted_positions
+        ),
         Decimal("0"),
     )
     post_fill_nav = next(
@@ -1544,21 +1764,21 @@ def test_owner_tui_current_public_risk_sources_and_scenario_replay(
     assert post_fill_pin_tuples.issubset(original_pin_tuples)
     post_fill_source_hashes = {item["raw_payload_sha256"] for item in post_fill_report["sources"]}
     assert post_fill_source_hashes.issubset(source_hashes)
-    surviving_asset = positions[1].asset_code
-    assert {pin for pin in post_fill_pin_tuples if pin[1] == surviving_asset} == {
-        pin for pin in original_pin_tuples if pin[1] == surviving_asset
-    }
-    original_survivor_hashes = {
-        item["raw_payload_sha256"]
-        for item in report["sources"]
-        if item["asset_code"] == surviving_asset
-    }
-    post_survivor_hashes = {
-        item["raw_payload_sha256"]
-        for item in post_fill_report["sources"]
-        if item["asset_code"] == surviving_asset
-    }
-    assert post_survivor_hashes == original_survivor_hashes
+    for surviving_asset in sorted(surviving_assets):
+        assert {pin for pin in post_fill_pin_tuples if pin[1] == surviving_asset} == {
+            pin for pin in original_pin_tuples if pin[1] == surviving_asset
+        }
+        original_survivor_hashes = _source_body_hashes_for_asset(
+            sources=report["sources"],
+            source_reference_bindings=input_scope["details"]["source_reference_bindings"],
+            asset_code=surviving_asset,
+        )
+        post_survivor_hashes = _source_body_hashes_for_asset(
+            sources=post_fill_report["sources"],
+            source_reference_bindings=post_fill_scope["details"]["source_reference_bindings"],
+            asset_code=surviving_asset,
+        )
+        assert post_survivor_hashes == original_survivor_hashes
     post_capacity = next(
         item for item in post_fill_report["checks"] if item["dimension"] == "liquidity_capacity"
     )
@@ -1567,18 +1787,96 @@ def test_owner_tui_current_public_risk_sources_and_scenario_replay(
     post_fill_quantities = {
         row["asset_code"]: Decimal(row["held_quantity"]) for row in post_fill_rows
     }
-    for position in positions:
+    for position in persisted_positions:
         assert post_fill_quantities.get(position.asset_code, Decimal("0")) == position.quantity
+    expected_positive_quantities = {
+        position.asset_code: position.quantity
+        for position in persisted_positions
+        if position.quantity > 0
+    }
+    reported_positive_quantities = {
+        asset_code: quantity
+        for asset_code, quantity in post_fill_quantities.items()
+        if quantity > 0
+    }
+    assert reported_positive_quantities == expected_positive_quantities
     sold_after_fill = next(
         (item for item in post_fill_rows if item["asset_code"] == sell_asset),
         None,
     )
     if sold_after_fill is not None:
-        assert Decimal(sold_after_fill["held_quantity"]) == 0
-        assert Decimal(sold_after_fill["active_sell_remaining_quantity"]) == 0
+        sold_held = sold_after_fill.get("held_quantity")
+        sold_active = sold_after_fill.get("active_sell_remaining_quantity")
+        assert type(sold_held) is str
+        assert type(sold_active) is str
+        assert Decimal(sold_held) == 0
+        assert Decimal(sold_active) == 0
+    assert reservation.status == SimulatedOrderReservationModel.STATUS_COMPLETED
     assert reservation.filled_quantity == reservation.quantity
     assert reservation.shares_consumed == reservation.quantity
     assert reservation.shares_released == 0
+    assert not SimulatedOrderReservationModel.objects.filter(
+        account_id=account_id,
+        asset_code=sell_asset,
+        side=close_flow.SimulatedTradeSide.SELL.value,
+        status=SimulatedOrderReservationModel.STATUS_ACTIVE,
+    ).exists()
     assert SimulatedTradeModel.objects.filter(account=account).count() == (
         ledger_before_order[4] + 1
+    )
+
+    fill_evidence_summary = {
+        "scope": "simulation_only",
+        "event": {
+            "source_namespace": synthetic_fill.source_namespace,
+            "source_event_id": synthetic_fill.source_event_id,
+            "occurred_at": synthetic_fill.occurred_at.isoformat(),
+            "source_snapshot_hash": synthetic_fill.source_snapshot_hash,
+            "is_synthetic_fixture": True,
+        },
+        "market_input": {
+            "basis": "retained_public_sina_close_snapshot",
+            "purpose": "close_snapshot_simulation",
+            "asset_code": sell_asset,
+            "last_price": str(retained_quote.last_price),
+            "risk_source_hashes": sorted(locked_source_hashes),
+            "must_not_execute": True,
+        },
+        "trade": {
+            "trade_id": persisted_trade.pk,
+            "security_id": reservation.security_id,
+            "quantity": str(persisted_trade.quantity),
+            "gross_amount": str(persisted_trade.amount),
+            "fees": {
+                "commission": str(persisted_trade.commission),
+                "transfer_fee": str(persisted_trade.transfer_fee),
+                "stamp_duty": str(persisted_trade.stamp_duty),
+                "slippage": str(persisted_trade.slippage),
+                "total": str(persisted_trade.total_cost),
+            },
+            "receipt_hash": fill_receipt.receipt_hash,
+            "reservation_status": reservation.status,
+        },
+        "account": {
+            "cash": str(account.current_cash),
+            "market_value": str(account.current_market_value),
+            "total_value": str(account.total_value),
+            "positions": [
+                {
+                    "asset_code": position.asset_code,
+                    "quantity": str(position.quantity),
+                    "available_quantity": str(position.available_quantity),
+                }
+                for position in persisted_positions
+            ],
+        },
+        "post_fill_risk": {
+            "outcome": post_fill_report["outcome"],
+            "source_hashes": sorted(post_fill_source_hashes),
+            "nav": post_fill_nav["details"]["pre_trade_gross_nav"],
+        },
+    }
+    (tmp_path / "owner-current-fill-receipt-summary.json").write_text(
+        json.dumps(fill_evidence_summary, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
     )

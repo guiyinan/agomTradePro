@@ -126,6 +126,9 @@ from tests.support.ash03_auto_uow_fixture import (
     _runtime_public_write_clock,
     build_auto_current_reference_uow_fixture,
 )
+from tests.support.ash07_synthetic_auto_risk import (
+    install_synthetic_auto_risk_service,
+)
 from tests.support.native_postgres_database import assert_native_postgres_test_database
 from tests.unit.risk_center.test_local_simulated_market_provider import (
     _body,
@@ -412,6 +415,19 @@ def qualified_caller_context(
     assert identity.source_evidence.must_not_execute is True
     assert uow.market_session == TRADE_DATE
     assert uow.rule_bundle.content_hash == bundle.content_hash
+    # Risk sizing uses the explicitly synthetic historical position mark; the
+    # separate stop-loss/order quote remains the capture configured per case.
+    install_synthetic_auto_risk_service(
+        monkeypatch=monkeypatch,
+        account_id=account.pk,
+        owner_id=owner_id,
+        asset_code=ASSET_CODE,
+        security_id=SECURITY_ID,
+        valuation_price=Decimal("100.0000"),
+        as_of=AS_OF,
+        business_date=TRADE_DATE,
+        execution_session=calendar.market_session,
+    )
 
     advance_auto_uow_fixture_clocks(monkeypatch, as_of=AS_OF)
     return _QualifiedCallerContext(
@@ -725,8 +741,14 @@ class _FixedRiskClock:
         return KNOWLEDGE_AT
 
 
-def _seed_rule_bundle(*, security_id: str, market: str, board: str) -> ExecutionSettlementBundleV3:
-    """Persist an exact effective Risk V3 settlement and quantity-rule bundle."""
+def _seed_rule_bundle(
+    *,
+    security_id: str,
+    market: str,
+    board: str,
+    price_tick: Decimal = Decimal("0.01"),
+) -> ExecutionSettlementBundleV3:
+    """Persist an exact test-only Risk V3 rule bundle at its supplied price tick."""
 
     rule_id = f"ash03-auto-rule-{uuid4().hex}"
     source_available_at = AS_OF - timedelta(hours=1)
@@ -745,7 +767,7 @@ def _seed_rule_bundle(*, security_id: str, market: str, board: str) -> Execution
             minimum=Decimal("100"), step=Decimal("100"), maximum=Decimal("100000")
         ),
         sell_odd_lot_mode=SellOddLotMode.FORBID,
-        price_tick=Decimal("0.01"),
+        price_tick=price_tick,
         rule_source_id=RULE_SOURCE,
         rule_source_version="fixture-v1",
         rule_source_hash="a" * 64,
@@ -759,7 +781,7 @@ def _seed_rule_bundle(*, security_id: str, market: str, board: str) -> Execution
         price_submission_range=PriceSubmissionRangeRule(
             market=market,
             board=board,
-            price_tick=Decimal("0.01"),
+            price_tick=price_tick,
             buy_deviation_ratio=Decimal("0.02"),
             sell_deviation_ratio=Decimal("0.02"),
             buy_widening_ticks=10,

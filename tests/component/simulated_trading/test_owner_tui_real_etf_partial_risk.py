@@ -4,11 +4,11 @@ Set ``AGOM_RUN_ASH07_REAL_SOURCE_ETF_PARTIAL_ACCEPTANCE=1`` only when the
 current-date bank candidate, separately captured 510050 quote and explicit ETF
 identity/policy context are available. The identity row below is a local test
 fixture read from Root's exact crosswalk, never derived from a ticker prefix.
-Close policy and rule rows are the same test-only simulation fixtures as the
-bank-only Owner test; they are not official market restrictions or execution
-authorization. The test creates one new simulated account in a transaction,
-does a public owner-scoped risk GET, and does not place, preview, or settle an
-order.
+Close policy and rule rows are test-only simulation fixtures. The ETF tick
+input is separately SHA-bound to the 510050 prospectus, but the persisted test
+rule is not a production publication or execution authorization. The test
+creates one new simulated account in a transaction, does a public owner-scoped
+risk GET, and does not place, preview, or settle an order.
 """
 
 from __future__ import annotations
@@ -109,7 +109,7 @@ from tests.support.ash07_owner_session import (
 )
 from tests.support.ash07_real_calendar_publication import publish_real_calendar_for_acceptance
 from tests.support.runtime_config import configure_critical_runtime
-from tests.unit.data_center.test_tushare_provider_response_capture import _Response, _Session
+from tests.unit.data_center.test_tushare_provider_response_capture import _Response
 
 _RISK_DEFINITION_KEY = "risk_center.simulated_portfolio_risk"
 _CURRENT_REFERENCE_SELECTION_KEY = "config_center.market.simulated_current_reference_selection"
@@ -118,6 +118,7 @@ _ETF_ASSET_CODE = "510050.SH"
 _REPORT_KIND = "etf_report"
 _DISCLOSED_REPORT_MODE = "policy_bounded_disclosed_report"
 _CTX_SCHEMA = "ash07.owner-etf-partial-test-context.v1"
+_RULE_TICK_CTX_SCHEMA = "ash07.owner-etf-execution-rule-tick-context.v1"
 
 
 def _required_path(name: str, *, root: Path) -> Path:
@@ -190,6 +191,80 @@ def _load_context(*, root: Path, business_date: date) -> dict[str, Any]:
     return context
 
 
+def _load_etf_rule_tick_context(
+    *,
+    root: Path,
+    business_date: date,
+    identity: dict[str, Any],
+) -> dict[str, Any]:
+    """Load a separate, SHA-bound test-only ETF tick value and its exact source."""
+
+    path = _required_path("ASH07_REAL_ETF_RULE_TICK_CONTEXT_PATH", root=root)
+    expected_hash = os.environ.get("ASH07_REAL_ETF_RULE_TICK_CONTEXT_SHA256", "")
+    actual_hash = hashlib.sha256(path.read_bytes()).hexdigest()
+    if not expected_hash or expected_hash != actual_hash:
+        raise AssertionError("ETF Rule tick context SHA-256 is missing or differs")
+    value = json.loads(path.read_text(encoding="utf-8-sig"))
+    if type(value) is not dict or value.get("schema") != _RULE_TICK_CTX_SCHEMA:
+        raise AssertionError("ETF Rule tick context has the wrong exact schema")
+    context = cast(dict[str, Any], value)
+    if context.get("business_date") != business_date.isoformat():
+        raise AssertionError("ETF Rule tick context differs from the source candidate date")
+    context_identity = _mapping(context.get("identity"), "rule_tick.identity")
+    for context_key, identity_key in (
+        ("asset_code", "asset_code"),
+        ("security_id", "security_id"),
+        ("market", "rule_market"),
+        ("board", "board"),
+    ):
+        if context_identity.get(context_key) != identity.get(identity_key):
+            raise AssertionError(
+                f"ETF Rule tick context differs from the approved identity {identity_key}"
+            )
+    if _decimal(context.get("price_tick"), "rule_tick.price_tick") != Decimal("0.001"):
+        raise AssertionError(
+            "official 510050 ETF tick context must retain exact 0.001 price precision"
+        )
+    if context.get("price_unit") != "CNY per fund share":
+        raise AssertionError("ETF Rule tick context uses an unexpected price unit")
+    official_source = _mapping(context.get("official_source"), "rule_tick.official_source")
+    expected_source = {
+        "publisher": "Shanghai Stock Exchange",
+        "document": "上证50交易型开放式指数证券投资基金招募说明书（更新）",
+        "document_date": "2026-02-09",
+        "section": "九、基金份额的上市交易（二）基金份额的上市交易，第4项",
+        "url": (
+            "https://www.sse.com.cn/disclosure/fund/announcement/c/new/2026-02-09/"
+            "510050_20260209_5FIR.pdf"
+        ),
+        "rule_text": "本基金申报价最小变动单位为0.001元。",
+    }
+    for key, expected in expected_source.items():
+        if official_source.get(key) != expected:
+            raise AssertionError(f"ETF Rule tick official source differs at {key}")
+    current_rule = _mapping(context.get("current_exchange_rule"), "rule_tick.current_exchange_rule")
+    expected_current_rule = {
+        "publisher": "Shanghai Stock Exchange",
+        "document": "上海证券交易所交易规则（2026年修订）",
+        "document_number": "上证发〔2026〕41号",
+        "document_date": "2026-04-24",
+        "effective_from": "2026-07-06",
+        "article": "3.3.11",
+        "url": (
+            "https://www.sse.com.cn/lawandrules/sselawsrules2025/trade/universal/"
+            "c/c_20260424_10816492.shtml"
+        ),
+        "rule_text": "基金、权证交易的申报价格最小变动单位为0.001元人民币。",
+    }
+    for key, expected in expected_current_rule.items():
+        if current_rule.get(key) != expected:
+            raise AssertionError(f"current SSE Rule tick source differs at {key}")
+    scope = context.get("scope")
+    if type(scope) is not str or not scope.strip():
+        raise AssertionError("ETF Rule tick context must retain its nonempty declared scope")
+    return context
+
+
 def _report_facts_reference(
     *,
     context: dict[str, Any],
@@ -241,17 +316,17 @@ def _load_audited_policy_seed(*, root: Path) -> dict[str, Any]:
     return cast(dict[str, Any], policy)
 
 
-class _BankPlusETFStockBasicSession(_Session):
-    """Return the existing bank fixture plus only Root's exact ETF crosswalk row."""
+class _BankPlusETFStockBasicSession(bank_case._TwoBankStockBasicSession):
+    """Extend synthetic bank rows with Root's exact test-only ETF crosswalk row."""
 
-    def __init__(self, response: _Response, *, identity: dict[str, Any]) -> None:
+    def __init__(self, *, identity: dict[str, Any]) -> None:
         """Bind one externally selected ETF identity to the local test response."""
 
-        super().__init__(response)
+        super().__init__(_Response(b"{}"))
         self._identity = identity
 
     def post(self, url: str, **kwargs: object) -> _Response:
-        """Add the exact external ETF row without making a network call."""
+        """Add the exact ETF fixture row before capture; never rewrite a retained body."""
 
         response = super().post(url, **kwargs)
         request = kwargs.get("json")
@@ -261,7 +336,18 @@ class _BankPlusETFStockBasicSession(_Session):
         if params.get("list_status") != "L":
             return response
         payload = json.loads(response.body.decode("utf-8"))
-        rows = payload["data"]["items"]
+        data = payload.get("data")
+        if type(data) is not dict or type(data.get("items")) is not list:
+            raise AssertionError("the inherited synthetic bank fixture lacks stock_basic rows")
+        rows = cast(list[object], data["items"])
+        bank_codes = {
+            row[0] for row in rows if type(row) is list and row and isinstance(row[0], str)
+        }
+        if not {"600036.SH", "601398.SH"}.issubset(bank_codes):
+            raise AssertionError("the ETF fixture must retain both exact synthetic bank rows")
+        etf_code = self._identity.get("ts_code")
+        if not isinstance(etf_code, str) or etf_code in bank_codes:
+            raise AssertionError("the explicit ETF crosswalk row is missing or duplicated")
         rows.append(
             [
                 self._identity["ts_code"],
@@ -286,7 +372,7 @@ def _persisted_reference_snapshot_with_etf(
 ) -> tuple[Any, Any]:
     """Publish exact local identity rows through the existing DataCenter use cases."""
 
-    session = _BankPlusETFStockBasicSession(_Response(b"{}"), identity=identity)
+    session = _BankPlusETFStockBasicSession(identity=identity)
     monkeypatch.setattr(tushare_client, "_create_requests_session", lambda: session)
     payloads = RawLandingRepository()
     retainer = RetainProviderResponsePayloadUseCase(payloads)
@@ -321,7 +407,9 @@ def _persisted_reference_snapshot_with_etf(
         provider_contract=contract,
         exchange_suffix_crosswalk=crosswalk,
     )
-    candidate = source.fetch_candidate(run_id=uuid4(), ingested_run_id=uuid4())
+    run_id = uuid4()
+    ingested_run_id = uuid4()
+    candidate = source.fetch_candidate(run_id=run_id, ingested_run_id=ingested_run_id)
     repository = DjangoInstrumentReferenceSnapshotRepository(
         cast(RawAuditRepositoryProtocol, audits),
         payloads,
@@ -346,7 +434,7 @@ def _persisted_reference_snapshot_with_etf(
     )
     mapping_record = SaveInstrumentReferenceMappingUseCase(repository).execute(mapping)
     content = InstrumentReferenceSnapshotContent(
-        run_id=uuid4(),
+        run_id=run_id,
         mapping_record=mapping_record,
         fetch_rounds=(InstrumentReferenceFetchRound(fetch_round_id=uuid4(), candidate=candidate),),
     )
@@ -531,13 +619,17 @@ def _ash07_runtime_role(
 )
 @pytest.mark.skipif(
     os.environ.get("AGOM_RUN_ASH07_REAL_SOURCE_ETF_PARTIAL_ACCEPTANCE") != "1",
-    reason="opt in only after Root supplies current source captures and exact ETF context",
+    reason=(
+        "opt in only after Root supplies current source captures, ETF context, "
+        "and the exact Rule tick context"
+    ),
 )
 @override_settings(ROOT_URLCONF="tests.support.ash07_owner_acceptance_test_urls")
 def test_owner_get_real_q3_etf_partial_source_report(
     monkeypatch: pytest.MonkeyPatch,
     request: pytest.FixtureRequest,
     runtime_role: dict[str, object],
+    tmp_path: Path,
 ) -> None:
     """Show real Q3 overlaps and conservative residuals in a new simulated account."""
 
@@ -551,6 +643,11 @@ def test_owner_get_real_q3_etf_partial_source_report(
     business_date = date.fromisoformat(candidate["business_date"])
     context = _load_context(root=root, business_date=business_date)
     identity = _mapping(context.get("identity_crosswalk"), "identity_crosswalk")
+    rule_tick_context = _load_etf_rule_tick_context(
+        root=root,
+        business_date=business_date,
+        identity=identity,
+    )
     report_policy = _mapping(context.get("etf_report_policy"), "etf_report_policy")
     balanced_v2 = _load_audited_policy_seed(root=root)
     industry_policy = _mapping(balanced_v2.get("industry"), "balanced_v2.industry")
@@ -561,6 +658,163 @@ def test_owner_get_real_q3_etf_partial_source_report(
     if report_policy.get("coverage_precision_basis") != report_basis:
         raise AssertionError("ETF report facts do not use the selected balanced-v2 coverage basis")
 
+    configure_critical_runtime()
+    provider_settings = save_provider_settings_payload(
+        default_source="tushare",
+        enable_failover=False,
+        failover_tolerance=0.01,
+        actor="ash07-owner-etf-partial-test",
+    )
+    if (
+        provider_settings.get("status") != "active"
+        or provider_settings.get("default_source") != "tushare"
+        or provider_settings.get("enable_failover") is not False
+        or provider_settings.get("failover_tolerance") != 0.01
+    ):
+        raise AssertionError("provider-backed close readers need explicit Tushare runtime settings")
+    publisher_seed = create_owner_account_seed()
+    approver_profile = AccountProfileModel.objects.get(user_id=publisher_seed.owner.pk)
+    if (
+        not publisher_seed.owner.is_staff
+        or publisher_seed.owner.is_superuser
+        or approver_profile.rbac_role != "admin"
+        or publisher_seed.account.user_id != publisher_seed.owner.pk
+    ):
+        raise AssertionError("ETF test approver must remain a separate staff/admin identity")
+    monkeypatch.setenv("AGOMTRADEPRO_DISABLE_USER_PROVISIONING_SIGNALS", "1")
+    from tests.component.data_center.test_calendar_workbench_tui_browser import (
+        _create_browser_regular_user as create_approved_regular_user,
+    )
+
+    # The existing fixture records an approved isolated test profile, not real human approval.
+    ordinary_owner = create_approved_regular_user(approved_by=publisher_seed.owner)
+    account = create_simulated_account_for_approved_owner(ordinary_owner)
+    account_id = cast(int, account.pk)
+    owner_id = cast(int, account.user_id)
+    owner_profile = AccountProfileModel.objects.get(user_id=owner_id)
+    if (
+        account.user_id != ordinary_owner.pk
+        or account.user.is_staff
+        or account.user.is_superuser
+        or owner_profile.rbac_role != "owner"
+        or owner_profile.approval_status != "approved"
+        or not owner_profile.user_agreement_accepted
+        or not owner_profile.risk_warning_acknowledged
+        or owner_profile.approved_by_id != publisher_seed.owner.pk
+        or publisher_seed.owner.pk == owner_id
+        or not publisher_seed.owner.is_staff
+        or publisher_seed.owner.is_superuser
+    ):
+        raise AssertionError("ETF Risk account must use a separately approved ordinary test Owner")
+    bank_case._seed_baseline(account_id)
+
+    # Limit the synthetic stock_basic session to identity snapshot creation.
+    # Calendar publication below must use the real configured Tushare client.
+    with monkeypatch.context() as stock_basic_patch:
+        _repository, source_snapshot = _persisted_reference_snapshot_with_etf(
+            monkeypatch=stock_basic_patch,
+            identity=identity,
+        )
+    calendar_lease = publish_real_calendar_for_acceptance(
+        business_date=business_date,
+        coverage_start=business_date - timedelta(days=7),
+        coverage_end=business_date + timedelta(days=14),
+    )
+    request.addfinalizer(calendar_lease.close)
+    if calendar_lease.market_session != business_date:
+        raise AssertionError("published SSE calendar session differs from the actual source date")
+    selector = {
+        "schema": "normal-simulated-current-reference-selection.v1",
+        "purpose": "normal_simulated_current_reference",
+        "max_local_reference_age_seconds": 600,
+        "items": _current_reference_items_with_etf(source_snapshot, identity),
+    }
+    activate_runtime_profile_patch(
+        environment="development",
+        patch={_CURRENT_REFERENCE_SELECTION_KEY: selector},
+        actor="ash07-owner-etf-partial-test",
+        reason="bind bank sources and Root's exact 510050 identity crosswalk for isolated report GET",
+    )
+    identity_reader = build_current_reference_identity_reader(runtime_environment="development")
+    rule_market_by_asset: dict[str, str] = {}
+    board_by_asset: dict[str, str] = {}
+    etf_rule_seeded = False
+    for asset_code, security_id in (
+        (item["asset_code"], item["security_id"])
+        for item in (
+            *candidate["identity_resolution"]["records"],
+            identity,
+        )
+    ):
+        current_identity = identity_reader.resolve_current_reference_identity(
+            asset_code=asset_code,
+            as_of=timezone.now().astimezone(UTC),
+        )
+        if (
+            current_identity is None
+            or current_identity.asset_code != asset_code
+            or current_identity.security_id != security_id
+            or current_identity.source_exchange != "SSE"
+        ):
+            raise AssertionError(
+                f"public CurrentReference did not resolve the exact pair: {asset_code}"
+            )
+        classification = source_snapshot.content.classify_security(asset_code)
+        if classification is None or classification.blocked_reason is not None:
+            raise AssertionError(
+                f"explicit source-market classification is unavailable: {asset_code}"
+            )
+        if classification.rule_market is None or classification.board is None:
+            raise AssertionError(f"exact Rule market/board is missing for {asset_code}")
+        rule_market_by_asset[asset_code] = classification.rule_market
+        board_by_asset[asset_code] = classification.board
+        monkeypatch.setattr(auto_fixture, "AS_OF", timezone.now().astimezone(UTC))
+        monkeypatch.setattr(
+            auto_fixture,
+            "KNOWLEDGE_AT",
+            timezone.now().astimezone(UTC) - timedelta(seconds=1),
+        )
+        # This is the existing isolated-test Rule fixture only. It is not an
+        # official limit source and no order or execution is attempted here.
+        if asset_code == identity["asset_code"]:
+            if etf_rule_seeded:
+                raise AssertionError("the exact ETF Rule tick context must bind only one asset")
+            if (
+                classification.rule_market != rule_tick_context["identity"]["market"]
+                or classification.board != rule_tick_context["identity"]["board"]
+            ):
+                raise AssertionError("ETF Rule tick context differs from source classification")
+            auto_fixture._seed_rule_bundle(
+                security_id=security_id,
+                market=classification.rule_market,
+                board=classification.board,
+                price_tick=_decimal(
+                    rule_tick_context["price_tick"],
+                    "rule_tick.price_tick",
+                ),
+            )
+            etf_rule_seeded = True
+        else:
+            auto_fixture._seed_rule_bundle(
+                security_id=security_id,
+                market=classification.rule_market,
+                board=classification.board,
+            )
+    if not etf_rule_seeded:
+        raise AssertionError("the exact ETF Rule tick context was not applied")
+
+    pinned_bank_identity_resolution = candidate["identity_resolution"]
+    candidate_path = admission_builder.refresh_current_quote_candidate(
+        candidate_path=candidate_path,
+        output_dir=tmp_path / "after-calendar-rule-quotes",
+        include_etf=True,
+    )
+    candidate = bank_case._load_candidate(candidate_path)
+    if date.fromisoformat(candidate["business_date"]) != business_date:
+        raise AssertionError("fresh quote candidate changed the retained industry business date")
+    if candidate["identity_resolution"] != pinned_bank_identity_resolution:
+        raise AssertionError("fresh capture changed the retained bank identity/source pins")
+
     bank_requests = admission_builder.build_real_source_admission_requests(candidate_path)
     if len(bank_requests) != 8:
         raise AssertionError("the retained two-bank case must still provide its eight source refs")
@@ -569,7 +823,6 @@ def test_owner_get_real_q3_etf_partial_source_report(
     )
     if len(bank_industry_requests) != 2:
         raise AssertionError("two same-day typed bank memberships are required for overlaps")
-
     supplemental = load_supplemental_sina_capture(
         supplemental_manifest_path=candidate_path.parent / "supplemental-quotes.json",
         repository_root=root,
@@ -625,56 +878,6 @@ def test_owner_get_real_q3_etf_partial_source_report(
     requests = (*bank_requests, *etf_quote_requests, report_request)
     if len(requests) != 12:
         raise AssertionError("expected 8 bank refs and 4 ETF refs in the new successor")
-
-    configure_critical_runtime()
-    provider_settings = save_provider_settings_payload(
-        default_source="tushare",
-        enable_failover=False,
-        failover_tolerance=0.01,
-        actor="ash07-owner-etf-partial-test",
-    )
-    if (
-        provider_settings.get("status") != "active"
-        or provider_settings.get("default_source") != "tushare"
-        or provider_settings.get("enable_failover") is not False
-        or provider_settings.get("failover_tolerance") != 0.01
-    ):
-        raise AssertionError("provider-backed close readers need explicit Tushare runtime settings")
-    publisher_seed = create_owner_account_seed()
-    approver_profile = AccountProfileModel.objects.get(user_id=publisher_seed.owner.pk)
-    if (
-        not publisher_seed.owner.is_staff
-        or publisher_seed.owner.is_superuser
-        or approver_profile.rbac_role != "admin"
-        or publisher_seed.account.user_id != publisher_seed.owner.pk
-    ):
-        raise AssertionError("ETF test approver must remain a separate staff/admin identity")
-    monkeypatch.setenv("AGOMTRADEPRO_DISABLE_USER_PROVISIONING_SIGNALS", "1")
-    from tests.component.data_center.test_calendar_workbench_tui_browser import (
-        _create_browser_regular_user as create_approved_regular_user,
-    )
-
-    # The existing fixture records an approved isolated test profile, not real human approval.
-    ordinary_owner = create_approved_regular_user(approved_by=publisher_seed.owner)
-    account = create_simulated_account_for_approved_owner(ordinary_owner)
-    account_id = cast(int, account.pk)
-    owner_id = cast(int, account.user_id)
-    owner_profile = AccountProfileModel.objects.get(user_id=owner_id)
-    if (
-        account.user_id != ordinary_owner.pk
-        or account.user.is_staff
-        or account.user.is_superuser
-        or owner_profile.rbac_role != "owner"
-        or owner_profile.approval_status != "approved"
-        or not owner_profile.user_agreement_accepted
-        or not owner_profile.risk_warning_acknowledged
-        or owner_profile.approved_by_id != publisher_seed.owner.pk
-        or publisher_seed.owner.pk == owner_id
-        or not publisher_seed.owner.is_staff
-        or publisher_seed.owner.is_superuser
-    ):
-        raise AssertionError("ETF Risk account must use a separately approved ordinary test Owner")
-    bank_case._seed_baseline(account_id)
     raw_payload_hashes = _admit_requests(requests)
 
     names: dict[str, str] = {}
@@ -725,76 +928,6 @@ def test_owner_get_real_q3_etf_partial_source_report(
         SimulatedTradeModel.objects.filter(account=account).count(),
         SimulatedOrderReservationModel.objects.filter(account=account).count(),
     )
-
-    _repository, source_snapshot = _persisted_reference_snapshot_with_etf(
-        monkeypatch=monkeypatch,
-        identity=identity,
-    )
-    calendar_lease = publish_real_calendar_for_acceptance(
-        business_date=business_date,
-        coverage_start=business_date - timedelta(days=7),
-        coverage_end=business_date + timedelta(days=14),
-    )
-    request.addfinalizer(calendar_lease.close)
-    if calendar_lease.market_session != business_date:
-        raise AssertionError("published SSE calendar session differs from the actual source date")
-    selector = {
-        "schema": "normal-simulated-current-reference-selection.v1",
-        "purpose": "normal_simulated_current_reference",
-        "max_local_reference_age_seconds": 600,
-        "items": _current_reference_items_with_etf(source_snapshot, identity),
-    }
-    activate_runtime_profile_patch(
-        environment="development",
-        patch={_CURRENT_REFERENCE_SELECTION_KEY: selector},
-        actor="ash07-owner-etf-partial-test",
-        reason="bind bank sources and Root's exact 510050 identity crosswalk for isolated report GET",
-    )
-    identity_reader = build_current_reference_identity_reader(runtime_environment="development")
-    rule_market_by_asset: dict[str, str] = {}
-    board_by_asset: dict[str, str] = {}
-    for asset_code, security_id in (
-        (item["asset_code"], item["security_id"])
-        for item in (
-            *candidate["identity_resolution"]["records"],
-            identity,
-        )
-    ):
-        current_identity = identity_reader.resolve_current_reference_identity(
-            asset_code=asset_code,
-            as_of=timezone.now().astimezone(UTC),
-        )
-        if (
-            current_identity is None
-            or current_identity.asset_code != asset_code
-            or current_identity.security_id != security_id
-            or current_identity.source_exchange != "SSE"
-        ):
-            raise AssertionError(
-                f"public CurrentReference did not resolve the exact pair: {asset_code}"
-            )
-        classification = source_snapshot.content.classify_security(asset_code)
-        if classification is None or classification.blocked_reason is not None:
-            raise AssertionError(
-                f"explicit source-market classification is unavailable: {asset_code}"
-            )
-        if classification.rule_market is None or classification.board is None:
-            raise AssertionError(f"exact Rule market/board is missing for {asset_code}")
-        rule_market_by_asset[asset_code] = classification.rule_market
-        board_by_asset[asset_code] = classification.board
-        monkeypatch.setattr(auto_fixture, "AS_OF", timezone.now().astimezone(UTC))
-        monkeypatch.setattr(
-            auto_fixture,
-            "KNOWLEDGE_AT",
-            timezone.now().astimezone(UTC) - timedelta(seconds=1),
-        )
-        # This is the existing isolated-test Rule fixture only. It is not an
-        # official limit source and no order or execution is attempted here.
-        auto_fixture._seed_rule_bundle(
-            security_id=security_id,
-            market=classification.rule_market,
-            board=classification.board,
-        )
 
     etf_quote_row = {
         "provider_asset_code": supplemental.provider_asset_code,
@@ -866,6 +999,9 @@ def test_owner_get_real_q3_etf_partial_source_report(
     response = client.get(report_url, secure=True, HTTP_ORIGIN="https://testserver")
     assert response.status_code == 200, response.content
     report = response.json()
+    (tmp_path / "owner-real-etf-public-risk-report.json").write_text(
+        json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
     assert report["account_id"] == account_id
     assert report["scope"] == "simulation_only"
     assert report["must_not_execute"] is True

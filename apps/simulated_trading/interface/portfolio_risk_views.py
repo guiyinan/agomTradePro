@@ -62,6 +62,7 @@ class PortfolioRiskSourceResponseSerializer(serializers.Serializer[dict[str, obj
     must_not_use_for_decision = serializers.BooleanField()
     coverage_fraction = serializers.CharField(allow_null=True)
     coverage_basis = serializers.CharField()
+    clock_evidence_proof = serializers.JSONField(required=False)
 
 
 class PortfolioRiskReportResponseSerializer(serializers.Serializer[dict[str, object]]):

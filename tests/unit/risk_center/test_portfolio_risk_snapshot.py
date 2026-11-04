@@ -1,10 +1,12 @@
 """Pure tests for exact account snapshots and conservative BUY exposure projection."""
 
+import hashlib
 from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from types import SimpleNamespace
 from typing import cast
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -29,10 +31,16 @@ from apps.risk_center.application.portfolio_risk_snapshot import (
     _valuation_reference_matches,
     assess_simulated_portfolio_risk,
 )
+from apps.risk_center.application.portfolio_risk_timestamp_snapshot_clock import (
+    PortfolioRiskTimestampSnapshotFacts,
+    qualify_policy_bounded_timestamp_snapshot,
+)
 from apps.risk_center.domain.portfolio_capacity import (
     CapacityUsageSnapshot,
     PortfolioCapacityDecision,
 )
+from apps.risk_center.domain.portfolio_exposure_types import PortfolioAssetKind
+from apps.risk_center.domain.portfolio_risk_clock_evidence import PortfolioRiskCaptureReceipt
 from apps.risk_center.domain.portfolio_risk_snapshot import (
     AccountSnapshot,
     ExecutedUsage,
@@ -44,14 +52,34 @@ from apps.risk_center.domain.portfolio_risk_snapshot import (
     project_gross_asset_exposure,
     value_held_quantity,
 )
+from apps.risk_center.domain.portfolio_risk_sources import (
+    CoverageStatus,
+    PortfolioRiskCoverage,
+    PortfolioRiskSourceEvidence,
+    SourceObservationPrecision,
+)
 
 _AS_OF = datetime(2026, 11, 3, 8, 0, tzinfo=UTC)
 _BUSINESS_DATE = date(2026, 11, 3)
 
 
-def _policy_bundle(*, snapshot_id: str, snapshot_hash: str) -> PortfolioRiskPolicyBundle:
+def _policy_bundle(
+    *,
+    snapshot_id: str,
+    snapshot_hash: str,
+    valuation_clock_mode: str | None = None,
+) -> PortfolioRiskPolicyBundle:
     """Parse one real typed policy bundle with caller-supplied runtime identity."""
 
+    valuation_reference: dict[str, object] = {
+        "kind": "valuation",
+        "asset_code": "600036",
+        "security_id": "SSE:600036",
+        "raw_payload_hash": "sha256:" + "a" * 64,
+        "source_record_id": "valuation-record-1",
+    }
+    if valuation_clock_mode is not None:
+        valuation_reference["clock_evidence_mode"] = valuation_clock_mode
     configuration: dict[str, object] = {
         "schema_version": "ash07.simulated_portfolio_risk.v1",
         "scope": "simulation_only",
@@ -89,15 +117,7 @@ def _policy_bundle(*, snapshot_id: str, snapshot_hash: str) -> PortfolioRiskPoli
         },
         "source_max_timestamp_age_seconds": 1800,
         "source_max_date_age_days": 5,
-        "source_references": [
-            {
-                "kind": "valuation",
-                "asset_code": "600036",
-                "security_id": "SSE:600036",
-                "raw_payload_hash": "sha256:" + "a" * 64,
-                "source_record_id": "valuation-record-1",
-            },
-        ],
+        "source_references": [valuation_reference],
     }
     created_at = _AS_OF - timedelta(minutes=5)
     effective_at = _AS_OF - timedelta(minutes=3)
@@ -1042,6 +1062,142 @@ def test_missing_valuation_source_or_wrong_price_unit_does_not_supply_price() ->
         )
         is None
     )
+
+
+def test_unique_pinned_valuation_resolves_missing_holding_security_for_nav() -> None:
+    """A missing ledger security ID may use one exact, qualified valuation pin."""
+
+    policy = _policy_bundle(
+        snapshot_id="risk-snapshot-pinned-valuation",
+        snapshot_hash="d" * 64,
+        valuation_clock_mode="policy_bounded_timestamp_snapshot",
+    )
+    reference = policy.source_references[0]
+    original_body = b"synthetic exact valuation response"
+    original_hash = hashlib.sha256(original_body).hexdigest()
+    observed_at = _AS_OF - timedelta(seconds=20)
+    captured_at = _AS_OF - timedelta(seconds=10)
+    evidence = PortfolioRiskSourceEvidence(
+        source_id="quote-source-test",
+        source_record_id=reference.source_record_id,
+        original_payload_sha256=original_hash,
+        observation_precision=SourceObservationPrecision.TIMESTAMP,
+        observed_at=observed_at,
+        observed_on=None,
+        available_at=None,
+        known_at=captured_at,
+        decision_cutoff=_AS_OF,
+        decision_date_cutoff=None,
+        valid_until=None,
+        source_purpose="vendor_quote_snapshot",
+        allowed_purposes=(policy.industry_policy.requested_purpose,),
+        restrictions=(),
+        must_not_use_for_decision=False,
+        coverage=PortfolioRiskCoverage(
+            status=CoverageStatus.COMPLETE,
+            precision_basis="single_security_response",
+            expected_item_count=1,
+            observed_item_count=1,
+        ),
+    )
+    receipt = PortfolioRiskCaptureReceipt(
+        capture_id="capture-valuation-test",
+        source_id=evidence.source_id,
+        source_record_id=evidence.source_record_id,
+        original_body_sha256=original_hash,
+        response_completed_at=captured_at,
+        http_status=200,
+        body_size_bytes=len(original_body),
+        body_complete=True,
+    )
+    timestamp_result = qualify_policy_bounded_timestamp_snapshot(
+        policy=policy,
+        source_reference=reference,
+        retained_payload_hash=reference.raw_payload_hash,
+        account_id=12,
+        source_evidence=evidence,
+        facts=PortfolioRiskTimestampSnapshotFacts(
+            source_kind="valuation",
+            valuation_price=Decimal("10"),
+            valuation_quantity_unit="share",
+            valuation_price_unit="CNY",
+        ),
+        receipt=receipt,
+        original_body=original_body,
+        as_of=_AS_OF,
+        business_date=_BUSINESS_DATE,
+        execution_session=_BUSINESS_DATE,
+        requested_purpose=policy.industry_policy.requested_purpose,
+        asset_code=reference.asset_code,
+        security_id=reference.security_id,
+        business_timezone=ZoneInfo("Asia/Shanghai"),
+        business_timezone_name="Asia/Shanghai",
+    )
+    assert timestamp_result.qualified is True, timestamp_result.reason_codes
+    assert timestamp_result.proof is not None
+    evidence = replace(evidence, policy_clock_proof=timestamp_result.proof)
+
+    snapshot = AccountSnapshot(
+        account_id=12,
+        owner_user_id=4,
+        snapshot_id="account-snapshot-missing-security-pin",
+        read_at=_AS_OF - timedelta(seconds=1),
+        cash=Decimal("1000"),
+        money_unit="CNY",
+        holdings=(
+            HeldPosition(
+                asset_code=reference.asset_code,
+                quantity=Decimal("10"),
+                available_quantity=Decimal("10"),
+                security_id=None,
+            ),
+        ),
+        active_orders=(),
+        executed_usage=(),
+        active_orders_complete=True,
+        execution_session=_BUSINESS_DATE,
+        executed_usage_complete=True,
+    )
+    asset_inputs = PortfolioRiskAssetsReadResult(
+        status="complete",
+        assets=(
+            PortfolioRiskAssetInputs(
+                asset_code=reference.asset_code,
+                security_id=reference.security_id,
+                kind=PortfolioAssetKind.EQUITY,
+                price=Decimal("10"),
+                quantity_unit="share",
+                price_unit="CNY",
+                valuation_evidence=evidence,
+                industry_membership=None,
+                etf_report=None,
+                capacity_observation=None,
+            ),
+        ),
+        all_source_evidence=(evidence,),
+        reason_codes=(),
+        policy_snapshot_id=policy.snapshot_id,
+        policy_snapshot_hash=policy.snapshot_hash,
+        source_reference_bindings=(reference,),
+    )
+
+    result = assess_simulated_portfolio_risk(
+        snapshot=snapshot,
+        proposals=(),
+        policy=policy,
+        asset_inputs=asset_inputs,
+        as_of=_AS_OF,
+        business_date=_BUSINESS_DATE,
+        capacity_requested_purpose="ash07_capacity_session",
+    )
+    checks = {item["dimension"]: item for item in result.report_payload["checks"]}
+    input_scope = checks["input_scope"]["details"]
+    nav = checks["pre_trade_gross_nav"]
+    identity_basis = input_scope["identity_basis"]
+    assert identity_basis[reference.asset_code] == "pinned_policy_source_mapping"
+    assert nav["status"] == "allowed", nav["reason_codes"]
+    assert Decimal(nav["details"]["actual_holdings_value"]) == Decimal("100")
+    assert Decimal(nav["details"]["pre_trade_gross_nav"]) == Decimal("1100")
 
 
 def test_asset_inputs_from_a_different_policy_source_pin_are_rejected() -> None:

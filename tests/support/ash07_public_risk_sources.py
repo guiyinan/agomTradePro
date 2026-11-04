@@ -6,8 +6,10 @@ import argparse
 import hashlib
 import json
 import os
-from collections.abc import Mapping, Sequence
-from datetime import datetime
+import tempfile
+from collections.abc import Callable, Mapping, Sequence
+from datetime import UTC, date, datetime, time
+from decimal import Decimal
 from hashlib import sha256
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -26,6 +28,7 @@ def _repository_root() -> Path:
 REPOSITORY_ROOT = _repository_root()
 
 if TYPE_CHECKING:
+    from apps.data_center.domain.sina_quote_capture import SinaQuoteCapture
     from apps.risk_center.application.portfolio_risk_source_admission import (
         PortfolioRiskSourceAdmissionRequest,
     )
@@ -421,6 +424,421 @@ def verify_source_request_units(
             or capacity.get("unit") != expected_capacity_unit
         ):
             raise ValueError("policy differs from the declared unit mapping")
+
+
+def _capture_time_text(value: datetime) -> str:
+    """Serialize one aware capture clock without changing its instant."""
+
+    if value.tzinfo is None or value.utcoffset() is None:
+        raise ValueError("Sina capture clocks must remain timezone-aware")
+    return value.isoformat()
+
+
+def _decimal_text(value: Decimal | None) -> str | None:
+    """Preserve a parsed decimal without converting it through binary float."""
+
+    if value is None:
+        return None
+    if not isinstance(value, Decimal):
+        raise TypeError("Sina numeric fields must remain Decimal values")
+    return str(value)
+
+
+def _capture_file_stem(asset_code: str) -> str:
+    """Build a bounded filename stem from an existing provider asset ID."""
+
+    stem = "".join(character.lower() if character.isalnum() else "-" for character in asset_code)
+    if not stem or any(
+        character not in "abcdefghijklmnopqrstuvwxyz0123456789-" for character in stem
+    ):
+        raise ValueError("Sina provider asset ID cannot be used as a local filename")
+    return stem
+
+
+def _capture_metadata_document(
+    *,
+    capture: SinaQuoteCapture,
+    template: Mapping[str, Any],
+    raw_file: str,
+) -> dict[str, Any]:
+    """Build the existing sidecar shape from one exact typed Sina response."""
+
+    quote = capture.quote
+    if not capture.usable_parse or quote is None:
+        raise ValueError(f"Sina capture for {capture.asset_code} is not parseable")
+    if template.get("schema") != "sina-quote-capture.v1":
+        raise ValueError("Sina sidecar template uses an unsupported schema")
+    if (
+        template.get("source_availability_at") is not None
+        or template.get("source_valid_until") is not None
+    ):
+        raise ValueError("Sina source availability and expiry must remain unknown")
+    quote_template = template.get("quote")
+    if not isinstance(quote_template, dict):
+        raise ValueError("Sina sidecar template is missing its source-fact fields")
+    metadata = dict(template)
+    quote_document = dict(quote_template)
+    quote_document.update(
+        {
+            "source_symbol": quote.source_symbol,
+            "source_date_text": quote.source_date_text,
+            "source_time_text": quote.source_time_text,
+            "source_observed_at": (
+                quote.source_observed_at.isoformat()
+                if quote.source_observed_at is not None
+                else None
+            ),
+            "source_clock_status": quote.source_clock_status.value,
+            "vendor_status_code": quote.vendor_status_code,
+            "vendor_status_label": quote.vendor_status_label,
+            "reported_trading_state": quote.reported_trading_state.value,
+            "open_price": _decimal_text(quote.open_price),
+            "previous_close": _decimal_text(quote.previous_close),
+            "last_price": _decimal_text(quote.last_price),
+            "high_price": _decimal_text(quote.high_price),
+            "low_price": _decimal_text(quote.low_price),
+            "bid_price": _decimal_text(quote.bid_price),
+            "ask_price": _decimal_text(quote.ask_price),
+            "volume": _decimal_text(quote.volume),
+            "amount": _decimal_text(quote.amount),
+        }
+    )
+    metadata.update(
+        {
+            "schema": "sina-quote-capture.v1",
+            "asset_code": capture.asset_code,
+            "requested_url": capture.requested_url,
+            "final_url": capture.final_url,
+            "request_started_at": _capture_time_text(capture.request_started_at),
+            "response_completed_at": _capture_time_text(capture.response_completed_at),
+            "http_status": capture.http_status,
+            "http_date": capture.http_date,
+            "content_type": capture.content_type,
+            "charset": capture.charset,
+            "content_encoding": capture.content_encoding,
+            "body_size_bytes": capture.body_size_bytes,
+            "body_sha256": capture.body_sha256,
+            "parse_issue": capture.parse_issue.value if capture.parse_issue is not None else None,
+            "raw_file": raw_file,
+            "raw_file_sha256": capture.body_sha256,
+            "source_availability_at": None,
+            "source_valid_until": None,
+            "local_known_at_utc": capture.response_completed_at.astimezone(UTC).isoformat(),
+            "quote": quote_document,
+        }
+    )
+    return metadata
+
+
+def _capture_candidate_quote(
+    *,
+    quote_entry: dict[str, Any],
+    capture: SinaQuoteCapture,
+    business_date: date,
+    output_dir: Path,
+    require_capacity_values: bool,
+) -> tuple[Path, Path, bytes, bytes]:
+    """Replace only one candidate quote's bytes and receipt with a real capture."""
+
+    provider_asset_code = quote_entry.get("provider_asset_code")
+    if type(provider_asset_code) is not str or capture.asset_code != provider_asset_code:
+        raise ValueError("refreshed Sina capture differs from the candidate provider asset ID")
+    observation = capture.quote
+    if not capture.usable_parse or observation is None:
+        raise ValueError(f"refreshed Sina capture for {provider_asset_code} is not parseable")
+    if observation.source_clock_status.value != "valid" or observation.source_observed_at is None:
+        raise ValueError(f"refreshed Sina source clock for {provider_asset_code} is unknown")
+    shanghai = ZoneInfo("Asia/Shanghai")
+    observed_local = observation.source_observed_at.astimezone(shanghai)
+    received_local = capture.response_completed_at.astimezone(shanghai)
+    if (
+        observed_local.date() != business_date
+        or observed_local.time() < time(15)
+        or received_local.date() != business_date
+        or capture.response_completed_at < observation.source_observed_at
+    ):
+        raise ValueError("refreshed Sina capture is not a same-day completed close observation")
+    if observation.last_price is None:
+        raise ValueError(f"refreshed Sina capture for {provider_asset_code} lacks a price")
+    if require_capacity_values and (observation.volume is None or observation.amount is None):
+        raise ValueError(f"refreshed Sina capture for {provider_asset_code} lacks capacity values")
+
+    metadata_path_value = quote_entry.get("capture_metadata_path")
+    if type(metadata_path_value) is not str:
+        raise ValueError("candidate Sina capture metadata path is missing")
+    old_metadata_path = _resolve_evidence_path(metadata_path_value)
+    old_metadata_bytes = old_metadata_path.read_bytes()
+    expected_metadata_hash = quote_entry.get("capture_metadata_sha256")
+    if hashlib.sha256(old_metadata_bytes).hexdigest() != expected_metadata_hash:
+        raise ValueError("candidate Sina capture metadata hash differs from its sidecar")
+    old_metadata = json.loads(old_metadata_bytes.decode("utf-8-sig"))
+    if type(old_metadata) is not dict or old_metadata.get("asset_code") != provider_asset_code:
+        raise ValueError("candidate Sina capture sidecar is not bound to its provider asset ID")
+    metadata_document = _capture_metadata_document(
+        capture=capture,
+        template=old_metadata,
+        raw_file=f"{_capture_file_stem(provider_asset_code)}.response.bin",
+    )
+    metadata_bytes = (json.dumps(metadata_document, ensure_ascii=False, indent=2) + "\n").encode(
+        "utf-8"
+    )
+    raw_path = output_dir / f"{_capture_file_stem(provider_asset_code)}.response.bin"
+    metadata_path = output_dir / f"{_capture_file_stem(provider_asset_code)}.capture.json"
+    quote_entry.update(
+        {
+            "url": capture.requested_url,
+            "raw_body_path": str(raw_path.resolve()),
+            "capture_metadata_path": str(metadata_path.resolve()),
+            "capture_metadata_sha256": hashlib.sha256(metadata_bytes).hexdigest(),
+            "raw_body_sha256": capture.body_sha256,
+            "body_size_bytes": capture.body_size_bytes,
+            "http_status": capture.http_status,
+            "response_completed_at": capture.response_completed_at.isoformat(),
+            "quote": {
+                **quote_entry["quote"],
+                "observed_at": observation.source_observed_at.isoformat(),
+                "last_price": _decimal_text(observation.last_price),
+                "volume_raw": _decimal_text(observation.volume),
+                "amount_raw": _decimal_text(observation.amount),
+                "vendor_status_code": observation.vendor_status_code,
+                "vendor_reported_state": observation.reported_trading_state.value,
+            },
+            "source_clock_fields": {
+                **quote_entry["source_clock_fields"],
+                "observation_precision": "timestamp",
+                "observed_on": None,
+                "available_at": None,
+                "known_at": capture.response_completed_at.isoformat(),
+                "valid_until": None,
+                "http_date": capture.http_date,
+            },
+        }
+    )
+    return raw_path, metadata_path, capture.body, metadata_bytes
+
+
+def _refresh_supplemental_etf_quote(
+    *,
+    candidate_path: Path,
+    output_dir: Path,
+    business_date: date,
+    capture_sina_quote: Callable[[str], SinaQuoteCapture],
+) -> tuple[Path, Path, bytes, bytes, dict[str, Any]]:
+    """Refresh the one existing supplemental provider-ID mapping without adding identity data."""
+
+    supplemental_path = candidate_path.parent / "supplemental-quotes.json"
+    if not supplemental_path.is_file():
+        raise ValueError("ETF refresh requires the candidate's retained supplemental quote archive")
+    supplemental_value = json.loads(supplemental_path.read_text(encoding="utf-8-sig"))
+    if type(supplemental_value) is not list or len(supplemental_value) != 1:
+        raise ValueError("ETF refresh requires exactly one existing supplemental mapping")
+    entry = supplemental_value[0]
+    if type(entry) is not dict:
+        raise ValueError("supplemental quote mapping must be a JSON object")
+    asset_code = entry.get("asset_code")
+    metadata_path_value = entry.get("metadata_path")
+    if type(asset_code) is not str or type(metadata_path_value) is not str:
+        raise ValueError("supplemental quote mapping lacks its existing provider asset ID")
+    old_metadata_path = _resolve_evidence_path(metadata_path_value)
+    old_metadata_bytes = old_metadata_path.read_bytes()
+    if hashlib.sha256(old_metadata_bytes).hexdigest() != entry.get("metadata_sha256"):
+        raise ValueError("supplemental quote sidecar hash differs from its archive entry")
+    old_metadata = json.loads(old_metadata_bytes.decode("utf-8-sig"))
+    if type(old_metadata) is not dict or old_metadata.get("asset_code") != asset_code:
+        raise ValueError("supplemental quote sidecar differs from its existing provider mapping")
+    capture = capture_sina_quote(asset_code)
+    if capture.asset_code != asset_code:
+        raise ValueError("refreshed ETF capture differs from its existing provider asset ID")
+    observation = capture.quote
+    if observation is None or observation.source_observed_at is None:
+        raise ValueError("refreshed ETF quote lacks a valid source timestamp")
+    observed_local = observation.source_observed_at.astimezone(ZoneInfo("Asia/Shanghai"))
+    received_local = capture.response_completed_at.astimezone(ZoneInfo("Asia/Shanghai"))
+    if (
+        not capture.usable_parse
+        or observation.source_clock_status.value != "valid"
+        or observation.last_price is None
+        or observed_local.date() != business_date
+        or observed_local.time() < time(15)
+        or received_local.date() != business_date
+    ):
+        raise ValueError("refreshed ETF quote is not a same-day completed close observation")
+    stem = _capture_file_stem(asset_code)
+    raw_path = output_dir / f"{stem}.response.bin"
+    metadata_path = output_dir / f"{stem}.capture.json"
+    metadata_document = _capture_metadata_document(
+        capture=capture,
+        template=old_metadata,
+        raw_file=raw_path.name,
+    )
+    metadata_bytes = (json.dumps(metadata_document, ensure_ascii=False, indent=2) + "\n").encode(
+        "utf-8"
+    )
+    refreshed_entry = {
+        **entry,
+        "http_status": capture.http_status,
+        "parsed": True,
+        "source_observed_at": observation.source_observed_at.isoformat(),
+        "vendor_status_code": observation.vendor_status_code,
+        "last_price": _decimal_text(observation.last_price),
+        "volume": _decimal_text(observation.volume),
+        "amount": _decimal_text(observation.amount),
+        "body_sha256": capture.body_sha256,
+        "meta_file": metadata_path.name,
+        "metadata_path": str(metadata_path.resolve()),
+        "metadata_sha256": hashlib.sha256(metadata_bytes).hexdigest(),
+    }
+    return raw_path, metadata_path, capture.body, metadata_bytes, refreshed_entry
+
+
+def refresh_current_quote_candidate(
+    candidate_path: Path,
+    output_dir: Path,
+    include_etf: bool = False,
+) -> Path:
+    """Copy a retained candidate and refresh only Sina quotes after calendar/rule setup.
+
+    Call this after the test has completed its real calendar publication and
+    execution-rule setup. Captures are obtained from Data Center's production
+    Sina capture API; the helper never changes the candidate date, provider
+    identities, industry bytes, source purposes, or unknown source availability
+    and expiry. With ``include_etf=True``, it refreshes the single provider ID
+    already recorded in the adjacent ``supplemental-quotes.json`` archive.
+    """
+
+    if type(include_etf) is not bool:
+        raise TypeError("include_etf must be a boolean")
+    selected_candidate_path = _resolve_evidence_path(str(candidate_path))
+    candidate = _read_json(selected_candidate_path)
+    if (
+        candidate.get("schema") != "ash07.real_source_owner_risk_candidate.v1"
+        or candidate.get("candidate_status")
+        != "raw_capture_facts_only_not_admitted_or_policy_pinned"
+    ):
+        raise ValueError("candidate is not the expected retained real-source facts document")
+    business_date_text = candidate.get("business_date")
+    if type(business_date_text) is not str:
+        raise ValueError("candidate business date is missing")
+    business_date = date.fromisoformat(business_date_text)
+    quote_entries = candidate.get("sina_quotes")
+    if type(quote_entries) is not list or not quote_entries:
+        raise ValueError("candidate does not contain explicit Sina quote entries")
+    output_path = (
+        output_dir.resolve()
+        if output_dir.is_absolute()
+        else (REPOSITORY_ROOT / output_dir).resolve()
+    )
+    allowed_roots = (
+        (REPOSITORY_ROOT / ".tmp").resolve(),
+        Path(tempfile.gettempdir()).resolve(),
+    )
+    if not any(_is_path_below(output_path, root) for root in allowed_roots):
+        raise ValueError("refreshed captures must be written below .tmp or the test temp root")
+    if output_path == selected_candidate_path.parent:
+        raise ValueError("refreshed captures must use a new output directory")
+    candidate_output_path = output_path / selected_candidate_path.name
+    if candidate_output_path.exists():
+        raise FileExistsError(f"refreshed candidate already exists: {candidate_output_path}")
+
+    from apps.data_center.composition import capture_sina_quote
+
+    def capture_retaining_original(asset_code: str) -> SinaQuoteCapture:
+        """Retain every actual response before any financial/source qualification."""
+
+        archive = output_path / "capture-attempt-originals" / _capture_file_stem(asset_code)
+        archive.mkdir(parents=True, exist_ok=False)
+        capture = capture_sina_quote(asset_code)
+        (archive / "response.bin").write_bytes(capture.body)
+        transport = dict(capture.to_payload())
+        transport.pop("body_base64")
+        transport["raw_file"] = "response.bin"
+        transport["source_availability_at"] = None
+        transport["source_valid_until"] = None
+        (archive / "transport-receipt.json").write_text(
+            json.dumps(transport, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+        )
+        return capture
+
+    artifacts: list[tuple[Path, Path, bytes, bytes]] = []
+    target_paths: set[Path] = {candidate_output_path}
+    for quote_entry in quote_entries:
+        if type(quote_entry) is not dict:
+            raise ValueError("candidate Sina quote entries must be JSON objects")
+        provider_asset_code = quote_entry.get("provider_asset_code")
+        if type(provider_asset_code) is not str:
+            raise ValueError("candidate Sina quote is missing its provider asset ID")
+        stem = _capture_file_stem(provider_asset_code)
+        raw_path = output_path / f"{stem}.response.bin"
+        metadata_path = output_path / f"{stem}.capture.json"
+        if raw_path in target_paths or metadata_path in target_paths:
+            raise ValueError("candidate provider IDs do not produce unique capture filenames")
+        target_paths.update((raw_path, metadata_path))
+        artifacts.append(
+            _capture_candidate_quote(
+                quote_entry=quote_entry,
+                capture=capture_retaining_original(provider_asset_code),
+                business_date=business_date,
+                output_dir=output_path,
+                require_capacity_values=True,
+            )
+        )
+
+    refreshed_supplemental: dict[str, Any] | None = None
+    if include_etf:
+        (
+            supplemental_raw_path,
+            supplemental_metadata_path,
+            supplemental_body,
+            supplemental_metadata,
+            supplemental_entry,
+        ) = _refresh_supplemental_etf_quote(
+            candidate_path=selected_candidate_path,
+            output_dir=output_path,
+            business_date=business_date,
+            capture_sina_quote=capture_retaining_original,
+        )
+        if supplemental_raw_path in target_paths or supplemental_metadata_path in target_paths:
+            raise ValueError("supplemental provider ID collides with a candidate capture")
+        target_paths.update((supplemental_raw_path, supplemental_metadata_path))
+        supplemental_manifest_path = output_path / "supplemental-quotes.json"
+        if supplemental_manifest_path in target_paths:
+            raise ValueError("supplemental quote archive collides with another output")
+        target_paths.add(supplemental_manifest_path)
+        artifacts.append(
+            (
+                supplemental_raw_path,
+                supplemental_metadata_path,
+                supplemental_body,
+                supplemental_metadata,
+            )
+        )
+        refreshed_supplemental = supplemental_entry
+
+    existing_targets = [path for path in target_paths if path.exists()]
+    if existing_targets:
+        raise FileExistsError(f"refreshed capture output already exists: {existing_targets[0]}")
+    output_path.mkdir(parents=True, exist_ok=True)
+    for raw_path, metadata_path, body, metadata_bytes in artifacts:
+        raw_path.write_bytes(body)
+        metadata_path.write_bytes(metadata_bytes)
+    candidate_bytes = (json.dumps(candidate, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
+    candidate_output_path.write_bytes(candidate_bytes)
+    if refreshed_supplemental is not None:
+        supplemental_bytes = (
+            json.dumps([refreshed_supplemental], ensure_ascii=False, indent=2) + "\n"
+        ).encode("utf-8")
+        (output_path / "supplemental-quotes.json").write_bytes(supplemental_bytes)
+    return candidate_output_path
+
+
+def _is_path_below(path: Path, parent: Path) -> bool:
+    """Return whether a resolved output path is contained by its allowed root."""
+
+    try:
+        path.relative_to(parent)
+    except ValueError:
+        return False
+    return True
 
 
 def build_real_source_admission_requests(

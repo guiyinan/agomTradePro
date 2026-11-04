@@ -376,20 +376,40 @@ def _capacity_requested_purpose(
     source_references: tuple[PortfolioRiskSourceReference, ...],
     requested_assets: tuple[PortfolioRiskAssetIdentity, ...],
 ) -> str:
-    """Select close-only purpose only for a precisely pinned requested asset pair."""
+    """Select close purpose only through an exact, unambiguous policy identity pin.
 
-    pairs = {
-        (asset.asset_code, asset.security_id)
-        for asset in requested_assets
-        if asset.security_id is not None
-    }
-    if any(
-        reference.kind == "execution_session_state"
-        and reference.clock_evidence_mode == "policy_bounded_close_snapshot_state"
-        and (reference.asset_code, reference.security_id) in pairs
-        for reference in source_references
-    ):
-        return CLOSE_SNAPSHOT_REQUESTED_PURPOSE
+    A ledger holding can lack a security ID. In that case the same unique
+    valuation pin used by the retained-source reader may resolve its identity;
+    this selector requires every reference for the asset to agree with that
+    pin before it recognizes an explicitly configured close-state source.
+    """
+
+    for requested in requested_assets:
+        asset_references = tuple(
+            reference
+            for reference in source_references
+            if reference.asset_code == requested.asset_code
+        )
+        if not asset_references:
+            continue
+        if requested.security_id is None:
+            valuation_references = tuple(
+                reference for reference in asset_references if reference.kind == "valuation"
+            )
+            if len(valuation_references) != 1:
+                continue
+            selected_security_id = valuation_references[0].security_id
+        else:
+            selected_security_id = requested.security_id
+        if any(reference.security_id != selected_security_id for reference in asset_references):
+            continue
+        if any(
+            reference.kind == "execution_session_state"
+            and reference.clock_evidence_mode == "policy_bounded_close_snapshot_state"
+            and reference.security_id == selected_security_id
+            for reference in asset_references
+        ):
+            return CLOSE_SNAPSHOT_REQUESTED_PURPOSE
     return CAPACITY_REQUESTED_PURPOSE
 
 

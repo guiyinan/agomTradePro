@@ -25,7 +25,12 @@ from apps.risk_center.application.portfolio_risk_report import (
     build_portfolio_risk_report,
 )
 from apps.risk_center.domain.portfolio_exposure_types import (
+    EffectiveEndState,
+    ETFConstituent,
+    ETFConstituentKind,
+    ETFConstituentReport,
     ExposureOutcome,
+    IndustryMembership,
     PortfolioAssetKind,
     PortfolioIndustryExposureAssessment,
 )
@@ -63,7 +68,7 @@ def _policy() -> PortfolioRiskPolicyBundle:
             "date_precision_purposes": [_PURPOSE],
             "allowed_observation_precisions": ["date", "timestamp"],
             "allowed_source_restrictions": [],
-            "coverage_precision_basis": "official_nav_weight",
+            "coverage_precision_basis": "nav_weight_fraction",
             "max_industry_weight": "0.35",
             "max_security_weight": "0.15",
             "minimum_industry_coverage": "0.90",
@@ -177,10 +182,14 @@ def _report(
     evidence: PortfolioRiskSourceEvidence,
     *,
     reader_status: PortfolioRiskAssetReadStatus = "complete",
+    industry_membership: IndustryMembership | None = None,
+    additional_assets: tuple[PortfolioRiskAssetInputs, ...] = (),
+    additional_source_evidence: tuple[PortfolioRiskSourceEvidence, ...] = (),
 ) -> PortfolioRiskReportPayload:
-    """Build the full public report path with only the selected evidence row."""
+    """Build the full public report path with the selected evidence rows."""
 
     reasons = () if reader_status == "complete" else ("RISK_INPUTS_PARTIAL",)
+    all_source_evidence = (evidence, *additional_source_evidence)
     asset_inputs = PortfolioRiskAssetsReadResult(
         status=reader_status,
         assets=(
@@ -192,12 +201,13 @@ def _report(
                 quantity_unit="share",
                 price_unit="CNY",
                 valuation_evidence=evidence,
-                industry_membership=None,
+                industry_membership=industry_membership,
                 etf_report=None,
                 capacity_observation=None,
             ),
+            *additional_assets,
         ),
-        all_source_evidence=(evidence,),
+        all_source_evidence=all_source_evidence,
         reason_codes=reasons,
         policy_snapshot_id=policy.snapshot_id,
         policy_snapshot_hash=policy.snapshot_hash,
@@ -233,15 +243,15 @@ def _report(
         industry_coverage_fraction=Decimal("1"),
         etf_lookthrough_coverage_fraction=Decimal("1"),
         reason_codes=("INDUSTRY_RISK_LIMIT_BREACHED",),
-        source_ids=(evidence.source_id,),
-        source_evidence=(evidence,),
+        source_ids=tuple(item.source_id for item in all_source_evidence),
+        source_evidence=all_source_evidence,
     )
     return build_portfolio_risk_report(
         snapshot=snapshot,
         proposals=(),
         policy=policy,
         asset_inputs=asset_inputs,
-        all_source_evidence=(evidence,),
+        all_source_evidence=all_source_evidence,
         as_of=_AS_OF,
         business_date=_BUSINESS_DATE,
         capacity_requested_purpose="ash07_capacity_session",
@@ -254,6 +264,163 @@ def _report(
         capacity_reasons=(),
         identity_basis={},
     ).payload
+
+
+def _membership_evidence(
+    *,
+    coverage_status: CoverageStatus = CoverageStatus.COMPLETE,
+    expected_item_count: int = 2,
+    observed_item_count: int = 2,
+) -> PortfolioRiskSourceEvidence:
+    """Build a synthetic row-count source, separate from portfolio NAV coverage."""
+
+    base = _evidence(
+        observed_on=_BUSINESS_DATE,
+        source_purpose=_PURPOSE,
+        coverage_status=coverage_status,
+    )
+    return replace(
+        base,
+        source_id="industry-provider",
+        source_record_id="industry-membership-record",
+        original_payload_sha256="d" * 64,
+        available_at=_AS_OF - timedelta(minutes=12),
+        known_at=_AS_OF - timedelta(minutes=10),
+        effective_on=_BUSINESS_DATE,
+        coverage=PortfolioRiskCoverage(
+            status=coverage_status,
+            precision_basis="query_total_rows",
+            expected_item_count=expected_item_count,
+            observed_item_count=observed_item_count,
+        ),
+    )
+
+
+def _membership(
+    policy: PortfolioRiskPolicyBundle,
+    evidence: PortfolioRiskSourceEvidence,
+) -> IndustryMembership:
+    """Build one exact industry membership under the selected policy taxonomy."""
+
+    return IndustryMembership(
+        taxonomy_id=policy.industry_policy.taxonomy_id,
+        taxonomy_kind=policy.industry_policy.taxonomy_kind,
+        provider_id=policy.industry_policy.provider_id,
+        provider_version=policy.industry_policy.provider_version,
+        industry_code="IND-TEST-A",
+        effective_from=_BUSINESS_DATE,
+        effective_end_state=EffectiveEndState.OPEN,
+        source_evidence=evidence,
+    )
+
+
+def _membership_reference(evidence: PortfolioRiskSourceEvidence) -> PortfolioRiskSourceReference:
+    """Bind one membership source row to its manifest identity and asset scope."""
+
+    return PortfolioRiskSourceReference(
+        kind="industry_membership",
+        asset_code=_ASSET_CODE,
+        security_id=_SECURITY_ID,
+        raw_payload_hash=f"sha256:{'c' * 64}",
+        source_record_id=evidence.source_record_id,
+    )
+
+
+def _etf_report(
+    *,
+    coverage_basis: str,
+) -> tuple[PortfolioRiskAssetInputs, PortfolioRiskSourceEvidence, PortfolioRiskSourceReference]:
+    """Build a synthetic report with explicit full NAV weight evidence."""
+
+    base = _evidence(
+        observed_on=_BUSINESS_DATE,
+        source_purpose=_PURPOSE,
+        coverage_status=CoverageStatus.COMPLETE,
+    )
+    evidence = replace(
+        base,
+        source_id="etf-report-provider",
+        source_record_id="etf-report-record",
+        original_payload_sha256="e" * 64,
+        available_at=_AS_OF - timedelta(minutes=12),
+        known_at=_AS_OF - timedelta(minutes=10),
+        effective_on=_BUSINESS_DATE,
+        coverage=PortfolioRiskCoverage(
+            status=CoverageStatus.COMPLETE,
+            precision_basis=coverage_basis,
+            reported_weight_fraction=Decimal("1"),
+            expected_item_count=1,
+            observed_item_count=1,
+        ),
+    )
+    report = ETFConstituentReport(
+        report_date=_BUSINESS_DATE,
+        source_evidence=evidence,
+        constituents=(
+            ETFConstituent(
+                asset_code="CASH.TEST",
+                weight_fraction=Decimal("1"),
+                kind=ETFConstituentKind.CASH,
+                industry_membership=None,
+            ),
+        ),
+    )
+    asset = PortfolioRiskAssetInputs(
+        asset_code="ETF.TEST",
+        security_id="ETF:TEST",
+        kind=PortfolioAssetKind.ETF,
+        price=Decimal("1"),
+        quantity_unit="share",
+        price_unit="CNY",
+        valuation_evidence=None,
+        industry_membership=None,
+        etf_report=report,
+        capacity_observation=None,
+    )
+    reference = PortfolioRiskSourceReference(
+        kind="etf_report",
+        asset_code=asset.asset_code,
+        security_id="ETF:TEST",
+        raw_payload_hash=f"sha256:{'f' * 64}",
+        source_record_id=evidence.source_record_id,
+    )
+    return asset, evidence, reference
+
+
+def _membership_and_etf_report(
+    *,
+    etf_coverage_basis: str = "nav_weight_fraction",
+    membership_coverage_status: CoverageStatus = CoverageStatus.COMPLETE,
+    membership_expected_rows: int = 2,
+    membership_observed_rows: int = 2,
+) -> PortfolioRiskReportPayload:
+    """Build synthetic inputs with distinct query-row and ETF NAV-weight bases."""
+
+    policy = _policy()
+    membership_evidence = _membership_evidence(
+        coverage_status=membership_coverage_status,
+        expected_item_count=membership_expected_rows,
+        observed_item_count=membership_observed_rows,
+    )
+    membership = _membership(policy, membership_evidence)
+    etf_asset, etf_evidence, etf_reference = _etf_report(
+        coverage_basis=etf_coverage_basis,
+    )
+    policy = replace(
+        policy,
+        source_references=(
+            *policy.source_references,
+            _membership_reference(membership_evidence),
+            etf_reference,
+        ),
+    )
+    return _report(
+        policy,
+        _evidence(),
+        industry_membership=membership,
+        additional_assets=(etf_asset,),
+        additional_source_evidence=(membership_evidence, etf_evidence),
+    )
 
 
 def test_explicitly_allowed_lagged_date_source_is_a_qualified_snapshot_veto() -> None:
@@ -271,6 +438,50 @@ def test_explicitly_allowed_lagged_date_source_is_a_qualified_snapshot_veto() ->
     assert source["must_not_use_for_decision"] is False
     assert report["outcome"] == "blocked"
     assert _policy().source_references[0].raw_payload_hash != f"sha256:{_SOURCE_HASH}"
+
+
+def test_query_row_membership_and_nav_weight_etf_basis_can_qualify_together() -> None:
+    """Per-source query counts do not conflict with the policy's NAV-weight basis."""
+
+    report = _membership_and_etf_report()
+    source_check = next(item for item in report["checks"] if item["dimension"] == "source_inputs")
+
+    assert source_check["status"] == "allowed"
+    assert source_check["reason_codes"] == []
+    assert report["freshness"] == "qualified_snapshot"
+    assert report["reliability"] == "source_bound"
+    sources_by_record = {item["source_record_id"]: item for item in report["sources"]}
+    assert sources_by_record["industry-membership-record"]["coverage_basis"] == "query_total_rows"
+    assert sources_by_record["etf-report-record"]["coverage_basis"] == "nav_weight_fraction"
+
+
+def test_etf_report_with_non_nav_coverage_basis_remains_unqualified() -> None:
+    """The policy's NAV-weight basis remains mandatory for ETF disclosure coverage."""
+
+    report = _membership_and_etf_report(etf_coverage_basis="query_total_rows")
+    source_check = next(item for item in report["checks"] if item["dimension"] == "source_inputs")
+
+    assert source_check["status"] == "unknown"
+    assert "PORTFOLIO_REPORT_SOURCE_COVERAGE_BASIS_MISMATCH" in source_check["reason_codes"]
+    assert report["reliability"] == "unknown"
+    assert report["must_not_use_for_decision"] is True
+
+
+def test_partial_membership_query_coverage_remains_partial_without_nav_basis_mismatch() -> None:
+    """Row-count gaps still propagate as partial source coverage."""
+
+    report = _membership_and_etf_report(
+        membership_coverage_status=CoverageStatus.PARTIAL,
+        membership_expected_rows=2,
+        membership_observed_rows=1,
+    )
+    source_check = next(item for item in report["checks"] if item["dimension"] == "source_inputs")
+
+    assert source_check["status"] == "partial"
+    assert "PORTFOLIO_REPORT_SOURCE_COVERAGE_PARTIAL" in source_check["reason_codes"]
+    assert "PORTFOLIO_REPORT_SOURCE_COVERAGE_BASIS_MISMATCH" not in source_check["reason_codes"]
+    assert report["reliability"] == "partial"
+    assert report["must_not_use_for_decision"] is True
 
 
 def test_shared_record_id_uses_each_exact_asset_binding_not_the_body_hash() -> None:

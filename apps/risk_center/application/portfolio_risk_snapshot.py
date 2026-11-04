@@ -593,6 +593,7 @@ def _qualified_current_price(
         allowed_observation_precisions=policy.industry_policy.allowed_observation_precisions,
         as_of=as_of,
         allowed_restrictions=policy.industry_policy.allowed_source_restrictions,
+        expected_source_kind="valuation",
     )
     if not qualification.eligible:
         return None

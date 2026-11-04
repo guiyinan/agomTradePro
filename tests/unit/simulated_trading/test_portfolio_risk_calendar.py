@@ -2,10 +2,15 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
+from typing import cast
 from uuid import UUID
 
 from apps.risk_center.application.portfolio_risk_assets import PortfolioRiskAssetIdentity
+from apps.simulated_trading.application.execution_settlement_uow import (
+    ExecutionCalendarUnavailable,
+    SimulatedTradeExecutionBlocked,
+)
 from apps.simulated_trading.application.portfolio_risk_calendar import (
     PortfolioRiskCalendarReader,
     PortfolioRiskCalendarReadRequest,
@@ -27,7 +32,7 @@ from apps.simulated_trading.domain.execution_settlement_identity import (
     ExecutionInstrumentIdentityEvidenceV1,
 )
 
-_AS_OF = datetime(2026, 11, 3, 8, 0, tzinfo=timezone.utc)
+_AS_OF = datetime(2026, 11, 3, 8, 0, tzinfo=UTC)
 _REQUESTED_SESSION = date(2026, 11, 3)
 
 
@@ -45,6 +50,7 @@ def _identity(
     seed: int,
     as_of: datetime = _AS_OF,
     restricted: bool = False,
+    unknown_vendor_clocks: bool = False,
 ) -> ExecutionInstrumentIdentityEvidenceV2:
     """Create an exact current-reference receipt with genuine exchange scope."""
 
@@ -87,8 +93,8 @@ def _identity(
         mapping_record_digest=f"sha256:{_hash('1')}",
         mapping_recorded_at=mapping_recorded_at,
         response_completed_at=response_completed_at,
-        source_observed_at=as_of - timedelta(minutes=12),
-        source_available_at=as_of - timedelta(minutes=11),
+        source_observed_at=(None if unknown_vendor_clocks else as_of - timedelta(minutes=12)),
+        source_available_at=(None if unknown_vendor_clocks else as_of - timedelta(minutes=11)),
         identity_valid_from=max(
             profile_activated_at,
             snapshot_recorded_at,
@@ -206,8 +212,13 @@ class _IdentityReader:
 class _CalendarReader:
     """Return exact published calendars and retain their requested scope."""
 
-    def __init__(self, calendars: dict[str, ExecutionCalendarEvidence | None]) -> None:
+    def __init__(
+        self,
+        calendars: dict[str, ExecutionCalendarEvidence | None],
+        error: ExecutionCalendarUnavailable | SimulatedTradeExecutionBlocked | None = None,
+    ) -> None:
         self.calendars = calendars
+        self.error = error
         self.calls: list[tuple[str, datetime, date | None]] = []
 
     def get_effective_execution_calendar(
@@ -220,6 +231,9 @@ class _CalendarReader:
         """Return one exact published exchange calendar at the requested cutoff."""
 
         self.calls.append((exchange, as_of, coverage_start))
+        error = self.error
+        if error is not None:
+            raise error
         return self.calendars.get(exchange)
 
 
@@ -229,11 +243,12 @@ def _read(
     identities: dict[tuple[str, str], ExecutionInstrumentIdentityEvidenceV2 | None],
     calendars: dict[str, ExecutionCalendarEvidence | None],
     as_of: datetime = _AS_OF,
+    calendar_error: ExecutionCalendarUnavailable | SimulatedTradeExecutionBlocked | None = None,
 ) -> tuple[PortfolioRiskCalendarReadResult, _IdentityReader, _CalendarReader]:
     """Run the public application reader with two injected read-only ports."""
 
     identity_reader = _IdentityReader(identities)
-    calendar_reader = _CalendarReader(calendars)
+    calendar_reader = _CalendarReader(calendars, error=calendar_error)
     reader: PortfolioRiskCalendarReader = build_portfolio_risk_calendar_reader(
         identity_reader=identity_reader,
         calendar_reader=calendar_reader,
@@ -364,8 +379,8 @@ def test_calendar_unknown_identity_or_unknown_security_never_guesses_exchange() 
     assert calendar_reader.calls == []
 
 
-def test_prohibited_identity_and_expired_publication_block_with_stable_reasons() -> None:
-    """Source restrictions and calendar validity are independently enforced."""
+def test_restricted_identity_with_unknown_vendor_clocks_only_locates_calendar_venue() -> None:
+    """Venue lookup retains source restrictions and unknown supplier clocks verbatim."""
 
     asset = PortfolioRiskAssetIdentity(asset_code="600036", security_id="SSE:600036")
     restricted = _identity(
@@ -374,23 +389,34 @@ def test_prohibited_identity_and_expired_publication_block_with_stable_reasons()
         exchange="SSE",
         seed=7,
         restricted=True,
+        unknown_vendor_clocks=True,
     )
-    prohibited, _, calendar_reader = _read(
+    venue_only, _, calendar_reader = _read(
         assets=(asset,),
         identities={("600036", "SSE:600036"): restricted},
         calendars={"SSE": _calendar(exchange="SSE", seed=7)},
     )
-    assert prohibited.requested_session_qualified is False
-    assert "PORTFOLIO_RISK_CALENDAR_IDENTITY_PROHIBITED" in prohibited.reason_codes
-    assert calendar_reader.calls == []
-    assert prohibited.canonical_evidence_json is not None
-    assert '"must_not_execute":true' in prohibited.canonical_evidence_json
+    assert venue_only.requested_session_qualified is True
+    assert venue_only.reason_codes == ()
+    assert calendar_reader.calls == [("SSE", _AS_OF, _REQUESTED_SESSION)]
+    assert venue_only.canonical_evidence_json is not None
+    assert '"must_not_use_for_decision":true' in venue_only.canonical_evidence_json
+    assert '"must_not_execute":true' in venue_only.canonical_evidence_json
+    assert '"source_observed_at":null' in venue_only.canonical_evidence_json
+    assert '"source_available_at":null' in venue_only.canonical_evidence_json
 
+
+def test_expired_published_calendar_still_blocks_restricted_venue_identity() -> None:
+    """A venue-only identity does not waive the published calendar's expiry."""
+
+    asset = PortfolioRiskAssetIdentity(asset_code="600036", security_id="SSE:600036")
     active_identity = _identity(
         asset_code="600036",
         security_id="SSE:600036",
         exchange="SSE",
         seed=8,
+        restricted=True,
+        unknown_vendor_clocks=True,
     )
     expired_calendar = _calendar(
         exchange="SSE",
@@ -407,6 +433,91 @@ def test_prohibited_identity_and_expired_publication_block_with_stable_reasons()
     assert expired.open_sessions is None
     assert expired.canonical_evidence_json is not None
     assert '"publication_id":"fixture-publication-8"' in expired.canonical_evidence_json
+
+
+def test_calendar_wrong_identity_and_selection_purpose_are_blocked() -> None:
+    """The venue path still requires exact V2 asset identity and supported purpose."""
+
+    asset = PortfolioRiskAssetIdentity(asset_code="600036", security_id="SSE:600036")
+    wrong_scope = _identity(
+        asset_code="601398",
+        security_id="SSE:601398",
+        exchange="SSE",
+        seed=11,
+    )
+    mismatched, _, calendar_reader = _read(
+        assets=(asset,),
+        identities={("600036", "SSE:600036"): wrong_scope},
+        calendars={"SSE": _calendar(exchange="SSE", seed=11)},
+    )
+    assert mismatched.requested_session_qualified is False
+    assert "PORTFOLIO_RISK_CALENDAR_IDENTITY_SCOPE_MISMATCH" in mismatched.reason_codes
+    assert calendar_reader.calls == []
+
+    wrong_purpose = _identity(
+        asset_code="600036",
+        security_id="SSE:600036",
+        exchange="SSE",
+        seed=12,
+    )
+    object.__setattr__(wrong_purpose.selection, "purpose", "venue_only_identity_lookup")
+    unsupported, _, calendar_reader = _read(
+        assets=(asset,),
+        identities={("600036", "SSE:600036"): wrong_purpose},
+        calendars={"SSE": _calendar(exchange="SSE", seed=12)},
+    )
+    assert unsupported.requested_session_qualified is False
+    assert "CURRENT_REFERENCE_PURPOSE_UNSUPPORTED" in unsupported.reason_codes
+    assert calendar_reader.calls == []
+
+
+def test_v1_identity_contract_is_rejected_for_the_v2_venue_lookup() -> None:
+    """Only the purpose-bound V2 selection may resolve a venue for risk calendars."""
+
+    asset = PortfolioRiskAssetIdentity(asset_code="600036", security_id="SSE:600036")
+    v2_identity = _identity(
+        asset_code="600036",
+        security_id="SSE:600036",
+        exchange="SSE",
+        seed=13,
+    )
+    legacy_v1 = cast(ExecutionInstrumentIdentityEvidenceV2, v2_identity.source_evidence)
+    result, _, calendar_reader = _read(
+        assets=(asset,),
+        identities={("600036", "SSE:600036"): legacy_v1},
+        calendars={"SSE": _calendar(exchange="SSE", seed=13)},
+    )
+
+    assert result.requested_session_qualified is False
+    assert "PORTFOLIO_RISK_CALENDAR_IDENTITY_CONTRACT_INVALID" in result.reason_codes
+    assert calendar_reader.calls == []
+
+
+def test_calendar_source_prohibition_remains_blocked_after_v2_venue_resolution() -> None:
+    """An authoritative calendar-source refusal still blocks after identity lookup."""
+
+    asset = PortfolioRiskAssetIdentity(asset_code="600036", security_id="SSE:600036")
+    identity = _identity(
+        asset_code="600036",
+        security_id="SSE:600036",
+        exchange="SSE",
+        seed=14,
+        restricted=True,
+        unknown_vendor_clocks=True,
+    )
+    prohibited_calendar = SimulatedTradeExecutionBlocked(
+        code="EXECUTION_CALENDAR_SOURCE_PROHIBITED"
+    )
+    result, _, calendar_reader = _read(
+        assets=(asset,),
+        identities={("600036", "SSE:600036"): identity},
+        calendars={},
+        calendar_error=prohibited_calendar,
+    )
+
+    assert result.requested_session_qualified is False
+    assert "EXECUTION_CALENDAR_SOURCE_PROHIBITED" in result.reason_codes
+    assert calendar_reader.calls == [("SSE", _AS_OF, _REQUESTED_SESSION)]
 
 
 def test_missing_or_wrong_exchange_calendar_keeps_exact_block_reason() -> None:

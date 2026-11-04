@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from typing import cast
 from unittest.mock import patch
 
 from django.http import HttpRequest
@@ -10,6 +11,7 @@ from rest_framework.authentication import SessionAuthentication
 from rest_framework.test import APIRequestFactory, force_authenticate
 
 from apps.risk_center.application.portfolio_risk_contracts import (
+    PortfolioRiskCloseSnapshotStateClockProofPayload,
     PortfolioRiskOutcome,
     PortfolioRiskReportPayload,
 )
@@ -115,8 +117,72 @@ def test_get_returns_unknown_business_report_as_json_without_running_pressure() 
     assert response.data["must_not_use_for_decision"] is True
     assert response.data["sources"][0]["raw_payload_sha256"] is None
     assert response.data["sources"][0]["known_at"] == "2026-11-02T01:03:00+00:00"
+    assert "clock_evidence_proof" not in response.data["sources"][0]
     get_report.assert_called_once_with(user_id=77, account_id=42)
     run_pressure.assert_not_called()
+
+
+def test_get_preserves_optional_close_snapshot_clock_proof() -> None:
+    """Expose the exact bounded proof without filling supplier clock gaps."""
+
+    request = APIRequestFactory().get(
+        "/api/simulated-trading/accounts/42/portfolio-risk/",
+        HTTP_ACCEPT="application/json",
+    )
+    _authenticated_request(request)
+    report = _report(outcome="allowed")
+    source = report["sources"][0]
+    source["available_at"] = None
+    source["valid_until"] = None
+    source["purpose"] = "close_snapshot_simulation"
+    source["restrictions"] = [
+        "vendor_reported_at_quote_time",
+        "close_snapshot_only",
+    ]
+    proof = {
+        "scope": "simulation_only",
+        "source_kind": "execution_session_state",
+        "clock_evidence_mode": "policy_bounded_close_snapshot_state",
+        "state_basis": "vendor_reported_at_quote_time",
+        "reported_trading_state": "TRADING",
+        "full_session_state": "unknown",
+        "purpose": "close_snapshot_simulation",
+        "required_restrictions": [
+            "vendor_reported_at_quote_time",
+            "close_snapshot_only",
+        ],
+        "proven_available_at": "2026-11-04T15:34:59+08:00",
+        "policy_acceptance_deadline": "2026-11-04T15:39:59+08:00",
+        "source_available_at": None,
+        "source_valid_until": None,
+    }
+    source["clock_evidence_proof"] = cast(
+        PortfolioRiskCloseSnapshotStateClockProofPayload,
+        proof,
+    )
+
+    with patch(
+        "apps.simulated_trading.interface.portfolio_risk_views.get_owner_portfolio_risk",
+        return_value=report,
+    ):
+        response = PortfolioRiskReportAPIView.as_view()(request, account_id=42)
+
+    assert response.status_code == 200
+    response.render()
+    assert response["Content-Type"].startswith("application/json")
+    source_response = response.data["sources"][0]
+    assert source_response["available_at"] is None
+    assert source_response["valid_until"] is None
+    assert source_response["clock_evidence_proof"] == proof
+    assert source_response["clock_evidence_proof"]["full_session_state"] == "unknown"
+    assert source_response["clock_evidence_proof"]["required_restrictions"] == [
+        "vendor_reported_at_quote_time",
+        "close_snapshot_only",
+    ]
+    assert (
+        source_response["clock_evidence_proof"]["policy_acceptance_deadline"]
+        == "2026-11-04T15:39:59+08:00"
+    )
 
 
 def test_post_requires_literal_confirmation_before_calling_application() -> None:

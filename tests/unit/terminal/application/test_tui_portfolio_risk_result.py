@@ -226,6 +226,16 @@ def test_simulation_deadline_does_not_replace_unknown_supplier_clocks(mode: str)
         "report_period_end": "2026-09-30",
         "publication_on": "2026-10-27",
     }
+    if mode == "policy_bounded_close_snapshot_state":
+        source["clock_evidence_proof"]["full_session_state"] = "unknown"
+        source["clock_evidence_proof"]["required_restrictions"] = [
+            "vendor_reported_at_quote_time",
+            "close_snapshot_only",
+        ]
+        source["restrictions"] = [
+            "vendor_reported_at_quote_time",
+            "close_snapshot_only",
+        ]
     projected = project_portfolio_risk_result(report, http_status=200)
     assert projected is not None
     text = json.dumps(projected, ensure_ascii=False)
@@ -241,6 +251,8 @@ def test_simulation_deadline_does_not_replace_unknown_supplier_clocks(mode: str)
         assert "按披露期末计算报告年龄" in text
     if mode == "policy_bounded_close_snapshot_state":
         assert "交易所全日停牌状态仍未知" in text
+        assert "仅为供应商在报价时点报告的状态" in text
+        assert "仅限收盘快照模拟" in text
 
 
 def test_unknown_clock_proof_scope_cannot_be_presented_as_simulation_permission() -> None:

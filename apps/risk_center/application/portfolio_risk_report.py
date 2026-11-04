@@ -300,7 +300,11 @@ def _source_use_rules(
         security_id: str | None,
         coverage_basis: str | None = None,
     ) -> None:
-        """Attach one exact source record to its report asset pair and role."""
+        """Attach one source with its own coverage unit.
+
+        ``coverage_basis`` is supplied only for ETF disclosure NAV coverage;
+        industry membership retains provider-native row-count coverage.
+        """
         if evidence is None:
             return
         rules.append(
@@ -330,7 +334,6 @@ def _source_use_rules(
                 role="industry_membership",
                 asset_code=asset.asset_code,
                 security_id=asset.security_id,
-                coverage_basis=industry_policy.coverage_precision_basis,
             )
         if asset.etf_report is not None:
             add_industry_source(
@@ -348,7 +351,6 @@ def _source_use_rules(
                         role="industry_membership",
                         asset_code=constituent.asset_code,
                         security_id=None,
-                        coverage_basis=industry_policy.coverage_precision_basis,
                     )
         observation = asset.capacity_observation
         if observation is None:

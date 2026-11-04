@@ -36490,6 +36490,7 @@ components:
           nullable: true
         coverage_basis:
           type: string
+        clock_evidence_proof: {}
       required:
       - available_at
       - coverage_basis

@@ -728,7 +728,7 @@ Owner 授权后重试会重放原回执；同键改体返回 `409`。发布/撤�
 
 组合风险报告 GET 与已审批压力情景目录 GET 都是只读。只有专用 `/pressure-run/` POST 可运行压力核对；该操作必须由账户 Owner 使用登录会话提交明确确认和稳定的 `Idempotency-Key`；响应固定为 `scope: "simulation_only"`、`must_not_execute: true`，不下单、不改变现金或持仓。当前 MCP 仅使用 API Token；SDK 的 Token 模式也不适用，但已有 `username/password` 会话模式会登录并处理 CSRF，可通过现有通用 `get/post` 调用这些路由，目前没有风险专用 SDK 方法。任何调用仍必须通过服务端会话和 Owner 权限检查。
 
-风险报告中的 `unknown` 表示所需信息无法确认，`expired` 表示来源或规则的有效期不覆盖本次核对时点，`partial` 表示覆盖不完整；它们都不能按零或完整覆盖处理。来源限制或 `must_not_use_for_decision: true` 表示该来源不得用于决策。`allowed` 只描述本次模拟风险检查结果，不代表交易许可。
+风险报告中的 `unknown` 表示所需信息无法确认，`expired` 表示来源或规则的有效期不覆盖本次核对时点，`partial` 表示覆盖不完整；它们都不能按零或完整覆盖处理。来源限制或 `must_not_use_for_decision: true` 表示该来源不得用于决策。`allowed` 只描述本次模拟风险检查结果，不代表交易许可。可选的 `sources[].clock_evidence_proof` 说明受策略约束的时钟证明；它不会改写来源原始时钟，供应方未提供的 `available_at` 或 `valid_until` 仍可为 `null`。收盘快照证明中的 `policy_acceptance_deadline` 是单独的策略截止时间；`reported_trading_state: "TRADING"` 只表示报价时点报告状态，`full_session_state: "unknown"` 不能解释成全天或交易所状态。
 
 ### Setup Wizard API
 

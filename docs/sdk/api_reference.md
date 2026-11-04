@@ -214,7 +214,7 @@ result = client.post(
 
 运行只可由账户 Owner 发起，必须先明确确认，并对同一输入重用稳定幂等键。已有 `client.risk_center` 情景 API 管理 Risk Center 情景版本，并不等同于按模拟账户运行压力核对。
 
-`unknown` 表示信息不能确认，`expired` 表示有效期不覆盖核对时点，`partial` 表示覆盖不完整；这些状态不能补成零或完整值。`must_not_use_for_decision: true` 表示不得据此作决策。压力结果始终是 `simulation_only` 且 `must_not_execute: true`。
+`unknown` 表示信息不能确认，`expired` 表示有效期不覆盖核对时点，`partial` 表示覆盖不完整；这些状态不能补成零或完整值。`must_not_use_for_decision: true` 表示不得据此作决策。压力结果始终是 `simulation_only` 且 `must_not_execute: true`。通用 `client.get(...)` 返回报告 JSON 字典，不按来源字段做类型筛选；若存在，可选 `sources[].clock_evidence_proof` 会随响应保留。证明的策略截止时间不替代来源时钟，供应方未提供的 `available_at`、`valid_until` 仍为 `null`。收盘快照模式只表达报价时点报告状态，`full_session_state: "unknown"` 不可当作全天交易所状态。
 
 ## Equity Module
 

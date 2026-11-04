@@ -297,6 +297,7 @@ def _qualified_value(
         policy=policy,
         as_of=projection.as_of,
         business_date=projection.business_date,
+        expected_source_kind="valuation",
     )
     if qualification_reasons:
         reasons.extend(qualification_reasons)
@@ -386,6 +387,7 @@ def _assess_etf(
             policy=policy,
             as_of=projection.as_of,
             business_date=projection.business_date,
+            expected_source_kind="etf_report",
         )
     )
     if report.report_date > projection.business_date:

@@ -4,8 +4,15 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
+from django.db import DEFAULT_DB_ALIAS
 from django.utils import timezone
 
+from apps.data_center.calendar_publication_operations_composition import (
+    read_current_exchange_calendar_reference,
+)
+from apps.data_center.calendar_workbench_scope_composition import (
+    read_calendar_capture_configuration_reference_at,
+)
 from apps.risk_center.application.portfolio_risk_runtime import get_portfolio_risk_runtime
 from apps.risk_center.execution_settlement_composition import (
     build_execution_settlement_v3_rule_reader,
@@ -15,6 +22,9 @@ from apps.simulated_trading.application.portfolio_risk_calendar import (
 )
 from apps.simulated_trading.application.portfolio_risk_pressure_runner import (
     PortfolioRiskPressureRunnerService,
+)
+from apps.simulated_trading.application.portfolio_risk_public import (
+    PortfolioRiskUnavailable,
 )
 from apps.simulated_trading.application.portfolio_risk_service import (
     OwnerScopedPortfolioRiskService,
@@ -46,12 +56,18 @@ class _PortfolioRiskSystemClock:
 def build_portfolio_risk_service(using: str) -> OwnerScopedPortfolioRiskService:
     """Build existing read ports and explicit evidence writers without changing rows."""
 
+    if using != DEFAULT_DB_ALIAS:
+        raise PortfolioRiskUnavailable(code="PORTFOLIO_RISK_DATABASE_ALIAS_UNSUPPORTED")
     environment = get_simulated_execution_runtime_environment()
     clock = _PortfolioRiskSystemClock()
     runtime = get_portfolio_risk_runtime(using=using, environment=environment)
     code_version = portfolio_risk_code_version()
     identities = build_current_reference_identity_reader(runtime_environment=environment)
-    calendar_reader = build_configured_execution_calendar_reader(runtime_environment=environment)
+    calendar_reader = build_configured_execution_calendar_reader(
+        runtime_environment=environment,
+        read_publication=read_current_exchange_calendar_reference,
+        read_configuration=read_calendar_capture_configuration_reference_at,
+    )
     calendars = build_portfolio_risk_calendar_reader(
         identity_reader=identities,
         calendar_reader=calendar_reader,

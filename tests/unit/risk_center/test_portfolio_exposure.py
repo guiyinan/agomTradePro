@@ -20,6 +20,7 @@ from apps.risk_center.domain.portfolio_exposure import (
     PortfolioAssetKind,
     PortfolioExposureProjection,
     PortfolioRiskAsset,
+    _source_qualification_reasons,
     assess_portfolio_industry_exposure,
 )
 from apps.risk_center.domain.portfolio_risk_sources import (
@@ -27,6 +28,39 @@ from apps.risk_center.domain.portfolio_risk_sources import (
     PortfolioRiskCoverage,
     PortfolioRiskSourceEvidence,
     SourceObservationPrecision,
+)
+from tests.unit.risk_center.test_portfolio_risk_disclosed_etf_report_clock import (
+    _AS_OF as ETF_AS_OF,
+)
+from tests.unit.risk_center.test_portfolio_risk_disclosed_etf_report_clock import (
+    _BUSINESS_DATE as ETF_BUSINESS_DATE,
+)
+from tests.unit.risk_center.test_portfolio_risk_disclosed_etf_report_clock import (
+    _PURPOSE as ETF_PURPOSE,
+)
+from tests.unit.risk_center.test_portfolio_risk_disclosed_etf_report_clock import (
+    _evidence as _etf_report_evidence,
+)
+from tests.unit.risk_center.test_portfolio_risk_disclosed_etf_report_clock import (
+    _qualification as _qualify_etf_report_clock,
+)
+from tests.unit.risk_center.test_portfolio_risk_disclosed_etf_report_clock import (
+    _report as _etf_report,
+)
+from tests.unit.risk_center.test_portfolio_risk_timestamp_snapshot_clock import (
+    _AS_OF as TIMESTAMP_AS_OF,
+)
+from tests.unit.risk_center.test_portfolio_risk_timestamp_snapshot_clock import (
+    _BUSINESS_DATE as TIMESTAMP_BUSINESS_DATE,
+)
+from tests.unit.risk_center.test_portfolio_risk_timestamp_snapshot_clock import (
+    _PURPOSE as TIMESTAMP_PURPOSE,
+)
+from tests.unit.risk_center.test_portfolio_risk_timestamp_snapshot_clock import (
+    _evidence as _timestamp_valuation_evidence,
+)
+from tests.unit.risk_center.test_portfolio_risk_timestamp_snapshot_clock import (
+    _qualify as _qualify_timestamp_valuation,
 )
 
 BUSINESS_DATE = date(2026, 11, 3)
@@ -92,6 +126,8 @@ def _policy(
     minimum_etf_coverage: Decimal = Decimal("0.70"),
     purpose: str = PURPOSE,
     date_purposes: tuple[str, ...] = (PURPOSE,),
+    allowed_source_restrictions: tuple[str, ...] = (),
+    coverage_precision_basis: str = INDUSTRY_COVERAGE_BASIS,
 ) -> IndustryExposurePolicy:
     return IndustryExposurePolicy(
         policy_id="industry-risk",
@@ -110,8 +146,8 @@ def _policy(
             SourceObservationPrecision.DATE,
             SourceObservationPrecision.TIMESTAMP,
         ),
-        allowed_source_restrictions=(),
-        coverage_precision_basis=INDUSTRY_COVERAGE_BASIS,
+        allowed_source_restrictions=allowed_source_restrictions,
+        coverage_precision_basis=coverage_precision_basis,
         max_industry_weight=max_weight,
         max_security_weight=max_security_weight,
         minimum_industry_coverage=minimum_industry_coverage,
@@ -197,6 +233,151 @@ def test_complete_coverage_keeps_absent_item_counts_unknown() -> None:
 
     assert coverage.expected_item_count is None
     assert coverage.observed_item_count is None
+
+
+def test_typed_timestamp_valuation_proof_is_qualified_by_its_source_role() -> None:
+    source_evidence = _timestamp_valuation_evidence()
+    timestamp_qualification = _qualify_timestamp_valuation(evidence=source_evidence)
+    assert timestamp_qualification.qualified is True, timestamp_qualification.reason_codes
+    proof = timestamp_qualification.proof
+    assert proof is not None
+    qualified_evidence = replace(source_evidence, policy_clock_proof=proof)
+    membership = _membership("IND-A", source_id="membership-timestamp-proof")
+    membership_evidence = replace(
+        _source(
+            "membership-timestamp-proof",
+            purpose=TIMESTAMP_PURPOSE,
+            allowed_purposes=(TIMESTAMP_PURPOSE,),
+            effective_on=membership.effective_from,
+        ),
+        decision_cutoff=TIMESTAMP_AS_OF,
+        decision_date_cutoff=TIMESTAMP_BUSINESS_DATE,
+    )
+    membership = replace(membership, source_evidence=membership_evidence)
+    asset = PortfolioRiskAsset(
+        asset_code="600036.SH",
+        kind=PortfolioAssetKind.EQUITY,
+        projected_market_value=Decimal("200"),
+        valuation_evidence=qualified_evidence,
+        industry_membership=membership,
+        etf_report=None,
+    )
+    policy = _policy(
+        purpose=TIMESTAMP_PURPOSE,
+        date_purposes=(TIMESTAMP_PURPOSE,),
+    )
+    projection = PortfolioExposureProjection(
+        portfolio_snapshot_id="snapshot-timestamp-valuation-proof",
+        as_of=TIMESTAMP_AS_OF,
+        business_date=TIMESTAMP_BUSINESS_DATE,
+        portfolio_market_value=Decimal("1000"),
+        assets=(asset,),
+    )
+
+    assessment = assess_portfolio_industry_exposure(policy=policy, projection=projection)
+
+    assert assessment.industry_bounds[0].known_market_value == Decimal("200")
+    assert "PROJECTED_ASSET_VALUE_SOURCE_UNQUALIFIED" not in assessment.reason_codes
+    assert "RISK_SOURCE_AVAILABLE_AT_UNKNOWN" not in assessment.reason_codes
+
+    wrong_role_reasons = _source_qualification_reasons(
+        evidence=qualified_evidence,
+        policy=policy,
+        as_of=TIMESTAMP_AS_OF,
+        business_date=TIMESTAMP_BUSINESS_DATE,
+        expected_source_kind="industry_membership",
+    )
+    assert "RISK_SOURCE_AVAILABLE_AT_UNKNOWN" in wrong_role_reasons
+
+
+def test_disclosed_etf_clock_proof_is_qualified_and_keeps_partial_remainder() -> None:
+    etf_evidence = _etf_report_evidence()
+    report = _etf_report(etf_evidence)
+    qualification = _qualify_etf_report_clock(evidence=etf_evidence, report=report)
+    assert qualification.reason_codes == (), qualification.reason_codes
+    proof = qualification.proof
+    assert proof is not None
+    qualified_evidence = replace(etf_evidence, policy_clock_proof=proof)
+    qualified_report = replace(report, source_evidence=qualified_evidence)
+    valuation_evidence = replace(
+        _source(
+            "valuation-510050",
+            purpose=ETF_PURPOSE,
+            allowed_purposes=(ETF_PURPOSE,),
+        ),
+        observed_on=ETF_BUSINESS_DATE,
+        decision_cutoff=ETF_AS_OF,
+        decision_date_cutoff=ETF_BUSINESS_DATE,
+    )
+    asset = PortfolioRiskAsset(
+        asset_code="510050.SH",
+        kind=PortfolioAssetKind.ETF,
+        projected_market_value=Decimal("100"),
+        valuation_evidence=valuation_evidence,
+        industry_membership=None,
+        etf_report=qualified_report,
+    )
+    policy = _policy(
+        purpose=ETF_PURPOSE,
+        date_purposes=(ETF_PURPOSE,),
+        minimum_etf_coverage=Decimal("0.80"),
+        allowed_source_restrictions=("close_snapshot_only",),
+        coverage_precision_basis="portfolio_weight",
+    )
+    projection = PortfolioExposureProjection(
+        portfolio_snapshot_id="snapshot-disclosed-etf-proof",
+        as_of=ETF_AS_OF,
+        business_date=ETF_BUSINESS_DATE,
+        portfolio_market_value=Decimal("100"),
+        assets=(asset,),
+    )
+
+    assessment = assess_portfolio_industry_exposure(policy=policy, projection=projection)
+
+    bound = assessment.etf_bounds[0]
+    assert bound.reported_coverage_fraction == Decimal("0.4456")
+    assert bound.unknown_market_value == Decimal("100")
+    assert "ETF_LOOKTHROUGH_COVERAGE_BELOW_POLICY_MINIMUM" in assessment.reason_codes
+    assert "ETF_LOOKTHROUGH_SOURCE_UNQUALIFIED" not in assessment.reason_codes
+    assert "RISK_SOURCE_AVAILABLE_AT_UNKNOWN" not in bound.reason_codes
+    assert "RISK_SOURCE_VALID_UNTIL_UNKNOWN" not in bound.reason_codes
+
+    wrong_role_reasons = _source_qualification_reasons(
+        evidence=qualified_evidence,
+        policy=policy,
+        as_of=ETF_AS_OF,
+        business_date=ETF_BUSINESS_DATE,
+        expected_source_kind="valuation",
+    )
+    assert "RISK_SOURCE_AVAILABLE_AT_UNKNOWN" in wrong_role_reasons
+
+
+def test_industry_nav_coverage_minimum_still_rejects_unclassified_market_value() -> None:
+    """Known row-count-complete memberships do not waive the portfolio NAV floor."""
+
+    unclassified_asset = PortfolioRiskAsset(
+        asset_code="600002.SH",
+        kind=PortfolioAssetKind.EQUITY,
+        projected_market_value=Decimal("500"),
+        valuation_evidence=_source("valuation-unclassified-600002"),
+        industry_membership=None,
+        etf_report=None,
+    )
+    assessment = assess_portfolio_industry_exposure(
+        policy=_policy(
+            max_weight=Decimal("1"),
+            max_security_weight=Decimal("1"),
+            minimum_industry_coverage=Decimal("0.90"),
+        ),
+        projection=_projection(
+            _equity("600001.SH", "500", "C070101"),
+            unclassified_asset,
+        ),
+    )
+
+    assert assessment.industry_coverage_fraction == Decimal("0.5")
+    assert assessment.outcome is ExposureOutcome.BLOCKED
+    assert "INDUSTRY_CLASSIFICATION_COVERAGE_BELOW_POLICY_MINIMUM" in assessment.reason_codes
 
 
 def test_direct_equities_in_one_industry_breach_the_versioned_limit() -> None:
@@ -612,3 +793,124 @@ def test_combined_direct_and_etf_security_exposure_can_breach_its_own_policy_cap
     assert security_a.outcome is ExposureOutcome.LIMIT_BREACHED
     assert assessment.outcome is ExposureOutcome.LIMIT_BREACHED
     assert "SECURITY_RISK_LIMIT_BREACHED" in assessment.reason_codes
+
+
+def test_future_policy_and_zero_value_asset_remain_explicitly_blocked() -> None:
+    """An unused zero-value row cannot conceal a policy that is future or not yet known."""
+
+    future_policy = replace(
+        _policy(),
+        effective_from=CUTOFF + timedelta(seconds=1),
+        effective_until=CUTOFF + timedelta(days=1),
+        known_at=CUTOFF + timedelta(seconds=2),
+    )
+    assessment = assess_portfolio_industry_exposure(
+        policy=future_policy,
+        projection=_projection(_equity("600000.SH", "0", "IND-ZERO")),
+    )
+
+    assert assessment.outcome is ExposureOutcome.BLOCKED
+    assert assessment.industry_bounds == ()
+    assert "INDUSTRY_RISK_POLICY_NOT_EFFECTIVE" in assessment.reason_codes
+    assert "INDUSTRY_RISK_POLICY_NOT_KNOWN_AT_CUTOFF" in assessment.reason_codes
+    assert "INDUSTRY_CLASSIFICATION_COVERAGE_BELOW_POLICY_MINIMUM" in assessment.reason_codes
+
+
+@pytest.mark.parametrize(
+    ("invalidity", "expected_reason"),
+    (
+        ("unknown_end", "INDUSTRY_MEMBERSHIP_EFFECTIVE_END_UNKNOWN"),
+        ("expired_membership", "INDUSTRY_MEMBERSHIP_NOT_EFFECTIVE_AT_SNAPSHOT"),
+        ("wrong_date_cutoff", "INDUSTRY_SOURCE_DATE_CUTOFF_MISMATCH"),
+    ),
+)
+def test_membership_window_and_cutoff_failures_keep_value_unknown(
+    invalidity: str,
+    expected_reason: str,
+) -> None:
+    """Membership period or date-cutoff contradictions never become a classified row."""
+
+    membership = _membership("IND-A", source_id=f"membership-{invalidity}")
+    if invalidity == "unknown_end":
+        membership = replace(membership, effective_end_state=EffectiveEndState.UNKNOWN)
+    elif invalidity == "expired_membership":
+        start = BUSINESS_DATE - timedelta(days=10)
+        end = BUSINESS_DATE - timedelta(days=1)
+        membership = replace(
+            membership,
+            effective_from=start,
+            effective_end_state=EffectiveEndState.BOUNDED,
+            effective_until=end,
+            source_evidence=replace(membership.source_evidence, effective_on=start),
+        )
+    else:
+        membership = replace(
+            membership,
+            source_evidence=replace(
+                membership.source_evidence,
+                decision_date_cutoff=BUSINESS_DATE - timedelta(days=1),
+            ),
+        )
+
+    assessment = assess_portfolio_industry_exposure(
+        policy=_policy(minimum_industry_coverage=Decimal("0")),
+        projection=_projection(_equity("600003.SH", "200", "IND-A", membership=membership)),
+    )
+
+    assert assessment.outcome is ExposureOutcome.BLOCKED
+    assert assessment.industry_bounds == ()
+    assert assessment.unknown_industry_market_value == Decimal("200")
+    assert expected_reason in assessment.reason_codes
+
+
+def test_date_clock_proof_for_a_different_equity_cannot_classify_this_holding() -> None:
+    """A valid source proof remains pinned to its own asset identity."""
+
+    from tests.unit.risk_center.test_portfolio_risk_date_snapshot_clock import (
+        _decision as date_snapshot_decision,
+    )
+
+    qualification = date_snapshot_decision()
+    assert qualification.qualified is True
+    assert qualification.proof is not None
+    membership = _membership("IND-A", source_id="proof-for-another-equity")
+    source_evidence = replace(
+        membership.source_evidence,
+        policy_clock_proof=qualification.proof.to_domain(),
+    )
+    membership = replace(membership, source_evidence=source_evidence)
+
+    assessment = assess_portfolio_industry_exposure(
+        policy=_policy(minimum_industry_coverage=Decimal("0")),
+        projection=_projection(_equity("600037.SH", "200", "IND-A", membership=membership)),
+    )
+
+    assert assessment.outcome is ExposureOutcome.BLOCKED
+    assert assessment.unknown_industry_market_value == Decimal("200")
+    assert "INDUSTRY_CLOCK_PROOF_ASSET_MISMATCH" in assessment.reason_codes
+
+
+def test_etf_without_a_disclosure_keeps_the_fund_value_unknown() -> None:
+    """An ETF with a qualified price but no holdings report is not treated as zero exposure."""
+
+    asset = PortfolioRiskAsset(
+        asset_code="510006.SH",
+        kind=PortfolioAssetKind.ETF,
+        projected_market_value=Decimal("250"),
+        valuation_evidence=_source("valuation-510006-no-report"),
+        industry_membership=None,
+        etf_report=None,
+    )
+    assessment = assess_portfolio_industry_exposure(
+        policy=_policy(minimum_industry_coverage=Decimal("0")),
+        projection=_projection(asset),
+    )
+
+    bound = assessment.etf_bounds[0]
+    assert assessment.outcome is ExposureOutcome.BLOCKED
+    assert assessment.reason_codes.count("ETF_LOOKTHROUGH_SOURCE_MISSING") == 1
+    assert bound.known_industry_market_value == Decimal("0")
+    assert bound.unknown_market_value == Decimal("250")
+    assert bound.maximum_industry_market_value == Decimal("250")
+    assert bound.maximum_security_market_value == Decimal("250")
+    assert bound.reason_codes == ("ETF_LOOKTHROUGH_SOURCE_MISSING",)
