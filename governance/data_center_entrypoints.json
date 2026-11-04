@@ -6091,7 +6091,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=9",
+      "evidence": "governed current-data contract; source_files=14",
       "id": "current_data_surface:governance/current_data_contracts.json:simulated_trading.owner_portfolio_risk_report:Owner/read-scoped simulated portfolio risk report and explicitly confirmed pressure assessment; simulation_only and must_not_execute, with no order or account-ledger effects",
       "locator": "Owner/read-scoped simulated portfolio risk report and explicitly confirmed pressure assessment; simulation_only and must_not_execute, with no order or account-ledger effects",
       "path": "governance/current_data_contracts.json",

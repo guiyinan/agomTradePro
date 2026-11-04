@@ -7,7 +7,7 @@
   "unit_status": "active",
   "local_evidence_index": {
     "path": ".tmp/ash07-risk-20261104/integration/owner-financial-current/delivery-index.json",
-    "sha256": "8eeba3acab255ef0284c709b02093572907b69b899f1f5891533c10dccf7ee27"
+    "sha256": "5b672adac1610280b3d0be385aaaed50972aa23ada21e42a58977f45e08ae159"
   },
   "validation": {
     "current_runtime": {
@@ -209,11 +209,14 @@
       "Architecture Layer Guard",
       "Consistency Check",
       "Security Scan",
-      "Engineering progress dashboard",
-      "Publication PostgreSQL contracts"
+      "Engineering progress dashboard"
     ],
     "all_applicable_success": false,
-    "status": "pending exact pushed integration head; GitHub operational, old2614 zerojobs notgreen"
+    "status": "pending exact metadata-remediation head all5applicable; prior failures preserved",
+    "unchanged_source_publication_proof": {
+      "path": ".tmp/ash07-risk-20261104/ci-adoption/6032eda9b9120ff1c00c0009cb5c8544ac12793f/terminal-workflows.json",
+      "sha256": "78c3a3626de9e4390aefb9b71fcff87fbaf302c3a9c729368eb3703c34ff77b1"
+    }
   },
   "source_and_configuration_followup3": {
     "index": {
@@ -1151,8 +1154,33 @@
       }
     ],
     "remaining": [
-      "all6actualCI for exact pushed integration head",
-      "then narrow registry completion/handoff state and current docs-head gates"
+      "all5actualCI for exact metadata-remediation head; unchanged-source PublicationPG actualsuccess retained",
+      "then narrow registry handoff completion matter and latestdocs-head5CI"
     ]
+  },
+  "ci_remediation_current": {
+    "original_head": "6032eda9b9120ff1c00c0009cb5c8544ac12793f",
+    "original_terminal_CI": {
+      "path": ".tmp/ash07-risk-20261104/ci-adoption/6032eda9b9120ff1c00c0009cb5c8544ac12793f/terminal-workflows.json",
+      "sha256": "78c3a3626de9e4390aefb9b71fcff87fbaf302c3a9c729368eb3703c34ff77b1"
+    },
+    "failure": "Consistency and Fast quality failed ONLY stale entrypoint evidence; Fast3.11/3.13/NoDB, Architecture, Security, Dashboard and PublicationPG passed",
+    "producer_check": {
+      "path": ".tmp/ash07-risk-20261104/ci-remediation/entrypoint-projection-6032/results.json",
+      "sha256": "91422cc1e274da573599e2cb7afb29a49dfee0df5270c702bafd2e669be3aedb"
+    },
+    "projection_diff": {
+      "path": ".tmp/ash07-risk-20261104/ci-remediation/entrypoint-projection-6032/projection-diff.json",
+      "sha256": "0a299023c787ffba767dd7e353204076314ef85a892ae5ec18df961b7bbc0a3c"
+    },
+    "no_production_or_test_changes": true,
+    "metadata_only_required_workflows": [
+      "CI Fast Feedback",
+      "Architecture Layer Guard",
+      "Consistency Check",
+      "Security Scan",
+      "Engineering progress dashboard"
+    ],
+    "publication_reuse": "Only generated governance JSON and ASH07 receipt/plan docs differ; verified Publication/QuotePG push filters do not match. Existing PublicationPG success certifies identical8production inputs; not counted as a new-head run."
   }
 }
