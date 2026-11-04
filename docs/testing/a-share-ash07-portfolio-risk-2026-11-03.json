@@ -3,11 +3,11 @@
   "date": "2026-11-04",
   "business_commit": "a541233a7bc3f58a340fbfb56a7512159ad0edc6",
   "code_candidate_id": "ae323a0ff786981584563fc06ee044973598cbc19920d58c8ef8ff1ea0e27f2f",
-  "goal_status": "active",
-  "unit_status": "active",
+  "goal_status": "business_exit_complete",
+  "unit_status": "completed",
   "local_evidence_index": {
     "path": ".tmp/ash07-risk-20261104/integration/owner-financial-current/delivery-index.json",
-    "sha256": "5b672adac1610280b3d0be385aaaed50972aa23ada21e42a58977f45e08ae159"
+    "sha256": "cd4a124dab0a967b64fc9e39a53585cf57f6895901c30fa0bf3bf72ea375711e"
   },
   "validation": {
     "current_runtime": {
@@ -122,9 +122,8 @@
   "genuine_missing_materials": [],
   "etf_scope": "510050 Q3 top10 covers44.56% NAV; H1 named74 covers94.78% NAV at2026-06-30. Preserve date/partial residual upper bounds; full Q3 holdings not a blanket additional prerequisite.",
   "ref_scope": "REF01/05 read-only; REF02/03 require REF01 exit and formal handoff, REF04 requires REF03, REF06 only confirmed narrow security defect plus handoff; no implementation this delivery",
-  "ci": "Observe pushed HEAD independently; raw receipt .tmp/ash07-risk-20261103/integration/delivery-ci-observed.json",
+  "ci": "Qualifying head1650cb0d4532595f931aa76d278c7d966e4d5bc5 all5applicable success; identical-source PublicationPG6032 actualsuccess retained. Exact closing metadata head CI independently observed before Goal completion.",
   "unverified": [
-    "Exact pushed integration-head CI pending; full local financial/runtime gates passed",
     "same-SHA RC/S6/release/production qualification outside this delivery",
     "live brokerage/automatic orders/ASH08 full-plan execution continuation outside approved scope"
   ],
@@ -203,7 +202,8 @@
     "owner_decision": "Retain current fail-closed source expiry gate, or authorize a bounded simulation contract that separately records conservative proven-available time and policy-derived acceptance deadline while keeping vendor publication/expiry unknown. No contract, policy threshold or gate changed in this follow-up."
   },
   "latest_code_ci": {
-    "head": null,
+    "head": "1650cb0d4532595f931aa76d278c7d966e4d5bc5",
+    "all_applicable_success": true,
     "required_workflows": [
       "CI Fast Feedback",
       "Architecture Layer Guard",
@@ -211,8 +211,57 @@
       "Security Scan",
       "Engineering progress dashboard"
     ],
-    "all_applicable_success": false,
-    "status": "pending exact metadata-remediation head all5applicable; prior failures preserved",
+    "proof": {
+      "path": ".tmp/ash07-risk-20261104/ci-adoption/1650cb0d4532595f931aa76d278c7d966e4d5bc5/final.json",
+      "sha256": "88d69af9a2d074ee845ec8863f16c0d6fb07f2693276e40a316f81ecbb9923e4"
+    },
+    "runs": {
+      "Engineering progress dashboard": {
+        "conclusion": "success",
+        "databaseId": 41869665724,
+        "event": "push",
+        "headSha": "1650cb0d4532595f931aa76d278c7d966e4d5bc5",
+        "status": "completed",
+        "url": "https://github.com/guiyinan/agomTradePro/actions/runs/41869665724",
+        "workflowName": "Engineering progress dashboard"
+      },
+      "Architecture Layer Guard": {
+        "conclusion": "success",
+        "databaseId": 41869665699,
+        "event": "push",
+        "headSha": "1650cb0d4532595f931aa76d278c7d966e4d5bc5",
+        "status": "completed",
+        "url": "https://github.com/guiyinan/agomTradePro/actions/runs/41869665699",
+        "workflowName": "Architecture Layer Guard"
+      },
+      "Consistency Check": {
+        "conclusion": "success",
+        "databaseId": 41869665506,
+        "event": "push",
+        "headSha": "1650cb0d4532595f931aa76d278c7d966e4d5bc5",
+        "status": "completed",
+        "url": "https://github.com/guiyinan/agomTradePro/actions/runs/41869665506",
+        "workflowName": "Consistency Check"
+      },
+      "Security Scan": {
+        "conclusion": "success",
+        "databaseId": 41869665546,
+        "event": "push",
+        "headSha": "1650cb0d4532595f931aa76d278c7d966e4d5bc5",
+        "status": "completed",
+        "url": "https://github.com/guiyinan/agomTradePro/actions/runs/41869665546",
+        "workflowName": "Security Scan"
+      },
+      "CI Fast Feedback": {
+        "conclusion": "success",
+        "databaseId": 41869665559,
+        "event": "push",
+        "headSha": "1650cb0d4532595f931aa76d278c7d966e4d5bc5",
+        "status": "completed",
+        "url": "https://github.com/guiyinan/agomTradePro/actions/runs/41869665559",
+        "workflowName": "CI Fast Feedback"
+      }
+    },
     "unchanged_source_publication_proof": {
       "path": ".tmp/ash07-risk-20261104/ci-adoption/6032eda9b9120ff1c00c0009cb5c8544ac12793f/terminal-workflows.json",
       "sha256": "78c3a3626de9e4390aefb9b71fcff87fbaf302c3a9c729368eb3703c34ff77b1"
@@ -759,7 +808,7 @@
     "sha256": "4f712ebc7b2ed964d71c4eb6ec93c011a8cf6402a30c91bb59cd3909f305aa99"
   },
   "current_owner_financial_delivery": {
-    "status": "local_complete_pending_current_CI",
+    "status": "finite_simulation_unit_closed_on_verified_source_head",
     "same_day_industry_ready": true,
     "supplier_clocks": "unknown retained; separate explicit policy-bound proof; same-day contract preserved",
     "owner_fill_receipt": {
@@ -1153,10 +1202,7 @@
         }
       }
     ],
-    "remaining": [
-      "all5actualCI for exact metadata-remediation head; unchanged-source PublicationPG actualsuccess retained",
-      "then narrow registry handoff completion matter and latestdocs-head5CI"
-    ]
+    "remaining": []
   },
   "ci_remediation_current": {
     "original_head": "6032eda9b9120ff1c00c0009cb5c8544ac12793f",
@@ -1182,5 +1228,27 @@
       "Engineering progress dashboard"
     ],
     "publication_reuse": "Only generated governance JSON and ASH07 receipt/plan docs differ; verified Publication/QuotePG push filters do not match. Existing PublicationPG success certifies identical8production inputs; not counted as a new-head run."
+  },
+  "closure_record": {
+    "date": "2026-11-05",
+    "registry_version": "2026-11-05.v309",
+    "source_head": "1650cb0d4532595f931aa76d278c7d966e4d5bc5",
+    "all_applicable_CI_success": 5,
+    "unchanged_source_publication": {
+      "path": ".tmp/ash07-risk-20261104/ci-adoption/6032eda9b9120ff1c00c0009cb5c8544ac12793f/terminal-workflows.json",
+      "sha256": "78c3a3626de9e4390aefb9b71fcff87fbaf302c3a9c729368eb3703c34ff77b1"
+    },
+    "next_focus": null,
+    "handoff_pending": {
+      "completed_unit_id": "ASH-07",
+      "owner_decision_ref": "docs/plans/a-share-usability-implementation-plan-2026-10-16.md#19.157",
+      "reason": "Wait for the Owner’s next formal repository-focus handoff; no successor is selected."
+    },
+    "goal_tool_completion": "After independent current registry/docs-head CI observation; no new business work is left.",
+    "local_status_checks": {
+      "path": ".tmp/ash07-risk-20261104/runs/r127-registry-closure/summary.json",
+      "sha256": "135db2c5ca25ed9bc952368cea436d9df68d552d5ccafeead9d79c1cebf718e1",
+      "scope": "Actual finalregistry v309 and checker/full89unit pass; subsequent receipt/index annotations only. Production and registry inputs unchanged."
+    }
   }
 }

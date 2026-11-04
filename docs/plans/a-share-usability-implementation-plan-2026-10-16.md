@@ -2828,3 +2828,6 @@ Owner 随后明确授权“做几套、不硬编码、放系统数据库”。�
 
 
 **真实收盘来源与普通 Owner 金融整事项本地收口。** 11/04 国证 18:07 同日行业原件已取得，供应商未知时钟保留、同日契约未放宽。R125 完整18模块269 passed/0 skip，原金融8项与Native并发2项同候选通过，含实际普通Owner报告/Scenario重放、正数SELL计划、预览/预留、真实模拟Fill UOW/已知费用/Trade/Receipt/审计及成交后风险；ETF真实PARTIAL金额/未知残余保持原门。R125原覆盖尾门89.01未放行，R126仅追加Domain公共边界且生产字节不变，完整23项通过、行93.04%/综合90.38%；147项API/MCP及类型/结构按未变输入证据复用。唯一验收MD/JSON及索引已更新，旧失败保留，不拼不同来源候选金融正例。原六项CI已收齐，只有Consistency/Fast共享的entrypoint投影摘要过期，其余含Publication PostgreSQL通过；正规生成器同步唯一evidence差异且本地校验通过，生产/测试字节不变。当前元数据修复提交按实际路径核对五项常规CI，保留同源PG证明，通过后登记完成待Owner正式下一焦点；此时ASH07/Goal仍active，REF/ASH08/deferred及生产边界不变，无Owner缺材料。
+
+
+**ASH-07 有限模拟整单元正式收口。** 2026-11-05 核实当前资格头 `1650cb0d4532595f931aa76d278c7d966e4d5bc5` 五项适用 CI 全部实际成功，同生产/测试字节的原Source头Publication PostgreSQL成功证明有界复用；旧两个投影失败原件保留，不拼不同生产候选绿灯。本地269整事项与23项完整Domain、147未变API/MCP、类型/结构/Source原件证据齐全。11/04真实同日收盘金融8与Native2为同一候选，未知供应商时钟、ETF残余和原金融门未放宽；完整归档见唯一验收MD/JSON。registry v309仅将ASH07 completed、焦点置空并登记精确19.157待Owner正式交接，不激活ASH08或REF、deferred、生产。状态提交五项当前CI另行实际观察后结束Goal，无Owner缺材料。
