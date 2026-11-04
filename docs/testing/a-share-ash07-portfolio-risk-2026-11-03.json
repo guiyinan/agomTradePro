@@ -579,5 +579,28 @@
       }
     ],
     "visual_review": "Both R95 screenshots opened and reviewed: known NAV/units and unknown/blocked/no-auto-execution text visible."
+  },
+  "owner_current_source_preparation_delivery": {
+    "date": "2026-11-04",
+    "status": "Preparation checks passed; complete financial8case NOTRUN, Goalactive",
+    "code_candidate": "3d657f9fc08497b63c6b38ad01033df264eb44dfd62029439aeb7427a1668e09",
+    "files": 7,
+    "index": {
+      "path": ".tmp/ash07-risk-20261104/integration/owner-source-preparation/delivery-index.json",
+      "sha256": "4fc2f27ef4903d3f9d2902ff31ac8a986f1c7c69fb32be86da476c1f6f2dc628"
+    },
+    "source_date_unit_tests_passed": 6,
+    "skipped": 0,
+    "fixture_closure_cases": 8,
+    "unresolved_fixtures": 0,
+    "real_nonpersisted_manifest_count": 9,
+    "audited_policy_positive_and_pin_seed_tamper_checks": "passed",
+    "gitleaks_exit_code": 0,
+    "production_source_changes": 0,
+    "actual_current_tushare_ready": 2,
+    "actual_same_day_industry_ready": false,
+    "owner_decision": "Keep same-day industry contract, recheckafter16; noT1reference",
+    "remaining": "Actualsame-dayindustryoriginals thenfreshSina+completeordinaryOwner/ETFfinancialbatch, notfulfilledbythispreparation",
+    "ci": "ExactnewpushedHEAD mustbeverified; noqualificationfrompriorHEADCI"
   }
 }

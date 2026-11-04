@@ -6,6 +6,7 @@ import argparse
 import hashlib
 import json
 import os
+from collections.abc import Mapping, Sequence
 from datetime import datetime
 from hashlib import sha256
 from pathlib import Path
@@ -229,7 +230,11 @@ def _admission_documents(candidate: dict[str, Any]) -> list[dict[str, Any]]:
 
     for quote in candidate["sina_quotes"]:
         for kind in ("valuation", "capacity_window", "execution_session_state"):
-            template_key = f"{kind}_source_evidence_template"
+            template_key = (
+                "capacity_source_evidence_template"
+                if kind == "capacity_window"
+                else f"{kind}_source_evidence_template"
+            )
             source_clocks = {
                 key: value
                 for key, value in quote["source_clock_fields"].items()
@@ -373,6 +378,51 @@ def verify_source_unit_mapping(candidate: dict[str, Any]) -> dict[str, object]:
     }
 
 
+def verify_source_request_units(
+    requests: Sequence[PortfolioRiskSourceAdmissionRequest],
+    *,
+    unit_mapping: Mapping[str, object],
+    policy: Mapping[str, object] | None = None,
+) -> None:
+    """Cross-check declared units without filling missing source units.
+
+    The hash-bound vendor artifact supports the explicitly reviewed mapping;
+    this helper does not infer a currency or quantity unit from JavaScript.
+    """
+
+    quantity_unit = unit_mapping.get("canonical_quantity_unit")
+    money_unit = unit_mapping.get("canonical_money_unit")
+    if any(type(unit) is not str or not unit for unit in (quantity_unit, money_unit)):
+        raise ValueError("declared unit mapping must name both canonical units")
+    for request in requests:
+        facts = request.facts
+        if request.kind == "valuation":
+            pairs = (
+                (facts.get("quantity_unit"), quantity_unit),
+                (facts.get("price_unit"), money_unit),
+            )
+        elif request.kind == "capacity_window":
+            volume = facts.get("volume")
+            amount = facts.get("amount")
+            if not isinstance(volume, Mapping) or not isinstance(amount, Mapping):
+                raise ValueError("capacity facts must preserve their value/unit pairs")
+            pairs = ((volume.get("unit"), quantity_unit), (amount.get("unit"), money_unit))
+        else:
+            continue
+        if any(actual is not None and actual != expected for actual, expected in pairs):
+            raise ValueError("source facts differ from the declared unit mapping")
+    if policy is not None:
+        capacity = policy.get("capacity")
+        if not isinstance(capacity, Mapping) or capacity.get("measure") not in {"volume", "amount"}:
+            raise ValueError("policy capacity measure is not bound to the declared unit mapping")
+        expected_capacity_unit = quantity_unit if capacity["measure"] == "volume" else money_unit
+        if (
+            policy.get("ledger_money_unit") != money_unit
+            or capacity.get("unit") != expected_capacity_unit
+        ):
+            raise ValueError("policy differs from the declared unit mapping")
+
+
 def build_real_source_admission_requests(
     candidate_path: Path,
 ) -> tuple[PortfolioRiskSourceAdmissionRequest, ...]:
@@ -382,8 +432,10 @@ def build_real_source_admission_requests(
     if not selected_candidate_path.is_absolute():
         selected_candidate_path = (REPOSITORY_ROOT / selected_candidate_path).resolve()
     candidate = _read_json(selected_candidate_path)
-    verify_source_unit_mapping(candidate)
-    return tuple(_admission_request(document) for document in _admission_documents(candidate))
+    unit_mapping = verify_source_unit_mapping(candidate)
+    requests = tuple(_admission_request(document) for document in _admission_documents(candidate))
+    verify_source_request_units(requests, unit_mapping=unit_mapping)
+    return requests
 
 
 def _resolve_evidence_path(value: object) -> Path:

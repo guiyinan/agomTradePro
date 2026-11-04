@@ -2,9 +2,10 @@
 
 The risk inputs must be independently captured after the market close for the
 current Shanghai business date and admitted through the real RawPayload path.
-Scenario historical returns, local stock-reference rows, the published
-calendar fixture, holdings, and baseline rows are isolated test fixtures; the
-industry, valuation, capacity, and close-quote bytes must remain retained public
+Scenario historical returns, local stock-reference rows, holdings, and baseline
+rows are isolated test fixtures. The execution calendar is captured and
+published through the real session/CSRF Workbench and its public consumer; the
+industry, valuation, capacity, and close-quote bytes remain retained public
 sources. This test never turns the older 2026-11-03 evidence into a current
 source and never writes to a developer/default ledger.
 """
@@ -14,27 +15,32 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+from collections.abc import Iterator
 from datetime import UTC, date, datetime, time, timedelta
 from decimal import Decimal
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, Protocol, cast
 from uuid import uuid4
 from zoneinfo import ZoneInfo
 
 import pytest
 from django.conf import settings
 from django.db import connection
+from django.test import override_settings
 from django.urls import reverse
 from django.utils import timezone
 
+from apps.account.infrastructure.identity_models import AccountProfileModel
 from apps.config_center.application.runtime_public import (
     activate_runtime_profile_patch,
     get_active_runtime_profile,
 )
+from apps.config_center.domain.runtime_config import RuntimeProfileStatus
 from apps.data_center.application.instrument_reference_snapshot import (
     SaveInstrumentReferenceMappingUseCase,
     SaveInstrumentReferenceSnapshotUseCase,
 )
+from apps.data_center.application.interface_services import save_provider_settings_payload
 from apps.data_center.application.provider_response_payload import (
     RetainProviderResponsePayloadUseCase,
 )
@@ -87,21 +93,37 @@ from tests.component.data_center.test_instrument_reference_snapshot_repository i
 )
 from tests.component.simulated_trading import test_auto_trading_current_reference_t1 as auto_fixture
 from tests.component.simulated_trading import test_owner_order_submission_tui_browser as tui_flow
-from tests.component.simulated_trading.test_auto_trading_current_reference_t1 import (
-    _owner_session_client,
-)
 from tests.support import ash07_public_risk_sources as admission_builder
-from tests.support.ash03_auto_calendar_fixture import persist_auto_uow_formal_calendar
+from tests.support.account_authority_generation_flush import (
+    preserve_account_authority_generation as preserve_account_authority_generation,
+)
+from tests.support.ash07_native_runtime_role import isolated_ash07_runtime_role
+from tests.support.ash07_owner_account_authority import (
+    ASH07_OWNER_ACCEPTANCE_AVAILABLE_APPS,
+    audit_runtime_patch,
+    create_owner_account_seed,
+    issue_current_owner_audit_selector,
+    publish_current_owner_policy,
+)
+from tests.support.ash07_owner_m1_price_batch import (
+    publish_and_verify_tushare_close_batch,
+)
+from tests.support.ash07_owner_risk_policy_binding import bind_audited_balanced_v2_policy
+from tests.support.ash07_owner_session import (
+    create_simulated_account_for_approved_owner,
+    ordinary_owner_session_client,
+)
+from tests.support.ash07_real_calendar_publication import (
+    RealCalendarPublicationLease,
+    publish_real_calendar_for_acceptance,
+)
 from tests.support.native_postgres_database import assert_native_postgres_test_database
 from tests.support.runtime_config import configure_critical_runtime
 from tests.unit.data_center.test_tushare_provider_response_capture import _Response, _Session
 
-pytestmark = pytest.mark.django_db(transaction=True)
-
 _SHANGHAI = ZoneInfo("Asia/Shanghai")
 _RISK_DEFINITION_KEY = "risk_center.simulated_portfolio_risk"
 _CURRENT_REFERENCE_SELECTION_KEY = "config_center.market.simulated_current_reference_selection"
-_EXCHANGE_TIMEZONE_MAP_KEY = "config_center.market.exchange_timezone_map"
 _CLOSE_POLICIES_KEY = "config_center.market.simulated_sina_close_snapshot_policies"
 _CAPACITY_PURPOSE = "close_snapshot_simulation"
 _INDUSTRY_PURPOSE = "simulation_portfolio_risk_industry_exposure"
@@ -367,41 +389,6 @@ def _source_reference_clock_mode(kind: str) -> str:
         raise AssertionError(f"unexpected admission source kind: {kind}") from error
 
 
-def _risk_profile_value(
-    *,
-    account_id: int,
-    source_references: list[dict[str, object]],
-) -> dict[str, object]:
-    """Clone balanced source limits and bind only this account and exact sources."""
-
-    template_path = (
-        _REPOSITORY_ROOT
-        / ".tmp"
-        / "ash07-risk-20261103"
-        / "config-drafts-overlay"
-        / "config-data"
-        / "balanced.json"
-    )
-    template = json.loads(template_path.read_text(encoding="utf-8"))
-    source_value = template["values"][0]["value_json"]
-    policy = json.loads(json.dumps(source_value))
-    policy["account_ids"] = [account_id]
-    policy["source_references"] = source_references
-    policy["industry"]["allowed_observation_precisions"] = ["date", "timestamp"]
-    policy["industry"]["allowed_source_restrictions"] = [
-        "same_business_date_membership_only",
-        "close_snapshot_only",
-        "vendor_timestamped_quote",
-    ]
-    policy["capacity"]["allowed_observation_precisions"] = ["timestamp"]
-    policy["capacity"]["allowed_source_restrictions"] = [
-        "close_snapshot_only",
-        "session_cumulative_quote",
-        "vendor_reported_at_quote_time",
-    ]
-    return cast(dict[str, object], policy)
-
-
 def _close_policy_payloads(
     *,
     candidate: dict[str, Any],
@@ -549,22 +536,68 @@ def _assert_native_test_database() -> None:
     assert_native_postgres_test_database()
 
 
-def test_retained_november_03_candidate_hits_harness_date_gate_only() -> None:
-    """Check the harness date gate only, not production admission or Reader expiry."""
+class _RealCalendarPublisher(Protocol):
+    """Require the exact business-date and coverage arguments at the call site."""
 
-    if not _RETAINED_2026_11_03_CANDIDATE.is_file():
-        pytest.skip(
-            "the November 03 raw source facts are ignored external evidence and are absent in CI"
+    def __call__(
+        self,
+        *,
+        business_date: date,
+        coverage_start: date,
+        coverage_end: date,
+    ) -> RealCalendarPublicationLease: ...
+
+
+@pytest.fixture(name="runtime_role")
+def _ash07_runtime_role(
+    transactional_db: None,
+    tmp_path: Path,
+) -> Iterator[dict[str, object]]:
+    """Restore the test DB runtime identity before transactional cleanup."""
+
+    del transactional_db
+    with isolated_ash07_runtime_role(tmp_path / "runtime-role") as report:
+        yield report
+
+
+@pytest.fixture
+def _publish_real_calendar(
+    request: pytest.FixtureRequest,
+    runtime_role: dict[str, object],
+) -> _RealCalendarPublisher:
+    """Publish through the public catalog/provider/Workbench flow and restore it."""
+
+    if runtime_role.get("runtime_acl_verified") is not True:
+        raise AssertionError("the isolated runtime role was not verified")
+    leases: list[RealCalendarPublicationLease] = []
+
+    def publish(
+        *,
+        business_date: date,
+        coverage_start: date,
+        coverage_end: date,
+    ) -> RealCalendarPublicationLease:
+        lease = publish_real_calendar_for_acceptance(
+            business_date=business_date,
+            coverage_start=coverage_start,
+            coverage_end=coverage_end,
         )
-    candidate = json.loads(_RETAINED_2026_11_03_CANDIDATE.read_text(encoding="utf-8-sig"))
-    source_date = date.fromisoformat(candidate["business_date"])
-    current_date = timezone.now().astimezone(_SHANGHAI).date()
-    if source_date >= current_date:
-        pytest.skip("the retained source date has not yet become historical")
-    with pytest.raises(AssertionError, match="historical evidence must remain expired/unknown"):
-        _load_candidate(_RETAINED_2026_11_03_CANDIDATE)
+        leases.append(lease)
+        return lease
+
+    def close_leases() -> None:
+        for lease in reversed(leases):
+            lease.close()
+
+    request.addfinalizer(close_leases)
+    return publish
 
 
+@pytest.mark.django_db(
+    transaction=True,
+    available_apps=ASH07_OWNER_ACCEPTANCE_AVAILABLE_APPS,
+)
+@override_settings(ROOT_URLCONF="tests.support.ash07_owner_acceptance_test_urls")
 @pytest.mark.skipif(
     os.environ.get("AGOM_RUN_ASH07_REAL_SOURCE_OWNER_ACCEPTANCE") != "1",
     reason=(
@@ -574,10 +607,14 @@ def test_retained_november_03_candidate_hits_harness_date_gate_only() -> None:
 )
 def test_owner_tui_current_public_risk_sources_and_scenario_replay(
     monkeypatch: pytest.MonkeyPatch,
+    _publish_real_calendar: _RealCalendarPublisher,
+    runtime_role: dict[str, object],
 ) -> None:
     """Qualify current real source facts through owner TUI and persist real Scenario evidence."""
 
     _assert_native_test_database()
+    if runtime_role.get("runtime_acl_verified") is not True:
+        raise AssertionError("the isolated runtime role was not verified")
     candidate_path = _candidate_path()
     candidate = _load_candidate(candidate_path)
     business_date = date.fromisoformat(candidate["business_date"])
@@ -604,14 +641,51 @@ def test_owner_tui_current_public_risk_sources_and_scenario_replay(
     assert unit_mapping["numeric_scale"] == "1"
 
     configure_critical_runtime()
-    account = auto_fixture._create_account()
+    provider_settings = save_provider_settings_payload(
+        default_source="tushare",
+        enable_failover=False,
+        failover_tolerance=0.01,
+        actor="ash07-owner-real-source-test",
+    )
+    if (
+        provider_settings.get("status") != "active"
+        or provider_settings.get("default_source") != "tushare"
+        or provider_settings.get("enable_failover") is not False
+        or provider_settings.get("failover_tolerance") != 0.01
+    ):
+        raise AssertionError("provider-backed close readers need explicit Tushare runtime settings")
+    publisher_seed = create_owner_account_seed()
+    publish_current_owner_policy(publisher_seed)
+    monkeypatch.setenv("AGOMTRADEPRO_DISABLE_USER_PROVISIONING_SIGNALS", "1")
+    from tests.component.data_center.test_calendar_workbench_tui_browser import (
+        _create_browser_regular_user as create_approved_regular_user,
+    )
+
+    # This existing fixture writes an approved isolated test profile, not a real human approval.
+    ordinary_owner = create_approved_regular_user(approved_by=publisher_seed.owner)
+    account = create_simulated_account_for_approved_owner(ordinary_owner)
     account_id = cast(int, account.pk)
     owner_id = cast(int, account.user_id)
+    owner_profile = AccountProfileModel.objects.get(user_id=owner_id)
+    if (
+        account.user_id != ordinary_owner.pk
+        or account.user.is_staff
+        or account.user.is_superuser
+        or owner_profile.rbac_role != "owner"
+        or owner_profile.approval_status != "approved"
+        or not owner_profile.user_agreement_accepted
+        or not owner_profile.risk_warning_acknowledged
+        or owner_profile.approved_by_id != publisher_seed.owner.pk
+        or publisher_seed.owner.pk == owner_id
+        or not publisher_seed.owner.is_staff
+        or publisher_seed.owner.is_superuser
+    ):
+        raise AssertionError("Risk account must use a separately approved ordinary test Owner")
     _seed_baseline(account_id)
 
     # Each body remains an exact retained original; the RawPayload manifest hash
     # is a separate policy pin and never substitutes for original-body SHA-256.
-    raw_payloads: dict[tuple[str, str], str] = {}
+    raw_payloads: dict[tuple[str, str, str, str], str] = {}
     admission_use_case = build_portfolio_risk_source_admission_use_case()
     for request in requests:
         if request.original_url is None or not request.original_body:
@@ -627,7 +701,9 @@ def test_owner_tui_current_public_risk_sources_and_scenario_replay(
             raise AssertionError("RawPayload did not preserve the trusted local capture clock")
         if result.payload.payload_hash == f"sha256:{body_hash}":
             raise AssertionError("manifest identity must remain distinct from source-body hash")
-        raw_payloads[(request.kind, request.source_record_id)] = result.payload.payload_hash
+        raw_payloads[
+            (request.kind, request.asset_code, request.security_id, request.source_record_id)
+        ] = result.payload.payload_hash
 
     names: dict[str, str] = {}
     for identity in candidate["identity_resolution"]["records"]:
@@ -665,13 +741,13 @@ def test_owner_tui_current_public_risk_sources_and_scenario_replay(
         SimulatedOrderReservationModel.objects.filter(account=account).count(),
     )
 
-    reference_repository, source_snapshot = _persisted_reference_snapshot(monkeypatch)
+    with monkeypatch.context() as identity_patch:
+        reference_repository, source_snapshot = _persisted_reference_snapshot(identity_patch)
     del reference_repository
-    calendar = persist_auto_uow_formal_calendar(
-        as_of=timezone.now().astimezone(UTC),
-        exchange="SSE",
-        timezone_name="Asia/Shanghai",
-        live_clock=True,
+    calendar = _publish_real_calendar(
+        business_date=business_date,
+        coverage_start=business_date - timedelta(days=7),
+        coverage_end=business_date + timedelta(days=14),
     )
     if calendar.market_session != business_date:
         raise AssertionError(
@@ -687,7 +763,6 @@ def test_owner_tui_current_public_risk_sources_and_scenario_replay(
         environment="development",
         patch={
             _CURRENT_REFERENCE_SELECTION_KEY: selector,
-            _EXCHANGE_TIMEZONE_MAP_KEY: {"SSE": "Asia/Shanghai"},
         },
         actor="ash07-real-source-current-reference-test",
         reason="bind the exact two-code local test reference to persisted source rows",
@@ -727,7 +802,9 @@ def test_owner_tui_current_public_risk_sources_and_scenario_replay(
 
     source_references: list[dict[str, object]] = []
     for request in requests:
-        manifest_hash = raw_payloads[(request.kind, request.source_record_id)]
+        manifest_hash = raw_payloads[
+            (request.kind, request.asset_code, request.security_id, request.source_record_id)
+        ]
         source_references.append(
             {
                 "kind": request.kind,
@@ -738,9 +815,13 @@ def test_owner_tui_current_public_risk_sources_and_scenario_replay(
                 "clock_evidence_mode": _source_reference_clock_mode(request.kind),
             }
         )
-    risk_policy = _risk_profile_value(
+    risk_policy = bind_audited_balanced_v2_policy(
         account_id=account_id,
         source_references=source_references,
+        admitted_requests=requests,
+        admitted_manifest_hashes=raw_payloads,
+        repository_root=_REPOSITORY_ROOT,
+        unit_mapping=unit_mapping,
     )
     close_policies = _close_policy_payloads(
         candidate=candidate,
@@ -748,9 +829,26 @@ def test_owner_tui_current_public_risk_sources_and_scenario_replay(
         rule_market_by_asset=rule_market_by_asset,
         board_by_asset=board_by_asset,
     )
+    if risk_policy.get("account_ids") != [account_id]:
+        raise AssertionError("Risk v2 policy is not bound to the ordinary Owner account")
+    publisher_role = (
+        AccountProfileModel.objects.filter(user_id=publisher_seed.owner.pk)
+        .values_list("rbac_role", flat=True)
+        .first()
+    )
+    if (
+        publisher_seed.owner.pk == owner_id
+        or not publisher_seed.owner.is_staff
+        or publisher_seed.owner.is_superuser
+        or publisher_seed.account.user_id != publisher_seed.owner.pk
+        or publisher_role != "admin"
+    ):
+        raise AssertionError("SystemAudit publisher and ordinary Risk owner must be separate")
+    audit_selector = issue_current_owner_audit_selector(publisher_seed)
     activate_runtime_profile_patch(
         environment="development",
         patch={
+            **audit_runtime_patch(audit_selector),
             _RISK_DEFINITION_KEY: risk_policy,
             _CLOSE_POLICIES_KEY: {"policies": close_policies},
         },
@@ -763,6 +861,13 @@ def test_owner_tui_current_public_risk_sources_and_scenario_replay(
     active = get_active_runtime_profile("development")
     if active is None or active.version < 1:
         raise AssertionError("real ConfigCenter did not publish the successor profile")
+    if active.status is not RuntimeProfileStatus.ACTIVE:
+        raise AssertionError("Owner flow must read the actual active ConfigCenter profile")
+
+    published_price_batch = publish_and_verify_tushare_close_batch(
+        asset_codes=tuple(sorted(names)),
+        target_trade_date=business_date,
+    )
 
     # The only replaced DI port is Scenario's historical return provider. The
     # owner risk service, source reader, close-state provider, baseline reader,
@@ -774,8 +879,9 @@ def test_owner_tui_current_public_risk_sources_and_scenario_replay(
         lambda: synthetic_scenario_market,
     )
 
-    client, csrf_token = _owner_session_client(owner_id)
-    assert client.cookies[settings.CSRF_COOKIE_NAME].value == csrf_token
+    client, csrf_token = ordinary_owner_session_client(owner_id)
+    assert csrf_token
+    assert client.cookies.get(settings.CSRF_COOKIE_NAME) is not None
     report_url = reverse(
         "api_simulated_trading:portfolio-risk-report",
         kwargs={"account_id": account_id},
@@ -806,6 +912,30 @@ def test_owner_tui_current_public_risk_sources_and_scenario_replay(
     assert original_hashes.issubset(source_hashes)
     assert len(report["sources"]) == 8
     input_scope = next(check for check in report["checks"] if check["dimension"] == "input_scope")
+    assert input_scope["details"]["policy_profile_key"] == active.profile_key
+    assert input_scope["details"]["policy_profile_version"] == active.version
+    assert input_scope["details"]["policy_profile_content_hash"] == active.content_hash
+    reference_fields = (
+        "kind",
+        "asset_code",
+        "security_id",
+        "source_record_id",
+        "raw_payload_hash",
+    )
+    configured_pins = {
+        tuple(reference[field] for field in reference_fields) for reference in source_references
+    }
+    reported_pins = {
+        (
+            binding["kind"],
+            binding["asset_code"],
+            binding["security_id"],
+            binding["source_record_id"],
+            binding["manifest_sha256"],
+        )
+        for binding in input_scope["details"]["source_reference_bindings"]
+    }
+    assert reported_pins == configured_pins
     manifest_hashes = {
         item["manifest_sha256"] for item in input_scope["details"]["source_reference_bindings"]
     }
@@ -963,6 +1093,7 @@ def test_owner_tui_current_public_risk_sources_and_scenario_replay(
         "api_simulated_trading:portfolio-pressure-run",
         kwargs={"account_id": account_id},
     )
+    real_wall_clock = timezone.now
     replay_at = saved.as_of_time + timedelta(seconds=10)
     monkeypatch.setattr(timezone, "now", lambda: replay_at)
     replay_response = client.post(
@@ -1011,4 +1142,443 @@ def test_owner_tui_current_public_risk_sources_and_scenario_replay(
             command_name="simulated-trading.portfolio-pressure-run",
         ).count()
         == terminal_audit_count_before_replay
+    )
+    monkeypatch.setattr(timezone, "now", real_wall_clock)
+
+    # Reuse only the exact retained quote capture for the owner order. The test
+    # still exercises the real order application, reservation UOW, and fill UOW.
+    from django.db import transaction
+
+    import apps.simulated_trading.close_snapshot_submission_composition as close_market
+    from apps.data_center.application.sina_quote_capture import SinaQuoteCapture
+    from apps.risk_center.infrastructure.models import RiskPolicyAuditModel
+    from apps.simulated_trading.application.portfolio_risk_execution_gate import (
+        ConfiguredPortfolioRiskLockedOrderGuard,
+    )
+    from tests.component.simulated_trading import (
+        test_live_sina_close_snapshot_owner_acceptance as close_flow,
+    )
+
+    retained_captures: dict[str, SinaQuoteCapture] = {
+        request.asset_code: request.sina_capture
+        for request in requests
+        if request.kind == "execution_session_state" and request.sina_capture is not None
+    }
+    assert set(retained_captures) == set(names)
+
+    def retained_capture(asset_code: str) -> SinaQuoteCapture:
+        """Return the already admitted exact quote response for this asset."""
+        capture = retained_captures.get(asset_code)
+        if capture is None:
+            raise AssertionError("the source admission did not retain this Sina quote")
+        return capture
+
+    monkeypatch.setattr(close_market, "capture_sina_quote", retained_capture)
+    sell_position = positions[0]
+    sell_asset = sell_position.asset_code
+    retained_quote = retained_capture(sell_asset).quote
+    assert retained_quote is not None and retained_quote.last_price is not None
+
+    plan_response = client.post(
+        reverse(
+            "api_simulated_trading:daily-inspection-run",
+            kwargs={"account_id": account_id},
+        ),
+        {
+            "inspection_date": business_date.isoformat(),
+            "auto_create_proposal": False,
+            "reference_price_basis": "published_close",
+            "temporary_target_weights": f"{sell_asset},0",
+        },
+        format="json",
+        **common_headers,
+    )
+    assert plan_response.status_code == 200, plan_response.content
+    plan_body = plan_response.json()
+    assert plan_body["success"] is True
+    plan = plan_body["reports"][0]["plan"]
+    assert plan["plan_kind"] == "rebalance_preview"
+    assert plan["read_only"] is True
+    assert plan["execution_submitted"] is False
+    assert plan["must_not_execute"] is True
+    assert plan["reference_price_basis"] == "published_close"
+    assert plan["asset_items"]
+    planned_sell = next(item for item in plan["asset_items"] if item["asset_code"] == sell_asset)
+    assert planned_sell["action"] == "sell"
+    assert planned_sell["actionable_quantity"] is not None, planned_sell["reason_codes"]
+    planned_sell_quantity = Decimal(planned_sell["actionable_quantity"])
+    assert planned_sell_quantity > 0
+    assert planned_sell_quantity == sell_position.quantity
+    assert planned_sell["reference_price"] is not None
+    price_publication = planned_sell["price_publication"]
+    assert price_publication is not None
+    assert price_publication["publication_id"] == published_price_batch.publication.publication_id
+    assert (
+        price_publication["publication_hash"] == published_price_batch.publication.publication_hash
+    )
+    assert price_publication["bar_date"] == business_date.isoformat()
+    plan_risk = plan["portfolio_risk"]
+    assert plan_risk is not None
+    assert plan_risk["outcome"] == "allowed", plan_risk["checks"]
+    assert plan_risk["account_id"] == account_id
+    assert plan_risk["policy_version"] == report["policy_version"]
+    assert {item["raw_payload_sha256"] for item in plan_risk["sources"]} == source_hashes
+    plan_scope = next(item for item in plan_risk["checks"] if item["dimension"] == "input_scope")
+    policy_binding_fields = (
+        "policy_snapshot_id",
+        "policy_snapshot_hash",
+        "policy_profile_key",
+        "policy_profile_version",
+        "policy_profile_content_hash",
+        "policy_config_sha256",
+    )
+    for field in policy_binding_fields:
+        assert plan_scope["details"][field] == input_scope["details"][field]
+    assert (
+        plan_scope["details"]["source_reference_bindings"]
+        == input_scope["details"]["source_reference_bindings"]
+    )
+    original_pressure_by_asset = {
+        row["asset_code"]: row for row in input_scope["details"]["sell_exit_pressure"]
+    }
+    for plan_pressure in plan_scope["details"]["sell_exit_pressure"]:
+        original_pressure = original_pressure_by_asset[plan_pressure["asset_code"]]
+        for shared_field in (
+            "held_quantity",
+            "available_quantity",
+            "active_sell_remaining_quantity",
+        ):
+            assert plan_pressure[shared_field] == original_pressure[shared_field]
+        if plan_pressure["asset_code"] == sell_asset:
+            assert Decimal(plan_pressure["proposed_sell_quantity"]) == planned_sell_quantity
+    plan_order_admission = plan_risk["order_admission"]
+    assert plan_order_admission is not None
+    assert any(
+        row["order_id"] == f"preview:{sell_asset}:sell" and row["outcome"] == "allowed"
+        for row in plan_order_admission["decisions"]
+    )
+    plan_capacity = next(
+        item for item in plan_risk["checks"] if item["dimension"] == "liquidity_capacity"
+    )
+    assert plan_capacity["details"]["requested_purpose"] == "close_snapshot_simulation"
+    ledger_before_order = (
+        account.current_cash,
+        account.current_market_value,
+        account.total_value,
+        sell_position.quantity,
+        SimulatedTradeModel.objects.filter(account=account).count(),
+    )
+    reservations_before_order = SimulatedOrderReservationModel.objects.filter(
+        account=account
+    ).count()
+    preview_response = client.post(
+        reverse(
+            "api_simulated_trading:order-preview",
+            kwargs={"account_id": account_id},
+        ),
+        {
+            "asset_code": sell_asset,
+            "asset_name": names[sell_asset],
+            "side": "sell",
+            "quantity": format(planned_sell_quantity, "f"),
+            "limit_price": format(retained_quote.last_price, "f"),
+            "fee_budget": None,
+            "reason": "ASH07 retained-source owner simulation",
+            "market_purpose": "close_snapshot_simulation",
+        },
+        format="json",
+        **common_headers,
+    )
+    assert preview_response.status_code == 200, preview_response.content
+    preview = preview_response.json()
+    assert preview["read_only"] is True
+    assert preview["purpose"] == "close_snapshot_simulation"
+    assert preview["market_purpose"] == "close_snapshot_simulation"
+    continuation_input = preview["continuation"]["input"]
+    order_key = continuation_input["order_key"]
+    preview_token = continuation_input["preview_token"]
+    confirm_response = client.post(
+        reverse(
+            "api_simulated_trading:order-confirm",
+            kwargs={"account_id": account_id, "order_key": order_key},
+        ),
+        {"preview_token": preview_token, "confirmed": True},
+        format="json",
+        **common_headers,
+    )
+    assert confirm_response.status_code == 200, confirm_response.content
+    assert confirm_response.json()["purpose"] == "close_snapshot_simulation"
+    reservation = SimulatedOrderReservationModel.objects.get(
+        pk=confirm_response.json()["order_id"],
+        account_id=account_id,
+    )
+    assert reservation.side == "sell"
+    assert reservation.shares_reserved == planned_sell_quantity
+    assert reservation.shares_consumed == 0
+    assert reservation.shares_released == 0
+    account.refresh_from_db()
+    sell_position.refresh_from_db()
+    assert (
+        account.current_cash,
+        account.current_market_value,
+        account.total_value,
+        sell_position.quantity,
+        SimulatedTradeModel.objects.filter(account=account).count(),
+    ) == ledger_before_order
+    assert SimulatedOrderReservationModel.objects.filter(account=account).count() == (
+        reservations_before_order + 1
+    )
+
+    held_report_response = client.get(
+        report_url,
+        secure=True,
+        HTTP_ORIGIN="https://testserver",
+    )
+    assert held_report_response.status_code == 200, held_report_response.content
+    held_report = held_report_response.json()
+    assert held_report["account_id"] == account_id
+    assert held_report["policy_version"] == report["policy_version"]
+    assert held_report["outcome"] == "allowed", held_report["checks"]
+    held_scope = next(item for item in held_report["checks"] if item["dimension"] == "input_scope")
+    original_scope = next(item for item in report["checks"] if item["dimension"] == "input_scope")
+    assert held_scope["details"]["source_reference_bindings"] == (
+        original_scope["details"]["source_reference_bindings"]
+    )
+    pressure_rows = held_scope["details"]["sell_exit_pressure"]
+    sell_pressure = next(item for item in pressure_rows if item["asset_code"] == sell_asset)
+    assert Decimal(sell_pressure["held_quantity"]) == sell_position.quantity
+    assert Decimal(sell_pressure["active_sell_remaining_quantity"]) == sell_position.quantity
+    assert Decimal(sell_pressure["proposed_sell_quantity"]) == 0
+    original_nav = next(
+        item for item in report["checks"] if item["dimension"] == "pre_trade_gross_nav"
+    )
+    held_nav = next(
+        item for item in held_report["checks"] if item["dimension"] == "pre_trade_gross_nav"
+    )
+    assert (
+        held_nav["details"]["pre_trade_gross_nav"] == original_nav["details"]["pre_trade_gross_nav"]
+    )
+    for field in policy_binding_fields:
+        assert held_scope["details"][field] == input_scope["details"][field]
+    held_capacity = next(
+        item for item in held_report["checks"] if item["dimension"] == "liquidity_capacity"
+    )
+    assert held_capacity["details"]["requested_purpose"] == "close_snapshot_simulation"
+    held_source_hashes = {item["raw_payload_sha256"] for item in held_report["sources"]}
+    assert held_source_hashes == source_hashes
+
+    fill_at = timezone.now().astimezone(UTC)
+    fill_quantity = reservation.quantity
+    assert fill_quantity == planned_sell_quantity
+    synthetic_fill = close_flow.LocalSimulatedFillEventV1(
+        source_namespace="test.fixture.ash07-owner-close-fill",
+        source_version="fixture-v1",
+        source_event_id=f"ash07-fill-{uuid4().hex}",
+        event_payload_hash=hashlib.sha256(
+            b"explicit synthetic ASH07 close-snapshot fill event"
+        ).hexdigest(),
+        source_snapshot_id="test.fixture.synthetic-ash07-fill",
+        source_snapshot_hash=hashlib.sha256(
+            b"synthetic local fill fixture; not a market execution"
+        ).hexdigest(),
+        reservation_id=cast(int, reservation.pk),
+        account_id=account_id,
+        user_id=owner_id,
+        order_idempotency_key=order_key,
+        intent_payload_hash=reservation.intent_payload_hash,
+        reservation_request_hash=reservation.reservation_request_hash,
+        plan_snapshot_hash=reservation.plan_snapshot_hash,
+        security_id=reservation.security_id,
+        asset_code=reservation.asset_code,
+        side=close_flow.SimulatedTradeSide.SELL,
+        event_kind=close_flow.LocalSimulatedFillEventKind.FILL,
+        quantity=fill_quantity,
+        price=retained_quote.last_price,
+        occurred_at=fill_at,
+        source_observed_at=fill_at,
+        source_available_at=fill_at,
+        recorded_at=fill_at,
+    )
+    with transaction.atomic():
+        fill_chain = close_flow._locked_fill_chain(
+            reservation_row=reservation,
+            using="default",
+        )
+        expected_fill = close_flow.prepare_order_reservation_fill(
+            close_flow.OrderReservationFillRequest(
+                fill_event_id=synthetic_fill.source_event_id,
+                intent=fill_chain.intent,
+                stored_intent_payload_hash=reservation.intent_payload_hash,
+                reservation=fill_chain.reservation,
+                fee_policy=fill_chain.fee_policy,
+                fill_occurred_at=fill_at,
+                quantity=fill_quantity,
+                price=retained_quote.last_price,
+                prior=fill_chain.accrual,
+                close_order=False,
+            )
+        )
+    settlement_proof = close_flow.build_order_fill_settlement_proof(
+        calendar_evidence=calendar.calendar_evidence,
+        calendar_read_cutoff=fill_at,
+        fill_occurred_at=fill_at,
+        settlement_exchange=calendar.calendar_evidence.snapshot.exchange,
+        settlement_lag_sessions=cast(int, reservation.settlement_lag_sessions),
+    )
+    account.refresh_from_db()
+    sell_position.refresh_from_db()
+    cash_before_fill = account.current_cash
+    market_value_before_fill = account.current_market_value
+    sell_mark_before_fill = sell_position.market_value
+    quantity_before_fill = sell_position.quantity
+    risk_audit_count_before_fill = RiskPolicyAuditModel.objects.filter(
+        actor_id=owner_id,
+        action="portfolio_preexecution",
+    ).count()
+    fill_result = close_flow.DjangoSimulatedOrderFillRepository(
+        event_reader=close_flow._EventReader(synthetic_fill, []),
+        using="default",
+        portfolio_risk_guard=ConfiguredPortfolioRiskLockedOrderGuard(using="default"),
+    ).apply_fill_event(
+        event=synthetic_fill,
+        expected_event_payload_hash=synthetic_fill.event_payload_hash,
+        settlement_proof=settlement_proof,
+        clock=close_flow._FixedClock(fill_at),
+    )
+    assert fill_result.replayed is False
+    assert fill_result.economics == expected_fill
+    assert (
+        RiskPolicyAuditModel.objects.filter(
+            actor_id=owner_id,
+            action="portfolio_preexecution",
+        ).count()
+        == risk_audit_count_before_fill + 1
+    )
+    fill_audit = (
+        RiskPolicyAuditModel.objects.filter(
+            actor_id=owner_id,
+            action="portfolio_preexecution",
+            after__account_id=account_id,
+        )
+        .order_by("-created_at")
+        .first()
+    )
+    assert fill_audit is not None
+    assert fill_audit.after["idempotency_key"] == synthetic_fill.source_event_id
+    locked_report = fill_audit.after["risk_result"]
+    assert locked_report["account_id"] == account_id
+    assert locked_report["policy_version"] == report["policy_version"]
+    assert locked_report["scope"] == "simulation_only"
+    assert locked_report["must_not_execute"] is True
+    assert fill_audit.after["policy_binding_sha256"]
+    locked_source_hashes = {item["raw_payload_sha256"] for item in locked_report["sources"]}
+    assert locked_source_hashes == held_source_hashes
+    locked_scope = next(
+        item for item in locked_report["checks"] if item["dimension"] == "input_scope"
+    )
+    for field in policy_binding_fields:
+        assert locked_scope["details"][field] == input_scope["details"][field]
+    locked_capacity = next(
+        item for item in locked_report["checks"] if item["dimension"] == "liquidity_capacity"
+    )
+    assert locked_capacity["details"]["requested_purpose"] == "close_snapshot_simulation"
+    locked_sell_pressure = next(
+        item
+        for item in locked_scope["details"]["sell_exit_pressure"]
+        if item["asset_code"] == sell_asset
+    )
+    assert Decimal(locked_sell_pressure["held_quantity"]) == fill_quantity
+    assert Decimal(locked_sell_pressure["active_sell_remaining_quantity"]) == fill_quantity
+    assert "test.fixture" in synthetic_fill.source_namespace
+
+    reservation.refresh_from_db()
+    sell_position.refresh_from_db()
+    account.refresh_from_db()
+    net_proceeds = expected_fill.gross_amount - expected_fill.incremental_fees.total_fee
+    assert account.current_cash == cash_before_fill + net_proceeds
+    assert account.current_market_value == market_value_before_fill - sell_mark_before_fill
+    assert account.total_value == account.current_cash + account.current_market_value
+    assert sell_position.quantity == quantity_before_fill - fill_quantity
+    post_fill_response = client.get(
+        report_url,
+        secure=True,
+        HTTP_ORIGIN="https://testserver",
+    )
+    assert post_fill_response.status_code == 200, post_fill_response.content
+    post_fill_report = post_fill_response.json()
+    assert post_fill_report["account_id"] == account_id
+    assert post_fill_report["policy_version"] == report["policy_version"]
+    assert post_fill_report["outcome"] == "allowed", post_fill_report["checks"]
+    for position in positions:
+        position.refresh_from_db()
+    retained_prices = {
+        quote["risk_asset_code"]: Decimal(quote["quote"]["last_price"])
+        for quote in candidate["sina_quotes"]
+    }
+    expected_holdings_value = sum(
+        (position.quantity * retained_prices[position.asset_code] for position in positions),
+        Decimal("0"),
+    )
+    post_fill_nav = next(
+        item for item in post_fill_report["checks"] if item["dimension"] == "pre_trade_gross_nav"
+    )
+    assert Decimal(post_fill_nav["details"]["cash"]) == account.current_cash
+    assert Decimal(post_fill_nav["details"]["actual_holdings_value"]) == expected_holdings_value
+    assert Decimal(post_fill_nav["details"]["pre_trade_gross_nav"]) == (
+        account.current_cash + expected_holdings_value
+    )
+    post_fill_scope = next(
+        item for item in post_fill_report["checks"] if item["dimension"] == "input_scope"
+    )
+    for field in policy_binding_fields:
+        assert post_fill_scope["details"][field] == input_scope["details"][field]
+    binding_fields = ("kind", "asset_code", "security_id", "manifest_sha256", "source_record_id")
+    original_pin_tuples = {
+        tuple(row[field] for field in binding_fields)
+        for row in input_scope["details"]["source_reference_bindings"]
+    }
+    post_fill_pin_tuples = {
+        tuple(row[field] for field in binding_fields)
+        for row in post_fill_scope["details"]["source_reference_bindings"]
+    }
+    assert post_fill_pin_tuples.issubset(original_pin_tuples)
+    post_fill_source_hashes = {item["raw_payload_sha256"] for item in post_fill_report["sources"]}
+    assert post_fill_source_hashes.issubset(source_hashes)
+    surviving_asset = positions[1].asset_code
+    assert {pin for pin in post_fill_pin_tuples if pin[1] == surviving_asset} == {
+        pin for pin in original_pin_tuples if pin[1] == surviving_asset
+    }
+    original_survivor_hashes = {
+        item["raw_payload_sha256"]
+        for item in report["sources"]
+        if item["asset_code"] == surviving_asset
+    }
+    post_survivor_hashes = {
+        item["raw_payload_sha256"]
+        for item in post_fill_report["sources"]
+        if item["asset_code"] == surviving_asset
+    }
+    assert post_survivor_hashes == original_survivor_hashes
+    post_capacity = next(
+        item for item in post_fill_report["checks"] if item["dimension"] == "liquidity_capacity"
+    )
+    assert post_capacity["details"]["requested_purpose"] == "close_snapshot_simulation"
+    post_fill_rows = post_fill_scope["details"]["sell_exit_pressure"]
+    post_fill_quantities = {
+        row["asset_code"]: Decimal(row["held_quantity"]) for row in post_fill_rows
+    }
+    for position in positions:
+        assert post_fill_quantities.get(position.asset_code, Decimal("0")) == position.quantity
+    sold_after_fill = next(
+        (item for item in post_fill_rows if item["asset_code"] == sell_asset),
+        None,
+    )
+    if sold_after_fill is not None:
+        assert Decimal(sold_after_fill["held_quantity"]) == 0
+        assert Decimal(sold_after_fill["active_sell_remaining_quantity"]) == 0
+    assert reservation.filled_quantity == reservation.quantity
+    assert reservation.shares_consumed == reservation.quantity
+    assert reservation.shares_released == 0
+    assert SimulatedTradeModel.objects.filter(account=account).count() == (
+        ledger_before_order[4] + 1
     )
