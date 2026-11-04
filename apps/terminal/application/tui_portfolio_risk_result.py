@@ -21,11 +21,25 @@ _DETAIL_LABELS = {
     "coverage_fraction": "数据覆盖比例",
     "coverage_basis": "覆盖口径",
     "exit_sessions_required": "预计退出所需交易日",
+    "final_value": "情景最终组合净值",
     "hypothetical_exitable_quantity": "压力窗口假设可退出数量",
+    "initial_value": "情景初始组合净值",
+    "market_observation": "是否为市场观察",
+    "scope_label": "影响范围",
+    "total_return": "情景组合回报比例",
+    "total_return_unit": "回报计量单位",
     "stress_window_residual_quantity": "压力窗口剩余持仓数量",
     "unreleased_exposure_market_value": "尚未解除的持仓市值",
     "unreleased_exposure_quantity": "尚未解除的持仓数量",
+    "value_unit": "组合金额单位",
+    "hypothetical": "是否为假设情景",
+    "label": "情景名称",
+    "revision_id": "情景修订编号",
+    "version": "情景版本",
 }
+_SCENARIO_IMPACT_DETAIL_KEYS = frozenset(
+    {"final_value", "initial_value", "total_return", "total_return_unit", "value_unit"}
+)
 _DIMENSION_LABELS = {
     "exit_pressure": "退出压力",
     "industry_concentration": "行业集中度",
@@ -140,10 +154,18 @@ def _safe_detail_text(value: object) -> str:
     rows: list[str] = []
     for key, item in details.items():
         normalized = key.strip().lower()
+        if normalized in {"scenario", "scenario_impact"}:
+            nested_details = _safe_detail_text(item)
+            if nested_details:
+                rows.append(nested_details)
+            continue
         label = _DETAIL_LABELS.get(normalized)
         if not label:
             continue
-        display_value = _display(item, missing="")
+        display_value = _display(
+            item,
+            missing=("未知" if normalized in _SCENARIO_IMPACT_DETAIL_KEYS else ""),
+        )
         if not display_value:
             continue
         rows.append(f"{label}：{display_value}")

@@ -142,16 +142,16 @@
     "owner_decision": "Retain current fail-closed source expiry gate, or authorize a bounded simulation contract that separately records conservative proven-available time and policy-derived acceptance deadline while keeping vendor publication/expiry unknown. No contract, policy threshold or gate changed in this follow-up."
   },
   "latest_code_ci": {
-    "head": "b906f2e9a62b891cc8cda84dbb076fa032403e33",
-    "workflows_passed": 6,
-    "workflows_failed": 0,
-    "excluded_by_verified_path_filters": [
-      "Quote Metric PostgreSQL contracts"
-    ],
+    "head": "8369de409e4797377b5de4e9cdefc7a0b3c01a1c",
+    "all_applicable_success": true,
+    "applicable_workflows": 6,
     "proof": {
-      "path": ".tmp/ash07-risk-20261104/integration/m1-backend-routing-final-b906f2e9a.json",
-      "sha256": "968b45dc96fa6be0a115f55000ed8447d93a7669edf770c75222a932124d8252"
-    }
+      "path": ".tmp/ash07-risk-20261104/integration/m1-real-source-capability-final-8369de409.json",
+      "sha256": "9eeb633b0c2bee9aa9072affb37f081ec445398551b6efd37dd5c95453c78dc3"
+    },
+    "excluded_by_verified_path_filters": [
+      "Quote Metric PostgreSQL: no changed path matches the workflow filters"
+    ]
   },
   "source_and_configuration_followup3": {
     "index": {
@@ -433,7 +433,7 @@
   },
   "m1_real_source_capability_delivery": {
     "date": "2026-11-04",
-    "status": "development gates passed",
+    "status": "committed and all6 applicable CI succeeded",
     "candidate_id": "917a7ff8afca22572f37dcb5388c4d35d8b3b60c99f057bc22ff07606ee55b76",
     "passed": 1,
     "failed": 0,
@@ -447,6 +447,26 @@
     "limits": "Explicit staff/admin source publisher fixture, not real human login, ordinary Owner risk admission, current-day risk quote qualification, or whole ASH07 closure",
     "reuse": "All production bytes identical to R66; mandatory type/debt and unaffected projections bounded reuse",
     "prior_r78": "Source body passed, teardown oracle failed; sequence acldefault type corrected, R80 exact zero-dependency orphan role cleanup, full fresh R81 candidate rerun; not aggregated across candidates",
-    "entrypoint_projection": "Actual producer output byte-identical to existing projection; no generated changes"
+    "entrypoint_projection": "Actual producer output byte-identical to existing projection; no generated changes",
+    "commit": "8369de409e4797377b5de4e9cdefc7a0b3c01a1c"
+  },
+  "sector_scenario_impact_delivery": {
+    "date": "2026-11-04",
+    "status": "development gates passed; commit pending",
+    "candidate_id": "7751bbe432c53b2b30ae8449f3bca68efa7ad03f56f6bda4b3cb210203097907",
+    "passed": 65,
+    "failed": 0,
+    "skipped": 0,
+    "seconds": 17.76,
+    "index": {
+      "path": ".tmp/ash07-risk-20261104/integration/sector-scenario/delivery-index.json",
+      "sha256": "0ad2cba2067e7d0368b84435c3af381fb81fd5e251093ca4d955b8e49443a041"
+    },
+    "incremental_mypy": 0,
+    "full_production_debt": 0,
+    "typing_reuse": "Four production files byte-identical to actual R83 passing type gates; full8file runtime R85 reran",
+    "scope": "Existing saved Scenario whole-NAV impact/units/unknown and exact revision-impact-assessment replay, approved ordinary synthetic Owner Session/CSRF API, actual ORM evidence and TUI projection, no ledger mutation",
+    "limits": "Synthetic market/source/factor fixtures; force_login Session; not actual human login/browser DOM/current-source/complete ordinary financial Goal qualification",
+    "remaining": "ASH07 active: actual current-day Main/ETF close-source and full financial acceptance. Nov4 CNI single public query empty; no source fact fabricated; no Owner decision/material needed."
   }
 }

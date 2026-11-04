@@ -288,6 +288,7 @@ class RunPortfolioExitPressureUseCase:
             scenario_label=projection.scenario_label,
             as_of_time=as_of_time,
             revision=context.revision,
+            scenario_impact=context.impact,
             assessment=assessment,
             projection=projection,
             run_evidence_id=run_id,

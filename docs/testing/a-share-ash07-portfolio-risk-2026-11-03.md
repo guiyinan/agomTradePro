@@ -99,3 +99,13 @@ R81 候选 `917a7ff8afca22572f37dcb5388c4d35d8b3b60c99f057bc22ff07606ee55b76` �
 完整测试使用真实受限 default runtime 登录，现有权限校验器实际通过；退出后管理身份、所有 relation/index/toast/sequence 所有者及有效 ACL 均与原快照相同，两个临时 UUID 角色已删除。保留已有库/schema及 generation clock，零其他客户端后停止 PG。R78 业务断言通过但清理校验失败仍保留失败结论；其原因是验收脚本把 sequence 默认 ACL 类型写为 foreign-server 类型，已按 PostgreSQL 原始契约改正并在 R81 整项重跑，未跨候选拼绿。R79 诊断和 R80 精确零依赖角色清理原件均归档。
 
 测试、原件、候选及恢复证明统一索引位于 `.tmp/ash07-risk-20261104/integration/m1-source-capability/delivery-index.json`。生产代码字节与 R66 相同，类型/债务及不受影响的投影证据有界复用；只更新真正受影响的入口投影。ASH-07/Goal 继续 active：普通 Owner/ETF 的金融流程及同业多持仓 Scenario 尚须完整通过。REF 与 deferred 边界不变。
+
+### 同业多持仓 Scenario 影响与精确重放整事项（2026-11-04）
+
+R85 候选 `7751bbe432c53b2b30ae8449f3bca68efa7ad03f56f6bda4b3cb210203097907` 的八文件完整 Native 包 65 passed、0 skip、17.76 秒。明确的合成普通已批准账户通过真实 Session/CSRF API 完成情景目录、风险读取、压力计算、ORM 证据保存、TUI 投影与同幂等标识原样重放；两只银行各 10000 元持仓及 100000 元现金，初始净值 120000 元，同业下跌 20% 的假设情景净值为 116000 元，账本/订单/成交/预留前后不变。金额、原件哈希和公开/保存文本精确一致；循环小数收益仅按 Decimal 工作精度限定表示舍入。来源、行情与情景假设均为明确测试夹具，不是实盘观察、真实人工登录、浏览器 DOM 或当日市场来源资格。
+
+报告公开既有 Scenario 的真实已存金额/收益、币种、全组合含现金口径及假设标记；币种未知时金额与收益保留 unknown。重放交叉核对已存修订 ID/hash、冲击与评估绑定，三种重算整体 evidence hash 的错绑反例实际拒绝；只有公开影响字段真正缺席才兼容旧显示，实际 v1 完整证据约束保留。R82 样式失败、R83 的 61 pass/3 fail/1 fixture error、R84 的 64 pass/1 末位舍入失败均原样留存，未跨候选拼绿。
+
+四个生产文件在 R83 实际通过增量 mypy0、全量债务0，R84/R85 仅修夹具并强校验生产字节相同后复用，未重复全量类型。实际架构投影生成通过，仅 summary 文本索引增改；其余计数不变。实际 module-map producer 的逐文件入口/依赖/ORM/task 投影相同，复用既有结构证据。原件索引 `.tmp/ash07-risk-20261104/integration/sector-scenario/delivery-index.json`，最终哈希见同名 JSON 结论。
+
+来源交付提交 `8369de409` 的六项适用 CI 已全部实际通过，独立证明 SHA-256 `9eeb633b0c2bee9aa9072affb37f081ec445398551b6efd37dd5c95453c78dc3`。ASH07/Goal 仍 active：普通 Owner/ETF 当前日金融验收候选待实际收盘来源；当日国证单次查询虽 HTTP200 但 data=null、sampleDate 空，不能生成行业映射。仅待供应商实际材料，不需 Owner 补实仓凭证或新增业务决定；不扩大 REF/deferred。

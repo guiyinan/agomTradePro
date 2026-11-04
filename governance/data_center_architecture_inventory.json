@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 6565,
+    "current_surface_references": 6566,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -19784,7 +19784,7 @@
     },
     {
       "path": "apps/risk_center/application/portfolio_pressure_report.py",
-      "text": "summary=_pressure_summary(assessment.status),"
+      "text": "summary=("
     },
     {
       "path": "apps/risk_center/application/portfolio_risk_clock_report_codec.py",
@@ -21929,6 +21929,10 @@
     {
       "path": "apps/simulated_trading/application/portfolio_risk_preparation.py",
       "text": "\"summary\": \"账户输入尚未满足风险核验条件\","
+    },
+    {
+      "path": "apps/simulated_trading/application/portfolio_risk_pressure_runner.py",
+      "text": "\"\"\"Accept a truly absent legacy summary, but verify every present one exactly.\"\"\""
     },
     {
       "path": "apps/simulated_trading/application/portfolio_risk_pressure_runner.py",

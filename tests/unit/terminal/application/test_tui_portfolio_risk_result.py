@@ -100,6 +100,103 @@ def test_projection_keeps_http_errors_on_the_bounded_base_renderer() -> None:
     assert project_portfolio_risk_result({"detail": "bounded"}, http_status=403) is None
 
 
+def test_projection_displays_scenario_nav_and_fraction_with_explicit_units() -> None:
+    """The public TUI result shows the saved hypothetical Scenario impact."""
+
+    report = _report(outcome="partial")
+    checks = report["checks"]
+    assert isinstance(checks, list)
+    checks.append(
+        {
+            "dimension": "exit_pressure",
+            "status": "partial",
+            "reason_codes": [],
+            "summary": "情景影响是组合净值假设，不代表市场观察或已成交结果。",
+            "details": {
+                "scenario": {
+                    "label": "两家银行同步行业下跌（测试假设）",
+                    "revision_id": "scenario-revision-test-4",
+                    "version": 4,
+                    "content_sha256": "f" * 64,
+                },
+                "scenario_impact": {
+                    "scope": "portfolio_snapshot_net_asset_value",
+                    "scope_label": "全组合净值（含现金）",
+                    "initial_value": "10000",
+                    "final_value": "9290.000",
+                    "value_unit": "CNY",
+                    "total_return": "-0.071",
+                    "total_return_unit": "fraction",
+                    "scenario_result_hash": "c" * 64,
+                    "hypothetical": True,
+                    "market_observation": False,
+                },
+            },
+        }
+    )
+
+    view_model = project_portfolio_risk_result(report, http_status=200)
+
+    assert view_model is not None
+    fields = view_model["fields"]
+    assert isinstance(fields, list)
+    rendered = "\n".join(str(item.get("value", "")) for item in fields if isinstance(item, dict))
+    assert "情景名称：两家银行同步行业下跌（测试假设）" in rendered
+    assert "情景修订编号：scenario-revision-test-4" in rendered
+    assert "情景版本：4" in rendered
+    assert "情景初始组合净值：10000" in rendered
+    assert "影响范围：全组合净值（含现金）" in rendered
+    assert "情景最终组合净值：9290.000" in rendered
+    assert "组合金额单位：CNY" in rendered
+    assert "情景组合回报比例：-0.071" in rendered
+    assert "回报计量单位：fraction" in rendered
+    assert "是否为假设情景：是" in rendered
+    assert "是否为市场观察：否" in rendered
+    assert "c" * 64 not in rendered
+
+
+def test_projection_keeps_unknown_scenario_values_explicitly_unknown() -> None:
+    """Unknown portfolio money units are not replaced with a default currency."""
+
+    report = _report(outcome="unknown")
+    checks = report["checks"]
+    assert isinstance(checks, list)
+    checks.append(
+        {
+            "dimension": "exit_pressure",
+            "status": "unknown",
+            "reason_codes": ["PORTFOLIO_MONEY_UNIT_UNKNOWN"],
+            "summary": "组合金额单位未知，无法显示可比较的金额或回报比例。",
+            "details": {
+                "scenario_impact": {
+                    "scope": "portfolio_snapshot_net_asset_value",
+                    "scope_label": "全组合净值（含现金）",
+                    "initial_value": None,
+                    "final_value": None,
+                    "value_unit": None,
+                    "total_return": None,
+                    "total_return_unit": None,
+                    "scenario_result_hash": "d" * 64,
+                    "hypothetical": True,
+                    "market_observation": False,
+                }
+            },
+        }
+    )
+
+    view_model = project_portfolio_risk_result(report, http_status=200)
+
+    assert view_model is not None
+    fields = view_model["fields"]
+    assert isinstance(fields, list)
+    rendered = "\n".join(str(item.get("value", "")) for item in fields if isinstance(item, dict))
+    assert "情景初始组合净值：未知" in rendered
+    assert "情景最终组合净值：未知" in rendered
+    assert "组合金额单位：未知" in rendered
+    assert "情景组合回报比例：未知" in rendered
+    assert "回报计量单位：未知" in rendered
+
+
 @pytest.mark.parametrize(
     "mode",
     [

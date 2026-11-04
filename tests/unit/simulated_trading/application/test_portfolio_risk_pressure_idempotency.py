@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from types import SimpleNamespace
 from typing import cast
@@ -31,10 +32,23 @@ from apps.risk_center.application.portfolio_risk_serialization import (
     canonical_portfolio_risk_json,
     portfolio_risk_content_hash,
 )
+from apps.risk_center.domain.portfolio_exit_pressure import (
+    PortfolioExitPressureAssessment,
+    PortfolioExitPressureInput,
+    evaluate_portfolio_exit_pressure,
+)
 from apps.risk_center.domain.scenarios import (
+    ParametricShock,
+    ParametricShockParameters,
+    PortfolioExposure,
     ScenarioDefinitionStatus,
+    ScenarioRevision,
     ScenarioRevisionStatus,
     ScenarioRunEvidence,
+    ScenarioSourceType,
+    ScenarioType,
+    ShockUnit,
+    evaluate_scenario,
     scenario_run_snapshot_hash,
 )
 from apps.simulated_trading.application.portfolio_risk_context import (
@@ -53,6 +67,9 @@ SCENARIO_ID = "scenario-revision-8"
 IDEMPOTENCY_KEY = "pressure-key-8"
 SNAPSHOT_ID = f"simulated-account:{ACCOUNT_ID}:" + ("e" * 64)
 ALLOCATION_POLICY_VERSION = "portfolio-risk-binding:" + ("b" * 64)
+CODE_VERSION = "server-source-sha256:" + ("9" * 64)
+ASSET_CODE = "600036.SH"
+SOURCE_EVIDENCE_IDS = ("capacity:record-1", "market:record-1")
 
 
 def _base_report(as_of: datetime) -> PortfolioRiskReportPayload:
@@ -98,31 +115,36 @@ def _pressure_report_template(
     base_report: PortfolioRiskReportPayload,
     run_id: str,
     snapshot_hash: str,
-    status: str = "partial",
+    revision: ScenarioRevision,
+    impact_result_hash: str,
+    assessment: PortfolioExitPressureAssessment,
 ) -> PortfolioRiskReportPayload:
-    """Make the result template stored inside Scenario evidence, before its own hash."""
+    """Build the retained legacy template with complete Scenario result bindings."""
 
+    pressure_status = assessment.status.value
+    assessment_hash = assessment.result_hash
+    source_evidence_ids = list(assessment.source_evidence_ids)
     pressure_check = {
         "dimension": "exit_pressure",
-        "status": status,
-        "reason_codes": ["TEST_PRESSURE_RESULT"],
-        "summary": "测试压力报告",
+        "status": pressure_status,
+        "reason_codes": [],
+        "summary": "退出压力窗口未提供，结果保持未知",
         "details": {
             "scenario": {
                 "label": "连续跌停压力",
-                "revision_id": SCENARIO_ID,
-                "version": 8,
-                "content_sha256": "c" * 64,
+                "revision_id": revision.revision_id,
+                "version": revision.version,
+                "content_sha256": revision.content_hash,
             },
-            "scenario_result_hash": "d" * 64,
-            "pressure_result_hash": "f" * 64,
+            "scenario_result_hash": impact_result_hash,
+            "pressure_result_hash": assessment_hash,
             "run_evidence_id": run_id,
             "run_evidence_persisted": True,
             "portfolio_snapshot_id": SNAPSHOT_ID,
             "portfolio_snapshot_hash": snapshot_hash,
             "capacity_findings": [],
             "capacity_windows": [],
-            "source_evidence_ids": ["capacity:record-1", "market:record-1"],
+            "source_evidence_ids": source_evidence_ids,
             "scope": "simulation_only",
             "must_not_execute": True,
             "execution_permitted": False,
@@ -131,9 +153,9 @@ def _pressure_report_template(
     return {
         **base_report,
         "checks": [*base_report["checks"], pressure_check],
-        "outcome": status,
+        "outcome": pressure_status,
         "must_not_use_for_decision": base_report["must_not_use_for_decision"]
-        or status in {"unknown", "partial"},
+        or pressure_status in {"unknown", "partial"},
     }
 
 
@@ -143,13 +165,54 @@ def _saved_evidence(
     scenario_revision_id: str = SCENARIO_ID,
     include_original_report: bool = True,
 ) -> ScenarioRunEvidence:
-    """Build one content-valid record using the same persisted evidence schemas."""
+    """Build one typed Scenario result using the production evidence serializers."""
 
     run_id = portfolio_pressure_run_id(
         actor_user_id=ACTOR_ID,
         account_id=ACCOUNT_ID,
         idempotency_key=IDEMPOTENCY_KEY,
     )
+    revision = _scenario_revision(scenario_revision_id, as_of=as_of)
+    impact = evaluate_scenario(
+        revision,
+        exposures=(PortfolioExposure(asset_code=ASSET_CODE, weight=Decimal("1")),),
+        initial_value=Decimal("120000"),
+        return_series=(),
+    )
+    snapshot_hash = portfolio_risk_content_hash(
+        {
+            "snapshot_id": SNAPSHOT_ID,
+            "account_id": ACCOUNT_ID,
+            "as_of_time": as_of,
+            "net_asset_value": Decimal("120000"),
+            "cash_value": Decimal("0"),
+            "asset_code": ASSET_CODE,
+        }
+    )
+    pressure_input = PortfolioExitPressureInput(
+        scenario_revision=revision,
+        scenario_impact=impact,
+        portfolio_snapshot_id=SNAPSHOT_ID,
+        portfolio_snapshot_hash=snapshot_hash,
+        as_of_time=as_of,
+        allocation_policy_version=ALLOCATION_POLICY_VERSION,
+        code_version=CODE_VERSION,
+        scenario_market_data_hash=portfolio_risk_content_hash(
+            {
+                "scenario_revision_id": revision.revision_id,
+                "scenario_revision_hash": revision.content_hash,
+                "as_of_time": as_of,
+                "evidence_ids": SOURCE_EVIDENCE_IDS,
+                "observation_precision": "timestamp",
+                "observed_at": as_of - timedelta(seconds=2),
+                "published_at": as_of - timedelta(seconds=1),
+            }
+        ),
+        source_evidence=(),
+        source_evidence_ids=SOURCE_EVIDENCE_IDS,
+        positions=(),
+    )
+    assessment = evaluate_portfolio_exit_pressure(pressure_input)
     base = _base_report(as_of)
     original_report_json = canonical_portfolio_risk_json(base) if include_original_report else None
     command = {
@@ -164,12 +227,12 @@ def _saved_evidence(
         "portfolio_snapshot_id": SNAPSHOT_ID,
         "as_of_time": as_of,
         "allocation_policy_version": ALLOCATION_POLICY_VERSION,
-        "code_version": "server-source-sha256:" + ("9" * 64),
+        "code_version": CODE_VERSION,
     }
     projection = {
         "portfolio_snapshot_id": SNAPSHOT_ID,
         "scenario_revision_id": scenario_revision_id,
-        "scenario_revision_hash": "c" * 64,
+        "scenario_revision_hash": revision.content_hash,
         "allocation_policy_version": ALLOCATION_POLICY_VERSION,
         "account_snapshot": {
             "account_id": ACCOUNT_ID,
@@ -178,10 +241,6 @@ def _saved_evidence(
         },
         "original_report_json": original_report_json,
     }
-    revision = {
-        "revision_id": scenario_revision_id,
-        "content_hash": "c" * 64,
-    }
     input_payload = {
         "schema": "simulated-account-pressure-input.v1",
         "command": command,
@@ -189,20 +248,22 @@ def _saved_evidence(
         "scenario_context": {"revision": revision},
         "account_projection": projection,
         "original_report_json": original_report_json,
-        "pressure_input": {"scenario_revision_id": scenario_revision_id},
+        "pressure_input": pressure_input,
     }
-    snapshot_hash = "b" * 64
     result_payload: dict[str, object] = {
         "schema": "simulated-account-pressure-result.v1",
         "scenario_revision": revision,
-        "scenario_impact": {"result_hash": "d" * 64},
-        "assessment": {"result_hash": "f" * 64},
+        "scenario_impact": impact,
+        "assessment": assessment,
     }
     if include_original_report:
         result_payload["public_report_template"] = _pressure_report_template(
             base_report=base,
             run_id=run_id,
             snapshot_hash=snapshot_hash,
+            revision=revision,
+            impact_result_hash=impact.result_hash,
+            assessment=assessment,
         )
     input_json = canonical_portfolio_risk_json(input_payload)
     result_json = canonical_portfolio_risk_json(result_payload)
@@ -216,15 +277,45 @@ def _saved_evidence(
         portfolio_snapshot_id=SNAPSHOT_ID,
         portfolio_snapshot_hash=snapshot_hash,
         as_of_time=as_of,
-        data_evidence_ids=("capacity:record-1", "market:record-1"),
+        data_evidence_ids=SOURCE_EVIDENCE_IDS,
         result_hash=result_hash,
         allocation_policy_version=ALLOCATION_POLICY_VERSION,
-        code_version="server-source-sha256:" + ("9" * 64),
+        code_version=CODE_VERSION,
         must_not_use_for_decision=True,
         blocked_reason="portfolio_pressure_report_not_decision_usable",
         created_at=as_of,
         input_snapshot_json=input_json,
         result_snapshot_json=result_json,
+    )
+
+
+def _scenario_revision(scenario_revision_id: str, *, as_of: datetime) -> ScenarioRevision:
+    """Build a real immutable approved revision for this persistence contract fixture."""
+
+    return ScenarioRevision(
+        revision_id=scenario_revision_id,
+        scenario_key="idempotency-fixture-sector-shock",
+        version=8,
+        status=ScenarioRevisionStatus.APPROVED,
+        scenario_type=ScenarioType.PARAMETRIC_SHOCK,
+        parameters=ParametricShockParameters(
+            shocks=(
+                ParametricShock(
+                    target_kind="asset",
+                    target=ASSET_CODE,
+                    shock_kind="return",
+                    magnitude=Decimal("-0.2"),
+                    unit=ShockUnit.PERCENT,
+                    horizon_days=1,
+                ),
+            ),
+            correlation_assumption="One explicit asset shock; correlation is not applied.",
+        ),
+        assumptions=("Synthetic deterministic test shock.",),
+        source_type=ScenarioSourceType.HUMAN,
+        created_by="idempotency-fixture",
+        change_reason="Bind retained impact and assessment to the exact revision.",
+        created_at=as_of - timedelta(days=10),
     )
 
 
@@ -334,11 +425,16 @@ def test_retry_with_new_cutoff_returns_original_saved_report(
         idempotency_key=IDEMPOTENCY_KEY,
     )
 
-    expected_template = _pressure_report_template(
-        base_report=_base_report(prior_as_of),
-        run_id=evidence.run_id,
-        snapshot_hash=evidence.portfolio_snapshot_hash,
+    assert evidence.result_snapshot_json is not None
+    result_snapshot: object = json.loads(evidence.result_snapshot_json)
+    assert isinstance(result_snapshot, dict)
+    expected_template_value = result_snapshot.get("public_report_template")
+    assert isinstance(expected_template_value, dict)
+    expected_template = cast(PortfolioRiskReportPayload, expected_template_value)
+    pressure_check = next(
+        check for check in expected_template["checks"] if check["dimension"] == "exit_pressure"
     )
+    assert "scenario_impact" not in pressure_check["details"]
     assert result == bind_portfolio_pressure_evidence_hash(
         expected_template,
         evidence.result_hash,
@@ -384,14 +480,7 @@ def test_concurrent_insert_winner_is_read_back_after_content_conflict(
         def build(self, **kwargs: object) -> _ConcurrentUseCase:
             return _ConcurrentUseCase()
 
-    revision = SimpleNamespace(
-        revision_id=SCENARIO_ID,
-        version=8,
-        content_hash="c" * 64,
-        status=ScenarioRevisionStatus.APPROVED,
-        created_at=NOW - timedelta(days=1),
-        effective_at=None,
-    )
+    revision = _scenario_revision(SCENARIO_ID, as_of=NOW)
     definition = SimpleNamespace(
         status=ScenarioDefinitionStatus.ACTIVE,
         created_at=NOW - timedelta(days=10),

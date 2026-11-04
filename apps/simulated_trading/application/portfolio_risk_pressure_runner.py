@@ -401,6 +401,7 @@ def _stored_report_template(
     projection = _mapping(input_snapshot.get("account_projection"))
     stored_account = _mapping(projection.get("account_snapshot")) if projection else None
     revision = _mapping(scenario_context.get("revision")) if scenario_context else None
+    result_revision = _mapping(result_snapshot.get("scenario_revision"))
     report_json = input_snapshot.get("original_report_json")
     projected_report_json = projection.get("original_report_json") if projection else None
     if (
@@ -410,6 +411,7 @@ def _stored_report_template(
         or projection is None
         or stored_account is None
         or revision is None
+        or result_revision is None
         or type(report_json) is not str
         or report_json != projected_report_json
         or report_json != projection.get("original_report_json")
@@ -420,6 +422,8 @@ def _stored_report_template(
         or request.get("scenario_revision_id") != scenario_revision_id
         or request.get("portfolio_snapshot_id") != evidence.portfolio_snapshot_id
         or revision.get("revision_id") != scenario_revision_id
+        or result_revision.get("revision_id") != scenario_revision_id
+        or result_revision.get("content_hash") != revision.get("content_hash")
         or projection.get("scenario_revision_id") != scenario_revision_id
         or projection.get("scenario_revision_hash") != revision.get("content_hash")
         or revision.get("content_hash") is None
@@ -471,7 +475,16 @@ def _stored_report_template(
         or assessment is None
         or details.get("pressure_result_hash") != assessment.get("result_hash")
         or scenario_impact is None
+        or scenario_impact.get("scenario_revision_id") != scenario_revision_id
+        or assessment.get("scenario_revision_id") != scenario_revision_id
+        or assessment.get("scenario_revision_hash") != revision.get("content_hash")
+        or assessment.get("scenario_result_hash") != scenario_impact.get("result_hash")
         or details.get("scenario_result_hash") != scenario_impact.get("result_hash")
+        or not _scenario_impact_template_matches(
+            report_details=details,
+            retained_impact=scenario_impact,
+            money_unit=stored_account.get("money_unit"),
+        )
         or details.get("run_evidence_persisted") is not True
         or details.get("scope") != "simulation_only"
         or details.get("must_not_execute") is not True
@@ -493,6 +506,60 @@ def _stored_report_template(
     ):
         return None
     return template
+
+
+def _scenario_impact_template_matches(
+    *,
+    report_details: Mapping[str, object],
+    retained_impact: Mapping[str, object],
+    money_unit: object,
+) -> bool:
+    """Accept a truly absent legacy summary, but verify every present one exactly."""
+
+    if "scenario_impact" not in report_details:
+        return True
+    public_details = _mapping(report_details.get("scenario_impact"))
+    if public_details is None:
+        return False
+
+    value_known = type(money_unit) is str and bool(money_unit)
+    amount_fields = ("initial_value", "final_value", "total_return")
+    expected_values = {
+        field: retained_impact.get(field) if value_known else None for field in amount_fields
+    }
+    expected_hash = retained_impact.get("result_hash")
+    if (
+        type(expected_hash) is not str
+        or len(expected_hash) != 64
+        or any(character not in "0123456789abcdef" for character in expected_hash)
+        or (value_known and any(type(expected_values[field]) is not str for field in amount_fields))
+    ):
+        return False
+    return (
+        set(public_details)
+        == {
+            "scope",
+            "scope_label",
+            "initial_value",
+            "final_value",
+            "value_unit",
+            "total_return",
+            "total_return_unit",
+            "scenario_result_hash",
+            "hypothetical",
+            "market_observation",
+        }
+        and public_details.get("scope") == "portfolio_snapshot_net_asset_value"
+        and public_details.get("scope_label") == "全组合净值（含现金）"
+        and public_details.get("initial_value") == expected_values["initial_value"]
+        and public_details.get("final_value") == expected_values["final_value"]
+        and public_details.get("value_unit") == (money_unit if value_known else None)
+        and public_details.get("total_return") == expected_values["total_return"]
+        and public_details.get("total_return_unit") == ("fraction" if value_known else None)
+        and public_details.get("scenario_result_hash") == expected_hash
+        and public_details.get("hypothetical") is True
+        and public_details.get("market_observation") is False
+    )
 
 
 def _json_mapping(value: str) -> Mapping[str, object] | None:

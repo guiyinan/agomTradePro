@@ -27,7 +27,7 @@ from apps.risk_center.domain.portfolio_exit_pressure import (
     ExitPressureStatus,
     PortfolioExitPressureAssessment,
 )
-from apps.risk_center.domain.scenarios import ScenarioRevision
+from apps.risk_center.domain.scenarios import ScenarioImpact, ScenarioRevision
 
 _REQUIRED_REPORT_KEYS = frozenset(
     {
@@ -105,6 +105,7 @@ def build_portfolio_pressure_report_template(
     scenario_label: str,
     as_of_time: datetime,
     revision: ScenarioRevision,
+    scenario_impact: ScenarioImpact,
     assessment: PortfolioExitPressureAssessment,
     projection: PortfolioPressureProjection,
     source_evidence_ids: tuple[str, ...],
@@ -125,8 +126,14 @@ def build_portfolio_pressure_report_template(
         or base_report["as_of"] != as_of_time.isoformat()
         or revision.revision_id != projection.scenario_revision_id
         or revision.content_hash != projection.scenario_revision_hash
+        or scenario_impact.scenario_revision_id != revision.revision_id
+        or scenario_impact.result_hash != assessment.scenario_result_hash
     ):
         raise ValueError("original report does not match the exact pressure projection")
+    scenario_impact_details = _scenario_impact_public_details(
+        impact=scenario_impact,
+        money_unit=projection.account_snapshot.money_unit,
+    )
     pressure_status = _pressure_outcome(assessment.status)
     findings = [
         {
@@ -165,7 +172,10 @@ def build_portfolio_pressure_report_template(
     check = _pressure_check(
         status=pressure_status,
         reason_codes=reasons,
-        summary=_pressure_summary(assessment.status),
+        summary=(
+            f"{_pressure_summary(assessment.status)}；"
+            "情景影响是组合净值假设，不代表市场观察或已成交结果。"
+        ),
         details={
             "scenario": {
                 "label": scenario_label,
@@ -174,6 +184,7 @@ def build_portfolio_pressure_report_template(
                 "content_sha256": revision.content_hash,
             },
             "scenario_result_hash": assessment.scenario_result_hash,
+            "scenario_impact": scenario_impact_details,
             "pressure_result_hash": assessment.result_hash,
             "run_evidence_id": run_evidence_id,
             "run_evidence_persisted": True,
@@ -200,6 +211,28 @@ def build_portfolio_pressure_report_template(
         "must_not_use_for_decision": must_not_use,
         "scope": "simulation_only",
         "must_not_execute": True,
+    }
+
+
+def _scenario_impact_public_details(
+    *,
+    impact: ScenarioImpact,
+    money_unit: str | None,
+) -> dict[str, object]:
+    """Expose the exact persisted impact with explicit NAV and return units."""
+
+    value_known = money_unit is not None
+    return {
+        "scope": "portfolio_snapshot_net_asset_value",
+        "scope_label": "全组合净值（含现金）",
+        "initial_value": _decimal_text(impact.initial_value) if value_known else None,
+        "final_value": _decimal_text(impact.final_value) if value_known else None,
+        "value_unit": money_unit,
+        "total_return": _decimal_text(impact.total_return) if value_known else None,
+        "total_return_unit": "fraction" if value_known else None,
+        "scenario_result_hash": impact.result_hash,
+        "hypothetical": True,
+        "market_observation": False,
     }
 
 

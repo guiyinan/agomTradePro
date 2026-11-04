@@ -17,6 +17,14 @@ user-facing copy.
 
 Every published TUI screen must optimize for user completion, not interface exposure.
 
+Portfolio pressure results display the exact saved hypothetical Scenario impact:
+initial and final whole-portfolio net asset value include cash, amounts retain
+their explicit currency unit, and returns retain their fraction unit. Unknown
+currency keeps amounts and returns unknown. The result identifies its Scenario
+and version, distinguishes a hypothetical result from a market observation, and
+retains the existing simulation-only execution restriction. Replaying a saved
+result must preserve its original impact and evidence identity.
+
 Owner order recovery and cancellation stay on `execution.accounts`. Confirmation
 identifies the account, order, and original decision when applicable. Recovery
 uses that retained decision; cancellation releases the current remainder and
