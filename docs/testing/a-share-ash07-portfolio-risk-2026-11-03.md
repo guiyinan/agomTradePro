@@ -80,7 +80,7 @@ Native 实际验证双证券同一发布公共读取、次笔采集失败不封�
 
 最终修改 Infra 增量 mypy0、全生产债务0；另两生产文件与 R62 类型验收字节相同。R62 生成/一致性/架构/环检测证据有界复用：一处预期状态表达式 AST 变化，import/入口/签名/字符串及投影哈希未变。R62～R65 失败、候选和脚本均保留，不拼成跨候选全绿。原件索引 `.tmp/ash07-risk-20261104/integration/m1-batch-reference-delivery-index.json`，SHA-256 `2ea64dd219102a17bd717b3b4c633857c5b125dfebc613a83196469e121a157d`。
 
-**M1 CI 后端选择修复。** `67e6b8bb8` 六项 CI success，Fast Feedback 的四项 Native 用例误入 SQLite 而失败（run `41745217176`）；5098 项通过和原失败日志保留。R72 以原生专用 marker 将四项从 SQLite 路由至现有 PostgreSQL CI，两份完整 M1 文件均显式入该执行 step；不只移出快速通道。CI 等效设置下 PostgreSQL 10 passed/0 skip，SQLite 四项按预期 skip（未改默认库字节），YAML 解析/目标校验通过。生产字节与 R66、结构/投影与已验证输入未变，未重跑无关门。索引 `.tmp/ash07-risk-20261104/integration/m1-batch-ci-remediation-index.json`，SHA-256 `208d0a7640896b0b9f0233538482537ce5f7dfec61d14332238e4285dba12e91`；新 HEAD CI 须独立核查。
+**M1 CI 后端选择修复。** `67e6b8bb8` 六项 CI success，Fast Feedback 的四项 Native 用例误入 SQLite 而失败（run `41745217176`）；5098 项通过和原失败日志保留。R72 以原生专用 marker 将四项从 SQLite 路由至现有 PostgreSQL CI，两份完整 M1 文件均显式入该执行 step；不只移出快速通道。CI 等效设置下 PostgreSQL 10 passed/0 skip，SQLite 四项按预期 skip（未改默认库字节），YAML 解析/目标校验通过。生产字节与 R66、结构/投影与已验证输入未变，未重跑无关门。索引 `.tmp/ash07-risk-20261104/integration/m1-batch-ci-remediation-index.json`，SHA-256 `208d0a7640896b0b9f0233538482537ce5f7dfec61d14332238e4285dba12e91`；新 HEAD `b906f2e9a` 六项适用 CI 已实际全部通过（Quote Metric PG 依精确路径过滤不触发）；原件 `m1-backend-routing-final-b906f2e9a.json` 保留。
 
 ### 尚未通过的整单元退出
 
@@ -91,3 +91,11 @@ Native 实际验证双证券同一发布公共读取、次笔采集失败不封�
 4. 多持仓同行业同步下跌的普通 Scenario 直接结果与用户可解释数值仍待整合；既有单因子或历史市场情景不能替代该项。
 
 这些是后续自主来源/接线事项，不索要实仓或券商持仓凭证。REF-01/05 只读，其他 REF 依原依赖及正式交接；本批未实施 REF。ASH-08 整单执行/续办/重审批、ASH-06/09/12、生产配置、自动下单、部署和同 SHA RC/S6 不在本交付资格内。
+
+### 真实双证券 M1 来源能力整事项（2026-11-04）
+
+R81 候选 `917a7ff8afca22572f37dcb5388c4d35d8b3b60c99f057bc22ff07606ee55b76` 在复用 Native TEST 库中完整通过：1 passed、0 skip、30.74 秒。真实 Tushare 日历工作台发布、两个银行的 11 月 3 日日线原件、实际 Account V3 授权和必需 SystemAudit、双证券同一 CAS 及公开 published-close 读取均实际通过。供应商发布/可用/失效时钟保留 unknown；本项是参考来源能力，不是当日风险或普通用户金融旅程资格。发布者是明确声明的隔离 staff/admin 测试账户，使用测试 Session，不冒充真实人工登录或普通风险用户。
+
+完整测试使用真实受限 default runtime 登录，现有权限校验器实际通过；退出后管理身份、所有 relation/index/toast/sequence 所有者及有效 ACL 均与原快照相同，两个临时 UUID 角色已删除。保留已有库/schema及 generation clock，零其他客户端后停止 PG。R78 业务断言通过但清理校验失败仍保留失败结论；其原因是验收脚本把 sequence 默认 ACL 类型写为 foreign-server 类型，已按 PostgreSQL 原始契约改正并在 R81 整项重跑，未跨候选拼绿。R79 诊断和 R80 精确零依赖角色清理原件均归档。
+
+测试、原件、候选及恢复证明统一索引位于 `.tmp/ash07-risk-20261104/integration/m1-source-capability/delivery-index.json`。生产代码字节与 R66 相同，类型/债务及不受影响的投影证据有界复用；只更新真正受影响的入口投影。ASH-07/Goal 继续 active：普通 Owner/ETF 的金融流程及同业多持仓 Scenario 尚须完整通过。REF 与 deferred 边界不变。

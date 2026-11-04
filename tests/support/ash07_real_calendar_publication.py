@@ -430,7 +430,7 @@ def _create_test_provider(
     response = client.post(
         _PROVIDER_PATH,
         {
-            "name": f"ash07-real-calendar-{uuid4().hex}",
+            "name": f"ash07-cal-{uuid4().hex}",
             "source_type": "tushare",
             "is_active": True,
             "priority": 100,

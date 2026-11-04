@@ -142,11 +142,16 @@
     "owner_decision": "Retain current fail-closed source expiry gate, or authorize a bounded simulation contract that separately records conservative proven-available time and policy-derived acceptance deadline while keeping vendor publication/expiry unknown. No contract, policy threshold or gate changed in this follow-up."
   },
   "latest_code_ci": {
-    "head": "3c9fadab228a6abcf39b99d70b7aebafc52de367",
-    "status": "success",
-    "expected_workflows": 7,
-    "original": ".tmp/ash07-risk-20261104/integration/calendar-delivery-ci-final-3c9fadab2.json",
-    "sha256": "e211e2b5220f57a65017ed1627e5032242d29058cc74ce8b50ac416456a987bb"
+    "head": "b906f2e9a62b891cc8cda84dbb076fa032403e33",
+    "workflows_passed": 6,
+    "workflows_failed": 0,
+    "excluded_by_verified_path_filters": [
+      "Quote Metric PostgreSQL contracts"
+    ],
+    "proof": {
+      "path": ".tmp/ash07-risk-20261104/integration/m1-backend-routing-final-b906f2e9a.json",
+      "sha256": "968b45dc96fa6be0a115f55000ed8447d93a7669edf770c75222a932124d8252"
+    }
   },
   "source_and_configuration_followup3": {
     "index": {
@@ -411,7 +416,37 @@
         "path": ".tmp/ash07-risk-20261104/integration/m1-batch-ci-remediation-index.json",
         "sha256": "208d0a7640896b0b9f0233538482537ce5f7dfec61d14332238e4285dba12e91"
       },
-      "new_head_ci": "pending afterpush; oldhead6success1failure retained"
+      "new_head_ci": "b906f2e9a all six applicable workflows actually succeeded",
+      "validated_head": {
+        "head": "b906f2e9a62b891cc8cda84dbb076fa032403e33",
+        "workflows_passed": 6,
+        "workflows_failed": 0,
+        "excluded_by_verified_path_filters": [
+          "Quote Metric PostgreSQL contracts"
+        ],
+        "proof": {
+          "path": ".tmp/ash07-risk-20261104/integration/m1-backend-routing-final-b906f2e9a.json",
+          "sha256": "968b45dc96fa6be0a115f55000ed8447d93a7669edf770c75222a932124d8252"
+        }
+      }
     }
+  },
+  "m1_real_source_capability_delivery": {
+    "date": "2026-11-04",
+    "status": "development gates passed",
+    "candidate_id": "917a7ff8afca22572f37dcb5388c4d35d8b3b60c99f057bc22ff07606ee55b76",
+    "passed": 1,
+    "failed": 0,
+    "skipped": 0,
+    "seconds": 30.74,
+    "index": {
+      "path": ".tmp/ash07-risk-20261104/integration/m1-source-capability/delivery-index.json",
+      "sha256": "50e9d43c0a22d53e02e18c9eee70281a707b14d03c0fa497927b666244d65fad"
+    },
+    "scope": "Actual real Tushare calendar/two daily originals, V3 Account authority, required SystemAudit, one M1 CAS and public published-close reads; exact isolated TEST database and genuine runtime login; ownership/effective ACL restoration and UUID role removal passed",
+    "limits": "Explicit staff/admin source publisher fixture, not real human login, ordinary Owner risk admission, current-day risk quote qualification, or whole ASH07 closure",
+    "reuse": "All production bytes identical to R66; mandatory type/debt and unaffected projections bounded reuse",
+    "prior_r78": "Source body passed, teardown oracle failed; sequence acldefault type corrected, R80 exact zero-dependency orphan role cleanup, full fresh R81 candidate rerun; not aggregated across candidates",
+    "entrypoint_projection": "Actual producer output byte-identical to existing projection; no generated changes"
   }
 }

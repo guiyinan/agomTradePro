@@ -2812,4 +2812,6 @@ Owner 随后明确授权“做几套、不硬编码、放系统数据库”。�
 
 **多证券参考价完整开发交付。** R66 四份完整 batch/single 单元及 Native 文件 37 passed/0 skip，最终一份 Infra 增量 mypy0、全生产债务0；另两生产与 R62 字节相同，未变结构/投影门经精确 AST 变化与哈希有界复用。真实 PG 验证一次 CAS 的双成员公共读取、采集失败、后续质量审计失败的整组回滚及竞态获胜者保留；CAS 前候选快照误判及中间夹具失败均留存。仅开发合成 provider/authority，不作真实来源/整 Goal 资格。实际 Account V3/required Audit 与 SDK source factory 适配、当天真实 Owner/ETF 全旅程及多持仓同行业普通 Scenario 仍继续本 Goal，唯一验收索引含原件；不复活 REF 或 deferred 范围。
 
-**M1 CI 后端修复。** 67e6b8bb8 六 CI 通过、Fast Feedback 四 Native 误跑 SQLite 已定位。R72 将其显式登记到既有 PostgreSQL CI step，CI 等效 Native 两份完整文件 10 passed/0 skip，SQLite 四预期 skip；无生产/数据库或类型基线改动，未变结构证据复用。旧失败与精确候选保留，新 HEAD 另行核 CI；完整 ASH07 来源/普通 Owner/ETF/同行业 Scenario 退出不变。
+**M1 CI 后端修复。** 67e6b8bb8 六 CI 通过、Fast Feedback 四 Native 误跑 SQLite 已定位。R72 将其显式登记到既有 PostgreSQL CI step，CI 等效 Native 两份完整文件 10 passed/0 skip，SQLite 四预期 skip；无生产/数据库或类型基线改动，未变结构证据复用。旧失败与精确候选保留，b906f2e9a 六项适用 CI 已实际全通过；完整 ASH07 来源/普通 Owner/ETF/同行业 Scenario 退出不变。
+
+**真实双证券来源能力已交付验收。** R81 完整 Native 事项 1 passed/0 skip：真实 Tushare 日历/双日线原件、实际 V3/required Audit、单次 CAS 与公开读取通过，受限 runtime 登录及原 owner/有效 ACL 恢复、临时角色删除全部实际验证。原供应商时钟仍 unknown，11 月 3 日为当时最新已完成交易日，不等于当日风险报价。R78 清理校验失败及根因、R79/R80 原件保留，R81 未跨候选拼绿；索引见既有 ASH07 验收结论。普通用户/ETF 金融流程与同业多持仓 Scenario 仍未关闭，唯一 ASH07/Goal 保持 active，不扩大 REF/deferred 范围。
