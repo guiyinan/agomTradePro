@@ -66,6 +66,11 @@ _TARGET_DATE = date(2026, 11, 3)
 # is still the latest completed market session for the public freshness gate.
 _AS_OF = datetime(2026, 11, 4, 0, 0, tzinfo=UTC)
 
+pytestmark = pytest.mark.skipif(
+    connection.vendor != "postgresql",
+    reason="M1 batch activation contracts require Native PostgreSQL",
+)
+
 
 def _batch_use_case(
     single_use_case: M1ReferencePricePublicationUseCase,

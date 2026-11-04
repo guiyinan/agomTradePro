@@ -398,6 +398,20 @@
       "Full ASH07 completion",
       "Production/release/live trading qualification"
     ],
-    "source_and_full_goal_status": "pending; no Owner material currently required"
+    "source_and_full_goal_status": "pending; no Owner material currently required",
+    "ci_remediation": {
+      "failed_head": "67e6b8bb894e1dd450dd13b6baa5a2bb1ea6e05e",
+      "failed_run": 41745217176,
+      "scope": "Explicit Native-only marker; add both full M1 component files to existing PostgreSQL CIstep. No new job/database/production change.",
+      "candidate_id": "a9d2a5f8077db5426d42ce332bcf50518f62b45ff88a08d943e9f58fbf817fc4",
+      "local_postgres_passed": 10,
+      "local_postgres_skipped": 0,
+      "sqlite_expected_native_skips": 4,
+      "index": {
+        "path": ".tmp/ash07-risk-20261104/integration/m1-batch-ci-remediation-index.json",
+        "sha256": "208d0a7640896b0b9f0233538482537ce5f7dfec61d14332238e4285dba12e91"
+      },
+      "new_head_ci": "pending afterpush; oldhead6success1failure retained"
+    }
   }
 }

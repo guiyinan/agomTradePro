@@ -2811,3 +2811,5 @@ Owner 随后明确授权“做几套、不硬编码、放系统数据库”。�
 **真实来源整旅程接线。** 独立日历测试适配器 R58 两项 Native 验收通过，真实原响应/授权发布/消费者链与旧日拒绝均覆盖，初次辅助代码混比两种请求哈希的失败原件保留，见唯一 ASH07 结论。新的 Owner 主测试、已审计 v2 策略绑定及 ETF partial 调用尚在整合；ETF 证券未披露比例 55.44%，仅两银行有分类时行业未知比例 91.85%，不能混用。正向计划必须有实际拟新增订单并重验；当前 M1 参考价的单证券 current 指针不能串行冒充双证券快照，因此在本 Goal 内隔离准备严格多证券同候选/逐 RawAudit/一次 CAS 发布及必要 Audit 适配。Root 串行整合并合批门禁，不放宽单证券契约、不启全市场任务或 ASH08 计划执行；整单 Goal 继续 active。
 
 **多证券参考价完整开发交付。** R66 四份完整 batch/single 单元及 Native 文件 37 passed/0 skip，最终一份 Infra 增量 mypy0、全生产债务0；另两生产与 R62 字节相同，未变结构/投影门经精确 AST 变化与哈希有界复用。真实 PG 验证一次 CAS 的双成员公共读取、采集失败、后续质量审计失败的整组回滚及竞态获胜者保留；CAS 前候选快照误判及中间夹具失败均留存。仅开发合成 provider/authority，不作真实来源/整 Goal 资格。实际 Account V3/required Audit 与 SDK source factory 适配、当天真实 Owner/ETF 全旅程及多持仓同行业普通 Scenario 仍继续本 Goal，唯一验收索引含原件；不复活 REF 或 deferred 范围。
+
+**M1 CI 后端修复。** 67e6b8bb8 六 CI 通过、Fast Feedback 四 Native 误跑 SQLite 已定位。R72 将其显式登记到既有 PostgreSQL CI step，CI 等效 Native 两份完整文件 10 passed/0 skip，SQLite 四预期 skip；无生产/数据库或类型基线改动，未变结构证据复用。旧失败与精确候选保留，新 HEAD 另行核 CI；完整 ASH07 来源/普通 Owner/ETF/同行业 Scenario 退出不变。

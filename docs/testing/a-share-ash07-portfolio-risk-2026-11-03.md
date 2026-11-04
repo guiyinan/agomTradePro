@@ -80,6 +80,8 @@ Native 实际验证双证券同一发布公共读取、次笔采集失败不封�
 
 最终修改 Infra 增量 mypy0、全生产债务0；另两生产文件与 R62 类型验收字节相同。R62 生成/一致性/架构/环检测证据有界复用：一处预期状态表达式 AST 变化，import/入口/签名/字符串及投影哈希未变。R62～R65 失败、候选和脚本均保留，不拼成跨候选全绿。原件索引 `.tmp/ash07-risk-20261104/integration/m1-batch-reference-delivery-index.json`，SHA-256 `2ea64dd219102a17bd717b3b4c633857c5b125dfebc613a83196469e121a157d`。
 
+**M1 CI 后端选择修复。** `67e6b8bb8` 六项 CI success，Fast Feedback 的四项 Native 用例误入 SQLite 而失败（run `41745217176`）；5098 项通过和原失败日志保留。R72 以原生专用 marker 将四项从 SQLite 路由至现有 PostgreSQL CI，两份完整 M1 文件均显式入该执行 step；不只移出快速通道。CI 等效设置下 PostgreSQL 10 passed/0 skip，SQLite 四项按预期 skip（未改默认库字节），YAML 解析/目标校验通过。生产字节与 R66、结构/投影与已验证输入未变，未重跑无关门。索引 `.tmp/ash07-risk-20261104/integration/m1-batch-ci-remediation-index.json`，SHA-256 `208d0a7640896b0b9f0233538482537ce5f7dfec61d14332238e4285dba12e91`；新 HEAD CI 须独立核查。
+
 ### 尚未通过的整单元退出
 
 1. 当日真实来源的完整正向计划/普通模拟/压力旅程仍未实际通过。11 月 3 日行业与报价在 11 月 4 日只能作历史原件，不回拨政策激活/首次已知时间，不把旧报价标 fresh；允许合格真实收盘快照，不统一等待盘中正例。新 opt-in Source Owner 测试已正式交付，但未运行的正例不计通过；其日历/身份/持仓夹具边界明确。计划还须实际产生正数拟卖出数量并与风险投影一致，不能以缺价时的空 proposal 冒充正向。有界多证券原子参考价开发能力已交付；真实 Provider/Account authority 的公共 factory 接线仍待实际验收。单证券门保持独立，未启全市场调度或计划执行。
