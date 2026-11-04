@@ -249,7 +249,7 @@ def _policy() -> PortfolioRiskPolicyBundle:
         definition_key=SIMULATED_PORTFOLIO_RISK_DEFINITION_KEY,
         value=_policy_configuration(),
         profile_id="fixture-risk-profile",
-        profile_key="ash07-scenario-fixture",
+        profile_key="test",
         profile_version=1,
         profile_content_hash="e" * 64,
         snapshot_id="fixture-risk-snapshot",

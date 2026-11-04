@@ -109,3 +109,5 @@ R85 候选 `7751bbe432c53b2b30ae8449f3bca68efa7ad03f56f6bda4b3cb210203097907` �
 四个生产文件在 R83 实际通过增量 mypy0、全量债务0，R84/R85 仅修夹具并强校验生产字节相同后复用，未重复全量类型。实际架构投影生成通过，仅 summary 文本索引增改；其余计数不变。实际 module-map producer 的逐文件入口/依赖/ORM/task 投影相同，复用既有结构证据。原件索引 `.tmp/ash07-risk-20261104/integration/sector-scenario/delivery-index.json`，最终哈希见同名 JSON 结论。
 
 来源交付提交 `8369de409` 的六项适用 CI 已全部实际通过，独立证明 SHA-256 `9eeb633b0c2bee9aa9072affb37f081ec445398551b6efd37dd5c95453c78dc3`。ASH07/Goal 仍 active：普通 Owner/ETF 当前日金融验收候选待实际收盘来源；当日国证单次查询虽 HTTP200 但 data=null、sampleDate 空，不能生成行业映射。仅待供应商实际材料，不需 Owner 补实仓凭证或新增业务决定；不扩大 REF/deferred。
+
+**Scenario CI 误报修复。** 4d4182778 的 Security Scan（41761247855）把公开合成 runtime profile 标识误认为 generic API key；只将夹具标识改成简短测试名，未改生产或扫描规则。R86 新候选八文件完整重跑 65 passed/0 skip，四个生产文件仍逐字节同 R83，类型0证据复用；同 CI 的 gitleaks8.24.3/配置扫描通过，失败原日志保留。精确索引 `.tmp/ash07-risk-20261104/integration/sector-scenario-security/delivery-index.json`，最终哈希见 JSON；新提交仍须核对实际 CI，不把 4d4182778 的失败记成通过。

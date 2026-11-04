@@ -452,7 +452,7 @@
   },
   "sector_scenario_impact_delivery": {
     "date": "2026-11-04",
-    "status": "development gates passed; commit pending",
+    "status": "committed4d4182778; scoped CI false-positive remediation passed local gates, next commit pending",
     "candidate_id": "7751bbe432c53b2b30ae8449f3bca68efa7ad03f56f6bda4b3cb210203097907",
     "passed": 65,
     "failed": 0,
@@ -467,6 +467,22 @@
     "typing_reuse": "Four production files byte-identical to actual R83 passing type gates; full8file runtime R85 reran",
     "scope": "Existing saved Scenario whole-NAV impact/units/unknown and exact revision-impact-assessment replay, approved ordinary synthetic Owner Session/CSRF API, actual ORM evidence and TUI projection, no ledger mutation",
     "limits": "Synthetic market/source/factor fixtures; force_login Session; not actual human login/browser DOM/current-source/complete ordinary financial Goal qualification",
-    "remaining": "ASH07 active: actual current-day Main/ETF close-source and full financial acceptance. Nov4 CNI single public query empty; no source fact fabricated; no Owner decision/material needed."
+    "remaining": "ASH07 active: actual current-day Main/ETF close-source and full financial acceptance. Nov4 CNI single public query empty; no source fact fabricated; no Owner decision/material needed.",
+    "commit": "4d41827784a5518a9f76a99738b1d7db5718b405",
+    "ci_remediation": {
+      "failed_run": 41761247855,
+      "scope": "Public test runtime-profile identifier falsely detected as generic API key; shortened fixture identifier only, no scanner/ignore/production changes",
+      "candidate_id": "4b5e2298118d9e0c7d94137110a625cc6cb3b2cb8f82c4497fccf906888982e3",
+      "index": {
+        "path": ".tmp/ash07-risk-20261104/integration/sector-scenario-security/delivery-index.json",
+        "sha256": "a3694046498ff981adab1ef4027da7c117c69f4da31ce84cb3be95b0687ccefc"
+      },
+      "complete_runtime_passed": 65,
+      "skipped": 0,
+      "gitleaks_version": "8.24.3",
+      "gitleaks_exit_code": 0,
+      "same_production_type0_reused": true,
+      "ci": "new exact commit pending"
+    }
   }
 }

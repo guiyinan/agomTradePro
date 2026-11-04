@@ -2817,3 +2817,5 @@ Owner 随后明确授权“做几套、不硬编码、放系统数据库”。�
 **真实双证券来源能力已交付验收。** R81 完整 Native 事项 1 passed/0 skip：真实 Tushare 日历/双日线原件、实际 V3/required Audit、单次 CAS 与公开读取通过，受限 runtime 登录及原 owner/有效 ACL 恢复、临时角色删除全部实际验证。原供应商时钟仍 unknown，11 月 3 日为当时最新已完成交易日，不等于当日风险报价。R78 清理校验失败及根因、R79/R80 原件保留，R81 未跨候选拼绿；索引见既有 ASH07 验收结论。普通用户/ETF 金融流程与同业多持仓 Scenario 仍未关闭，唯一 ASH07/Goal 保持 active，不扩大 REF/deferred 范围。
 
 **同业多持仓 Scenario 整事项已验收。** R85 八文件 Native 包 65 passed/0 skip，合成普通已批准账户实际 Session/CSRF、ORM 留证、TUI 投影和原样重放通过；含现金净值 120000 元在明确假设冲击下为 116000 元，账本不变，单位/未知与假设语义明确。实际 v1 revision/impact/assessment 的精确重放绑定及整体重哈希错绑拒绝已修齐。生产字节同 R83，增量/全量 mypy0 有界复用；适用投影生成/结构复用证明与中间失败保留在既有 ASH07 结论。来源提交 8369de409 六项 CI 全部通过。唯一 ASH07/Goal 继续 active：当前日普通 Owner/ETF 金融闭环尚待合格收盘原件和真实运行，当日国证空响应不能造映射；无新增 Owner 决定或实仓材料要求，REF/deferred 边界不变。
+
+**Scenario CI 误报收口候选。** 公开测试 profile 名被 generic-key 规则误报，已仅改夹具标识；R86 八文件 65 passed/0 skip，同版本 gitleaks 通过，生产/类型证据相同复用。失败与新候选分开留存；待新精确提交适用 CI 实际通过，ASH07/Goal 及当前日来源边界不变。
