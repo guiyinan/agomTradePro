@@ -34,7 +34,6 @@ _DETAIL_LABELS = {
     "value_unit": "组合金额单位",
     "hypothetical": "是否为假设情景",
     "label": "情景名称",
-    "revision_id": "情景修订编号",
     "version": "情景版本",
 }
 _SCENARIO_IMPACT_DETAIL_KEYS = frozenset(

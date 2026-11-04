@@ -30,7 +30,7 @@ from django.db import connection
 from django.db.backends.utils import CursorWrapper
 from django.urls import reverse
 from django.utils import timezone as django_timezone
-from playwright.sync_api import Route, expect, sync_playwright
+from playwright.sync_api import Page, Route, expect, sync_playwright
 
 import apps.simulated_trading.application.portfolio_risk_public as portfolio_risk_public
 from apps.data_center.application.sina_quote_capture import SinaQuoteCapture
@@ -45,6 +45,10 @@ from apps.risk_center.application.portfolio_exit_pressure_use_cases import (
 from apps.risk_center.application.portfolio_pressure_report import (
     bind_portfolio_pressure_evidence_hash,
     report_payload_from_object,
+)
+from apps.risk_center.application.portfolio_risk_contracts import (
+    PortfolioRiskCheckPayload,
+    PortfolioRiskReportPayload,
 )
 from apps.risk_center.application.portfolio_risk_runtime import (
     PortfolioPressureApplicationFactory,
@@ -1744,6 +1748,66 @@ def _scenario_run_evidence_count() -> int:
     return run_sync_compatible(lambda: ScenarioRunEvidenceModel._default_manager.count())
 
 
+def _capture_pressure_result_dom(
+    *,
+    page: Page,
+    panel_selector: str,
+    tmp_path: Path,
+    case_name: str,
+    response_payload: dict[str, object],
+) -> None:
+    """Save the visible result and bounded business response for one pressure case."""
+
+    browser_state = cast(
+        dict[str, object],
+        page.evaluate(
+            """(selector) => {
+                const panel = document.querySelector(selector);
+                const clone = panel ? panel.cloneNode(true) : null;
+                const sensitiveName = /(csrf|cookie|token|password|authorization|secret|idempotency)/i;
+                if (clone) {
+                    const nodes = [clone, ...clone.querySelectorAll("*")];
+                    for (const node of nodes) {
+                        for (const attribute of Array.from(node.attributes || [])) {
+                            if (sensitiveName.test(attribute.name)) {
+                                node.removeAttribute(attribute.name);
+                            }
+                        }
+                    }
+                    for (const control of clone.querySelectorAll("input, textarea, select")) {
+                        control.removeAttribute("value");
+                        if ("value" in control) control.value = "";
+                    }
+                }
+                return {
+                    panel_outer_html: clone ? clone.outerHTML : null,
+                    panel_inner_text: panel ? String(panel.innerText || "").slice(0, 12000) : "",
+                    body_inner_text: String(document.body?.innerText || "").slice(0, 20000),
+                };
+            }""",
+            panel_selector,
+        ),
+    )
+    diagnostic = {
+        "case": case_name,
+        "response_payload": {
+            "confirmation_required": response_payload.get("confirmation_required"),
+            "outcome": response_payload.get("outcome"),
+            "response": response_payload.get("response"),
+            "view_model": response_payload.get("view_model"),
+        },
+        "browser_state": browser_state,
+    }
+    (tmp_path / f"portfolio-pressure-{case_name}-dom.json").write_text(
+        json.dumps(diagnostic, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    page.screenshot(
+        path=str(tmp_path / f"portfolio-pressure-{case_name}.png"),
+        full_page=True,
+    )
+
+
 def _capture_pressure_api_reports(
     monkeypatch: pytest.MonkeyPatch,
 ) -> list[dict[str, object]]:
@@ -2221,9 +2285,72 @@ def test_owner_tui_runs_real_portfolio_pressure_and_replays_saved_evidence(
             )
             assert "退出压力" in rendered_checks
             assert "已审批压力情景" not in str(view_model)
-            expect(
-                page.locator('[data-dashboard-panel="simulated-account-workspace"]')
-            ).to_contain_text("已审批情景下的模拟退出容量覆盖当前持仓")
+            result_panel = page.locator('[data-dashboard-panel="simulated-account-workspace"]')
+            try:
+                expect(result_panel).to_contain_text("退出压力")
+            finally:
+                _capture_pressure_result_dom(
+                    page=page,
+                    panel_selector='[data-dashboard-panel="simulated-account-workspace"]',
+                    tmp_path=tmp_path,
+                    case_name="known-currency",
+                    response_payload=pressure_payload,
+                )
+            expect(result_panel).to_contain_text("已审批情景下的模拟退出容量覆盖当前持仓")
+            pressure_report_checks = pressure_api_reports[-1].get("checks")
+            assert isinstance(pressure_report_checks, list)
+            pressure_report_check = next(
+                item
+                for item in pressure_report_checks
+                if isinstance(item, dict) and item.get("dimension") == "exit_pressure"
+            )
+            pressure_report_details = pressure_report_check.get("details")
+            assert isinstance(pressure_report_details, dict)
+            scenario_details = pressure_report_details.get("scenario")
+            scenario_impact = pressure_report_details.get("scenario_impact")
+            assert isinstance(scenario_details, dict)
+            assert isinstance(scenario_impact, dict)
+            scenario_label = scenario_details.get("label")
+            scenario_version = scenario_details.get("version")
+            assert type(scenario_label) is str and scenario_label
+            assert type(scenario_version) is int
+            assert selected_option["label"] == f"{scenario_label} · v{scenario_version}"
+            assert scenario_impact.get("scope_label") == "全组合净值（含现金）"
+            assert scenario_impact.get("value_unit") == "CNY"
+            assert scenario_impact.get("total_return_unit") == "fraction"
+            initial_value = scenario_impact.get("initial_value")
+            final_value = scenario_impact.get("final_value")
+            total_return = scenario_impact.get("total_return")
+            assert type(initial_value) is str and Decimal(initial_value).is_finite()
+            assert type(final_value) is str and Decimal(final_value).is_finite()
+            assert type(total_return) is str and Decimal(total_return).is_finite()
+            visible_markers = (
+                f"情景名称：{scenario_label}",
+                f"情景版本：{scenario_version}",
+                "影响范围：全组合净值（含现金）",
+                f"情景初始组合净值：{initial_value}",
+                f"情景最终组合净值：{final_value}",
+                "组合金额单位：CNY",
+                f"情景组合回报比例：{total_return}",
+                "回报计量单位：fraction",
+                "是否为假设情景：是",
+                "是否为市场观察：否",
+            )
+            visible_check_card = result_panel.locator(".tui-copy-block-card").filter(
+                has_text="约束检查"
+            )
+            expect(visible_check_card).to_have_count(1)
+            expect(visible_check_card).to_be_visible()
+            visible_check_details = visible_check_card.locator("pre.tui-copy-block")
+            expect(visible_check_details).to_be_visible()
+            visible_check_text = visible_check_details.inner_text()
+            for marker in visible_markers:
+                assert marker in visible_check_text
+            visible_boundary = result_panel.locator(".tui-detail-grid dd").filter(
+                has_text="不是交易许可"
+            )
+            expect(visible_boundary).to_be_visible()
+            assert "不会自动执行" in visible_boundary.inner_text()
             assert revision_id not in page.locator("body").inner_text()
 
             assert len(action_requests) == 2
@@ -2409,6 +2536,319 @@ def test_owner_tui_runs_real_portfolio_pressure_and_replays_saved_evidence(
     assert page_errors == []
     assert nonlocal_browser_attempts == []
     assert loopback_only_python_network == []
+
+
+def _unknown_pressure_presentation_report(
+    *,
+    account_id: int,
+    scenario_label: str,
+    revision_id: str,
+) -> PortfolioRiskReportPayload:
+    """Build a schema-valid null-value payload for the renderer contract only."""
+
+    check: PortfolioRiskCheckPayload = {
+        "dimension": "exit_pressure",
+        "status": "unknown",
+        "reason_codes": ["PORTFOLIO_MONEY_UNIT_UNKNOWN"],
+        "summary": "组合金额单位未知；本项只验证阻断结果的可见呈现。",
+        "details": {
+            "scenario": {
+                "label": scenario_label,
+                "revision_id": revision_id,
+                "version": 1,
+                "content_sha256": "a" * 64,
+            },
+            "scenario_impact": {
+                "scope": "portfolio_snapshot_net_asset_value",
+                "scope_label": "全组合净值（含现金）",
+                "initial_value": None,
+                "final_value": None,
+                "value_unit": None,
+                "total_return": None,
+                "total_return_unit": None,
+                "scenario_result_hash": "b" * 64,
+                "hypothetical": True,
+                "market_observation": False,
+            },
+            "run_evidence_persisted": False,
+            "scope": "simulation_only",
+            "must_not_execute": True,
+            "execution_permitted": False,
+        },
+    }
+    return {
+        "account_id": account_id,
+        "as_of": AS_OF.isoformat(),
+        "outcome": "unknown",
+        "policy_version": "presentation-contract-only",
+        "resource_snapshot_hash": "c" * 64,
+        "checks": [check],
+        "sources": [],
+        "freshness": "unknown",
+        "reliability": "unknown",
+        "must_not_use_for_decision": True,
+        "scope": "simulation_only",
+        "must_not_execute": True,
+    }
+
+
+def test_owner_tui_pressure_unknown_values_are_visible_as_blocked_presentation_only(
+    public_order_context: tuple[_QualifiedCallerContext, list[str]],
+    _synthetic_pressure_dashboard_calendar: None,
+    live_server: Any,
+    subprocess_policy: None,
+    loopback_only_python_network: list[str],
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Show null Scenario values through the real DOM without claiming a business run.
+
+    The internal pressure response is an explicit renderer fixture. A valid active
+    Risk policy requires a money unit, so this test keeps the action blocked and
+    confirms that no ScenarioRunEvidence is written.
+    """
+
+    del _synthetic_pressure_dashboard_calendar
+    fixture_context, _order_market_calls = public_order_context
+    assert django_timezone.now() == AS_OF
+    account = fixture_context.account
+    account_id = cast(int, account.pk)
+    position = _persist_sell_position(account)
+    account.current_market_value = position.market_value
+    account.total_value = account.current_cash + position.market_value
+    account.save(
+        update_fields=[
+            "current_market_value",
+            "total_value",
+            "cash_known",
+            "cash_reconciliation_status",
+        ]
+    )
+    _install_synthetic_risk_service(
+        monkeypatch=monkeypatch,
+        account_id=account_id,
+        owner_id=fixture_context.owner_id,
+        asset_code=ASSET_CODE,
+        security_id=SECURITY_ID,
+    )
+    revision_id = _seeded_legacy_pressure_revision_id()
+    client, csrf_token = _owner_session_client(fixture_context.owner_id)
+    session_cookie = client.cookies[settings.SESSION_COOKIE_NAME].value
+    csrf_cookie = client.cookies[settings.CSRF_COOKIE_NAME].value
+    assert csrf_cookie == csrf_token
+    options_url = reverse(
+        "api_simulated_trading:portfolio-pressure-scenarios",
+        kwargs={"account_id": account_id},
+    )
+    pressure_url = reverse(
+        "api_simulated_trading:portfolio-pressure-run",
+        kwargs={"account_id": account_id},
+    )
+    options_response = client.get(options_url, secure=True, HTTP_ORIGIN="https://testserver")
+    assert options_response.status_code == 200, options_response.content
+    selected_option = next(
+        option for option in options_response.json()["options"] if option["value"] == revision_id
+    )
+    assert selected_option["label"] == "2015股灾 · v1"
+    scenario_label, version_separator, version_label = selected_option["label"].rpartition(" · v")
+    assert version_separator and version_label == "1"
+    report = _unknown_pressure_presentation_report(
+        account_id=account_id,
+        scenario_label=scenario_label,
+        revision_id=revision_id,
+    )
+    scenario_evidence_count_before = _scenario_run_evidence_count()
+    initial_state = _business_state(account, position)
+
+    internal_pressure_calls: list[dict[str, object]] = []
+    original_execute = TuiInternalActionExecutor.execute
+
+    def execute_presentation_fixture(
+        executor: TuiInternalActionExecutor,
+        *,
+        method: str,
+        endpoint: str,
+        params: dict[str, Any],
+        body: dict[str, Any],
+        user: Any,
+        session: Any | None = None,
+        idempotency_key: str | None = None,
+    ) -> dict[str, Any]:
+        """Replace only the confirmed pressure API response for this UI contract case."""
+
+        if method.upper() == "POST" and endpoint.rstrip("/").endswith(
+            "/portfolio-risk/pressure-run"
+        ):
+            assert endpoint.rstrip("/") == pressure_url.rstrip("/")
+            assert getattr(user, "pk", None) == fixture_context.owner_id
+            assert body.get("scenario_version_id") == revision_id
+            internal_pressure_calls.append(
+                {
+                    "account_id": account_id,
+                    "idempotency_key": idempotency_key or "",
+                    "method": method.upper(),
+                }
+            )
+            return {"status_code": 200, "payload": report}
+        return original_execute(
+            executor,
+            method=method,
+            endpoint=endpoint,
+            params=params,
+            body=body,
+            user=user,
+            session=session,
+            idempotency_key=idempotency_key,
+        )
+
+    monkeypatch.setattr(TuiInternalActionExecutor, "execute", execute_presentation_fixture)
+    screen_metadata_response = client.get("/api/tui/screens/execution.accounts/")
+    assert screen_metadata_response.status_code == 200, screen_metadata_response.content
+    screen_metadata = screen_metadata_response.json()
+    assert screen_metadata["screen"]["key"] == ACCOUNT_SCREEN
+    pressure_action_metadata = next(
+        action
+        for action in screen_metadata["actions"]
+        if action["key"] == "simulated-trading.portfolio-pressure-run"
+    )
+    pressure_ui_key = pressure_action_metadata["ui_key"]
+    page_errors: list[str] = []
+    nonlocal_browser_attempts: list[str] = []
+
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch(headless=True)
+        browser_context = browser.new_context(viewport={"width": 1440, "height": 1000})
+        browser_context.add_cookies(
+            [
+                {
+                    "name": settings.SESSION_COOKIE_NAME,
+                    "value": session_cookie,
+                    "url": live_server.url,
+                },
+                {
+                    "name": settings.CSRF_COOKIE_NAME,
+                    "value": csrf_cookie,
+                    "url": live_server.url,
+                },
+            ]
+        )
+
+        def local_only(route: Route) -> None:
+            """Keep the presentation journey on its same-origin test server."""
+
+            target = urlsplit(route.request.url)
+            expected = urlsplit(live_server.url)
+            if target.scheme not in {"http", "https"} or target.netloc != expected.netloc:
+                nonlocal_browser_attempts.append(route.request.url)
+                route.abort("blockedbyclient")
+                return
+            route.continue_()
+
+        browser_context.route("**/*", local_only)
+        page = browser_context.new_page()
+        page.on("pageerror", lambda error: page_errors.append(str(error)))
+        try:
+            page.goto(
+                f"{live_server.url}/tui/?screen={ACCOUNT_SCREEN}",
+                wait_until="networkidle",
+            )
+            account_panel = page.locator('[data-dashboard-panel="simulated-accounts"]')
+            expect(account_panel).to_be_visible()
+            account_row = account_panel.locator("tbody tr").filter(has_text=account.account_name)
+            expect(account_row).to_have_count(1)
+            account_row.locator('summary[aria-label="更多行操作"]').click()
+            pressure_action = account_row.locator(
+                "[data-dashboard-row-action]"
+                f'[aria-label="对 {account.account_name} 运行模拟退出压力核对"]'
+            )
+            expect(pressure_action).to_be_visible()
+            pressure_action.click()
+            form = page.locator(f'form[data-action-ui-key="{pressure_ui_key}"]:visible')
+            expect(form).to_be_visible()
+            scenario_field = form.locator('[name="scenario_version_id"]')
+            expect(scenario_field.locator(f'option[value="{revision_id}"]')).to_have_count(1)
+            scenario_field.select_option(revision_id)
+
+            with page.expect_response(
+                lambda response: urlsplit(response.url).path == PRESSURE_ACTION_PATH
+            ) as confirmation_response:
+                form.locator(".tui-action-submit").click()
+            confirmation_payload = confirmation_response.value.json()
+            assert confirmation_payload["confirmation_required"] is True
+            assert not internal_pressure_calls
+            assert _scenario_run_evidence_count() == scenario_evidence_count_before
+            page.locator("[data-confirm-action]").wait_for(state="visible")
+
+            with page.expect_response(
+                lambda response: urlsplit(response.url).path == PRESSURE_ACTION_PATH
+            ) as pressure_response:
+                page.locator("[data-confirm-action]").click()
+            pressure_http = pressure_response.value
+            assert pressure_http.status == 200
+            result_payload = pressure_http.json()
+            assert result_payload["confirmation_required"] is False
+            assert result_payload["response"]["status_code"] == 200
+            assert result_payload["outcome"] == "blocked"
+            view_model = result_payload["view_model"]
+            assert view_model["kind"] == "detail"
+            assert view_model["outcome"] == "unknown"
+            assert view_model["scope"] == "simulation_only"
+            assert view_model["must_not_execute"] is True
+            assert len(internal_pressure_calls) == 1
+            assert internal_pressure_calls[0]["method"] == "POST"
+            assert internal_pressure_calls[0]["account_id"] == account_id
+            assert internal_pressure_calls[0]["idempotency_key"]
+            assert _scenario_run_evidence_count() == scenario_evidence_count_before
+            assert _business_state(account, position) == initial_state
+
+            result_panel = page.locator('[data-dashboard-panel="simulated-account-workspace"]')
+            try:
+                expect(result_panel).to_contain_text("退出压力")
+            finally:
+                _capture_pressure_result_dom(
+                    page=page,
+                    panel_selector='[data-dashboard-panel="simulated-account-workspace"]',
+                    tmp_path=tmp_path,
+                    case_name="unknown-currency-presentation-only",
+                    response_payload=result_payload,
+                )
+            visible_check_card = result_panel.locator(".tui-copy-block-card").filter(
+                has_text="约束检查"
+            )
+            expect(visible_check_card).to_have_count(1)
+            expect(visible_check_card).to_be_visible()
+            visible_check_details = visible_check_card.locator("pre.tui-copy-block")
+            expect(visible_check_details).to_be_visible()
+            visible_check_text = visible_check_details.inner_text()
+            unknown_markers = (
+                f"情景名称：{scenario_label}",
+                "情景版本：1",
+                "影响范围：全组合净值（含现金）",
+                "情景初始组合净值：未知",
+                "情景最终组合净值：未知",
+                "组合金额单位：未知",
+                "情景组合回报比例：未知",
+                "回报计量单位：未知",
+                "是否为假设情景：是",
+                "是否为市场观察：否",
+            )
+            for marker in unknown_markers:
+                assert marker in visible_check_text
+            visible_boundary = result_panel.locator(".tui-detail-grid dd").filter(
+                has_text="不是交易许可"
+            )
+            expect(visible_boundary).to_be_visible()
+            assert "不会自动执行" in visible_boundary.inner_text()
+            assert revision_id not in page.locator("body").inner_text()
+        finally:
+            browser_context.close()
+            browser.close()
+
+    assert page_errors == []
+    assert nonlocal_browser_attempts == []
+    assert loopback_only_python_network == []
+    assert _scenario_run_evidence_count() == scenario_evidence_count_before
+    assert _business_state(account, position) == initial_state
 
 
 @pytest.fixture

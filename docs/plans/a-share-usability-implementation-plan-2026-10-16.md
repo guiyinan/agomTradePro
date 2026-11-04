@@ -2818,4 +2818,6 @@ Owner 随后明确授权“做几套、不硬编码、放系统数据库”。�
 
 **同业多持仓 Scenario 整事项已验收。** R85 八文件 Native 包 65 passed/0 skip，合成普通已批准账户实际 Session/CSRF、ORM 留证、TUI 投影和原样重放通过；含现金净值 120000 元在明确假设冲击下为 116000 元，账本不变，单位/未知与假设语义明确。实际 v1 revision/impact/assessment 的精确重放绑定及整体重哈希错绑拒绝已修齐。生产字节同 R83，增量/全量 mypy0 有界复用；适用投影生成/结构复用证明与中间失败保留在既有 ASH07 结论。来源提交 8369de409 六项 CI 全部通过。唯一 ASH07/Goal 继续 active：当前日普通 Owner/ETF 金融闭环尚待合格收盘原件和真实运行，当日国证空响应不能造映射；无新增 Owner 决定或实仓材料要求，REF/deferred 边界不变。
 
-**Scenario CI 误报收口候选。** 公开测试 profile 名被 generic-key 规则误报，已仅改夹具标识；R86 八文件 65 passed/0 skip，同版本 gitleaks 通过，生产/类型证据相同复用。失败与新候选分开留存；待新精确提交适用 CI 实际通过，ASH07/Goal 及当前日来源边界不变。
+**Scenario CI 误报收口候选。** 公开测试 profile 名被 generic-key 规则误报，已仅改夹具标识；R86 八文件 65 passed/0 skip，同版本 gitleaks 通过，生产/类型证据相同复用。失败与新候选分开留存；3ca166853 五项适用 CI 已实际全部通过，ASH07/Goal 及当前日来源边界不变。
+
+**三类退出与当前页面整事项。** R95 完整包 68 passed/0 skip：停牌、连续跌停、流动性下降的普通 Owner 实际留证/回放、已知金额真实任务 DOM 和明确呈现夹具的 unknown/blocked DOM 均通过，账本不变；内部 revision UUID 不进入用户字段，精确 JSON 绑定保留。UI R91 与其余 R83 生产字节的类型0证据有界复用，中间失败及截图见唯一 ASH07 验收索引，不拼跨候选绿灯。当天真实 Main/ETF 金融验收仍待合格收盘原件与真实运行，ASH07/Goal active，无 Owner 材料要求，不扩大 REF 或 deferred 范围。

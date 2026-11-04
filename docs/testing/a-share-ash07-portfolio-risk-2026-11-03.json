@@ -142,15 +142,16 @@
     "owner_decision": "Retain current fail-closed source expiry gate, or authorize a bounded simulation contract that separately records conservative proven-available time and policy-derived acceptance deadline while keeping vendor publication/expiry unknown. No contract, policy threshold or gate changed in this follow-up."
   },
   "latest_code_ci": {
-    "head": "8369de409e4797377b5de4e9cdefc7a0b3c01a1c",
+    "head": "3ca166853d64de50f2a38902b4262589341efe91",
     "all_applicable_success": true,
-    "applicable_workflows": 6,
+    "applicable_workflows": 5,
     "proof": {
-      "path": ".tmp/ash07-risk-20261104/integration/m1-real-source-capability-final-8369de409.json",
-      "sha256": "9eeb633b0c2bee9aa9072affb37f081ec445398551b6efd37dd5c95453c78dc3"
+      "path": ".tmp/ash07-risk-20261104/integration/sector-scenario-security-fix-final-3ca166853.json",
+      "sha256": "1b740d0785a4ab547823cc323d9d4e3f5d968d8107eb41c27599243c5b8f484f"
     },
     "excluded_by_verified_path_filters": [
-      "Quote Metric PostgreSQL: no changed path matches the workflow filters"
+      "Quote Metric PostgreSQL: test-fixture/doc-only changed paths do not match",
+      "Publication PostgreSQL: test-fixture/doc-only changed paths do not match"
     ]
   },
   "source_and_configuration_followup3": {
@@ -452,7 +453,7 @@
   },
   "sector_scenario_impact_delivery": {
     "date": "2026-11-04",
-    "status": "committed4d4182778; scoped CI false-positive remediation passed local gates, next commit pending",
+    "status": "committed4d4182778 plus fixture-only3ca166853; latest5applicableCI succeeded",
     "candidate_id": "7751bbe432c53b2b30ae8449f3bca68efa7ad03f56f6bda4b3cb210203097907",
     "passed": 65,
     "failed": 0,
@@ -482,7 +483,101 @@
       "gitleaks_version": "8.24.3",
       "gitleaks_exit_code": 0,
       "same_production_type0_reused": true,
-      "ci": "new exact commit pending"
+      "ci": "all5applicable actualSUCCESS",
+      "commit": "3ca166853d64de50f2a38902b4262589341efe91",
+      "ci_proof": {
+        "path": ".tmp/ash07-risk-20261104/integration/sector-scenario-security-fix-final-3ca166853.json",
+        "sha256": "1b740d0785a4ab547823cc323d9d4e3f5d968d8107eb41c27599243c5b8f484f"
+      }
     }
+  },
+  "exit_stress_owner_dom_delivery": {
+    "date": "2026-11-04",
+    "status": "development gates passed; commit and exact CI pending",
+    "candidate_id": "d0d041d8a551f18836fb784ea94e4172db553a6a027a3488fd6205e67a2289d9",
+    "passed": 68,
+    "failed": 0,
+    "skipped": 0,
+    "seconds": 93.31,
+    "index": {
+      "path": ".tmp/ash07-risk-20261104/integration/pressure-owner-closure/delivery-index.json",
+      "sha256": "e4c8dbb10b11115f4facdf91a50c79587b0588ced49dcbf2e9550e6801c19904"
+    },
+    "production_change": "Remove internal revision UUID label from user-facing fields; retain public JSON/evidence exact binding",
+    "incremental_mypy": 0,
+    "full_production_debt": 0,
+    "typing": "UI production exact R91; other3 production exact R83; no repeated full typing",
+    "scope": [
+      "Actual approved synthetic ordinary Owner Session/CSRF/API, existing Scenario/ORM/public report/TUI projection and exact replay for halt,consecutive limit-down,liquidity decline; account ledger unchanged",
+      "Current true browser task confirmation and actual persisted known-currency Scenario report/replay, visible units/NAV/hypothetical boundary and no revision UUID",
+      "Explicit presentation-only unknown money API-response fixture through real Session/CSRF/TUI generic renderer; blocked/unknown, no evidence or ledger writes"
+    ],
+    "limits": [
+      "Synthetic market/source/factor fixtures, not actual market observations or human login",
+      "Unknown money fixture is UI presentation contract only, not a successful business pressure run",
+      "Current-day Main ordinary SELL and ETF financial acceptance remain unpassed; ASH07 Goal active",
+      "No REF implementation, ASH08 continuation, production configuration, deployment or automatic trading"
+    ],
+    "prior_failures": [
+      {
+        "run": "r92-pressure-owner-closure",
+        "result": "Ruff B023 loop closure; before runtime",
+        "originals": [
+          {
+            "path": ".tmp/ash07-risk-20261104/runs/r92-pressure-owner-closure/candidate.json",
+            "sha256": "2e28120c2682f6bdbd27df7c326e7ccf01fa69290368d423084afcc220711cc7"
+          },
+          {
+            "path": ".tmp/ash07-risk-20261104/runs/r92-pressure-owner-closure/results.json",
+            "sha256": "30c6fc137e46b53b69b3725bc6d15f299375478bdc4b89d13e68318b63fe17cd"
+          }
+        ]
+      },
+      {
+        "run": "r93-pressure-owner-closure",
+        "result": "66passed/2DOMfailed: raw scenario name and incorrect section selector",
+        "originals": [
+          {
+            "path": ".tmp/ash07-risk-20261104/runs/r93-pressure-owner-closure/candidate.json",
+            "sha256": "95a70b0aad1e95e2f6c2685b876bde99cd5d428bbd48756468e366011c1af226"
+          },
+          {
+            "path": ".tmp/ash07-risk-20261104/runs/r93-pressure-owner-closure/results.json",
+            "sha256": "fca93367b32d9a4c5e940ee0ffd750b7fe125500884eb743a5b32fd36dfc9f68"
+          },
+          {
+            "path": ".tmp/ash07-risk-20261104/runs/r93-pressure-owner-closure/pytest.xml",
+            "sha256": "1c4b8ea0b329a0792b1db3ae65d8c98459e4e6e13a6369c38c342e686806832c"
+          },
+          {
+            "path": ".tmp/ash07-risk-20261104/runs/r93-pressure-owner-closure/pytest.log",
+            "sha256": "4dfbd3afb379d87cda30a5943369e63024eaf6642132ccc2aeb9e109a08bbb2b"
+          }
+        ]
+      },
+      {
+        "run": "r94-pressure-owner-closure",
+        "result": "67passed/1DOMfailed: diagnostic wait assumed report title in workspace",
+        "originals": [
+          {
+            "path": ".tmp/ash07-risk-20261104/runs/r94-pressure-owner-closure/candidate.json",
+            "sha256": "f6d8b7c65bf20a11dc16ea963b767959b1b0d15230eeef9c08eb357e94227d6b"
+          },
+          {
+            "path": ".tmp/ash07-risk-20261104/runs/r94-pressure-owner-closure/results.json",
+            "sha256": "721b2803714bff7442027b2e2a80d2a7a0132f1b0811281e0e289cd7ada74a98"
+          },
+          {
+            "path": ".tmp/ash07-risk-20261104/runs/r94-pressure-owner-closure/pytest.xml",
+            "sha256": "0967bde9dfd07bb64810921f101f08fda26e89ebb9d28c61bd1186bd7d382218"
+          },
+          {
+            "path": ".tmp/ash07-risk-20261104/runs/r94-pressure-owner-closure/pytest.log",
+            "sha256": "7246a009726369194aaf563c35044de3640b532a224bf8c7840cf74e923219a5"
+          }
+        ]
+      }
+    ],
+    "visual_review": "Both R95 screenshots opened and reviewed: known NAV/units and unknown/blocked/no-auto-execution text visible."
   }
 }

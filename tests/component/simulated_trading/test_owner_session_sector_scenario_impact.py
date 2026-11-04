@@ -582,7 +582,7 @@ def test_owner_session_shows_synchronized_sector_impact_and_replays_exact_eviden
     assert tui_projection is not None
     rendered = json.dumps(tui_projection, ensure_ascii=False)
     assert "情景名称：两家银行同步行业下跌（测试假设）" in rendered
-    assert f"情景修订编号：{revision_id}" in rendered
+    assert revision_id not in rendered
     assert "情景版本：1" in rendered
     assert f"情景最终组合净值：{impact['final_value']}" in rendered
     assert "影响范围：全组合净值（含现金）" in rendered

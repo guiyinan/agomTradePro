@@ -142,7 +142,7 @@ def test_projection_displays_scenario_nav_and_fraction_with_explicit_units() -> 
     assert isinstance(fields, list)
     rendered = "\n".join(str(item.get("value", "")) for item in fields if isinstance(item, dict))
     assert "情景名称：两家银行同步行业下跌（测试假设）" in rendered
-    assert "情景修订编号：scenario-revision-test-4" in rendered
+    assert "scenario-revision-test-4" not in rendered
     assert "情景版本：4" in rendered
     assert "情景初始组合净值：10000" in rendered
     assert "影响范围：全组合净值（含现金）" in rendered
