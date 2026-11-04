@@ -1,6 +1,6 @@
 {
-  "version": "2026-11-04.v307",
-  "updated_at": "2026-11-03",
+  "version": "2026-11-04.v308",
+  "updated_at": "2026-11-04",
   "execution_focus": {
     "unit_id": "ASH-07",
     "allowed_parallel_execution_modes": [
@@ -83,7 +83,7 @@
       "priority": "P0",
       "owner": "research+data_center+signal+portfolio+broker_execution",
       "status": "production_validation",
-      "next_gate": "Owner approved automated STRAT-01 dry-run and append-only canonical registration of the eight already approved definitions once genuine identity, current-head, scope, version and hash checks pass. Algorithm/permission configuration and default-off broker automation are permitted only within actual qualification and explicit in-system user opt-in; STRAT-03 remains deferred, not completed or automatically resumed. Approvals and retained history: docs/reviews/owner-scope-freeze-2026-10-18/approval-log.md and registry-application-base.json in the same directory. Convergence: prioritize REF-05 PIT feasibility and bounded Regime value evidence; REF-04 starts with typed R4/R5 replay/state-machine reuse. New algorithm/lifecycle structures follow demonstrated need; existing approved registrations/history continue, STRAT-03 remains deferred. See docs/plans/data-boundary-convergence-plan-2026-10-26.md.",
+      "next_gate": "Owner approved automated STRAT-01 dry-run and append-only canonical registration of the eight already approved definitions once genuine identity, current-head, scope, version and hash checks pass. Algorithm/permission configuration and default-off broker automation are permitted only within actual qualification and explicit in-system user opt-in; STRAT-03 remains deferred, not completed or automatically resumed. Approvals and retained history: docs/reviews/owner-scope-freeze-2026-10-18/approval-log.md and registry-application-base.json in the same directory. Convergence: prioritize REF-05 PIT feasibility and bounded Regime value evidence; REF-04 starts with typed R4/R5 replay/state-machine reuse. New algorithm/lifecycle structures follow demonstrated need; existing approved registrations/history continue, STRAT-03 remains deferred. See docs/plans/data-boundary-convergence-plan-2026-10-26.md. Owner requested review and development-plan registration on 2026-11-04: CAL-01 through CAL-05 add bounded institutional-calendar and ETF-activity research under docs/plans/institutional-calendar-etf-activity-research-plan-2026-11-04.md. CAL-01 is planned read-only feasibility; CAL-02 through CAL-05 wait for registered prerequisites and serialized repository handoff. Preserve ASH-07/ASH-08 priority, all existing unit states and execution_focus; no production activation, trading integration or STRAT-03 resumption.",
       "documents": [
         {
           "path": "docs/plans/strategy-research-capability-completion-audit-2026-08-05.md",
@@ -120,6 +120,10 @@
         {
           "path": "docs/plans/implementation-progress-summary.md",
           "role": "evidence"
+        },
+        {
+          "path": "docs/plans/institutional-calendar-etf-activity-research-plan-2026-11-04.md",
+          "role": "primary"
         }
       ]
     },
@@ -2040,6 +2044,72 @@
           "GOV-03"
         ],
         "exit_gate": "Use separate bounded commits to prove encrypted-key roundtrip, idempotent conversion, no secret logging and recovery before dropping plaintext fallback/column; reuse isolated no-skip PostgreSQL trigger/concurrency/ACL tests; verify disabled/missing binding, permission/revocation, stale input, direct entrypoint and reconnect denial across execution paths. TradingControl absence is not authority. Keep manual fact import and default-off automation; optional-app changes require migration/import/route compatibility. No production configuration state is inferred from code defaults. Implementation scope: docs/plans/data-boundary-convergence-plan-2026-10-26.md."
+      },
+      {
+        "id": "CAL-01",
+        "workstream_id": "strategy-research-production",
+        "wave": 3,
+        "priority": "P2",
+        "execution_mode": "governance",
+        "status": "planned",
+        "title": "Freeze institutional-calendar and ETF research data feasibility",
+        "depends_on": [],
+        "exit_gate": "M0 records each event/source type, permitted use, retained originals, historical coverage, time precision, calendar type, fallback feasibility and stable gaps. Separate market-availability reconstruction from system-known replay and fund equity holdings from ETF unitholders. Freeze daily return-square endpoints, six-category controls, label purge/embargo, sample and coverage thresholds before OOS inspection. Identify qualified M1 events and real ETF daily-core feasibility. Read-only preparation only; plan review is not completion and no production code or heavy QA is authorized by registration. Scope and acceptance: docs/plans/institutional-calendar-etf-activity-research-plan-2026-11-04.md."
+      },
+      {
+        "id": "CAL-02",
+        "workstream_id": "strategy-research-production",
+        "wave": 3,
+        "priority": "P2",
+        "execution_mode": "repository",
+        "status": "waiting_dependency",
+        "title": "Deliver PIT institutional calendar and minimal read-only TUI",
+        "depends_on": [
+          "CAL-01",
+          "ASH-07"
+        ],
+        "exit_gate": "M1 delivers six derived monthly windows and at least one source-qualified institutional event class using versioned rules, retained originals and the correct exchange/working/settlement calendars. Separate evidence grade from lifecycle and preserve exact revisions, cancellation and both knowledge-time modes without weakening existing snapshot reads. Ordinary users complete the real calendar TUI task; permissions, unknown/expired inputs, holiday/leap boundaries and future-version rejection pass. Unknown-only output is not MVP completion. ASH-07 is a scheduling prerequisite; preserve ASH-08 priority and obtain a serialized focus window, without making CAL a prerequisite of ASH-08. Scope and acceptance: docs/plans/institutional-calendar-etf-activity-research-plan-2026-11-04.md."
+      },
+      {
+        "id": "CAL-03",
+        "workstream_id": "strategy-research-production",
+        "wave": 3,
+        "priority": "P2",
+        "execution_mode": "repository",
+        "status": "waiting_dependency",
+        "title": "Deliver reproducible institutional-event volatility studies",
+        "depends_on": [
+          "CAL-02"
+        ],
+        "exit_gate": "M2 binds exact source/config/code manifests to existing Research experiment/trial/family contracts. Golden cases validate 1/3/5-day squared-log-return sums, six-category rather than nonexistent non-event controls, point-in-time matching, overlapping-label purge and unmatured-label rejection. At least one real qualified broad-index event study produces reproducible IS/OOS, overlap, sensitivity, correction and coverage results under frozen sample/support criteria. Insufficient-data behavior is tested but does not replace a completed study; nonsignificant valid results can pass. No signal promotion or strategy execution. Scope and acceptance: docs/plans/institutional-calendar-etf-activity-research-plan-2026-11-04.md."
+      },
+      {
+        "id": "CAL-04",
+        "workstream_id": "strategy-research-production",
+        "wave": 3,
+        "priority": "P2",
+        "execution_mode": "repository",
+        "status": "waiting_dependency",
+        "title": "Deliver source-bound daily ETF abnormal-activity observations",
+        "depends_on": [
+          "CAL-03"
+        ],
+        "exit_gate": "M3 delivers a real daily turnover/coverage path for at least one observation pool bound to official ETF unitholder disclosures and their availability times. Preserve complete denominators, past-only baselines, lagged weights, split/unit adjustments, membership history and single-ETF sensitivity. Intraday, trade-direction and share-change enhancements require qualified sources; missing inputs remain unknown and are listed as undelivered enhancements. Direction proxy is never actual net buying/redemption and historical holder disclosures never identify the daily actor. Evaluate turnover-only versus historical-volatility baseline, adding enhanced versus volume-only comparisons only with qualified inputs; source conflict, partial coverage and zero-denominator negatives pass. Scope and acceptance: docs/plans/institutional-calendar-etf-activity-research-plan-2026-11-04.md."
+      },
+      {
+        "id": "CAL-05",
+        "workstream_id": "strategy-research-production",
+        "wave": 3,
+        "priority": "P2",
+        "execution_mode": "repository",
+        "status": "waiting_dependency",
+        "title": "Complete calendar and ETF TUI tasks with collection monitoring",
+        "depends_on": [
+          "CAL-02",
+          "CAL-03",
+          "CAL-04"
+        ],
+        "exit_gate": "M4 reuses the M1 calendar screen and completes the ETF screen, with P0 source/quality/gap information, default actions and ordinary/read-only/unauthorized/empty/stale real-user journeys. Validate read/write privilege separation, idempotent collection, append-only revisions, retry/rate-limit/failure handling and expiry with isolated resources. Celery tasks validate parameters and publish business outcome plus requested/succeeded/failed/stored counts; monitoring consumes that outcome. Final evidence binds one candidate and real core positives, with optional data gaps explicit. No orders, ledger writes, production task activation or deployment is included. Scope and acceptance: docs/plans/institutional-calendar-etf-activity-research-plan-2026-11-04.md."
       }
     ]
   }

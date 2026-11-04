@@ -51,6 +51,7 @@
 | 主计划 | [策略研究真实数据与生产收口跟踪备忘录](strategy-research-production-data-closure-tracking-memo-2026-08-12.md) |
 | 主计划 | [R1/R2 策略研究能力启动门整改计划（2026-08-05）](strategy-research-r1-r2-readiness-plan-2026-08-05.md) |
 | 主计划 | [策略研究 R5—R8 启动门禁与分阶段实施计划（2026-08-05）](strategy-research-r5-r8-readiness-and-staged-delivery-2026-08-05.md) |
+| 主计划 | [CAL-01～05：制度日历、事件波动与宽基 ETF 异常活动研究计划（2026-11-04）](institutional-calendar-etf-activity-research-plan-2026-11-04.md) |
 | 证据 | [AgomTradePro + Qlib 松耦合深度集成 - 实施进度总结](implementation-progress-summary.md) |
 | 支撑 | [R6 简单基准不足证据与高级状态模型分阶段计划（2026-08-05）](r6-simple-baseline-shortfall-and-state-model-staged-delivery-2026-08-05.md) |
 | 支撑 | [情景治理与策略研究 Quick Wins 整改计划（2026-08-04）](scenario-governance-and-strategy-method-quick-wins-plan-2026-08-04.md) |
