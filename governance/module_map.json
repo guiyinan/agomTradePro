@@ -4866,6 +4866,12 @@
           "build_investor_account_import_warnings",
           "normalize_investor_account_import_value"
         ],
+        "application/m1_reference_price_batch_publication.py": [
+          "M1ReferencePriceBatchPublicationCommand",
+          "M1ReferencePriceBatchPublicationError",
+          "M1ReferencePriceBatchPublicationResult",
+          "M1ReferencePriceBatchPublicationUseCase"
+        ],
         "application/m1_reference_price_publication.py": [
           "M1PublicationAuditWriterFactory",
           "M1PublicationAuthorityCapture",
@@ -5626,9 +5632,9 @@
         ]
       },
       "layers": {
-        "application": 180,
+        "application": 181,
         "domain": 52,
-        "infrastructure": 235,
+        "infrastructure": 236,
         "interface": 32,
         "management": 42,
         "root": 41

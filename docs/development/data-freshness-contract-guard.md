@@ -604,6 +604,8 @@ M1 内部编排只接受一个 Tushare provider、一个规范 A 股代码和明
 
 组合入口默认 production；显式 development 必须读取并精确匹配 development 的运行绑定，不能借生产 selector 通过。原生产权限捕获 facade 仍固定 production，两个环境共享同一完整图校验，不新增权限版本。入口不接受客户端任意发布键、不执行订单或改写金融账本；开发组件里的合成 provider 和权限 port 不构成真实来源、账户或生产验收。
 
+2026-11-04 ASH-07 多证券参考价准备增加独立内部 batch 入口：调用方显式给出至少两个不重复的规范证券及同一交易日，逐证券精确采集后，将全部真实 RawAudit/run/ingested-run 绑定为一个候选，只作一次现有组激活 CAS。候选关联 ID 不冒充供应商同步身份；batch 审计按每个原始同步身份记录必需质量证据，与指针及 manifest/outbox 同事务提交。任一采集失败不封存局部批次，审计或 CAS 失败不产生局部 current；已提交原件和事实仍保留。原单证券入口及其严格单成员 writer 不变。此能力不补造源时钟、不改 freshness、环境权限或市场 current 三件套，不执行订单；合成 Native 组件证明不等于真实来源整单验收。
+
 ### 2026-10-28 Missing ROE confidence adjustment
 
 统一推荐继续使用最新已发布财务期的 ROE；缺失、无效或非有限值不能挪用旧期补齐，合法零值和负值仍参与原评分。发布门禁通过后，ROE 不可用沿用中性基本面分数，并在 `feature_freshness.fundamental.missing_inputs` 保存原因、期末日和真实财务来源观察时间；未知时间仍为空，不借估值或计算时间补造。原发布硬阻断优先。

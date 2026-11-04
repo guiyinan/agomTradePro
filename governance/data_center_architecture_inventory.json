@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 6562,
+    "current_surface_references": 6565,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -9487,6 +9487,10 @@
       "text": "skipped_payload = latest.to_dict()"
     },
     {
+      "path": "apps/data_center/application/m1_reference_price_batch_publication.py",
+      "text": "\"current Audit authority is unavailable for M1 reference publication\""
+    },
+    {
       "path": "apps/data_center/application/m1_reference_price_publication.py",
       "text": "\"\"\"Read the exact current pointer pair before staging and activation.\"\"\""
     },
@@ -13328,7 +13332,15 @@
     },
     {
       "path": "apps/data_center/m1_reference_price_publication_composition.py",
+      "text": "\"\"\"Require current provider-issued Audit authority before exact sync writes.\"\"\""
+    },
+    {
+      "path": "apps/data_center/m1_reference_price_publication_composition.py",
       "text": "\"\"\"Require provider-issued current Audit authority before exact sync writes.\"\"\""
+    },
+    {
+      "path": "apps/data_center/m1_reference_price_publication_composition.py",
+      "text": "\"current Audit authority is unavailable for M1 reference publication\","
     },
     {
       "path": "apps/data_center/m1_reference_price_publication_composition.py",

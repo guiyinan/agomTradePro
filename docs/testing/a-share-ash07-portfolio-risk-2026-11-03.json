@@ -376,5 +376,28 @@
     "native_result": "2 passed, 0 skipped /48.35s",
     "scope": "Actual isolated-test-DB governed calendar helper and historical harness rejection only. Full same-day financial/plan/ordinary/Scenario and ETF partial cases remain unpassed.",
     "failure_preserved": "R57 mismatched two independent request digest meanings; all15failed candidate inputs archived; no source/clock weakening."
+  },
+  "m1_batch_reference_delivery": {
+    "date": "2026-11-04",
+    "candidate_id": "eee6fcdd5310ee996abf494de7ba07a228be7a740825ee62cd6e6a1475c15848",
+    "status": "development_passed",
+    "index": {
+      "path": ".tmp/ash07-risk-20261104/integration/m1-batch-reference-delivery-index.json",
+      "sha256": "2ea64dd219102a17bd717b3b4c633857c5b125dfebc613a83196469e121a157d"
+    },
+    "passed": 37,
+    "failed": 0,
+    "skipped": 0,
+    "final_changed_production_incremental_mypy": 0,
+    "full_production_mypy_debt": 0,
+    "scope": "Explicit finite >=2 same-session exact Tushare syncs, one candidate and one CAS; distinct strict single factory/writer preserved.",
+    "limits": [
+      "Actual provider/Account authority source qualification",
+      "Current-day complete Owner plan/reserve/fill/Scenario",
+      "Actual ETF financial partial case",
+      "Full ASH07 completion",
+      "Production/release/live trading qualification"
+    ],
+    "source_and_full_goal_status": "pending; no Owner material currently required"
   }
 }

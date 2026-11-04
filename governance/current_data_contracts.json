@@ -6521,7 +6521,9 @@
         "apps/data_center/infrastructure/m1_reference_price_publication_audit.py",
         "apps/data_center/m1_reference_price_publication_composition.py",
         "apps/data_center/application/publication_activation.py",
-        "core/integration/production_account_authority_capture.py"
+        "core/integration/production_account_authority_capture.py",
+        "apps/data_center/application/m1_reference_price_batch_publication.py",
+        "apps/data_center/infrastructure/m1_reference_price_batch_publication_audit.py"
       ],
       "required_markers": {
         "apps/data_center/application/current_fact_remediation.py": [
@@ -7348,7 +7350,8 @@
           "build_m1_reference_price_publication_use_case",
           "publish_current=False",
           "capture_account_authority_for_environment",
-          "environment=environment"
+          "environment=environment",
+          "def build_m1_reference_price_batch_publication_use_case("
         ],
         "apps/data_center/application/publication_activation.py": [
           "m1_reference_price_shape",
@@ -7359,6 +7362,18 @@
           "def capture_account_authority_for_environment(",
           "_require_capture_environment",
           "binding.environment != environment"
+        ],
+        "apps/data_center/application/m1_reference_price_batch_publication.py": [
+          "class M1ReferencePriceBatchPublicationCommand",
+          "def _validate_batch_syncs(",
+          "def _validate_staged_candidate(",
+          "expected_current_publication_id=pointer_snapshot.publication_id",
+          "raw_audit_count != len(expected_references)"
+        ],
+        "apps/data_center/infrastructure/m1_reference_price_batch_publication_audit.py": [
+          "class M1ReferencePriceBatchPublicationAuditWriter",
+          "publication.member_count",
+          "manifest.raw_audits"
         ]
       },
       "required_tests": [
@@ -8631,6 +8646,26 @@
           "case": "m1_reference_production_authority_not_substituted",
           "test_file": "tests/unit/core/test_production_account_authority_capture.py",
           "test_function": "test_production_facade_does_not_accept_development_authority_binding"
+        },
+        {
+          "case": "m1_batch_one_activation_and_all_members_read",
+          "test_file": "tests/component/data_center/test_m1_reference_price_batch_publication_activation.py",
+          "test_function": "test_two_exact_m1_members_activate_once_and_both_read_from_postgres"
+        },
+        {
+          "case": "m1_batch_required_quality_atomic_rollback",
+          "test_file": "tests/component/data_center/test_m1_reference_price_batch_publication_activation.py",
+          "test_function": "test_batch_quality_audit_failure_rolls_back_candidate_pointer_and_event"
+        },
+        {
+          "case": "m1_batch_second_capture_failure_no_partial_current",
+          "test_file": "tests/component/data_center/test_m1_reference_price_batch_publication_activation.py",
+          "test_function": "test_second_exact_raw_failure_never_stages_or_activates_a_partial_batch"
+        },
+        {
+          "case": "m1_batch_stale_cas_preserves_winner",
+          "test_file": "tests/component/data_center/test_m1_reference_price_batch_publication_activation.py",
+          "test_function": "test_batch_compare_and_swap_keeps_concurrent_single_publication_current"
         }
       ]
     },
