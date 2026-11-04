@@ -41,8 +41,8 @@ UNCHECKED_ITEM_PATTERN = re.compile(r"^\s*[-*]\s+\[ \]", re.MULTILINE)
 M1_SCOPE_REF = (
     "docs/plans/a-share-usability-implementation-plan-2026-10-16.md" "#1996-m1-first-delivery"
 )
-ASH03_HANDOFF_REF = "docs/plans/a-share-usability-implementation-plan-2026-10-16.md#19.156"
-ASH03_HANDOFF_PLAN_PATH, ASH03_HANDOFF_SECTION = ASH03_HANDOFF_REF.split("#", maxsplit=1)
+HANDOFF_PLAN_PATH = "docs/plans/a-share-usability-implementation-plan-2026-10-16.md"
+AUTHORIZED_HANDOFF_SECTIONS = {"ASH-03": "19.156", "ASH-07": "19.157"}
 M1_REQUIRED_CHECKS = {
     "account_authorization",
     "qualified_current_source",
@@ -134,18 +134,16 @@ def _dependency_cycle(unit_dependencies: dict[str, tuple[str, ...]]) -> bool:
     return False
 
 
-def _has_ash03_handoff_reference(repository_root: Path, value: object) -> bool:
-    """Validate the one existing Owner-authorized ASH-03 handoff citation."""
-
-    if value != ASH03_HANDOFF_REF:
+def _has_handoff_reference(root: Path, unit_id: object, value: object) -> bool:
+    """Validate a citation for one of the two explicitly authorized unit handoffs."""
+    section = AUTHORIZED_HANDOFF_SECTIONS.get(unit_id) if isinstance(unit_id, str) else None
+    if section is None or value != f"{HANDOFF_PLAN_PATH}#{section}":
         return False
-    plan_path = repository_root / ASH03_HANDOFF_PLAN_PATH
     try:
-        plan_text = plan_path.read_text(encoding="utf-8")
+        text = (root / HANDOFF_PLAN_PATH).read_text(encoding="utf-8")
+        return any(line.startswith(f"### {section} ") for line in text.splitlines())
     except (OSError, UnicodeError):
         return False
-    section_prefix = f"### {ASH03_HANDOFF_SECTION} "
-    return any(line.startswith(section_prefix) for line in plan_text.splitlines())
 
 
 def _parallel_preparation_violations(
@@ -1105,7 +1103,7 @@ def evaluate_registry(
                 )
             completed_unit_id = handoff_pending.get("completed_unit_id")
             anchor_valid = (
-                completed_unit_id == "ASH-03"
+                completed_unit_id in tuple(AUTHORIZED_HANDOFF_SECTIONS)
                 and completed_unit_id in known_unit_ids
                 and unit_execution_modes.get(cast(str, completed_unit_id)) == "repository"
                 and unit_statuses.get(cast(str, completed_unit_id)) == "completed"
@@ -1115,18 +1113,18 @@ def evaluate_registry(
                     Violation(
                         "execution_focus_handoff_pending_anchor",
                         "execution_focus.handoff_pending.completed_unit_id",
-                        "handoff anchor must be the completed repository unit ASH-03",
+                        "handoff anchor must be an explicitly authorized completed repository unit",
                     )
                 )
-            reference_valid = _has_ash03_handoff_reference(
-                repository_root, handoff_pending.get("owner_decision_ref")
+            reference_valid = _has_handoff_reference(
+                repository_root, completed_unit_id, handoff_pending.get("owner_decision_ref")
             )
             if not reference_valid:
                 violations.append(
                     Violation(
                         "execution_focus_handoff_pending_reference",
                         "execution_focus.handoff_pending.owner_decision_ref",
-                        "owner decision must reference the existing ASH-03 section 19.156",
+                        "owner decision must match the section authorized for this completed unit",
                     )
                 )
             handoff_pending_valid = fields_valid and anchor_valid and reference_valid

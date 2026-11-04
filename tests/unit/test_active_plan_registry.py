@@ -160,6 +160,66 @@ def _prepare_ash03_handoff_fixture(root: Path, registry_path: Path) -> None:
     registry_path.write_text(json.dumps(payload), encoding="utf-8")
 
 
+def _prepare_ash07_handoff_fixture(root: Path, registry_path: Path) -> None:
+    """Add the authorized ASH-07 closure while leaving all successors unstarted."""
+
+    relative_plan_path = "docs/plans/a-share-usability-implementation-plan-2026-10-16.md"
+    plan_path = root / relative_plan_path
+    plan_path.write_text(
+        "# A-share plan\n\n### 19.157 ASH-07 simulated portfolio risk Goal\n",
+        encoding="utf-8",
+    )
+    payload = json.loads(registry_path.read_text(encoding="utf-8"))
+    payload["workstreams"][0]["documents"].append(
+        {"path": relative_plan_path, "role": "supporting"}
+    )
+    payload["execution_focus"]["unit_id"] = None
+    payload["execution_focus"]["handoff_pending"] = {
+        "completed_unit_id": "ASH-07",
+        "owner_decision_ref": f"{relative_plan_path}#19.157",
+        "reason": "Wait for the Owner's next formal focus decision.",
+    }
+    payload["closure_backlog"]["units"][1]["status"] = "completed"
+    payload["closure_backlog"]["units"].extend(
+        [
+            {
+                "id": "ASH-03",
+                "workstream_id": "example",
+                "wave": 1,
+                "priority": "P0",
+                "execution_mode": "repository",
+                "status": "completed",
+                "title": "Close the prerequisite unit",
+                "depends_on": [],
+                "exit_gate": "The registered prerequisite exit gate is complete.",
+            },
+            {
+                "id": "ASH-07",
+                "workstream_id": "example",
+                "wave": 1,
+                "priority": "P0",
+                "execution_mode": "repository",
+                "status": "completed",
+                "title": "Close the authorized ASH-07 unit",
+                "depends_on": ["ASH-03"],
+                "exit_gate": "The registered ASH-07 exit gate is complete.",
+            },
+            {
+                "id": "ASH-08",
+                "workstream_id": "example",
+                "wave": 1,
+                "priority": "P1",
+                "execution_mode": "repository",
+                "status": "planned",
+                "title": "Keep the next unit planned pending Owner handoff",
+                "depends_on": ["ASH-07"],
+                "exit_gate": "A separate Owner handoff authorizes this unit.",
+            },
+        ]
+    )
+    registry_path.write_text(json.dumps(payload), encoding="utf-8")
+
+
 def test_repository_active_plan_registry_is_closed_world() -> None:
     """Verify registry coverage without copying changing inventory counts."""
     module = _load_module()
@@ -347,6 +407,79 @@ def test_registry_accepts_explicit_ash03_handoff_pending_without_starting_succes
     assert payload["execution_focus"]["unit_id"] is None
     assert units["ASH-03"]["status"] == "completed"
     assert units["ASH-07"]["status"] == "planned"
+
+
+def test_registry_accepts_explicit_ash07_closure_handoff_without_starting_successor(
+    tmp_path: Path,
+) -> None:
+    module = _load_module()
+    registry_path, index_path = _write_fixture_repository(tmp_path)
+    _prepare_ash07_handoff_fixture(tmp_path, registry_path)
+
+    report = module.evaluate_registry(tmp_path, registry_path, index_path)
+
+    payload = json.loads(registry_path.read_text(encoding="utf-8"))
+    units = {unit["id"]: unit for unit in payload["closure_backlog"]["units"]}
+    assert report.violation_count == 0, report.violations
+    assert payload["execution_focus"]["unit_id"] is None
+    assert units["ASH-07"]["status"] == "completed"
+    assert units["ASH-08"]["status"] == "planned"
+
+
+@pytest.mark.parametrize("anchor", ["", "MISSING-99", "EXAMPLE-01", "ASH-08"])
+def test_registry_rejects_ash07_handoff_with_another_anchor(tmp_path: Path, anchor: str) -> None:
+    module = _load_module()
+    registry_path, index_path = _write_fixture_repository(tmp_path)
+    _prepare_ash07_handoff_fixture(tmp_path, registry_path)
+    payload = json.loads(registry_path.read_text(encoding="utf-8"))
+    payload["execution_focus"]["handoff_pending"]["completed_unit_id"] = anchor
+    registry_path.write_text(json.dumps(payload), encoding="utf-8")
+
+    report = module.evaluate_registry(tmp_path, registry_path, index_path)
+
+    codes = {violation.code for violation in report.violations}
+    assert "execution_focus_handoff_pending_anchor" in codes
+    assert "execution_focus_missing_eligible_unit" in codes
+
+
+@pytest.mark.parametrize(
+    "reference",
+    [
+        "",
+        "docs/plans/a-share-usability-implementation-plan-2026-10-16.md#19.156",
+        "docs/plans/a-share-usability-implementation-plan-2026-10-16.md#19.158",
+        "docs/plans/other.md#19.157",
+    ],
+)
+def test_registry_rejects_ash07_handoff_with_another_reference(
+    tmp_path: Path, reference: str
+) -> None:
+    module = _load_module()
+    registry_path, index_path = _write_fixture_repository(tmp_path)
+    _prepare_ash07_handoff_fixture(tmp_path, registry_path)
+    payload = json.loads(registry_path.read_text(encoding="utf-8"))
+    payload["execution_focus"]["handoff_pending"]["owner_decision_ref"] = reference
+    registry_path.write_text(json.dumps(payload), encoding="utf-8")
+
+    report = module.evaluate_registry(tmp_path, registry_path, index_path)
+
+    codes = {violation.code for violation in report.violations}
+    assert "execution_focus_handoff_pending_reference" in codes
+    assert "execution_focus_missing_eligible_unit" in codes
+
+
+def test_registry_does_not_hide_ash07_successor_without_handoff_marker(tmp_path: Path) -> None:
+    module = _load_module()
+    registry_path, index_path = _write_fixture_repository(tmp_path)
+    _prepare_ash07_handoff_fixture(tmp_path, registry_path)
+    payload = json.loads(registry_path.read_text(encoding="utf-8"))
+    del payload["execution_focus"]["handoff_pending"]
+    registry_path.write_text(json.dumps(payload), encoding="utf-8")
+
+    report = module.evaluate_registry(tmp_path, registry_path, index_path)
+
+    codes = {violation.code for violation in report.violations}
+    assert "execution_focus_missing_eligible_unit" in codes
 
 
 @pytest.mark.parametrize("anchor", ["", "MISSING-99", "ASH-07", "GOV-01", "EXAMPLE-01"])

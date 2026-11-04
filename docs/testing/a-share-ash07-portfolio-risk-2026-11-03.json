@@ -1,71 +1,132 @@
 {
   "schema": "ash07.development-delivery.v1",
-  "date": "2026-11-03",
-  "business_commit": "38bd6a21b6de4a712f482a962c9729bd9fd11d28",
-  "code_candidate_id": "163fd94dcf2d2bfa7d2ba6212c7fc07f305d44b84da3499c1e271280e6b1118c",
+  "date": "2026-11-04",
+  "business_commit": "a541233a7bc3f58a340fbfb56a7512159ad0edc6",
+  "code_candidate_id": "ae323a0ff786981584563fc06ee044973598cbc19920d58c8ef8ff1ea0e27f2f",
   "goal_status": "active",
   "unit_status": "active",
   "local_evidence_index": {
-    "path": ".tmp/ash07-risk-20261103/integration/typing-boundary-validation-index.json",
-    "sha256": "4f712ebc7b2ed964d71c4eb6ec93c011a8cf6402a30c91bb59cd3909f305aa99"
+    "path": ".tmp/ash07-risk-20261104/integration/owner-financial-current/delivery-index.json",
+    "sha256": "8eeba3acab255ef0284c709b02093572907b69b899f1f5891533c10dccf7ee27"
   },
   "validation": {
-    "native_core_pressure": {
-      "run": "r25-ci-functional",
-      "passed": 163,
+    "current_runtime": {
+      "code_candidate_id": "ae323a0ff786981584563fc06ee044973598cbc19920d58c8ef8ff1ea0e27f2f",
+      "runtime_candidate_id": "0e7ad6fce77491613ebc57832af926bec41bb8dcb6bba0b6fe56364b01c19f5e",
+      "passed": 269,
       "failed": 0,
-      "reuse": "production unchanged after R24; later changed fixture callers revalidated below"
+      "skipped": 0,
+      "exact_modules": 18,
+      "original_financial8_all_same_run": [
+        [
+          "tests.component.simulated_trading.test_owner_real_public_risk_date_gate",
+          "test_retained_november_03_candidate_hits_harness_date_gate_only"
+        ],
+        [
+          "tests.component.simulated_trading.test_owner_real_public_risk_sources",
+          "test_owner_tui_current_public_risk_sources_and_scenario_replay"
+        ],
+        [
+          "tests.component.simulated_trading.test_owner_tui_real_etf_partial_risk",
+          "test_owner_get_real_q3_etf_partial_source_report"
+        ],
+        [
+          "tests.unit.risk_center.test_ash07_etf_partial_source_contract",
+          "test_declared_mapping_rejects_source_and_policy_unit_mislabeling"
+        ],
+        [
+          "tests.unit.risk_center.test_ash07_etf_partial_source_contract",
+          "test_historical_etf_admission_rejects_tampered_partial_coverage"
+        ],
+        [
+          "tests.unit.risk_center.test_ash07_etf_partial_source_contract",
+          "test_historical_etf_admission_rejects_tampered_pdf_body_hash"
+        ],
+        [
+          "tests.unit.risk_center.test_ash07_etf_partial_source_contract",
+          "test_historical_etf_request_preserves_distinct_source_and_consumer_purposes"
+        ],
+        [
+          "tests.unit.risk_center.test_ash07_etf_partial_source_contract",
+          "test_q3_facts_reject_self_consistent_weight_rewrite"
+        ]
+      ],
+      "native_concurrency_cases": [
+        "test_native_postgres_serializes_risk_qualified_reservations_and_counts_first_hold",
+        "test_native_postgres_rolls_back_risk_audit_when_locked_source_expires"
+      ],
+      "junit": {
+        "path": ".tmp/ash07-risk-20261104/runs/r125-configured-auto-risk-complete/pytest.xml",
+        "sha256": "1a42c64160cd32516d2cc2866e883f1688f2ceb65a2a93e66007946c23b9d522"
+      },
+      "runner": {
+        "path": ".tmp/ash07-risk-20261104/runs/r125-configured-auto-risk-complete/runner.py",
+        "sha256": "55b1cee1752167e85b1bbb9c17890f062a37dc328cb771072da6cb2f5e7bfb91"
+      },
+      "runtime_sources": {
+        "path": ".tmp/ash07-risk-20261104/runs/r125-configured-auto-risk-complete/runtime-source-index.json",
+        "sha256": "07485f920488d88de983abab6d368b964ab056a924fa1f5640bcbaae2057fa90"
+      },
+      "note": "R125 driver exited1 only at old89.01 coverage after ALL269passed and zero-client Native stop. No runtime case is combined with another candidate."
     },
-    "sqlite_observed_compatibility": {
-      "run": "r28-sqlite-final",
-      "passed": 11,
+    "complete_domain": {
+      "complete_module_passed": 23,
+      "line_percent": 93.04029304029304,
+      "line_and_branch_percent": 90.37974683544304,
+      "proof": {
+        "path": ".tmp/ash07-risk-20261104/runs/r126-complete-domain-boundaries/summary.json",
+        "sha256": "64e5a97fed52c752ac14254869719a31a134c56e84de884388d772199cb679fa"
+      },
+      "junit": {
+        "path": ".tmp/ash07-risk-20261104/runs/r126-complete-domain-boundaries/pytest.xml",
+        "sha256": "e1f86d204cda9bb8e6114ddf1b01289e61558e98b17ff98a98588de5e9725f65"
+      },
+      "coverage": {
+        "path": ".tmp/ash07-risk-20261104/runs/r126-complete-domain-boundaries/coverage.json",
+        "sha256": "20bab9f1dc9226047cb0fdc3138f7c1b982d9008b0e5102c5a10c6b5d57c3b0a"
+      },
+      "reuse": "All8production files unchanged; original R125 test AST prefix identical; only6new pure tests appended. This complete standalone Domain gate supersedes insufficient R125 coverage; no coverage-data combination."
+    },
+    "api_mcp_unchanged_complete_gate": {
+      "passed": 147,
       "failed": 0,
-      "schema": "same owned schema, exact guard-approved temp/PID path; no guard relaxation"
+      "skipped": 0,
+      "proof": {
+        "path": ".tmp/ash07-risk-20261104/integration/owner-financial-current/api-sync-unchanged-gate-reuse.json",
+        "sha256": "d3f80d244b4f76904ba3976126033c6c611f94c78835b53b43412bec5f89c732"
+      }
     },
-    "native_owner_and_models": {
-      "run": "r29-native-final",
-      "passed": 5,
-      "failed": 0,
-      "scope": "complete ordinary-owner TUI/session/CSRF/API/Scenario ORM/original replay plus model constraints; explicit synthetic source ports"
+    "typing": {
+      "business7": {
+        "path": ".tmp/ash07-risk-20261104/runs/r120-locked-calendar-financial-closure/static-summary.json",
+        "sha256": "6d62bc9b075f79871da983f9bcca33b4a2551eb37adf4a03a6a183e3e8b42f66"
+      },
+      "standalone_registry_checker": {
+        "path": ".tmp/ash07-risk-20261104/runs/r121-live-fill-complete-owner-closure/governance-static-summary.json",
+        "sha256": "399b949b9a15d1bc9701bcc6c592a1965b3d5ee415867466a0462e39e9a1d146"
+      },
+      "exact_reuse": {
+        "path": ".tmp/ash07-risk-20261104/runs/r121-live-fill-complete-owner-closure/static-reuse.json",
+        "sha256": "c1a38457596523851c46c6bfb7718afbaf79c584bcded0d97fffdfae4b637f03"
+      }
     },
-    "frontend": {
-      "run": "r26-ci-compat",
-      "passed": 213,
-      "failed": 0,
-      "scope": "includes deterministic invalid-selection immediate correction and stale catalogue protection"
+    "module_map": {
+      "path": ".tmp/ash07-risk-20261104/runs/r120-locked-calendar-financial-closure/module-map-check.log",
+      "sha256": "a44fd8bcf800d5a5638a80f7a60406ec156714109047354781b76e3f27f6e9fd"
     },
-    "static": {
-      "run": "r24-ci-fix",
-      "incremental_files": 5,
-      "mypy_regressions": 0,
-      "full_mypy_debt": 0,
-      "app_edges": 206,
-      "steps_passed": 8,
-      "current_data_surfaces": 104,
-      "reuse": "all five production file SHA unchanged; later changes are UI and tests"
+    "api_schema": {
+      "path": ".tmp/ash07-risk-20261104/api-schema-sync-postgres/semantic-check.json",
+      "sha256": "2ddff1de6d24a3fe4e9b894e0e918af07b9b532c89679dd1a007ce212a098976"
     }
   },
-  "genuine_missing_materials": [
-    {
-      "id": "current-day-full-public-source-positive",
-      "status": "not_yet_passed",
-      "owner_input_required": false,
-      "detail": "November03 originals expired for November04 same-day use; acquire qualified current sources and run actual full finite close simulation without backdating."
-    },
-    {
-      "id": "etf-disclosure-clock-and-conservative-coverage",
-      "status": "financial_qualification_pending",
-      "owner_input_required": false,
-      "detail": "Explicit disclosed-report clock and independent report-period age are delivered. Q3 remains44.56% partial with55.44% unknown; existing financial residual/coverage gates remain. Actual complete current risk journey not yet passed."
-    }
-  ],
+  "genuine_missing_materials": [],
   "etf_scope": "510050 Q3 top10 covers44.56% NAV; H1 named74 covers94.78% NAV at2026-06-30. Preserve date/partial residual upper bounds; full Q3 holdings not a blanket additional prerequisite.",
   "ref_scope": "REF01/05 read-only; REF02/03 require REF01 exit and formal handoff, REF04 requires REF03, REF06 only confirmed narrow security defect plus handoff; no implementation this delivery",
   "ci": "Observe pushed HEAD independently; raw receipt .tmp/ash07-risk-20261103/integration/delivery-ci-observed.json",
   "unverified": [
-    "real-source positive whole-unit exit",
-    "full same-SHA RC/S6/release/production readiness",
-    "live brokerage/automatic orders/ASH08 execution continuation"
+    "Exact pushed integration-head CI pending; full local financial/runtime gates passed",
+    "same-SHA RC/S6/release/production qualification outside this delivery",
+    "live brokerage/automatic orders/ASH08 full-plan execution continuation outside approved scope"
   ],
   "ci_fix_commit": "850e4b5f90ecd51ac83d5e5419a50b59d21904bf",
   "prior_development_index": {
@@ -142,17 +203,17 @@
     "owner_decision": "Retain current fail-closed source expiry gate, or authorize a bounded simulation contract that separately records conservative proven-available time and policy-derived acceptance deadline while keeping vendor publication/expiry unknown. No contract, policy threshold or gate changed in this follow-up."
   },
   "latest_code_ci": {
-    "head": "3ca166853d64de50f2a38902b4262589341efe91",
-    "all_applicable_success": true,
-    "applicable_workflows": 5,
-    "proof": {
-      "path": ".tmp/ash07-risk-20261104/integration/sector-scenario-security-fix-final-3ca166853.json",
-      "sha256": "1b740d0785a4ab547823cc323d9d4e3f5d968d8107eb41c27599243c5b8f484f"
-    },
-    "excluded_by_verified_path_filters": [
-      "Quote Metric PostgreSQL: test-fixture/doc-only changed paths do not match",
-      "Publication PostgreSQL: test-fixture/doc-only changed paths do not match"
-    ]
+    "head": null,
+    "required_workflows": [
+      "CI Fast Feedback",
+      "Architecture Layer Guard",
+      "Consistency Check",
+      "Security Scan",
+      "Engineering progress dashboard",
+      "Publication PostgreSQL contracts"
+    ],
+    "all_applicable_success": false,
+    "status": "pending exact pushed integration head; GitHub operational, old2614 zerojobs notgreen"
   },
   "source_and_configuration_followup3": {
     "index": {
@@ -190,9 +251,17 @@
     "full_combined_projection_failed_then_scoped_repair_recorded": true
   },
   "prior_code_ci": {
-    "status": "observe_pushed_HEAD_independently",
-    "head_receipt": ".tmp/ash07-risk-20261103/integration/delivery-head.json",
-    "artifact": ".tmp/ash07-risk-20261103/integration/delivery-ci-observed.json"
+    "head": "3ca166853d64de50f2a38902b4262589341efe91",
+    "all_applicable_success": true,
+    "applicable_workflows": 5,
+    "proof": {
+      "path": ".tmp/ash07-risk-20261104/integration/sector-scenario-security-fix-final-3ca166853.json",
+      "sha256": "1b740d0785a4ab547823cc323d9d4e3f5d968d8107eb41c27599243c5b8f484f"
+    },
+    "excluded_by_verified_path_filters": [
+      "Quote Metric PostgreSQL: test-fixture/doc-only changed paths do not match",
+      "Publication PostgreSQL: test-fixture/doc-only changed paths do not match"
+    ]
   },
   "source_clock_purpose_delivery": {
     "index": {
@@ -645,5 +714,445 @@
     },
     "source_code_manifest": ".tmp/ash07-risk-20261104/integration/closure-audit/owner-financial-source-code.json",
     "remaining": "Qualifiedsame-dayindustryoriginal thenfreshSinaandactualcompletecurrentMain/ETFfinancial8case; noGoal/unitclosure/release/production/liveorders/REFhandoff"
+  },
+  "prior_development_validation": {
+    "native_core_pressure": {
+      "run": "r25-ci-functional",
+      "passed": 163,
+      "failed": 0,
+      "reuse": "production unchanged after R24; later changed fixture callers revalidated below"
+    },
+    "sqlite_observed_compatibility": {
+      "run": "r28-sqlite-final",
+      "passed": 11,
+      "failed": 0,
+      "schema": "same owned schema, exact guard-approved temp/PID path; no guard relaxation"
+    },
+    "native_owner_and_models": {
+      "run": "r29-native-final",
+      "passed": 5,
+      "failed": 0,
+      "scope": "complete ordinary-owner TUI/session/CSRF/API/Scenario ORM/original replay plus model constraints; explicit synthetic source ports"
+    },
+    "frontend": {
+      "run": "r26-ci-compat",
+      "passed": 213,
+      "failed": 0,
+      "scope": "includes deterministic invalid-selection immediate correction and stale catalogue protection"
+    },
+    "static": {
+      "run": "r24-ci-fix",
+      "incremental_files": 5,
+      "mypy_regressions": 0,
+      "full_mypy_debt": 0,
+      "app_edges": 206,
+      "steps_passed": 8,
+      "current_data_surfaces": 104,
+      "reuse": "all five production file SHA unchanged; later changes are UI and tests"
+    }
+  },
+  "prior_local_evidence_index": {
+    "path": ".tmp/ash07-risk-20261103/integration/typing-boundary-validation-index.json",
+    "sha256": "4f712ebc7b2ed964d71c4eb6ec93c011a8cf6402a30c91bb59cd3909f305aa99"
+  },
+  "current_owner_financial_delivery": {
+    "status": "local_complete_pending_current_CI",
+    "same_day_industry_ready": true,
+    "supplier_clocks": "unknown retained; separate explicit policy-bound proof; same-day contract preserved",
+    "owner_fill_receipt": {
+      "path": ".tmp/ash07-risk-20261104/runs/r125-configured-auto-risk-complete/pytest/test_owner_tui_current_public_0/owner-current-fill-receipt-summary.json",
+      "sha256": "2567705791693f29c8ca8ffef082483888811ce811bdcb59dd88dc38f0d855db"
+    },
+    "nav_after": "105083.53",
+    "cash_after": "104242.53",
+    "holdings_after": "841.00",
+    "fee": "11.47",
+    "etf_scope": {
+      "nav_coverage": "0.4456",
+      "unknown_security_fraction": "0.5544",
+      "unknown_industry_fraction": "0.9185",
+      "evidence": "Actual R125 ETF source case passed; conservative unknown bounds retained, existing coverage floor blocks correctly. No fullQ3holdings prerequisite fabricated."
+    },
+    "prior_failures": [
+      {
+        "run": ".tmp/ash07-risk-20261104/runs/r105-real-owner-financial-ci-pending",
+        "candidate.json": {
+          "path": ".tmp/ash07-risk-20261104/runs/r105-real-owner-financial-ci-pending/candidate.json",
+          "sha256": "db6bdb023973735a50c2a8c3b2fdd31dcddea921ba620d3b5f97cc008ccbc9f2"
+        },
+        "pytest.xml": {
+          "path": ".tmp/ash07-risk-20261104/runs/r105-real-owner-financial-ci-pending/pytest.xml",
+          "sha256": "021fdfd3c93799eeb0a9c29af51bb41f238173e23ed277fad80abfc4510fc3e5"
+        },
+        "results.json": {
+          "path": ".tmp/ash07-risk-20261104/runs/r105-real-owner-financial-ci-pending/results.json",
+          "sha256": "84166607a824629afa42f856f799148b4067cf251617b0b7756b743c2e5fc5ef"
+        }
+      },
+      {
+        "run": ".tmp/ash07-risk-20261104/runs/r106-real-owner-financial-ci-pending",
+        "candidate.json": {
+          "path": ".tmp/ash07-risk-20261104/runs/r106-real-owner-financial-ci-pending/candidate.json",
+          "sha256": "d3eff973acb703366b5c6d662896718d645e27b3c89175f29a802d367e78e7cc"
+        },
+        "pytest.xml": {
+          "path": ".tmp/ash07-risk-20261104/runs/r106-real-owner-financial-ci-pending/pytest.xml",
+          "sha256": "a9345b6a97480a504be2f4371fdefbf89b6dbfd81c3afc80202d7457d53e500a"
+        },
+        "results.json": {
+          "path": ".tmp/ash07-risk-20261104/runs/r106-real-owner-financial-ci-pending/results.json",
+          "sha256": "00afda9b015eb6997fa47b2c58b88e35a9836b126846a5c15e452146246daea7"
+        }
+      },
+      {
+        "run": ".tmp/ash07-risk-20261104/runs/r107-real-owner-financial-ci-pending",
+        "candidate.json": {
+          "path": ".tmp/ash07-risk-20261104/runs/r107-real-owner-financial-ci-pending/candidate.json",
+          "sha256": "05cf953a594f2039b9835e498426b1b22fd7816bddc8bedd7c1f2a8c4a071fc8"
+        },
+        "pytest.xml": {
+          "path": ".tmp/ash07-risk-20261104/runs/r107-real-owner-financial-ci-pending/pytest.xml",
+          "sha256": "59ba7f6456e338753a19a28b2f53deda083f4660ce6794b1652799c8dbafabd5"
+        },
+        "results.json": {
+          "path": ".tmp/ash07-risk-20261104/runs/r107-real-owner-financial-ci-pending/results.json",
+          "sha256": "5758e3a0b6ebf2b65234f38342b0f3618d9a4d3b22c97611b2d971c6c31feb2f"
+        }
+      },
+      {
+        "run": ".tmp/ash07-risk-20261104/runs/r108-real-owner-financial-ci-pending",
+        "candidate.json": {
+          "path": ".tmp/ash07-risk-20261104/runs/r108-real-owner-financial-ci-pending/candidate.json",
+          "sha256": "e9e9474f116aa56143bab69583034c0e062672b94dcb0c9e27af18e310ce880c"
+        },
+        "pytest.xml": {
+          "path": ".tmp/ash07-risk-20261104/runs/r108-real-owner-financial-ci-pending/pytest.xml",
+          "sha256": "d218ba1200c894e0b662062c423d332656ce37de72383f08bcffcf70df7bdb47"
+        },
+        "results.json": {
+          "path": ".tmp/ash07-risk-20261104/runs/r108-real-owner-financial-ci-pending/results.json",
+          "sha256": "0bd3737c640f403eec58ce94acdc29d854c6e498f3b5f8f68c761cf64ee04fd1"
+        }
+      },
+      {
+        "run": ".tmp/ash07-risk-20261104/runs/r109-source-calendar-financial",
+        "code-candidate.json": {
+          "path": ".tmp/ash07-risk-20261104/runs/r109-source-calendar-financial/code-candidate.json",
+          "sha256": "0bd88211f43493ad866e06dccc7a61ca46307edfaa86ec45a9988d1dc1713e53"
+        },
+        "candidate.json": {
+          "path": ".tmp/ash07-risk-20261104/runs/r109-source-calendar-financial/candidate.json",
+          "sha256": "f0dac592eeb349b76b22f537f952f6e01788e731406f82cb4fad0e03c535f25e"
+        },
+        "pytest.xml": {
+          "path": ".tmp/ash07-risk-20261104/runs/r109-source-calendar-financial/pytest.xml",
+          "sha256": "667f3943de7c8d48f8fbab2d25c16f0b7d8e564f7de1f66ec62583173f831ba0"
+        },
+        "results.json": {
+          "path": ".tmp/ash07-risk-20261104/runs/r109-source-calendar-financial/results.json",
+          "sha256": "77a4de68ace2a96c42834598c47987640c6bb10171b6fef28b43edc8325a33f6"
+        }
+      },
+      {
+        "run": ".tmp/ash07-risk-20261104/runs/r110-current-owner-financial",
+        "code-candidate.json": {
+          "path": ".tmp/ash07-risk-20261104/runs/r110-current-owner-financial/code-candidate.json",
+          "sha256": "725439cda6b17bc0b6a391bfa531e93aaccf28017e2745b4d12379e76c9eb6ae"
+        },
+        "candidate.json": {
+          "path": ".tmp/ash07-risk-20261104/runs/r110-current-owner-financial/candidate.json",
+          "sha256": "c727886dc826971f0c76167b9e6b450bd9e9abebf232efbc06a3361b82ded2c9"
+        },
+        "pytest.xml": {
+          "path": ".tmp/ash07-risk-20261104/runs/r110-current-owner-financial/pytest.xml",
+          "sha256": "c8581ad0775b0a573121427a6faa26bdcc2adc3378e59c6ad94db7c346cd47dd"
+        },
+        "results.json": {
+          "path": ".tmp/ash07-risk-20261104/runs/r110-current-owner-financial/results.json",
+          "sha256": "00e335555400f31e99e44b7bda260d3568733759ff16a2f703452b4b38f49fd8"
+        }
+      },
+      {
+        "run": ".tmp/ash07-risk-20261104/runs/r112-current-owner-financial",
+        "code-candidate.json": {
+          "path": ".tmp/ash07-risk-20261104/runs/r112-current-owner-financial/code-candidate.json",
+          "sha256": "4bcb2b7d7ff70f4c399fba9b213b2b0a2fd26e7594e361de3ea705302f8e97ba"
+        },
+        "candidate.json": {
+          "path": ".tmp/ash07-risk-20261104/runs/r112-current-owner-financial/candidate.json",
+          "sha256": "666b9116ed23af794c37f5e54fce99f2fc318407acb40d9fbbec8f512ba4067a"
+        },
+        "pytest.xml": {
+          "path": ".tmp/ash07-risk-20261104/runs/r112-current-owner-financial/pytest.xml",
+          "sha256": "cae9798a349d525dc1405dddcddd0524e008bf3b02aa01ac2e8fd12330ddb46a"
+        },
+        "results.json": {
+          "path": ".tmp/ash07-risk-20261104/runs/r112-current-owner-financial/results.json",
+          "sha256": "4f4106f2c628f5a1afda6f84fd15899bc09d26f7479459fea9820a5eba6adc82"
+        }
+      },
+      {
+        "run": ".tmp/ash07-risk-20261104/runs/r113-source-consumer-closure",
+        "code-candidate.json": {
+          "path": ".tmp/ash07-risk-20261104/runs/r113-source-consumer-closure/code-candidate.json",
+          "sha256": "bf678f6aea712b719664c4a3c4a40965e2a31ac4e373beec92ea575afec11e67"
+        },
+        "candidate.json": {
+          "path": ".tmp/ash07-risk-20261104/runs/r113-source-consumer-closure/candidate.json",
+          "sha256": "e056f36d9ff1055ea91f90f3ea8a61e72e7030ac424d8906e137b0c776af37d6"
+        },
+        "pytest.xml": {
+          "path": ".tmp/ash07-risk-20261104/runs/r113-source-consumer-closure/pytest.xml",
+          "sha256": "0147cec664fa59d8c6fb269dfd7e46ec17ff4c70eb3790cdaa4975ec9992481b"
+        },
+        "results.json": {
+          "path": ".tmp/ash07-risk-20261104/runs/r113-source-consumer-closure/results.json",
+          "sha256": "00dc5e598038961e19a2dc49b14b9ee10956c90c37538296d415dabb0d8da334"
+        }
+      },
+      {
+        "run": ".tmp/ash07-risk-20261104/runs/r114-public-proof-financial-closure",
+        "code-candidate.json": {
+          "path": ".tmp/ash07-risk-20261104/runs/r114-public-proof-financial-closure/code-candidate.json",
+          "sha256": "f8cda382b068b4c432a80be84f6737f3e1f9e028cf68e8e6c4633da078577057"
+        },
+        "candidate.json": {
+          "path": ".tmp/ash07-risk-20261104/runs/r114-public-proof-financial-closure/candidate.json",
+          "sha256": "0fda247b42226f31551ce901a2d8482920d0220c2d087a67a49135b8e166199f"
+        },
+        "pytest.xml": {
+          "path": ".tmp/ash07-risk-20261104/runs/r114-public-proof-financial-closure/pytest.xml",
+          "sha256": "9ab93bd3d4242cdfdab4a76cf1c1f4aabf88173678aa3e9e2c1ea9fccd4138c7"
+        },
+        "results.json": {
+          "path": ".tmp/ash07-risk-20261104/runs/r114-public-proof-financial-closure/results.json",
+          "sha256": "8eacc995021e155b6bffe519909f7fc96ee5bdb23874446dd33209808a5f101f"
+        }
+      },
+      {
+        "run": ".tmp/ash07-risk-20261104/runs/r115-current-financial-closure",
+        "code-candidate.json": {
+          "path": ".tmp/ash07-risk-20261104/runs/r115-current-financial-closure/code-candidate.json",
+          "sha256": "35c7e03739b815bb98be417ab7a382456263da5fa4e48622900b8dc73fc605b2"
+        },
+        "candidate.json": {
+          "path": ".tmp/ash07-risk-20261104/runs/r115-current-financial-closure/candidate.json",
+          "sha256": "ac1ea1db2f838cd76beac1b8bfba6178613c0872c637e024e9f740debd4aaee2"
+        },
+        "pytest.xml": {
+          "path": ".tmp/ash07-risk-20261104/runs/r115-current-financial-closure/pytest.xml",
+          "sha256": "81b9335ce2228fd460d49abbe9e297664fbd97a6193fb257899f1afda5471f77"
+        },
+        "results.json": {
+          "path": ".tmp/ash07-risk-20261104/runs/r115-current-financial-closure/results.json",
+          "sha256": "065a3ec6fed2bef1ed6060765a088fe160db619beafea526aea1e800968f0e59"
+        }
+      },
+      {
+        "run": ".tmp/ash07-risk-20261104/runs/r116-current-financial-closure",
+        "code-candidate.json": {
+          "path": ".tmp/ash07-risk-20261104/runs/r116-current-financial-closure/code-candidate.json",
+          "sha256": "052697f158934e23a34783e930bd999749a595fb5d02cbd1da8ebb309c135d5d"
+        },
+        "candidate.json": {
+          "path": ".tmp/ash07-risk-20261104/runs/r116-current-financial-closure/candidate.json",
+          "sha256": "78b3579ef011ee50afc19072392b8833ef3d1f251c76a1ee6788f76f4c4a44f0"
+        },
+        "pytest.xml": {
+          "path": ".tmp/ash07-risk-20261104/runs/r116-current-financial-closure/pytest.xml",
+          "sha256": "5fae2c87d72075c125c7890abf4468b27c306826ff70d10007c90c56b53f4f70"
+        },
+        "results.json": {
+          "path": ".tmp/ash07-risk-20261104/runs/r116-current-financial-closure/results.json",
+          "sha256": "6f2f321330210f9699f499dbdd7c16e7fc1afb599ee3702da3c9359939ea7e26"
+        }
+      },
+      {
+        "run": ".tmp/ash07-risk-20261104/runs/r117-current-financial-closure",
+        "code-candidate.json": {
+          "path": ".tmp/ash07-risk-20261104/runs/r117-current-financial-closure/code-candidate.json",
+          "sha256": "8012204b1c77bc5fb21adb01aa0f1cd3d7e222cecd6eef96012d8b891d24c678"
+        },
+        "candidate.json": {
+          "path": ".tmp/ash07-risk-20261104/runs/r117-current-financial-closure/candidate.json",
+          "sha256": "5bc132733cda96492e5fbafd7821a1d7d142093cc8aa890a8fc16f6178fdb2ef"
+        },
+        "pytest.xml": {
+          "path": ".tmp/ash07-risk-20261104/runs/r117-current-financial-closure/pytest.xml",
+          "sha256": "7bc30c3017a22dee1c314b20a8e2662f7f4d2295cdfb3bd52eb90113a2335291"
+        },
+        "results.json": {
+          "path": ".tmp/ash07-risk-20261104/runs/r117-current-financial-closure/results.json",
+          "sha256": "04bb60c61fdf2c54021e0b86ea6524536825feb834f0bb56903e170dc0e6d3a9"
+        }
+      },
+      {
+        "run": ".tmp/ash07-risk-20261104/runs/r118-current-financial-closure",
+        "code-candidate.json": {
+          "path": ".tmp/ash07-risk-20261104/runs/r118-current-financial-closure/code-candidate.json",
+          "sha256": "4586f8b670a846ae25de0ce90c0f3ae13a3ed8f8ac93e0450c9545ed1a472a2a"
+        },
+        "candidate.json": {
+          "path": ".tmp/ash07-risk-20261104/runs/r118-current-financial-closure/candidate.json",
+          "sha256": "502d0e343561882d87e40b0b13a8128e5b01c89af8ab640d80d9fb4c336cd40e"
+        },
+        "pytest.xml": {
+          "path": ".tmp/ash07-risk-20261104/runs/r118-current-financial-closure/pytest.xml",
+          "sha256": "99c23c2e9cac095b0f44d2874f1cc1c911a3fbe9a18dfe74a971d8beddfa3fce"
+        },
+        "results.json": {
+          "path": ".tmp/ash07-risk-20261104/runs/r118-current-financial-closure/results.json",
+          "sha256": "df58aa8f7b142b38690dec65ce07e8c5d433c058c44ffecc6ba8366f6c30ba98"
+        }
+      },
+      {
+        "run": ".tmp/ash07-risk-20261104/runs/r119-locked-risk-diagnostic",
+        "code-candidate.json": {
+          "path": ".tmp/ash07-risk-20261104/runs/r119-locked-risk-diagnostic/code-candidate.json",
+          "sha256": "44e520be2f5e630b729a77b0ddf190a244e0879d6abeed4a94ce0ee1a41355d1"
+        },
+        "candidate.json": {
+          "path": ".tmp/ash07-risk-20261104/runs/r119-locked-risk-diagnostic/candidate.json",
+          "sha256": "b3235b558a9e3c015958b116219dcc3e302a90e451067d84f19e189832ae2792"
+        },
+        "pytest.xml": {
+          "path": ".tmp/ash07-risk-20261104/runs/r119-locked-risk-diagnostic/pytest.xml",
+          "sha256": "34b13c32dad4e51c8b63d2eb48dd0ebbd3892d44b9c6fe084f14e2635a11b642"
+        },
+        "results.json": {
+          "path": ".tmp/ash07-risk-20261104/runs/r119-locked-risk-diagnostic/results.json",
+          "sha256": "388f96a8eca1a8cd24be77dca041fa6e2be6653c39ced5b99e65bae517c68927"
+        }
+      },
+      {
+        "run": ".tmp/ash07-risk-20261104/runs/r120-locked-calendar-financial-closure",
+        "code-candidate.json": {
+          "path": ".tmp/ash07-risk-20261104/runs/r120-locked-calendar-financial-closure/code-candidate.json",
+          "sha256": "514f86b5cd815f7077b5cf1be882a5ff0d3ddde00ff2ea4d29ccce847c32ec6a"
+        },
+        "candidate.json": {
+          "path": ".tmp/ash07-risk-20261104/runs/r120-locked-calendar-financial-closure/candidate.json",
+          "sha256": "3b9ae4c5c814eb1749c4a92b8ed58bd4761a571d3ed2f881c977f4391d7faf82"
+        },
+        "pytest.xml": {
+          "path": ".tmp/ash07-risk-20261104/runs/r120-locked-calendar-financial-closure/pytest.xml",
+          "sha256": "8907bd027d937758afedee6d80a14c7c7dd2d864b79b150cb46d5a57489707d7"
+        },
+        "results.json": {
+          "path": ".tmp/ash07-risk-20261104/runs/r120-locked-calendar-financial-closure/results.json",
+          "sha256": "5becdb40b12a61fa21f5f0c3c4ebc573e711fa2eac8efd25ff539288947c4089"
+        }
+      },
+      {
+        "run": ".tmp/ash07-risk-20261104/runs/r121-live-fill-complete-owner-closure",
+        "code-candidate.json": {
+          "path": ".tmp/ash07-risk-20261104/runs/r121-live-fill-complete-owner-closure/code-candidate.json",
+          "sha256": "fe62d1269ffa82a548c2b445b3c8f3d20255f37f53faee71f5d74261b5b43ad0"
+        },
+        "candidate.json": {
+          "path": ".tmp/ash07-risk-20261104/runs/r121-live-fill-complete-owner-closure/candidate.json",
+          "sha256": "9cdcaf9d47100c5c662b1c836efab37456f838dbf239e2df41d46515a76d38c6"
+        },
+        "pytest.xml": {
+          "path": ".tmp/ash07-risk-20261104/runs/r121-live-fill-complete-owner-closure/pytest.xml",
+          "sha256": "452dd69521eb4c5c2687333db2f00b59af76c91ce8620b6438f7ceba3ef8d8f2"
+        },
+        "results.json": {
+          "path": ".tmp/ash07-risk-20261104/runs/r121-live-fill-complete-owner-closure/results.json",
+          "sha256": "2b06e848c263df2f8ea97da3dc57389d526abde3a609fa92691519015e158edf"
+        }
+      },
+      {
+        "run": ".tmp/ash07-risk-20261104/runs/r122-full-sell-position-closure",
+        "code-candidate.json": {
+          "path": ".tmp/ash07-risk-20261104/runs/r122-full-sell-position-closure/code-candidate.json",
+          "sha256": "0a5d0245c31f63547418a055a16afcea09461ae83c1583978ea302b3467f330e"
+        },
+        "candidate.json": {
+          "path": ".tmp/ash07-risk-20261104/runs/r122-full-sell-position-closure/candidate.json",
+          "sha256": "4f78435c8fef978810594bf620bc2e37050a22909bb3f9f754c5afe61c8cf946"
+        },
+        "pytest.xml": {
+          "path": ".tmp/ash07-risk-20261104/runs/r122-full-sell-position-closure/pytest.xml",
+          "sha256": "3c1af2cd093760547113e9fbc57461de1d46e81383663bdcf2d71251e0340d06"
+        },
+        "results.json": {
+          "path": ".tmp/ash07-risk-20261104/runs/r122-full-sell-position-closure/results.json",
+          "sha256": "16ae6b9c366bb30d5b8d45d126f0734518e98dbc5033affea9850d5a831bc5fd"
+        }
+      },
+      {
+        "run": ".tmp/ash07-risk-20261104/runs/r123-exact-source-identity-closure",
+        "code-candidate.json": {
+          "path": ".tmp/ash07-risk-20261104/runs/r123-exact-source-identity-closure/code-candidate.json",
+          "sha256": "c2b833135cdf7acd5e29f716adc798ee961e3ccf58fd8bf65400a0c81a4b8b34"
+        },
+        "candidate.json": {
+          "path": ".tmp/ash07-risk-20261104/runs/r123-exact-source-identity-closure/candidate.json",
+          "sha256": "25aac6c4872f96e647c0691735166160f893a69cbd8bfc584cf8b3770ecd0570"
+        },
+        "pytest.xml": {
+          "path": ".tmp/ash07-risk-20261104/runs/r123-exact-source-identity-closure/pytest.xml",
+          "sha256": "f596f8fd25a28f77e995af21e4cc71604294a9cdc85165e5633c10f7e4110107"
+        },
+        "results.json": {
+          "path": ".tmp/ash07-risk-20261104/runs/r123-exact-source-identity-closure/results.json",
+          "sha256": "70908594ea4a2a948f09f9f2c774adc98782fcbcb3a21073ca3abed04d07ea64"
+        }
+      },
+      {
+        "run": ".tmp/ash07-risk-20261104/runs/r124-auto-risk-preflight-diagnostic",
+        "code-candidate.json": {
+          "path": ".tmp/ash07-risk-20261104/runs/r124-auto-risk-preflight-diagnostic/code-candidate.json",
+          "sha256": "ce6ea05fbf6d84da2689f3081423876e35b41a6e30c8799b787aa918b67b14d7"
+        },
+        "candidate.json": {
+          "path": ".tmp/ash07-risk-20261104/runs/r124-auto-risk-preflight-diagnostic/candidate.json",
+          "sha256": "2c603bd77853315b7472cafd51d8195508590ec4ada2828b7f725cb7c767038b"
+        },
+        "pytest.xml": {
+          "path": ".tmp/ash07-risk-20261104/runs/r124-auto-risk-preflight-diagnostic/pytest.xml",
+          "sha256": "847f4ff381b6cfa38cf1bb44ae56fe14c82e3e74e85f30303b8e700dc041e5ba"
+        },
+        "results.json": {
+          "path": ".tmp/ash07-risk-20261104/runs/r124-auto-risk-preflight-diagnostic/results.json",
+          "sha256": "cbed5843b14d35b407f6688b78d4d679c05fc6ef6518b53a30e6c6c4dd2d3502"
+        }
+      },
+      {
+        "run": ".tmp/ash07-risk-20261104/runs/r125-configured-auto-risk-complete",
+        "code-candidate.json": {
+          "path": ".tmp/ash07-risk-20261104/runs/r125-configured-auto-risk-complete/code-candidate.json",
+          "sha256": "62b07b79b0c48bf666569163ec4a250f0f4372e9177142183462372d57e1cd8d"
+        },
+        "candidate.json": {
+          "path": ".tmp/ash07-risk-20261104/runs/r125-configured-auto-risk-complete/candidate.json",
+          "sha256": "f6f98b80b8e42a227f448bdbeaf79b30e25a60d821b57753edb035d216ded47e"
+        },
+        "pytest.xml": {
+          "path": ".tmp/ash07-risk-20261104/runs/r125-configured-auto-risk-complete/pytest.xml",
+          "sha256": "1a42c64160cd32516d2cc2866e883f1688f2ceb65a2a93e66007946c23b9d522"
+        },
+        "results.json": {
+          "path": ".tmp/ash07-risk-20261104/runs/r125-configured-auto-risk-complete/results.json",
+          "sha256": "3c87ef6c65686d207ed0319afc22f6fe2d526e19108dff440cf8cd4a0f3fb8c7"
+        }
+      },
+      {
+        "run": ".tmp/ash07-risk-20261104/runs/r126-complete-domain-boundaries",
+        "pytest.xml": {
+          "path": ".tmp/ash07-risk-20261104/runs/r126-complete-domain-boundaries/pytest.xml",
+          "sha256": "e1f86d204cda9bb8e6114ddf1b01289e61558e98b17ff98a98588de5e9725f65"
+        },
+        "summary.json": {
+          "path": ".tmp/ash07-risk-20261104/runs/r126-complete-domain-boundaries/summary.json",
+          "sha256": "64e5a97fed52c752ac14254869719a31a134c56e84de884388d772199cb679fa"
+        }
+      }
+    ],
+    "remaining": [
+      "all6actualCI for exact pushed integration head",
+      "then narrow registry completion/handoff state and current docs-head gates"
+    ]
   }
 }
