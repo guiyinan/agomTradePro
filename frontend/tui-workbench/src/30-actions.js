@@ -1140,14 +1140,19 @@
                 return;
             }
             clearPendingRequest();
-            const continuationResult = resultContinuations.acceptResult(
+            const continuationAcceptance = acceptActionContinuationResult(
                 action,
                 actions,
                 result,
-                Date.now(),
                 continuationRequestToken,
                 requestIdempotencyKey,
             );
+            result = continuationAcceptance.result;
+            receivedContinuation = continuationAcceptance.receivedContinuation;
+            if (continuationAcceptance.invalid) {
+                state.lastRaw = null;
+                state.rawResponseAvailable = false;
+            }
             if (continuationReadback) {
                 readbackResolved = resultContinuations.resolveReadback(
                     action,
@@ -1156,26 +1161,6 @@
                     requestIdempotencyKey,
                 );
                 clearContinuationSourceTriggerGuard(incomingReadback.sourceActionKey, readbackResolved);
-            }
-            if (continuationResult.status === "stored") {
-                receivedContinuation = continuationResult;
-                delete result.continuation;
-            } else if (["unexpected", "invalid", "missing", "expired", "leaked"].includes(continuationResult.status)) {
-                result = {
-                    outcome: "failed",
-                    error_code: `tui_result_continuation_${continuationResult.status}`,
-                    response: { status_code: 502 },
-                    view_model: {
-                        kind: "message",
-                        title: action.label || "当前任务",
-                        status: "未完成",
-                        message: "当前结果未能安全交接，尚未继续后续操作。请重新运行准备步骤。",
-                        user_error_code: `tui_result_continuation_${continuationResult.status}`,
-                    },
-                    debug: { raw_available: false, raw_response: null },
-                };
-                state.lastRaw = null;
-                state.rawResponseAvailable = false;
             }
             if (Array.isArray(result.missing_fields) && result.missing_fields.length) {
                 if (continuationTarget && result.missing_fields.some(field =>
@@ -1231,49 +1216,30 @@
                 setStatus("等待验密");
                 return;
             }
-            const reportedStatus = Number(result.response?.status_code ?? result.status_code ?? 0);
-            if ([401, 403].includes(reportedStatus)
-                && String(action.key).startsWith("simulated-trading.fee-correction-")) {
-                resultContinuations.clearScreen(action.screen_key);
-            }
-            const reportedOutcome = String(result.outcome || "").trim().toLowerCase();
-            const targetResultUnknown = continuationTarget
-                && requestConfirmed
-                && continuationReusesSourceKey
-                && Boolean(continuationReadbackActionKey)
-                && Number.isFinite(reportedStatus)
-                && (reportedStatus >= 500 || reportedOutcome === "partial");
-            const brokerImportNeedsRepreview = continuationTarget
-                && actualActionKey === "audit.manual-trade-import"
-                && reportedStatus === 409;
-            const unresolvedReadback = continuationReadback && !readbackResolved;
-            const reportedOwnerFailure = (Number.isFinite(reportedStatus) && reportedStatus >= 400)
-                || ["failed", "blocked"].includes(reportedOutcome)
-                || targetResultUnknown
-                || unresolvedReadback
-                || isDashboardScopeInvalid(result);
-            const reportedServerFailure = (Number.isFinite(reportedStatus) && reportedStatus >= 500)
-                || ["failed", "blocked"].includes(reportedOutcome);
-            const confirmedMutation = Boolean(options.confirmed);
-            const reportedResultFeedback = targetResultUnknown || unresolvedReadback
-                ? "原请求仍待确认；没有匹配回执时请勿重复提交"
-                : reportedOwnerFailure
-                    ? (reportedOutcome === "blocked"
-                    ? "结果受阻，未形成可用结果"
-                    : (confirmedMutation
-                        ? "操作未完成，请检查结果后重试"
-                        : "读取失败，请检查结果后重试"))
-                : "";
-            if (targetResultUnknown) {
-                resultContinuations.markTargetUnknown(action, actions);
-            }
-            if (continuationTarget && (!reportedServerFailure || brokerImportNeedsRepreview)
-                && !targetResultUnknown) {
-                resultContinuations.clearTargetRequest(action);
-                if (brokerImportNeedsRepreview) {
-                    resultContinuations.clearScreen(action.screen_key);
-                }
-            }
+            const responseState = classifyContinuationActionResponse({
+                action,
+                actions,
+                result,
+                actualActionKey,
+                continuationTarget,
+                requestConfirmed,
+                continuationReusesSourceKey,
+                readbackActionKey: continuationReadbackActionKey,
+                continuationReadback,
+                readbackResolved,
+                confirmedMutation: Boolean(options.confirmed),
+            });
+            const {
+                reportedStatus,
+                reportedOutcome,
+                targetResultUnknown,
+                brokerImportNeedsRepreview,
+                unresolvedReadback,
+                reportedOwnerFailure,
+                reportedServerFailure,
+                confirmedMutation,
+                reportedResultFeedback,
+            } = responseState;
             if (!retainedGrid) markActionCompleted(action, result);
             state.lastRaw = result.debug?.raw_response ?? null;
             state.rawResponseAvailable = result.debug?.raw_available === true && state.lastRaw !== null;
@@ -1282,25 +1248,15 @@
                     renderTargetedDashboardEnvelope(action, result,
                         targetPanelParams || submittedParams || {},
                         dashboardResultPanelKey, dashboardRefreshPanelKey);
-                    continuationSourceActionKey = receivedContinuation?.sourceActionKey
-                        || continuationSourceActionKey
-                        || actualActionKey;
-                    const panelContext = {
-                        sourceActionKey: continuationSourceActionKey,
-                        screenKey: String(action.screen_key || ""),
+                    appendTargetedContinuationResult({
+                        action,
                         panelKey: dashboardResultPanelKey,
-                        panelActionKey: action.key,
-                    };
-                    if (receivedContinuation) {
-                        appendTargetedContinuationNextAction(
-                            receivedContinuation.targetActionKey, panelContext,
-                        );
-                    } else if ((targetResultUnknown || (continuationReadback && !readbackResolved))
-                        && continuationReadbackActionKey) {
-                        appendTargetedContinuationReadback(
-                            continuationReadbackActionKey, panelContext,
-                        );
-                    }
+                        sourceActionKey: continuationSourceActionKey || actualActionKey,
+                        receivedContinuation,
+                        targetResultUnknown,
+                        unresolvedReadback: continuationReadback && !readbackResolved,
+                        readbackActionKey: continuationReadbackActionKey,
+                    });
                 }
                 if (hasDashboardRefreshTarget && dashboardRefreshPanelKey !== dashboardResultPanelKey) {
                     await refreshDashboardPanel(dashboardRefreshPanelKey);
@@ -1378,27 +1334,14 @@
                 }
                 setStatus("请求已取消");
                 if (ambiguousTarget) {
-                    const dashboardResultPanelKey = String(options.dashboardResultPanelKey || "").trim();
-                    const panelContext = options.dashboardContinuationContext;
-                    if (dashboardResultPanelKey && panelContext) {
-                        renderDashboardActionError(
-                            dashboardResultPanelKey,
-                            error,
-                            action,
-                            targetPanelParams || submittedParams || {},
-                        );
-                        appendTargetedContinuationReadback(
-                            continuationReadbackActionKey,
-                            {
-                                sourceActionKey: panelContext.sourceActionKey,
-                                screenKey: String(action.screen_key || ""),
-                                panelKey: dashboardResultPanelKey,
-                                panelActionKey: action.key,
-                            },
-                        );
-                    } else {
-                        offerContinuationReadback(continuationReadbackActionKey);
-                    }
+                    renderTargetedContinuationAbort({
+                        action,
+                        error,
+                        panelKey: options.dashboardResultPanelKey,
+                        context: options.dashboardContinuationContext,
+                        params: targetPanelParams || submittedParams || {},
+                        readbackActionKey: continuationReadbackActionKey,
+                    });
                 }
                 return;
             }
@@ -1451,21 +1394,16 @@
             }
             const dashboardResultPanelKey = String(options.dashboardResultPanelKey || "").trim();
             if (dashboardResultPanelKey) {
-                renderDashboardActionError(
-                    dashboardResultPanelKey,
-                    error,
+                renderTargetedContinuationFailure({
                     action,
-                    targetPanelParams || submittedParams || {},
-                );
-                if (ambiguousTarget && continuationReadbackActionKey) {
-                    appendTargetedContinuationReadback(continuationReadbackActionKey, {
-                        sourceActionKey: continuationSourceActionKey
-                            || String(options.dashboardContinuationContext?.sourceActionKey || ""),
-                        screenKey: String(action.screen_key || ""),
-                        panelKey: dashboardResultPanelKey,
-                        panelActionKey: action.key,
-                    });
-                }
+                    error,
+                    panelKey: dashboardResultPanelKey,
+                    params: targetPanelParams || submittedParams || {},
+                    ambiguousTarget,
+                    sourceActionKey: continuationSourceActionKey
+                        || String(options.dashboardContinuationContext?.sourceActionKey || ""),
+                    readbackActionKey: continuationReadbackActionKey,
+                });
                 return;
             }
             if (options.dashboardPanelKey) {

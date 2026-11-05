@@ -113,6 +113,169 @@ function appendTargetedContinuationReadback(readbackActionKey, context) {
     return appendTargetedContinuationAction(readbackActionKey, { ...context, kind: "readback" });
 }
 
+function appendTargetedContinuationResult({
+    action,
+    panelKey,
+    sourceActionKey,
+    receivedContinuation,
+    targetResultUnknown,
+    unresolvedReadback,
+    readbackActionKey,
+}) {
+    const resolvedSourceActionKey = receivedContinuation?.sourceActionKey
+        || sourceActionKey
+        || action.key;
+    const context = {
+        sourceActionKey: resolvedSourceActionKey,
+        screenKey: String(action.screen_key || ""),
+        panelKey,
+        panelActionKey: action.key,
+    };
+    if (receivedContinuation) {
+        appendTargetedContinuationNextAction(receivedContinuation.targetActionKey, context);
+    } else if ((targetResultUnknown || unresolvedReadback) && readbackActionKey) {
+        appendTargetedContinuationReadback(readbackActionKey, context);
+    }
+}
+
+function renderTargetedContinuationAbort({ action, error, panelKey, context, params, readbackActionKey }) {
+    const resultPanelKey = String(panelKey || "").trim();
+    if (resultPanelKey && context) {
+        renderDashboardActionError(resultPanelKey, error, action, params);
+        appendTargetedContinuationReadback(readbackActionKey, {
+            sourceActionKey: context.sourceActionKey,
+            screenKey: String(action.screen_key || ""),
+            panelKey: resultPanelKey,
+            panelActionKey: action.key,
+        });
+        return;
+    }
+    offerContinuationReadback(readbackActionKey);
+}
+
+function renderTargetedContinuationFailure({
+    action,
+    error,
+    panelKey,
+    params,
+    ambiguousTarget,
+    sourceActionKey,
+    readbackActionKey,
+}) {
+    renderDashboardActionError(panelKey, error, action, params);
+    if (ambiguousTarget && readbackActionKey) {
+        appendTargetedContinuationReadback(readbackActionKey, {
+            sourceActionKey,
+            screenKey: String(action.screen_key || ""),
+            panelKey,
+            panelActionKey: action.key,
+        });
+    }
+}
+
+function acceptActionContinuationResult(action, actions, result, requestToken, idempotencyKey) {
+    const accepted = resultContinuations.acceptResult(
+        action,
+        actions,
+        result,
+        Date.now(),
+        requestToken,
+        idempotencyKey,
+    );
+    if (accepted.status === "stored") {
+        delete result.continuation;
+        return { result, receivedContinuation: accepted, invalid: false };
+    }
+    if (!["unexpected", "invalid", "missing", "expired", "leaked"].includes(accepted.status)) {
+        return { result, receivedContinuation: null, invalid: false };
+    }
+    return {
+        result: {
+            outcome: "failed",
+            error_code: `tui_result_continuation_${accepted.status}`,
+            response: { status_code: 502 },
+            view_model: {
+                kind: "message",
+                title: action.label || "当前任务",
+                status: "未完成",
+                message: "当前结果未能安全交接，尚未继续后续操作。请重新运行准备步骤。",
+                user_error_code: `tui_result_continuation_${accepted.status}`,
+            },
+            debug: { raw_available: false, raw_response: null },
+        },
+        receivedContinuation: null,
+        invalid: true,
+    };
+}
+
+function classifyContinuationActionResponse({
+    action,
+    actions,
+    result,
+    actualActionKey,
+    continuationTarget,
+    requestConfirmed,
+    continuationReusesSourceKey,
+    readbackActionKey,
+    continuationReadback,
+    readbackResolved,
+    confirmedMutation,
+}) {
+    const reportedStatus = Number(result.response?.status_code ?? result.status_code ?? 0);
+    if ([401, 403].includes(reportedStatus)
+        && String(action.key).startsWith("simulated-trading.fee-correction-")) {
+        resultContinuations.clearScreen(action.screen_key);
+    }
+    const reportedOutcome = String(result.outcome || "").trim().toLowerCase();
+    const targetResultUnknown = continuationTarget
+        && requestConfirmed
+        && continuationReusesSourceKey
+        && Boolean(readbackActionKey)
+        && Number.isFinite(reportedStatus)
+        && (reportedStatus >= 500 || reportedOutcome === "partial");
+    const brokerImportNeedsRepreview = continuationTarget
+        && actualActionKey === "audit.manual-trade-import"
+        && reportedStatus === 409;
+    const unresolvedReadback = continuationReadback && !readbackResolved;
+    const reportedOwnerFailure = (Number.isFinite(reportedStatus) && reportedStatus >= 400)
+        || ["failed", "blocked"].includes(reportedOutcome)
+        || targetResultUnknown
+        || unresolvedReadback
+        || isDashboardScopeInvalid(result);
+    const reportedServerFailure = (Number.isFinite(reportedStatus) && reportedStatus >= 500)
+        || ["failed", "blocked"].includes(reportedOutcome);
+    const reportedResultFeedback = targetResultUnknown || unresolvedReadback
+        ? "原请求仍待确认；没有匹配回执时请勿重复提交"
+        : reportedOwnerFailure
+            ? (reportedOutcome === "blocked"
+                ? "结果受阻，未形成可用结果"
+                : (confirmedMutation
+                    ? "操作未完成，请检查结果后重试"
+                    : "读取失败，请检查结果后重试"))
+            : "";
+    if (targetResultUnknown) {
+        resultContinuations.markTargetUnknown(action, actions);
+    }
+    if (continuationTarget && (!reportedServerFailure || brokerImportNeedsRepreview)
+        && !targetResultUnknown) {
+        resultContinuations.clearTargetRequest(action);
+        if (brokerImportNeedsRepreview) {
+            resultContinuations.clearScreen(action.screen_key);
+        }
+    }
+    return {
+        reportedStatus,
+        reportedOutcome,
+        targetResultUnknown,
+        brokerImportNeedsRepreview,
+        unresolvedReadback,
+        reportedOwnerFailure,
+        reportedServerFailure,
+        confirmedMutation,
+        reportedResultFeedback,
+    };
+}
+
 function appendContinuationNextAction(targetActionKey) {
     const targetAction = currentAction(targetActionKey);
     if (!targetAction) {
