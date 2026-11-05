@@ -511,6 +511,33 @@ def test_future_or_mismatched_dates_and_unknown_origin_clocks_fail_closed() -> N
     )
 
 
+def test_etf_report_rejects_instant_observation_without_rewriting_source_clocks() -> None:
+    """A date report cannot carry an instant; valid instant evidence is still rejected here."""
+
+    observed_at = datetime(2026, 10, 27, 12, 0, tzinfo=UTC)
+    with pytest.raises(ValueError, match="date precision requires observed_on"):
+        replace(_evidence(), observed_at=observed_at)
+
+    timestamp_evidence = replace(
+        _evidence(),
+        observation_precision=SourceObservationPrecision.TIMESTAMP,
+        observed_at=observed_at,
+        observed_on=None,
+    )
+    qualification = _qualification(evidence=timestamp_evidence)
+
+    assert qualification.proof is None
+    assert "PORTFOLIO_RISK_ETF_REPORT_UNEXPECTED_INSTANT_OBSERVATION" in (
+        qualification.reason_codes
+    )
+    assert "PORTFOLIO_RISK_ETF_REPORT_OBSERVATION_PRECISION_MISMATCH" in (
+        qualification.reason_codes
+    )
+    assert timestamp_evidence.observed_at == observed_at
+    assert timestamp_evidence.available_at is None
+    assert timestamp_evidence.valid_until is None
+
+
 def test_clock_proof_does_not_override_source_prohibition_or_purpose() -> None:
     """A bounded disclosure mode cannot white-list a source prohibited by its own record."""
 

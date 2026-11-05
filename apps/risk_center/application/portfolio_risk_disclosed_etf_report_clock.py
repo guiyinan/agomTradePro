@@ -233,7 +233,7 @@ def qualify_policy_bounded_disclosed_etf_report(
     if source_evidence.observed_on != publication_capture.publication_on:
         reasons.append("PORTFOLIO_RISK_ETF_REPORT_PUBLICATION_DATE_MISMATCH")
     if source_evidence.observed_at is not None:
-        reasons.append("PORTFOLIO_RISK_ETF_REPORT_SYNTHETIC_OBSERVATION_TIME")
+        reasons.append("PORTFOLIO_RISK_ETF_REPORT_UNEXPECTED_INSTANT_OBSERVATION")
     if source_evidence.decision_date_cutoff != business_date:
         reasons.append("PORTFOLIO_RISK_ETF_REPORT_DATE_CUTOFF_MISMATCH")
     if source_evidence.decision_cutoff != as_of:
