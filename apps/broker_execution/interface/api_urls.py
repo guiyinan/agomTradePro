@@ -23,6 +23,7 @@ from .api_views import (
     BrokerExecutionOrderDetailView,
     BrokerExecutionOrderListView,
     BrokerExecutionOverviewView,
+    BrokerExecutionQmtBridgeDownloadView,
     BrokerExecutionQmtOnboardingView,
     BrokerExecutionReconciliationResolveView,
     BrokerExecutionReconciliationView,
@@ -55,6 +56,11 @@ urlpatterns = [
         "qmt-onboarding/",
         BrokerExecutionQmtOnboardingView.as_view(),
         name="qmt-onboarding",
+    ),
+    path(
+        "qmt-bridge/download/",
+        BrokerExecutionQmtBridgeDownloadView.as_view(),
+        name="qmt-bridge-download",
     ),
     path(
         "connections/sync/",

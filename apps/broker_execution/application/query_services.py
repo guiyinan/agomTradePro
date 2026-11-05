@@ -17,6 +17,10 @@ from .order_catalog import project_broker_order_catalog_item
 from .order_detail_evidence import project_broker_order_detail
 from .overview_status import OverviewRawFacts, project_broker_overview
 from .ports import BrokerExecutionRepositoryProtocol
+from .qmt_bridge_package import (
+    QmtBridgePackageProvider,
+    get_qmt_bridge_package_provider,
+)
 from .reconciliation_projection import project_broker_reconciliation
 from .repository_provider import get_broker_execution_repository
 from .use_case_errors import (
@@ -68,7 +72,7 @@ def _setup_guide() -> str:
 
     return "\n".join(
         [
-            "一、准备执行端：使用 64 位 Windows、Python 3.11，并确认券商已开通外部 XtQuant 查询、委托和撤单权限。",
+            "一、准备执行端：使用 64 位 Windows 和 Python 3.11；外部 XtQuant 不可用时，使用内置 Python 命名管道桥，无需外部函数权限。",
             "二、绑定账户：先预览再确认“Agent 与账户绑定”；系统账户 ID 与券商资金账号不是同一个编号。",
             "三、设置门禁：填写单笔/单日金额上限、持仓上限、快照时效、交易时段和标的白名单，自动执行保持关闭。",
             "四、创建凭证：为 Agent 选择允许访问的系统账户，确认后立即复制一次性 Token；离开结果页后不会再次显示。",
@@ -129,11 +133,13 @@ class BrokerExecutionQueryService:
         repository: BrokerExecutionRepositoryProtocol | None = None,
         *,
         clock: Callable[[], datetime] | None = None,
+        package_provider: QmtBridgePackageProvider | None = None,
     ) -> None:
         self.repository = (
             repository if repository is not None else get_broker_execution_repository()
         )
         self.clock = clock or (lambda: datetime.now(UTC))
+        self.package_provider = package_provider
 
     def _now(self) -> datetime:
         """Return one trusted, timezone-aware evaluation clock."""
@@ -348,6 +354,8 @@ class BrokerExecutionQueryService:
             setup_state = "QMT 已连接"
             summary = "至少一个本地 Agent 已报告 QMT 连接，继续核对门禁并完成仿真。"
             next_step = "保持自动执行关闭，完成只读探针和 QMT 仿真验收。"
+        package_provider = self.package_provider or get_qmt_bridge_package_provider()
+        package = package_provider.locate()
         return {
             "setup_state": setup_state,
             "summary": summary,
@@ -357,6 +365,15 @@ class BrokerExecutionQueryService:
             "package_build_command": (
                 "powershell -NoProfile -ExecutionPolicy Bypass "
                 "-File .\\scripts\\build_qmt_agent_package.ps1"
+            ),
+            "package_available": package is not None,
+            "package_version": package.version if package else "",
+            "package_filename": package.filename if package else "",
+            "package_size_bytes": package.size_bytes if package else 0,
+            "package_sha256": package.sha256 if package else "",
+            "builtin_setup_command": (
+                "powershell -NoProfile -ExecutionPolicy Bypass "
+                "-File .\\qmt_agent\\scripts\\setup-builtin-python.ps1 -RunReadProbe"
             ),
             "windows_install_command": _windows_install_command(normalized_server_address),
             "token_setup_command": (

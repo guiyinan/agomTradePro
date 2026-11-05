@@ -6843,3 +6843,47 @@ for (const resultCase of [
         }
     });
 }
+
+
+test("dashboard panels expose a native package download link", async () => {
+    const downloadScreen = {
+        module: { key: "test", label: "测试模块" },
+        screen: {
+            key: "test.dashboard",
+            label: "桥接包下载",
+            summary: "验证用户可直接下载安装包。",
+            view_type: "detail",
+            status: "online",
+            audience: "admin",
+            dashboard_panels: [{
+                key: "package",
+                title: "Windows 桥安装包",
+                kind: "detail",
+                user_priority: "p0",
+                presentation_semantic: "primary_status",
+                action_key: "test.admin-read",
+                download: {
+                    url: "/api/broker-execution/qmt-bridge/download/",
+                    label: "下载 Windows 桥安装包",
+                },
+            }],
+            user_experience: {
+                primary_task: "下载桥接包",
+                primary_outcome: "得到 Windows 安装包",
+            },
+        },
+        actions: actions.filter(item => item.key === "test.admin-read"),
+    };
+    const { browser, page } = await openHarness(
+        "https://app.test/?screen=test.dashboard",
+        { dashboardScreen: downloadScreen, waitForInitialRows: false },
+    );
+    try {
+        const link = page.locator("[data-panel-download] a[download]");
+        await link.waitFor({ state: "visible" });
+        assert.equal(await link.textContent(), "下载 Windows 桥安装包");
+        assert.equal(await link.getAttribute("href"), "/api/broker-execution/qmt-bridge/download/");
+    } finally {
+        await browser.close();
+    }
+});

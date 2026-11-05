@@ -54,6 +54,7 @@ EXPECTED_ADMIN_ONLY_SCREEN_KEYS = {
     "data-center.egress-config",
     "system.qlib-center",
     "broker-execution.qmt-setup",
+    "broker-execution.qmt-guide",
 }
 
 EXPECTED_TASK_ACTION_OWNERS = {
@@ -110,7 +111,7 @@ def test_tui_ia_registry_is_the_complete_screen_routing_source() -> None:
 
     assert len(registry["published_screens"]) == 12
 
-    assert len(registry["runtime_screens"]) == 19
+    assert len(registry["runtime_screens"]) == 21
 
     assert {"task.today-focus", "task.portfolio-check", "task.account-inspection"} <= {
         screen["key"] for screen in registry["runtime_screens"]
@@ -276,7 +277,7 @@ def test_runtime_screen_registry_publishes_complete_user_experience_contract() -
 
     action_keys = {action["key"] for action in payload["actions"]}
 
-    assert len(runtime_screens) == 19
+    assert len(runtime_screens) == 21
 
     assert {"task.today-focus", "task.portfolio-check", "task.account-inspection"} <= set(
         runtime_screens

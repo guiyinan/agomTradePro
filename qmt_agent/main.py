@@ -12,12 +12,37 @@ from pathlib import Path
 from typing import Any
 
 from .api_client import AgentApiClient
+from .builtin_adapter import BuiltinPythonAdapter
 from .config import AgentConfig, load_agent_token
 from .executor import QmtAgentExecutor
 from .fake_adapter import FakeQmtAdapter
 from .health import run_preflight, run_qmt_read_probe
-from .qmt_adapter import XtQuantAdapter
+from .qmt_adapter import BrokerAdapter, XtQuantAdapter
 from .state_store import AgentStateStore
+
+
+def _trading_adapter(config: AgentConfig, fake: str | None) -> BrokerAdapter:
+    """Build the explicitly configured local broker boundary or a fake adapter."""
+
+    if fake:
+        return FakeQmtAdapter(fake)
+    if config.qmt_trade_api == "builtin_python":
+        return BuiltinPythonAdapter(
+            userdata_path=config.qmt_userdata_path,
+            broker_account_id=config.broker_account_id,
+            account_type=config.broker_account_type,
+            qmt_client_version=config.qmt_client_version,
+            xtquant_version=config.xtquant_version,
+            pipe_name=config.qmt_builtin_pipe_name,
+            bridge_timeout_seconds=config.qmt_builtin_bridge_timeout_seconds,
+        )
+    return XtQuantAdapter(
+        userdata_path=config.qmt_userdata_path,
+        broker_account_id=config.broker_account_id,
+        account_type=config.broker_account_type,
+        qmt_client_version=config.qmt_client_version,
+        xtquant_version=config.xtquant_version,
+    )
 
 
 def main() -> int:
@@ -52,21 +77,11 @@ def main() -> int:
     if args.evidence_file and not args.qmt_read_probe:
         parser.error("--evidence-file requires --preflight or --qmt-read-probe")
     if args.qmt_read_probe:
-        broker = (
-            FakeQmtAdapter(args.fake)
-            if args.fake
-            else XtQuantAdapter(
-                userdata_path=config.qmt_userdata_path,
-                broker_account_id=config.broker_account_id,
-                account_type=config.broker_account_type,
-                qmt_client_version=config.qmt_client_version,
-                xtquant_version=config.xtquant_version,
-            )
-        )
+        broker = _trading_adapter(config, args.fake)
         report = run_qmt_read_probe(
             config,
             broker,
-            adapter_name="fake" if args.fake else "xtquant",
+            adapter_name="fake" if args.fake else config.qmt_trade_api,
         )
         _emit_report(report, args.evidence_file)
         return 0 if report["ready"] else 2
@@ -84,17 +99,7 @@ def main() -> int:
             logging.StreamHandler(),
         ],
     )
-    broker = (
-        FakeQmtAdapter(args.fake)
-        if args.fake
-        else XtQuantAdapter(
-            userdata_path=config.qmt_userdata_path,
-            broker_account_id=config.broker_account_id,
-            account_type=config.broker_account_type,
-            qmt_client_version=config.qmt_client_version,
-            xtquant_version=config.xtquant_version,
-        )
-    )
+    broker = _trading_adapter(config, args.fake)
     api = AgentApiClient(config, load_agent_token())
     state = AgentStateStore(config.state_dir / "agent-state.sqlite3")
     executor = QmtAgentExecutor(config=config, api=api, broker=broker, state=state)

@@ -7542,6 +7542,19 @@ paths:
       responses:
         '200':
           description: No response body
+  /api/broker-execution/qmt-bridge/download/:
+    get:
+      operationId: api_broker_execution_qmt_bridge_download_get
+      description: Return only the fixed package selected by the application service.
+      tags:
+      - broker-execution
+      security:
+      - cookieAuth: []
+      - agomInternalSignature: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
   /api/broker-execution/qmt-onboarding/:
     get:
       operationId: api_broker_execution_qmt_onboarding_get

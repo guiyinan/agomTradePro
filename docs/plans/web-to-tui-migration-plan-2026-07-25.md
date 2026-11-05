@@ -42,6 +42,8 @@
 
 2026-09-09 QMT 整体桥新增任务归属：普通用户配对、状态、暂停/恢复、修复及撤销复用“个人资料与交易设置”；公共行情数据源批准复用管理员“QMT 接入与设置”。由 `tui_metadata_runtime_injection_qmt_bridge.py` 注册，不新增 Classic 页面或 screen，连接与采集回执遵守专门可复制呈现语义。
 
+2026-11-05 QMT 内置 Python 接入新增管理员 `broker-execution.qmt-guide` runtime screen，集中提供 Windows 桥 ZIP 下载、分步接入和只读验收；既有 `broker-execution.qmt-setup` 保留账户、凭证和门禁职责并提供入口。面板 `download` 契约只允许固定 owner API 相对路径，实际文件由 `broker_execution` 按当前 Agent 版本和管理员权限提供，不新增 Classic 页面。
+
 1. 现有 web 界面为 195 个 Django 模板、约 7.6 万行 HTML，其中 **114 个模板（58%）含无 `src` 的内联 `<script>`**。这部分逻辑既不被 Python 测试覆盖，也不在任何前端工程内，是当前最大的 UI 测试盲区。
 2. TUI 体系已成熟：12 个 published screen + 6 个 runtime source（alias 归并后为 4 个 canonical retained runtime screen）、402 个 action、3 个分组、8 步每日工作流，且 screen 全部以 metadata（JSON）定义，受 schema v3 + 域校验器 + 静态契约 + Playwright 几何护栏的多层机器检查。把 UI 从模板换成 metadata，等于把"靠纪律维持的统一"换成"靠机器强制的统一"。
 3. 四层架构红利：多数迁移只替换 Interface 层的渲染方式并复用既有 `/api/`；发现 API 缺口时，在数据所属 app 内按四层补齐纵向切片，保持金融规则和业务语义不变。

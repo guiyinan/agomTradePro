@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[3]
 
 
@@ -25,7 +24,9 @@ def test_package_entrypoints_and_builder_exist() -> None:
         ROOT / "qmt_agent" / "package" / "Test-Connection.ps1",
         ROOT / "qmt_agent" / "package" / "Uninstall.ps1",
         ROOT / "scripts" / "build_qmt_agent_package.ps1",
+        ROOT / "qmt_agent" / "scripts" / "setup-builtin-python.ps1",
         ROOT / "docs" / "operations" / "qmt-agent-local-install-package.md",
+        ROOT / "docs" / "operations" / "qmt-builtin-python-onboarding.md",
     ]
 
     assert all(path.is_file() for path in required)

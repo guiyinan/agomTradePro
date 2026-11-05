@@ -176,6 +176,7 @@ ALLOWED_TUI_DASHBOARD_PANEL_KEYS = {
     "row_actions",
     "layout_area",
     "target_screen",
+    "download",
     "audience",
 }
 ALLOWED_TUI_ACTION_EFFECTS = {

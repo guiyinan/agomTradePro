@@ -7,6 +7,7 @@ This directory contains the standalone Windows execution Agent and its repeatabl
 - Store the VPS Agent token with `Set-AgentToken.ps1`; it is encrypted with Windows DPAPI.
 - Run installation checks with `Test-Connection.ps1`; add `-ReadProbe` for the no-order/no-cancel QMT probe.
 - Keep `dry_run` enabled until the broker permission and simulation acceptance gates pass.
+- If external function trading is unavailable, run `qmt_agent/scripts/setup-builtin-python.ps1` for guided setup, then run `qmt_agent/builtin_strategy.py` unchanged as a QMT real-time strategy. The default remains `xtquant`; see `docs/qmt-builtin-python-onboarding.md` in the package.
 
 The package does not contain QMT, a broker password, an Agent token, or an XtQuant wheel. The installer downloads the recorded official wheel and verifies its SHA-256, or accepts a broker-provided wheel together with an explicit SHA-256.
 

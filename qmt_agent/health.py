@@ -60,7 +60,7 @@ def run_qmt_read_probe(
         "system_account_id": config.system_account_id,
         "account_type": config.broker_account_type,
         "adapter": adapter_name,
-        "external_evidence": adapter_name == "xtquant",
+        "external_evidence": adapter_name in {"xtquant", "builtin_python"},
         "declared_versions": {
             "qmt_client": config.qmt_client_version,
             "xtquant": config.xtquant_version,
@@ -81,18 +81,14 @@ def run_qmt_read_probe(
         checks = {
             "qmt_connected": bool(health.get("qmt_connected")),
             "qmt_version": str(health.get("qmt_version") or "unknown")[:128],
-            "asset_query": all(
-                key in snapshot for key in ("cash_available", "total_asset")
-            ),
+            "asset_query": all(key in snapshot for key in ("cash_available", "total_asset")),
             "positions_query": isinstance(positions, list),
             "orders_query": isinstance(orders, list),
             "trades_query": isinstance(trades, list),
             "position_count": len(positions) if isinstance(positions, list) else -1,
             "order_count": len(orders) if isinstance(orders, list) else -1,
             "trade_count": len(trades) if isinstance(trades, list) else -1,
-            "qmt_client_version_recorded": _version_recorded(
-                config.qmt_client_version
-            ),
+            "qmt_client_version_recorded": _version_recorded(config.qmt_client_version),
             "xtquant_version_recorded": _version_recorded(config.xtquant_version),
         }
         report["checks"] = checks
@@ -103,14 +99,9 @@ def run_qmt_read_probe(
             "orders_query",
             "trades_query",
         ]
-        if adapter_name == "xtquant":
-            required_checks.extend(
-                ["qmt_client_version_recorded", "xtquant_version_recorded"]
-            )
-        report["ready"] = all(
-            bool(checks[key])
-            for key in required_checks
-        )
+        if adapter_name in {"xtquant", "builtin_python"}:
+            required_checks.extend(["qmt_client_version_recorded", "xtquant_version_recorded"])
+        report["ready"] = all(bool(checks[key]) for key in required_checks)
     except (ImportError, OSError, RuntimeError, TypeError, ValueError) as exc:
         report["checks"] = {
             "qmt_connected": False,

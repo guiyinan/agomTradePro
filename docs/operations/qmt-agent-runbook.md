@@ -35,6 +35,35 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\qmt_agent\scripts\install-
 
 仓库提供可重复构建的 Windows ZIP 安装包，详见 [国金 QMT 本地 Agent 安装包说明](qmt-agent-local-install-package.md)。
 
+### 1.2 外部函数接口不可用：切换到 QMT 内置 Python
+
+完整分步接入脚本、联调记录和故障对照见 [QMT 内置 Python 接入指南](qmt-builtin-python-onboarding.md)。
+
+券商反馈 9 月 18 日后外部 `xt`/MiniQMT 的函数查询、函数委托和撤单不可用时，可使用 Agent `0.3.0` 的内置 Python 桥。该模式仍保留服务端风控、Agent 幂等、租约期限和 STOP 门禁，但不代表已经通过真实券商验收。
+
+2026-11-05 目标国金 QMT `2.1.19.0` 已完成命名管道只读探针：连接、资产、持仓、当日委托和当日成交均成功，`submitted_order=false`、`canceled_order=false`。真实报单、撤单、回调和连续运行仍待仿真/受控验收，不得据此启用自动实盘。若客户端提示 `198.18.x.x` 非法 IP，应检查 Clash/Mihomo TUN；本机已为 `XtItClient.exe` 配置 `DIRECT`，并将 `+.gjzq.com.cn` 加入 `fake-ip-filter`。
+
+1. 正常安装新版 Agent，在 `config.json` 设置以下字段；管道名必须与 QMT 内置策略顶部的 `PIPE_ADDRESS` 一致：
+
+   ```json
+   {
+     "qmt_trade_api": "builtin_python",
+     "qmt_builtin_pipe_name": "agom_qmt_builtin_bridge",
+     "qmt_builtin_bridge_timeout_seconds": 10
+   }
+   ```
+
+   安装程序生成的配置默认仍为 `xtquant`，不会因升级自动切换交易接口。
+
+2. 在 QMT 客户端新建**实盘策略**，完整复制安装目录 `qmt_agent/builtin_strategy.py`，不要只在编辑器或回测中运行。策略直接采用模型交易条目绑定的普通股票账号，不读取配置文件。
+3. 启动策略并保持运行。策略通过 Windows 命名管道接收 Agent 请求，通过 `run_time(..., "1nSecond", ...)` 在 QMT 回调线程执行原生接口，`handlebar` 仅作补充。不要同时启动多个使用同一管道名的策略实例。
+4. 保持 `dry_run: true`，先执行 `--preflight` 和 `--qmt-read-probe`。内置桥只替换资金、持仓、委托、成交、报单和撤单接口；本地行情仍使用 `xtdata`，行情不可用时需单独处理，不能用账户连接成功代替行情新鲜度。
+5. 在券商仿真环境重新验收报单、部分/全部成交、撤单、断线和重启恢复后，才可按原分级流程启用。
+
+内置委托调用 `passorder(..., prType=11, quickTrade=2, ...)`，撤单调用 `cancel(orderId, accountId, "STOCK", C)`，查询调用 `get_trade_detail_data`。`passorder` 没有同步委托号返回值，Agent 会以紧凑备注查询 `m_strOrderSysID`；尚未查到时状态为已提交但委托号为空，后续通过对账查询补齐。请求超时、响应丢失或原生结果不明确时进入 `RECONCILIATION_REQUIRED`，禁止直接重报。请求有过期时间；策略进程内按请求 ID 缓存响应并记录提交 marker，Agent SQLite 持久化未决状态，重启后先按备注查询，禁止盲目再次调用 `passorder`。命名管道不监听 TCP/UDP 端口，也不依赖策略文件读写权限，适用于禁止内置 Python 文件 I/O 的券商客户端。
+
+接口真源：[迅投 QMT 知识库](https://dict.thinktrader.net/?id=NF25nX)。
+
 ## 2. 服务端初始化
 
 部署代码后执行数据库迁移，并确保 Celery Worker/Beat 正常：

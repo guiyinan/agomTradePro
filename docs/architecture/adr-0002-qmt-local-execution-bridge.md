@@ -29,6 +29,12 @@ Classic Web、TUI、正式 SDK 和 MCP 共享 `broker_execution` Application Use
 
 ## 结果
 
+### 2026-10：增加 QMT 内置 Python 交易适配
+
+针对券商停止外部函数查询、委托和撤单的环境，本地 Agent 新增显式 `builtin_python` 适配器。控制面、HTTPS 契约、订单状态机和风控不变；仅 Windows 本地的券商边界改为“外部 Agent ↔ Windows 命名管道 ↔ QMT 内置实盘策略”。策略使用 `get_trade_detail_data`、`passorder` 和 `cancel`，不构造 `XtQuantTrader`，不开放网络端口，也不依赖被部分券商禁用的文件 I/O。行情 `xtdata` 边界不变。
+
+内置 `passorder` 无同步委托号返回值，因此以 `userOrderId`/`m_strRemark` 关联 `m_strOrderSysID`。原生请求必须有短有效期；策略进程内按请求 ID 缓存响应并记录提交 marker，Agent SQLite 持久化未决状态，重启后先按备注查询，不能盲目再次调用 `passorder`。默认仍为 `xtquant`，内置模式不解除仿真、小额实盘或连续运行验收。
+
 ### 2026-09-09：整合行情工作单元
 
 沿用同一 `qmt_agent/` 制品与 Windows 运行环境，增加独立行情进程；原交易进程、交易凭证、账户绑定和订单状态机不变。行情由登录用户创建一次性配对码，本地桥绑定精确服务器地址，凭证用当前 Windows 用户 DPAPI 保存。服务器管理员另行批准公共 Provider 和单位契约；行情授权不授予交易能力。

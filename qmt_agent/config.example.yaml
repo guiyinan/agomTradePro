@@ -6,6 +6,9 @@ broker_account_type: STOCK
 system_account_id: 1
 qmt_client_version: "replace-with-broker-qmt-version"
 xtquant_version: "replace-with-broker-xtquant-version"
+qmt_trade_api: xtquant
+qmt_builtin_pipe_name: agom_qmt_builtin_bridge
+qmt_builtin_bridge_timeout_seconds: 10
 poll_interval_seconds: 2
 lease_seconds: 30
 dry_run: true

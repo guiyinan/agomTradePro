@@ -13,10 +13,16 @@ class BrokerExecutionConfig(AppConfig):
     def ready(self) -> None:
         """Configure the default repository at the composition root."""
 
+        from apps.broker_execution.application.qmt_bridge_package import (
+            configure_qmt_bridge_package_provider,
+        )
         from apps.broker_execution.application.repository_provider import (
             configure_broker_execution_repository,
         )
         from apps.broker_execution.infrastructure import security_signals
+        from apps.broker_execution.infrastructure.qmt_bridge_package import (
+            DjangoQmtBridgePackageProvider,
+        )
         from apps.broker_execution.infrastructure.repositories import (
             DjangoBrokerExecutionRepository,
         )
@@ -28,6 +34,7 @@ class BrokerExecutionConfig(AppConfig):
         )
 
         configure_broker_execution_repository(DjangoBrokerExecutionRepository)
+        configure_qmt_bridge_package_provider(DjangoQmtBridgePackageProvider)
         configure_r8_broker_monitoring_factory(
             lambda using: build_django_r8_broker_monitoring_receipt_provider(using=using)
         )

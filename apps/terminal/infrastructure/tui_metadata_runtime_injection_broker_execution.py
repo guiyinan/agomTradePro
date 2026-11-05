@@ -101,6 +101,59 @@ RUNTIME_BROKER_EXECUTION_SCREENS: tuple[dict[str, Any], ...] = (
         ],
     },
     {
+        "key": "broker-execution.qmt-guide",
+        "audience": "admin",
+        "dashboard_layout": "task_flow",
+        "business_context": {
+            "objective": "把桥下载、QMT 内置策略启动和只读验收集中成一条管理员引导流程。",
+            "decision_output": "Windows 桥安装包、内置接口接入步骤和只读验收入口。",
+            "checkpoints": [
+                "下载与当前 Agent 版本一致的 Windows 桥包",
+                "在 QMT 模型交易中绑定普通股票账号并启动策略",
+                "保持 dry-run，确认只读探针通过",
+            ],
+        },
+        "dashboard_panels": [
+            {
+                "key": "qmt-bridge-download",
+                "title": "一、下载 Windows QMT 桥",
+                "kind": "detail",
+                "action_key": "broker-execution.qmt-guide",
+                "layout_area": "qmt_bridge_download",
+                "target_screen": "broker-execution.qmt-guide",
+                "note": "下载包含 Agent、内置策略、安装脚本和接入指南的 ZIP；结果区同时显示版本、大小和 SHA-256。",
+                "user_priority": "p0",
+                "presentation_semantic": "primary_status",
+                "download": {
+                    "url": "/api/broker-execution/qmt-bridge/download/",
+                    "label": "下载 Windows 桥安装包",
+                },
+            },
+            {
+                "key": "qmt-builtin-guide",
+                "title": "二、内置 Python 分步接入",
+                "kind": "detail",
+                "action_key": "broker-execution.qmt-guide",
+                "max_rows": 16,
+                "layout_area": "qmt_builtin_guide",
+                "target_screen": "broker-execution.qmt-guide",
+                "note": "解压后先运行 setup-builtin-python.ps1；按输出完成 QMT 策略创建和模型交易启动，再以 -RunReadProbe 验收。",
+                "user_priority": "p0",
+                "presentation_semantic": "setup_guide",
+            },
+            {
+                "key": "qmt-guide-next",
+                "title": "三、继续账户与执行设置",
+                "kind": "detail",
+                "layout_area": "qmt_guide_next",
+                "target_screen": "broker-execution.qmt-setup",
+                "note": "只读通过后，再完成账户绑定、一次性凭证和执行门禁；不要直接启用自动实盘。",
+                "user_priority": "p1",
+                "presentation_semantic": "next_step",
+            },
+        ],
+    },
+    {
         "key": "broker-execution.qmt-setup",
         "dashboard_layout": "task_flow",
         "business_context": {
@@ -114,6 +167,16 @@ RUNTIME_BROKER_EXECUTION_SCREENS: tuple[dict[str, Any], ...] = (
             ],
         },
         "dashboard_panels": [
+            {
+                "key": "qmt-open-onboarding-guide",
+                "title": "QMT 接入引导与桥下载",
+                "kind": "detail",
+                "layout_area": "qmt_open_guide",
+                "target_screen": "broker-execution.qmt-guide",
+                "note": "首次接入或外部函数接口不可用时，先打开引导页下载 Windows 桥并完成内置 Python 只读验收。",
+                "user_priority": "p0",
+                "presentation_semantic": "next_step",
+            },
             {
                 "key": "qmt-setup-guide",
                 "title": "一、QMT 接入指引",
@@ -290,6 +353,39 @@ _AGENT_ID_FIELD = {
 
 
 RUNTIME_BROKER_EXECUTION_ACTIONS: tuple[dict[str, Any], ...] = (
+    {
+        "key": "broker-execution.qmt-guide",
+        "label": "读取 QMT 接入引导",
+        "endpoint": "/api/broker-execution/qmt-onboarding/",
+        "method": "GET",
+        "intent": "read_qmt_builtin_onboarding_guide",
+        "risk": "read",
+        "audience": "admin",
+        "screen_key": "broker-execution.qmt-guide",
+        "module_key": "system-governance",
+        "view_type": "detail",
+        "description": "读取桥包版本、内置 Python 接入步骤、可复制命令和当前连接状态。",
+        "source": "approved:runtime-broker-execution",
+        "task_group": "01 下载与接入",
+        "task_tier": "primary",
+        "sequence": 5,
+        "fields": [],
+        "view_model": {
+            "kind": "detail",
+            "field_presentations": {
+                "server_address": "copyable",
+                "setup_guide": "multiline",
+                "package_build_command": "multiline",
+                "builtin_setup_command": "multiline",
+                "windows_install_command": "multiline",
+                "token_setup_command": "multiline",
+                "verification_command": "multiline",
+                "package_filename": "copyable",
+                "package_sha256": "copyable",
+            },
+        },
+        "result_semantics": ["primary_status", "setup_guide"],
+    },
     {
         "key": "broker-execution.qmt-onboarding-guide",
         "label": "读取 QMT 接入指引",

@@ -76,6 +76,27 @@ except ImportError:  # pragma: no cover - local validator still protects runtime
     Draft202012Validator = None
 
 
+def _validate_dashboard_download(panel: dict[str, Any]) -> None:
+    """Validate a same-owner, relative API download link exposed by a panel."""
+
+    value = panel.get("download")
+    if value is None:
+        return
+    if not isinstance(value, dict) or set(value) != {"url", "label"}:
+        raise TuiMetadataValidationError("Dashboard download requires exactly url and label")
+    url = value.get("url")
+    label = value.get("label")
+    if (
+        not isinstance(url, str)
+        or not url.startswith("/api/")
+        or not url.endswith("/")
+        or any(token in url for token in ("..", "?", "#", " ", "\\"))
+    ):
+        raise TuiMetadataValidationError("Dashboard download URL must be a bounded API path")
+    if not isinstance(label, str) or not label.strip():
+        raise TuiMetadataValidationError("Dashboard download label must be non-empty")
+
+
 def validate_tui_metadata(payload: dict[str, Any]) -> dict[str, Any]:
     """Validate and normalize a TUI metadata payload.
 
@@ -296,6 +317,7 @@ def validate_tui_metadata(payload: dict[str, Any]) -> dict[str, Any]:
                 raise TuiMetadataValidationError(
                     f"Dashboard panel has unsupported keys: {screen['key']}.{names}"
                 )
+            _validate_dashboard_download(panel)
             if str(panel["kind"]) not in ALLOWED_TUI_DASHBOARD_PANEL_KINDS:
                 raise TuiMetadataValidationError(
                     f"Dashboard panel has unsupported kind: {screen['key']}.{panel['key']}"

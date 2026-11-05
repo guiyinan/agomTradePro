@@ -21,6 +21,10 @@ class AgentConfig:
     system_account_id: int
     qmt_client_version: str = ""
     xtquant_version: str = ""
+    qmt_trade_api: str = "xtquant"
+    qmt_builtin_bridge_dir: Path = Path("builtin-bridge")
+    qmt_builtin_pipe_name: str = "agom_qmt_builtin_bridge"
+    qmt_builtin_bridge_timeout_seconds: float = 10
     poll_interval_seconds: float = 2.0
     lease_seconds: int = 30
     dry_run: bool = True
@@ -67,6 +71,16 @@ class AgentConfig:
             system_account_id=int(payload["system_account_id"]),
             qmt_client_version=str(payload.get("qmt_client_version", "")).strip(),
             xtquant_version=str(payload.get("xtquant_version", "")).strip(),
+            qmt_trade_api=str(payload.get("qmt_trade_api", "xtquant")).strip().lower(),
+            qmt_builtin_bridge_dir=local_path(
+                payload.get("qmt_builtin_bridge_dir", "builtin-bridge")
+            ),
+            qmt_builtin_pipe_name=str(
+                payload.get("qmt_builtin_pipe_name", "agom_qmt_builtin_bridge")
+            ).strip(),
+            qmt_builtin_bridge_timeout_seconds=float(
+                payload.get("qmt_builtin_bridge_timeout_seconds", 10)
+            ),
             poll_interval_seconds=float(payload.get("poll_interval_seconds", 2)),
             lease_seconds=int(payload.get("lease_seconds", 30)),
             dry_run=bool(payload.get("dry_run", True)),
@@ -77,13 +91,10 @@ class AgentConfig:
             enforce_trading_session=bool(payload.get("enforce_trading_session", True)),
             trading_timezone=str(payload.get("trading_timezone", "Asia/Shanghai")),
             allowed_trading_windows=tuple(
-                str(item) for item in payload.get(
-                    "allowed_trading_windows", ["09:30-11:30", "13:00-15:00"]
-                )
+                str(item)
+                for item in payload.get("allowed_trading_windows", ["09:30-11:30", "13:00-15:00"])
             ),
-            price_deviation_limit_pct=float(
-                payload.get("price_deviation_limit_pct", 0.03)
-            ),
+            price_deviation_limit_pct=float(payload.get("price_deviation_limit_pct", 0.03)),
             max_position_count=int(payload.get("max_position_count", 20)),
         )
         config.validate()
@@ -96,6 +107,10 @@ class AgentConfig:
             raise ValueError("agent_id and system_account_id are required")
         if self.broker_account_type.upper() != "STOCK":
             raise ValueError("The first QMT Agent release supports STOCK accounts only")
+        if self.qmt_trade_api not in {"xtquant", "builtin_python"}:
+            raise ValueError("qmt_trade_api must be xtquant or builtin_python")
+        if not 1 <= self.qmt_builtin_bridge_timeout_seconds <= 30:
+            raise ValueError("QMT built-in bridge timeout must be between 1 and 30 seconds")
         if not self.server_url.startswith("https://") and not self.server_url.startswith(
             "http://127.0.0.1"
         ):

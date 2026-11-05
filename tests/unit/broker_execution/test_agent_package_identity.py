@@ -65,7 +65,7 @@ def _build_package(
 
 
 def test_agent_candidate_version_is_the_heartbeat_identity(tmp_path: Path) -> None:
-    assert __version__ == "0.2.0"
+    assert __version__ == "0.3.0"
     config = SimpleNamespace(
         kill_switch_file=tmp_path / "STOP",
         system_account_id=7,
@@ -123,6 +123,8 @@ def test_default_package_version_matches_source_and_contains_no_credentials(
     assert f'__version__ = "{__version__}"' in package_init
     assert "from . import __version__" in package_executor
     assert '"agent_version": __version__' in package_executor
+    assert "qmt_agent/scripts/setup-builtin-python.ps1" in names
+    assert "docs/qmt-builtin-python-onboarding.md" in names
     assert not any(
         Path(name).name.lower() in {".env", "credentials.json", "token.json"}
         or name.lower().endswith((".pem", ".p12", ".pfx", ".whl"))
@@ -151,6 +153,7 @@ def test_package_excludes_runtime_credentials_and_state_in_an_isolated_source_tr
         Path("docs/operations/qmt-agent-local-install-package.md"),
         Path("docs/operations/qmt-agent-runbook.md"),
         Path("docs/operations/qmt-integrated-bridge.md"),
+        Path("docs/operations/qmt-builtin-python-onboarding.md"),
         *(path.relative_to(ROOT) for path in (ROOT / "qmt_agent/scripts").glob("*.ps1")),
         *(path.relative_to(ROOT) for path in (ROOT / "qmt_agent/package").glob("*.ps1")),
     ]

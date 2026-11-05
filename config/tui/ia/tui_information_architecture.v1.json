@@ -2959,6 +2959,28 @@
       ]
     },
     {
+      "key": "broker-execution.qmt-guide",
+      "label": "QMT 接入引导",
+      "module_key": "system-governance",
+      "group": "system",
+      "audience": "admin",
+      "summary": "下载 Windows QMT 桥，按步骤完成内置 Python 策略、Agent 配置和只读验收。",
+      "view_type": "detail",
+      "status": "online",
+      "dashboard_layout": "task_flow",
+      "default_action_key": "broker-execution.qmt-guide",
+      "user_experience": {
+        "journey": "admin",
+        "primary_task": "下载并安装 Windows QMT 桥，在 QMT 中启动内置策略并完成只读验证。",
+        "primary_outcome": "得到可安装的桥包、可执行的接入步骤和明确的只读验收结果。",
+        "empty_state_hint": "先下载 Windows 桥安装包；尚未启动内置策略时按本页步骤完成接入。",
+        "next_step_hint": "只读验证通过后进入 QMT 接入与设置完成账户绑定、凭证和执行门禁。"
+      },
+      "sources": [
+        "broker-execution.qmt-guide"
+      ]
+    },
+    {
       "key": "broker-execution.qmt-setup",
       "label": "QMT 接入与设置",
       "module_key": "system-governance",

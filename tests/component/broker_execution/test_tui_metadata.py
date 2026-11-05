@@ -56,6 +56,16 @@ def test_broker_execution_actions_and_p0_panels_are_published() -> None:
         "primary_status",
         "setup_guide",
     ]
+    guide_panels = {
+        panel["key"]: panel
+        for panel in screens["broker-execution.qmt-guide"].get("dashboard_panels", [])
+    }
+    assert guide_panels["qmt-bridge-download"]["user_priority"] == "p0"
+    assert guide_panels["qmt-bridge-download"]["download"] == {
+        "url": "/api/broker-execution/qmt-bridge/download/",
+        "label": "下载 Windows 桥安装包",
+    }
+    assert actions["broker-execution.qmt-guide"]["audience"] == "admin"
 
 
 @pytest.mark.django_db
@@ -70,6 +80,7 @@ def test_broker_execution_tui_uses_canonical_human_screens() -> None:
         "execution.accounts",
         "execution.audit",
         "broker-execution.qmt-setup",
+        "broker-execution.qmt-guide",
     }
     ordinary_copy = " ".join(
         str(item.get("description") or "") + str(item.get("label") or "")

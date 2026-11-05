@@ -576,6 +576,23 @@
         });
     }
 
+    function dashboardPanelDownload(panel) {
+        const download = panel?.download;
+        if (!download || typeof download !== "object") {
+            return "";
+        }
+        const url = String(download.url || "").trim();
+        const label = String(download.label || "下载").trim();
+        if (!url.startsWith("/api/") || !url.endsWith("/")) {
+            return "";
+        }
+        return `
+            <div class="tui-dashboard-download" data-panel-download>
+                <a class="tui-entry-action" href="${escapeHtml(url)}" download>${escapeHtml(label)}</a>
+            </div>
+        `;
+    }
+
     function renderDashboardPanelShell(panel, body) {
         const content = `
             <h3>
@@ -588,6 +605,7 @@
                 </span>
             </h3>
             ${panel.note ? `<div class="tui-panel-caption">${escapeHtml(panel.note)}</div>` : ""}
+            ${dashboardPanelDownload(panel)}
             ${renderDashboardFilters(panel)}
             ${body}
         `;

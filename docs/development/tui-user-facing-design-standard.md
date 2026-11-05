@@ -374,6 +374,7 @@ Hard rules:
 - `copyable_secret`, `endpoint_list`, and `multiline_prompt` panels must use `kind: detail`.
 - A `p0` panel must point to an action or a target screen.
 - Automatic panel loading is limited to passive reads. Admin reads may auto-load only when both the screen and action are admin-owned and the action belongs to the current screen; write/AI actions always require an explicit user action.
+- A panel may publish `download: {url, label}` for a server-owned artifact such as the QMT Windows bridge. The URL must be a fixed relative `/api/` path, never a caller-supplied filesystem path or external URL. The renderer exposes a native download link; the owner endpoint independently enforces authentication, audience, artifact version and integrity. Downloading an install artifact is a read-only operation and must not create credentials, change trading settings or execute the artifact.
 
 ## Action And Field Rules
 

@@ -7,6 +7,7 @@ from typing import Any
 from uuid import UUID
 
 from django.conf import settings
+from django.http import FileResponse
 from rest_framework import status
 from rest_framework.authentication import BaseAuthentication
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -35,6 +36,7 @@ from apps.broker_execution.application.management_use_cases import (
     RotateAgentCredentialUseCase,
     UpdateExecutionSettingsUseCase,
 )
+from apps.broker_execution.application.qmt_bridge_package import QmtBridgePackageService
 from apps.broker_execution.application.query_services import BrokerExecutionQueryService
 from apps.broker_execution.application.use_case_errors import (
     BrokerAgentAuthenticationError,
@@ -272,6 +274,32 @@ class BrokerExecutionQmtOnboardingView(APIView):
             BrokerExecutionValidationError,
         ) as exc:
             return _error_response(exc)
+
+
+class BrokerExecutionQmtBridgeDownloadView(APIView):
+    """Download the current Windows bridge ZIP to an authorized administrator."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request: Request) -> Response | FileResponse:
+        """Return only the fixed package selected by the application service."""
+
+        try:
+            package = QmtBridgePackageService().get(actor=request.user)
+        except (
+            BrokerExecutionPermissionError,
+            BrokerExecutionNotFoundError,
+            BrokerExecutionValidationError,
+        ) as exc:
+            return _error_response(exc)
+        response = FileResponse(
+            package.path.open("rb"),
+            content_type="application/zip",
+            filename=package.filename,
+        )
+        response["X-Content-Type-Options"] = "nosniff"
+        response["X-QMT-Package-SHA256"] = package.sha256
+        return response
 
 
 class BrokerExecutionConnectionSyncView(APIView):

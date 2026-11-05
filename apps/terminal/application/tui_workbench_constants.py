@@ -42,6 +42,13 @@ ROW_IDENTIFIER_FIELDS = {
 }
 
 FIELD_LABELS = {
+    "package_available": "安装包可用",
+    "package_version": "安装包版本",
+    "package_filename": "安装包文件名",
+    "package_size_bytes": "安装包大小（字节）",
+    "package_sha256": "安装包 SHA-256",
+    "package_download_url": "安装包下载地址",
+    "builtin_setup_command": "内置 Python 接入命令",
     "egress_id": "数据出口编号",
     "fixed_egress_id": "固定或备用出口编号",
     "allowed_egress_ids": "允许的出口顺序",

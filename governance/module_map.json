@@ -3318,6 +3318,13 @@
           "RegisterBrokerPreRiskExecutionScope",
           "RegisterBrokerPreRiskExecutionScopeCommand"
         ],
+        "application/qmt_bridge_package.py": [
+          "QmtBridgePackage",
+          "QmtBridgePackageProvider",
+          "QmtBridgePackageService",
+          "configure_qmt_bridge_package_provider",
+          "get_qmt_bridge_package_provider"
+        ],
         "application/query_services.py": [
           "BrokerExecutionQueryService"
         ],
@@ -3375,6 +3382,7 @@
           "kill-switch/",
           "connections/",
           "qmt-onboarding/",
+          "qmt-bridge/download/",
           "connections/sync/",
           "reconciliations/",
           "reconciliations/<int:run_id>/resolve/",
@@ -3403,9 +3411,9 @@
         ]
       },
       "layers": {
-        "application": 27,
+        "application": 28,
         "domain": 13,
-        "infrastructure": 30,
+        "infrastructure": 31,
         "interface": 6,
         "root": 6
       },

@@ -475,6 +475,15 @@
         "title": { "type": "string", "minLength": 1 },
         "kind": { "enum": ["datagrid", "detail", "placeholder", "regime_quadrant", "status", "chart", "image", "kpi_trend", "table_chart", "host_slot", "custom"] },
         "action_key": { "type": "string" },
+        "download": {
+          "type": "object",
+          "required": ["url", "label"],
+          "properties": {
+            "url": { "type": "string", "pattern": "^/api/[A-Za-z0-9_./-]+/$" },
+            "label": { "type": "string", "minLength": 1 }
+          },
+          "additionalProperties": false
+        },
         "status": { "type": "string" },
         "note": { "type": "string" },
         "empty_message": { "type": "string" },

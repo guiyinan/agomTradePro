@@ -305,7 +305,7 @@ class _XtTraderProtocol(Protocol):
         """Submit validated volume and price through the vendor stock-order API."""
         ...
 
-    def cancel_order_stock(self, account: object, order_id: int) -> int:
+    def cancel_order_stock(self, account: object, order_id: int | str) -> int:
         """Cancel the exact vendor account order and return its status code."""
         ...
 
@@ -586,11 +586,15 @@ def _import_xtquant_module(module_name: str) -> ModuleType:
 
 
 def _load_xtquant_constants() -> _XtConstantsProtocol:
-    """Load and narrow the QMT constants at their optional boundary."""
+    """Load constants directly, including when no external trader was constructed."""
 
-    xtquant_module = _import_xtquant_module("xtquant")
-    typed_module = cast(_XtConstantsModuleProtocol, xtquant_module)
-    return typed_module.xtconstant
+    try:
+        constants_module = _import_xtquant_module("xtquant.xtconstant")
+    except ImportError:
+        xtquant_module = _import_xtquant_module("xtquant")
+        typed_module = cast(_XtConstantsModuleProtocol, xtquant_module)
+        return typed_module.xtconstant
+    return cast(_XtConstantsProtocol, constants_module)
 
 
 class XtQuantAdapter:
@@ -935,11 +939,16 @@ class XtQuantAdapter:
             "AgomTradePro",
             order_remark,
         )
+        if raw_broker_order_id is None:
+            return self._missing_order_id_result()
         if isinstance(raw_broker_order_id, bool):
             raise RuntimeError("QMT returned an invalid order identifier")
         try:
             if isinstance(raw_broker_order_id, str):
-                broker_order_id = int(raw_broker_order_id)
+                try:
+                    broker_order_id = int(raw_broker_order_id)
+                except ValueError:
+                    return self._text_order_id_result(raw_broker_order_id)
             else:
                 broker_order_id = operator.index(cast(SupportsIndex, raw_broker_order_id))
         except (TypeError, ValueError, OverflowError) as exc:
@@ -952,12 +961,28 @@ class XtQuantAdapter:
             "" if accepted else "QMT rejected",
         )
 
+    def _missing_order_id_result(self) -> BrokerSubmitResult:
+        """Reject missing IDs for synchronous xtquant; native adapters may await a query."""
+
+        raise RuntimeError("QMT returned an invalid order identifier")
+
+    def _text_order_id_result(self, broker_order_id: str) -> BrokerSubmitResult:
+        """Reject non-numeric IDs for xtquant; native adapters may preserve opaque IDs."""
+
+        raise RuntimeError("QMT returned an invalid order identifier")
+
+    def _vendor_cancel_order_id(self, broker_order_id: str) -> int | str:
+        """Convert the external numeric order identifier used by xtquant."""
+
+        return int(broker_order_id)
+
     def cancel_order(self, broker_order_id: str) -> bool:
         """Request cancellation of a known broker order when connected."""
 
         if self.trader is None or self.account is None:
             return False
-        return self.trader.cancel_order_stock(self.account, int(broker_order_id)) == 0
+        vendor_order_id = self._vendor_cancel_order_id(broker_order_id)
+        return self.trader.cancel_order_stock(self.account, vendor_order_id) == 0
 
     def query_order(self, client_order_id: str, broker_order_id: str = "") -> dict[str, Any] | None:
         """Find one broker order by its exact identifier or encoded client remark."""

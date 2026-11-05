@@ -15,20 +15,21 @@
 
 ### 当前候选包的提交兼容性
 
-Agent `0.2.0` 是本地候选版本，不是已发布版本。候选代码新提交只消费 `a-share-execution-constraints.v2`，要求租单包含完整 `execution_constraints` 和带时区的 `expires_at`、`lease_expires_at`，并要求服务端确认回显同一订单。旧服务器缺少合同或期限字段时，Agent 在请求提交 ACK 前拒绝新订单；ACK 回显不匹配或往返后检查失败时，在券商调用前拒绝并保留本地结果供对账。
+Agent `0.3.0` 是本地候选版本，不是已发布版本。候选代码新提交只消费 `a-share-execution-constraints.v2`，要求租单包含完整 `execution_constraints` 和带时区的 `expires_at`、`lease_expires_at`，并要求服务端确认回显同一订单。旧服务器缺少合同或期限字段时，Agent 在请求提交 ACK 前拒绝新订单；ACK 回显不匹配或往返后检查失败时，在券商调用前拒绝并保留本地结果供对账。
 
-Agent 仍会查询券商状态并回传已发生的订单、成交事实，以便恢复和对账。此候选包尚未完成服务器兼容验收，不得据此宣称支持实际 v2 cage 或启用实盘。
+Agent 仍会查询券商状态并回传已发生的订单、成交事实，以便恢复和对账。此候选包尚未完成服务器兼容验收，不得据此宣称支持实际 v2 cage 或启用实盘。针对券商反馈的外部函数接口停用，`0.3.0` 新增显式 `qmt_trade_api: builtin_python` 模式和 QMT 内置桥策略；默认仍为 `xtquant`，安装、切换和仿真验收步骤见 [运行手册](qmt-agent-runbook.md#12-外部函数接口不可用切换到-qmt-内置-python)。
 
 心跳声明 v2 解析能力，服务端按每次心跳替换声明，缺失时不能继续领取或确认新单。算法、字段解析和本地通过不代替可信行情或正式 Evidence。行情及账户读取完毕后，Agent 会再检查合同、原租约/订单期限和 STOP；本地源 tick 不得旧于合同中的市场观测时间，采集时间不能替代源时间。没有观测日的本地涨跌停元数据不作为已验证执行边界。
 
 ## 2. 安装包包含什么
 
-本地候选构建产物：`artifacts/qmt-agent/agom-qmt-agent-windows-0.2.0.zip`。该版本来自 `qmt_agent.__version__`，仅用于候选构建验核。
+本地候选构建产物：`artifacts/qmt-agent/agom-qmt-agent-windows-0.3.0.zip`。该版本来自 `qmt_agent.__version__`，仅用于候选构建验核。
 
 安装包包含：
 
 - Agom QMT Agent 代码；
 - Windows 安装、Token 保存、只读测试和卸载脚本；
+- 内置 Python 分步接入脚本 `setup-builtin-python.ps1` 及 [接入指南](qmt-builtin-python-onboarding.md)；
 - 普通 `userdata` / MiniQMT `userdata_mini` 自动识别；
 - 独立 Python venv；
 - 锁定的迅投官方 `xtquant` 下载地址、版本和 SHA-256；
