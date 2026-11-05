@@ -53,7 +53,8 @@ def validate_gate() -> dict[str, int]:
         if missing:
             raise ValueError(f"{relative_path} is missing Evidence gate markers: {missing}")
     tui_content = (
-        ROOT / "apps/terminal/infrastructure/tui_metadata_runtime_injection_broker_execution.py"
+        ROOT
+        / "apps/terminal/infrastructure/tui_metadata_runtime_injection_broker_execution_actions.py"
     ).read_text(encoding="utf-8")
     if '"broker-execution.approve-order"' in tui_content:
         raise ValueError("TUI approve commit action must remain unpublished")

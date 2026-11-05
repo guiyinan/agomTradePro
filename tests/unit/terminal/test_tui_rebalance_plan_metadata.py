@@ -132,6 +132,26 @@ def test_plan_row_actions_use_dashboard_panels_and_keep_exact_pins_hidden() -> N
     assert "preview_token" not in fields
 
 
+def test_plan_metadata_describes_version_targets_without_claiming_staff_approval() -> None:
+    metadata = _runtime_payload()
+    order_action = _action("rebalance-plan.orders")
+    read_action = _action("rebalance-plan.read")
+    order_panel = _panel(metadata, "rebalance-plan-order-grid")
+
+    assert "本版本计划目标" in order_action["description"]
+    assert "批准目标" not in order_action["description"]
+    assert "本版本目标" in read_action["description"]
+    assert "批准目标" not in read_action["description"]
+    action_columns = {
+        column["key"]: column["label"]
+        for column in cast(list[dict[str, Any]], order_action["view_model"]["columns"])
+    }
+    column_labels = {column["key"]: column["label"] for column in order_panel["columns"]}
+    assert action_columns == column_labels
+    assert column_labels["approved_label"] == "本版本办理上限"
+    assert column_labels["limit_label"] == "计划限价"
+
+
 def test_hidden_row_pin_must_not_overlap_a_visible_column() -> None:
     payload = _runtime_payload()
     panel = _panel(payload, "rebalance-plan-order-grid")

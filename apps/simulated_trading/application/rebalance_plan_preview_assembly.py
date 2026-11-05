@@ -40,6 +40,7 @@ from apps.simulated_trading.application.rebalance_preview_m1_risk import (
 )
 from apps.simulated_trading.domain.rebalance_preview_math import (
     account_total_position_cap_reason,
+    classify_buy_funding_dependency,
     estimate_plan_funding,
     strategy_total_position_cap_reason,
 )
@@ -77,14 +78,14 @@ def finish_rebalance_plan_preview(
         and item.status == "blocked"
         and item.target_mode in {"strategy_rule", "user_target_difference"}
     ]
-    if buys and any(item.status != "ready" for item in sells):
-        items = block_buys_for_incomplete_sells(items)
-        buys = [item for item in items if item.scope == "asset" and item.action == "buy"]
     # An unresolved target may affect either side; never treat it as zero activity.
-    sell_gross_values = [known_action_amount(item) for item in sells] + [None] * len(
-        unresolved_targets
+    executable_sells = [item for item in sells if item.status in {"ready", "partial"}]
+    sell_gross_values = [known_action_amount(item) for item in executable_sells] + [None] * (
+        len(sells) - len(executable_sells) + len(unresolved_targets)
     )
-    sell_fee_values = [fee_total(item) for item in sells] + [None] * len(unresolved_targets)
+    sell_fee_values = [fee_total(item) for item in executable_sells] + [None] * (
+        len(sells) - len(executable_sells) + len(unresolved_targets)
+    )
     buy_gross_values = [known_action_amount(item) for item in buys] + [None] * len(
         unresolved_targets
     )
@@ -95,6 +96,11 @@ def finish_rebalance_plan_preview(
         sell_fee_values=tuple(sell_fee_values),
         buy_gross_values=tuple(buy_gross_values),
         buy_fee_values=tuple(buy_fee_values),
+    )
+    funding_dependency = classify_buy_funding_dependency(
+        available_cash_before=available_cash_before,
+        buy_total=funding.buy_total,
+        cash_after_sells=funding.cash_after_sells,
     )
     action_rows = [
         item for item in items if item.scope == "asset" and item.action in {"buy", "sell"}
@@ -148,13 +154,19 @@ def finish_rebalance_plan_preview(
             buys = [item for item in items if item.scope == "asset" and item.action == "buy"]
 
     if funding.status == "unknown":
-        items = block_buys_for_unknown_funding(items)
+        if funding_dependency != "independent":
+            items = block_buys_for_unknown_funding(items)
     elif funding.status == "shortfall":
         items = block_buys_for_shortfall(items)
 
     funding_status: Literal["known", "shortfall", "unknown", "conditional"] = funding.status
-    buy_depends_on_settled_sales = sell_fee_shortfall is None and bool(sells and buys)
-    if buy_depends_on_settled_sales and funding.status == "known":
+    buy_depends_on_settled_sales = (
+        sell_fee_shortfall is None
+        and bool(sells and buys)
+        and funding_dependency == "dependent"
+        and funding.status == "known"
+    )
+    if buy_depends_on_settled_sales:
         items = mark_buys_conditional_on_sales(items)
         funding_status = "conditional"
 
@@ -214,7 +226,7 @@ def finish_rebalance_plan_preview(
         projected_cash_after_buys=funding.cash_after_buys,
         funding_status=funding_status,
         sell_before_buy={
-            "required": bool(sells and buys),
+            "required": buy_depends_on_settled_sales,
             "sell_asset_codes": [item.asset_code for item in sells],
             "buy_asset_codes": [item.asset_code for item in buys],
             "sequence": "sell_then_buy",

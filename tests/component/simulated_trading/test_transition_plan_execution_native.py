@@ -18,7 +18,7 @@ from zoneinfo import ZoneInfo
 
 import pytest
 from django.contrib.auth import get_user_model
-from django.db import close_old_connections, connection
+from django.db import close_old_connections, connection, transaction
 
 from apps.portfolio.application.transition_plan_lifecycle import (
     TransitionPlanRevisionBlocked,
@@ -466,6 +466,22 @@ class _PinnedPolicyReader:
         )
 
 
+@dataclass
+class _AtomicDepthPolicyReader:
+    """Record the real transaction depth before delegating policy validation."""
+
+    delegate: _PinnedPolicyReader
+    observed_depths: list[int]
+
+    def validate_current_policy_pins(
+        self, revision: TransitionPlanRevision, *, as_of: datetime
+    ) -> None:
+        """Observe the active default transaction, then keep the real test pin check."""
+
+        self.observed_depths.append(len(connection.atomic_blocks))
+        self.delegate.validate_current_policy_pins(revision, as_of=as_of)
+
+
 def _current_synthetic_policy_hashes() -> tuple[tuple[str, str], ...]:
     """Return the independently declared current synthetic policy snapshot pins."""
 
@@ -870,6 +886,53 @@ def test_native_plan_context_rejects_foreign_account_expiry_and_policy_drift_wit
         SimulatedOrderReservationModel.objects.filter(account_id=context.account.pk).count(),
     ) == ledger_before
     assert capture_calls == [ASSET_CODE]
+
+
+def test_native_locked_guard_reuses_one_outer_transaction_for_policy_validation(
+    public_order_context: tuple[_QualifiedCallerContext, list[str]],
+    django_db_use_migrations: bool,
+) -> None:
+    """Policy validation runs at one transaction depth for owned and caller-owned UoWs."""
+
+    if not django_db_use_migrations or connection.vendor != "postgresql":
+        pytest.skip("locked plan guard requires the isolated migrated PostgreSQL database")
+    assert_native_postgres_test_database()
+    context, _ = public_order_context
+    revision = _persist_revision(context)
+    depths: list[int] = []
+    policy_reader = _AtomicDepthPolicyReader(
+        delegate=_PinnedPolicyReader(_current_synthetic_policy_hashes()),
+        observed_depths=depths,
+    )
+    guard = build_transition_plan_locked_guard(
+        using="default", current_policy_pins_validator=policy_reader
+    )
+    binding = revision.orders[0].to_execution_binding(
+        revision.identity,
+        owner_user_id=context.owner_id,
+        action_attempt_key="guard-transaction-boundary",
+    )
+    as_of = AS_OF
+
+    owned_result = guard.validate_locked_action(
+        binding=binding,
+        account_id=context.account.pk,
+        owner_user_id=context.owner_id,
+        as_of=as_of,
+    )
+    assert owned_result.identity.revision_hash == revision.identity.revision_hash
+    assert depths == [1]
+
+    depths.clear()
+    with transaction.atomic():
+        caller_owned_result = guard.validate_locked_action(
+            binding=binding,
+            account_id=context.account.pk,
+            owner_user_id=context.owner_id,
+            as_of=as_of,
+        )
+        assert caller_owned_result.identity.revision_hash == revision.identity.revision_hash
+        assert depths == [1]
 
 
 def test_native_distinct_plan_attempts_serialize_to_one_reservation(

@@ -199,6 +199,42 @@ def _preview_payload() -> dict[str, Any]:
     }
 
 
+def _mixed_dependency_payload(*, status: str) -> dict[str, Any]:
+    """Build a display-only mixed-side plan with an explicit funding dependency result."""
+
+    payload = _preview_payload()
+    plan = payload["reports"][0]["plan"]
+    plan["status"] = status
+    plan["funding_status"] = "known" if status == "ready" else "unknown"
+    if status == "blocked":
+        plan["available_cash_before"] = None
+    plan["sell_before_buy"] = {
+        "required": False,
+        "sell_asset_codes": ["600001.SH"],
+        "buy_asset_codes": ["000001.SZ"],
+        "sequence": "sell_then_buy",
+        "buy_requires_settled_sales": False,
+    }
+    sell_item = plan["asset_items"][0]
+    sell_item["status"] = "ready" if status == "ready" else "partial"
+    buy_item = deepcopy(sell_item)
+    buy_item.update(
+        {
+            "asset_code": "000001.SZ",
+            "asset_name": "买入示例",
+            "action": "buy",
+            "status": "ready" if status == "ready" else "blocked",
+            "current_quantity": "0.000000",
+            "target_quantity": "100.000000",
+            "suggested_quantity": "100.000000",
+            "actionable_quantity": "100.000000" if status == "ready" else None,
+            "reason_codes": [] if status == "ready" else ["PORTFOLIO_RISK_NOT_QUALIFIED"],
+        }
+    )
+    plan["asset_items"].append(buy_item)
+    return payload
+
+
 def test_task_metadata_is_one_confirmed_owner_scoped_preview_action() -> None:
     action = next(
         item for item in RUNTIME_TASK_FOCUS_ACTIONS if item["key"] == "account-inspection.run"
@@ -918,11 +954,13 @@ def test_preview_displays_supplied_cost_cash_and_dependency_estimates_safely() -
     assert "91" not in str(risk_values)
 
     dependency_values = {field["key"]: field["value"] for field in dependency_section["fields"]}
-    assert dependency_values["sequence"] == "先卖出，再核对买入资金；未发生交易"
+    assert dependency_values["sequence"] == (
+        "买入依赖预计卖款；到账后逐笔复核，不要求全部卖出完成；未发生交易。"
+    )
     assert dependency_values["sell_assets"] == "600001.SH"
     assert dependency_values["buy_assets"] == "000001.SZ"
     assert dependency_values["buy_requires_settled_sales"] == (
-        "是；卖出资金完成交收前，买入数量暂不确认"
+        "是；卖款实际交收后按当前资金、风险和费用重核；不要求全部卖出完成"
     )
 
     rule_fields = {
@@ -1220,6 +1258,15 @@ def test_cash_only_buy_remains_ready_and_keeps_unknown_currency_unknown() -> Non
     assert "secret-source-id" not in str(view)
     assert "secret-mapping-id" not in str(view)
 
+    dependency_section = next(
+        section for section in view["sections"] if section["key"] == "sell_then_buy_dependency"
+    )
+    dependency_values = {field["key"]: field["value"] for field in dependency_section["fields"]}
+    assert dependency_values["sequence"] == "本次未记录卖出后买入依赖"
+    assert set(dependency_values) == {"sequence", "buy_requires_settled_sales", "execution"}
+    assert dependency_values["buy_requires_settled_sales"].startswith("否；本次未标记卖款依赖")
+    assert dependency_values["execution"] == "未发生交易"
+
     item["risk_rule_result"] = None
     item["risk_rule_reason_code"] = "STRATEGY_RULE_EVALUATION_UNAVAILABLE"
     item["reason_codes"] = ["STRATEGY_RULE_EVALUATION_UNAVAILABLE"]
@@ -1235,6 +1282,93 @@ def test_cash_only_buy_remains_ready_and_keeps_unknown_currency_unknown() -> Non
     assert "拟用当前参考报价作为入场价依据" in pending_values["risk_basis"]
     assert "风险规则评价未完成" in pending_values["risk_basis"]
     assert "本次规则结果已返回" not in pending_values["risk_basis"]
+
+
+def test_mixed_plan_without_sale_funding_dependency_stays_neutral_and_lists_both_sides() -> None:
+    view = project_account_inspection_result(
+        _mixed_dependency_payload(status="ready"), requested_account_id=8, http_status=200
+    )
+    dependency_section = next(
+        section for section in view["sections"] if section["key"] == "sell_then_buy_dependency"
+    )
+    values = {field["key"]: field["value"] for field in dependency_section["fields"]}
+
+    assert view["outcome"] == "success"
+    assert values["sequence"] == "建议先核对卖出，再核对买入；顺序仅作估算。"
+    assert values["sell_assets"] == "600001.SH"
+    assert values["buy_assets"] == "000001.SZ"
+    assert values["buy_requires_settled_sales"].startswith("否；本次未标记卖款依赖")
+    assert values["execution"] == "未发生交易；实际可用资金、风险和费用仍须逐笔核对"
+    assert "现金已足" not in str(view)
+    assert "顺序资料待确认" not in values["sequence"]
+
+
+def test_mixed_blocked_plan_without_sale_funding_dependency_does_not_claim_cash_is_sufficient() -> (
+    None
+):
+    view = project_account_inspection_result(
+        _mixed_dependency_payload(status="blocked"), requested_account_id=8, http_status=200
+    )
+    dependency_section = next(
+        section for section in view["sections"] if section["key"] == "sell_then_buy_dependency"
+    )
+    values = {field["key"]: field["value"] for field in dependency_section["fields"]}
+
+    assert view["outcome"] == "blocked"
+    assert values["sequence"] == "建议先核对卖出，再核对买入；顺序仅作估算。"
+    assert values["sell_assets"] == "600001.SH"
+    assert values["buy_assets"] == "000001.SZ"
+    assert values["buy_requires_settled_sales"].startswith("否；本次未标记卖款依赖")
+    assert values["execution"] == "未发生交易；实际可用资金、风险和费用仍须逐笔核对"
+    assert "现金已足" not in str(view)
+    cash_section = next(
+        section for section in view["sections"] if section["key"] == "cash_and_cost_estimates"
+    )
+    cash_values = {field["key"]: field["value"] for field in cash_section["fields"]}
+    assert cash_values["funding_status"] != "估算资金资料完整（仍需核对）"
+
+
+@pytest.mark.parametrize(
+    ("side", "sell_assets", "buy_assets"),
+    [("sell", ["600001.SH"], []), ("buy", [], ["000001.SZ"])],
+)
+def test_single_side_without_sale_dependency_keeps_known_lists(
+    side: str, sell_assets: list[str], buy_assets: list[str]
+) -> None:
+    payload = _mixed_dependency_payload(status="ready")
+    plan = payload["reports"][0]["plan"]
+    dependency = plan["sell_before_buy"]
+    dependency["sell_asset_codes"] = sell_assets
+    dependency["buy_asset_codes"] = buy_assets
+    plan["asset_items"] = [item for item in plan["asset_items"] if item["action"] == side]
+
+    view = project_account_inspection_result(payload, requested_account_id=8, http_status=200)
+    section = next(
+        section for section in view["sections"] if section["key"] == "sell_then_buy_dependency"
+    )
+    values = {field["key"]: field["value"] for field in section["fields"]}
+
+    assert view["outcome"] == "success"
+    assert values["sell_assets"] == ("、".join(sell_assets) or "本次无卖出标的")
+    assert values["buy_assets"] == ("、".join(buy_assets) or "本次无买入标的")
+    assert ("仅列出卖出方向" if side == "sell" else "仅列出买入方向") in values["sequence"]
+    assert values["buy_requires_settled_sales"].startswith("否；本次未标记卖款依赖")
+    assert values["execution"] == "未发生交易；实际可用资金、风险和费用仍须逐笔核对"
+
+
+def test_inconsistent_funding_dependency_remains_pending() -> None:
+    payload = _mixed_dependency_payload(status="ready")
+    payload["reports"][0]["plan"]["sell_before_buy"]["buy_requires_settled_sales"] = True
+
+    view = project_account_inspection_result(payload, requested_account_id=8, http_status=200)
+    section = next(
+        section for section in view["sections"] if section["key"] == "sell_then_buy_dependency"
+    )
+    values = {field["key"]: field["value"] for field in section["fields"]}
+
+    assert "顺序资料待确认" in values["sequence"]
+    assert "未发生交易" in values["sequence"]
+    assert set(values) == {"sequence", "buy_requires_settled_sales"}
 
 
 def test_exact_local_simulated_purpose_preserves_preview_when_source_flag_is_true() -> None:
@@ -1412,23 +1546,26 @@ def test_price_source_shows_only_safe_provider_code_and_source_clock() -> None:
 
 
 @pytest.mark.parametrize(
-    ("reason_code", "expected_label"),
+    ("reason_code", "expected_label", "side"),
     [
         (
             "BUY_QUANTITY_STEP_ROUNDED_DOWN",
             "买入数量按交易步长向下取整，仍有差量未覆盖",
+            "buy",
         ),
-        ("BUY_QUANTITY_MAXIMUM_LIMITED", "买入数量受单笔上限限制"),
+        ("BUY_QUANTITY_MAXIMUM_LIMITED", "买入数量受单笔上限限制", "buy"),
+        ("SELL_QUANTITY_STEP_ROUNDED_DOWN", "卖出数量按交易步长向下取整，仍有差量未覆盖", "sell"),
     ],
-    ids=("step-rounded", "maximum-limited"),
+    ids=("buy-step-rounded", "buy-maximum-limited", "sell-step-rounded"),
 )
-def test_buy_quantity_reason_text_distinguishes_rounding_and_order_maximum(
+def test_quantity_reason_text_distinguishes_rounding_and_order_maximum(
     reason_code: str,
     expected_label: str,
+    side: str,
 ) -> None:
     payload = _preview_payload()
     item = payload["reports"][0]["plan"]["asset_items"][0]
-    item["action"] = "buy"
+    item["action"] = side
     item["reason_codes"] = [reason_code]
 
     view = project_account_inspection_result(payload, requested_account_id=8, http_status=200)

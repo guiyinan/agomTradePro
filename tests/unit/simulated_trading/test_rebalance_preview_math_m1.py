@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from decimal import Decimal, Overflow, localcontext
+from typing import cast
 
 import pytest
 
@@ -15,7 +16,9 @@ from apps.simulated_trading.domain.rebalance_preview_math import (
     calculate_class_amount,
     calculate_portfolio_value,
     calculate_projected_position_amount,
+    classify_buy_funding_dependency,
     constrain_buy_quantity,
+    constrain_planned_sell_quantity,
     constrain_sell_quantity,
     estimate_plan_funding,
     mark_to_market_amount,
@@ -614,6 +617,124 @@ def test_sell_quantity_is_limited_by_known_sellable_balance() -> None:
     assert adjustment.reason_code == "SELL_QUANTITY_LIMITED_BY_RULE"
 
 
+def test_planned_sell_rounds_fractional_target_down_and_keeps_exact_residual() -> None:
+    """A fractional target offers only the legal lot and retains its exact remainder."""
+
+    adjustment = constrain_planned_sell_quantity(
+        desired_quantity=Decimal("150.75"),
+        sellable_quantity=Decimal("200"),
+        current_quantity=Decimal("300"),
+        minimum=Decimal("100"),
+        step=Decimal("100"),
+        maximum=Decimal("1000"),
+        odd_lot_mode="SELLABLE_BALANCE_TO_ZERO",
+    )
+
+    assert adjustment.quantity == Decimal("100")
+    assert adjustment.remaining_quantity == Decimal("50.75")
+    assert adjustment.reason_code == "SELL_QUANTITY_STEP_ROUNDED_DOWN"
+
+
+@pytest.mark.parametrize(
+    ("sellable", "maximum", "expected_quantity", "expected_remaining", "expected_reason"),
+    (
+        ("150", "250", "100", "200", "SELL_QUANTITY_STEP_ROUNDED_DOWN"),
+        ("250", "200", "200", "100", "SELL_QUANTITY_LIMITED_BY_RULE"),
+    ),
+)
+def test_planned_sell_respects_available_quantity_and_configured_maximum(
+    sellable: str,
+    maximum: str,
+    expected_quantity: str,
+    expected_remaining: str,
+    expected_reason: str,
+) -> None:
+    """Flooring and maximum limits never authorize more than either bound."""
+
+    adjustment = constrain_planned_sell_quantity(
+        desired_quantity=Decimal("300"),
+        sellable_quantity=Decimal(sellable),
+        current_quantity=Decimal("300"),
+        minimum=Decimal("100"),
+        step=Decimal("100"),
+        maximum=Decimal(maximum),
+        odd_lot_mode="SELLABLE_BALANCE_TO_ZERO",
+    )
+
+    assert adjustment.quantity == Decimal(expected_quantity)
+    assert adjustment.quantity <= Decimal(sellable)
+    assert adjustment.quantity <= Decimal(maximum)
+    assert adjustment.remaining_quantity == Decimal(expected_remaining)
+    assert adjustment.reason_code == expected_reason
+
+
+def test_planned_sell_below_minimum_or_with_invalid_inputs_stays_blocked() -> None:
+    """A zero rounded lot and invalid evidence never become a positive sale."""
+
+    below_minimum = constrain_planned_sell_quantity(
+        desired_quantity=Decimal("99"),
+        sellable_quantity=Decimal("300"),
+        current_quantity=Decimal("300"),
+        minimum=Decimal("100"),
+        step=Decimal("100"),
+        maximum=Decimal("500"),
+        odd_lot_mode="SELLABLE_BALANCE_TO_ZERO",
+    )
+    invalid = constrain_planned_sell_quantity(
+        desired_quantity=Decimal("NaN"),
+        sellable_quantity=Decimal("300"),
+        current_quantity=Decimal("300"),
+        minimum=Decimal("100"),
+        step=Decimal("100"),
+        maximum=Decimal("500"),
+        odd_lot_mode="SELLABLE_BALANCE_TO_ZERO",
+    )
+    invalid_rule = constrain_planned_sell_quantity(
+        desired_quantity=Decimal("150"),
+        sellable_quantity=Decimal("300"),
+        current_quantity=Decimal("300"),
+        minimum=Decimal("100"),
+        step=Decimal("0"),
+        maximum=Decimal("500"),
+        odd_lot_mode="SELLABLE_BALANCE_TO_ZERO",
+    )
+
+    assert below_minimum.quantity is None
+    assert below_minimum.remaining_quantity == Decimal("99")
+    assert below_minimum.reason_code == "SELL_QUANTITY_BELOW_RULE_MINIMUM"
+    assert invalid.quantity is None
+    assert invalid.reason_code == "EXECUTION_QUANTITY_RULE_INVALID"
+    assert invalid_rule.quantity is None
+    assert invalid_rule.remaining_quantity == Decimal("150")
+    assert invalid_rule.reason_code == "EXECUTION_QUANTITY_RULE_INVALID"
+
+
+def test_planned_sell_preserves_a_valid_explicit_odd_lot_close() -> None:
+    """A legal full-balance odd lot is returned unchanged by the plan helper."""
+
+    strict = constrain_sell_quantity(
+        desired_quantity=Decimal("3"),
+        sellable_quantity=Decimal("3"),
+        current_quantity=Decimal("3"),
+        minimum=Decimal("100"),
+        step=Decimal("100"),
+        maximum=Decimal("1000"),
+        odd_lot_mode="SELLABLE_BALANCE_TO_ZERO",
+    )
+    planned = constrain_planned_sell_quantity(
+        desired_quantity=Decimal("3"),
+        sellable_quantity=Decimal("3"),
+        current_quantity=Decimal("3"),
+        minimum=Decimal("100"),
+        step=Decimal("100"),
+        maximum=Decimal("1000"),
+        odd_lot_mode="SELLABLE_BALANCE_TO_ZERO",
+    )
+
+    assert strict.quantity == Decimal("3")
+    assert planned == strict
+
+
 def test_explicit_odd_lot_rule_can_close_all_three_shares() -> None:
     """A full close below normal lot size requires the explicit zero-balance rule."""
 
@@ -993,3 +1114,57 @@ def test_quantity_constraints_and_rounding_reject_unrepresentable_values() -> No
     assert oversized.target_amount is None
     assert oversized.target_quantity is None
     assert oversized.suggested_quantity is None
+
+
+@pytest.mark.parametrize(
+    ("cash_before", "buy_total", "cash_after_sells", "expected"),
+    [
+        (Decimal("2001.00"), Decimal("2001.00"), None, "independent"),
+        (Decimal("1002.00"), Decimal("2001.00"), Decimal("2001.00"), "dependent"),
+        (Decimal("0.00"), Decimal("2001.00"), Decimal("2000.99"), "shortfall"),
+        (None, Decimal("2001.00"), Decimal("5000.00"), "unknown"),
+        (Decimal("1000.00"), None, Decimal("5000.00"), "unknown"),
+        (Decimal("1000.00"), Decimal("2001.00"), None, "unknown"),
+        (Decimal("-0.01"), Decimal("1.00"), Decimal("10.00"), "unknown"),
+        (Decimal("1.00"), Decimal("1.00"), Decimal("NaN"), "independent"),
+    ],
+    ids=(
+        "cash-equals-buy-cost-including-fees",
+        "shortfall-covered-by-estimated-sale-net",
+        "sale-net-still-short",
+        "cash-unknown",
+        "buy-total-unknown-including-fee",
+        "sale-proceeds-unknown",
+        "invalid-negative-cash",
+        "independent-with-unknown-sale",
+    ),
+)
+def test_buy_funding_dependency_uses_exact_pre_sale_cash_and_fee_inclusive_cost(
+    cash_before: Decimal | None,
+    buy_total: Decimal | None,
+    cash_after_sells: Decimal | None,
+    expected: str,
+) -> None:
+    """Only an actual pre-sale cash deficit can create an unsettled-sale dependency."""
+
+    assert (
+        classify_buy_funding_dependency(
+            available_cash_before=cash_before,
+            buy_total=buy_total,
+            cash_after_sells=cash_after_sells,
+        )
+        == expected
+    )
+
+
+def test_buy_funding_dependency_rejects_float_cash() -> None:
+    """Binary float input cannot be treated as an exact ledger balance."""
+
+    assert (
+        classify_buy_funding_dependency(
+            available_cash_before=cast(Decimal, 2001.0),
+            buy_total=Decimal("2001.00"),
+            cash_after_sells=Decimal("4000.00"),
+        )
+        == "unknown"
+    )

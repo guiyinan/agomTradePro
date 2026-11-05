@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
+from dataclasses import dataclass, replace
 from datetime import date, datetime
-from decimal import Decimal
+from decimal import ROUND_DOWN, Decimal
 from typing import cast
 
 from apps.portfolio.domain.transition_plan_revision_basis import (
@@ -213,6 +215,30 @@ def _json_safe(value: object) -> object:
     return decoded["value"]
 
 
+def _preview_evidence_json(preview: RebalancePlanPreview) -> object:
+    """Retain the preview while tagging only its legacy pulse binary64 score."""
+
+    pulse = preview.risk_context.pulse
+    if pulse is None:
+        return _json_safe(preview)
+    score = pulse.get("composite_score")
+    if type(score) is not float:
+        return _json_safe(preview)
+    if not math.isfinite(score):
+        raise RebalanceJourneyUnavailable(code="REBALANCE_PLAN_PULSE_SCORE_INVALID")
+    retained_pulse = dict(pulse)
+    retained_pulse["composite_score"] = {
+        "kind": "pulse_composite_score",
+        "encoding": "python-float-hex-v1",
+        "value": score.hex(),
+    }
+    retained_context = replace(
+        preview.risk_context,
+        pulse=retained_pulse,
+    )
+    return _json_safe(replace(preview, risk_context=retained_context))
+
+
 def _json_object(value: object, name: str) -> dict[str, object]:
     """Narrow one M1 JSON boundary object without accepting arbitrary shapes."""
 
@@ -269,6 +295,40 @@ def _decimal(value: str, name: str) -> Decimal:
     if not result.is_finite():
         raise RebalanceJourneyUnavailable(code="REBALANCE_PLAN_DECIMAL_INVALID")
     return result
+
+
+@dataclass(frozen=True, slots=True)
+class _WholeShareTargetQuantity:
+    """Retain an exact theoretical target difference and its whole-share derivation."""
+
+    suggested_quantity: Decimal
+    requested_quantity: int
+    fractional_remainder: Decimal
+
+    def to_payload(self) -> dict[str, object]:
+        """Return the exact derivation for inclusion in the immutable plan evidence."""
+
+        return {
+            "basis": "theoretical_target_difference",
+            "suggested_quantity": str(self.suggested_quantity),
+            "requested_whole_share_quantity": self.requested_quantity,
+            "fractional_remainder": str(self.fractional_remainder),
+            "rounding_rule": "floor_to_whole_share",
+        }
+
+
+def _derive_whole_share_target_quantity(value: Decimal | None) -> _WholeShareTargetQuantity:
+    """Floor a finite nonnegative theoretical difference and retain its exact remainder."""
+
+    if value is None or type(value) is not Decimal or not value.is_finite() or value < 0:
+        raise RebalanceJourneyUnavailable(code="REBALANCE_PLAN_ORDER_QUANTITY_UNKNOWN")
+    whole_share_quantity = int(value.to_integral_value(rounding=ROUND_DOWN))
+    remainder = value - Decimal(whole_share_quantity)
+    return _WholeShareTargetQuantity(
+        suggested_quantity=value,
+        requested_quantity=whole_share_quantity,
+        fractional_remainder=remainder,
+    )
 
 
 def _whole_share_quantity(value: Decimal | None, name: str) -> int:
@@ -369,7 +429,7 @@ def _decision_payload(
         "target_content_hash": target_content_hash,
         "selection_id": selection_id,
         "selection_hash": selection_hash,
-        "preview": _json_safe(preview),
+        "preview": _preview_evidence_json(preview),
         "prepared_risk": {
             "input_snapshot_json": prepared.input_snapshot_json,
             "report": _json_safe(prepared.report),

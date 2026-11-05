@@ -38,8 +38,10 @@ from .tui_metadata_runtime_injection_audit_analytics import (
 )
 from .tui_metadata_runtime_injection_backtest import RUNTIME_BACKTEST_ACTIONS
 from .tui_metadata_runtime_injection_beta_gate import RUNTIME_BETA_GATE_ACTIONS
-from .tui_metadata_runtime_injection_broker_execution import (
+from .tui_metadata_runtime_injection_broker_execution_actions import (
     RUNTIME_BROKER_EXECUTION_ACTIONS,
+)
+from .tui_metadata_runtime_injection_broker_execution_screens import (
     RUNTIME_BROKER_EXECUTION_SCREENS,
 )
 from .tui_metadata_runtime_injection_calendar_workbench import (
@@ -423,6 +425,7 @@ _LEGACY_RUNTIME_METADATA_INJECTIONS: tuple[RuntimeMetadataInjectionBundle, ...] 
         coverage_key="runtime_injected_rebalance_plan_metadata",
         screens=RUNTIME_REBALANCE_PLAN_SCREENS,
         actions=RUNTIME_REBALANCE_PLAN_ACTIONS,
+        replace_existing=True,
     ),
     RuntimeMetadataInjectionBundle(
         coverage_key="runtime_injected_fee_correction_metadata",

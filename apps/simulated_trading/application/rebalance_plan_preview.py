@@ -86,7 +86,7 @@ from apps.simulated_trading.domain.rebalance_preview_math import (
     calculate_asset_adjustment,
     calculate_user_target_difference,
     constrain_buy_quantity,
-    constrain_sell_quantity,
+    constrain_planned_sell_quantity,
     round_cny_amount,
     strategy_position_cap_reason,
     strategy_stop_loss_reason,
@@ -861,7 +861,7 @@ class ReadOnlyRebalancePlanPreviewBuilder:
                     ):
                         reasons.append("SELLABLE_QUANTITY_INVALID")
                     else:
-                        constrained = constrain_sell_quantity(
+                        constrained = constrain_planned_sell_quantity(
                             desired_quantity=suggested_quantity,
                             sellable_quantity=sellable_quantity,
                             current_quantity=current_quantity,
@@ -886,6 +886,7 @@ class ReadOnlyRebalancePlanPreviewBuilder:
                 "BUY_QUANTITY_MAXIMUM_LIMITED",
                 "BUY_QUANTITY_STEP_ROUNDED_DOWN",
                 "SELL_QUANTITY_LIMITED_BY_RULE",
+                "SELL_QUANTITY_STEP_ROUNDED_DOWN",
             }
             if action == "sell":
                 nonblocking_reasons.add("STRATEGY_MAX_POSITION_LIMIT_EXCEEDED")
@@ -928,6 +929,7 @@ class ReadOnlyRebalancePlanPreviewBuilder:
             "BUY_QUANTITY_MAXIMUM_LIMITED",
             "BUY_QUANTITY_STEP_ROUNDED_DOWN",
             "SELL_QUANTITY_LIMITED_BY_RULE",
+            "SELL_QUANTITY_STEP_ROUNDED_DOWN",
         }
         if action == "sell":
             nonblocking_reasons.add("STRATEGY_MAX_POSITION_LIMIT_EXCEEDED")

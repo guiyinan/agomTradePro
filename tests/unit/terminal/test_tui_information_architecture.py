@@ -40,6 +40,7 @@ EXPECTED_AUTHENTICATED_SCREEN_KEYS = {
     "task.today-focus",
     "task.portfolio-check",
     "task.account-inspection",
+    "task.rebalance-plan",
 }
 
 EXPECTED_ADMIN_ONLY_SCREEN_KEYS = {

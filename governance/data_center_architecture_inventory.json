@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 6655,
+    "current_surface_references": 6659,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -7515,6 +7515,18 @@
       "text": "raise BrokerPreRiskScopeCorruption(\"pre-Risk current selector substitution\")"
     },
     {
+      "path": "apps/broker_execution/application/qmt_bridge_package.py",
+      "text": "\"\"\"Locate the current bridge package without exposing arbitrary file paths.\"\"\""
+    },
+    {
+      "path": "apps/broker_execution/application/qmt_bridge_package.py",
+      "text": "\"\"\"Return the current package for an administrator or raise a stable 404.\"\"\""
+    },
+    {
+      "path": "apps/broker_execution/application/qmt_bridge_package.py",
+      "text": "\"\"\"Return the current verified package or None when it has not been built.\"\"\""
+    },
+    {
       "path": "apps/broker_execution/application/query_services.py",
       "text": "\"\"\"Return the current user's execution readiness overview.\"\"\""
     },
@@ -7921,6 +7933,10 @@
     {
       "path": "apps/broker_execution/infrastructure/pre_risk_execution_scope_repository.py",
       "text": "while current.content_hash not in visited:"
+    },
+    {
+      "path": "apps/broker_execution/interface/api_views.py",
+      "text": "\"\"\"Download the current Windows bridge ZIP to an authorized administrator.\"\"\""
     },
     {
       "path": "apps/broker_execution/interface/api_views.py",
@@ -25415,19 +25431,19 @@
       "text": "\"key\": \"backtest.summary\","
     },
     {
-      "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_broker_execution.py",
+      "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_broker_execution_screens.py",
       "text": "\"key\": \"qmt-current-settings\","
     },
     {
-      "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_broker_execution.py",
+      "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_broker_execution_screens.py",
       "text": "\"refresh_panel_key\": \"qmt-current-settings\","
     },
     {
-      "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_broker_execution.py",
+      "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_broker_execution_screens.py",
       "text": "\"summary\": \"判断今天能否安全实盘，并复核订单、连接和停止状态。\","
     },
     {
-      "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_broker_execution.py",
+      "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_broker_execution_screens.py",
       "text": "\"summary\": \"处理委托、成交、资金和持仓差异，并核对实盘操作证据。\","
     },
     {

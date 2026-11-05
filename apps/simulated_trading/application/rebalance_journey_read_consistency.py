@@ -58,7 +58,14 @@ def plan_preview_reservation_read_reasons(
         available_values = tuple(
             holding.available_quantity
             for holding in snapshot.holdings
-            if holding.asset_code == row.asset_code and holding.security_id == security_id
+            if holding.asset_code == row.asset_code
+            and type(security_id) is str
+            and _holding_source_security_id(
+                asset_code=holding.asset_code,
+                ledger_security_id=holding.security_id,
+                prepared=prepared,
+            )
+            == security_id
         )
         if not available_values or any(value is None for value in available_values):
             reasons.append("REBALANCE_PLAN_SELLABLE_QUANTITY_UNKNOWN")
@@ -68,3 +75,24 @@ def plan_preview_reservation_read_reasons(
         ):
             reasons.append("REBALANCE_PLAN_SELLABLE_QUANTITY_CHANGED")
     return tuple(dict.fromkeys(reasons))
+
+
+def _holding_source_security_id(
+    *,
+    asset_code: str,
+    ledger_security_id: str | None,
+    prepared: PreparedPortfolioRisk,
+) -> str | None:
+    """Resolve a missing ledger ID only through one already-qualified identity proof."""
+
+    if ledger_security_id is not None:
+        return ledger_security_id
+    bindings = tuple(
+        binding for binding in prepared.identity_bindings if binding.asset_code == asset_code
+    )
+    if len(bindings) != 1:
+        return None
+    binding = bindings[0]
+    if binding.ledger_security_id is not None or binding.basis != "pinned_policy_source_mapping":
+        return None
+    return binding.source_security_id

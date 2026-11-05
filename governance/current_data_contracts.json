@@ -11924,7 +11924,7 @@
         {
           "case": "sell_settlement_dependency_not_released_by_cash_or_final_cap",
           "test_file": "tests/integration/simulated_trading/test_readonly_rebalance_plan_owner_api.py",
-          "test_function": "test_mixed_plan_withholds_buy_until_sell_reduces_total_position"
+          "test_function": "test_mixed_plan_keeps_cash_funded_buy_blocked_by_current_total_position_cap"
         },
         {
           "case": "account_cap_distinct_from_strategy_cap",
@@ -12064,12 +12064,12 @@
         {
           "case": "estimated_sale_proceeds_do_not_settle_buy_funding",
           "test_file": "tests/unit/simulated_trading/test_rebalance_preview_sell_integrity.py",
-          "test_function": "test_ready_sell_marks_dependent_buy_conditional_and_payload_read_only"
+          "test_function": "test_fee_inclusive_buy_cost_is_conditional_only_when_cash_needs_sale_proceeds"
         },
         {
           "case": "unknown_available_sell_blocks_dependent_buy",
           "test_file": "tests/unit/simulated_trading/test_rebalance_preview_sell_integrity.py",
-          "test_function": "test_unknown_available_sell_blocks_dependent_buy"
+          "test_function": "test_unknown_sell_keeps_funding_unknown_without_inventing_cash_dependency"
         },
         {
           "case": "sell_fee_cash_deficit_cannot_fund_buy",

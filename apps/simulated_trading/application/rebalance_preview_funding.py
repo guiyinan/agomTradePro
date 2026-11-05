@@ -57,23 +57,31 @@ def sell_fee_cash_reason(
 def mark_buys_conditional_on_sales(
     items: list[RebalancePlanPreviewItem],
 ) -> list[RebalancePlanPreviewItem]:
-    """Withhold BUY quantities funded only by estimated, unsettled sale proceeds."""
+    """Mark the cash dependency without erasing independent BUY blockers."""
 
     return [
         (
             replace(
                 item,
-                status="conditional",
-                actionable_amount=None,
-                actionable_quantity=None,
-                remaining_quantity=item.suggested_quantity,
+                status=("conditional" if item.status in {"ready", "partial"} else item.status),
+                actionable_amount=(
+                    None if item.status in {"ready", "partial"} else item.actionable_amount
+                ),
+                actionable_quantity=(
+                    None if item.status in {"ready", "partial"} else item.actionable_quantity
+                ),
+                remaining_quantity=(
+                    item.suggested_quantity
+                    if item.status in {"ready", "partial"}
+                    else item.remaining_quantity
+                ),
                 reason_codes=tuple(
                     dict.fromkeys((*item.reason_codes, "BUY_DEPENDS_ON_SETTLED_SALES"))
                 ),
             )
             if item.scope == "asset"
             and item.action == "buy"
-            and item.status in {"ready", "partial"}
+            and item.status in {"ready", "partial", "blocked"}
             else item
         )
         for item in items

@@ -13,6 +13,9 @@ from apps.terminal.application.tui_rebalance_plan_order_results import (
     project_rebalance_plan_order_preview,
     project_rebalance_plan_orders,
 )
+from apps.terminal.application.tui_rebalance_plan_quantity_details import (
+    project_plan_quantity_detail_fields,
+)
 
 
 class _Field(TypedDict):
@@ -351,7 +354,9 @@ def _project_revision(
     fields.extend(_position_fields(plan))
     fields.extend(_policy_fields(plan))
     fields.extend(_order_fields(plan))
-    next_steps: list[str] = ["计划保存的是原批准目标；当前价格、成交量和预留以重新读取的结果为准。"]
+    next_steps: list[str] = [
+        "计划保存的是本版本计划目标；当前价格、成交量和预留以重新读取的结果为准。"
+    ]
     if progress is not None:
         fields.extend(
             _progress_fields(
@@ -470,7 +475,7 @@ def _source_fields(plan: Mapping[str, object]) -> list[_Field]:
 
 
 def _order_fields(plan: Mapping[str, object]) -> list[_Field]:
-    """Render approved and unapproved order quantities without exposing binding IDs."""
+    """Render planned and unallocated order quantities without exposing binding IDs."""
 
     raw_orders = _sequence(plan.get("orders"))
     if not raw_orders:
@@ -493,7 +498,7 @@ def _order_fields(plan: Mapping[str, object]) -> list[_Field]:
             [
                 _field(
                     f"order_{index}_approved",
-                    f"{prefix}批准数量",
+                    f"{prefix}本版本办理上限",
                     _value(order.get("approved_quantity"), unit),
                 ),
                 _field(
@@ -503,7 +508,7 @@ def _order_fields(plan: Mapping[str, object]) -> list[_Field]:
                 ),
                 _field(
                     f"order_{index}_unapproved",
-                    "未批准数量",
+                    "尚未纳入办理量",
                     _value(order.get("unapproved_quantity"), unit),
                 ),
                 _field(
@@ -523,7 +528,7 @@ def _order_fields(plan: Mapping[str, object]) -> list[_Field]:
                 ),
                 _field(
                     f"order_{index}_approved_limit",
-                    "计划中的批准限价",
+                    "本版本计划限价",
                     (
                         _value(order.get("approved_limit_price"), money_unit)
                         if order.get("approved_limit_price") is not None
@@ -546,6 +551,7 @@ def _order_fields(plan: Mapping[str, object]) -> list[_Field]:
                 ),
             ]
         )
+        fields.extend(project_plan_quantity_detail_fields(plan, order, field_index=index))
     return fields
 
 

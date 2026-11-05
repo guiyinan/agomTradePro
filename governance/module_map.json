@@ -12537,6 +12537,9 @@
           "CommandExecutionService",
           "TerminalSettingsUser"
         ],
+        "application/tui_account_inspection_dependency_result.py": [
+          "project_account_inspection_dependency_fields"
+        ],
         "application/tui_account_inspection_primary_fields.py": [
           "build_account_inspection_primary_fields"
         ],
@@ -12628,6 +12631,10 @@
           "PlanOrderProjection",
           "project_rebalance_plan_order_preview",
           "project_rebalance_plan_orders"
+        ],
+        "application/tui_rebalance_plan_quantity_details.py": [
+          "PlanQuantityDetailField",
+          "project_plan_quantity_detail_fields"
         ],
         "application/tui_rebalance_plan_result.py": [
           "RebalancePlanTaskResult",
@@ -12764,9 +12771,9 @@
         ]
       },
       "layers": {
-        "application": 55,
+        "application": 57,
         "domain": 5,
-        "infrastructure": 96,
+        "infrastructure": 98,
         "interface": 9,
         "management": 7,
         "root": 4

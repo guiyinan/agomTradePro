@@ -40,6 +40,7 @@ from apps.simulated_trading.application.rebalance_journey_preparation_support im
     _datetime_text,
     _decimal,
     _decision_payload,
+    _derive_whole_share_target_quantity,
     _identity_security_id,
     _json_object,
     _minimum_deadline,
@@ -69,6 +70,9 @@ from apps.simulated_trading.application.temporary_target_entry import (
     parse_temporary_security_targets,
 )
 from apps.simulated_trading.domain.execution_fee_policy_v2 import SimulatedFeePolicyV2
+from apps.simulated_trading.domain.execution_instrument_classification import (
+    SimulatedInstrumentClassificationEvidenceV1,
+)
 from apps.simulated_trading.domain.execution_settlement_primitives import SimulatedTradeSide
 
 ReferencePriceBasis = Literal["market", "published_close"]
@@ -625,7 +629,8 @@ class PortfolioJourneyPreparationProvider:
         for row in rows:
             if row.action not in {"buy", "sell"}:
                 continue
-            requested = _whole_share_quantity(row.suggested_quantity, "suggested_quantity")
+            quantity_derivation = _derive_whole_share_target_quantity(row.suggested_quantity)
+            requested = quantity_derivation.requested_quantity
             if requested <= 0:
                 continue
             asset = code_to_asset.get(row.asset_code)
@@ -636,12 +641,6 @@ class PortfolioJourneyPreparationProvider:
             classification = _json_object(row.classification_evidence, "classification evidence")
             if security_id != asset.security_id or row.asset_type is None:
                 raise RebalanceJourneyUnavailable(code="REBALANCE_PLAN_ORDER_IDENTITY_MISMATCH")
-            if (
-                classification.get("simulated_asset_type") != row.asset_type
-                or classification.get("must_not_use_for_decision") is not False
-                or classification.get("must_not_execute") is not False
-            ):
-                raise RebalanceJourneyUnavailable(code="REBALANCE_PLAN_CLASSIFICATION_UNQUALIFIED")
             classification_payload = _json_object(
                 classification.get("evidence"), "classification evidence payload"
             )
@@ -651,6 +650,28 @@ class PortfolioJourneyPreparationProvider:
                 raise RebalanceJourneyUnavailable(
                     code="REBALANCE_PLAN_CLASSIFICATION_HASH_MISMATCH"
                 )
+            try:
+                retained_classification = SimulatedInstrumentClassificationEvidenceV1.from_payload(
+                    classification_payload
+                )
+                retained_classification.validate_at(as_of=prepared.as_of)
+            except (TypeError, ValueError) as error:
+                raise RebalanceJourneyUnavailable(
+                    code="REBALANCE_PLAN_CLASSIFICATION_UNQUALIFIED"
+                ) from error
+            retained_source = retained_classification.identity_evidence.source_evidence
+            if (
+                classification.get("simulated_asset_type") != row.asset_type
+                or classification.get("simulated_asset_type")
+                != retained_classification.simulated_asset_type
+                or classification.get("purpose")
+                != retained_classification.identity_evidence.selection.purpose
+                or classification.get("read_at") != _datetime_text(retained_classification.read_at)
+                or classification.get("must_not_use_for_decision")
+                is not retained_source.must_not_use_for_decision
+                or classification.get("must_not_execute") is not retained_source.must_not_execute
+            ):
+                raise RebalanceJourneyUnavailable(code="REBALANCE_PLAN_CLASSIFICATION_UNQUALIFIED")
             classification_hash = _required_digest(
                 _string(classification.get("content_hash"), "classification content hash"),
                 "classification content hash",
@@ -816,6 +837,8 @@ class PortfolioJourneyPreparationProvider:
                     "ordinal": ordinal,
                     "asset_code": row.asset_code,
                     "security_id": security_id,
+                    "side": row.action,
+                    "target_quantity_derivation": quantity_derivation.to_payload(),
                     "fee_policy": fee_payload,
                     "execution_settlement_recorded_at": _datetime_text(rule_record.recorded_at),
                     "execution_settlement_bundle": bundle.to_payload(),

@@ -2,6 +2,13 @@
 
 from __future__ import annotations
 
+import json
+
+import pytest
+
+from apps.terminal.application.tui_rebalance_plan_quantity_details import (
+    project_plan_quantity_detail_fields,
+)
 from apps.terminal.application.tui_rebalance_plan_result import (
     project_rebalance_plan_result,
 )
@@ -9,6 +16,45 @@ from apps.terminal.application.tui_rebalance_plan_result import (
 _REVISION_HASH = "a" * 64
 _ORDER_HASH = "b" * 64
 _BINDING_HASH = "c" * 64
+
+
+def _preparation_evidence(
+    *,
+    suggested_quantity: str = "200",
+    requested_quantity: int = 200,
+    fractional_remainder: str = "0",
+    ordinal: int = 0,
+    asset_code: str = "600000.SH",
+    security_id: str = "private-security-id",
+    side: str = "sell",
+) -> str:
+    evidence = {
+        "schema": "ash08.plan_preparation.v1",
+        "decision_snapshot": {
+            "id": "decision-1",
+            "content_hash": _ORDER_HASH,
+            "payload": {
+                "prepared_risk": {
+                    "order_policy_members": [
+                        {
+                            "ordinal": ordinal,
+                            "asset_code": asset_code,
+                            "security_id": security_id,
+                            "side": side,
+                            "target_quantity_derivation": {
+                                "basis": "theoretical_target_difference",
+                                "suggested_quantity": suggested_quantity,
+                                "requested_whole_share_quantity": requested_quantity,
+                                "fractional_remainder": fractional_remainder,
+                                "rounding_rule": "floor_to_whole_share",
+                            },
+                        }
+                    ]
+                }
+            },
+        },
+    }
+    return json.dumps(evidence, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
 
 
 def _plan() -> dict[str, object]:
@@ -39,6 +85,7 @@ def _plan() -> dict[str, object]:
                 "source_evidence_hash": _ORDER_HASH,
             },
             "decision": {"id": "decision-1", "content_hash": _ORDER_HASH},
+            "preparation_evidence_json": _preparation_evidence(),
             "target": {
                 "id": "target-1",
                 "content_hash": _ORDER_HASH,
@@ -276,6 +323,47 @@ def _envelope(*, revision_hash: str = _REVISION_HASH) -> dict[str, object]:
     }
 
 
+def _saved_order(envelope: dict[str, object]) -> dict[str, object]:
+    plan = envelope["plan"]
+    assert isinstance(plan, dict)
+    orders = plan["orders"]
+    assert isinstance(orders, list) and isinstance(orders[0], dict)
+    return orders[0]
+
+
+def _saved_basis(envelope: dict[str, object]) -> dict[str, object]:
+    plan = envelope["plan"]
+    assert isinstance(plan, dict)
+    basis = plan["basis"]
+    assert isinstance(basis, dict)
+    return basis
+
+
+def _detail_result(envelope: dict[str, object]) -> dict[str, object]:
+    return project_rebalance_plan_result(
+        "rebalance-plan.read",
+        envelope,
+        requested_params={
+            "account_id": 9,
+            "plan_id": "internal-plan-17",
+            "plan_version": 2,
+            "revision_hash": _REVISION_HASH,
+        },
+        http_status=200,
+    )
+
+
+def _detail_values(envelope: dict[str, object]) -> dict[str, str]:
+    result = _detail_result(envelope)
+    return {field["key"]: field["value"] for field in result["fields"]}
+
+
+def _replace_evidence(envelope: dict[str, object], evidence: object) -> None:
+    _saved_basis(envelope)["preparation_evidence_json"] = json.dumps(
+        evidence, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    )
+
+
 def test_exact_progress_shows_unknown_without_zero_filling_or_exposing_internal_ids() -> None:
     result = project_rebalance_plan_result(
         "rebalance-plan.read",
@@ -314,6 +402,44 @@ def test_exact_progress_shows_unknown_without_zero_filling_or_exposing_internal_
     assert "private-security-id" not in rendered
     assert _BINDING_HASH not in rendered
     assert _REVISION_HASH not in rendered
+
+
+def test_unreviewed_plan_copy_distinguishes_saved_targets_from_staff_approval() -> None:
+    for status, expected_status in (
+        ("DRAFT", "待核对"),
+        ("APPROVAL_PENDING", "等待独立复核"),
+    ):
+        envelope = _envelope()
+        plan = envelope["plan"]
+        assert isinstance(plan, dict)
+        plan["status"] = status
+        orders = plan["orders"]
+        assert isinstance(orders, list) and isinstance(orders[0], dict)
+        orders[0]["status"] = "draft"
+
+        result = project_rebalance_plan_result(
+            "rebalance-plan.read",
+            envelope,
+            requested_params={
+                "account_id": 9,
+                "plan_id": "internal-plan-17",
+                "plan_version": 2,
+                "revision_hash": _REVISION_HASH,
+            },
+            http_status=200,
+        )
+        fields = result["fields"]
+        labels = {field["key"]: field["label"] for field in fields}
+        values = {field["key"]: field["value"] for field in fields}
+
+        assert values["plan_status"] == expected_status
+        assert values["order_1_status"] == "待核对"
+        assert values["execution_permission"] == "未启用；计划不会自动提交或成交"
+        assert labels["order_1_approved"] == "第 1 项 600000.SH 卖出本版本办理上限"
+        assert labels["order_1_unapproved"] == "尚未纳入办理量"
+        assert labels["order_1_approved_limit"] == "本版本计划限价"
+        assert "本版本计划目标" in result["next_steps"][0]
+        assert "批准目标" not in result["next_steps"][0]
 
 
 def test_readonly_exact_revision_keeps_progress_visible_but_suppresses_write_capabilities() -> None:
@@ -721,3 +847,246 @@ def test_account_row_projector_hides_account_id_and_auto_execution_flag() -> Non
     assert "9" not in str(visible_values)
     assert result["rows"][0]["progress_label"] == "未知"
     assert "auto_trading_enabled" not in str(result)
+
+
+def test_saved_plan_shows_exact_fraction_even_when_unapproved_whole_quantity_is_zero() -> None:
+    envelope = _envelope()
+    order = _saved_order(envelope)
+    order.update(
+        {
+            "requested_quantity": 101,
+            "approved_quantity": 101,
+            "unapproved_quantity": 0,
+            "reason_codes": [],
+        }
+    )
+    progress = envelope["progress"]
+    assert isinstance(progress, dict)
+    progress_orders = progress["orders"]
+    assert isinstance(progress_orders, list) and isinstance(progress_orders[0], dict)
+    progress_order = progress_orders[0]["order"]
+    assert isinstance(progress_order, dict)
+    progress_order["approved_quantity"] = 101
+    _replace_evidence(
+        envelope,
+        json.loads(
+            _preparation_evidence(
+                suggested_quantity="101.949",
+                requested_quantity=101,
+                fractional_remainder="0.949",
+            )
+        ),
+    )
+
+    values = _detail_values(envelope)
+    assert values["order_1_theoretical_quantity"] == "101.949 share"
+    assert values["order_1_whole_share_request"] == "101 share"
+    assert values["order_1_fractional_remainder"] == "0.949 share"
+    assert values["order_1_unapproved"] == "0 share"
+    assert "不表示目标已完成" in values["order_1_quantity_rounding"]
+    assert values["execution_permission"] == "未启用；计划不会自动提交或成交"
+
+
+@pytest.mark.parametrize(
+    ("side", "reason_code", "reason_label"),
+    (
+        (
+            "sell",
+            "SELL_QUANTITY_STEP_ROUNDED_DOWN",
+            "卖出数量按交易步长向下取整，仍有差量未覆盖",
+        ),
+        (
+            "buy",
+            "BUY_QUANTITY_STEP_ROUNDED_DOWN",
+            "买入数量按交易步长向下取整，仍有差量未覆盖",
+        ),
+    ),
+)
+def test_saved_plan_explains_whole_share_step_rounding(
+    side: str, reason_code: str, reason_label: str
+) -> None:
+    envelope = _envelope()
+    order = _saved_order(envelope)
+    order.update(
+        {
+            "side": side,
+            "requested_quantity": 101,
+            "approved_quantity": 100,
+            "unapproved_quantity": 1,
+            "reason_codes": [reason_code],
+        }
+    )
+    progress = envelope["progress"]
+    assert isinstance(progress, dict)
+    progress_orders = progress["orders"]
+    assert isinstance(progress_orders, list) and isinstance(progress_orders[0], dict)
+    progress_order = progress_orders[0]["order"]
+    assert isinstance(progress_order, dict)
+    progress_order.update({"side": side, "approved_quantity": 100})
+    _replace_evidence(
+        envelope,
+        json.loads(
+            _preparation_evidence(
+                suggested_quantity="101.949",
+                requested_quantity=101,
+                fractional_remainder="0.949",
+                side=side,
+            )
+        ),
+    )
+
+    values = _detail_values(envelope)
+    assert values["order_1_whole_share_request"] == "101 share"
+    assert values["order_1_unapproved"] == "1 share"
+    assert reason_label in values["order_1_quantity_rounding"]
+    assert "尚有 1 share 整股未办理量" in values["order_1_quantity_rounding"]
+
+
+@pytest.mark.parametrize(
+    "invalid_case",
+    (
+        "duplicate_ordinal",
+        "wrong_asset",
+        "wrong_security",
+        "wrong_side",
+        "missing_ordinal",
+        "wrong_decision_binding",
+        "matching_empty_decision_id",
+        "matching_empty_decision_hash",
+        "requested_mismatch",
+        "nonfinite_suggested",
+        "negative_suggested",
+        "nonfinite_remainder",
+        "remainder_at_least_one",
+        "remainder_arithmetic_mismatch",
+        "missing_derivation",
+    ),
+)
+def test_saved_plan_hides_derivation_when_evidence_is_not_exact_and_consistent(
+    invalid_case: str,
+) -> None:
+    envelope = _envelope()
+    evidence = json.loads(
+        _preparation_evidence(
+            suggested_quantity="200.75",
+            requested_quantity=200,
+            fractional_remainder="0.75",
+        )
+    )
+    snapshot = evidence["decision_snapshot"]
+    payload = snapshot["payload"]
+    members = payload["prepared_risk"]["order_policy_members"]
+    member = members[0]
+    derivation = member["target_quantity_derivation"]
+    if invalid_case == "duplicate_ordinal":
+        members.append(member.copy())
+    elif invalid_case == "wrong_asset":
+        member["asset_code"] = "601398.SH"
+    elif invalid_case == "wrong_security":
+        member["security_id"] = "another-security"
+    elif invalid_case == "wrong_side":
+        member["side"] = "buy"
+    elif invalid_case == "missing_ordinal":
+        member["ordinal"] = 1
+    elif invalid_case == "wrong_decision_binding":
+        snapshot["content_hash"] = "d" * 64
+    elif invalid_case == "matching_empty_decision_id":
+        _saved_basis(envelope)["decision"]["id"] = None
+        snapshot["id"] = None
+    elif invalid_case == "matching_empty_decision_hash":
+        _saved_basis(envelope)["decision"]["content_hash"] = None
+        snapshot["content_hash"] = None
+    elif invalid_case == "requested_mismatch":
+        derivation["requested_whole_share_quantity"] = 199
+    elif invalid_case == "nonfinite_suggested":
+        derivation["suggested_quantity"] = "NaN"
+    elif invalid_case == "negative_suggested":
+        derivation["suggested_quantity"] = "-1"
+    elif invalid_case == "nonfinite_remainder":
+        derivation["fractional_remainder"] = "Infinity"
+    elif invalid_case == "remainder_at_least_one":
+        derivation["fractional_remainder"] = "1"
+    elif invalid_case == "remainder_arithmetic_mismatch":
+        derivation["fractional_remainder"] = "0.74"
+    else:
+        derivation.clear()
+    _replace_evidence(envelope, evidence)
+
+    values = _detail_values(envelope)
+    assert values["order_1_quantity_derivation"] == ("未知；本版本没有可匹配的取整证据。")
+    assert "order_1_theoretical_quantity" not in values
+    assert "order_1_fractional_remainder" not in values
+
+
+def test_saved_plan_without_preparation_evidence_keeps_legacy_unknown_behavior() -> None:
+    envelope = _envelope()
+    _saved_basis(envelope).pop("preparation_evidence_json")
+
+    values = _detail_values(envelope)
+
+    assert values["order_1_quantity_derivation"] == ("未知；本版本没有可匹配的取整证据。")
+    assert "order_1_theoretical_quantity" not in values
+
+
+def test_quantity_evidence_binds_the_order_ordinal_not_its_display_position() -> None:
+    envelope = _envelope()
+    plan = envelope["plan"]
+    order = _saved_order(envelope)
+    basis = _saved_basis(envelope)
+    order["ordinal"] = 7
+    evidence = json.loads(
+        _preparation_evidence(
+            ordinal=7,
+            suggested_quantity="200.75",
+            requested_quantity=200,
+            fractional_remainder="0.75",
+        )
+    )
+    snapshot = evidence["decision_snapshot"]
+    members = snapshot["payload"]["prepared_risk"]["order_policy_members"]
+    members.insert(
+        0,
+        {
+            "ordinal": 0,
+            "asset_code": "another-asset",
+            "security_id": "another-security",
+            "side": "buy",
+            "target_quantity_derivation": {},
+        },
+    )
+    basis["preparation_evidence_json"] = json.dumps(
+        evidence, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    )
+
+    fields = project_plan_quantity_detail_fields(plan, order, field_index=1)
+    values = {field["key"]: field["value"] for field in fields}
+
+    assert values["order_1_theoretical_quantity"] == "200.75 share"
+    assert values["order_1_whole_share_request"] == "200 share"
+    assert values["order_1_fractional_remainder"] == "0.75 share"
+
+
+@pytest.mark.parametrize("identity_key", ("ordinal", "asset_code", "security_id", "side"))
+def test_matching_empty_order_identity_is_unknown(identity_key: str) -> None:
+    envelope = _envelope()
+    plan = envelope["plan"]
+    order = _saved_order(envelope)
+    basis = _saved_basis(envelope)
+    order[identity_key] = None
+    evidence = json.loads(
+        _preparation_evidence(
+            suggested_quantity="200.75",
+            requested_quantity=200,
+            fractional_remainder="0.75",
+        )
+    )
+    member = evidence["decision_snapshot"]["payload"]["prepared_risk"]["order_policy_members"][0]
+    member[identity_key] = None
+    basis["preparation_evidence_json"] = json.dumps(
+        evidence, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    )
+
+    fields = project_plan_quantity_detail_fields(plan, order, field_index=1)
+    values = {field["key"]: field["value"] for field in fields}
+
+    assert values["order_1_quantity_derivation"] == ("未知；本版本没有可匹配的取整证据。")

@@ -9,6 +9,8 @@ from typing import Literal
 _MONEY_QUANTUM = Decimal("0.01")
 _QUANTITY_QUANTUM = Decimal("0.000001")
 
+FundingDependencyStatus = Literal["independent", "dependent", "shortfall", "unknown"]
+
 
 @dataclass(frozen=True, slots=True)
 class AssetAdjustment:
@@ -653,6 +655,36 @@ def estimate_plan_funding(
     )
 
 
+def classify_buy_funding_dependency(
+    *,
+    available_cash_before: Decimal | None,
+    buy_total: Decimal | None,
+    cash_after_sells: Decimal | None,
+) -> FundingDependencyStatus:
+    """Classify whether BUY cost needs estimated, unsettled SELL proceeds.
+
+    This is preview arithmetic only: a dependent result never authorizes using
+    sale proceeds before a real fill settles into the account cash balance.
+    """
+
+    if (
+        type(available_cash_before) is not Decimal
+        or not available_cash_before.is_finite()
+        or available_cash_before < 0
+        or type(buy_total) is not Decimal
+        or not buy_total.is_finite()
+        or buy_total < 0
+    ):
+        return "unknown"
+    if available_cash_before >= buy_total:
+        return "independent"
+    if type(cash_after_sells) is not Decimal or not cash_after_sells.is_finite():
+        return "unknown"
+    if cash_after_sells < buy_total:
+        return "shortfall"
+    return "dependent"
+
+
 def constrain_buy_quantity(
     *,
     desired_quantity: Decimal,
@@ -762,6 +794,69 @@ def constrain_sell_quantity(
     return QuantityConstraintAdjustment(candidate, remaining, limit_reason)
 
 
+def constrain_planned_sell_quantity(
+    *,
+    desired_quantity: Decimal,
+    sellable_quantity: Decimal,
+    current_quantity: Decimal,
+    minimum: Decimal,
+    step: Decimal,
+    maximum: Decimal,
+    odd_lot_mode: str,
+) -> QuantityConstraintAdjustment:
+    """Round only a planned SELL down when its exact target misses the lot step.
+
+    The strict SELL rule remains authoritative for valid lots, explicit odd-lot
+    cases, unknown-quality inputs, and every other rejection. This helper only
+    converts ``SELL_QUANTITY_NOT_ON_RULE_STEP`` into the greatest configured
+    step that does not exceed the desired, sellable, or maximum quantity. The
+    rounded amount is passed through the strict rule again before it is offered
+    as an actionable plan quantity; execution validation continues to use the
+    strict rule directly.
+    """
+
+    strict = constrain_sell_quantity(
+        desired_quantity=desired_quantity,
+        sellable_quantity=sellable_quantity,
+        current_quantity=current_quantity,
+        minimum=minimum,
+        step=step,
+        maximum=maximum,
+        odd_lot_mode=odd_lot_mode,
+    )
+    if strict.reason_code != "SELL_QUANTITY_NOT_ON_RULE_STEP":
+        return strict
+
+    candidate = min(desired_quantity, sellable_quantity, maximum)
+    try:
+        rounded_quantity = (candidate / step).to_integral_value(rounding=ROUND_DOWN) * step
+    except (ArithmeticError, InvalidOperation):
+        return QuantityConstraintAdjustment(
+            None, desired_quantity, "EXECUTION_QUANTITY_RULE_INVALID"
+        )
+    validated = constrain_sell_quantity(
+        desired_quantity=rounded_quantity,
+        sellable_quantity=sellable_quantity,
+        current_quantity=current_quantity,
+        minimum=minimum,
+        step=step,
+        maximum=maximum,
+        odd_lot_mode=odd_lot_mode,
+    )
+    if validated.quantity is None:
+        return QuantityConstraintAdjustment(
+            None,
+            desired_quantity,
+            validated.reason_code or strict.reason_code,
+        )
+    remaining_quantity = max(desired_quantity - validated.quantity, Decimal("0"))
+    return QuantityConstraintAdjustment(
+        validated.quantity,
+        remaining_quantity,
+        "SELL_QUANTITY_STEP_ROUNDED_DOWN",
+    )
+
+
 def mark_to_market_amount(quantity: Decimal, reference_price: Decimal) -> Decimal | None:
     """Return one nonnegative holding value at a validated positive reference price."""
 
@@ -805,14 +900,17 @@ def _sum_known(values: tuple[Decimal | None, ...]) -> Decimal:
 
 __all__: tuple[str, ...] = (
     "AssetAdjustment",
+    "FundingDependencyStatus",
     "FundingEstimate",
     "QuantityConstraintAdjustment",
     "calculate_asset_adjustment",
     "calculate_projected_position_amount",
+    "classify_buy_funding_dependency",
     "account_position_cap_reason",
     "account_total_position_cap_reason",
     "account_stop_loss_reason",
     "constrain_buy_quantity",
+    "constrain_planned_sell_quantity",
     "constrain_sell_quantity",
     "calculate_user_target_difference",
     "estimate_plan_funding",

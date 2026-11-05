@@ -628,9 +628,12 @@ def _install_preview_ports(
     quantity_rule_reader = _FixtureQuantityRuleReader(
         identity_reader=identity_reader, missing_asset_codes=missing_quantity_rule_codes
     )
+    fixture_asset_types = {ASSET_SELL: "equity", ASSET_BUY: "equity"}
+    if classification_asset_types is not None:
+        fixture_asset_types.update(classification_asset_types)
     classification_reader = _FixtureClassificationReader(
         identity_reader=identity_reader,
-        asset_types=classification_asset_types or {},
+        asset_types=fixture_asset_types,
         missing_codes=missing_classification_codes,
     )
     builder = ReadOnlyRebalancePlanPreviewBuilder(
@@ -1193,7 +1196,7 @@ def _assert_no_financial_writes(
 def test_owner_route_returns_actionable_sell_and_buy_without_financial_writes(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """A real inspection request may preview known FeeV2-backed actions only."""
+    """Existing cash funds the BUY without counting the planned SELL proceeds."""
 
     user, account = _create_owner_account(
         username="m1-positive",
@@ -1235,11 +1238,12 @@ def test_owner_route_returns_actionable_sell_and_buy_without_financial_writes(
     assert plan["plan_kind"] == "rebalance_preview"
     assert plan["read_only"] is True
     assert plan["execution_submitted"] is False
-    assert plan["sell_before_buy"]["required"] is True
+    assert plan["sell_before_buy"]["required"] is False
     assert plan["sell_before_buy"]["sequence"] == "sell_then_buy"
     assert plan["sell_before_buy"]["sell_asset_codes"] == [ASSET_SELL]
     assert plan["sell_before_buy"]["buy_asset_codes"] == [ASSET_BUY]
-    assert plan["funding_status"] == "conditional"
+    assert plan["sell_before_buy"]["buy_requires_settled_sales"] is False
+    assert plan["funding_status"] == "known"
     assert Decimal(plan["projected_cash_after_sells"]) == (
         Decimal(plan["cash_before"]) + Decimal(plan["estimated_sell_net"])
     )
@@ -1263,13 +1267,17 @@ def test_owner_route_returns_actionable_sell_and_buy_without_financial_writes(
     assert Decimal(sell["sellable_quantity"]) == Decimal("10000.000000")
     assert Decimal(sell["actionable_quantity"]) % Decimal("100") == 0
     assert buy["action"] == "buy"
-    assert buy["status"] == "conditional"
-    assert "BUY_DEPENDS_ON_SETTLED_SALES" in buy["reason_codes"]
+    assert buy["status"] == "partial"
+    assert "BUY_QUANTITY_STEP_ROUNDED_DOWN" in buy["reason_codes"]
+    assert "BUY_DEPENDS_ON_SETTLED_SALES" not in buy["reason_codes"]
     assert Decimal(buy["suggested_quantity"]) > 0
     assert buy["quantity_rule"]["buy"]["step"] == "100"
-    assert buy["actionable_quantity"] is None
-    assert buy["actionable_amount"] is None
-    assert Decimal(buy["remaining_quantity"]) == Decimal(buy["suggested_quantity"])
+    assert Decimal(buy["actionable_quantity"]) > 0
+    assert Decimal(buy["actionable_amount"]) > 0
+    assert Decimal("0") < Decimal(buy["remaining_quantity"]) < Decimal("100")
+    assert Decimal(buy["remaining_quantity"]) == (
+        Decimal(buy["suggested_quantity"]) - Decimal(buy["actionable_quantity"])
+    )
     assert sell["status"] == "ready"
     assert all(row["quantity_unit"] == "shares" for row in (sell, buy))
 
@@ -1360,10 +1368,10 @@ def test_account_position_cap_blocks_buy_even_when_strategy_cap_allows_it(
     )
 
 
-def test_mixed_plan_withholds_buy_until_sell_reduces_total_position(
+def test_mixed_plan_keeps_cash_funded_buy_blocked_by_current_total_position_cap(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """A cash-funded BUY stays conditional when the held SELL must occur first."""
+    """Current holdings remain exposed until settled SELLs, independent of cash need."""
 
     user, account = _create_owner_account(
         username="m1-total-cap-sequence",
@@ -1378,7 +1386,7 @@ def test_mixed_plan_withholds_buy_until_sell_reduces_total_position(
             ASSET_BUY: Decimal("200.000000"),
         },
         max_position_pct=100.0,
-        max_total_position_pct=95.0,
+        max_total_position_pct=93.0,
     )
     strategy = _create_strategy(
         user=user,
@@ -1410,17 +1418,19 @@ def test_mixed_plan_withholds_buy_until_sell_reduces_total_position(
     assert Decimal(plan["portfolio_value"]) == Decimal("100000.00")
     assert Decimal(plan["cash_before"]) == Decimal("10000.00")
     assert Decimal(plan["available_cash_before"]) == Decimal("10000.00")
-    assert Decimal(plan["risk_context"]["account_max_total_position_pct"]) == Decimal("95")
+    assert Decimal(plan["risk_context"]["account_max_total_position_pct"]) == Decimal("93")
     assert Decimal(sell["current_weight"]) == Decimal("0.89")
     assert Decimal(sell["target_weight"]) == Decimal("0.69")
     assert Decimal(buy["current_weight"]) == Decimal("0.01")
     assert Decimal(buy["target_weight"]) == Decimal("0.05")
-    assert plan["sell_before_buy"]["required"] is True
+    assert plan["sell_before_buy"]["required"] is False
+    assert plan["sell_before_buy"]["buy_requires_settled_sales"] is False
     assert plan["sell_before_buy"]["sequence"] == "sell_then_buy"
     assert sell["status"] == "ready"
     assert Decimal(sell["actionable_quantity"]) == Decimal("4000.000000")
-    assert buy["status"] == "conditional"
-    assert "BUY_DEPENDS_ON_SETTLED_SALES" in buy["reason_codes"]
+    assert buy["status"] == "blocked"
+    assert "ACCOUNT_MAX_TOTAL_POSITION_LIMIT_EXCEEDED" in buy["reason_codes"]
+    assert "BUY_DEPENDS_ON_SETTLED_SALES" not in buy["reason_codes"]
     assert Decimal(buy["suggested_quantity"]) > 0
     assert buy["actionable_quantity"] is None
     assert buy["actionable_amount"] is None
@@ -2182,6 +2192,7 @@ def test_buy_depending_on_unsettled_sell_proceeds_is_conditional_and_read_only(
     buy = rows[ASSET_BUY]
     assert buy["action"] == "buy"
     assert buy["status"] == "blocked"
+    assert "BUY_DEPENDS_ON_SETTLED_SALES" in buy["reason_codes"]
     assert "STRATEGY_MAX_TOTAL_POSITION_LIMIT_EXCEEDED" in buy["reason_codes"]
     assert "ACCOUNT_MAX_TOTAL_POSITION_LIMIT_EXCEEDED" in buy["reason_codes"]
     assert "M1_RISK_FALSIFICATION_TRIGGERED" in buy["reason_codes"]

@@ -158,7 +158,7 @@ def _order_grid_action() -> dict[str, Any]:
         "module_key": _MODULE,
         "view_type": "datagrid",
         "description": (
-            "逐行核对批准目标、真实成交、有效预留和未预留余量。已预留订单的详情、撮合、回执和撤销"
+            "逐行核对本版本计划目标、真实成交、有效预留和未预留余量。已预留订单的详情、撮合、回执和撤销"
             "仍在既有 TUI“本人模拟下单”任务中逐单处理，不由计划自动执行。"
         ),
         "source": _SOURCE,
@@ -184,13 +184,13 @@ def _order_grid_action() -> dict[str, Any]:
             "kind": "datagrid",
             "columns": [
                 {"key": "order_label", "label": "计划订单"},
-                {"key": "approved_label", "label": "批准数量"},
+                {"key": "approved_label", "label": "本版本办理上限"},
                 {"key": "filled_label", "label": "已核实成交"},
                 {"key": "in_flight_label", "label": "有效预留"},
                 {"key": "released_label", "label": "已释放"},
                 {"key": "remaining_label", "label": "尚未预留余量"},
                 {"key": "price_label", "label": "计划参考价（非限价）"},
-                {"key": "limit_label", "label": "批准限价"},
+                {"key": "limit_label", "label": "计划限价"},
                 {"key": "capability_label", "label": "当前单笔预览资格"},
             ],
         },
@@ -304,7 +304,7 @@ def _plan_read_action() -> dict[str, Any]:
         "screen_key": _SCREEN,
         "module_key": _MODULE,
         "view_type": "detail",
-        "description": "读取所选计划的原批准目标、来源时点、限制和当前成交进度。",
+        "description": "读取所选计划保存的本版本目标、来源时点、限制和当前成交进度。",
         "source": _SOURCE,
         "task_group": "01 计划与对账",
         "sequence": 20,
@@ -631,13 +631,13 @@ RUNTIME_REBALANCE_PLAN_SCREENS: tuple[dict[str, Any], ...] = (
                 ],
                 "columns": [
                     {"key": "order_label", "label": "计划订单"},
-                    {"key": "approved_label", "label": "批准数量"},
+                    {"key": "approved_label", "label": "本版本办理上限"},
                     {"key": "filled_label", "label": "已核实成交"},
                     {"key": "in_flight_label", "label": "有效预留"},
                     {"key": "released_label", "label": "已释放"},
                     {"key": "remaining_label", "label": "尚未预留余量"},
                     {"key": "price_label", "label": "计划参考价（非限价）"},
-                    {"key": "limit_label", "label": "批准限价"},
+                    {"key": "limit_label", "label": "计划限价"},
                     {"key": "capability_label", "label": "当前单笔预览资格"},
                 ],
                 "row_actions": [

@@ -343,10 +343,10 @@ def test_owner_route_confirmed_unconfigured_empty_account_previews_exact_buy_tar
     )
 
 
-def test_owner_route_manual_targets_include_held_zero_sell_and_conditional_buy(
+def test_owner_route_manual_targets_include_held_zero_sell_and_cash_funded_buy(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The real preview builder preserves SELL-to-zero before a user-target BUY."""
+    """A planned full SELL is not required when existing cash covers the BUY cost."""
 
     user, account = owner_fixtures._create_owner_account(
         username="r9-owner-held-sell-buy",
@@ -404,13 +404,14 @@ def test_owner_route_manual_targets_include_held_zero_sell_and_conditional_buy(
     assert Decimal(sell["actionable_quantity"]) > 0
     assert buy["target_mode"] == "user_target_difference"
     assert buy["action"] == "buy"
-    assert buy["status"] == "conditional"
-    assert "BUY_DEPENDS_ON_SETTLED_SALES" in buy["reason_codes"]
-    assert buy["actionable_quantity"] is None
+    assert buy["status"] == "ready"
+    assert "BUY_DEPENDS_ON_SETTLED_SALES" not in buy["reason_codes"]
+    assert Decimal(buy["actionable_quantity"]) > 0
     assert Decimal(buy["suggested_quantity"]) > 0
-    assert plan["sell_before_buy"]["required"] is True
+    assert plan["sell_before_buy"]["required"] is False
+    assert plan["sell_before_buy"]["buy_requires_settled_sales"] is False
     assert plan["sell_before_buy"]["sequence"] == "sell_then_buy"
-    assert plan["funding_status"] == "conditional"
+    assert plan["funding_status"] == "known"
     assert all(row["price_observed_at"] == prices.observed_at.isoformat() for row in rows.values())
     assert all(row["fee"] is not None for row in rows.values())
     assert fees.calls

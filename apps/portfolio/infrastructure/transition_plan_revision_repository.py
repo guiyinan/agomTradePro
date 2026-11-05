@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from contextlib import nullcontext
 from datetime import datetime
 from hmac import compare_digest
 from typing import Any
 
 from django.conf import settings
-from django.db import IntegrityError, transaction
+from django.db import IntegrityError, connections, transaction
 from django.utils import timezone
 
 from apps.portfolio.application.transition_plan_inactive_approval import (
@@ -570,7 +571,11 @@ class DjangoTransitionPlanLockedActionGuard:
             raise TransitionPlanRevisionCorruption("transition action binding type is invalid")
         if binding.account_id != account_id or binding.owner_user_id != owner_user_id:
             raise TransitionPlanRevisionBlocked("transition plan owner or account scope changed")
-        with transaction.atomic(using=self._using):
+        connection = connections[self._using]
+        transaction_context = (
+            nullcontext() if connection.in_atomic_block else transaction.atomic(using=self._using)
+        )
+        with transaction_context:
             locked = self._repository._locked_account_revisions(account_id)
             revision = next(
                 (

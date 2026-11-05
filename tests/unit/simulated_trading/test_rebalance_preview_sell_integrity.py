@@ -15,6 +15,7 @@ import pytest
 
 from apps.account.application.market_price_contracts import MarketPriceResult
 from apps.data_center.application import market_calendar
+from apps.risk_center.application.m1_rebalance_risk_policy import M1RiskPolicyQualification
 from apps.simulated_trading.application.rebalance_plan_preview import (
     ReadOnlyRebalancePlanPreviewBuilder,
 )
@@ -31,6 +32,7 @@ from apps.simulated_trading.application.rebalance_preview_execution_evidence imp
 )
 from apps.simulated_trading.application.rebalance_preview_m1_risk import (
     stop_loss_observation,
+    unavailable_m1_risk_qualification,
 )
 from apps.simulated_trading.application.rebalance_preview_valuation import (
     CurrentRebalanceValuation,
@@ -214,6 +216,26 @@ def test_unknown_available_quantity_preserves_none_and_blocks_sell() -> None:
     assert "SELLABLE_QUANTITY_UNKNOWN" in row.reason_codes
 
 
+def test_fractional_user_target_sell_offers_only_a_legal_lot_in_the_plan() -> None:
+    """The plan row exposes a safe partial amount and keeps the target remainder."""
+
+    position = _holding()
+    position.available_quantity = Decimal("200")
+    row = _sell_row(
+        position=position,
+        check={"scope": "asset", "asset_name": "fixture asset", "target_weight": "0.05"},
+    )
+
+    assert row.suggested_quantity == Decimal("150")
+    assert row.sellable_quantity == Decimal("200")
+    assert row.actionable_quantity == Decimal("100")
+    assert row.remaining_quantity == Decimal("50")
+    assert row.actionable_amount == Decimal("1000.00")
+    assert row.fee == {"total": "1.00"}
+    assert row.status == "partial"
+    assert "SELL_QUANTITY_STEP_ROUNDED_DOWN" in row.reason_codes
+
+
 def test_held_sell_retains_qualified_classification_and_rejects_ledger_conflict() -> None:
     row = _sell_row()
     assert row.classification_evidence is not None
@@ -247,7 +269,7 @@ def test_sell_capped_by_available_not_total_and_reservation_reduces_free() -> No
     assert reserved.sellable_quantity == Decimal("60")
     assert reserved.actionable_quantity is None
     assert reserved.status == "blocked"
-    assert "SELL_QUANTITY_NOT_ON_RULE_STEP" in reserved.reason_codes
+    assert "SELL_QUANTITY_BELOW_RULE_MINIMUM" in reserved.reason_codes
 
     over_reserved = _sell_row(active_reservations=(_reservation("150"),))
 
@@ -398,7 +420,9 @@ def _preview_item(
 def _finish(
     items: list[RebalancePlanPreviewItem],
     *,
-    available_cash: Decimal = Decimal("100000"),
+    available_cash: Decimal | None = Decimal("100000"),
+    projected_position_amount: Decimal | None = Decimal("5000"),
+    risk_policy_qualification: M1RiskPolicyQualification | None = None,
 ) -> RebalancePlanPreview:
     """Run the production assembly with qualified M1 risk and enough funding."""
 
@@ -432,7 +456,7 @@ def _finish(
         cash_before=available_cash,
         reserved_cash=Decimal("0.00"),
         available_cash_before=available_cash,
-        projected_position_amount=Decimal("5000"),
+        projected_position_amount=projected_position_amount,
         max_total_position_pct=None,
         account_max_total_position_pct=Decimal("95"),
         strategy_policy_applicability="not_applicable",
@@ -440,7 +464,7 @@ def _finish(
         allocation_items=(),
         items=items,
         risk_context=risk_context,
-        risk_policy_qualification=_m1_risk_qualification(),
+        risk_policy_qualification=(risk_policy_qualification or _m1_risk_qualification()),
         m1_stop_loss_observation=stop_loss_observation(
             positions=(_holding(),), prices={"000001.SZ": _quote()}
         ),
@@ -472,8 +496,8 @@ def _assert_read_only_payload(preview: RebalancePlanPreview) -> None:
     assert payload["must_not_execute"] is True
 
 
-def test_ready_sell_marks_dependent_buy_conditional_and_payload_read_only() -> None:
-    """Funded BUY quantities stay withheld until the SELL proceeds settle."""
+def test_fee_inclusive_buy_cost_is_conditional_only_when_cash_needs_sale_proceeds() -> None:
+    """Cash-before is compared with BUY notional plus fees before adding sale proceeds."""
 
     sell = _preview_item(
         action="sell",
@@ -484,7 +508,7 @@ def test_ready_sell_marks_dependent_buy_conditional_and_payload_read_only() -> N
         fee={"total": "1.00"},
         sellable=Decimal("100"),
     )
-    preview = _finish([sell, _ready_buy()])
+    preview = _finish([sell, _ready_buy()], available_cash=Decimal("1002.00"))
 
     sell_row = _rows(preview, "sell")
     buy_row = _rows(preview, "buy")
@@ -497,24 +521,188 @@ def test_ready_sell_marks_dependent_buy_conditional_and_payload_read_only() -> N
     assert preview.funding_status == "conditional"
     assert preview.status == "conditional"
     assert preview.estimated_sell_net == Decimal("999.00")
+    assert preview.estimated_buy_total == Decimal("2001.00")
+    assert preview.projected_cash_after_sells == Decimal("2001.00")
     assert preview.sell_before_buy["buy_requires_settled_sales"] is True
+    assert preview.sell_before_buy["required"] is True
     _assert_read_only_payload(preview)
 
 
-def test_unknown_available_sell_blocks_dependent_buy() -> None:
-    """A SELL without known sellable shares can never fund a BUY."""
+def test_partial_sell_does_not_block_a_buy_funded_by_existing_cash() -> None:
+    """An incomplete SELL is not a blanket gate when available cash covers the BUY."""
+
+    partial_sell = _preview_item(
+        action="sell",
+        asset_code="000001.SZ",
+        status="partial",
+        suggested=Decimal("200"),
+        actionable=Decimal("100"),
+        fee={"total": "1.00"},
+        sellable=Decimal("100"),
+        reasons=("SELL_QUANTITY_LIMITED_BY_RULE",),
+    )
+    preview = _finish(
+        [partial_sell, _ready_buy()],
+        available_cash=Decimal("2001.00"),
+    )
+
+    sell_row = _rows(preview, "sell")
+    buy_row = _rows(preview, "buy")
+    assert sell_row.status == "partial"
+    assert sell_row.actionable_quantity == Decimal("100")
+    assert preview.estimated_sell_gross == Decimal("1000.00")
+    assert buy_row.status == "ready"
+    assert buy_row.actionable_quantity == Decimal("200")
+    assert "BUY_DEPENDS_ON_SETTLED_SALES" not in buy_row.reason_codes
+    assert preview.funding_status == "known"
+    assert preview.sell_before_buy["required"] is False
+    assert preview.sell_before_buy["buy_requires_settled_sales"] is False
+    assert preview.sell_before_buy["sell_asset_codes"] == ["000001.SZ"]
+    assert preview.sell_before_buy["buy_asset_codes"] == ["000002.SZ"]
+    _assert_read_only_payload(preview)
+
+
+def test_unknown_sell_keeps_funding_unknown_without_inventing_cash_dependency() -> None:
+    """An unknown SELL does not become a cash dependency; the separate M1 gate still holds."""
 
     blocked_sell = _sell_row(position=_holding(available_known=False))
-    preview = _finish([blocked_sell, _ready_buy()])
+    preview = _finish(
+        [blocked_sell, _ready_buy()],
+        available_cash=Decimal("2001.00"),
+    )
+
+    sell_row = _rows(preview, "sell")
+    buy_row = _rows(preview, "buy")
+    assert sell_row.status == "blocked"
+    assert preview.available_cash_before == Decimal("2001.00")
+    assert preview.estimated_buy_total == Decimal("2001.00")
+    assert preview.projected_cash_after_sells is None
+    assert buy_row.status == "blocked"
+    assert buy_row.actionable_quantity is None
+    assert "BUY_FUNDING_UNKNOWN" not in buy_row.reason_codes
+    assert "BUY_DEPENDS_ON_SETTLED_SALES" not in buy_row.reason_codes
+    assert "M1_RISK_FALSIFICATION_UNKNOWN" in buy_row.reason_codes
+    assert preview.funding_status == "unknown"
+    assert preview.sell_before_buy["required"] is False
+    assert preview.sell_before_buy["buy_requires_settled_sales"] is False
+    assert preview.risk_context.risk_falsification is not None
+    assert preview.risk_context.risk_falsification.status == "unknown"
+    assert preview.status == "blocked"
+    _assert_read_only_payload(preview)
+
+
+def test_unknown_sell_and_insufficient_cash_block_buy_without_claiming_dependency() -> None:
+    """Unmeasured sale proceeds cannot turn a cash deficit into a dependency estimate."""
+
+    blocked_sell = _sell_row(position=_holding(available_known=False))
+    preview = _finish(
+        [blocked_sell, _ready_buy()],
+        available_cash=Decimal("1000.00"),
+    )
 
     buy_row = _rows(preview, "buy")
     assert buy_row.status == "blocked"
     assert buy_row.actionable_quantity is None
-    assert buy_row.actionable_amount is None
-    assert "SELL_DEPENDENCY_INCOMPLETE" in buy_row.reason_codes
+    assert "ACCOUNT_MAX_TOTAL_POSITION_LIMIT_UNKNOWN" in buy_row.reason_codes
+    assert "M1_RISK_FALSIFICATION_UNKNOWN" in buy_row.reason_codes
+    assert preview.risk_context.risk_falsification is not None
+    assert preview.risk_context.risk_falsification.status == "unknown"
+    assert "SELL_DEPENDENCY_INCOMPLETE" not in buy_row.reason_codes
+    assert "BUY_DEPENDS_ON_SETTLED_SALES" not in buy_row.reason_codes
     assert preview.funding_status == "unknown"
-    assert preview.status == "blocked"
+    assert preview.sell_before_buy["buy_requires_settled_sales"] is False
     _assert_read_only_payload(preview)
+
+
+def test_known_sale_proceeds_that_still_leave_a_fee_inclusive_shortfall_block_buy() -> None:
+    """A known partial SELL is not enough when post-sale cash remains below BUY total."""
+
+    partial_sell = _preview_item(
+        action="sell",
+        asset_code="000001.SZ",
+        status="partial",
+        suggested=Decimal("200"),
+        actionable=Decimal("100"),
+        fee={"total": "1.00"},
+        sellable=Decimal("100"),
+    )
+    preview = _finish(
+        [partial_sell, _ready_buy()],
+        available_cash=Decimal("1000.00"),
+    )
+
+    buy_row = _rows(preview, "buy")
+    assert preview.estimated_buy_total == Decimal("2001.00")
+    assert preview.projected_cash_after_sells == Decimal("1999.00")
+    assert preview.funding_status == "shortfall"
+    assert buy_row.status == "blocked"
+    assert "CASH_SHORTFALL" in buy_row.reason_codes
+    assert "BUY_DEPENDS_ON_SETTLED_SALES" not in buy_row.reason_codes
+    assert preview.sell_before_buy["required"] is False
+    assert preview.sell_before_buy["buy_requires_settled_sales"] is False
+
+
+def test_unknown_buy_fee_or_cash_never_becomes_actionable() -> None:
+    """Known notional is not enough when the fee or available cash is missing."""
+
+    partial_sell = _preview_item(
+        action="sell",
+        asset_code="000001.SZ",
+        status="partial",
+        suggested=Decimal("200"),
+        actionable=Decimal("100"),
+        fee={"total": "1.00"},
+        sellable=Decimal("100"),
+    )
+    unknown_fee_buy = _preview_item(
+        action="buy",
+        asset_code="000002.SZ",
+        status="ready",
+        suggested=Decimal("200"),
+        actionable=Decimal("200"),
+        fee=None,
+    )
+    unknown_fee_preview = _finish([partial_sell, unknown_fee_buy])
+    unknown_fee_row = _rows(unknown_fee_preview, "buy")
+    assert unknown_fee_row.status == "blocked"
+    assert unknown_fee_row.actionable_quantity is None
+    assert "ACCOUNT_MAX_TOTAL_POSITION_LIMIT_UNKNOWN" in unknown_fee_row.reason_codes
+    assert "M1_RISK_FALSIFICATION_UNKNOWN" in unknown_fee_row.reason_codes
+    assert unknown_fee_preview.funding_status == "unknown"
+    assert unknown_fee_preview.estimated_buy_fees is None
+    assert unknown_fee_preview.estimated_buy_total is None
+    assert unknown_fee_preview.projected_cash_after_buys is None
+    assert unknown_fee_preview.sell_before_buy["buy_requires_settled_sales"] is False
+
+    unknown_cash_preview = _finish([_ready_buy()], available_cash=None)
+    unknown_cash_row = _rows(unknown_cash_preview, "buy")
+    assert unknown_cash_row.status == "blocked"
+    assert unknown_cash_row.actionable_quantity is None
+    assert "BUY_FUNDING_UNKNOWN" in unknown_cash_row.reason_codes
+
+
+def test_unknown_aggregate_exposure_or_required_m1_policy_still_blocks_cash_funded_buy() -> None:
+    """Cash sufficiency cannot override unknown current exposure or missing risk policy."""
+
+    unknown_exposure = _finish(
+        [_ready_buy()],
+        projected_position_amount=None,
+    )
+    unknown_exposure_buy = _rows(unknown_exposure, "buy")
+    assert unknown_exposure_buy.status == "blocked"
+    assert "ACCOUNT_MAX_TOTAL_POSITION_LIMIT_UNKNOWN" in unknown_exposure_buy.reason_codes
+    assert unknown_exposure.sell_before_buy["required"] is False
+
+    unavailable_policy = _finish(
+        [_ready_buy()],
+        risk_policy_qualification=unavailable_m1_risk_qualification(
+            "M1_RISK_POLICY_READ_PORT_UNAVAILABLE"
+        ),
+    )
+    unavailable_policy_buy = _rows(unavailable_policy, "buy")
+    assert unavailable_policy_buy.status == "blocked"
+    assert "M1_RISK_POLICY_NOT_QUALIFIED" in unavailable_policy_buy.reason_codes
+    assert unavailable_policy.sell_before_buy["required"] is False
 
 
 def test_fee_deficit_sell_with_insufficient_cash_cannot_fund_buy() -> None:
@@ -542,4 +730,5 @@ def test_fee_deficit_sell_with_insufficient_cash_cannot_fund_buy() -> None:
     assert buy_row.actionable_amount is None
     assert "SELL_DEPENDENCY_INCOMPLETE" in buy_row.reason_codes
     assert preview.sell_before_buy["buy_requires_settled_sales"] is False
+    assert preview.sell_before_buy["required"] is False
     _assert_read_only_payload(preview)

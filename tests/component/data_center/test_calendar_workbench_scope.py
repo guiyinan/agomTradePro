@@ -96,16 +96,16 @@ def _write_contract(
     schema_version: str = SCHEMA_VERSION,
     ttl: int | None = 900,
 ) -> DatasetContractModel:
-    """Persist one calendar contract row, including explicitly nullable TTL."""
+    """Persist or reuse one exact calendar contract, without changing row clocks."""
 
-    return DatasetContractModel.objects.create(
-        dataset_key=dataset_key,
-        contract_version=contract_version,
-        schema_version=schema_version,
-        owner="data-platform",
-        frequency="calendar",
-        decision_critical=True,
-        fields=[
+    expected: dict[str, object] = {
+        "dataset_key": dataset_key,
+        "contract_version": contract_version,
+        "schema_version": schema_version,
+        "owner": "data-platform",
+        "frequency": "calendar",
+        "decision_critical": True,
+        "fields": [
             {
                 "name": "calendar_date",
                 "type": "date",
@@ -114,47 +114,347 @@ def _write_contract(
                 "zero_allowed": False,
             }
         ],
-        calendar_response_max_age_seconds=ttl,
-        active=True,
-    )
+        "freshness_seconds": None,
+        "execution_freshness_seconds": None,
+        "calendar_response_max_age_seconds": ttl,
+        "comparable_group": "",
+        "active": True,
+    }
+    lookup = {
+        "dataset_key": dataset_key,
+        "contract_version": contract_version,
+        "schema_version": schema_version,
+    }
+    rows = list(DatasetContractModel.objects.filter(**lookup))
+    if len(rows) > 1:
+        raise AssertionError("DatasetContractModel fixture identity is ambiguous")
+    if rows:
+        _assert_exact_fixture_fields(rows[0], expected, label="DatasetContractModel")
+        return rows[0]
+    return DatasetContractModel.objects.create(**expected)
+
+
+def _assert_exact_fixture_fields(
+    row: object,
+    expected: dict[str, object],
+    *,
+    label: str,
+) -> None:
+    """Reject an existing fixture row unless every configured value is exact."""
+
+    for field_name, expected_value in expected.items():
+        if getattr(row, field_name, None) != expected_value:
+            raise AssertionError(
+                f"{label}.{field_name} conflicts with expected calendar fixture settings"
+            )
 
 
 def _write_configuration(*, dataset_key: str = DATASET_KEY) -> None:
-    """Persist the exact active contract, policy, binding, and provider metadata."""
+    """Create missing exact fixture rows or reuse matching rows without mutation."""
 
-    _write_contract(dataset_key=dataset_key)
-    DatasetPublicationPolicyModel.objects.create(
+    contract_values: dict[str, object] = {
+        "dataset_key": dataset_key,
+        "contract_version": CONTRACT_VERSION,
+        "schema_version": SCHEMA_VERSION,
+        "owner": "data-platform",
+        "frequency": "calendar",
+        "decision_critical": True,
+        "fields": [
+            {
+                "name": "calendar_date",
+                "type": "date",
+                "unit": None,
+                "nullable": False,
+                "zero_allowed": False,
+            }
+        ],
+        "freshness_seconds": None,
+        "execution_freshness_seconds": None,
+        "calendar_response_max_age_seconds": 900,
+        "comparable_group": "",
+        "active": True,
+    }
+    contract_lookup = {
+        "dataset_key": dataset_key,
+        "contract_version": CONTRACT_VERSION,
+        "schema_version": SCHEMA_VERSION,
+    }
+    contract_rows = list(DatasetContractModel.objects.filter(**contract_lookup))
+    if len(contract_rows) > 1:
+        raise AssertionError("DatasetContractModel fixture identity is ambiguous")
+    contract_row = contract_rows[0] if contract_rows else None
+    if contract_row is not None:
+        _assert_exact_fixture_fields(contract_row, contract_values, label="DatasetContractModel")
+
+    policy_values: dict[str, object] = {
+        "dataset_key": dataset_key,
+        "contract_version": CONTRACT_VERSION,
+        "schema_version": SCHEMA_VERSION,
+        "policy_version": "calendar-v1",
+        "member_codec_version": "calendar-nullable-member-v1",
+        "minimum_coverage_ratio": 1.0,
+        "allow_partial": False,
+        "conflict_action": "block",
+        "required_evidence": ["source", "fact_content_hash"],
+        "retention_days": 3650,
+        "active": True,
+    }
+    policy_lookup = {
+        "dataset_key": dataset_key,
+        "contract_version": CONTRACT_VERSION,
+        "schema_version": SCHEMA_VERSION,
+        "policy_version": "calendar-v1",
+    }
+    policy_rows = list(DatasetPublicationPolicyModel.objects.filter(**policy_lookup))
+    if len(policy_rows) > 1:
+        raise AssertionError("DatasetPublicationPolicyModel fixture identity is ambiguous")
+    policy_row = policy_rows[0] if policy_rows else None
+    if policy_row is not None:
+        _assert_exact_fixture_fields(
+            policy_row, policy_values, label="DatasetPublicationPolicyModel"
+        )
+
+    binding_values: dict[str, object] = {
+        "dataset_key": dataset_key,
+        "contract_version": CONTRACT_VERSION,
+        "schema_version": SCHEMA_VERSION,
+        "provider": "tushare",
+        "capability": CALENDAR_CAPTURE_CAPABILITY,
+        "priority": 10,
+        "freshness_seconds": None,
+        "validator_key": CALENDAR_CAPTURE_VALIDATOR_KEY,
+        "enabled": True,
+    }
+    binding_lookup = {
+        "dataset_key": dataset_key,
+        "contract_version": CONTRACT_VERSION,
+        "schema_version": SCHEMA_VERSION,
+        "provider": "tushare",
+        "capability": CALENDAR_CAPTURE_CAPABILITY,
+    }
+    binding_rows = list(DatasetProviderBindingModel.objects.filter(**binding_lookup))
+    if len(binding_rows) > 1:
+        raise AssertionError("DatasetProviderBindingModel fixture identity is ambiguous")
+    binding_row = binding_rows[0] if binding_rows else None
+    if binding_row is not None:
+        _assert_exact_fixture_fields(
+            binding_row, binding_values, label="DatasetProviderBindingModel"
+        )
+
+    provider_values: dict[str, object] = {
+        "name": "calendar-workbench-provider-fixture",
+        "source_type": "tushare",
+        "is_active": True,
+        "priority": 10,
+        "http_url": "",
+        "api_endpoint": "",
+        "extra_config": {},
+        "description": "Non-secret metadata fixture",
+    }
+    provider_lookup = {"name": "calendar-workbench-provider-fixture"}
+    provider_rows = list(ProviderConfigModel.objects.filter(**provider_lookup))
+    if len(provider_rows) > 1:
+        raise AssertionError("ProviderConfigModel fixture identity is ambiguous")
+    provider_row = provider_rows[0] if provider_rows else None
+    if provider_row is not None:
+        _assert_exact_fixture_fields(provider_row, provider_values, label="ProviderConfigModel")
+
+    expected_contract_identity = (
+        dataset_key,
+        CONTRACT_VERSION,
+        SCHEMA_VERSION,
+    )
+    active_calendar_contracts = DatasetContractModel.objects.filter(
+        active=True, calendar_response_max_age_seconds__isnull=False
+    )
+    if any(
+        (row.dataset_key, row.contract_version, row.schema_version) != expected_contract_identity
+        for row in active_calendar_contracts
+    ):
+        raise AssertionError("an unrelated active calendar contract conflicts with this fixture")
+    if (
+        DatasetContractModel.objects.filter(dataset_key=dataset_key, active=True)
+        .exclude(
+            contract_version=CONTRACT_VERSION,
+            schema_version=SCHEMA_VERSION,
+        )
+        .exists()
+    ):
+        raise AssertionError("another active contract version conflicts with this fixture")
+
+    active_policies = DatasetPublicationPolicyModel.objects.filter(
+        dataset_key=dataset_key, active=True
+    )
+    if any(policy.pk != getattr(policy_row, "pk", None) for policy in active_policies):
+        raise AssertionError("another active publication policy conflicts with this fixture")
+
+    enabled_calendar_bindings = DatasetProviderBindingModel.objects.filter(
         dataset_key=dataset_key,
+        capability=CALENDAR_CAPTURE_CAPABILITY,
+        enabled=True,
+    )
+    if any(binding.pk != getattr(binding_row, "pk", None) for binding in enabled_calendar_bindings):
+        raise AssertionError("another enabled calendar binding conflicts with this fixture")
+
+    active_tushare_providers = ProviderConfigModel.objects.filter(
+        source_type="tushare", is_active=True
+    )
+    if any(
+        provider.pk != getattr(provider_row, "pk", None) for provider in active_tushare_providers
+    ):
+        raise AssertionError("another active Tushare provider conflicts with this fixture")
+
+    # Validate every existing row before creating missing members of the bundle.
+    # A later insert error rolls the whole local fixture addition back.
+    with transaction.atomic():
+        if contract_row is None:
+            _write_contract(dataset_key=dataset_key)
+        if policy_row is None:
+            DatasetPublicationPolicyModel.objects.create(**policy_values)
+        if binding_row is None:
+            DatasetProviderBindingModel.objects.create(**binding_values)
+        if provider_row is None:
+            ProviderConfigModel.objects.create(**provider_values)
+
+
+def test_configuration_fixture_reuses_exact_existing_rows_without_clock_updates() -> None:
+    """A retained contract can be reused while missing exact catalog rows are seeded."""
+
+    contract = _write_contract()
+    original_contract_clocks = (contract.pk, contract.created_at, contract.updated_at)
+
+    _write_configuration()
+    first_policy = DatasetPublicationPolicyModel.objects.get(
+        dataset_key=DATASET_KEY,
         contract_version=CONTRACT_VERSION,
         schema_version=SCHEMA_VERSION,
         policy_version="calendar-v1",
-        member_codec_version="calendar-nullable-member-v1",
-        minimum_coverage_ratio=1.0,
-        allow_partial=False,
-        conflict_action="block",
-        required_evidence=["source", "fact_content_hash"],
-        retention_days=3650,
-        active=True,
     )
-    DatasetProviderBindingModel.objects.create(
-        dataset_key=dataset_key,
+    first_binding = DatasetProviderBindingModel.objects.get(
+        dataset_key=DATASET_KEY,
         contract_version=CONTRACT_VERSION,
         schema_version=SCHEMA_VERSION,
         provider="tushare",
         capability=CALENDAR_CAPTURE_CAPABILITY,
-        priority=10,
-        validator_key=CALENDAR_CAPTURE_VALIDATOR_KEY,
-        enabled=True,
     )
-    ProviderConfigModel.objects.create(
-        name="calendar-workbench-provider-fixture",
-        source_type="tushare",
-        is_active=True,
-        priority=10,
-        http_url="",
-        api_endpoint="",
-        extra_config={},
-        description="Non-secret metadata fixture",
+    first_provider = ProviderConfigModel.objects.get(name="calendar-workbench-provider-fixture")
+    original_bundle_clocks = (
+        (first_policy.pk, first_policy.created_at, first_policy.updated_at),
+        (first_binding.pk, first_binding.created_at, first_binding.updated_at),
+        (first_provider.pk, first_provider.created_at, first_provider.updated_at),
+    )
+
+    _write_contract()
+    _write_configuration()
+
+    saved_contract = DatasetContractModel.objects.get(
+        dataset_key=DATASET_KEY,
+        contract_version=CONTRACT_VERSION,
+        schema_version=SCHEMA_VERSION,
+    )
+    saved_policy = DatasetPublicationPolicyModel.objects.get(
+        dataset_key=DATASET_KEY,
+        contract_version=CONTRACT_VERSION,
+        schema_version=SCHEMA_VERSION,
+        policy_version="calendar-v1",
+    )
+    saved_binding = DatasetProviderBindingModel.objects.get(
+        dataset_key=DATASET_KEY,
+        contract_version=CONTRACT_VERSION,
+        schema_version=SCHEMA_VERSION,
+        provider="tushare",
+        capability=CALENDAR_CAPTURE_CAPABILITY,
+    )
+    saved_provider = ProviderConfigModel.objects.get(name="calendar-workbench-provider-fixture")
+    assert (saved_contract.pk, saved_contract.created_at, saved_contract.updated_at) == (
+        original_contract_clocks
+    )
+    assert (
+        (saved_policy.pk, saved_policy.created_at, saved_policy.updated_at),
+        (saved_binding.pk, saved_binding.created_at, saved_binding.updated_at),
+        (saved_provider.pk, saved_provider.created_at, saved_provider.updated_at),
+    ) == original_bundle_clocks
+    assert DatasetContractModel.objects.filter(dataset_key=DATASET_KEY).count() == 1
+    assert DatasetPublicationPolicyModel.objects.filter(dataset_key=DATASET_KEY).count() == 1
+    assert DatasetProviderBindingModel.objects.filter(dataset_key=DATASET_KEY).count() == 1
+    assert (
+        ProviderConfigModel.objects.filter(name="calendar-workbench-provider-fixture").count() == 1
+    )
+
+
+def test_configuration_fixture_rejects_each_existing_row_with_changed_settings() -> None:
+    """Existing rows with different TTL, policy, binding, or provider data fail explicitly."""
+
+    _write_configuration()
+
+    DatasetContractModel.objects.filter(
+        dataset_key=DATASET_KEY,
+        contract_version=CONTRACT_VERSION,
+        schema_version=SCHEMA_VERSION,
+    ).update(calendar_response_max_age_seconds=901)
+    with pytest.raises(
+        AssertionError,
+        match="DatasetContractModel.calendar_response_max_age_seconds",
+    ):
+        _write_contract()
+    with pytest.raises(
+        AssertionError,
+        match="DatasetContractModel.calendar_response_max_age_seconds",
+    ):
+        _write_configuration()
+    assert (
+        DatasetContractModel.objects.get(dataset_key=DATASET_KEY).calendar_response_max_age_seconds
+        == 901
+    )
+
+    DatasetContractModel.objects.filter(dataset_key=DATASET_KEY).update(
+        calendar_response_max_age_seconds=900
+    )
+    DatasetPublicationPolicyModel.objects.filter(
+        dataset_key=DATASET_KEY,
+        contract_version=CONTRACT_VERSION,
+        schema_version=SCHEMA_VERSION,
+        policy_version="calendar-v1",
+    ).update(minimum_coverage_ratio=0.99)
+    with pytest.raises(
+        AssertionError,
+        match="DatasetPublicationPolicyModel.minimum_coverage_ratio",
+    ):
+        _write_configuration()
+    assert (
+        DatasetPublicationPolicyModel.objects.get(dataset_key=DATASET_KEY).minimum_coverage_ratio
+        == 0.99
+    )
+
+    DatasetPublicationPolicyModel.objects.filter(dataset_key=DATASET_KEY).update(
+        minimum_coverage_ratio=1.0
+    )
+    DatasetProviderBindingModel.objects.filter(
+        dataset_key=DATASET_KEY,
+        contract_version=CONTRACT_VERSION,
+        schema_version=SCHEMA_VERSION,
+        provider="tushare",
+        capability=CALENDAR_CAPTURE_CAPABILITY,
+    ).update(priority=11)
+    with pytest.raises(AssertionError, match="DatasetProviderBindingModel.priority"):
+        _write_configuration()
+    assert DatasetProviderBindingModel.objects.get(dataset_key=DATASET_KEY).priority == 11
+
+    DatasetProviderBindingModel.objects.filter(dataset_key=DATASET_KEY).update(priority=10)
+    ProviderConfigModel.objects.filter(name="calendar-workbench-provider-fixture").update(
+        description="different metadata"
+    )
+    with pytest.raises(AssertionError, match="ProviderConfigModel.description"):
+        _write_configuration()
+    assert (
+        ProviderConfigModel.objects.get(name="calendar-workbench-provider-fixture").description
+        == "different metadata"
+    )
+    assert DatasetContractModel.objects.filter(dataset_key=DATASET_KEY).count() == 1
+    assert DatasetPublicationPolicyModel.objects.filter(dataset_key=DATASET_KEY).count() == 1
+    assert DatasetProviderBindingModel.objects.filter(dataset_key=DATASET_KEY).count() == 1
+    assert (
+        ProviderConfigModel.objects.filter(name="calendar-workbench-provider-fixture").count() == 1
     )
 
 

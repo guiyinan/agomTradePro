@@ -35,8 +35,7 @@ def test_owner_temporary_targets_are_exact_read_only_and_audited_once(
     user, account = _create_owner_account(
         username="m1-temporary-target",
         positions=((ASSET_SELL, "Temporary target held asset", True),),
-        # 持仓在卖出结算前仍计入风险敞口：小持仓 + 充足现金让保守投影不超过
-        # 100% 总仓位上限，买入仅因结算顺序保持 conditional。
+        # 持仓在卖出结算前仍计入风险敞口；现有现金本身足以覆盖本次买入及费用。
         cash=Decimal("50000.00"),
         position_quantity=Decimal("1000.000000"),
         max_position_pct=100.0,
@@ -128,8 +127,9 @@ def test_owner_temporary_targets_are_exact_read_only_and_audited_once(
     assert plan["read_only"] is True
     assert plan["execution_submitted"] is False
     assert plan["allocation_items"] == []
-    assert plan["funding_status"] == "conditional"
-    assert plan["sell_before_buy"]["buy_requires_settled_sales"] is True
+    assert plan["funding_status"] == "known"
+    assert plan["sell_before_buy"]["required"] is False
+    assert plan["sell_before_buy"]["buy_requires_settled_sales"] is False
     assert plan["sell_before_buy"]["sequence"] == "sell_then_buy"
     assert Decimal(plan["projected_cash_after_sells"]) == (
         Decimal(plan["cash_before"]) + Decimal(plan["estimated_sell_net"])
@@ -147,9 +147,13 @@ def test_owner_temporary_targets_are_exact_read_only_and_audited_once(
     assert Decimal(rows[ASSET_SELL]["target_weight"]) == Decimal("0")
     assert rows[ASSET_BUY]["action"] == "buy"
     assert rows[ASSET_BUY]["asset_type"] == "equity"
-    assert rows[ASSET_BUY]["status"] == "conditional"
+    assert rows[ASSET_BUY]["status"] == "partial"
+    assert "BUY_QUANTITY_STEP_ROUNDED_DOWN" in rows[ASSET_BUY]["reason_codes"]
+    assert Decimal("0") < Decimal(rows[ASSET_BUY]["remaining_quantity"]) < Decimal("100")
     assert Decimal(rows[ASSET_BUY]["target_weight"]) == Decimal("0.90000001")
-    assert "BUY_DEPENDS_ON_SETTLED_SALES" in rows[ASSET_BUY]["reason_codes"]
+    assert "BUY_DEPENDS_ON_SETTLED_SALES" not in rows[ASSET_BUY]["reason_codes"]
+    assert Decimal(rows[ASSET_BUY]["actionable_quantity"]) > 0
+    assert Decimal(plan["estimated_buy_total"]) <= Decimal(plan["available_cash_before"])
     buy_fee = rows[ASSET_BUY]["fee"]
     assert Decimal(buy_fee["total"]) > 0
     assert Decimal(buy_fee["total"]) == sum(

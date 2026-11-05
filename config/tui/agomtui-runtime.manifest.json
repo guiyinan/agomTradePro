@@ -1,8 +1,8 @@
 {
   "version": "0.2.0",
   "source_owner": "AgomTradePro",
-  "upstream_commit": "c9198af72a4912fe3b25e2f96be76735760b9d95",
-  "build_id": "agomtui-runtime-0.2.0+f7da42bfdfeb",
+  "upstream_commit": "fcf9b74b887fb10f49eecf20753f53f73fa7b07d",
+  "build_id": "agomtui-runtime-0.2.0+118d60f3f8a7",
   "direction": "AgomTradePro -> AgOMTUI",
   "contracts": {
     "screen_dashboard_layouts": [
@@ -97,8 +97,10 @@
     "apps/terminal/infrastructure/tui_metadata_runtime_injection_audit.py": "0c343eb9d3d235537280fea2899a42def7917889aaf729310cd6fd0d02f90d94",
     "apps/terminal/infrastructure/tui_metadata_runtime_injection_backtest.py": "881c4311be56c97cf6afdf5fd842996353d47f720dd12684f6ab7bbe3c68f6bc",
     "apps/terminal/infrastructure/tui_metadata_runtime_injection_beta_gate.py": "4e5190f326d33b387793a7aef8d1a74a5adcf228d125ab4d3a43f1872e2a8c0c",
+    "apps/terminal/infrastructure/tui_metadata_runtime_injection_broker_execution_actions.py": "eb2d11ec6320e4c4dee9b73c2c0bbcfa37a511b201c6f65bc80f659cd673109a",
     "apps/terminal/infrastructure/tui_metadata_runtime_injection_broker_execution_helpers.py": "78873b3436bfbe8539b56d2073df2c729bf202e1d4786ed1a45662cb653f8ab5",
-    "apps/terminal/infrastructure/tui_metadata_runtime_injection_broker_execution.py": "9987ca46cbd5876c63e3d7a149386687114ce4d0317d03d391ed7adbb5ce69df",
+    "apps/terminal/infrastructure/tui_metadata_runtime_injection_broker_execution_screens.py": "e0d1e0a3133de5d138647a1c80ac02e7d5315c93708719c5844ff31104e414be",
+    "apps/terminal/infrastructure/tui_metadata_runtime_injection_broker_execution.py": "71e2b5702305cd2317a900df3e5989bb592e4527e94dc5598f73ca349c237d62",
     "apps/terminal/infrastructure/tui_metadata_runtime_injection_calendar_workbench.py": "03faf2cce24504c9013f7d207938882bcaf3cc53d42f946c5f72cb8737d1e73d",
     "apps/terminal/infrastructure/tui_metadata_runtime_injection_capability_router.py": "598be835ebed2be1f98b8e52924e7f7a70d1595a64874b145e4faed8073526c3",
     "apps/terminal/infrastructure/tui_metadata_runtime_injection_cli.py": "871dbf9fd949250daf55d7032257928ac9ef9439b8f0c6b76a5af4720caffbd4",
@@ -133,8 +135,8 @@
     "apps/terminal/infrastructure/tui_metadata_runtime_injection_prompt.py": "47052919ec1b0e6d63c2f0c257fbe9056cf336cb92df160f3addac18feee14c1",
     "apps/terminal/infrastructure/tui_metadata_runtime_injection_qmt_bridge.py": "21a892387b4f248769a0363859b0f229a6f677f74fee6dac32dae64264a613c3",
     "apps/terminal/infrastructure/tui_metadata_runtime_injection_realtime.py": "385721de6110c5df47fdb6b82a36194ee243a56ae48556a1ccbdae2e5484cc12",
-    "apps/terminal/infrastructure/tui_metadata_runtime_injection_rebalance_plan.py": "6b3f821285b68095d39d1cfc85a90a95a7c586ae5cdce8b6c2bf43855ba84c63",
-    "apps/terminal/infrastructure/tui_metadata_runtime_injection_registry.py": "8216592a4f6f8a539ee6809ff7ab6ba947c18fd12ceda74e5f62b36a76daa41d",
+    "apps/terminal/infrastructure/tui_metadata_runtime_injection_rebalance_plan.py": "91c63b718a64fa6168c5487449fafb128e34321f61acd44d96488d5e34da63c1",
+    "apps/terminal/infrastructure/tui_metadata_runtime_injection_registry.py": "3d594378070f92234299a6a741afffdc50345129ae13ba265aafd493a5a386c1",
     "apps/terminal/infrastructure/tui_metadata_runtime_injection_risk_center_actions_core.py": "4cc5bd88cc43864dc3caa5898e3df8b9776e0f38c05e61a33369009476a0dfed",
     "apps/terminal/infrastructure/tui_metadata_runtime_injection_risk_center_actions_governance.py": "e9805fb98bcc8825bc86dd778abe8d0ad051041f8d0f1441d26be0ab903604d1",
     "apps/terminal/infrastructure/tui_metadata_runtime_injection_risk_center.py": "fbed8b9c7ef603b34f7f8b043bf8bd7eb62745d63421401be87bd7f8c9a43981",

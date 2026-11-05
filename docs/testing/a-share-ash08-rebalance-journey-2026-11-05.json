@@ -1,65 +1,313 @@
 {
   "schema": "ash08.rebalance_journey_acceptance.v1",
-  "status": "development_gates_and_source_code_ci_passed_full_current_source_journey_pending",
+  "status": "development_code_qualified_pending_formal_delivery_ci_and_same_day_source_browser",
   "unit_status": "active",
   "goal_complete": false,
   "authorization": "Owner full ASH08 handoff; main plan section19.158; registry2026-11-05.v310",
-  "git_head_at_run": "d48853c5769ba4340e2cd5aac98fe89b4e509550",
-  "implementation_commit": "39e38e3d86502fdea14d357b1c1aad02d047b25f",
+  "git_head_at_run": "fcf9b74b887fb10f49eecf20753f53f73fa7b07d",
+  "implementation_commit": null,
   "source_code_digest_sha256": "0d9f2f13d6c6aab129db539341463573cdd5c047cb2d867f8e7aa9b9b1d226bd",
   "source_code_inputs": {
     "path": ".tmp/ash08-journey-20261105/runs/r031-final-closure-index/current-source-inputs.json",
     "sha256": "90719138e0e46d9dc353cfd7c623db674a9ac663887316c19c561ad8fb41eb90"
   },
   "tests": {
-    "historical_source39_python_passed": 971,
-    "historical_source39_scope": "527 backend + 442 TUI + 2 Session; original failures and bounded scope proofs retained, not counted as a fresh 971 on followup code.",
-    "current_legacy_isolation_complete_modules": 11,
-    "current_legacy_isolation_passed": 78,
-    "current_legacy_isolation_failures": 0,
-    "current_legacy_isolation_skips": 0,
-    "frontend_complete_modules": 14,
-    "node_passed": 229,
-    "node_failures": 0,
-    "node_skips": 0,
-    "controlled_browser_contracts_passed": 3,
-    "controlled_browser_scope": "Included within the 229 frontend cases; controlled responses, not genuine-source full journey.",
-    "production_python_incremental_files": 8,
-    "historical_source39_production_python_incremental_files": 53,
-    "mypy_regressions": 0,
-    "mypy_debt": 0,
-    "domain_line_percent": 95.34,
-    "domain_combined_percent": 90.8,
-    "domain_scope": "R009 unchanged Domain bytes; followup production changes only Core/Infrastructure/state migration.",
-    "real_current_source_full_browser_journey": "not_run",
-    "clock_and_runtime_guard_complete_modules": 2,
-    "clock_and_runtime_guard_passed": 23,
-    "clock_and_runtime_guard_skips": 0,
-    "current_incremental_type_scopes": [
+    "qualified_module_scopes": [
       {
-        "source": "603d5af",
-        "files": 8,
-        "regressions": 0
+        "module": "tests.integration.simulated_trading.test_manual_target_without_strategy_owner_api",
+        "passed": 11,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0,
+        "whole_module_pass": true,
+        "source_run": "r051-complete-planning-funding-corrected",
+        "junit_path": ".tmp/ash08-journey-20261105/runs/r051-complete-planning-funding-corrected/junit.xml",
+        "junit_sha256": "a8fe931967622cf45a2b4b29908a768a612190195f3e1adc42f2a7d3371c87e1"
       },
       {
-        "source": "d48853c",
-        "files": 1,
-        "regressions": 0
+        "module": "tests.integration.simulated_trading.test_readonly_rebalance_plan_owner_api",
+        "passed": 31,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0,
+        "whole_module_pass": true,
+        "source_run": "r051-complete-planning-funding-corrected",
+        "junit_path": ".tmp/ash08-journey-20261105/runs/r051-complete-planning-funding-corrected/junit.xml",
+        "junit_sha256": "a8fe931967622cf45a2b4b29908a768a612190195f3e1adc42f2a7d3371c87e1"
+      },
+      {
+        "module": "tests.integration.simulated_trading.test_temporary_target_owner_entry",
+        "passed": 1,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0,
+        "whole_module_pass": true,
+        "source_run": "r051-complete-planning-funding-corrected",
+        "junit_path": ".tmp/ash08-journey-20261105/runs/r051-complete-planning-funding-corrected/junit.xml",
+        "junit_sha256": "a8fe931967622cf45a2b4b29908a768a612190195f3e1adc42f2a7d3371c87e1"
+      },
+      {
+        "module": "tests.component.simulated_trading.test_transition_plan_sell_buy_funding_native",
+        "passed": 1,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0,
+        "whole_module_pass": true,
+        "source_run": "r063-plan-transaction-boundary",
+        "junit_path": ".tmp/ash08-journey-20261105/runs/r063-plan-transaction-boundary/junit.xml",
+        "junit_sha256": "20cdf372fea2483c6a7ce8081064a2b2a8bef3d2eedc1b4b04cf9cfc3cde1b67"
+      },
+      {
+        "module": "tests.unit.broker_execution.test_agent",
+        "passed": 80,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0,
+        "whole_module_pass": true,
+        "source_run": "r051-complete-planning-funding-corrected",
+        "junit_path": ".tmp/ash08-journey-20261105/runs/r051-complete-planning-funding-corrected/junit.xml",
+        "junit_sha256": "a8fe931967622cf45a2b4b29908a768a612190195f3e1adc42f2a7d3371c87e1"
+      },
+      {
+        "module": "tests.unit.broker_execution.test_qmt_builtin_adapter",
+        "passed": 10,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 1,
+        "whole_module_pass": true,
+        "source_run": "r051-complete-planning-funding-corrected",
+        "junit_path": ".tmp/ash08-journey-20261105/runs/r051-complete-planning-funding-corrected/junit.xml",
+        "junit_sha256": "a8fe931967622cf45a2b4b29908a768a612190195f3e1adc42f2a7d3371c87e1"
+      },
+      {
+        "module": "tests.unit.broker_execution.test_qmt_builtin_onboarding_script",
+        "passed": 1,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0,
+        "whole_module_pass": true,
+        "source_run": "r051-complete-planning-funding-corrected",
+        "junit_path": ".tmp/ash08-journey-20261105/runs/r051-complete-planning-funding-corrected/junit.xml",
+        "junit_sha256": "a8fe931967622cf45a2b4b29908a768a612190195f3e1adc42f2a7d3371c87e1"
+      },
+      {
+        "module": "tests.unit.simulated_trading.application.test_rebalance_journey_preparation",
+        "passed": 27,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0,
+        "whole_module_pass": true,
+        "source_run": "r061-preview-pulse-evidence",
+        "junit_path": ".tmp/ash08-journey-20261105/runs/r061-preview-pulse-evidence/junit.xml",
+        "junit_sha256": "c8da88a69110aa34e7af038a265e55645c4d194ef23f8d62f1077cf763fea932"
+      },
+      {
+        "module": "tests.unit.simulated_trading.application.test_rebalance_journey_preparation_support",
+        "passed": 9,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0,
+        "whole_module_pass": true,
+        "source_run": "r061-preview-pulse-evidence",
+        "junit_path": ".tmp/ash08-journey-20261105/runs/r061-preview-pulse-evidence/junit.xml",
+        "junit_sha256": "c8da88a69110aa34e7af038a265e55645c4d194ef23f8d62f1077cf763fea932"
+      },
+      {
+        "module": "tests.unit.simulated_trading.application.test_rebalance_journey_read_consistency",
+        "passed": 9,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0,
+        "whole_module_pass": true,
+        "source_run": "r061-preview-pulse-evidence",
+        "junit_path": ".tmp/ash08-journey-20261105/runs/r061-preview-pulse-evidence/junit.xml",
+        "junit_sha256": "c8da88a69110aa34e7af038a265e55645c4d194ef23f8d62f1077cf763fea932"
+      },
+      {
+        "module": "tests.unit.simulated_trading.test_rebalance_journey_context",
+        "passed": 5,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0,
+        "whole_module_pass": true,
+        "source_run": "r061-preview-pulse-evidence",
+        "junit_path": ".tmp/ash08-journey-20261105/runs/r061-preview-pulse-evidence/junit.xml",
+        "junit_sha256": "c8da88a69110aa34e7af038a265e55645c4d194ef23f8d62f1077cf763fea932"
+      },
+      {
+        "module": "tests.unit.simulated_trading.test_rebalance_preview_math_m1",
+        "passed": 70,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0,
+        "whole_module_pass": true,
+        "source_run": "r051-complete-planning-funding-corrected",
+        "junit_path": ".tmp/ash08-journey-20261105/runs/r051-complete-planning-funding-corrected/junit.xml",
+        "junit_sha256": "a8fe931967622cf45a2b4b29908a768a612190195f3e1adc42f2a7d3371c87e1"
+      },
+      {
+        "module": "tests.unit.simulated_trading.test_rebalance_preview_sell_integrity",
+        "passed": 13,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0,
+        "whole_module_pass": true,
+        "source_run": "r051-complete-planning-funding-corrected",
+        "junit_path": ".tmp/ash08-journey-20261105/runs/r051-complete-planning-funding-corrected/junit.xml",
+        "junit_sha256": "a8fe931967622cf45a2b4b29908a768a612190195f3e1adc42f2a7d3371c87e1"
+      },
+      {
+        "module": "tests.unit.terminal.test_runtime_injection_input_ownership",
+        "passed": 5,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0,
+        "whole_module_pass": true,
+        "source_run": "r053-saved-plan-quantity-consumer",
+        "junit_path": ".tmp/ash08-journey-20261105/runs/r053-saved-plan-quantity-consumer/junit.xml",
+        "junit_sha256": "00185d7743dc866bbf7981a77b8c5741b24996c3be3edfcc48f48388a170d960"
+      },
+      {
+        "module": "tests.unit.terminal.test_tui_account_inspection",
+        "passed": 86,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0,
+        "whole_module_pass": true,
+        "source_run": "r053-saved-plan-quantity-consumer",
+        "junit_path": ".tmp/ash08-journey-20261105/runs/r053-saved-plan-quantity-consumer/junit.xml",
+        "junit_sha256": "00185d7743dc866bbf7981a77b8c5741b24996c3be3edfcc48f48388a170d960"
+      },
+      {
+        "module": "tests.unit.terminal.test_tui_information_architecture",
+        "passed": 14,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0,
+        "whole_module_pass": true,
+        "source_run": "r053-saved-plan-quantity-consumer",
+        "junit_path": ".tmp/ash08-journey-20261105/runs/r053-saved-plan-quantity-consumer/junit.xml",
+        "junit_sha256": "00185d7743dc866bbf7981a77b8c5741b24996c3be3edfcc48f48388a170d960"
+      },
+      {
+        "module": "tests.unit.terminal.test_tui_rebalance_plan_metadata",
+        "passed": 9,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0,
+        "whole_module_pass": true,
+        "source_run": "r051-complete-planning-funding-corrected",
+        "junit_path": ".tmp/ash08-journey-20261105/runs/r051-complete-planning-funding-corrected/junit.xml",
+        "junit_sha256": "a8fe931967622cf45a2b4b29908a768a612190195f3e1adc42f2a7d3371c87e1"
+      },
+      {
+        "module": "tests.unit.terminal.test_tui_rebalance_plan_result",
+        "passed": 38,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0,
+        "whole_module_pass": true,
+        "source_run": "r053-saved-plan-quantity-consumer",
+        "junit_path": ".tmp/ash08-journey-20261105/runs/r053-saved-plan-quantity-consumer/junit.xml",
+        "junit_sha256": "00185d7743dc866bbf7981a77b8c5741b24996c3be3edfcc48f48388a170d960"
+      },
+      {
+        "module": "tests.component.simulated_trading.test_auto_trading_current_reference_t1",
+        "passed": 22,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0,
+        "whole_module_pass": true,
+        "source_run": "r052-funding-producer-native",
+        "junit_path": ".tmp/ash08-journey-20261105/runs/r052-funding-producer-native/junit.xml",
+        "junit_sha256": "afc52146b17e88f679283950d66ab95fa656adebe1b24465b391e786316212f8"
+      },
+      {
+        "module": "tests.component.simulated_trading.test_live_sina_owner_market_acceptance",
+        "passed": 0,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 2,
+        "whole_module_pass": false,
+        "source_run": "r052-funding-producer-native",
+        "junit_path": ".tmp/ash08-journey-20261105/runs/r052-funding-producer-native/junit.xml",
+        "junit_sha256": "afc52146b17e88f679283950d66ab95fa656adebe1b24465b391e786316212f8"
+      },
+      {
+        "module": "tests.component.data_center.test_calendar_workbench_scope",
+        "passed": 9,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0,
+        "whole_module_pass": true,
+        "source_run": "r052-funding-producer-native",
+        "junit_path": ".tmp/ash08-journey-20261105/runs/r052-funding-producer-native/junit.xml",
+        "junit_sha256": "afc52146b17e88f679283950d66ab95fa656adebe1b24465b391e786316212f8"
+      },
+      {
+        "module": "tests.component.config_center.test_aud05_atomic_activation",
+        "passed": 20,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0,
+        "whole_module_pass": true,
+        "source_run": "r057-aud05-dedicated-resource",
+        "junit_path": ".tmp/ash08-journey-20261105/runs/r057-aud05-dedicated-resource/junit.xml",
+        "junit_sha256": "3fed663c547760360fd2e3324838e67ca9513f6eb07191cb262fdee8a2ffbbe8"
+      },
+      {
+        "module": "tests.component.simulated_trading.test_transition_plan_execution_native",
+        "passed": 5,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0,
+        "whole_module_pass": true,
+        "source_run": "r064-guard-clock-complete",
+        "junit_path": ".tmp/ash08-journey-20261105/runs/r064-guard-clock-complete/junit.xml",
+        "junit_sha256": "3ec9029f0e02acc8c060fc4b329efbe395011144cb23cdd4eb4bfe5aba791a38"
+      },
+      {
+        "module": "tests.unit.portfolio.test_transition_plan_revision_asset_identity",
+        "passed": 21,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0,
+        "whole_module_pass": true,
+        "source_run": "r063-plan-transaction-boundary",
+        "junit_path": ".tmp/ash08-journey-20261105/runs/r063-plan-transaction-boundary/junit.xml",
+        "junit_sha256": "20cdf372fea2483c6a7ce8081064a2b2a8bef3d2eedc1b4b04cf9cfc3cde1b67"
       }
-    ]
+    ],
+    "reuse_rule": "A module row refers to its own exact candidate and JUnit. Only wholly passing modules with unchanged covered inputs are reused; passes inside failed modules are not promoted. This is development-scope evidence, not a single-SHA full release qualification.",
+    "production_incremental_files": 21,
+    "production_incremental_hash_index": ".tmp/ash08-journey-20261105/runs/r065-final-formatted-code/incremental-reuse-input-proof.json",
+    "mypy_regressions": 0,
+    "mypy_debt": 0,
+    "full_debt_run": "r063-plan-transaction-boundary",
+    "frontend_complete_modules": 14,
+    "node_passed": 230,
+    "node_failed": 0,
+    "node_skipped": 0,
+    "node_run": "r053-saved-plan-quantity-consumer",
+    "domain_combined_percent": 97.5669,
+    "domain_scope": "R051 rebalance_preview_math.py exact unchanged bytes and tests; no extrapolation to other Domain modules.",
+    "real_current_source_full_browser_journey": "not_run",
+    "controlled_browser_contracts": "Historical bounded controlled-response evidence only; does not replace genuine-source V8.",
+    "covered_input_reuse_proof": ".tmp/ash08-journey-20261105/runs/r065-final-formatted-code/unchanged-scope-reuse.json",
+    "full_debt_input_equivalence": "All production inputs match R063 except Black wrapping of the Guard expression, with identical complete AST. Changed clock is in test code only."
   },
   "source_availability": {
     "business_date": "2026-11-05",
-    "cni_capture_completed_at": "2026-11-05T08:04:32.287953+00:00",
+    "cni_capture_completed_at": "2026-11-05T15:33:33.203659+00:00",
     "http_status": 200,
     "vendor_data": null,
-    "vendor_total": 0,
+    "vendor_total": null,
     "vendor_sampleDate": "",
     "same_day_contract_preserved": true,
     "admitted": false,
     "owner_material_request": null,
-    "last_recheck_completed_at": "2026-11-05T10:43:55.732033+00:00",
-    "last_recheck_result": "HTTP200 vendor data=null/total0/sampleDate empty; same-day contract preserved, not admitted.",
+    "last_recheck_completed_at": "2026-11-05T15:33:33.203659+00:00",
+    "last_recheck_result": "2026-11-05 23:33 Shanghai: HTTP200, data=null, total=null, sampleDate empty; not admitted and not evidence for 2026-11-06.",
     "raw_body_sha256": "3098a203d487b1886e8a50e92f991e397e1b3d9351f8ec9cee118a2b15e0f3d9",
     "official_alternate": {
       "page": "https://www.cnindex.com.cn/zh_information/data_resource/fljg/",
@@ -70,11 +318,18 @@
       "admitted": false,
       "reason": "No per-row observation/effective date; historical label cannot prove 2026-11-05 membership."
     },
-    "other_source_review": "SSE/Sina/Wind use different classification standards or lack dated industry evidence; MSN not verifiable. No eligible replacement."
+    "other_source_review": "SSE/Sina/Wind use different classification standards or lack dated industry evidence; MSN not verifiable. No eligible replacement.",
+    "latest_capture_path": ".tmp/ash08-journey-20261105/b-execution/cni-single-followup-20261105-2332/capture.json",
+    "request_started_at": "2026-11-05T15:33:30.767527+00:00",
+    "response_completed_at": "2026-11-05T15:33:33.203659+00:00",
+    "current_shanghai_date": "2026-11-06",
+    "close_collection_window": "2026-11-06 same-day close capture only after 16:00 Asia/Shanghai; no reuse of prior-date close or clock backdating."
   },
   "remaining": [
-    "Acquire genuine same-day industry members; refresh existing calendar/M1/Sina/admission through unchanged validators.",
-    "Run real Owner/observer/foreign browser workflow with explicitly synthetic partial fill and preserved original trace; reconcile durable economics."
+    "Formal bounded development commits and actual applicable CI for the delivered head.",
+    "Obtain genuine qualified same-day industry membership; retained 11/05 empty response does not qualify 11/06 and is not missing Owner material.",
+    "Run explicit published_close simulation mode and the complete V8 ordinary-owner TUI browser journey on qualified same-day sources; preserve real transport/order keys, actor isolation and receipts.",
+    "Keep synthetic partial fills explicitly labelled and committed through the real locked fill UoW; they do not claim exchange executions."
   ],
   "ref_scope": "REF01/05 read-only; remaining REF await original prerequisites and formal serial window. ASH06/09/12 deferred.",
   "artifacts": [
@@ -407,6 +662,456 @@
       "path": ".tmp/ash08-journey-20261105/b-execution/capture-date/runs/attempt1845/2026-11-05/industry.response.json",
       "sha256": "3098a203d487b1886e8a50e92f991e397e1b3d9351f8ec9cee118a2b15e0f3d9",
       "scope": "actual1843_empty_vendor_body"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r037-front03fa-funding-frozen/result.json",
+      "sha256": "3da748c68551aa931e13d8ca67ffac63d9d12411b3df26964884c203d070c6a3",
+      "scope": "historical_node_230_success_input_changed_rerun_required"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r048-isolated-native-database/summary.json",
+      "sha256": "edee80530f88cee4c32182c443faeb944394d0ae5c9717c4344ecdb26d99ef61",
+      "scope": "isolated_database_copy_created_original_fingerprint_unchanged_not_tested"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r049-base03fa-ci/consistency-remote.log",
+      "sha256": "2eb9a5fd2f38b5af629a20e68b2c9ca95ab1db71b0899269ec423999dc50dbdd",
+      "scope": "03fa_consistency_failure_stale_architecture_inventory"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r049-base03fa-ci/fast-py311-remote.log",
+      "sha256": "0eef06224365d4859078f7a96aa61e32b45fa210c953780568e7c2d9e03ef374",
+      "scope": "03fa_fast_feedback_py311_failure"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r049-base03fa-ci/fast-py313-remote.log",
+      "sha256": "f964f9500a07a3a242a01b0407cd0a4d57742062ddadb308a633e6e369263ed4",
+      "scope": "03fa_fast_feedback_py313_failure"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r049-base03fa-ci/incremental-remote.log",
+      "sha256": "8b8d3e4e6bb31be298d36939f16fcf19996f7cab1f37a017e88fed005b0f8c42",
+      "scope": "metadata_source_budget_failure_1234_lines"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/r049-metadata-split-overlay/handoff.json",
+      "sha256": "904caed86721bf5a0fb3899b021cdc2c85324932617b399e5294be5c97d934c3",
+      "scope": "metadata_split_preflight_not_full_validation"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/b-execution/capture-date/runs/attempt-2139-source/2026-11-05/industry.capture.json",
+      "sha256": "803d378949b2ce239225a53e790aea6b1aed24cdab0e7ebe35a7e5da91ce3821",
+      "scope": "same_day_CNI_empty_response_not_admitted"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/b-execution/real-browser-harness-v8/handoff.json",
+      "sha256": "411dc26e119b850febddd01be086d61bcacd132e3e0fcd060818323b1762035c",
+      "scope": "prepared_not_executed"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r050-complete-planning-funding/candidate-inputs.json",
+      "sha256": "85ad4efc8bf64d051dc9501b254b9f1dc27362a40eac8583c986990f22231d05",
+      "scope": "Retained actual candidate and complete-module evidence; failed candidates remain failures."
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r050-complete-planning-funding/pytest-summary.json",
+      "sha256": "49406a1a8e45fffa234340c2cab3d26bad832046b431b4ffc3b0d69179b270d0",
+      "scope": "Retained actual candidate and complete-module evidence; failed candidates remain failures."
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r050-complete-planning-funding/junit.xml",
+      "sha256": "e11d6b1d66a0fb246a44bc7a2b66caacf8274cb929623fc3718caf700343e220",
+      "scope": "Retained actual candidate and complete-module evidence; failed candidates remain failures."
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r050-complete-planning-funding/static-summary.json",
+      "sha256": "5081bbecba25b265bd57714214842b602c6604c0b77fee4d4b899944450d3993",
+      "scope": "Retained actual candidate and complete-module evidence; failed candidates remain failures."
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r050-complete-planning-funding/node-summary.json",
+      "sha256": "b051d3f2961e26a5b6b6f28f937c752733f9cd60be80ed2ebf8c9e7ddd7eceb0",
+      "scope": "Retained actual candidate and complete-module evidence; failed candidates remain failures."
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r050-complete-planning-funding/node-junit.xml",
+      "sha256": "42838201d0e34a6cc068afefbe7011e6affaf566a84e1dd010d93479ab25428e",
+      "scope": "Retained actual candidate and complete-module evidence; failed candidates remain failures."
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r051-complete-planning-funding-corrected/candidate-inputs.json",
+      "sha256": "1e5c03d59980a40c01e4f9acd17544be48989e2cdac01fae17f2d5eb487d38cc",
+      "scope": "Retained actual candidate and complete-module evidence; failed candidates remain failures."
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r051-complete-planning-funding-corrected/pytest-summary.json",
+      "sha256": "6a9e4bbae896502b9c99520012b94dad3ec15b50cc8ccc921b0e4ca12ca2fe22",
+      "scope": "Retained actual candidate and complete-module evidence; failed candidates remain failures."
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r051-complete-planning-funding-corrected/junit.xml",
+      "sha256": "a8fe931967622cf45a2b4b29908a768a612190195f3e1adc42f2a7d3371c87e1",
+      "scope": "Retained actual candidate and complete-module evidence; failed candidates remain failures."
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r051-complete-planning-funding-corrected/static-summary.json",
+      "sha256": "3b8c115cf50e37baed194e566eac654a47c1789487d95295565e8c564b5140ae",
+      "scope": "Retained actual candidate and complete-module evidence; failed candidates remain failures."
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r051-complete-planning-funding-corrected/related-gates-summary.json",
+      "sha256": "8042ac27cfdc6816dca1f1072fb05cb378cd83d4cac8e36fb8eb4bcf49f6ab8a",
+      "scope": "Retained actual candidate and complete-module evidence; failed candidates remain failures."
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r052-funding-producer-native/candidate-inputs.json",
+      "sha256": "ea8389082a882ad21a0c5bc700c3501857169f779f60716dfd3372d2c3726e73",
+      "scope": "Retained actual candidate and complete-module evidence; failed candidates remain failures."
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r052-funding-producer-native/pytest-summary.json",
+      "sha256": "32b352fabd378061d7d913a80a8ff859a90b164bd595541fc6ab1689529dba65",
+      "scope": "Retained actual candidate and complete-module evidence; failed candidates remain failures."
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r052-funding-producer-native/junit.xml",
+      "sha256": "afc52146b17e88f679283950d66ab95fa656adebe1b24465b391e786316212f8",
+      "scope": "Retained actual candidate and complete-module evidence; failed candidates remain failures."
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r053-saved-plan-quantity-consumer/candidate-inputs.json",
+      "sha256": "153a67752cffa9adefdeda9a60339ad36c2d80a46f66a5f4f706b55ca757528e",
+      "scope": "Retained actual candidate and complete-module evidence; failed candidates remain failures."
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r053-saved-plan-quantity-consumer/pytest-summary.json",
+      "sha256": "a189f62793f1ae2c19124c44905f972893c9aa195caa7afaf6a9577252ad60e7",
+      "scope": "Retained actual candidate and complete-module evidence; failed candidates remain failures."
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r053-saved-plan-quantity-consumer/junit.xml",
+      "sha256": "00185d7743dc866bbf7981a77b8c5741b24996c3be3edfcc48f48388a170d960",
+      "scope": "Retained actual candidate and complete-module evidence; failed candidates remain failures."
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r053-saved-plan-quantity-consumer/static-summary.json",
+      "sha256": "8edbec96822a5d06731a09e208238728ebd60af97c71497a2c4e281cf2372b72",
+      "scope": "Retained actual candidate and complete-module evidence; failed candidates remain failures."
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r053-saved-plan-quantity-consumer/node-summary.json",
+      "sha256": "b051d3f2961e26a5b6b6f28f937c752733f9cd60be80ed2ebf8c9e7ddd7eceb0",
+      "scope": "Retained actual candidate and complete-module evidence; failed candidates remain failures."
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r053-saved-plan-quantity-consumer/node-junit.xml",
+      "sha256": "8f9d8cc932960e7cdfa4ef86861ba0fff6288f325b75356071cfaac5860f5d60",
+      "scope": "Retained actual candidate and complete-module evidence; failed candidates remain failures."
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r053-saved-plan-quantity-consumer/related-gates-summary.json",
+      "sha256": "ae14b999c18c2ef1b7054d226806a2ffdf1b75821d04e73eb5b0c83f80a86589",
+      "scope": "Retained actual candidate and complete-module evidence; failed candidates remain failures."
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r054-native-identity-diagnostic/candidate-inputs.json",
+      "sha256": "6ee9439994c095dabd23df328ebd0f78d14d26cdb6288450bbd806188059f27e",
+      "scope": "Retained actual candidate and complete-module evidence; failed candidates remain failures."
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r054-native-identity-diagnostic/pytest-summary.json",
+      "sha256": "054316ff45bb008204d6368071fd8f1c27302a3b90275a8f8073ec4fee02bd6d",
+      "scope": "Retained actual candidate and complete-module evidence; failed candidates remain failures."
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r054-native-identity-diagnostic/junit.xml",
+      "sha256": "07c27ae44cd65afec1ca74460671411bd3b88ba4f787c2599765a455d98157a9",
+      "scope": "Retained actual candidate and complete-module evidence; failed candidates remain failures."
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r055-native-snapshot-version/candidate-inputs.json",
+      "sha256": "caf7a1f0db74e2d8cc90c23480ed21b6b96d7604e83399268c566e7331d57d53",
+      "scope": "Retained actual candidate and complete-module evidence; failed candidates remain failures."
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r055-native-snapshot-version/pytest-summary.json",
+      "sha256": "36ec62f0cc3960fe48b204dfd408f9a309cc601742fa4f021e4aad98c1e7bab9",
+      "scope": "Retained actual candidate and complete-module evidence; failed candidates remain failures."
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r055-native-snapshot-version/junit.xml",
+      "sha256": "4c5272e60e02ac0b1bed0d8f2fbee0e684d95ec8fdd0b83b26552392d38d0aee",
+      "scope": "Retained actual candidate and complete-module evidence; failed candidates remain failures."
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r055-native-snapshot-version/static-summary.json",
+      "sha256": "3363965f4b91305378314ef2dd8ddacd49b945ddea1d9421f5d24e9c4fa8d5fd",
+      "scope": "Retained actual candidate and complete-module evidence; failed candidates remain failures."
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r056-native-reference-units/candidate-inputs.json",
+      "sha256": "6b30634030fc511f451762dbf75353aef2c19772ffaea8d5a7dfaa95e9d7c734",
+      "scope": "Retained actual candidate and complete-module evidence; failed candidates remain failures."
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r056-native-reference-units/pytest-summary.json",
+      "sha256": "2822ace9b52fe997af67a2b6599c88eb447269e35505b6e1f3a6b938a52bba90",
+      "scope": "Retained actual candidate and complete-module evidence; failed candidates remain failures."
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r056-native-reference-units/junit.xml",
+      "sha256": "26063dd0e1a969aff01a4146cb4a217b91a0e04c9696d125b08b6e602de55d1c",
+      "scope": "Retained actual candidate and complete-module evidence; failed candidates remain failures."
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r057-aud05-dedicated-resource/candidate-inputs.json",
+      "sha256": "959acfaffe98d06bed2e080c5a1fade62fce2dd59c86b594f82586477cd53940",
+      "scope": "Retained actual candidate and complete-module evidence; failed candidates remain failures."
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r057-aud05-dedicated-resource/pytest-summary.json",
+      "sha256": "18b162973ec0da1e9ba105c3cf040f9352bdf6d955a7e614bbc5c42c94f78de9",
+      "scope": "Retained actual candidate and complete-module evidence; failed candidates remain failures."
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r057-aud05-dedicated-resource/junit.xml",
+      "sha256": "3fed663c547760360fd2e3324838e67ca9513f6eb07191cb262fdee8a2ffbbe8",
+      "scope": "Retained actual candidate and complete-module evidence; failed candidates remain failures."
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r058-reference-classification-binding/candidate-inputs.json",
+      "sha256": "231ca5e520e5642cda6fdcf23ae20f7a7812cd067cdb894323a695e77927b0af",
+      "scope": "Retained actual candidate and complete-module evidence; failed candidates remain failures."
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r058-reference-classification-binding/pytest-summary.json",
+      "sha256": "16bcb5f20e0d9bfffe0c58c3a47ef7ac1220f06d12cd814b0405e0fd9d128124",
+      "scope": "Retained actual candidate and complete-module evidence; failed candidates remain failures."
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r058-reference-classification-binding/junit.xml",
+      "sha256": "ac20e60718c6b2af9be7023a72ff749baad5c95082535a0602c3d9291a5b0112",
+      "scope": "Retained actual candidate and complete-module evidence; failed candidates remain failures."
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r058-reference-classification-binding/static-summary.json",
+      "sha256": "eab4f1a23c570ca6d769d60521653969925a01a8776588b162258061d023ac15",
+      "scope": "Retained actual candidate and complete-module evidence; failed candidates remain failures."
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r059-native-published-calendar/candidate-inputs.json",
+      "sha256": "e80400935aa9f254dafb24a659bc819cc24ab6574925c657c420405bbb243369",
+      "scope": "Retained actual candidate and complete-module evidence; failed candidates remain failures."
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r059-native-published-calendar/pytest-summary.json",
+      "sha256": "16710a69e4610ff7b2bbae6d52d8826966f90936a5eeb5db12186edb93968552",
+      "scope": "Retained actual candidate and complete-module evidence; failed candidates remain failures."
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r059-native-published-calendar/junit.xml",
+      "sha256": "5ed036a1bc95ae7ade91fe7d61b63fe14ac00c337efd9c3f2b6bc20bac2706be",
+      "scope": "Retained actual candidate and complete-module evidence; failed candidates remain failures."
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r061-preview-pulse-evidence/candidate-inputs.json",
+      "sha256": "efa2ff86cf976318ccfe3a733fb4ea01474924f3c04633ad6568095463097be3",
+      "scope": "Retained actual candidate and complete-module evidence; failed candidates remain failures."
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r061-preview-pulse-evidence/pytest-summary.json",
+      "sha256": "9d25948762c1e709b0c744b4ea998e5da24e4295cb29b14580bf316127a3d856",
+      "scope": "Retained actual candidate and complete-module evidence; failed candidates remain failures."
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r061-preview-pulse-evidence/junit.xml",
+      "sha256": "c8da88a69110aa34e7af038a265e55645c4d194ef23f8d62f1077cf763fea932",
+      "scope": "Retained actual candidate and complete-module evidence; failed candidates remain failures."
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r061-preview-pulse-evidence/static-summary.json",
+      "sha256": "08373fd5e93b748010ef1e4cd15fd9df56fb0068286a5e80101e0bbbbd53ba69",
+      "scope": "Retained actual candidate and complete-module evidence; failed candidates remain failures."
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r062-native-calendar-uow/candidate-inputs.json",
+      "sha256": "4d2e52277e85d3cd61808b6118f2d862f41335202b17637367bcc65ccfbfd1e9",
+      "scope": "Retained actual candidate and complete-module evidence; failed candidates remain failures."
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r062-native-calendar-uow/pytest-summary.json",
+      "sha256": "d2514a8ed1c2d88cf5450c4e005d59f6b5cb33793c40f61a7374aeff693321b4",
+      "scope": "Retained actual candidate and complete-module evidence; failed candidates remain failures."
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r062-native-calendar-uow/junit.xml",
+      "sha256": "a2cd6b2d8e88c0deddf25973b792fa2d578922203a4bb984556021d95579a2f2",
+      "scope": "Retained actual candidate and complete-module evidence; failed candidates remain failures."
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r062-native-calendar-uow/related-gates-summary.json",
+      "sha256": "d1e6b569c1497b4a22f830c6f9598fdfe4f2242b75f69dc7e2b203c956235f07",
+      "scope": "Retained actual candidate and complete-module evidence; failed candidates remain failures."
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r063-plan-transaction-boundary/candidate-inputs.json",
+      "sha256": "59ac3264381c62e62b2bd3a93c59519866dfe319f726fee6759627a9f5d742fd",
+      "scope": "Retained actual candidate and complete-module evidence; failed candidates remain failures."
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r063-plan-transaction-boundary/pytest-summary.json",
+      "sha256": "402a7af8b0d4e727b68255358901ec25051cb65f0c7e049b0ab1e4436564613b",
+      "scope": "Retained actual candidate and complete-module evidence; failed candidates remain failures."
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r063-plan-transaction-boundary/junit.xml",
+      "sha256": "20cdf372fea2483c6a7ce8081064a2b2a8bef3d2eedc1b4b04cf9cfc3cde1b67",
+      "scope": "Retained actual candidate and complete-module evidence; failed candidates remain failures."
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r063-plan-transaction-boundary/static-summary.json",
+      "sha256": "30922145c499024a6fdcdfd355ce6f3132dca9f27db161f74fb005b52c68f2fd",
+      "scope": "Retained actual candidate and complete-module evidence; failed candidates remain failures."
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r063-plan-transaction-boundary/incremental-reuse-input-proof.json",
+      "sha256": "8840e0f76466b93f186a9d6dd64baeb8d4e41f5d971b289c6c7b2ad756c71410",
+      "scope": "Retained actual candidate and complete-module evidence; failed candidates remain failures."
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r064-guard-clock-complete/candidate-inputs.json",
+      "sha256": "66d5b180b4b07d280f10eac3b621dbff794115b5cb465641546d5e4a0770d3b8",
+      "scope": "Retained actual candidate and complete-module evidence; failed candidates remain failures."
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r064-guard-clock-complete/pytest-summary.json",
+      "sha256": "ec99fcdd4204f4ae0dd227abff6d92b1fb871d38a3577c44a2b9c3a513f53493",
+      "scope": "Retained actual candidate and complete-module evidence; failed candidates remain failures."
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r064-guard-clock-complete/junit.xml",
+      "sha256": "3ec9029f0e02acc8c060fc4b329efbe395011144cb23cdd4eb4bfe5aba791a38",
+      "scope": "Retained actual candidate and complete-module evidence; failed candidates remain failures."
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r064-guard-clock-complete/final-gates-summary.json",
+      "sha256": "cf8537a537fe0902822c604933b39521a153c543802f9553bd1022fccff9c5ea",
+      "scope": "Retained actual candidate and complete-module evidence; failed candidates remain failures."
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r064-guard-clock-complete/format-only-equivalence.json",
+      "sha256": "5e9ad29cd8caa75ff6c4cb522feeda8fb8b4892142ecc581be1cf74175cc5a95",
+      "scope": "Retained actual candidate and complete-module evidence; failed candidates remain failures."
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r065-final-formatted-code/candidate-inputs.json",
+      "sha256": "4bc3b3cacf2fac76781e00c34867fb71ba167436d7eb404ae6626a42e6ab0232",
+      "scope": "Retained actual candidate and complete-module evidence; failed candidates remain failures."
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r065-final-formatted-code/incremental-reuse-input-proof.json",
+      "sha256": "ce4f8b169a11f62a18178f8292f9933dc9376a33069b765acc00359a893ac770",
+      "scope": "Retained actual candidate and complete-module evidence; failed candidates remain failures."
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r065-final-formatted-code/format-only-equivalence.json",
+      "sha256": "5e9ad29cd8caa75ff6c4cb522feeda8fb8b4892142ecc581be1cf74175cc5a95",
+      "scope": "Retained actual candidate and complete-module evidence; failed candidates remain failures."
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r065-final-formatted-code/format-summary.json",
+      "sha256": "e3dc4d7744de20584ab3df2b88e798e57ac5d5ff298eee808b0eee02c0b73fae",
+      "scope": "Retained actual candidate and complete-module evidence; failed candidates remain failures."
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r060-latest-base-ci/127371052282-remote.log",
+      "sha256": "1466753983cf8e70aeb54344090509a7dacff973baaae9a1fdb87fdc6d4eb7e4",
+      "scope": "Actual latest-base CI response/log originals"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r060-latest-base-ci/127371257681-remote.log",
+      "sha256": "e3642e3bef744695d8c63fb018205b38145cd99e4a9022399c5767a14382baf3",
+      "scope": "Actual latest-base CI response/log originals"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r060-latest-base-ci/42063456402-jobs.json",
+      "sha256": "f683c07082e1fc72486faef11058b5c457e8c2a06125b1ab98b5b6349145fd29",
+      "scope": "Actual latest-base CI response/log originals"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r060-latest-base-ci/42063456600-jobs.json",
+      "sha256": "21b03da512d7e813aa55bfddb18e25076390a14517dc5f994f234bbca36e3c44",
+      "scope": "Actual latest-base CI response/log originals"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r060-latest-base-ci/latest-five.json",
+      "sha256": "ab4b644915be03636024d154e94e64eb56d51aaf906b3251cc888ad1d397bd35",
+      "scope": "Actual latest-base CI response/log originals"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r060-latest-base-ci/summary.json",
+      "sha256": "d0d759f3bcc4e7a00b41499ba7fdfd9384fc5eadf7256e8f8a10047500865fb2",
+      "scope": "Actual latest-base CI response/log originals"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r061-preview-pulse-evidence/native_diagnostics-v1.py",
+      "sha256": "42a8e3e5bacd8e3384761cc8ca0e1e7469b6c97f087a4449be86a304e0ef7742",
+      "scope": "Failure-only diagnostic on unchanged candidate; no green qualification"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r061-preview-pulse-evidence/native-risk-failure-v1.json",
+      "sha256": "0494c667cc6d595d56103b0beb8fd60f73d090ed09593b4d0611bd924a1d1f46",
+      "scope": "Failure-only diagnostic on unchanged candidate; no green qualification"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r061-preview-pulse-evidence/native-risk-diagnostic-summary.json",
+      "sha256": "23e54bc8ddb3b05a4ad17bd50ec552a07608c609e3b62b30df6bea923b72e973",
+      "scope": "Failure-only diagnostic on unchanged candidate; no green qualification"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r061-preview-pulse-evidence/native-risk-caught-errors.json",
+      "sha256": "9683ac7d68ded872b17ea3e413657ea67ea03018253957fbae8f8ebb7bfd9039",
+      "scope": "Failure-only diagnostic on unchanged candidate; no green qualification"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r061-preview-pulse-evidence/native-risk-failure.json",
+      "sha256": "44b75b813fcc9453a9672bf9d62d375e1922a08e58b8a8811eb130c487662eb8",
+      "scope": "Failure-only diagnostic on unchanged candidate; no green qualification"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r061-preview-pulse-evidence/native-risk-traced-diagnostic-summary.json",
+      "sha256": "d1cbdd32afa0096e7232f666d682ac784b48c1cd349fe8a89ffe9153cb6115c6",
+      "scope": "Failure-only diagnostic on unchanged candidate; no green qualification"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/b-execution/cni-single-followup-20261105-2332/capture.json",
+      "sha256": "09e0a19d60f573791de8bdbdfc51fd6ccc48ead37af102164a0e9766af7261f0",
+      "scope": "Same-day CNI raw capture not admitted"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/b-execution/cni-single-followup-20261105-2332/response.body",
+      "sha256": "3098a203d487b1886e8a50e92f991e397e1b3d9351f8ec9cee118a2b15e0f3d9",
+      "scope": "Exact empty vendor response not admitted"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r057-aud05-dedicated-resource/resource.json",
+      "sha256": "bd8aca2d12d1b9a8c2cbd6f05b1dfd8b01f283160edf76ee6b61ea0c4b845a93",
+      "scope": "Dedicated isolated AUD05 PostgreSQL resource and actual race evidence"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/b-execution/current-qualification-handoff.json",
+      "sha256": "e683c9fdd6f3e3384724b8a9c19b6dc624f25b88fbe481c5207f1d94e1e1908f",
+      "scope": "Bounded reviewed handoff; later run results supersede pending states"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/b-execution/current-data-contract-testref-overlay/handoff.json",
+      "sha256": "1b32d305e0883c9050762a40bc8656ac81d8dc2a7542b42c7e11fb4a4f3e6eaa",
+      "scope": "Bounded reviewed handoff; later run results supersede pending states"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r065-final-formatted-code/unchanged-scope-reuse.json",
+      "sha256": "ee92e500f1285a331a7a75d5f3e0066d0d0bb63c82d0ac8d34dca72e86210e25",
+      "scope": "Exact covered-input hash comparison plus format-only complete-AST equivalence; no unrelated tests repeated."
     }
   ],
   "prepared_harnesses": [
@@ -434,11 +1139,17 @@
       "path": ".tmp/ash08-journey-20261105/browser-qa/v3/trace_artifact_adapter.py",
       "sha256": "d4a1e9daae5e09fd488c29a00a4657a453e89a73b14ecbed876a9cfa16ae6799",
       "status": "prepared_not_executed"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/b-execution/real-browser-harness-v8/handoff.json",
+      "sha256": "411dc26e119b850febddd01be086d61bcacd132e3e0fcd060818323b1762035c",
+      "status": "prepared_not_executed",
+      "note": "Requires current eligible same-day source; uses the isolated Native DB copy; no source/financial pass claimed."
     }
   ],
   "artifact_storage": "Ignored local originals; no claim of remote archive availability.",
-  "foreign_workspace": "Unrelated QMT changes and an unowned root harness directory preserved and excluded.",
-  "governance_projection_status": "architecture_entrypoints_module_map_passed_on_complete_owned_candidate",
+  "foreign_workspace": "Upstream QMT commits 03fa421/ca6bb80/35bfa3f/fcf9b74 are preserved. Current delivery stages only the registered owned code, tests, generated projections and three existing ASH08 documents; no unrelated user work.",
+  "governance_projection_status": "R062 architecture inventory/module map/full architecture/headroom/broker gates passed; R064 final targeted gates passed, including repaired current-data references. Entrypoint/Node unchanged-input reuse remains scoped and actual remote CI is still required.",
   "followup_code_commits": [
     "c074846d119f324c4a7f19390fa860cb019cb596",
     "603d5af888134f2231bdc2cc41c0886059a175bd",
@@ -453,6 +1164,121 @@
     "actual_valid_v1_projection_guard_test": "test_valid_marked_projection_stays_out_of_legacy_readers"
   },
   "ci": {
+    "latest_observed_base_head": "fcf9b74b887fb10f49eecf20753f53f73fa7b07d",
+    "latest_observed_base_workflows": [
+      {
+        "conclusion": "success",
+        "databaseId": 42063456833,
+        "headSha": "fcf9b74b887fb10f49eecf20753f53f73fa7b07d",
+        "name": "Engineering progress dashboard",
+        "status": "completed",
+        "url": "https://github.com/guiyinan/agomTradePro/actions/runs/42063456833"
+      },
+      {
+        "conclusion": "success",
+        "databaseId": 42063456305,
+        "headSha": "fcf9b74b887fb10f49eecf20753f53f73fa7b07d",
+        "name": "Security Scan",
+        "status": "completed",
+        "url": "https://github.com/guiyinan/agomTradePro/actions/runs/42063456305"
+      },
+      {
+        "conclusion": "success",
+        "databaseId": 42063456191,
+        "headSha": "fcf9b74b887fb10f49eecf20753f53f73fa7b07d",
+        "name": "Architecture Layer Guard",
+        "status": "completed",
+        "url": "https://github.com/guiyinan/agomTradePro/actions/runs/42063456191"
+      },
+      {
+        "conclusion": "failure",
+        "databaseId": 42063456600,
+        "headSha": "fcf9b74b887fb10f49eecf20753f53f73fa7b07d",
+        "name": "Consistency Check",
+        "status": "completed",
+        "url": "https://github.com/guiyinan/agomTradePro/actions/runs/42063456600"
+      },
+      {
+        "conclusion": "failure",
+        "databaseId": 42063456402,
+        "headSha": "fcf9b74b887fb10f49eecf20753f53f73fa7b07d",
+        "name": "CI Fast Feedback",
+        "status": "completed",
+        "url": "https://github.com/guiyinan/agomTradePro/actions/runs/42063456402"
+      }
+    ],
+    "base_failures": "Both Consistency Check and CI Fast Feedback failed the stale Data Center architecture inventory. R062 actual checker passed after official regeneration.",
+    "new_formal_delivery_head": null,
+    "new_formal_delivery_status": "not_pushed",
+    "historical_ci_scope": "All previous CI results retained in historical_ci; they do not qualify the new delivery head."
+  },
+  "workspace_boundary": {
+    "base": "fcf9b74b887fb10f49eecf20753f53f73fa7b07d",
+    "owned_code_paths": 43,
+    "owned_existing_documents": 3,
+    "verified_source_roots": [
+      "apps",
+      "core",
+      "shared",
+      "frontend",
+      "static",
+      "config",
+      "sdk",
+      "scripts",
+      "tests",
+      "qmt_agent"
+    ],
+    "formal_branch": "dev/next-development",
+    "raw_artifacts_tracked": false
+  },
+  "current_review_base_head": "fcf9b74b887fb10f49eecf20753f53f73fa7b07d",
+  "current_candidate_frozen": true,
+  "current_candidate_status": "Current code/tests/projections frozen; whole qualified modules and exact unchanged-scope reuse are recorded separately. Genuine same-day-source explicit close-mode browser acceptance has not run.",
+  "source_code_digest_scope": "The source_code_digest_sha256 and source_code_inputs fields identify the historical d48853c candidate only; they do not identify the current 03fa-based WIP.",
+  "current_source_code_digest_sha256": "d9c4cf9c4c8bcb2db2847555d36c57eb1c2362485e9e38d0ea8e456bc8d97762",
+  "historical_tests": {
+    "historical_source39_python_passed": 971,
+    "historical_source39_scope": "527 backend + 442 TUI + 2 Session; original failures and bounded scope proofs retained, not counted as a fresh 971 on followup code.",
+    "current_legacy_isolation_complete_modules": 11,
+    "current_legacy_isolation_passed": 78,
+    "current_legacy_isolation_failures": 0,
+    "current_legacy_isolation_skips": 0,
+    "frontend_complete_modules": 14,
+    "node_passed": 229,
+    "node_failures": 0,
+    "node_skips": 0,
+    "controlled_browser_contracts_passed": 3,
+    "controlled_browser_scope": "Included within the 229 frontend cases; controlled responses, not genuine-source full journey.",
+    "production_python_incremental_files": 8,
+    "historical_source39_production_python_incremental_files": 53,
+    "mypy_regressions": 0,
+    "mypy_debt": 0,
+    "domain_line_percent": 95.34,
+    "domain_combined_percent": 90.8,
+    "domain_scope": "R009 unchanged Domain bytes; followup production changes only Core/Infrastructure/state migration.",
+    "real_current_source_full_browser_journey": "not_run",
+    "clock_and_runtime_guard_complete_modules": 2,
+    "clock_and_runtime_guard_passed": 23,
+    "clock_and_runtime_guard_skips": 0,
+    "current_incremental_type_scopes": [
+      {
+        "source": "603d5af",
+        "files": 8,
+        "regressions": 0
+      },
+      {
+        "source": "d48853c",
+        "files": 1,
+        "regressions": 0
+      }
+    ],
+    "historical_evidence_only": true,
+    "historical_evidence_note": "All prior pass counts below belong to their recorded candidate/input scope. R010/R011 442, R021 229 and R022 78 are not proof that current metadata bytes match or that the current full financial Native journey passed.",
+    "current_full_financial_native": "pending_not_passed",
+    "current_r050_candidate": "not_frozen_not_run",
+    "node_after_metadata_split": "pending_full_230_case_rerun"
+  },
+  "historical_ci": {
     "business_source39": {
       "architecture": "success",
       "security": "success",
@@ -518,7 +1344,88 @@
         "url": "https://github.com/guiyinan/agomTradePro/actions/runs/42012426313",
         "workflowName": "CI Fast Feedback"
       }
+    ],
+    "historical_d488_status": "The d48853c five-workflow success is historical and does not cover the 03fa421 successor WIP.",
+    "current_base": "03fa421e9d07d80cca41c6b4a1c6604100c861a3",
+    "current_failures": {
+      "consistency_workflow": {
+        "run_id": 42033849121,
+        "status": "failure",
+        "root_cause": "Enforce generated Data Center governance projections: governance/data_center_architecture_inventory.json is stale. Entrypoint inventory and module map passed on that run. Regenerate official projections and rerun after integration."
+      },
+      "fast_feedback_workflow": {
+        "run_id": 42033848930,
+        "status": "failure",
+        "root_causes": [
+          "Incremental source budget: tui_metadata_runtime_injection_broker_execution.py grew 1138 to 1234 non-empty lines against 1000 limit; metadata responsibility split is preflighted but not yet fully validated.",
+          "Python 3.11 and 3.13 each: PowerShell onboarding setup failed because Path argument was null.",
+          "Python 3.11 and 3.13 each: authenticated/admin IA expected 20 screens but found 21; normalized runtime IA output also differed.",
+          "Python 3.11 and 3.13 each: two QMT adapter test collection errors, KeyError PipeClient."
+        ]
+      },
+      "r050_revalidation": "pending_not_run"
+    },
+    "metadata_split_preflight": {
+      "path": ".tmp/ash08-journey-20261105/r049-metadata-split-overlay/handoff.json",
+      "status": "adopted_preflight_only; no R050 QA result"
+    }
+  },
+  "current_qualified_code_tree": "4747d10fd095d685e9fc9da8d04b60f2ec8faf10",
+  "current_source_code_digest_scope": "Full frozen QA input map; code tree excludes this conclusion/index and main-plan edits. Historical source_code_digest_sha256/source_code_inputs remain historical only.",
+  "current_candidate_input_index": {
+    "path": ".tmp/ash08-journey-20261105/runs/r065-final-formatted-code/candidate-inputs.json",
+    "sha256": "4bc3b3cacf2fac76781e00c34867fb71ba167436d7eb404ae6626a42e6ab0232",
+    "input_count": 8571,
+    "owned_paths": [
+      "apps/config_center/infrastructure/runtime_config_repositories.py",
+      "apps/portfolio/infrastructure/transition_plan_revision_repository.py",
+      "apps/simulated_trading/application/rebalance_journey_preparation.py",
+      "apps/simulated_trading/application/rebalance_journey_preparation_support.py",
+      "apps/simulated_trading/application/rebalance_journey_read_consistency.py",
+      "apps/simulated_trading/application/rebalance_plan_preview.py",
+      "apps/simulated_trading/application/rebalance_plan_preview_assembly.py",
+      "apps/simulated_trading/application/rebalance_preview_funding.py",
+      "apps/simulated_trading/domain/rebalance_preview_math.py",
+      "apps/terminal/application/tui_account_inspection_dependency_result.py",
+      "apps/terminal/application/tui_account_inspection_result.py",
+      "apps/terminal/application/tui_rebalance_plan_quantity_details.py",
+      "apps/terminal/application/tui_rebalance_plan_result.py",
+      "apps/terminal/infrastructure/tui_metadata_runtime_injection_broker_execution.py",
+      "apps/terminal/infrastructure/tui_metadata_runtime_injection_broker_execution_actions.py",
+      "apps/terminal/infrastructure/tui_metadata_runtime_injection_broker_execution_screens.py",
+      "apps/terminal/infrastructure/tui_metadata_runtime_injection_rebalance_plan.py",
+      "apps/terminal/infrastructure/tui_metadata_runtime_injection_registry.py",
+      "config/tui/agomtui-runtime.manifest.json",
+      "governance/current_data_contracts.json",
+      "governance/data_center_architecture_inventory.json",
+      "governance/data_center_entrypoints.json",
+      "governance/module_map.json",
+      "qmt_agent/builtin_adapter.py",
+      "qmt_agent/builtin_strategy.py",
+      "qmt_agent/scripts/setup-builtin-python.ps1",
+      "scripts/check_broker_live_order_evidence_gate.py",
+      "tests/component/config_center/test_aud05_atomic_activation.py",
+      "tests/component/data_center/test_calendar_workbench_scope.py",
+      "tests/component/simulated_trading/test_transition_plan_execution_native.py",
+      "tests/component/simulated_trading/test_transition_plan_sell_buy_funding_native.py",
+      "tests/integration/simulated_trading/test_manual_target_without_strategy_owner_api.py",
+      "tests/integration/simulated_trading/test_readonly_rebalance_plan_owner_api.py",
+      "tests/integration/simulated_trading/test_temporary_target_owner_entry.py",
+      "tests/unit/broker_execution/test_qmt_builtin_adapter.py",
+      "tests/unit/simulated_trading/application/test_rebalance_journey_preparation.py",
+      "tests/unit/simulated_trading/application/test_rebalance_journey_read_consistency.py",
+      "tests/unit/simulated_trading/test_rebalance_preview_math_m1.py",
+      "tests/unit/simulated_trading/test_rebalance_preview_sell_integrity.py",
+      "tests/unit/terminal/test_tui_account_inspection.py",
+      "tests/unit/terminal/test_tui_information_architecture.py",
+      "tests/unit/terminal/test_tui_rebalance_plan_metadata.py",
+      "tests/unit/terminal/test_tui_rebalance_plan_result.py"
     ]
   },
-  "workspace_boundary": "Qualification refers to committed d488 source and clean QA snapshot, not the concurrent working tree. Subsequent broker/TUI changes, including three overlapping common metadata files, are preserved and excluded."
+  "internal_preview_evidence_encoding": {
+    "path": "decision_snapshot.payload.preview.risk_context.pulse.composite_score",
+    "encoding": "python-float-hex-v1",
+    "scope": "Only finite legacy preview score, reversible explicit kind/encoding/value tag. Full raw dataclass remains strictly serialized; other financial/metadata floats and nonfinite scores rejected. Public Preview DTO unchanged. Saved-plan opaque preparation_evidence_json is observable through plan basis; TUI does not decode tag as financial data."
+  },
+  "historical_implementation_commit": "39e38e3d86502fdea14d357b1c1aad02d047b25f"
 }

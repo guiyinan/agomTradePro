@@ -6,6 +6,9 @@ import re
 from collections.abc import Mapping
 from datetime import date, datetime
 
+from apps.terminal.application.tui_account_inspection_dependency_result import (
+    project_account_inspection_dependency_fields,
+)
 from apps.terminal.application.tui_account_inspection_primary_fields import (
     build_account_inspection_primary_fields,
 )
@@ -87,6 +90,7 @@ _REASON_LABELS: dict[str, str] = {
     "EXECUTION_QUANTITY_RULE_UNAVAILABLE": "下单数量规则未能确认",
     "SELL_QUANTITY_BELOW_RULE_MINIMUM": "卖出差量低于数量规则的最小值",
     "SELL_QUANTITY_LIMITED_BY_RULE": "卖出数量受数量规则限制",
+    "SELL_QUANTITY_STEP_ROUNDED_DOWN": "卖出数量按交易步长向下取整，仍有差量未覆盖",
     "SELL_QUANTITY_NOT_ON_RULE_STEP": "卖出数量不符合规则步长",
     "STRATEGY_MAX_POSITION_LIMIT_UNKNOWN": "选定策略的单标的持仓上限未提供，买入建议无法核对",
     "STRATEGY_MAX_POSITION_LIMIT_EXCEEDED": "超过选定策略的单标的持仓上限",
@@ -187,7 +191,9 @@ def project_account_inspection_result(
     allocation_table, _, allocation_restrictions = allocation_rows
     fee_table, fee_restrictions = fee_rows
     cash_fields = _project_cash_fields(plan)
-    dependency_fields = _project_dependency_fields(dependency)
+    dependency_fields = project_account_inspection_dependency_fields(
+        dependency, row_field=_row_field, safe_text=_safe_text
+    )
     risk_fields = _project_strategy_risk_fields(
         plan.get("risk_context"),
         presentation=strategy_policy,
@@ -848,73 +854,6 @@ def _project_cash_fields(plan: Mapping[str, object]) -> list[dict[str, str]]:
         )
     )
     return fields
-
-
-def _project_dependency_fields(value: object) -> list[dict[str, str]]:
-    """Render the owner-supplied sell-before-buy estimate with no execution claim."""
-
-    dependency = _as_mapping(value)
-    if dependency is None:
-        return [
-            _row_field("sequence", "估算顺序", "顺序资料待确认"),
-            _row_field("buy_requires_settled_sales", "买入资金交收依赖", "本次未提供"),
-        ]
-    required = dependency.get("required")
-    buy_requires_settled_sales = dependency.get("buy_requires_settled_sales")
-    sells = _safe_code_list(dependency.get("sell_asset_codes"))
-    buys = _safe_code_list(dependency.get("buy_asset_codes"))
-    sequence = dependency.get("sequence")
-    if required is False and sells == [] and buys == [] and sequence == "sell_then_buy":
-        return [
-            _row_field("sequence", "估算顺序", "本次未记录卖出后买入依赖"),
-            _row_field(
-                "buy_requires_settled_sales",
-                "买入资金交收依赖",
-                _settled_sales_label(buy_requires_settled_sales),
-            ),
-            _row_field("execution", "交易状态", "未发生交易"),
-        ]
-    if required is True and sells is not None and buys is not None and sequence == "sell_then_buy":
-        return [
-            _row_field("sequence", "估算顺序", "先卖出，再核对买入资金；未发生交易"),
-            _row_field("sell_assets", "估算卖出标的", "、".join(sells) or "未提供"),
-            _row_field("buy_assets", "估算买入标的", "、".join(buys) or "未提供"),
-            _row_field(
-                "buy_requires_settled_sales",
-                "买入资金交收依赖",
-                _settled_sales_label(buy_requires_settled_sales),
-            ),
-        ]
-    return [
-        _row_field("sequence", "估算顺序", "顺序资料待确认；未发生交易"),
-        _row_field(
-            "buy_requires_settled_sales",
-            "买入资金交收依赖",
-            _settled_sales_label(buy_requires_settled_sales),
-        ),
-    ]
-
-
-def _settled_sales_label(value: object) -> str:
-    if value is True:
-        return "是；卖出资金完成交收前，买入数量暂不确认"
-    if value is False:
-        return "否；本次未标记等待卖出资金交收"
-    return "本次未提供"
-
-
-def _safe_code_list(value: object) -> list[str] | None:
-    """Keep only safe, bounded asset-code strings from the dependency payload."""
-
-    if not isinstance(value, list):
-        return None
-    codes: list[str] = []
-    for item in value:
-        code = _safe_text(item, limit=48)
-        if code is None:
-            return None
-        codes.append(code)
-    return codes
 
 
 def _allocation_amount_text(item: Mapping[str, object]) -> str:
