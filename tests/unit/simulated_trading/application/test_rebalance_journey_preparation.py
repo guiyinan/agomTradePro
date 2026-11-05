@@ -1007,7 +1007,7 @@ def test_preview_evidence_preserves_the_unavailable_pulse_default() -> None:
         "composite_score": {
             "kind": "pulse_composite_score",
             "encoding": "python-float-hex-v1",
-            "value": float(0.0).hex(),
+            "value": (0.0).hex(),
         },
         "regime_strength": "unknown",
         "transition_warning": False,

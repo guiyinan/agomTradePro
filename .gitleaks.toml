@@ -100,3 +100,10 @@ regexes = [
   '''^\s*order_key="daily-match-order-2",\s*$'''
 ]
 paths = ['''^tests/component/simulated_trading/test_local_daily_match_repository\.py$''']
+
+[[rules.allowlists]]
+description = "Allow the exact synthetic ASH08 risk profile selector in its Native fixture"
+condition = "AND"
+regexTarget = "line"
+regexes = ['''^\s*profile_key="ash08-sell-buy-synthetic",\s*$''']
+paths = ['''^tests/component/simulated_trading/test_transition_plan_sell_buy_funding_native\.py$''']

@@ -1,11 +1,11 @@
 {
   "schema": "ash08.rebalance_journey_acceptance.v1",
-  "status": "development_code_qualified_pending_formal_delivery_ci_and_same_day_source_browser",
+  "status": "development_business_code_delivered_real_source_browser_pending",
   "unit_status": "active",
   "goal_complete": false,
   "authorization": "Owner full ASH08 handoff; main plan section19.158; registry2026-11-05.v310",
   "git_head_at_run": "fcf9b74b887fb10f49eecf20753f53f73fa7b07d",
-  "implementation_commit": null,
+  "implementation_commit": "6f459d7d96a0bae6f4a1c3e8794352eb307f574e",
   "source_code_digest_sha256": "0d9f2f13d6c6aab129db539341463573cdd5c047cb2d867f8e7aa9b9b1d226bd",
   "source_code_inputs": {
     "path": ".tmp/ash08-journey-20261105/runs/r031-final-closure-index/current-source-inputs.json",
@@ -97,9 +97,9 @@
         "errors": 0,
         "skipped": 0,
         "whole_module_pass": true,
-        "source_run": "r061-preview-pulse-evidence",
-        "junit_path": ".tmp/ash08-journey-20261105/runs/r061-preview-pulse-evidence/junit.xml",
-        "junit_sha256": "c8da88a69110aa34e7af038a265e55645c4d194ef23f8d62f1077cf763fea932"
+        "source_run": "r067-ci-repairs",
+        "junit_path": ".tmp/ash08-journey-20261105/runs/r067-ci-repairs/junit.xml",
+        "junit_sha256": "4b03a4eff61bb1e1bdc0308dda7c2920c2124cf1e3661aad6f74bc49d9cdec0c"
       },
       {
         "module": "tests.unit.simulated_trading.application.test_rebalance_journey_preparation_support",
@@ -294,7 +294,8 @@
     "real_current_source_full_browser_journey": "not_run",
     "controlled_browser_contracts": "Historical bounded controlled-response evidence only; does not replace genuine-source V8.",
     "covered_input_reuse_proof": ".tmp/ash08-journey-20261105/runs/r065-final-formatted-code/unchanged-scope-reuse.json",
-    "full_debt_input_equivalence": "All production inputs match R063 except Black wrapping of the Guard expression, with identical complete AST. Changed clock is in test code only."
+    "full_debt_input_equivalence": "All production inputs match R063 except Black wrapping of the Guard expression, with identical complete AST. Changed clock is in test code only.",
+    "ci_repair_scope": "27-case whole preparation module and 37-file formatting/lint batch; all production, Native journey, Node, Domain, Config and type/debt inputs remain unchanged."
   },
   "source_availability": {
     "business_date": "2026-11-05",
@@ -326,10 +327,8 @@
     "close_collection_window": "2026-11-06 same-day close capture only after 16:00 Asia/Shanghai; no reuse of prior-date close or clock backdating."
   },
   "remaining": [
-    "Formal bounded development commits and actual applicable CI for the delivered head.",
-    "Obtain genuine qualified same-day industry membership; retained 11/05 empty response does not qualify 11/06 and is not missing Owner material.",
-    "Run explicit published_close simulation mode and the complete V8 ordinary-owner TUI browser journey on qualified same-day sources; preserve real transport/order keys, actor isolation and receipts.",
-    "Keep synthetic partial fills explicitly labelled and committed through the real locked fill UoW; they do not claim exchange executions."
+    "Obtain genuine qualified same-day industry membership and dependent close inputs through existing gates.",
+    "Actually pass explicit published_close simulation mode and the complete V8 ordinary-owner/observer/foreign TUI journey; preparation and synthetic Native facts do not replace this exit."
   ],
   "ref_scope": "REF01/05 read-only; remaining REF await original prerequisites and formal serial window. ASH06/09/12 deferred.",
   "artifacts": [
@@ -1112,6 +1111,86 @@
       "path": ".tmp/ash08-journey-20261105/runs/r065-final-formatted-code/unchanged-scope-reuse.json",
       "sha256": "ee92e500f1285a331a7a75d5f3e0066d0d0bb63c82d0ac8d34dca72e86210e25",
       "scope": "Exact covered-input hash comparison plus format-only complete-AST equivalence; no unrelated tests repeated."
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r066-ci-secret-fixture/config-change.json",
+      "sha256": "a7ba8293c2508127fefa044b90ee6a549d17df08bda45f529d0d5fa6f4811bb4",
+      "scope": "Actual bounded CI repair validation; no production or full-unit qualification implied."
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r066-ci-secret-fixture/validation.json",
+      "sha256": "f77974ea8d5211872e38cc2ffeedb2adc8a8a93d8e9ff125d77fff7d1d87e6cc",
+      "scope": "Actual bounded CI repair validation; no production or full-unit qualification implied."
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r066-ci-secret-fixture/event-scan.log",
+      "sha256": "1ed48c73f14958b46573096b3e60d90f3eef0c2d9228b1484171ce6d3e78d623",
+      "scope": "Actual bounded CI repair validation; no production or full-unit qualification implied."
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r066-ci-secret-fixture/event-report.json",
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+      "scope": "Actual bounded CI repair validation; no production or full-unit qualification implied."
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r067-ci-repairs/candidate-inputs.json",
+      "sha256": "b81df2e75423598ae185599c534770e2bfee44e404e30f412fd83f99bae2d135",
+      "scope": "Actual bounded CI repair validation; no production or full-unit qualification implied."
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r067-ci-repairs/pytest-summary.json",
+      "sha256": "b53b254c62c6d07e7144d828d94bb2acb294dfc0dfd80706201d1922bafdce31",
+      "scope": "Actual bounded CI repair validation; no production or full-unit qualification implied."
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r067-ci-repairs/junit.xml",
+      "sha256": "4b03a4eff61bb1e1bdc0308dda7c2920c2124cf1e3661aad6f74bc49d9cdec0c",
+      "scope": "Actual bounded CI repair validation; no production or full-unit qualification implied."
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r067-ci-repairs/ruff-summary.json",
+      "sha256": "019320c04a9eaf534ae641aac7041da5668884c1ce2c12e493ff9ce2001bc3a4",
+      "scope": "Actual bounded CI repair validation; no production or full-unit qualification implied."
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r067-ci-repairs/format-all-summary.json",
+      "sha256": "6538930acabb29e793ae919ee86e5314eddc8c96c53bf60564971f9cf711b071",
+      "scope": "Actual bounded CI repair validation; no production or full-unit qualification implied."
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r067-ci-repairs/production-unchanged.json",
+      "sha256": "b334a70339e599f070e010e7121c67a5079efc74c553a570afda980c0b4b365f",
+      "scope": "Actual bounded CI repair validation; no production or full-unit qualification implied."
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r067-ci-repairs/pre-repair-event-snapshot.json",
+      "sha256": "c83a0aff64518472a6d9ff7563ac9b72bd7e0f91c22b3ffcb3d71e3076c29f6d",
+      "scope": "Actual bounded CI repair validation; no production or full-unit qualification implied."
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r067-ci-repairs/freeze-first-attempt.json",
+      "sha256": "5155513e84ae29aa5ede641d759e8318a7e6b6f9735216f7e8fc855590e4db3f",
+      "scope": "Actual bounded CI repair validation; no production or full-unit qualification implied."
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r065-final-formatted-code/remote-ci/127472089414.log",
+      "sha256": "3b93141487cd9f99be4cd1d7364a0bfc6a95766a0457a71e438a579c6afd2410",
+      "scope": "Actual failed delivered-head CI original, retained after repair."
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r065-final-formatted-code/remote-ci/127473213048.log",
+      "sha256": "1859b7b9ac9c49097490fa580bb7f597a7f891a6c61b297410eca55b32efb0f5",
+      "scope": "Actual failed delivered-head CI original, retained after repair."
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r065-final-formatted-code/remote-ci/42091978759-jobs.json",
+      "sha256": "2c6a7cb0638db9a4ced0fbe5ec31aaf11dea5681d0ac2038b84938232286c97e",
+      "scope": "Actual failed delivered-head CI original, retained after repair."
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r065-final-formatted-code/remote-ci/127472270326.log",
+      "sha256": "21298a6a81e858c9aa06b63acd942ea9ea27ea84e313fa4d141abda4590b2af2",
+      "scope": "Actual failed delivered-head CI original, retained after repair."
     }
   ],
   "prepared_harnesses": [
@@ -1164,53 +1243,80 @@
     "actual_valid_v1_projection_guard_test": "test_valid_marked_projection_stays_out_of_legacy_readers"
   },
   "ci": {
-    "latest_observed_base_head": "fcf9b74b887fb10f49eecf20753f53f73fa7b07d",
-    "latest_observed_base_workflows": [
-      {
-        "conclusion": "success",
-        "databaseId": 42063456833,
-        "headSha": "fcf9b74b887fb10f49eecf20753f53f73fa7b07d",
-        "name": "Engineering progress dashboard",
-        "status": "completed",
-        "url": "https://github.com/guiyinan/agomTradePro/actions/runs/42063456833"
-      },
-      {
-        "conclusion": "success",
-        "databaseId": 42063456305,
-        "headSha": "fcf9b74b887fb10f49eecf20753f53f73fa7b07d",
-        "name": "Security Scan",
-        "status": "completed",
-        "url": "https://github.com/guiyinan/agomTradePro/actions/runs/42063456305"
-      },
-      {
-        "conclusion": "success",
-        "databaseId": 42063456191,
-        "headSha": "fcf9b74b887fb10f49eecf20753f53f73fa7b07d",
-        "name": "Architecture Layer Guard",
-        "status": "completed",
-        "url": "https://github.com/guiyinan/agomTradePro/actions/runs/42063456191"
-      },
-      {
-        "conclusion": "failure",
-        "databaseId": 42063456600,
-        "headSha": "fcf9b74b887fb10f49eecf20753f53f73fa7b07d",
-        "name": "Consistency Check",
-        "status": "completed",
-        "url": "https://github.com/guiyinan/agomTradePro/actions/runs/42063456600"
-      },
-      {
-        "conclusion": "failure",
-        "databaseId": 42063456402,
-        "headSha": "fcf9b74b887fb10f49eecf20753f53f73fa7b07d",
-        "name": "CI Fast Feedback",
-        "status": "completed",
-        "url": "https://github.com/guiyinan/agomTradePro/actions/runs/42063456402"
-      }
-    ],
-    "base_failures": "Both Consistency Check and CI Fast Feedback failed the stale Data Center architecture inventory. R062 actual checker passed after official regeneration.",
-    "new_formal_delivery_head": null,
-    "new_formal_delivery_status": "not_pushed",
-    "historical_ci_scope": "All previous CI results retained in historical_ci; they do not qualify the new delivery head."
+    "record_kind": "immutable_observed_event_snapshot_not_live_branch_status",
+    "event_snapshot": {
+      "captured_at_utc": "2026-11-05T19:39:59.690101+00:00",
+      "head": "6f459d7d96a0bae6f4a1c3e8794352eb307f574e",
+      "runs": [
+        {
+          "conclusion": "success",
+          "databaseId": 42091978975,
+          "headSha": "6f459d7d96a0bae6f4a1c3e8794352eb307f574e",
+          "name": "Engineering progress dashboard",
+          "status": "completed",
+          "url": "https://github.com/guiyinan/agomTradePro/actions/runs/42091978975"
+        },
+        {
+          "conclusion": "",
+          "databaseId": 42091978677,
+          "headSha": "6f459d7d96a0bae6f4a1c3e8794352eb307f574e",
+          "name": "CI Fast Feedback",
+          "status": "in_progress",
+          "url": "https://github.com/guiyinan/agomTradePro/actions/runs/42091978677"
+        },
+        {
+          "conclusion": "success",
+          "databaseId": 42091978641,
+          "headSha": "6f459d7d96a0bae6f4a1c3e8794352eb307f574e",
+          "name": "Consistency Check",
+          "status": "completed",
+          "url": "https://github.com/guiyinan/agomTradePro/actions/runs/42091978641"
+        },
+        {
+          "conclusion": "success",
+          "databaseId": 42091978670,
+          "headSha": "6f459d7d96a0bae6f4a1c3e8794352eb307f574e",
+          "name": "Architecture Layer Guard",
+          "status": "completed",
+          "url": "https://github.com/guiyinan/agomTradePro/actions/runs/42091978670"
+        },
+        {
+          "conclusion": "failure",
+          "databaseId": 42091978759,
+          "headSha": "6f459d7d96a0bae6f4a1c3e8794352eb307f574e",
+          "name": "Security Scan",
+          "status": "completed",
+          "url": "https://github.com/guiyinan/agomTradePro/actions/runs/42091978759"
+        },
+        {
+          "conclusion": "success",
+          "databaseId": 42091978857,
+          "headSha": "6f459d7d96a0bae6f4a1c3e8794352eb307f574e",
+          "name": "Publication PostgreSQL contracts",
+          "status": "completed",
+          "url": "https://github.com/guiyinan/agomTradePro/actions/runs/42091978857"
+        }
+      ],
+      "known_failures": [
+        "Security: exact fixed synthetic risk profile selector misclassified as generic-api-key.",
+        "Quality: UP018 float(0.0) in one expected test value."
+      ],
+      "repair_scope": "Only exact gitleaks line/path exception and literal test expectation; no production Python changes.",
+      "postrepair_ci": "not yet pushed at this capture"
+    },
+    "local_repair_validation": {
+      "gitleaks_version": "8.24.3",
+      "failed_event_range_exit": 0,
+      "exact_allowed_line_exit": 0,
+      "other_path_other_field_extra_content_detected": true,
+      "whole_affected_preparation_module_passed": 27,
+      "ruff_changed_python_files": 37,
+      "ruff_exit": 0,
+      "black_exit": 0,
+      "isort_exit": 0,
+      "production_changed": false
+    },
+    "postrepair_ci_confirmation": "Required; latest actual result and exact head are recorded in companion Markdown. No precommit or older CI result is promoted to a new head."
   },
   "workspace_boundary": {
     "base": "fcf9b74b887fb10f49eecf20753f53f73fa7b07d",
@@ -1231,11 +1337,11 @@
     "formal_branch": "dev/next-development",
     "raw_artifacts_tracked": false
   },
-  "current_review_base_head": "fcf9b74b887fb10f49eecf20753f53f73fa7b07d",
+  "current_review_base_head": "6f459d7d96a0bae6f4a1c3e8794352eb307f574e",
   "current_candidate_frozen": true,
-  "current_candidate_status": "Current code/tests/projections frozen; whole qualified modules and exact unchanged-scope reuse are recorded separately. Genuine same-day-source explicit close-mode browser acceptance has not run.",
+  "current_candidate_status": "Business code was formally delivered in three bounded commits. This qualification snapshot additionally covers only scanner/test-literal CI repairs; all 21 production inputs are unchanged. Actual subsequent CI confirmation is recorded in the companion Markdown, not inferred from this snapshot.",
   "source_code_digest_scope": "The source_code_digest_sha256 and source_code_inputs fields identify the historical d48853c candidate only; they do not identify the current 03fa-based WIP.",
-  "current_source_code_digest_sha256": "d9c4cf9c4c8bcb2db2847555d36c57eb1c2362485e9e38d0ea8e456bc8d97762",
+  "current_source_code_digest_sha256": "a4e4ea4f97f46d92a1905eeee8d21cbbc038bfb30e25e059be3e520b7cc9bd6b",
   "historical_tests": {
     "historical_source39_python_passed": 971,
     "historical_source39_scope": "527 backend + 442 TUI + 2 Session; original failures and bounded scope proofs retained, not counted as a fresh 971 on followup code.",
@@ -1370,13 +1476,14 @@
       "status": "adopted_preflight_only; no R050 QA result"
     }
   },
-  "current_qualified_code_tree": "4747d10fd095d685e9fc9da8d04b60f2ec8faf10",
+  "current_qualified_code_tree": "1017885c846f53d08aa049a09a84082bb613c529",
   "current_source_code_digest_scope": "Full frozen QA input map; code tree excludes this conclusion/index and main-plan edits. Historical source_code_digest_sha256/source_code_inputs remain historical only.",
   "current_candidate_input_index": {
-    "path": ".tmp/ash08-journey-20261105/runs/r065-final-formatted-code/candidate-inputs.json",
-    "sha256": "4bc3b3cacf2fac76781e00c34867fb71ba167436d7eb404ae6626a42e6ab0232",
-    "input_count": 8571,
+    "path": ".tmp/ash08-journey-20261105/runs/r067-ci-repairs/candidate-inputs.json",
+    "sha256": "b81df2e75423598ae185599c534770e2bfee44e404e30f412fd83f99bae2d135",
+    "input_count": 8572,
     "owned_paths": [
+      ".gitleaks.toml",
       "apps/config_center/infrastructure/runtime_config_repositories.py",
       "apps/portfolio/infrastructure/transition_plan_revision_repository.py",
       "apps/simulated_trading/application/rebalance_journey_preparation.py",
@@ -1427,5 +1534,12 @@
     "encoding": "python-float-hex-v1",
     "scope": "Only finite legacy preview score, reversible explicit kind/encoding/value tag. Full raw dataclass remains strictly serialized; other financial/metadata floats and nonfinite scores rejected. Public Preview DTO unchanged. Saved-plan opaque preparation_evidence_json is observable through plan basis; TUI does not decode tag as financial data."
   },
-  "historical_implementation_commit": "39e38e3d86502fdea14d357b1c1aad02d047b25f"
+  "historical_implementation_commit": "39e38e3d86502fdea14d357b1c1aad02d047b25f",
+  "formal_business_commit_group": [
+    "6f459d7d96a0bae6f4a1c3e8794352eb307f574e feat: complete guarded simulated rebalance funding journey",
+    "cbf976a29ce7505ebcf1c4998fcf0ab7f1df1afb fix: choose latest runtime snapshot on equal timestamps",
+    "e706a5579808736f8fe3548a944947f16999fee2 fix: restore portable QMT builtin onboarding"
+  ],
+  "pending_postrepair_ci_at_capture": true,
+  "remaining_scope": "Unit exits remain unmet. CI status is an immutable event snapshot here; subsequent actual CI confirmation is in the companion Markdown."
 }
