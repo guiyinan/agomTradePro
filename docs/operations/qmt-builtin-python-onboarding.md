@@ -104,7 +104,7 @@ powershell -NoProfile -ExecutionPolicy Bypass `
 | `IndentationError` 或 `SyntaxError` | 手工修改多行 `BRIDGE_DIR` 时留下残余代码 | 完整覆盖策略；命名管道版无需手工改代码 |
 | `future feature annotations is not defined` | 把外部 `builtin_adapter.py` 错贴进 QMT | QMT 只复制 `builtin_strategy.py` |
 | `PermissionError: Foribdden FileIO` | 券商客户端禁止内置策略文件 I/O | 使用当前命名管道版，不使用文件队列或外部文件加载入口 |
-| 探针提示管道不存在或 `QMT built-in pipe is unavailable` | QMT/策略未运行，策略启动失败，或管道名不一致 | 先确认 `XtItClient` 进程和模型交易条目均在运行，再检查策略日志及双方 `agom_qmt_builtin_bridge` 配置；不要反复重试报单 |
+| 探针返回 `failure_code=QMT_BUILTIN_PIPE_UNAVAILABLE` | QMT/策略未运行，策略启动失败，或管道名不一致 | 先确认 `XtItClient` 进程和模型交易条目均在运行，再检查策略日志及双方 `agom_qmt_builtin_bridge` 配置；不要反复重试报单 |
 | 管道存在但探针超时 | QMT 回调延迟或策略未处理队列 | 确认 `agom_poll` 已初始化并保持策略运行；可将超时调至 10 秒 |
 | 探针提示账号不匹配 | 模型交易绑定账号与 Agent 配置不同 | 核对两边普通股票账号，不要切换成信用账号 |
 | QMT 提示非法 `198.18.x.x` | Clash/Mihomo Fake IP/TUN 接管券商连接 | 按第 4 节配置直连和真实 DNS，重启 Clash/QMT |

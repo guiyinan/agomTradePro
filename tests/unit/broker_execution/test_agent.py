@@ -1406,6 +1406,14 @@ def test_qmt_read_probe_fails_closed_on_disconnect(tmp_path: Path) -> None:
     [
         ("QMT trader connection failed", "QMT_CONNECTION_FAILED"),
         ("QMT account subscription failed", "QMT_ACCOUNT_SUBSCRIPTION_FAILED"),
+        ("QMT built-in pipe is unavailable", "QMT_BUILTIN_PIPE_UNAVAILABLE"),
+        ("QMT built-in bridge outcome unknown", "QMT_BUILTIN_OUTCOME_UNKNOWN"),
+        ("QMT built-in bridge account mismatch", "QMT_BUILTIN_ACCOUNT_MISMATCH"),
+        ("QMT built-in bridge is not ready", "QMT_BUILTIN_NOT_READY"),
+        (
+            "QMT built-in bridge response identity mismatch",
+            "QMT_BUILTIN_RESPONSE_IDENTITY_MISMATCH",
+        ),
     ],
 )
 def test_qmt_read_probe_reports_secret_free_failure_stage(

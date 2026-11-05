@@ -12,6 +12,14 @@ from typing import Any
 from .config import AgentConfig
 from .qmt_adapter import BrokerAdapter
 
+_BUILTIN_PROBE_FAILURE_CODES = {
+    "QMT built-in pipe is unavailable": "QMT_BUILTIN_PIPE_UNAVAILABLE",
+    "QMT built-in bridge outcome unknown": "QMT_BUILTIN_OUTCOME_UNKNOWN",
+    "QMT built-in bridge account mismatch": "QMT_BUILTIN_ACCOUNT_MISMATCH",
+    "QMT built-in bridge is not ready": "QMT_BUILTIN_NOT_READY",
+    "QMT built-in bridge response identity mismatch": "QMT_BUILTIN_RESPONSE_IDENTITY_MISMATCH",
+}
+
 
 def run_preflight(config: AgentConfig) -> dict[str, Any]:
     """Return an installation compatibility report without submitting orders."""
@@ -125,7 +133,7 @@ def _probe_failure_code(exc: Exception, qmt_userdata_path: Path) -> str:
         return "QMT_ACCOUNT_SUBSCRIPTION_FAILED"
     if isinstance(exc, OSError):
         return "QMT_IO_FAILED"
-    return "BROKER_READ_FAILED"
+    return _BUILTIN_PROBE_FAILURE_CODES.get(message, "BROKER_READ_FAILED")
 
 
 def _qmt_server_start_denied(qmt_userdata_path: Path) -> bool:
