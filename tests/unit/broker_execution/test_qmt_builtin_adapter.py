@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import queue
 import sys
 import threading
@@ -18,7 +19,7 @@ import pytest
 
 import qmt_agent.builtin_adapter as bridge_adapter
 from qmt_agent import builtin_strategy
-from qmt_agent.builtin_adapter import BuiltinPythonAdapter
+from qmt_agent.builtin_adapter import BuiltinPythonAdapter, _BuiltinPipeTrader
 from qmt_agent.config import AgentConfig
 from qmt_agent.executor import QmtAgentExecutor
 from qmt_agent.state_store import AgentStateStore
@@ -113,6 +114,8 @@ class _Context:
 def native_runtime(
     monkeypatch: pytest.MonkeyPatch,
 ) -> Iterator[tuple[_NativeRuntime, str]]:
+    if os.name != "nt":
+        pytest.skip("QMT built-in named-pipe integration requires Windows")
     runtime = _NativeRuntime()
     pipe_name = "agom_test_" + uuid.uuid4().hex
     monkeypatch.setattr(builtin_strategy, "PIPE_ADDRESS", rf"\\.\pipe\{pipe_name}")
@@ -458,3 +461,13 @@ def test_builtin_adapter_reports_fill_and_cancel_with_idempotent_event_reads(
         event["event_id"] for event in first_events
     ]
     assert runtime.cancel_calls[-1][:3] == ("ORDER-1", runtime.account_id, "STOCK")
+
+
+@pytest.mark.skipif(os.name == "nt", reason="This contract covers non-Windows import safety")
+def test_named_pipe_entrypoints_fail_closed_off_windows() -> None:
+    with pytest.raises(RuntimeError, match="only supported on Windows"):
+        builtin_strategy.init(_Context())
+
+    trader = _BuiltinPipeTrader(pipe_name="agom_test_bridge", timeout_seconds=1)
+    with pytest.raises(RuntimeError, match="only supported on Windows"):
+        trader.request("account_snapshot", {})

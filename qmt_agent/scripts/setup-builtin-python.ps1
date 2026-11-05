@@ -20,8 +20,14 @@ function Write-Step([string]$Text) {
     Write-Host "[Agom QMT setup] $Text" -ForegroundColor Cyan
 }
 
-$InstallRoot = Join-Path $env:LOCALAPPDATA "AgomQmtAgent"
+$InstallRoot = $null
+if (-not [string]::IsNullOrWhiteSpace($env:LOCALAPPDATA)) {
+    $InstallRoot = Join-Path $env:LOCALAPPDATA "AgomQmtAgent"
+}
 if (-not $ConfigPath) {
+    if (-not $InstallRoot) {
+        throw "LOCALAPPDATA is unavailable. Pass -ConfigPath to select the Agent configuration."
+    }
     $ConfigPath = Join-Path $InstallRoot "config.json"
 }
 $ConfigPath = Resolve-ExistingPath $ConfigPath "Agent configuration"
@@ -78,6 +84,9 @@ if ($RunReadProbe) {
     Write-Host ""
     Read-Host "Confirm that AgomBuiltinBridge is running in QMT model trading, then press Enter" | Out-Null
     if (-not $PythonExe) {
+        if (-not $InstallRoot) {
+            throw "LOCALAPPDATA is unavailable. Pass -PythonExe to select the Agent interpreter."
+        }
         $PythonExe = Join-Path $InstallRoot "runtime\Scripts\python.exe"
     }
     $PythonExe = Resolve-ExistingPath $PythonExe "Agent Python interpreter"

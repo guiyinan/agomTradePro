@@ -3,6 +3,7 @@
 
 import json
 import math
+import os
 import queue
 import threading
 import time
@@ -10,8 +11,9 @@ from datetime import datetime, timedelta, timezone
 from multiprocessing import connection as pipe_connection
 from typing import TYPE_CHECKING, Any, Dict, List, Mapping, Optional
 
-PipeClient = pipe_connection.__dict__["PipeClient"]
-PipeListener = pipe_connection.__dict__["PipeListener"]
+# The public factories select AF_PIPE on Windows and remain importable elsewhere.
+PipeClient = pipe_connection.Client
+PipeListener = pipe_connection.Listener
 PIPE_ADDRESS = r"\\.\pipe\agom_qmt_builtin_bridge"
 _SCHEMA = "agom-qmt-builtin-bridge.v1"
 _STRATEGY_NAME = "AgomTradePro"
@@ -389,6 +391,8 @@ def init(context: object) -> None:
     """Bind QMT's selected stock account and start the local named-pipe server."""
 
     global _runtime, _listener, _server_thread
+    if os.name != "nt":
+        raise RuntimeError("QMT built-in named-pipe bridge is only supported on Windows")
     if _server_thread is not None and _server_thread.is_alive():
         raise RuntimeError("QMT built-in bridge is already running")
     account_id = str(

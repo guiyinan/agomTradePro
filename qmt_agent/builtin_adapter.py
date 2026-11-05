@@ -2,20 +2,27 @@
 
 from __future__ import annotations
 
-import _winapi
+import importlib
 import json
+import os
 import re
 import uuid
 from collections.abc import Mapping
 from datetime import UTC, datetime, timedelta
 from multiprocessing import connection as pipe_connection
 from pathlib import Path
-from types import SimpleNamespace
+from types import ModuleType, SimpleNamespace
 from typing import Any, cast
 
 from .qmt_adapter import BrokerSubmitResult, XtQuantAdapter, _XtTraderProtocol
 
-PipeClient = pipe_connection.__dict__["PipeClient"]
+_winapi: ModuleType | None
+try:
+    _winapi = importlib.import_module("_winapi")
+except ImportError:
+    _winapi = None
+
+PipeClient = pipe_connection.Client
 _SCHEMA = "agom-qmt-builtin-bridge.v1"
 _MAX_RESPONSE_BYTES = 2_000_000
 _PIPE_NAME_PATTERN = re.compile(r"[A-Za-z0-9_-]{1,80}")
@@ -33,6 +40,8 @@ class _BuiltinPipeTrader:
     def request(self, operation: str, payload: Mapping[str, Any]) -> dict[str, Any]:
         """Send one expiring request and wait for its exact native pipe response."""
 
+        if os.name != "nt" or _winapi is None:
+            raise RuntimeError("QMT built-in named-pipe bridge is only supported on Windows")
         request_id = str(uuid.uuid4())
         request = {
             "schema": _SCHEMA,
