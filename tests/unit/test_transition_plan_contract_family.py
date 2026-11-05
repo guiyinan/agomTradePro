@@ -25,8 +25,10 @@ def _load_contract_module() -> ModuleType:
 CONTRACTS = _load_contract_module()
 LEGACY_TRANSITION_PLAN_FAMILY = CONTRACTS.LEGACY_TRANSITION_PLAN_FAMILY
 CANONICAL_TRANSITION_PLAN_FAMILY = CONTRACTS.CANONICAL_TRANSITION_PLAN_FAMILY
+PORTFOLIO_PLAN_REVISION_FAMILY = CONTRACTS.PORTFOLIO_PLAN_REVISION_FAMILY
 require_legacy_transition_plan_family = CONTRACTS.require_legacy_transition_plan_family
 require_canonical_transition_plan_family = CONTRACTS.require_canonical_transition_plan_family
+require_portfolio_plan_revision_family = CONTRACTS.require_portfolio_plan_revision_family
 
 
 def _migration_operations() -> list[ast.expr]:
@@ -75,6 +77,17 @@ def test_canonical_family_rejects_legacy_and_unclassified_rows() -> None:
     for family in (None, "", LEGACY_TRANSITION_PLAN_FAMILY):
         with pytest.raises(ValueError, match="cannot consume a legacy transition plan"):
             require_canonical_transition_plan_family(family)
+
+
+def test_revision_family_is_distinct_and_has_its_own_exact_guard() -> None:
+    assert PORTFOLIO_PLAN_REVISION_FAMILY not in {
+        LEGACY_TRANSITION_PLAN_FAMILY,
+        CANONICAL_TRANSITION_PLAN_FAMILY,
+    }
+    require_portfolio_plan_revision_family(PORTFOLIO_PLAN_REVISION_FAMILY)
+    for family in (None, "", LEGACY_TRANSITION_PLAN_FAMILY, CANONICAL_TRANSITION_PLAN_FAMILY):
+        with pytest.raises(ValueError, match="non-revision transition plan"):
+            require_portfolio_plan_revision_family(family)
 
 
 @pytest.mark.parametrize(

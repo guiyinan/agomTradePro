@@ -46,6 +46,12 @@ from apps.portfolio.infrastructure.transition_plan_revision_codec import (
 )
 from apps.portfolio.infrastructure.transition_plan_revision_repository import (
     DjangoTransitionPlanLockedActionGuard,
+    DjangoTransitionPlanRevisionRepository,
+)
+from core.integration.transition_plan_contracts import (
+    CANONICAL_TRANSITION_PLAN_FAMILY,
+    PORTFOLIO_PLAN_REVISION_FAMILY,
+    PORTFOLIO_PLAN_REVISION_MARKER,
 )
 
 _NOW = datetime(2026, 11, 5, 9, 30, tzinfo=UTC)
@@ -1009,3 +1015,41 @@ def test_owner_manual_guard_rejects_wrong_classification_and_nonactive_plan_stat
             owner_user_id=23,
             as_of=_NOW,
         )
+
+
+def test_revision_repository_writes_new_family_and_strictly_reads_marked_legacy_rows() -> None:
+    revision = _revision()
+    repository = DjangoTransitionPlanRevisionRepository(using="default")
+    values = repository._model_values(
+        revision,
+        idempotency_key=revision.plan.idempotency_key,
+    )
+
+    assert values["plan_contract_family"] == PORTFOLIO_PLAN_REVISION_FAMILY
+    new_row = SimpleNamespace(**values)
+    assert repository._revision_from_row(new_row) == revision
+
+    old_marked_values = dict(values)
+    old_marked_values["plan_contract_family"] = CANONICAL_TRANSITION_PLAN_FAMILY
+    old_marked_row = SimpleNamespace(**old_marked_values)
+    assert repository._revision_from_row(old_marked_row) == revision
+
+    old_unmarked_values = dict(old_marked_values)
+    old_unmarked_contract = dict(cast(dict[str, object], values["risk_contract"]))
+    old_unmarked_contract.pop(PORTFOLIO_PLAN_REVISION_MARKER)
+    old_unmarked_values["risk_contract"] = old_unmarked_contract
+    assert repository._revision_from_row(SimpleNamespace(**old_unmarked_values)) is None
+
+    missing_new_marker_values = dict(values)
+    missing_new_contract = dict(cast(dict[str, object], values["risk_contract"]))
+    missing_new_contract.pop(PORTFOLIO_PLAN_REVISION_MARKER)
+    missing_new_marker_values["risk_contract"] = missing_new_contract
+    with pytest.raises(TransitionPlanRevisionCorruption):
+        repository._revision_from_row(SimpleNamespace(**missing_new_marker_values))
+
+    malformed_old_marker_values = dict(old_marked_values)
+    malformed_old_contract = dict(cast(dict[str, object], values["risk_contract"]))
+    malformed_old_contract[PORTFOLIO_PLAN_REVISION_MARKER] = None
+    malformed_old_marker_values["risk_contract"] = malformed_old_contract
+    with pytest.raises(TransitionPlanRevisionCorruption):
+        repository._revision_from_row(SimpleNamespace(**malformed_old_marker_values))

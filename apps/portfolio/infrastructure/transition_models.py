@@ -9,15 +9,18 @@ from django.utils import timezone
 from core.integration.transition_plan_contracts import (
     CANONICAL_TRANSITION_PLAN_FAMILY,
     LEGACY_TRANSITION_PLAN_FAMILY,
+    PORTFOLIO_PLAN_REVISION_FAMILY,
 )
 
 
 class PortfolioTransitionPlanModel(models.Model):
     CONTRACT_FAMILY_LEGACY = LEGACY_TRANSITION_PLAN_FAMILY
     CONTRACT_FAMILY_CANONICAL = CANONICAL_TRANSITION_PLAN_FAMILY
+    CONTRACT_FAMILY_REVISION = PORTFOLIO_PLAN_REVISION_FAMILY
     CONTRACT_FAMILY_CHOICES = [
         (CONTRACT_FAMILY_LEGACY, "Decision Rhythm legacy v1"),
         (CONTRACT_FAMILY_CANONICAL, "Portfolio canonical v1"),
+        (CONTRACT_FAMILY_REVISION, "Portfolio immutable plan revision"),
     ]
     STATUS_CHOICES = [
         ("DRAFT", "草稿"),

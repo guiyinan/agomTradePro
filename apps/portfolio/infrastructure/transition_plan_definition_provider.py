@@ -2,12 +2,17 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from datetime import datetime
 
 from apps.portfolio.application.transition_plan_inactive_approval import TransitionPlanDefinition
 from apps.portfolio.infrastructure.repositories import PortfolioTransitionPlanRepository
 from apps.portfolio.infrastructure.transition_models import PortfolioTransitionPlanModel
-from core.integration.transition_plan_contracts import require_canonical_transition_plan_family
+from core.integration.transition_plan_contracts import (
+    CANONICAL_TRANSITION_PLAN_FAMILY,
+    PORTFOLIO_PLAN_REVISION_MARKER,
+    require_canonical_transition_plan_family,
+)
 
 
 class DjangoExactTransitionPlanDefinitionProvider:
@@ -34,6 +39,7 @@ class DjangoExactTransitionPlanDefinitionProvider:
             .filter(
                 plan_id=plan_id,
                 plan_version=plan_version,
+                plan_contract_family=CANONICAL_TRANSITION_PLAN_FAMILY,
                 status="APPROVED",
                 approved_at__isnull=False,
                 approved_at__lte=as_of,
@@ -45,6 +51,12 @@ class DjangoExactTransitionPlanDefinitionProvider:
         if row is None:
             return None
         if row.approved_at is None:
+            return None
+        risk_contract = row.risk_contract
+        if (
+            not isinstance(risk_contract, Mapping)
+            or PORTFOLIO_PLAN_REVISION_MARKER in risk_contract
+        ):
             return None
         require_canonical_transition_plan_family(row.plan_contract_family)
         plan = PortfolioTransitionPlanRepository._verified_to_domain(row)

@@ -1,9 +1,13 @@
 """Compatibility conversion for portfolio-owned transition-plan rows."""
 
+from collections.abc import Mapping
 from decimal import Decimal
 from typing import Any
 
-from core.integration.transition_plan_contracts import require_legacy_transition_plan_family
+from core.integration.transition_plan_contracts import (
+    PORTFOLIO_PLAN_REVISION_MARKER,
+    require_legacy_transition_plan_family,
+)
 
 from ..domain.entities import PortfolioTransitionPlan, TransitionOrder, TransitionPlanStatus
 
@@ -12,6 +16,11 @@ def transition_model_to_domain(model: Any) -> PortfolioTransitionPlan:
     """Convert the portfolio-owned persistence row to the legacy domain value."""
 
     require_legacy_transition_plan_family(getattr(model, "plan_contract_family", None))
+    risk_contract = getattr(model, "risk_contract", None)
+    if risk_contract is not None and not isinstance(risk_contract, Mapping):
+        raise ValueError("legacy transition-plan path cannot consume malformed risk contract")
+    if isinstance(risk_contract, Mapping) and PORTFOLIO_PLAN_REVISION_MARKER in risk_contract:
+        raise ValueError("legacy transition-plan path cannot consume ASH08 revision payload")
 
     orders = [
         TransitionOrder(

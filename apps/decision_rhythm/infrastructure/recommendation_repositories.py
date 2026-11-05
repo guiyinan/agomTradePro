@@ -8,15 +8,21 @@ Decision Rhythm Repositories
 """
 
 import logging
+from collections.abc import Mapping
 from datetime import UTC, date, datetime
 from decimal import Decimal
 from typing import Any
 
 from django.conf import settings
 from django.db import transaction
+from django.db.models import Q
 from django.utils import timezone
 
-from core.integration.transition_plan_contracts import require_legacy_transition_plan_family
+from core.integration.transition_plan_contracts import (
+    LEGACY_TRANSITION_PLAN_FAMILY,
+    PORTFOLIO_PLAN_REVISION_MARKER,
+    require_legacy_transition_plan_family,
+)
 
 from ..domain.entities import (
     ApprovalStatus,
@@ -44,6 +50,13 @@ def _ensure_legacy_transition_plan_row(model: Any) -> None:
     """Reject rows explicitly owned by a non-legacy payload contract."""
 
     require_legacy_transition_plan_family(getattr(model, "plan_contract_family", None))
+    risk_contract = getattr(model, "risk_contract", None)
+    if risk_contract is None:
+        return
+    if not isinstance(risk_contract, Mapping):
+        raise ValueError("legacy transition-plan path cannot consume malformed risk contract")
+    if PORTFOLIO_PLAN_REVISION_MARKER in risk_contract:
+        raise ValueError("legacy transition-plan path cannot consume ASH08 revision payload")
 
 
 def _json_safe_value(value: Any) -> Any:
@@ -414,26 +427,37 @@ class PortfolioTransitionPlanRepository:
         from .models import PortfolioTransitionPlanModel
 
         try:
+            model = PortfolioTransitionPlanModel.objects.get(plan_id=plan_id)
+        except PortfolioTransitionPlanModel.DoesNotExist:
+            return None
+        try:
+            _ensure_legacy_transition_plan_row(model)
             from .transition_models import transition_model_to_domain
 
-            model = PortfolioTransitionPlanModel.objects.get(plan_id=plan_id)
             return transition_model_to_domain(model)
-        except PortfolioTransitionPlanModel.DoesNotExist:
+        except ValueError:
             return None
 
     def get_latest_for_account(self, account_id: str) -> PortfolioTransitionPlan | None:
         from .models import PortfolioTransitionPlanModel
 
-        model = (
+        accepted_families = ("", LEGACY_TRANSITION_PLAN_FAMILY)
+        models = (
             PortfolioTransitionPlanModel.objects.filter(account_id=account_id)
+            .filter(
+                Q(plan_contract_family__isnull=True) | Q(plan_contract_family__in=accepted_families)
+            )
             .order_by("-created_at")
-            .first()
         )
-        if model is None:
-            return None
         from .transition_models import transition_model_to_domain
 
-        return transition_model_to_domain(model)
+        for model in models:
+            try:
+                _ensure_legacy_transition_plan_row(model)
+                return transition_model_to_domain(model)
+            except ValueError:
+                continue
+        return None
 
     def update_status(
         self,

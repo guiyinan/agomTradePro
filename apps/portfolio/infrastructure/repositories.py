@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from decimal import Decimal
 from hmac import compare_digest
 from typing import Any
@@ -13,7 +14,10 @@ from django.utils import timezone
 from apps.portfolio.domain.entities import ConstraintDecision, OrderDraft, TransitionPlan
 from apps.portfolio.domain.transition_plan_integrity import transition_plan_content_hash_v1
 from core.integration.research_integrity_registry import get_decision_snapshot
-from core.integration.transition_plan_contracts import require_canonical_transition_plan_family
+from core.integration.transition_plan_contracts import (
+    PORTFOLIO_PLAN_REVISION_MARKER,
+    require_canonical_transition_plan_family,
+)
 
 from .models import PortfolioTransitionPlanModel
 from .policy_models import PortfolioPlanningPolicyModel
@@ -98,13 +102,31 @@ class PortfolioTransitionPlanRepository:
         return plan
 
     def get(self, plan_id: str) -> TransitionPlan | None:
+        """Read one legacy canonical plan without downgrading a revision row."""
+
         row = PortfolioTransitionPlanModel._default_manager.filter(plan_id=plan_id).first()
+        if row is not None and _is_revision_marked(row):
+            return None
+        if (
+            row is not None
+            and row.plan_contract_family != PortfolioTransitionPlanModel.CONTRACT_FAMILY_CANONICAL
+        ):
+            return None
         return self._verified_to_domain(row) if row else None
 
     def get_by_idempotency_key(self, idempotency_key: str) -> TransitionPlan | None:
+        """Read one legacy idempotency winner without downgrading a revision row."""
+
         row = PortfolioTransitionPlanModel._default_manager.filter(
             idempotency_key=idempotency_key
         ).first()
+        if row is not None and _is_revision_marked(row):
+            return None
+        if (
+            row is not None
+            and row.plan_contract_family != PortfolioTransitionPlanModel.CONTRACT_FAMILY_CANONICAL
+        ):
+            return None
         return self._verified_to_domain(row) if row else None
 
     @transaction.atomic
@@ -112,8 +134,10 @@ class PortfolioTransitionPlanRepository:
         """Approve only an unexpired plan bound to the same decision snapshot."""
 
         row = PortfolioTransitionPlanModel._default_manager.select_for_update().get(plan_id=plan_id)
+        if _is_revision_marked(row):
+            raise ValueError("legacy approval cannot change an immutable revision plan")
         require_canonical_transition_plan_family(row.plan_contract_family)
-        plan = self._verified_to_domain(row)
+        self._verified_to_domain(row)
         if row.decision_snapshot_id != decision_snapshot_id:
             raise ValueError("decision snapshot changed; rebuild the transition plan")
         if row.expires_at is None or row.expires_at <= timezone.now():
@@ -137,6 +161,8 @@ class PortfolioTransitionPlanRepository:
 
     @classmethod
     def _to_domain(cls, row: PortfolioTransitionPlanModel) -> TransitionPlan:
+        if _is_revision_marked(row):
+            raise ValueError("legacy repository cannot decode an immutable revision plan")
         require_canonical_transition_plan_family(row.plan_contract_family)
         orders = tuple(cls._order_from_dict(item) for item in (row.orders or []))
         constraints = tuple(
@@ -189,3 +215,10 @@ class PortfolioTransitionPlanRepository:
             remaining_quantity=int(item.get("remaining_quantity", 0)),
             constraints=tuple(ConstraintDecision(**entry) for entry in item.get("constraints", [])),
         )
+
+
+def _is_revision_marked(row: PortfolioTransitionPlanModel) -> bool:
+    """Reject marker-bearing and malformed contracts without legacy interpretation."""
+
+    contract = row.risk_contract
+    return not isinstance(contract, Mapping) or PORTFOLIO_PLAN_REVISION_MARKER in contract

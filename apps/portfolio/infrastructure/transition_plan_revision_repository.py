@@ -43,9 +43,14 @@ from apps.portfolio.infrastructure.transition_plan_revision_codec import (
 )
 from core.exceptions import BusinessLogicError
 from core.integration.research_integrity_registry import get_decision_snapshot
-from core.integration.transition_plan_contracts import CANONICAL_TRANSITION_PLAN_FAMILY
+from core.integration.transition_plan_contracts import (
+    CANONICAL_TRANSITION_PLAN_FAMILY,
+    PORTFOLIO_PLAN_REVISION_FAMILY,
+    PORTFOLIO_PLAN_REVISION_MARKER,
+)
 
-_REVISION_KEY = "ash08_plan_revision"
+_REVISION_KEY = PORTFOLIO_PLAN_REVISION_MARKER
+_REVISION_FAMILIES = (PORTFOLIO_PLAN_REVISION_FAMILY, CANONICAL_TRANSITION_PLAN_FAMILY)
 
 
 class DjangoTransitionPlanRevisionRepository:
@@ -124,7 +129,7 @@ class DjangoTransitionPlanRevisionRepository:
             self._manager()
             .filter(
                 account_id=str(account_id),
-                plan_contract_family=CANONICAL_TRANSITION_PLAN_FAMILY,
+                plan_contract_family__in=_REVISION_FAMILIES,
                 created_at__lte=as_of,
             )
             .order_by("-created_at", "plan_id")
@@ -337,7 +342,7 @@ class DjangoTransitionPlanRevisionRepository:
             .select_for_update()
             .filter(
                 account_id=str(account_id),
-                plan_contract_family=CANONICAL_TRANSITION_PLAN_FAMILY,
+                plan_contract_family__in=_REVISION_FAMILIES,
             )
             .order_by("plan_id")
         )
@@ -357,7 +362,7 @@ class DjangoTransitionPlanRevisionRepository:
             self._manager()
             .filter(
                 account_id=str(account_id),
-                plan_contract_family=CANONICAL_TRANSITION_PLAN_FAMILY,
+                plan_contract_family__in=_REVISION_FAMILIES,
                 created_at__lte=as_of,
             )
             .order_by("plan_id")
@@ -369,13 +374,24 @@ class DjangoTransitionPlanRevisionRepository:
     def _revision_from_row(
         self, row: PortfolioTransitionPlanModel
     ) -> TransitionPlanRevision | None:
-        """Decode a revision only when the existing canonical-v1 row and full JSON agree."""
+        """Decode new-family rows or pre-discriminator marked rows with full verification."""
 
         try:
             risk_contract = _json_object(row.risk_contract, "risk_contract")
+            is_revision_family = row.plan_contract_family == PORTFOLIO_PLAN_REVISION_FAMILY
+            is_marked_legacy_revision = (
+                row.plan_contract_family == CANONICAL_TRANSITION_PLAN_FAMILY
+                and _REVISION_KEY in risk_contract
+            )
+            if not is_revision_family and not is_marked_legacy_revision:
+                return None
+            if _REVISION_KEY not in risk_contract:
+                raise TransitionPlanRevisionCodecError(
+                    "revision-family row is missing its revision marker"
+                )
             wrapper = risk_contract.get(_REVISION_KEY)
             if wrapper is None:
-                return None
+                raise TransitionPlanRevisionCodecError("revision marker has no payload")
             revision = decode_transition_plan_revision(
                 wrapper,
                 current_status=str(row.status),
@@ -400,8 +416,8 @@ class DjangoTransitionPlanRevisionRepository:
 
         plan = revision.plan
         identity = revision.identity
-        if row.plan_contract_family != CANONICAL_TRANSITION_PLAN_FAMILY:
-            raise TransitionPlanRevisionCorruption("revision row is not canonical-v1")
+        if row.plan_contract_family not in _REVISION_FAMILIES or _REVISION_KEY not in risk_contract:
+            raise TransitionPlanRevisionCorruption("revision row family or marker is invalid")
         if (
             row.plan_id != identity.plan_id
             or row.plan_version != identity.version
@@ -473,7 +489,7 @@ class DjangoTransitionPlanRevisionRepository:
         }
         return {
             "plan_id": revision.identity.plan_id,
-            "plan_contract_family": PortfolioTransitionPlanModel.CONTRACT_FAMILY_CANONICAL,
+            "plan_contract_family": PortfolioTransitionPlanModel.CONTRACT_FAMILY_REVISION,
             "account_id": str(basis.account_id),
             "source_recommendation_ids": [],
             "current_positions_snapshot": [item.to_payload() for item in basis.current_positions],
