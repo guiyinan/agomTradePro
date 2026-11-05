@@ -4,9 +4,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from decimal import Decimal
+from decimal import Decimal, localcontext
 from typing import Protocol, cast
 
+from apps.portfolio.application.transition_plan_lifecycle import (
+    TransitionPlanOrderExecutionBinding,
+)
 from apps.simulated_trading.application.execution_settlement_uow import (
     PreparedSimulatedTrade,
     SimulatedTradeAccountScopeUnavailable,
@@ -46,10 +49,17 @@ from apps.simulated_trading.domain.execution_settlement_primitives import (
     _hash_payload,
     _require_token,
 )
-from apps.simulated_trading.domain.execution_settlement_uow import SimulatedTradeIntent
+from apps.simulated_trading.domain.execution_settlement_uow import (
+    SimulatedTradeIntent,
+    SimulatedTradeSide,
+    TradeFeeBreakdown,
+)
 from apps.simulated_trading.domain.order_reservation import (
     OrderReservationResult,
     reserve_order,
+)
+from apps.simulated_trading.domain.transition_plan_execution import (
+    derive_plan_order_idempotency_key,
 )
 
 _LOCAL_MARKET_PURPOSE = LOCAL_ORDER_MARKET_PURPOSE
@@ -118,6 +128,8 @@ class OwnerOrderPreviewBinding:
     expires_at: datetime
     retained_source: dict[str, object]
     market_purpose: str = _LOCAL_MARKET_PURPOSE
+    transition_plan_binding: TransitionPlanOrderExecutionBinding | None = None
+    transition_plan_recorded_at: datetime | None = None
 
     def __post_init__(self) -> None:
         """Bind close-purpose previews to an explicit account-scoped source purpose."""
@@ -136,6 +148,21 @@ class OwnerOrderPreviewBinding:
             source_account_id = self.retained_source.get("account_id")
             if type(source_account_id) is not int or source_account_id != self.intent.account_id:
                 raise ValueError("close snapshot source must be bound to the order account")
+        if self.transition_plan_binding is None:
+            if self.transition_plan_recorded_at is not None:
+                raise ValueError("a plan-recorded clock requires its exact plan binding")
+            return
+        if type(self.transition_plan_binding) is not TransitionPlanOrderExecutionBinding:
+            raise ValueError("transition plan binding must use Portfolio's typed value")
+        if type(self.transition_plan_recorded_at) is not datetime:
+            raise ValueError("plan binding requires its original revision-recorded clock")
+        self.transition_plan_binding.__post_init__()
+        _validate_transition_binding_intent(
+            binding=self.transition_plan_binding,
+            intent=self.intent,
+            expires_at=self.expires_at,
+            recorded_at=self.transition_plan_recorded_at,
+        )
 
 
 class OwnerOrderPreviewCodec(Protocol):
@@ -195,7 +222,12 @@ class OwnerOrderSubmissionUseCase:
         self._market_purpose = market_purpose
 
     def preview(
-        self, request: ManualSimulatedTradeRequest, *, fee_budget: Decimal | None
+        self,
+        request: ManualSimulatedTradeRequest,
+        *,
+        fee_budget: Decimal | None,
+        transition_plan_binding: TransitionPlanOrderExecutionBinding | None = None,
+        transition_plan_recorded_at: datetime | None = None,
     ) -> OwnerOrderPreview:
         """Explicitly capture market data and preview an exact local reservation."""
         if type(request) is not ManualSimulatedTradeRequest:
@@ -204,14 +236,63 @@ class OwnerOrderSubmissionUseCase:
         self._repository.require_owned_active_account(
             account_id=request.account_id, user_id=request.user_id
         )
-        intent, _ = self._resolve(request)
-        reservation_request_from_intent(intent, fee_budget=fee_budget)
+        intent, selected_identity = self._resolve(request)
+        if transition_plan_binding is not None:
+            _validate_transition_binding_intent(
+                binding=transition_plan_binding,
+                intent=intent,
+                expires_at=transition_plan_binding.plan_expires_at,
+                recorded_at=transition_plan_recorded_at,
+            )
+            if selected_identity.selection.selected_at < cast(
+                datetime, transition_plan_recorded_at
+            ):
+                raise SimulatedTradeExecutionBlocked(
+                    "计划版本尚未生效",
+                    code="TRANSITION_PLAN_NOT_YET_KNOWN",
+                )
+            if selected_identity.selection.selected_at >= transition_plan_binding.plan_expires_at:
+                raise SimulatedTradeExecutionBlocked(
+                    "计划订单已过期，请重新审核计划",
+                    code="TRANSITION_PLAN_EXPIRED",
+                )
+        if (
+            transition_plan_binding is None
+            or fee_budget is not None
+            or intent.side is SimulatedTradeSide.SELL
+        ):
+            reservation_request_from_intent(intent, fee_budget=fee_budget)
+        else:
+            intent.__post_init__()
         market = self._markets.capture(intent=intent)
         # Capture completion must precede the final common knowledge cutoff.
         intent, identity = self._resolve(request)
+        if transition_plan_binding is not None:
+            _validate_transition_binding_intent(
+                binding=transition_plan_binding,
+                intent=intent,
+                expires_at=transition_plan_binding.plan_expires_at,
+                recorded_at=transition_plan_recorded_at,
+            )
+            if identity.selection.selected_at >= transition_plan_binding.plan_expires_at:
+                raise SimulatedTradeExecutionBlocked(
+                    "计划订单已过期，请重新审核计划",
+                    code="TRANSITION_PLAN_EXPIRED",
+                )
         prepared = self._preparer.prepare(intent, as_of=identity.selection.selected_at)
         fee_policy = _require_prepared(prepared, intent)
         state = self._repository.read_submission_state(plan=prepared.plan, clock=self._clock)
+        effective_fee_budget = fee_budget
+        if (
+            transition_plan_binding is not None
+            and intent.side is SimulatedTradeSide.BUY
+            and effective_fee_budget is None
+        ):
+            effective_fee_budget = _current_fee_total(
+                fee_policy=fee_policy,
+                intent=intent,
+                as_of=state.read_at,
+            )
         receipt = LocalSimulatedOrderSubmissionGuard(
             market_reader=market,
             market_purpose=self._market_purpose,
@@ -231,16 +312,18 @@ class OwnerOrderSubmissionUseCase:
         )
         result = reserve_order(
             state.book,
-            reservation_request_from_intent(intent, fee_budget=fee_budget),
+            reservation_request_from_intent(intent, fee_budget=effective_fee_budget),
             fee_policy,
             reserved_at=state.read_at,
         )
         expires_at = _require_aware_clock(
             datetime.fromisoformat(cast(str, receipt["valid_until"]))
         ).astimezone(UTC)
+        if transition_plan_binding is not None:
+            expires_at = min(expires_at, transition_plan_binding.plan_expires_at)
         binding = OwnerOrderPreviewBinding(
             intent=intent,
-            fee_budget=fee_budget,
+            fee_budget=effective_fee_budget,
             fee_policy_hash=prepared.plan.fee_policy_v2.content_hash,
             settlement_bundle_hash=prepared.execution_bundle.content_hash,
             identity_occurrence=str(identity.source_occurrence_id),
@@ -249,6 +332,8 @@ class OwnerOrderSubmissionUseCase:
             expires_at=expires_at,
             retained_source=retained_source,
             market_purpose=self._market_purpose,
+            transition_plan_binding=transition_plan_binding,
+            transition_plan_recorded_at=transition_plan_recorded_at,
         )
         return OwnerOrderPreview(
             self._codec.seal(binding),
@@ -267,6 +352,8 @@ class OwnerOrderSubmissionUseCase:
             intent=intent,
             fee_budget=binding.fee_budget,
             market_purpose=binding.market_purpose,
+            transition_plan_binding=binding.transition_plan_binding,
+            transition_plan_recorded_at=binding.transition_plan_recorded_at,
         )
         if previous is None:
             raise SimulatedTradeExecutionResultUnknown(
@@ -307,6 +394,8 @@ class OwnerOrderSubmissionUseCase:
             intent=intent,
             fee_budget=binding.fee_budget,
             market_purpose=binding.market_purpose,
+            transition_plan_binding=binding.transition_plan_binding,
+            transition_plan_recorded_at=binding.transition_plan_recorded_at,
         )
         if previous is not None:
             return self._committed(
@@ -319,6 +408,14 @@ class OwnerOrderSubmissionUseCase:
                 purpose=binding.market_purpose,
             )
         as_of = _require_aware_clock(self._clock.now())
+        if (
+            binding.transition_plan_binding is not None
+            and as_of >= binding.transition_plan_binding.plan_expires_at
+        ):
+            raise SimulatedTradeExecutionBlocked(
+                "计划订单已过期，请重新审核计划",
+                code="TRANSITION_PLAN_EXPIRED",
+            )
         if as_of >= binding.expires_at:
             raise SimulatedTradeExecutionBlocked(
                 "原预览已过确认截止，请重新预览", code="SIMULATED_ORDER_PREVIEW_EXPIRED"
@@ -349,6 +446,8 @@ class OwnerOrderSubmissionUseCase:
             execution_bundle=prepared.execution_bundle,
             fee_budget=binding.fee_budget,
             clock=self._clock,
+            transition_plan_binding=binding.transition_plan_binding,
+            transition_plan_recorded_at=binding.transition_plan_recorded_at,
         )
         return self._committed(
             intent,
@@ -458,6 +557,64 @@ def identity_binding_hash(identity: ExecutionInstrumentIdentityEvidenceV2) -> st
             "reference_response_completed_at": identity.reference_response_completed_at.isoformat(),
         }
     )
+
+
+def _validate_transition_binding_intent(
+    *,
+    binding: TransitionPlanOrderExecutionBinding,
+    intent: SimulatedTradeIntent,
+    expires_at: datetime,
+    recorded_at: datetime | None,
+) -> None:
+    """Reject a plan-bound preview whose owner, target, quantity or clocks differ."""
+
+    if type(binding) is not TransitionPlanOrderExecutionBinding:
+        raise SimulatedTradeExecutionInputError("计划订单绑定类型无效")
+    binding.__post_init__()
+    if (
+        (binding.account_id, binding.owner_user_id, binding.asset_code, binding.security_id)
+        != (intent.account_id, intent.user_id, intent.asset_code, intent.security_id)
+        or binding.side != intent.side.value
+        or intent.idempotency_key != derive_plan_order_idempotency_key(binding.content_hash)
+        or intent.quantity <= 0
+        or intent.quantity != intent.quantity.to_integral_value()
+        or intent.quantity > Decimal(binding.approved_quantity)
+        or (
+            binding.approved_limit_price is not None
+            and intent.price != binding.approved_limit_price
+        )
+    ):
+        raise SimulatedTradeExecutionInputError("订单与精确计划行不一致")
+    if type(recorded_at) is not datetime or recorded_at.tzinfo is None:
+        raise SimulatedTradeExecutionInputError("缺少计划版本原始记录时钟")
+    if recorded_at.utcoffset() is None or recorded_at >= binding.plan_expires_at:
+        raise SimulatedTradeExecutionInputError("计划版本时钟无效")
+    if expires_at > binding.plan_expires_at:
+        raise SimulatedTradeExecutionInputError("预览期限超过计划有效期")
+
+
+def _current_fee_total(
+    *, fee_policy: SimulatedFeePolicyV2, intent: SimulatedTradeIntent, as_of: datetime
+) -> Decimal:
+    """Use the current FeeV2 schedule to bind a plan BUY budget, never its estimate."""
+
+    with localcontext() as context:
+        context.prec = 80
+        amount = intent.quantity * intent.price
+    breakdown = fee_policy.calculate_for(
+        asset_type=intent.asset_type,
+        market=intent.market,
+        board=intent.board,
+        side=intent.side,
+        amount=amount,
+        as_of=as_of,
+    )
+    if type(breakdown) is not TradeFeeBreakdown:
+        raise SimulatedTradeExecutionBlocked(
+            "当前 FeeV2 无法精确核验",
+            code="FEE_POLICY_UNAVAILABLE",
+        )
+    return breakdown.total_fee
 
 
 def _require_prepared(

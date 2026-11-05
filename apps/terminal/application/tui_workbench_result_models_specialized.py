@@ -18,6 +18,7 @@ from apps.terminal.application.tui_owner_order_submission_result import (
     project_tui_owner_order_submission_result,
 )
 from apps.terminal.application.tui_portfolio_risk_result import project_portfolio_risk_result
+from apps.terminal.application.tui_rebalance_plan_result import project_rebalance_plan_result
 from apps.terminal.application.tui_research_snapshot_result import (
     project_tui_research_snapshot_result,
 )
@@ -92,11 +93,32 @@ class TuiWorkbenchSpecializedResultMixin(
         """Project owner results into task-specific user-facing summaries."""
 
         action_key = str(action.get("key") or "")
+        if action_key.startswith("rebalance-plan."):
+            return dict(
+                project_rebalance_plan_result(
+                    action_key,
+                    payload,
+                    requested_params=request_params,
+                    http_status=status_code,
+                )
+            )
         if action_key in {
             "simulated-trading.portfolio-risk-report",
             "simulated-trading.portfolio-pressure-run",
         }:
             return project_portfolio_risk_result(payload, http_status=status_code)
+        if action_key in {"rebalance-plan.order-confirm", "rebalance-plan.order-by-key"}:
+            owner_action_key = (
+                "simulated-trading.order-confirm"
+                if action_key == "rebalance-plan.order-confirm"
+                else "simulated-trading.order-by-key"
+            )
+            return project_tui_owner_order_submission_result(
+                owner_action_key,
+                payload,
+                http_status=status_code,
+                requested_params=request_params,
+            )
         if action_key in {
             "simulated-trading.fee-correction-policy",
             "simulated-trading.fee-correction-policy-save",

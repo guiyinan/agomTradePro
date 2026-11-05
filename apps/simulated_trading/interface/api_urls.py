@@ -40,6 +40,14 @@ from .portfolio_risk_views import (
     PortfolioPressureRunAPIView,
     PortfolioRiskReportAPIView,
 )
+from .rebalance_plan_journey_views import (
+    RebalancePlanExactAPIView,
+    RebalancePlanListCreateAPIView,
+    RebalancePlanOrderPreviewAPIView,
+    RebalancePlanReconciliationAPIView,
+    RebalancePlanReviewAPIView,
+    RebalancePlanSuccessorAPIView,
+)
 from .sdk_contract_views import AccountResetAPIView, PositionCloseAPIView
 from .tui_views import InspectionNotificationConfigAPIView
 from .views import (
@@ -61,6 +69,36 @@ app_name = "simulated_trading_api"
 
 
 urlpatterns = [
+    path(
+        "accounts/<int:account_id>/rebalance-plans/",
+        RebalancePlanListCreateAPIView.as_view(),
+        name="rebalance-plan-list-create",
+    ),
+    path(
+        "accounts/<int:account_id>/rebalance-plans/<str:plan_id>/",
+        RebalancePlanExactAPIView.as_view(),
+        name="rebalance-plan-exact",
+    ),
+    path(
+        "accounts/<int:account_id>/rebalance-plans/<str:plan_id>/review/",
+        RebalancePlanReviewAPIView.as_view(),
+        name="rebalance-plan-review",
+    ),
+    path(
+        "accounts/<int:account_id>/rebalance-plans/<str:plan_id>/successor/",
+        RebalancePlanSuccessorAPIView.as_view(),
+        name="rebalance-plan-successor",
+    ),
+    path(
+        "accounts/<int:account_id>/rebalance-plans/<str:plan_id>/reconciliation/",
+        RebalancePlanReconciliationAPIView.as_view(),
+        name="rebalance-plan-reconciliation",
+    ),
+    path(
+        "accounts/<int:account_id>/rebalance-plans/<str:plan_id>/orders/<int:order_ordinal>/preview/",
+        RebalancePlanOrderPreviewAPIView.as_view(),
+        name="rebalance-plan-order-preview",
+    ),
     path(
         "",
         lambda request: JsonResponse(

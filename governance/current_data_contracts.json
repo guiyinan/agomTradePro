@@ -13210,7 +13210,8 @@
         "apps/simulated_trading/application/order_submission_market.py",
         "apps/simulated_trading/infrastructure/order_reservation_repository.py",
         "apps/simulated_trading/owner_order_submission_composition.py",
-        "apps/simulated_trading/interface/owner_order_submission_views.py"
+        "apps/simulated_trading/interface/owner_order_submission_views.py",
+        "apps/simulated_trading/application/owner_order_payloads.py"
       ],
       "required_markers": {
         "apps/data_center/domain/sina_quote_capture.py": [
@@ -13249,8 +13250,12 @@
         ],
         "apps/simulated_trading/interface/owner_order_submission_views.py": [
           "continuation",
-          "expires_at",
           "OwnerOrderReadbackAPIView"
+        ],
+        "apps/simulated_trading/application/owner_order_payloads.py": [
+          "result.expires_at",
+          "result.token",
+          "continuation"
         ]
       },
       "required_tests": [
@@ -13709,6 +13714,72 @@
         }
       ],
       "notes": "GET reports and the approved Scenario catalog are read-only. Pressure execution is available only through the explicit pressure-run POST, requires literal confirmation under SessionAuthentication/CSRF, and records only the simulation assessment; its report always has scope=simulation_only and must_not_execute=true. unknown, expired, partial, or source-prohibition evidence remains visible and cannot be converted into a passing or executable result. HTTP 200 reports a business outcome and is not itself permission to trade. Explicit per-reference simulation clock modes may qualify only same-business-date bounded industry membership, timestamp valuation/session-cumulative capacity, or ASH03-qualified close-only vendor quote state. Original supplier available_at/valid_until remain null; separately named capture receipt and earliest policy acceptance deadline never assert supplier freshness. All other unknown observations, permissions, hashes, coverage and financial facts retain their blockers; full-session exchange suspension remains unknown. Strict source-clock mode remains the default, and ordinary execution revalidates policy/account/source identity and the actual close market purpose. The explicit policy_bounded_disclosed_report mode additionally binds two independent retained originals: report PDF and official same-origin publication page with its exact PDF link. Report-period age and publication-date age are separate configured bounds; DATE observations are never fabricated timestamps. Unknown supplier clocks stay null, strict defaults remain unchanged, and partial ETF coverage retains its financial decision blocker. Stored proof replay and execution deadlines rebind the current account, policy, reference hash and both dates. Explicit COMPLETE ETF item counts must agree; missing declared constituent rows remain wholly unknown rather than receiving full look-through. Absent counts remain null and legitimate PARTIAL fractions keep their known/unknown financial bounds. A false account-level executed-usage completeness flag blocks every asset even when known incomplete rows exist; row-local isolation applies only to a proved complete collection. Concurrent ordinary reservations must read the first committed hold inside the same account lock and write only the qualified hold/audit. A missing ledger security ID may select the explicitly pinned close mode only through one valuation reference with consistent security identity across that asset references; unresolved or conflicting mappings retain their blockers and actual signed market purpose must still match. The risk calendar bridge validates the V2 current-reference identity only for venue lookup and preserves original source prohibitions and unknown clocks in canonical evidence; the independent published-calendar qualification is never waived. Current-price/NAV, projected valuation and disclosed ETF proof consumers explicitly bind their source roles. Industry membership keeps its native query-row coverage basis; the ETF disclosure NAV-weight basis remains required only for ETF reports, and partial/count/minimum-coverage blockers remain. The HTTP source serializer preserves the optional public clock_evidence_proof exactly; supplier clocks remain null, and existing TUI projection displays the bounded acceptance deadline and unknown full-session state. Legacy source payloads without a proof remain valid. Calendar configuration and current publication use the existing reference read ports shared by reports and locked revalidation: outside a transaction they retain composition-owned reads; one default caller transaction is reused without savepoint or provider credential resolution. Nested/alias/source/expiry refusals remain; unsupported nondefault risk aliases fail before composition."
+    },
+    {
+      "id": "simulated_trading.trusted_rebalance_journey",
+      "surface": "Owned finite-simulation immutable rebalance plan preparation and exact-version history. Captured preview and separately read financial resources are value-checked. A historical/latest family row is never an execution or freshness claim; a bound manual order additionally needs current policy/source constraints and the ordinary explicit preview/confirmation gates.",
+      "source_files": [
+        "apps/portfolio/domain/transition_plan_revision_basis.py",
+        "apps/portfolio/infrastructure/transition_plan_revision_codec.py",
+        "apps/simulated_trading/application/rebalance_journey_preparation.py",
+        "apps/simulated_trading/application/rebalance_journey_preparation_support.py",
+        "apps/simulated_trading/application/rebalance_journey_sources.py",
+        "apps/simulated_trading/application/rebalance_journey_current_pins.py",
+        "apps/risk_center/application/execution_settlement_v3.py"
+      ],
+      "required_markers": {
+        "apps/portfolio/domain/transition_plan_revision_basis.py": [
+          "preparation_evidence_json",
+          "source_valid_until",
+          "admission_until",
+          "qualification_proof_hash",
+          "_validate_preparation_evidence"
+        ],
+        "apps/simulated_trading/application/rebalance_journey_sources.py": [
+          "raw_payload_sha256",
+          "raw_payload_hash",
+          "clock_evidence_proof_payload",
+          "admission_until"
+        ],
+        "apps/simulated_trading/application/rebalance_journey_current_pins.py": [
+          "TRANSITION_PLAN_CONTEXT_EXPIRED",
+          "TRANSITION_PLAN_CURRENT_CLASSIFICATION_CHANGED",
+          "normalized_config_sha256",
+          "native_account_limits"
+        ],
+        "apps/risk_center/application/execution_settlement_v3.py": [
+          "def execute_record(",
+          "record.recorded_at <= as_of"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "typed qualified source capture is embedded with exact immutable snapshot pins",
+          "test_file": "tests/unit/simulated_trading/application/test_rebalance_journey_preparation.py",
+          "test_function": "test_prepare_maps_one_typed_preview_and_qualified_risk_result_to_immutable_draft"
+        },
+        {
+          "case": "unknown source facts cannot become a trusted plan",
+          "test_file": "tests/unit/simulated_trading/application/test_rebalance_journey_preparation.py",
+          "test_function": "test_prepare_rejects_unknown_source_evidence_before_creating_a_revision"
+        },
+        {
+          "case": "current classification stable pins may be reread without rewriting original source clocks",
+          "test_file": "tests/unit/simulated_trading/test_rebalance_journey_current_pins.py",
+          "test_function": "test_later_classification_read_keeps_original_source_clocks_and_accepts_same_stable_pins"
+        },
+        {
+          "case": "a real selector change cannot be excused as another read clock",
+          "test_file": "tests/unit/simulated_trading/test_rebalance_journey_current_pins.py",
+          "test_function": "test_classification_selector_change_is_rejected_even_when_asset_type_is_unchanged"
+        },
+        {
+          "case": "database knowledge timestamp and supplier availability remain separate",
+          "test_file": "tests/unit/risk_center/test_execution_settlement_v3.py",
+          "test_function": "test_v3_record_read_retains_original_database_clock_without_relabeling_source_clock"
+        }
+      ],
+      "notes": "Controlled-port and Native component tests do not establish current external-source or ordinary-browser acceptance. Vendor availability/expiry unknown remain null; local source admission_until is separate. Full original evidence stays embedded and hashed. Current risk/profile, native limits, fees, rule records, published-calendar members and classifier/source/mapping pins are rechecked without using the naturally changing account cash/full report hash as an immutable policy identity. Inactive staff approval remains must_not_execute; a manual binding grants no formal Evidence, live, automated or broker authority."
     }
   ]
 }

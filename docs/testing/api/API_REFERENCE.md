@@ -653,6 +653,34 @@ result = client.post(
 
 当前 SDK 没有组合风险专用方法，MCP 没有对应 capability；SDK 的 `risk_center` 情景管理与此处按账户运行退出压力核对是不同用途。OpenAPI 应由 Root 在正式整合时生成并核对 `schema.yml`、`docs/testing/api/openapi.yaml` 与 `docs/testing/api/openapi.json`。
 
+### 9.5 模拟调仓计划与逐笔订单旅程
+
+以下计划接口只接受 Django 登录会话（DRF `SessionAuthentication`）；POST 还要求同源 CSRF。目标账户的 Owner 才能创建计划、申请人工复核、创建后继版本或发起单笔订单预览。获准查看的只读账户可使用 GET，但所有 POST 仍由服务端权限和当前计划资格复核。跨账户访问返回不泄露账户/计划是否存在的 `403`。API Token 与 SDK Token 模式不能直连这些 Session-only 计划路由。计划任务对应的 TUI actions 也标记 `session_auth_required`：通过通用 `/api/tui/actions/{action_key}/run/`（包括 MCP `terminal_execute_user_action`）时，外层 action-run 必须先验证真实 Django 会话；Token 请求在内部 executor 调用前返回 `403/tui_session_auth_required`，不会被升级成 SessionAuthentication。SDK 用户名/密码会话模式仍可按本节使用。
+
+| 端点 | 方法 | 行为 |
+|---|---|---|
+| `/api/simulated-trading/accounts/{account_id}/rebalance-plans/` | GET | 列出最多 20 个当前用户可读的已保存版本；不接受查询参数 |
+| 同上 | POST | 按当前服务端账户事实生成并保存一个版本；仅接受 `target_weights` 与 `reference_price_basis` |
+| `/api/simulated-trading/accounts/{account_id}/rebalance-plans/{plan_id}/` | GET | 读取选定版本；必须提供 `plan_version` 和 `revision_hash`，没有“最新版本”别名 |
+| `.../{plan_id}/review/` | POST | 针对精确版本提交人工复核申请；不批准计划，也不启用执行权限 |
+| `.../{plan_id}/successor/` | POST | 在成交或账户事实变化后，按服务器重读结果显式生成后继版本；旧复核不会自动继承 |
+| `.../{plan_id}/reconciliation/` | GET | 读取所选精确版本的真实成交、有效预留、释放数量及当前账户对账 |
+| `.../{plan_id}/orders/{order_ordinal}/preview/` | POST | 按精确订单行和用户明确输入的数量/限价生成普通模拟订单预览；不会预留或成交 |
+
+所有计划资源上的变更请求必须使用 `Idempotency-Key` 请求头，长度 1–128，首字符为字母或数字，其余仅可含字母、数字、点、下划线、冒号或连字符；重试须复用原键和原始输入。请求体不接受现金、持仓、价格、风险、费用、证券身份或订单方向等事实；数量和限价只表示用户意图，服务端会重新核对计划版本、来源、账户占用、费用和订单资格。单笔预览返回既有模拟订单确认 continuation；只有用户再次明确确认才会建立本地模拟订单预留。后续普通 Owner 确认使用 continuation 中的 `order_key` 和 `preview_token`，不再另造订单键：调用 `POST /api/simulated-trading/accounts/{account_id}/orders/by-key/{order_key}/confirm/`，请求体含 `preview_token`、`confirmed: true`，并保留原 `market_purpose`（如响应要求）。若确认结果不确定，先用同一 `order_key` 调用 `GET /api/simulated-trading/accounts/{account_id}/orders/by-key/{order_key}/` 查回原订单，不要重新预览或生成替代键。成交撮合与撤销仍使用现有 Owner 订单接口：`POST /api/simulated-trading/accounts/{account_id}/orders/{order_id}/match/` 只保存一笔按所选交易日的撮合决定；需另行明确调用 `POST /api/simulated-trading/accounts/{account_id}/orders/{order_id}/decisions/{decision_id}/apply/` 才会将已核对结果入账。`POST /api/simulated-trading/accounts/{account_id}/orders/{order_id}/cancel/` 只释放未成交的当前剩余预留；成交回执可用 `GET /api/simulated-trading/accounts/{account_id}/orders/{order_id}/fills/` 核对。Owner 写操作继续使用会话与 CSRF，并经过原 Owner、账户锁、来源及账本校验；计划不会自动连续提交多笔订单或把未成交 SELL 计作现金。
+
+| 状态码 | 边界 |
+|---|---|
+| `200` | 读取、计划版本创建/复核申请或单笔预览响应完成；业务 outcome / plan capability 仍须按响应解释 |
+| `400` | 请求字段、精确金额文本、确认值或 `Idempotency-Key` 无效 |
+| `403` | 未登录、越权账户/计划，或没有写权限 |
+| `404` | 精确计划版本不存在或不可读 |
+| `409` | 版本/来源/资源已变化，或幂等键绑定了不同输入；先重新读取再决定下一步 |
+| `503` | 当前服务/一致性读取不可用；不回退为许可 |
+| `405` | 对只读路径执行写方法，或调用不支持的方法 |
+
+Python SDK 的 `username/password` 会话模式可用通用 `get`/`post` 调用受支持端点并附带 CSRF；它没有计划专用方法。API Token 模式不能调用这些接口。MCP 没有计划管理、计划订单预览或计划执行 capability，也不能用普通 `trading.submit.simulated_order` 冒充计划绑定订单。OpenAPI 由 Root 正式整合时生成并核对 `schema.yml`、`docs/testing/api/openapi.yaml` 与 `docs/testing/api/openapi.json`。
+
 ## 10. 审计分析 (Audit)
 
 ### 10.1 审计 API

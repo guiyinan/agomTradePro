@@ -205,6 +205,12 @@ revision 前后哈希和 public projection/snapshot 一致性。多 active profi
 
 ## 新数据面接入清单
 
+ASH-08 的 `simulated_trading.trusted_rebalance_journey` 保存捕获时的完整模拟计划证据：原始来源时钟、manifest 与响应体的不同哈希、账户与目标快照、风险结果和费用/规则/日历版本。供应商可用或失效时间未知时继续为 `null`；本地 `admission_until` 仅是原来源资格器给出的接纳截止，不是供应商时钟。报价量纲来自已资格化的对应报价，不从账户币种补造。
+
+历史或排序最新的计划可以供只读复核；当前家族头、尚未到期和可写权限也不授予执行资格。显式普通用户预览/确认仍走原报价、风险、费用、现金、数量与交易日门禁。持锁复核只读取数据库及保留参考原件，比对当前风险配置、账户原生约束、费用、规则、日历及分类/来源映射版本；实际成交后的现金或持仓变化不应被当成策略版本变化。分类仅允许本地读取时钟不同，原件哈希和源时钟保持原值。
+
+合成端口与 Native PostgreSQL 组件通过不能替代真实当日来源及普通用户浏览器验收。无权、未知、到期或版本变化继续阻断；inactive staff 审批、正式 Evidence、自动下单与实盘边界保持原契约。
+
 财务公告日或报告期不能合成精确源可用时间。Tushare/AKShare 的 date-only financial
 结果保留日期且 `available_at=None`；历史 calendar backfill 的 Application 和直接
 Repository 写入口发布 `FINANCIAL_SOURCE_TIMESTAMP_REQUIRED`，不修改事实行。

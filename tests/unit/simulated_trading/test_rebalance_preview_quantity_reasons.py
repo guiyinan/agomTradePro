@@ -27,6 +27,11 @@ class _ExecutionEvidence:
     def read_identity(self, *, asset_code: str, as_of: datetime) -> dict[str, object]:
         return {"security_id": "fixture:SZ:000001.SZ"}
 
+    def read_asset_type_classification(
+        self, *, identity: dict[str, object], asset_code: str, as_of: datetime
+    ) -> tuple[str, dict[str, object]]:
+        return "equity", {"simulated_asset_type": "equity", "content_hash": "c" * 64}
+
     def read_quantity_rule(
         self,
         *,

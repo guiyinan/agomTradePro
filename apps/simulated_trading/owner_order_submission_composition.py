@@ -67,6 +67,9 @@ from apps.simulated_trading.application.owner_order_submission import (
 from apps.simulated_trading.application.portfolio_risk_execution_gate import (
     ConfiguredPortfolioRiskLockedOrderGuard,
 )
+from apps.simulated_trading.application.transition_plan_execution import (
+    TransitionPlanLockedActionGuard,
+)
 from apps.simulated_trading.close_snapshot_stop_loss_composition import (
     build_close_stop_loss_audit,
     capture_close_stop_loss_observation,
@@ -902,6 +905,10 @@ class _AutomaticStopLossMarketProvider:
 
 
 class _GuardedRepositoryFactory:
+    def __init__(self, transition_plan_guard: TransitionPlanLockedActionGuard | None) -> None:
+        """Keep the same injected plan-context guard through explicit confirmation."""
+        self._transition_plan_guard = transition_plan_guard
+
     def build(
         self, *, guard: SimulatedOrderSubmissionGuard
     ) -> DjangoSimulatedOrderReservationRepository:
@@ -910,13 +917,22 @@ class _GuardedRepositoryFactory:
             using=DEFAULT_DB_ALIAS,
             submission_guard=guard,
             portfolio_risk_guard=ConfiguredPortfolioRiskLockedOrderGuard(using=DEFAULT_DB_ALIAS),
+            transition_plan_guard=self._transition_plan_guard,
         )
 
 
 def build_owner_order_submission_use_case(
-    *, market_purpose: str = "local_simulation_only"
+    *,
+    market_purpose: str = "local_simulation_only",
+    transition_plan_guard: TransitionPlanLockedActionGuard | None = None,
 ) -> OwnerOrderSubmissionUseCase:
     """Compose lazy owner ports without creating an order or fetching a quote."""
+    if transition_plan_guard is None:
+        from apps.simulated_trading.transition_plan_journey_composition import (
+            build_configured_transition_plan_guard,
+        )
+
+        transition_plan_guard = build_configured_transition_plan_guard(using=DEFAULT_DB_ALIAS)
     environment = _runtime_environment_from_settings_module()
     clock = _ServerUTCClock()
     identities = build_current_reference_identity_reader(runtime_environment=environment)
@@ -939,8 +955,9 @@ def build_owner_order_submission_use_case(
         repository=DjangoSimulatedOrderReservationRepository(
             using=DEFAULT_DB_ALIAS,
             portfolio_risk_guard=ConfiguredPortfolioRiskLockedOrderGuard(using=DEFAULT_DB_ALIAS),
+            transition_plan_guard=transition_plan_guard,
         ),
-        repository_factory=_GuardedRepositoryFactory(),
+        repository_factory=_GuardedRepositoryFactory(transition_plan_guard),
         market_factory=PurposeOrderMarketFactory(
             intraday=_SinaMarketFactory(environment=environment, clock=clock, preparer=preparer),
             close=CloseSnapshotMarketFactory(

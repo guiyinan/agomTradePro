@@ -4112,7 +4112,7 @@
           "imports": 3
         },
         "simulated_trading": {
-          "imports": 66
+          "imports": 68
         },
         "strategy": {
           "imports": 1
@@ -7803,6 +7803,9 @@
         "research": {
           "imports": 50
         },
+        "simulated_trading": {
+          "imports": 23
+        },
         "strategy": {
           "imports": 1
         }
@@ -8041,6 +8044,30 @@
           "TransitionPlanInactiveReceiptReaderCorruption",
           "TransitionPlanInactiveReceiptReaderUnavailable"
         ],
+        "application/transition_plan_lifecycle.py": [
+          "CreateInitialTransitionPlanRevisionUseCase",
+          "CreateTransitionPlanSuccessorCommand",
+          "CreateTransitionPlanSuccessorUseCase",
+          "GetExactTransitionPlanRevisionQuery",
+          "GetExactTransitionPlanRevisionUseCase",
+          "ListTransitionPlanRevisionsQuery",
+          "ListTransitionPlanRevisionsUseCase",
+          "RequestTransitionPlanRevisionReview",
+          "RequestTransitionPlanRevisionReviewUseCase",
+          "TransitionPlanCurrentPolicyPinsValidator",
+          "TransitionPlanReviewArtifactIdentity",
+          "TransitionPlanRevisionAuthorizer",
+          "TransitionPlanRevisionBlocked",
+          "TransitionPlanRevisionClock",
+          "TransitionPlanRevisionConflict",
+          "TransitionPlanRevisionCorruption",
+          "TransitionPlanRevisionPreparationProvider",
+          "TransitionPlanRevisionRepository",
+          "TransitionPlanRevisionRequest",
+          "TransitionPlanRevisionReviewSubmission",
+          "TransitionPlanRevisionUnavailable",
+          "derive_transition_plan_review_artifact_identity"
+        ],
         "application/transition_plan_order_reader.py": [
           "ExactActiveTransitionPlanDefinitionProvider",
           "ExactActiveTransitionPlanOrderDefinition",
@@ -8066,9 +8093,9 @@
         ]
       },
       "layers": {
-        "application": 25,
-        "domain": 48,
-        "infrastructure": 73,
+        "application": 26,
+        "domain": 51,
+        "infrastructure": 75,
         "interface": 4,
         "root": 13
       }
@@ -9552,7 +9579,7 @@
           "imports": 2
         },
         "simulated_trading": {
-          "imports": 116
+          "imports": 139
         }
       },
       "depends_on": {
@@ -10889,7 +10916,7 @@
           ]
         },
         "data_center": {
-          "imports": 66,
+          "imports": 68,
           "target_layers": [
             "application",
             "calendar_publication_operations_composition",
@@ -10905,6 +10932,14 @@
           "imports": 1,
           "target_layers": [
             "application"
+          ]
+        },
+        "portfolio": {
+          "imports": 23,
+          "target_layers": [
+            "application",
+            "domain",
+            "infrastructure"
           ]
         },
         "pulse": {
@@ -10926,7 +10961,7 @@
           ]
         },
         "risk_center": {
-          "imports": 116,
+          "imports": 139,
           "target_layers": [
             "application",
             "domain",
@@ -10949,7 +10984,7 @@
           ]
         },
         "strategy": {
-          "imports": 18,
+          "imports": 19,
           "target_layers": [
             "application"
           ]
@@ -11294,7 +11329,8 @@
           "ManualSimulatedTradeResult",
           "OwnedManualTradeReader",
           "SettlementBoundManualTradeExecutor",
-          "SimulatedTradeExecutionReadbackUnknown"
+          "SimulatedTradeExecutionReadbackUnknown",
+          "UnsupportedManualInstrument"
         ],
         "application/order_history.py": [
           "OrderDecisionHistoryPage",
@@ -11351,6 +11387,9 @@
           "OwnerOrderFillTarget",
           "OwnerOrderOperationsUseCase",
           "OwnerOrderTargetReader"
+        ],
+        "application/owner_order_payloads.py": [
+          "owner_order_response_payload"
         ],
         "application/owner_order_submission.py": [
           "GuardedOrderSubmissionRepositoryFactory",
@@ -11430,6 +11469,7 @@
           "configure_portfolio_risk_service",
           "get_owner_portfolio_pressure_options",
           "get_owner_portfolio_risk",
+          "prepare_owned_portfolio_plan_context",
           "run_owner_portfolio_pressure",
           "validate_owner_portfolio_order",
           "validate_owner_portfolio_reserved_fill",
@@ -11506,6 +11546,55 @@
           "AccountReadinessRepairResult",
           "get_application_user_by_id",
           "repair_personal_account_readiness"
+        ],
+        "application/rebalance_journey_authorization.py": [
+          "RebalanceJourneyAccountAuthorizer"
+        ],
+        "application/rebalance_journey_current_pins.py": [
+          "JourneyCurrentPolicyPinsValidator"
+        ],
+        "application/rebalance_journey_order_adapters.py": [
+          "JourneyPlanOrderPreviewer",
+          "JourneyPlanProgressReader"
+        ],
+        "application/rebalance_journey_preparation.py": [
+          "PortfolioJourneyPreparationProvider"
+        ],
+        "application/rebalance_journey_preparation_support.py": [
+          "bind_plan_execution_calendar",
+          "build_plan_risk_binding",
+          "resolve_plan_target_assets",
+          "verify_preview_asset_math",
+          "verify_preview_resources"
+        ],
+        "application/rebalance_journey_public.py": [
+          "RebalanceJourneyAccessDenied",
+          "RebalanceJourneyCommand",
+          "RebalanceJourneyService",
+          "RebalanceJourneyUnavailable",
+          "configure_rebalance_journey_service",
+          "run_rebalance_journey"
+        ],
+        "application/rebalance_journey_read_consistency.py": [
+          "plan_preview_reservation_read_reasons"
+        ],
+        "application/rebalance_journey_readers.py": [
+          "JourneyPreviewBuilderFactory",
+          "JourneyRuleRecordReader",
+          "ServerRebalanceJourneyReads"
+        ],
+        "application/rebalance_journey_service.py": [
+          "JourneyPlanOrderPreviewer",
+          "JourneyPlanProgressReader",
+          "JourneyPreparationFactory",
+          "RebalanceJourneyApplication",
+          "retained_plan_reference_price_basis"
+        ],
+        "application/rebalance_journey_sources.py": [
+          "bind_prepared_plan_sources"
+        ],
+        "application/rebalance_plan_capture.py": [
+          "CapturingRebalancePlanPreviewBuilder"
         ],
         "application/rebalance_plan_preview.py": [
           "ReadOnlyRebalancePlanPreviewBuilder"
@@ -11686,6 +11775,23 @@
         "application/trade_pnl_summary.py": [
           "summarize_portfolio_trade_pnl"
         ],
+        "application/transition_plan_execution.py": [
+          "ExactTransitionPlanRevisionReader",
+          "PlanOrderPreview",
+          "PlanOrderPreviewCommand",
+          "PreviewTransitionPlanOrderUseCase",
+          "TransitionPlanLockedActionGuard"
+        ],
+        "application/transition_plan_execution_progress.py": [
+          "GetTransitionPlanExecutionProgressUseCase",
+          "PlanExecutionAccountReconciliation",
+          "PlanExecutionHistoryRead",
+          "PlanExecutionHistoryReader",
+          "PlanExecutionProgressQuery",
+          "SimulatedTradeExecutionClock",
+          "TransitionPlanExecutionProgress",
+          "TransitionPlanFamilyHeadReader"
+        ],
         "application/unified_position_service.py": [
           "PositionLifecycleRepositoryProtocol",
           "PositionMutationRepositoryProtocol",
@@ -11707,6 +11813,12 @@
       },
       "http_routes": {
         "interface/api_urls.py": [
+          "accounts/<int:account_id>/rebalance-plans/",
+          "accounts/<int:account_id>/rebalance-plans/<str:plan_id>/",
+          "accounts/<int:account_id>/rebalance-plans/<str:plan_id>/review/",
+          "accounts/<int:account_id>/rebalance-plans/<str:plan_id>/successor/",
+          "accounts/<int:account_id>/rebalance-plans/<str:plan_id>/reconciliation/",
+          "accounts/<int:account_id>/rebalance-plans/<str:plan_id>/orders/<int:order_ordinal>/preview/",
           "",
           "accounts/",
           "accounts/batch-delete/",
@@ -11761,12 +11873,12 @@
         ]
       },
       "layers": {
-        "application": 103,
-        "domain": 35,
-        "infrastructure": 124,
-        "interface": 32,
+        "application": 117,
+        "domain": 36,
+        "infrastructure": 129,
+        "interface": 33,
         "management": 7,
-        "root": 29
+        "root": 30
       },
       "orm_models": {
         "infrastructure/models.py": [
@@ -11789,7 +11901,7 @@
           "imports": 5
         },
         "simulated_trading": {
-          "imports": 18
+          "imports": 19
         },
         "terminal": {
           "imports": 1
@@ -12433,6 +12545,9 @@
         "application/tui_dashboard_result.py": [
           "TuiDashboardResultMixin"
         ],
+        "application/tui_dashboard_row_action_validation.py": [
+          "validate_dashboard_row_actions"
+        ],
         "application/tui_decision_data_presentation.py": [
           "DecisionDataEvidence",
           "DecisionMarketEvidence",
@@ -12499,6 +12614,16 @@
         "application/tui_portfolio_risk_result.py": [
           "portfolio_pressure_task_outcome",
           "project_portfolio_risk_result"
+        ],
+        "application/tui_rebalance_plan_order_results.py": [
+          "PlanOrderGridRow",
+          "PlanOrderProjection",
+          "project_rebalance_plan_order_preview",
+          "project_rebalance_plan_orders"
+        ],
+        "application/tui_rebalance_plan_result.py": [
+          "RebalancePlanTaskResult",
+          "project_rebalance_plan_result"
         ],
         "application/tui_reference_price_result.py": [
           "project_reference_price_context"
@@ -12631,9 +12756,9 @@
         ]
       },
       "layers": {
-        "application": 52,
+        "application": 55,
         "domain": 5,
-        "infrastructure": 95,
+        "infrastructure": 96,
         "interface": 9,
         "management": 7,
         "root": 4

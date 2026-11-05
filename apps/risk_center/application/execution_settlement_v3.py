@@ -88,6 +88,13 @@ class ReadEffectiveExecutionSettlementV3UseCase:
     def execute(self, *, security_id: str, as_of: datetime) -> ExecutionSettlementBundleV3:
         """Return one matching v3 bundle or fail closed on missing or corrupt data."""
 
+        return self.execute_record(security_id=security_id, as_of=as_of).bundle
+
+    def execute_record(
+        self, *, security_id: str, as_of: datetime
+    ) -> ExecutionSettlementV3ReadRecord:
+        """Retain the real database knowledge clock after the existing cutoff checks."""
+
         if (
             type(security_id) is not str
             or not security_id
@@ -150,7 +157,7 @@ class ReadEffectiveExecutionSettlementV3UseCase:
             raise ExecutionSettlementV3Corruption(
                 "settlement repository returned data outside its knowledge or effective window"
             )
-        return bundle
+        return record
 
 
 __all__: tuple[str, ...] = (

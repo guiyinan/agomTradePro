@@ -9,6 +9,9 @@ from uuid import UUID
 
 from django.core import signing
 
+from apps.portfolio.application.transition_plan_lifecycle import (
+    TransitionPlanOrderExecutionBinding,
+)
 from apps.simulated_trading.application.execution_settlement_uow import (
     SimulatedTradeExecutionInputError,
 )
@@ -16,6 +19,10 @@ from apps.simulated_trading.application.owner_order_submission import OwnerOrder
 from apps.simulated_trading.domain.execution_settlement_uow import (
     SimulatedTradeIntent,
     SimulatedTradeSide,
+)
+from apps.simulated_trading.infrastructure.transition_plan_execution_snapshot import (
+    decode_plan_execution_binding,
+    encode_plan_execution_binding,
 )
 
 _SALT = "simulated-trading.owner-order-preview"
@@ -33,7 +40,10 @@ _FIELDS = frozenset(
     }
 )
 _PURPOSE_FIELD = "market_purpose"
+_PLAN_BINDING_FIELD = "transition_plan_binding"
 _FIELDS_WITH_PURPOSE = _FIELDS | {_PURPOSE_FIELD}
+_FIELDS_WITH_PLAN = _FIELDS | {_PLAN_BINDING_FIELD}
+_FIELDS_WITH_PURPOSE_AND_PLAN = _FIELDS | {_PURPOSE_FIELD, _PLAN_BINDING_FIELD}
 _LOCAL_MARKET_PURPOSE = "local_simulation_only"
 _CLOSE_MARKET_PURPOSE = "close_snapshot_simulation"
 _SUPPORTED_MARKET_PURPOSES = frozenset({_LOCAL_MARKET_PURPOSE, _CLOSE_MARKET_PURPOSE})
@@ -146,6 +156,14 @@ class SignedOwnerOrderPreviewCodec:
         # Keep the byte shape of existing local-only tokens stable.
         if binding.market_purpose != _LOCAL_MARKET_PURPOSE:
             payload[_PURPOSE_FIELD] = binding.market_purpose
+        if binding.transition_plan_binding is not None:
+            recorded_at = binding.transition_plan_recorded_at
+            if recorded_at is None:
+                raise SimulatedTradeExecutionInputError("计划版本原始记录时钟缺失")
+            payload[_PLAN_BINDING_FIELD] = encode_plan_execution_binding(
+                binding=binding.transition_plan_binding,
+                revision_recorded_at=recorded_at,
+            )
         return signing.dumps(payload, salt=_SALT, compress=True)
 
     def open(self, token: str) -> OwnerOrderPreviewBinding:
@@ -155,15 +173,24 @@ class SignedOwnerOrderPreviewCodec:
                 raise ValueError("preview token is missing or too large")
             raw_payload = _object(signing.loads(token, salt=_SALT))
             payload_fields = frozenset(raw_payload)
-            if payload_fields == _FIELDS:
+            has_plan_binding = payload_fields in {
+                _FIELDS_WITH_PLAN,
+                _FIELDS_WITH_PURPOSE_AND_PLAN,
+            }
+            if payload_fields in {_FIELDS, _FIELDS_WITH_PLAN}:
                 market_purpose = _LOCAL_MARKET_PURPOSE
-            elif payload_fields == _FIELDS_WITH_PURPOSE:
+            elif payload_fields in {_FIELDS_WITH_PURPOSE, _FIELDS_WITH_PURPOSE_AND_PLAN}:
                 market_purpose = _text(raw_payload[_PURPOSE_FIELD])
                 if market_purpose != _CLOSE_MARKET_PURPOSE:
                     raise ValueError("preview market purpose is unsupported")
             else:
                 raise ValueError("preview fields are incomplete or unknown")
             payload = raw_payload
+            plan_binding: TransitionPlanOrderExecutionBinding | None = None
+            plan_recorded_at: datetime | None = None
+            if has_plan_binding:
+                decoded = decode_plan_execution_binding(payload[_PLAN_BINDING_FIELD])
+                plan_binding, plan_recorded_at = decoded
             values = _object(payload["intent"], _INTENT_FIELDS)
             intent = SimulatedTradeIntent(
                 account_id=_integer(values["account_id"]),
@@ -199,6 +226,8 @@ class SignedOwnerOrderPreviewCodec:
                 expires_at=_datetime(payload["expires_at"]),
                 retained_source=_object(payload["retained_source"]),
                 market_purpose=market_purpose,
+                transition_plan_binding=plan_binding,
+                transition_plan_recorded_at=plan_recorded_at,
             )
         except (signing.BadSignature, ArithmeticError, TypeError, ValueError, KeyError) as error:
             raise SimulatedTradeExecutionInputError("订单预览已损坏，请重新预览") from error

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import date, datetime, tzinfo
 from decimal import Decimal, InvalidOperation
 from typing import Literal
@@ -12,6 +13,7 @@ from apps.risk_center.application.portfolio_pressure_catalogue import (
 )
 from apps.risk_center.application.portfolio_risk_assets import (
     CloseSnapshotSessionEvidenceProvider,
+    PortfolioRiskAssetIdentity,
 )
 from apps.risk_center.application.portfolio_risk_contracts import (
     PortfolioPressureOptionsPayload,
@@ -64,6 +66,9 @@ from apps.simulated_trading.application.portfolio_risk_qualification import (
 )
 from apps.simulated_trading.application.portfolio_risk_resource_ports import (
     PortfolioRiskResourceSnapshotReaderProtocol,
+)
+from apps.simulated_trading.application.rebalance_journey_read_consistency import (
+    plan_preview_reservation_read_reasons,
 )
 from apps.simulated_trading.application.rebalance_plan_preview_contracts import RebalancePlanPreview
 from apps.simulated_trading.domain.execution_settlement_uow import SimulatedTradeIntent
@@ -128,7 +133,38 @@ class OwnerScopedPortfolioRiskService:
     ) -> PortfolioRiskReportPayload:
         """Recheck every candidate order and keep unknown or changed input blocked."""
 
+        return self._prepare_preview_context(
+            user_id=user_id, account_id=account_id, preview=preview, require_write=False
+        ).report
+
+    def prepare_plan_context(
+        self, *, user_id: int, account_id: int, preview: RebalancePlanPreview
+    ) -> PreparedPortfolioRisk:
+        """Expose the same qualified source/resource instances to an owned plan writer.
+
+        This is a snapshot, not an execution permission. Original unknown source
+        clocks and failed preview checks remain intact for the plan consumer.
+        """
+
+        return self._prepare_preview_context(
+            user_id=user_id,
+            account_id=account_id,
+            preview=preview,
+            require_write=True,
+            include_waiting_targets=True,
+        )
+
+    def _prepare_preview_context(
+        self,
+        *,
+        user_id: int,
+        account_id: int,
+        preview: RebalancePlanPreview,
+        require_write: bool,
+        include_waiting_targets: bool = False,
+    ) -> PreparedPortfolioRisk:
         proposals: list[ProposedOrder] = []
+        waiting_assets: list[PortfolioRiskAssetIdentity] = []
         reasons: list[str] = []
         for row in preview.asset_items:
             if row.action not in {"buy", "sell"}:
@@ -136,6 +172,18 @@ class OwnerScopedPortfolioRiskService:
             security_id = row.identity.get("security_id") if row.identity is not None else None
             quantity = row.actionable_quantity
             price = row.reference_price
+            if (
+                include_waiting_targets
+                and row.action == "buy"
+                and quantity is None
+                and "BUY_DEPENDS_ON_SETTLED_SALES" in row.reason_codes
+                and type(security_id) is str
+                and bool(security_id.strip())
+                and price is not None
+            ):
+                # Qualify the deferred target's sources, never its unfunded BUY.
+                waiting_assets.append(PortfolioRiskAssetIdentity(row.asset_code, security_id))
+                continue
             if (
                 type(security_id) is not str
                 or not security_id.strip()
@@ -174,6 +222,8 @@ class OwnerScopedPortfolioRiskService:
             account_id=account_id,
             proposals=tuple(proposals),
             execution_session=session,
+            require_write=require_write,
+            additional_assets=tuple(waiting_assets),
         )
         if preview.cash_before is None or preview.cash_before != prepared.snapshot.cash:
             reasons.append("PORTFOLIO_RISK_PREVIEW_CASH_CHANGED")
@@ -183,14 +233,19 @@ class OwnerScopedPortfolioRiskService:
                 row.asset_code, Decimal("0")
             ):
                 reasons.append("PORTFOLIO_RISK_PREVIEW_POSITION_CHANGED")
+        if include_waiting_targets:
+            reasons.extend(plan_preview_reservation_read_reasons(preview, prepared))
         if reasons:
-            return _with_failed_check(
-                prepared.report,
-                dimension="preview_binding",
-                reasons=tuple(dict.fromkeys(reasons)),
-                summary="清单输入已变化或仍不完整，请重新生成后查看风险",
+            return replace(
+                prepared,
+                report=_with_failed_check(
+                    prepared.report,
+                    dimension="preview_binding",
+                    reasons=tuple(dict.fromkeys(reasons)),
+                    summary="清单输入已变化或仍不完整，请重新生成后查看风险",
+                ),
             )
-        return prepared.report
+        return prepared
 
     def validate_order(
         self,

@@ -1,0 +1,723 @@
+"""Contract tests for safe rebalance-plan presentation and progress binding."""
+
+from __future__ import annotations
+
+from apps.terminal.application.tui_rebalance_plan_result import (
+    project_rebalance_plan_result,
+)
+
+_REVISION_HASH = "a" * 64
+_ORDER_HASH = "b" * 64
+_BINDING_HASH = "c" * 64
+
+
+def _plan() -> dict[str, object]:
+    return {
+        "identity": {
+            "plan_id": "internal-plan-17",
+            "family_id": "internal-family-8",
+            "root_plan_id": "internal-root-4",
+            "version": 2,
+            "parent_plan_id": "internal-plan-12",
+            "parent_version": 1,
+            "parent_revision_hash": _REVISION_HASH,
+            "account_id": 9,
+            "owner_user_id": 37,
+            "transition_plan_hash": _ORDER_HASH,
+            "revision_hash": _REVISION_HASH,
+            "recorded_at": "2026-11-05T08:00:00+08:00",
+            "valid_until": "2026-11-05T12:00:00+08:00",
+        },
+        "transition_plan": {"target": "synthetic test fixture"},
+        "basis": {
+            "account": {"account_id": 9, "owner_user_id": 37, "requested_by_user_id": 37},
+            "money_unit": "CNY",
+            "portfolio_snapshot": {
+                "id": "internal-snapshot-1",
+                "content_hash": _ORDER_HASH,
+                "as_of": "2026-11-05T07:59:00+08:00",
+                "source_evidence_hash": _ORDER_HASH,
+            },
+            "decision": {"id": "decision-1", "content_hash": _ORDER_HASH},
+            "target": {
+                "id": "target-1",
+                "content_hash": _ORDER_HASH,
+                "selection_id": "selection-1",
+                "selection_hash": _ORDER_HASH,
+            },
+            "planning_policy": {
+                "kind": "planning",
+                "status": "qualified",
+                "reference_id": "planning-policy",
+                "version": "policy-v2",
+                "content_hash": _ORDER_HASH,
+                "effective_at": "2026-11-05T07:00:00+08:00",
+                "known_at": "2026-11-05T07:00:00+08:00",
+                "valid_until": "2026-11-05T12:00:00+08:00",
+                "reason_code": None,
+            },
+            "risk": {
+                "report_content_hash": _ORDER_HASH,
+                "binding_hash": _ORDER_HASH,
+                "outcome": "allowed",
+                "must_not_use_for_decision": False,
+            },
+            "fee_policy": {
+                "kind": "fee",
+                "status": "qualified",
+                "reference_id": "fee-policy",
+                "version": "fee-v2",
+                "content_hash": _ORDER_HASH,
+                "effective_at": "2026-11-05T07:00:00+08:00",
+                "known_at": "2026-11-05T07:00:00+08:00",
+                "valid_until": "2026-11-05T12:00:00+08:00",
+                "reason_code": None,
+            },
+            "quantity_rule": {
+                "kind": "quantity",
+                "status": "qualified",
+                "reference_id": "q",
+                "version": "1",
+                "content_hash": _ORDER_HASH,
+                "effective_at": "2026-11-05T07:00:00+08:00",
+                "known_at": "2026-11-05T07:00:00+08:00",
+                "valid_until": "2026-11-05T12:00:00+08:00",
+                "reason_code": None,
+            },
+            "settlement_rule": {
+                "kind": "settlement",
+                "status": "qualified",
+                "reference_id": "s",
+                "version": "1",
+                "content_hash": _ORDER_HASH,
+                "effective_at": "2026-11-05T07:00:00+08:00",
+                "known_at": "2026-11-05T07:00:00+08:00",
+                "valid_until": "2026-11-05T12:00:00+08:00",
+                "reason_code": None,
+            },
+            "execution_calendar": {
+                "kind": "calendar",
+                "status": "qualified",
+                "reference_id": "c",
+                "version": "1",
+                "content_hash": _ORDER_HASH,
+                "effective_at": "2026-11-05T07:00:00+08:00",
+                "known_at": "2026-11-05T07:00:00+08:00",
+                "valid_until": "2026-11-05T12:00:00+08:00",
+                "reason_code": None,
+            },
+            "source_bindings": [
+                {
+                    "kind": "industry_membership",
+                    "asset_code": "600000.SH",
+                    "security_id": "private-security-id",
+                    "source_id": "private-source-id",
+                    "source_record_id": "private-record-id",
+                    "manifest_sha256": _ORDER_HASH,
+                    "body_sha256": _ORDER_HASH,
+                    "observation_precision": "date",
+                    "observed_at": None,
+                    "observed_on": "2026-11-04",
+                    "available_at": None,
+                    "known_at": "2026-11-05T07:50:00+08:00",
+                    "decision_cutoff": "2026-11-05T08:00:00+08:00",
+                    "decision_date_cutoff": "2026-11-05",
+                    "source_valid_until": None,
+                    "admission_until": "2026-11-05T23:59:59+08:00",
+                    "qualification_proof_hash": _ORDER_HASH,
+                    "source_purpose": "industry-risk",
+                    "requested_purpose": "risk",
+                    "allowed_purposes": ["risk"],
+                    "restrictions": ["simulation_only"],
+                    "coverage_status": "full",
+                    "qualified": True,
+                    "reason_codes": [],
+                }
+            ],
+            "current_positions": [
+                {
+                    "asset_code": "600000.SH",
+                    "security_id": "private-security-id",
+                    "quantity": "1000",
+                    "available_quantity": "800",
+                    "target_weight": None,
+                    "target_quantity": None,
+                    "reference_price": "13.5",
+                    "market_value": "13500",
+                    "quantity_unit": "share",
+                    "money_unit": "CNY",
+                    "source_binding_hashes": [_ORDER_HASH],
+                }
+            ],
+            "target_positions": [
+                {
+                    "asset_code": "600000.SH",
+                    "security_id": "private-security-id",
+                    "quantity": None,
+                    "available_quantity": None,
+                    "target_weight": "0.5",
+                    "target_quantity": "800",
+                    "reference_price": "13.5",
+                    "market_value": "10800",
+                    "quantity_unit": "share",
+                    "money_unit": "CNY",
+                    "source_binding_hashes": [_ORDER_HASH],
+                }
+            ],
+            "business_date": "2026-11-05",
+            "execution_session": "2026-11-06",
+            "prepared_at": "2026-11-05T08:00:00+08:00",
+            "valid_until": "2026-11-05T12:00:00+08:00",
+        },
+        "orders": [
+            {
+                "ordinal": 0,
+                "order_content_hash": _ORDER_HASH,
+                "plan_order_binding_id": _BINDING_HASH,
+                "asset_code": "600000.SH",
+                "security_id": "private-security-id",
+                "asset_type": "equity",
+                "classification_content_hash": _ORDER_HASH,
+                "side": "sell",
+                "requested_quantity": 200,
+                "approved_quantity": 200,
+                "unapproved_quantity": 0,
+                "quantity_unit": "share",
+                "money_unit": "CNY",
+                "reference_price": "13.5",
+                "reference_price_is_executable_limit": False,
+                "estimated_fee": "2.00",
+                "estimated_fee_is_actual_fee": False,
+                "approved_limit_price": None,
+                "status": "approved",
+                "reason_codes": [],
+            }
+        ],
+        "status": "approved",
+        "automatic_submission": False,
+    }
+
+
+def _progress(*, revision_hash: str = _REVISION_HASH) -> dict[str, object]:
+    return {
+        "plan_identity": {
+            "plan_id": "internal-plan-17",
+            "family_id": "internal-family-8",
+            "root_plan_id": "internal-root-4",
+            "version": 2,
+            "revision_hash": revision_hash,
+            "valid_until": "2026-11-05T12:00:00+08:00",
+        },
+        "orders": [
+            {
+                "order": {
+                    "ordinal": 0,
+                    "plan_order_binding_id": _BINDING_HASH,
+                    "order_content_hash": _ORDER_HASH,
+                    "asset_code": "600000.SH",
+                    "security_id": "private-security-id",
+                    "asset_type": "equity",
+                    "classification_content_hash": _ORDER_HASH,
+                    "side": "sell",
+                    "approved_quantity": 200,
+                    "quantity_unit": "share",
+                    "money_unit": "CNY",
+                },
+                "progress": {
+                    "outcome": "unknown",
+                    "filled_quantity": "0",
+                    "in_flight_quantity": "0",
+                    "released_quantity": "0",
+                    "unreserved_remaining_quantity": None,
+                    "reason_codes": ["SYNTHETIC_UNKNOWN"],
+                },
+                "attempts": [],
+                "can_preview": False,
+                "can_cancel": False,
+                "can_recover": False,
+                "requires_successor": False,
+            }
+        ],
+        "account_reconciliation": {
+            "read_at": "2026-11-05T08:10:00+08:00",
+            "cash_available": None,
+            "money_unit": "CNY",
+            "positions": [
+                {
+                    "asset_code": "600000.SH",
+                    "security_id": "private-security-id",
+                    "quantity": "1000",
+                    "available_quantity": "800",
+                    "quantity_unit": "share",
+                }
+            ],
+            "active_buy_cash_reserved": "0.00",
+            "active_sell_quantity_reserved": "0",
+            "actual_fees_paid": None,
+            "fees_complete": False,
+            "reason_codes": ["SYNTHETIC_UNKNOWN"],
+        },
+    }
+
+
+def _envelope(*, revision_hash: str = _REVISION_HASH) -> dict[str, object]:
+    return {
+        "success": True,
+        "account_id": 9,
+        "plan": _plan(),
+        "review": None,
+        "progress": _progress(revision_hash=revision_hash),
+        "capabilities": {
+            "read_only": False,
+            "can_request_review": False,
+            "can_create_successor": False,
+            "can_preview_order": True,
+        },
+    }
+
+
+def test_exact_progress_shows_unknown_without_zero_filling_or_exposing_internal_ids() -> None:
+    result = project_rebalance_plan_result(
+        "rebalance-plan.read",
+        _envelope(),
+        requested_params={
+            "account_id": 9,
+            "plan_id": "internal-plan-17",
+            "plan_version": 2,
+            "revision_hash": _REVISION_HASH,
+        },
+        http_status=200,
+    )
+
+    rendered = str(result)
+    values = {field["key"]: field["value"] for field in result["fields"]}
+    labels = {field["key"]: field["label"] for field in result["fields"]}
+    assert result["must_not_execute"] is True
+    assert result["outcome"] == "风险检查通过；订单仍须逐项按当前事实重新核对"
+    assert values["execution_permission"] == "未启用；计划不会自动提交或成交"
+    assert values["source_1_observed"] == "2026-11-04"
+    assert values["source_1_valid_until"] == "未提供；保持未知"
+    assert values["source_1_policy_deadline"] == "2026-11-05T23:59:59+08:00"
+    assert values["source_1_available"] == "未提供；保持未知"
+    assert values["saved_money_unit"] == "CNY"
+    assert values["saved_position_1"] == "1000 share"
+    assert values["target_position_1"] == "800 share"
+    assert values["order_1_approved"] == "200 share"
+    assert values["cash_available"] == "未知"
+    assert values["progress_1_remaining"] == "未知"
+    assert values["order_1_fee"] == "2.00 CNY"
+    assert labels["order_1_fee"] == "计划费用估算（非成交费用）"
+    assert values["actual_fees_paid"] == "未知"
+    assert values["fees_complete"] == "否"
+    assert "internal-plan-17" not in rendered
+    assert "private-source-id" not in rendered
+    assert "private-security-id" not in rendered
+    assert _BINDING_HASH not in rendered
+    assert _REVISION_HASH not in rendered
+
+
+def test_readonly_exact_revision_keeps_progress_visible_but_suppresses_write_capabilities() -> None:
+    envelope = _envelope()
+    envelope["capabilities"] = {
+        "read_only": True,
+        "can_request_review": True,
+        "can_create_successor": True,
+        "can_preview_order": True,
+    }
+    progress = envelope["progress"]
+    progress["orders"][0]["can_preview"] = True
+    progress["orders"][0]["can_cancel"] = True
+    progress["orders"][0]["requires_successor"] = True
+
+    result = project_rebalance_plan_result(
+        "rebalance-plan.read",
+        envelope,
+        requested_params={
+            "account_id": 9,
+            "plan_id": "internal-plan-17",
+            "plan_version": 2,
+            "revision_hash": _REVISION_HASH,
+        },
+        http_status=200,
+    )
+
+    values = {field["key"]: field["value"] for field in result["fields"]}
+    assert values["progress_1_filled"] == "0 share"
+    assert values["progress_1_can_reserve"] == "否"
+    assert not any("服务器允许" in step for step in result["next_steps"])
+    assert not any("可继续单笔订单预览" in step for step in result["next_steps"])
+    assert not any("原订单入口单独申请撤销" in step for step in result["next_steps"])
+
+    grid = project_rebalance_plan_result(
+        "rebalance-plan.orders",
+        envelope,
+        requested_params={
+            "account_id": 9,
+            "plan_id": "internal-plan-17",
+            "plan_version": 2,
+            "revision_hash": _REVISION_HASH,
+        },
+        http_status=200,
+    )
+    assert grid["rows"][0]["capability_label"] == "当前不能继续预览"
+    assert not any("申请撤销" in step for step in grid["next_steps"])
+    assert any("只读时可在 TUI“本人模拟下单”任务查看" in step for step in grid["next_steps"])
+
+
+def test_progress_with_different_revision_is_discarded_and_status_does_not_grant_action() -> None:
+    result = project_rebalance_plan_result(
+        "rebalance-plan.read",
+        _envelope(revision_hash="c" * 64),
+        requested_params={
+            "account_id": 9,
+            "plan_id": "internal-plan-17",
+            "plan_version": 2,
+            "revision_hash": _REVISION_HASH,
+        },
+        http_status=200,
+    )
+
+    values = {field["key"]: field["value"] for field in result["fields"]}
+    assert values["progress"] == "暂不可核实；请重新读取对账。"
+    assert not any("可继续单笔订单预览" in step for step in result["next_steps"])
+    assert result["must_not_execute"] is True
+
+
+def test_exact_read_response_cannot_replace_the_selected_plan_revision() -> None:
+    result = project_rebalance_plan_result(
+        "rebalance-plan.read",
+        _envelope(),
+        requested_params={
+            "account_id": 9,
+            "plan_id": "another-plan",
+            "plan_version": 2,
+            "revision_hash": _REVISION_HASH,
+        },
+        http_status=200,
+    )
+
+    assert result["outcome"] == "unknown"
+    assert result["title"] == "调仓计划暂不可展示"
+    assert result["must_not_execute"] is True
+
+
+def test_order_grid_keeps_pins_hidden_and_shows_fill_hold_and_unreserved_separately() -> None:
+    envelope = _envelope()
+    progress = envelope["progress"]
+    progress["orders"][0]["can_preview"] = True
+    progress["orders"][0]["progress"]["filled_quantity"] = "25"
+    progress["orders"][0]["progress"]["in_flight_quantity"] = "50"
+    progress["orders"][0]["progress"]["released_quantity"] = "10"
+    progress["orders"][0]["progress"]["unreserved_remaining_quantity"] = "125"
+    result = project_rebalance_plan_result(
+        "rebalance-plan.orders",
+        envelope,
+        requested_params={
+            "account_id": 9,
+            "plan_id": "internal-plan-17",
+            "plan_version": 2,
+            "revision_hash": _REVISION_HASH,
+        },
+        http_status=200,
+    )
+
+    assert result["kind"] == "datagrid"
+    assert result["rows"][0]["filled_label"] == "25 share"
+    assert result["rows"][0]["in_flight_label"] == "50 share"
+    assert result["rows"][0]["released_label"] == "10 share"
+    assert result["rows"][0]["remaining_label"] == "125 share"
+    assert result["rows"][0]["price_label"] == "13.5 CNY"
+    assert result["rows"][0]["limit_label"] == "计划未设限价；本次仍须明确输入"
+    assert result["rows"][0]["capability_label"] == "可进入当前单笔预览"
+    assert result["rows"][0]["order_ordinal"] == 0
+    assert result["must_not_execute"] is True
+    visible_values = [row[column["key"]] for column in result["columns"] for row in result["rows"]]
+    rendered = str(visible_values)
+    assert "internal-plan-17" not in rendered
+    assert _REVISION_HASH not in rendered
+    assert "order_content_hash" in result["debug_hidden_fields"]
+    assert not any(column["key"] == "order_content_hash" for column in result["columns"])
+    assert _BINDING_HASH not in rendered
+    assert "private-security-id" not in rendered
+
+
+def test_order_grid_routes_saved_order_lifecycle_to_existing_owner_task() -> None:
+    result = project_rebalance_plan_result(
+        "rebalance-plan.orders",
+        _envelope(),
+        requested_params={
+            "account_id": 9,
+            "plan_id": "internal-plan-17",
+            "plan_version": 2,
+            "revision_hash": _REVISION_HASH,
+        },
+        http_status=200,
+    )
+
+    next_steps = result["next_steps"]
+    assert any("本人模拟下单”任务" in step for step in next_steps)
+    assert any("逐单处理" in step and "成交回执" in step for step in next_steps)
+    assert any("计划不会自动撤销、撮合或成交" in step for step in next_steps)
+
+
+def _preview_envelope(*, revision_hash: str = _REVISION_HASH) -> dict[str, object]:
+    plan = _plan()
+    identity = plan["identity"]
+    order = plan["orders"][0]
+    binding: dict[str, object] = {
+        "plan_id": identity["plan_id"],
+        "family_id": identity["family_id"],
+        "root_plan_id": identity["root_plan_id"],
+        "plan_version": identity["version"],
+        "revision_hash": revision_hash,
+        "order_ordinal": 0,
+        "plan_order_binding_id": order["plan_order_binding_id"],
+        "order_content_hash": order["order_content_hash"],
+        "account_id": 9,
+        "owner_user_id": 37,
+        "action_attempt_key": "private-attempt-key",
+        "asset_code": order["asset_code"],
+        "security_id": order["security_id"],
+        "asset_type": order["asset_type"],
+        "classification_content_hash": order["classification_content_hash"],
+        "side": order["side"],
+        "approved_quantity": order["approved_quantity"],
+        "approved_limit_price": None,
+        "quantity_unit": "share",
+        "money_unit": "CNY",
+        "plan_expires_at": identity["valid_until"],
+        "reference_price_is_executable_limit": False,
+        "estimated_fee_is_actual_fee": False,
+    }
+    return {
+        "success": True,
+        "account_id": 9,
+        "plan": plan,
+        "review": None,
+        "progress": _progress(),
+        "capabilities": {"read_only": False, "can_preview_order": True},
+        "preview": {
+            "binding": binding,
+            "revision_recorded_at": identity["recorded_at"],
+            "preview": {
+                "success": True,
+                "outcome": "success",
+                "read_only": True,
+                "account_id": 9,
+                "execution_submitted": False,
+                "purpose": "close_snapshot_simulation",
+                "market_purpose": "close_snapshot_simulation",
+                "market_notice": "盘后来源仅供受限模拟使用。",
+                "order": {
+                    "idempotency_key": "private-order-key",
+                    "security_id": "private-security-id",
+                    "side": "sell",
+                    "quantity": "100",
+                    "limit_price": "13.40",
+                    "fee_estimate": "1.20",
+                    "fee_budget": None,
+                    "cash_reserved": "0",
+                    "shares_reserved": "100",
+                    "available_cash": None,
+                    "available_shares": "700",
+                    "withdrawable_cash": None,
+                    "status": "preview",
+                },
+                "market": {
+                    "market_observed_at": "2026-11-04T15:00:00+08:00",
+                    "market_available_at": "2026-11-04T15:00:05+08:00",
+                    "market_valid_until": None,
+                    "market_session": "closed",
+                    "trade_date": "2026-11-04",
+                    "security_state": "trading_at_quote_time",
+                    "price_boundary_mode": "policy_bound",
+                },
+            },
+        },
+        "continuation": {
+            "action_key": "simulated-trading.order-confirm",
+            "input": {
+                "account_id": "9",
+                "order_key": "private-order-key",
+                "preview_token": "secret-preview-token",
+            },
+            "expires_at": "2026-11-05T08:30:00+08:00",
+        },
+    }
+
+
+def test_plan_order_preview_displays_only_exact_single_order_preview_and_never_token() -> None:
+    result = project_rebalance_plan_result(
+        "rebalance-plan.preview-order",
+        _preview_envelope(),
+        requested_params={
+            "account_id": 9,
+            "plan_id": "internal-plan-17",
+            "plan_version": 2,
+            "revision_hash": _REVISION_HASH,
+            "order_ordinal": 0,
+            "order_content_hash": _ORDER_HASH,
+            "plan_order_binding_id": _BINDING_HASH,
+            "quantity": "100",
+            "limit_price": "13.40",
+        },
+        http_status=200,
+    )
+
+    fields = {field["key"]: field["value"] for field in result["fields"]}
+    assert result["read_only"] is True
+    assert result["must_not_execute"] is True
+    assert fields["requested_quantity"] == "100 share"
+    assert fields["requested_limit"] == "13.40 CNY"
+    assert fields["fee_estimate"] == "1.20 CNY"
+    assert fields["fee_budget"] == "未知"
+    assert fields["available_cash"] == "未知"
+    assert fields["market_observed_at"] == "2026-11-04T15:00:00+08:00"
+    assert fields["market_valid_until"] == "未提供；保持未知"
+    rendered = str(result)
+    assert "secret-preview-token" not in rendered
+    assert "private-order-key" not in rendered
+    assert "private-attempt-key" not in rendered
+    assert "internal-plan-17" not in rendered
+    assert _REVISION_HASH not in rendered
+
+
+def test_readonly_scope_cannot_render_a_preview_even_if_order_facts_claim_ready() -> None:
+    envelope = _preview_envelope()
+    envelope["capabilities"] = {"read_only": True, "can_preview_order": True}
+    result = project_rebalance_plan_result(
+        "rebalance-plan.preview-order",
+        envelope,
+        requested_params={
+            "account_id": 9,
+            "plan_id": "internal-plan-17",
+            "plan_version": 2,
+            "revision_hash": _REVISION_HASH,
+            "order_ordinal": 0,
+            "order_content_hash": _ORDER_HASH,
+            "plan_order_binding_id": _BINDING_HASH,
+            "quantity": "100",
+            "limit_price": "13.40",
+        },
+        http_status=200,
+    )
+
+    assert result["status"] == "需要重新读取"
+    assert result["must_not_execute"] is True
+
+
+def test_plan_order_preview_rejects_a_binding_for_another_revision() -> None:
+    result = project_rebalance_plan_result(
+        "rebalance-plan.preview-order",
+        _preview_envelope(revision_hash="d" * 64),
+        requested_params={
+            "account_id": 9,
+            "plan_id": "internal-plan-17",
+            "plan_version": 2,
+            "revision_hash": _REVISION_HASH,
+            "order_ordinal": 0,
+            "order_content_hash": _ORDER_HASH,
+            "plan_order_binding_id": _BINDING_HASH,
+            "quantity": "100",
+            "limit_price": "13.40",
+        },
+        http_status=200,
+    )
+
+    assert result["status"] == "需要重新读取"
+    assert result["must_not_execute"] is True
+
+
+def test_plan_order_preview_rejects_a_continuation_for_another_attempt() -> None:
+    envelope = _preview_envelope()
+    envelope["continuation"]["input"]["order_key"] = "different-order-key"
+    result = project_rebalance_plan_result(
+        "rebalance-plan.preview-order",
+        envelope,
+        requested_params={
+            "account_id": 9,
+            "plan_id": "internal-plan-17",
+            "plan_version": 2,
+            "revision_hash": _REVISION_HASH,
+            "order_ordinal": 0,
+            "order_content_hash": _ORDER_HASH,
+            "plan_order_binding_id": _BINDING_HASH,
+            "quantity": "100",
+            "limit_price": "13.40",
+        },
+        http_status=200,
+    )
+
+    assert result["status"] == "需要重新读取"
+    assert result["must_not_execute"] is True
+
+
+def test_empty_list_keeps_create_next_step_and_never_invents_progress() -> None:
+    result = project_rebalance_plan_result(
+        "rebalance-plan.list",
+        {"success": True, "account_id": 9, "plans": []},
+        requested_params={"account_id": 9},
+        http_status=200,
+    )
+
+    assert result["rows"] == []
+    assert result["empty_message"] == "当前账户还没有已保存的调仓计划。"
+    assert "生成新计划" in result["business_summary"]
+    assert result["read_only"] is True
+
+
+def test_account_summary_discloses_missing_money_unit_and_valuation_time() -> None:
+    result = project_rebalance_plan_result(
+        "rebalance-plan.account-detail",
+        {
+            "success": True,
+            "account": {
+                "account_id": 9,
+                "account_name": "本人模拟账户",
+                "current_cash": "25000.00",
+                "cash_known": True,
+                "cash_reconciliation_status": "unknown",
+                "current_market_value": "60000.00",
+                "total_value": None,
+            },
+        },
+        requested_params={"account_id": 9},
+        http_status=200,
+    )
+
+    values = {field["key"]: field["value"] for field in result["fields"]}
+    assert values["current_cash"] == "25000.00 单位未提供"
+    assert values["current_market_value"] == "60000.00 单位未提供"
+    assert values["valuation_time"] == "账户摘要未提供；不标为实时行情"
+    assert values["cash_reconciliation"] == "未知或未完整核对"
+    assert result["must_not_execute"] is True
+
+
+def test_account_row_projector_hides_account_id_and_auto_execution_flag() -> None:
+    result = project_rebalance_plan_result(
+        "rebalance-plan.accounts",
+        {
+            "success": True,
+            "count": 1,
+            "accounts": [
+                {
+                    "account_id": 9,
+                    "account_name": "模拟账户 A",
+                    "current_cash": "25000.00",
+                    "cash_known": True,
+                    "current_market_value": None,
+                    "auto_trading_enabled": False,
+                    "cash_reconciliation_status": "unknown",
+                }
+            ],
+        },
+        requested_params=None,
+        http_status=200,
+    )
+
+    assert result["rows"][0]["account_id"] == 9
+    assert "account_id" in result["debug_hidden_fields"]
+    visible_values = [result["rows"][0][column["key"]] for column in result["columns"]]
+    assert "9" not in str(visible_values)
+    assert result["rows"][0]["progress_label"] == "未知"
+    assert "auto_trading_enabled" not in str(result)

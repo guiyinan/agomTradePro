@@ -13,6 +13,9 @@ from typing import TypeAlias, cast
 from django.db import connections
 from django.db.utils import DEFAULT_DB_ALIAS
 
+from apps.portfolio.application.transition_plan_lifecycle import (
+    TransitionPlanOrderExecutionBinding,
+)
 from apps.risk_center.domain.execution_settlement_v3 import ExecutionSettlementBundleV3
 from apps.simulated_trading.application.execution_settlement_uow import (
     SimulatedTradeExecutionBlocked,
@@ -42,6 +45,11 @@ from apps.simulated_trading.domain.order_reservation import (
 from .order_reservation_models import SimulatedOrderReservationModel
 from .order_reservation_sqlite_precision import PrecisionFamily, require_sqlite_values
 from .simulated_account_trade_models import PositionModel, SimulatedAccountModel
+from .transition_plan_execution_snapshot import (
+    decode_plan_execution_binding,
+    encode_plan_execution_binding,
+    validate_binding_matches_intent,
+)
 
 JSONScalar: TypeAlias = str | int | float | bool | None
 JSONValue: TypeAlias = JSONScalar | list["JSONValue"] | dict[str, "JSONValue"]
@@ -129,6 +137,8 @@ def plan_snapshot_payload(
     plan: ReservationPlan,
     bundle: ExecutionSettlementBundleV3,
     fee_policy: SimulatedFeePolicyV2,
+    transition_plan_binding: TransitionPlanOrderExecutionBinding | None = None,
+    transition_plan_recorded_at: datetime | None = None,
 ) -> dict[str, JSONValue]:
     """Seal the exact plan, rule, calendar, identity, and FeeV2 evidence."""
 
@@ -187,6 +197,15 @@ def plan_snapshot_payload(
             },
             "fee_policy_v2": fee_policy.to_payload(),
         }
+        if transition_plan_binding is not None:
+            if transition_plan_recorded_at is None:
+                raise _snapshot_error("plan binding lacks its original revision clock")
+            payload["transition_plan_binding"] = encode_plan_execution_binding(
+                binding=transition_plan_binding,
+                revision_recorded_at=transition_plan_recorded_at,
+            )
+        elif transition_plan_recorded_at is not None:
+            raise _snapshot_error("plan revision clock has no exact binding")
         return canonical_snapshot(payload)
     except SimulatedTradeExecutionBlocked:
         raise
@@ -302,7 +321,25 @@ def validated_plan_snapshot(
         raise _snapshot_error("stored reservation snapshot hash does not match payload")
     if snapshot.get("schema") != _PLAN_SCHEMA:
         raise _snapshot_error("stored reservation snapshot schema is unsupported")
+    if "transition_plan_binding" in snapshot:
+        plan_binding, revision_recorded_at = decode_plan_execution_binding(
+            snapshot["transition_plan_binding"]
+        )
+        if revision_recorded_at >= plan_binding.plan_expires_at:
+            raise _snapshot_error("stored plan binding clock is outside its validity window")
+        validate_binding_matches_intent(
+            binding=plan_binding,
+            intent=_intent_from_snapshot(snapshot),
+        )
     return snapshot
+
+
+def decode_order_reservation_intent(row: SimulatedOrderReservationModel) -> SimulatedTradeIntent:
+    """Return the exact caller intent only after full reservation-column validation."""
+
+    decode_order_reservation(row)
+    snapshot = validated_plan_snapshot(row)
+    return _intent_from_snapshot(snapshot)
 
 
 def stored_submission_market_purpose(snapshot: dict[str, object]) -> str:

@@ -48,6 +48,7 @@
 | 架构设计 | [专题目录：架构](CATALOG.md#架构设计) |
 | 业务规则 | [专题目录：业务](CATALOG.md#业务逻辑) |
 | 开发与测试 | [专题目录](CATALOG.md)、[测试 README](../tests/README.md) |
+| A 股模拟调仓验收 | [ASH-08 结论与原件索引](testing/a-share-ash08-rebalance-journey-2026-11-05.md) |
 | 实施计划 | [计划索引](plans/README.md)、[本轮治理计划](plans/scripts-docs-mcp-governance-plan-2026-10-14.md) |
 | 部署与运行 | [部署 README](deployment/README.md)、[监控 README](../monitoring/README.md) |
 | TUI 前端 | [Workbench 契约](development/tui-workbench.md)、[前端 README](../frontend/tui-workbench/README.md) |

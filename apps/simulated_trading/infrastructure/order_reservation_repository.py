@@ -10,6 +10,9 @@ from typing import TypeAlias, cast
 from django.contrib.auth import get_user_model
 from django.db import IntegrityError, transaction
 
+from apps.portfolio.application.transition_plan_lifecycle import (
+    TransitionPlanOrderExecutionBinding,
+)
 from apps.risk_center.domain.execution_settlement_v3 import ExecutionSettlementBundleV3
 from apps.simulated_trading.application.execution_settlement_uow import (
     SimulatedTradeAccountScopeUnavailable,
@@ -28,6 +31,9 @@ from apps.simulated_trading.application.portfolio_risk_execution_gate import (
 )
 from apps.simulated_trading.application.portfolio_risk_locked_transition import (
     revalidate_locked_portfolio_order,
+)
+from apps.simulated_trading.application.transition_plan_execution import (
+    TransitionPlanLockedActionGuard,
 )
 from apps.simulated_trading.domain.execution_current_reference import (
     SettlementExecutionPlanV3,
@@ -64,9 +70,7 @@ from apps.simulated_trading.infrastructure.order_reservation_codec import (
     JSONValue,
     canonical_snapshot,
     current_order_reservation_book,
-    decimal_field,
     decode_order_reservation,
-    fee_policy_from_snapshot,
     plan_snapshot_payload,
     require_stored_submission_market_purpose,
     snapshot_digest,
@@ -86,6 +90,21 @@ from apps.simulated_trading.infrastructure.order_reservation_fill_release_storag
 )
 from apps.simulated_trading.infrastructure.order_reservation_guard import (
     lock_active_order_reservations,
+)
+from apps.simulated_trading.infrastructure.order_reservation_identity_guard import (
+    require_order_reservation_owner_key,
+)
+from apps.simulated_trading.infrastructure.order_reservation_repository_support import (
+    require_exact_order_retry,
+    require_locked_reservation_source_precision,
+    validate_reservation_owner_row,
+    validate_reservation_storage_text,
+)
+from apps.simulated_trading.infrastructure.transition_plan_reservation_history import (
+    require_no_conflicting_plan_reservation_history,
+    require_stored_transition_plan_binding,
+    validate_locked_transition_plan_binding,
+    validate_transition_plan_intent_binding,
 )
 from core.exceptions import ResourceNotFoundError
 
@@ -138,6 +157,7 @@ class DjangoSimulatedOrderReservationRepository:
         using: str,
         submission_guard: SimulatedOrderSubmissionGuard | None = None,
         portfolio_risk_guard: PortfolioRiskLockedOrderGuard | None = None,
+        transition_plan_guard: TransitionPlanLockedActionGuard | None = None,
     ) -> None:
         """Bind all reservation writes and reads to one explicit database alias."""
 
@@ -147,6 +167,7 @@ class DjangoSimulatedOrderReservationRepository:
         self._execution = DjangoSimulatedTradeExecutionRepository(using=using)
         self._submission_guard = submission_guard
         self._portfolio_risk_guard = portfolio_risk_guard
+        self._transition_plan_guard = transition_plan_guard
 
     def require_owned_active_account(self, *, account_id: int, user_id: int) -> None:
         """Authorize a new preview before any outbound source capture occurs."""
@@ -177,8 +198,8 @@ class DjangoSimulatedOrderReservationRepository:
             position = self._execution._locked_position(intent.account_id, intent.asset_code)
             pending = self._execution._locked_pending(intent.account_id, intent.asset_code)
             require_v4_pending_chain_match(pending_rows=pending, entries=chains)
-            self._require_sqlite_locked_sources(
-                account=account, position=position, pending_rows=pending
+            require_locked_reservation_source_precision(
+                account=account, position=position, pending_rows=pending, using=self._using
             )
             now = self._execution._now(clock)
             plan.calendar_evidence.validate_for(now)
@@ -245,7 +266,7 @@ class DjangoSimulatedOrderReservationRepository:
             row = self._locked_reservation_by_key(account_id=account_id, idempotency_key=order_key)
             if row is None:
                 raise ResourceNotFoundError("当前未找到原订单，请保留原定位继续核对")
-            self._validate_owner_row(row=row, account=account, user_id=user_id)
+            validate_reservation_owner_row(row=row, account=account, user_id=user_id)
             if type(row.pk) is not int:
                 raise SimulatedTradeExecutionBlocked("原订单编号无效")
             snapshot = validated_plan_snapshot(row)
@@ -276,6 +297,8 @@ class DjangoSimulatedOrderReservationRepository:
         intent: SimulatedTradeIntent,
         fee_budget: Decimal | None,
         market_purpose: str | None = None,
+        transition_plan_binding: TransitionPlanOrderExecutionBinding | None = None,
+        transition_plan_recorded_at: datetime | None = None,
     ) -> OrderReservationResult | None:
         """Replay an exact hold while checking any signed owner-order purpose."""
 
@@ -297,12 +320,16 @@ class DjangoSimulatedOrderReservationRepository:
             )
             if row is None:
                 return None
-            self._validate_owner_row(row=row, account=account, user_id=intent.user_id)
-            require_stored_submission_market_purpose(
-                snapshot=validated_plan_snapshot(row), expected=market_purpose
+            validate_reservation_owner_row(row=row, account=account, user_id=intent.user_id)
+            snapshot = validated_plan_snapshot(row)
+            require_stored_submission_market_purpose(snapshot=snapshot, expected=market_purpose)
+            require_stored_transition_plan_binding(
+                snapshot=snapshot,
+                expected_binding=transition_plan_binding,
+                expected_recorded_at=transition_plan_recorded_at,
             )
             reservation = self._decode_model(row)
-            self._require_exact_retry(
+            require_exact_order_retry(
                 row=row,
                 intent=intent,
                 request=request,
@@ -326,6 +353,8 @@ class DjangoSimulatedOrderReservationRepository:
         execution_bundle: ExecutionSettlementBundleV3,
         fee_budget: Decimal | None,
         clock: SimulatedTradeExecutionClock,
+        transition_plan_binding: TransitionPlanOrderExecutionBinding | None = None,
+        transition_plan_recorded_at: datetime | None = None,
     ) -> OrderReservationResult:
         """Recheck evidence under ledger locks, then atomically create one hold."""
 
@@ -341,6 +370,29 @@ class DjangoSimulatedOrderReservationRepository:
             )
         intent = plan.intent
         request = _request_from_intent(intent, fee_budget=fee_budget)
+        transition_plan_guard = self._transition_plan_guard
+        if transition_plan_binding is None and transition_plan_recorded_at is not None:
+            raise SimulatedTradeExecutionBlocked(
+                "plan execution binding and its original clock must be supplied together",
+                code="TRANSITION_PLAN_EXECUTION_BINDING_INVALID",
+            )
+        if transition_plan_binding is not None:
+            if transition_plan_recorded_at is None:
+                raise SimulatedTradeExecutionBlocked(
+                    "plan execution binding and its original clock must be supplied together",
+                    code="TRANSITION_PLAN_EXECUTION_BINDING_INVALID",
+                )
+            if transition_plan_guard is None:
+                raise SimulatedTradeExecutionBlocked(
+                    "plan execution guard is not configured",
+                    code="TRANSITION_PLAN_GUARD_UNAVAILABLE",
+                )
+            validate_transition_plan_intent_binding(
+                binding=transition_plan_binding,
+                intent=intent,
+                owner_user_id=intent.user_id,
+                recorded_at=transition_plan_recorded_at,
+            )
         submission_market_purpose = (
             self._submission_guard.market_purpose if self._submission_guard else None
         )
@@ -407,13 +459,21 @@ class DjangoSimulatedOrderReservationRepository:
                     idempotency_key=intent.idempotency_key,
                 )
                 if existing is not None:
-                    self._validate_owner_row(row=existing, account=account, user_id=intent.user_id)
+                    validate_reservation_owner_row(
+                        row=existing, account=account, user_id=intent.user_id
+                    )
+                    existing_snapshot = validated_plan_snapshot(existing)
                     require_stored_submission_market_purpose(
-                        snapshot=validated_plan_snapshot(existing),
+                        snapshot=existing_snapshot,
                         expected=submission_market_purpose,
                     )
+                    require_stored_transition_plan_binding(
+                        snapshot=existing_snapshot,
+                        expected_binding=transition_plan_binding,
+                        expected_recorded_at=transition_plan_recorded_at,
+                    )
                     reservation = self._decode_model(existing)
-                    self._require_exact_retry(
+                    require_exact_order_retry(
                         row=existing,
                         intent=intent,
                         request=request,
@@ -459,10 +519,11 @@ class DjangoSimulatedOrderReservationRepository:
                     pending_rows=pending_rows,
                     entries=v4_chains,
                 )
-                self._require_sqlite_locked_sources(
+                require_locked_reservation_source_precision(
                     account=account,
                     position=position,
                     pending_rows=pending_rows,
+                    using=self._using,
                 )
                 pre_release_book = self._current_book(
                     account=account,
@@ -488,6 +549,38 @@ class DjangoSimulatedOrderReservationRepository:
                         as_of=now,
                         read_clock=lambda: self._execution._now(clock),
                         read_execution_session=plan.calendar_evidence.current_open_session,
+                    )
+                if transition_plan_binding is not None:
+                    if transition_plan_guard is None:
+                        raise SimulatedTradeExecutionBlocked(
+                            "plan execution guard is not configured",
+                            code="TRANSITION_PLAN_GUARD_UNAVAILABLE",
+                        )
+                    if transition_plan_recorded_at is None:
+                        raise SimulatedTradeExecutionBlocked(
+                            "plan binding lacks its original revision clock",
+                            code="TRANSITION_PLAN_EXECUTION_BINDING_INVALID",
+                        )
+                    locked_revision = transition_plan_guard.validate_locked_action(
+                        binding=transition_plan_binding,
+                        account_id=intent.account_id,
+                        owner_user_id=intent.user_id,
+                        as_of=now,
+                    )
+                    validate_locked_transition_plan_binding(
+                        revision=locked_revision,
+                        binding=transition_plan_binding,
+                        intent=intent,
+                        owner_user_id=intent.user_id,
+                        as_of=now,
+                        recorded_at=transition_plan_recorded_at,
+                    )
+                    require_no_conflicting_plan_reservation_history(
+                        using=self._using,
+                        account_id=intent.account_id,
+                        owner_user_id=intent.user_id,
+                        binding=transition_plan_binding,
+                        current_idempotency_key=intent.idempotency_key,
                     )
                 try:
                     _validate_reservation_plan_bundle_binding(
@@ -524,10 +617,11 @@ class DjangoSimulatedOrderReservationRepository:
                     ),
                 )
                 if position is not None:
-                    self._require_sqlite_locked_sources(
+                    require_locked_reservation_source_precision(
                         account=account,
                         position=position,
                         pending_rows=[],
+                        using=self._using,
                     )
                     self._execution._validate_position(position)
                 book = self._current_book(
@@ -580,6 +674,8 @@ class DjangoSimulatedOrderReservationRepository:
                     plan=plan,
                     bundle=execution_bundle,
                     fee_policy=fee_policy,
+                    transition_plan_binding=transition_plan_binding,
+                    transition_plan_recorded_at=transition_plan_recorded_at,
                 )
                 if self._submission_guard is not None:
                     market_receipt = self._submission_guard.validate_locked_submission(
@@ -663,7 +759,7 @@ class DjangoSimulatedOrderReservationRepository:
     ) -> OrderReservation | None:
         """Read one reservation only from its current account-owner scope."""
 
-        self._validate_owner_key(
+        require_order_reservation_owner_key(
             account_id=account_id,
             user_id=user_id,
             idempotency_key=idempotency_key,
@@ -693,7 +789,7 @@ class DjangoSimulatedOrderReservationRepository:
     ) -> OrderReservation:
         """Release a local hold idempotently, including when its account is inactive."""
 
-        self._validate_owner_key(
+        require_order_reservation_owner_key(
             account_id=account_id,
             user_id=user_id,
             idempotency_key=idempotency_key,
@@ -719,7 +815,7 @@ class DjangoSimulatedOrderReservationRepository:
                         "order reservation was not found in this owner scope",
                         code="ORDER_RESERVATION_NOT_FOUND",
                     )
-                self._validate_owner_row(row=row, account=account, user_id=user_id)
+                validate_reservation_owner_row(row=row, account=account, user_id=user_id)
                 reservation = self._decode_model(row)
                 chain = _locked_fill_chain(
                     reservation_row=row,
@@ -792,53 +888,10 @@ class DjangoSimulatedOrderReservationRepository:
             .first()
         )
 
-    def _validate_owner_row(
-        self,
-        *,
-        row: SimulatedOrderReservationModel,
-        account: SimulatedAccountModel,
-        user_id: int,
-    ) -> None:
-        """Reject stale ownership or cross-account row association."""
-
-        if (
-            row.account_id != account.pk
-            or row.owner_user_id != user_id
-            or account.user_id != user_id
-            or account.account_type != "simulated"
-        ):
-            raise SimulatedTradeAccountScopeUnavailable()
-
-    def _require_exact_retry(
-        self,
-        *,
-        row: SimulatedOrderReservationModel,
-        intent: SimulatedTradeIntent,
-        request: OrderReservationRequest,
-        reservation: OrderReservation,
-    ) -> None:
-        """Compare both complete caller intent and fee-bound reservation identity."""
-
-        policy = fee_policy_from_snapshot(validated_plan_snapshot(row))
-        expected = request.identity(fee_policy_hash=policy.content_hash)
-        if (
-            row.intent_payload_hash != intent.request_payload_hash
-            or row.reservation_request_hash != expected.request_payload_hash
-            or reservation.identity != expected
-        ):
-            raise SimulatedTradeIdempotencyConflict(
-                "order key is already bound to a different exact intent or fee budget"
-            )
-
     def _decode_model(self, row: SimulatedOrderReservationModel) -> OrderReservation:
         """Decode one stored row through the shared strict persistence codec."""
 
         return decode_order_reservation(row)
-
-    def _decimal_field(self, value: object, field_name: str) -> Decimal:
-        """Require an exact finite Decimal from one ledger field."""
-
-        return decimal_field(value, field_name)
 
     def _current_book(
         self,
@@ -872,36 +925,6 @@ class DjangoSimulatedOrderReservationRepository:
 
         require_sqlite_values(values=values, using=self._using)
 
-    def _require_sqlite_locked_sources(
-        self,
-        *,
-        account: SimulatedAccountModel,
-        position: PositionModel | None,
-        pending_rows: list[SimulatedTradeModel],
-    ) -> None:
-        """Validate known locked balances and pending quantities before their use."""
-
-        values: list[tuple[str, object, PrecisionFamily]] = []
-        if account.cash_known is True:
-            values.append(("account.current_cash", account.current_cash, "money"))
-        if position is not None:
-            if position.available_quantity_known is True:
-                values.append(
-                    ("position.available_quantity", position.available_quantity, "quantity")
-                )
-            if position.valuation_known is True:
-                values.extend(
-                    (
-                        ("position.quantity", position.quantity, "quantity"),
-                        ("position.total_cost", position.total_cost, "money"),
-                        ("position.market_value", position.market_value, "money"),
-                        ("position.current_price", position.current_price, "price"),
-                        ("position.avg_cost", position.avg_cost, "price"),
-                    )
-                )
-        values.extend(("pending_trade.quantity", row.quantity, "quantity") for row in pending_rows)
-        self._require_sqlite_values(tuple(values))
-
     def _create_model(
         self,
         *,
@@ -918,7 +941,7 @@ class DjangoSimulatedOrderReservationRepository:
     ) -> SimulatedOrderReservationModel:
         """Persist the prepared order and initial hold with one database write."""
 
-        self._validate_storage_text(intent)
+        validate_reservation_storage_text(intent)
         if (
             type(account.pk) is not int
             or type(account.user_id) is not int
@@ -1003,47 +1026,6 @@ class DjangoSimulatedOrderReservationRepository:
             )
         row.refresh_from_db(using=self._using)
         return row
-
-    def _validate_storage_text(self, intent: SimulatedTradeIntent) -> None:
-        """Reject valid domain tokens that exceed the persisted identity columns."""
-
-        if (
-            len(intent.security_id) > 64
-            or len(intent.asset_code) > 20
-            or len(intent.asset_name) > 100
-            or len(intent.asset_type) > 20
-            or len(intent.market) > 20
-            or len(intent.board) > 20
-        ):
-            raise SimulatedTradeExecutionBlocked(
-                "simulated order identity exceeds reservation storage dimensions",
-                code="ORDER_RESERVATION_REQUEST_INVALID",
-            )
-
-    def _validate_owner_key(
-        self,
-        *,
-        account_id: int,
-        user_id: int,
-        idempotency_key: str,
-    ) -> None:
-        """Reject malformed owner scope before a database lookup."""
-
-        if (
-            type(account_id) is not int
-            or account_id <= 0
-            or type(user_id) is not int
-            or user_id <= 0
-            or type(idempotency_key) is not str
-            or not idempotency_key
-            or len(idempotency_key) > 128
-            or idempotency_key.strip() != idempotency_key
-            or any(character.isspace() for character in idempotency_key)
-        ):
-            raise SimulatedTradeExecutionBlocked(
-                "order reservation owner or key is invalid",
-                code="ORDER_RESERVATION_REQUEST_INVALID",
-            )
 
 
 __all__: tuple[str, ...] = ("DjangoSimulatedOrderReservationRepository",)

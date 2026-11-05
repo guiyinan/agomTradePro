@@ -56,6 +56,11 @@ class _SellExecutionEvidence:
     def read_identity(self, *, asset_code: str, as_of: datetime) -> dict[str, object]:
         return {"security_id": SECURITY_ID}
 
+    def read_asset_type_classification(
+        self, *, identity: dict[str, object], asset_code: str, as_of: datetime
+    ) -> tuple[str, dict[str, object]]:
+        return "equity", {"simulated_asset_type": "equity", "content_hash": "c" * 64}
+
     def read_quantity_rule(
         self, *, identity: dict[str, object], as_of: datetime
     ) -> tuple[SimpleNamespace, dict[str, object]]:
@@ -207,6 +212,19 @@ def test_unknown_available_quantity_preserves_none_and_blocks_sell() -> None:
     assert row.fee is None
     assert row.status == "blocked"
     assert "SELLABLE_QUANTITY_UNKNOWN" in row.reason_codes
+
+
+def test_held_sell_retains_qualified_classification_and_rejects_ledger_conflict() -> None:
+    row = _sell_row()
+    assert row.classification_evidence is not None
+    assert row.classification_evidence["content_hash"] == "c" * 64
+    holding = _holding()
+    holding.asset_type = "fund"
+    conflict = _sell_row(position=holding)
+    assert "POSITION_ASSET_TYPE_CLASSIFICATION_CONFLICT" in conflict.reason_codes
+    assert conflict.asset_type is None
+    assert conflict.actionable_quantity is None
+    assert conflict.fee is None
 
 
 def test_sell_capped_by_available_not_total_and_reservation_reduces_free() -> None:

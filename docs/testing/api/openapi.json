@@ -35319,6 +35319,753 @@
                 }
             }
         },
+        "/api/simulated-trading/accounts/{account_id}/rebalance-plans/": {
+            "get": {
+                "operationId": "api_simulated_trading_accounts_by_account_id_rebalance_plans_get",
+                "description": "GET 只读列出本人或已授权查看的精确计划版本。POST 仅提交目标意图、参考价格口径和会话幂等标识；服务器重新读取资金、持仓、来源、费用和规则。",
+                "summary": "查看或生成模拟调仓计划",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "account_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "simulated-trading"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RebalancePlanJourneyResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RebalancePlanErrorResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RebalancePlanErrorResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RebalancePlanErrorResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "503": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RebalancePlanErrorResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "post": {
+                "operationId": "api_simulated_trading_accounts_by_account_id_rebalance_plans_post",
+                "description": "只接受目标意图和参考价格口径；资金、持仓、价格、费用、风险与证券身份由服务端重读。此操作保存精确计划版本，不会自动提交订单。",
+                "summary": "按当前事实生成模拟调仓计划",
+                "parameters": [
+                    {
+                        "in": "header",
+                        "name": "Idempotency-Key",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "同一操作重试时复用原键和原输入；不能用新键替代不确定结果。",
+                        "required": true
+                    },
+                    {
+                        "in": "path",
+                        "name": "account_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "simulated-trading"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RebalancePlanCreateRequestRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RebalancePlanJourneyResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RebalancePlanErrorResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RebalancePlanErrorResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RebalancePlanErrorResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "503": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RebalancePlanErrorResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/simulated-trading/accounts/{account_id}/rebalance-plans/{plan_id}/": {
+            "get": {
+                "operationId": "api_simulated_trading_accounts_by_account_id_rebalance_plans_by_plan_id_get",
+                "description": "需要原计划编号、版本和版本摘要；不会使用最新版本别名或写入业务状态。",
+                "summary": "读取一个精确调仓计划版本",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "account_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "path",
+                        "name": "plan_id",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "query",
+                        "name": "plan_version",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "必须来自当前账户计划列表的精确版本号。",
+                        "required": true
+                    },
+                    {
+                        "in": "query",
+                        "name": "revision_hash",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "绑定该计划版本的 SHA-256；不支持 latest 别名。",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "simulated-trading"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RebalancePlanJourneyResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RebalancePlanErrorResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RebalancePlanErrorResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RebalancePlanErrorResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RebalancePlanErrorResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "503": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RebalancePlanErrorResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/simulated-trading/accounts/{account_id}/rebalance-plans/{plan_id}/orders/{order_ordinal}/preview/": {
+            "post": {
+                "operationId": "api_simulated_trading_accounts_by_account_id_rebalance_plans_by_plan_id_orders_by_order_ordinal_preview_post",
+                "description": "只提交精确计划和订单绑定、用户选择数量及限价；证券身份和方向由服务器从计划行读取。预览不创建预留，确认仍走既有模拟订单流程。",
+                "summary": "预览一个调仓计划订单",
+                "parameters": [
+                    {
+                        "in": "header",
+                        "name": "Idempotency-Key",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "同一操作重试时复用原键和原输入；不能用新键替代不确定结果。",
+                        "required": true
+                    },
+                    {
+                        "in": "path",
+                        "name": "account_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "path",
+                        "name": "order_ordinal",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "path",
+                        "name": "plan_id",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "simulated-trading"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RebalancePlanOrderPreviewRequestRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RebalancePlanJourneyResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RebalancePlanErrorResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RebalancePlanErrorResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RebalancePlanErrorResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RebalancePlanErrorResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "503": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RebalancePlanErrorResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/simulated-trading/accounts/{account_id}/rebalance-plans/{plan_id}/reconciliation/": {
+            "get": {
+                "operationId": "api_simulated_trading_accounts_by_account_id_rebalance_plans_by_plan_id_reconciliation_get",
+                "description": "只读取已核验成交、仍有效的预留、已释放余量和账户事实；未成交卖出不计入可用资金，未知值保持未知。",
+                "summary": "对账一个精确调仓计划版本",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "account_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "path",
+                        "name": "plan_id",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "query",
+                        "name": "plan_version",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "必须来自当前账户计划列表的精确版本号。",
+                        "required": true
+                    },
+                    {
+                        "in": "query",
+                        "name": "revision_hash",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "绑定该计划版本的 SHA-256；不支持 latest 别名。",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "simulated-trading"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RebalancePlanJourneyResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RebalancePlanErrorResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RebalancePlanErrorResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RebalancePlanErrorResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RebalancePlanErrorResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "503": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RebalancePlanErrorResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/simulated-trading/accounts/{account_id}/rebalance-plans/{plan_id}/review/": {
+            "post": {
+                "operationId": "api_simulated_trading_accounts_by_account_id_rebalance_plans_by_plan_id_review_post",
+                "description": "只记录对精确计划版本的人工核对；不会启用该版本的订单执行权限。",
+                "summary": "人工复核一个调仓计划版本",
+                "parameters": [
+                    {
+                        "in": "header",
+                        "name": "Idempotency-Key",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "同一操作重试时复用原键和原输入；不能用新键替代不确定结果。",
+                        "required": true
+                    },
+                    {
+                        "in": "path",
+                        "name": "account_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "path",
+                        "name": "plan_id",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "simulated-trading"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RebalancePlanReviewRequestRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RebalancePlanJourneyResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RebalancePlanErrorResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RebalancePlanErrorResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RebalancePlanErrorResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RebalancePlanErrorResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "503": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RebalancePlanErrorResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/simulated-trading/accounts/{account_id}/rebalance-plans/{plan_id}/successor/": {
+            "post": {
+                "operationId": "api_simulated_trading_accounts_by_account_id_rebalance_plans_by_plan_id_successor_post",
+                "description": "仅基于精确父版本、实际成交进度和当前服务器来源生成后继；数量、价格、费用、现金或持仓事实不接受客户端输入。",
+                "summary": "按当前事实生成调仓计划后继版本",
+                "parameters": [
+                    {
+                        "in": "header",
+                        "name": "Idempotency-Key",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "同一操作重试时复用原键和原输入；不能用新键替代不确定结果。",
+                        "required": true
+                    },
+                    {
+                        "in": "path",
+                        "name": "account_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "path",
+                        "name": "plan_id",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "simulated-trading"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RebalancePlanSuccessorRequestRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RebalancePlanJourneyResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RebalancePlanErrorResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RebalancePlanErrorResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RebalancePlanErrorResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RebalancePlanErrorResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "503": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RebalancePlanErrorResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
         "/api/simulated-trading/accounts/{account_id}/reset/": {
             "post": {
                 "operationId": "api_simulated_trading_accounts_by_account_id_reset_post",
@@ -42650,8 +43397,9 @@
                     },
                     "max_tokens": {
                         "type": "integer",
-                        "maximum": 2147483647,
+                        "maximum": 9223372036854775807,
                         "minimum": 1,
+                        "format": "int64",
                         "title": "最大Token数"
                     },
                     "approval_mode": {
@@ -42719,8 +43467,9 @@
                     },
                     "max_tokens": {
                         "type": "integer",
-                        "maximum": 2147483647,
+                        "maximum": 9223372036854775807,
                         "minimum": 1,
+                        "format": "int64",
                         "title": "最大Token数"
                     },
                     "approval_mode": {
@@ -45014,8 +45763,9 @@
                     },
                     "sort_order": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": -2147483648,
+                        "maximum": 9223372036854775807,
+                        "minimum": -9223372036854775808,
+                        "format": "int64",
                         "title": "排序"
                     },
                     "children_count": {
@@ -45071,8 +45821,9 @@
                     },
                     "sort_order": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": -2147483648,
+                        "maximum": 9223372036854775807,
+                        "minimum": -9223372036854775808,
+                        "format": "int64",
                         "title": "排序"
                     }
                 },
@@ -48352,8 +49103,9 @@
                     },
                     "precision": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": -2147483648,
+                        "maximum": 9223372036854775807,
+                        "minimum": -9223372036854775808,
+                        "format": "int64",
                         "title": "小数位数"
                     },
                     "created_at": {
@@ -54926,8 +55678,9 @@
                     },
                     "max_tokens": {
                         "type": "integer",
-                        "maximum": 2147483647,
+                        "maximum": 9223372036854775807,
                         "minimum": 1,
+                        "format": "int64",
                         "title": "最大Token数"
                     },
                     "approval_mode": {
@@ -55089,8 +55842,9 @@
                     },
                     "sort_order": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": -2147483648,
+                        "maximum": 9223372036854775807,
+                        "minimum": -9223372036854775808,
+                        "format": "int64",
                         "title": "排序"
                     }
                 }
@@ -55988,8 +56742,9 @@
                     },
                     "lookback_period": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": -2147483648,
+                        "maximum": 9223372036854775807,
+                        "minimum": -9223372036854775808,
+                        "format": "int64",
                         "title": "回溯周期（天）"
                     },
                     "regime_allocations": {
@@ -56000,8 +56755,9 @@
                     },
                     "top_n": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": -2147483648,
+                        "maximum": 9223372036854775807,
+                        "minimum": -9223372036854775808,
+                        "format": "int64",
                         "title": "选资产数量"
                     },
                     "is_active": {
@@ -56057,8 +56813,9 @@
                     },
                     "priority": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": -2147483648,
+                        "maximum": 9223372036854775807,
+                        "minimum": -9223372036854775808,
+                        "format": "int64",
                         "title": "优先级"
                     },
                     "is_enabled": {
@@ -56112,8 +56869,9 @@
                 "properties": {
                     "account_id": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": -2147483648,
+                        "maximum": 9223372036854775807,
+                        "minimum": -9223372036854775808,
+                        "format": "int64",
                         "title": "关联账户ID",
                         "description": "关联的模拟账户ID"
                     },
@@ -56164,8 +56922,9 @@
                     },
                     "max_access_count": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": -2147483648,
+                        "maximum": 9223372036854775807,
+                        "minimum": -9223372036854775808,
+                        "format": "int64",
                         "nullable": true,
                         "title": "最大访问次数",
                         "description": "null 表示无限制"
@@ -56201,8 +56960,9 @@
                     },
                     "version": {
                         "type": "integer",
-                        "maximum": 2147483647,
+                        "maximum": 9223372036854775807,
                         "minimum": 0,
+                        "format": "int64",
                         "default": 1,
                         "title": "版本号"
                     },
@@ -57996,8 +58756,9 @@
                     },
                     "source_id": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": -2147483648,
+                        "maximum": 9223372036854775807,
+                        "minimum": -9223372036854775808,
+                        "format": "int64",
                         "nullable": true,
                         "title": "来源ID"
                     }
@@ -58083,8 +58844,9 @@
                     },
                     "source_id": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": -2147483648,
+                        "maximum": 9223372036854775807,
+                        "minimum": -9223372036854775808,
+                        "format": "int64",
                         "nullable": true,
                         "title": "来源ID"
                     }
@@ -59621,6 +60383,291 @@
                 "type": "string",
                 "description": "* `known` - known\n* `unknown` - unknown\n* `not_applicable` - not_applicable"
             },
+            "RebalancePlanCreateRequestRequest": {
+                "type": "object",
+                "description": "Accept user targets and reference-price choice, never financial inputs.",
+                "properties": {
+                    "target_weights": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 2048
+                    },
+                    "reference_price_basis": {
+                        "$ref": "#/components/schemas/ReferencePriceBasisEnum"
+                    }
+                },
+                "required": [
+                    "reference_price_basis",
+                    "target_weights"
+                ]
+            },
+            "RebalancePlanErrorResponse": {
+                "type": "object",
+                "description": "Return a stable public error without exposing repository or authority details.",
+                "properties": {
+                    "success": {
+                        "type": "boolean"
+                    },
+                    "error": {
+                        "type": "string",
+                        "maxLength": 240
+                    },
+                    "code": {
+                        "type": "string",
+                        "pattern": "^[A-Z0-9_]{1,80}$"
+                    }
+                },
+                "required": [
+                    "code",
+                    "error",
+                    "success"
+                ]
+            },
+            "RebalancePlanIdentityResponse": {
+                "type": "object",
+                "description": "Validate the exact immutable identity returned for one saved revision.",
+                "properties": {
+                    "plan_id": {
+                        "type": "string",
+                        "maxLength": 64
+                    },
+                    "family_id": {
+                        "type": "string",
+                        "maxLength": 64
+                    },
+                    "root_plan_id": {
+                        "type": "string",
+                        "maxLength": 64
+                    },
+                    "version": {
+                        "type": "integer",
+                        "minimum": 1
+                    },
+                    "parent_plan_id": {
+                        "type": "string",
+                        "nullable": true,
+                        "maxLength": 64
+                    },
+                    "parent_version": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "nullable": true
+                    },
+                    "parent_revision_hash": {
+                        "type": "string",
+                        "nullable": true,
+                        "pattern": "^[0-9a-f]{64}$"
+                    },
+                    "account_id": {
+                        "type": "integer",
+                        "minimum": 1
+                    },
+                    "owner_user_id": {
+                        "type": "integer",
+                        "minimum": 1
+                    },
+                    "transition_plan_hash": {
+                        "type": "string",
+                        "pattern": "^[0-9a-f]{64}$"
+                    },
+                    "revision_hash": {
+                        "type": "string",
+                        "pattern": "^[0-9a-f]{64}$"
+                    },
+                    "recorded_at": {
+                        "type": "string",
+                        "maxLength": 80
+                    },
+                    "valid_until": {
+                        "type": "string",
+                        "maxLength": 80
+                    }
+                },
+                "required": [
+                    "account_id",
+                    "family_id",
+                    "owner_user_id",
+                    "parent_plan_id",
+                    "parent_revision_hash",
+                    "parent_version",
+                    "plan_id",
+                    "recorded_at",
+                    "revision_hash",
+                    "root_plan_id",
+                    "transition_plan_hash",
+                    "valid_until",
+                    "version"
+                ]
+            },
+            "RebalancePlanJourneyResponse": {
+                "type": "object",
+                "description": "Validate the bounded list or exact-revision response envelope.",
+                "properties": {
+                    "success": {
+                        "type": "boolean"
+                    },
+                    "account_id": {
+                        "type": "integer",
+                        "minimum": 1
+                    },
+                    "plan": {
+                        "$ref": "#/components/schemas/RebalancePlanRevisionResponse"
+                    },
+                    "plans": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/RebalancePlanRevisionResponse"
+                        }
+                    },
+                    "review": {
+                        "nullable": true
+                    },
+                    "progress": {
+                        "nullable": true
+                    },
+                    "capabilities": {},
+                    "preview": {},
+                    "continuation": {}
+                },
+                "required": [
+                    "account_id",
+                    "capabilities",
+                    "progress",
+                    "review",
+                    "success"
+                ]
+            },
+            "RebalancePlanOrderPreviewRequestRequest": {
+                "type": "object",
+                "description": "Accept one exact plan-order pin and explicit quantity/limit intent.",
+                "properties": {
+                    "plan_version": {
+                        "type": "integer",
+                        "minimum": 1
+                    },
+                    "revision_hash": {
+                        "type": "string",
+                        "minLength": 1,
+                        "pattern": "^[0-9a-f]{64}$"
+                    },
+                    "order_content_hash": {
+                        "type": "string",
+                        "minLength": 1,
+                        "pattern": "^[0-9a-f]{64}$"
+                    },
+                    "plan_order_binding_id": {
+                        "type": "string",
+                        "minLength": 1,
+                        "pattern": "^[0-9a-f]{64}$"
+                    },
+                    "quantity": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,16}(?:\\.\\d{0,6})?$"
+                    },
+                    "limit_price": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,14}(?:\\.\\d{0,6})?$"
+                    },
+                    "reason": {
+                        "type": "string",
+                        "maxLength": 200
+                    }
+                },
+                "required": [
+                    "limit_price",
+                    "order_content_hash",
+                    "plan_order_binding_id",
+                    "plan_version",
+                    "quantity",
+                    "revision_hash"
+                ]
+            },
+            "RebalancePlanReviewRequestRequest": {
+                "type": "object",
+                "description": "Require a deliberate human review of an exact inactive plan revision.",
+                "properties": {
+                    "plan_version": {
+                        "type": "integer",
+                        "minimum": 1
+                    },
+                    "revision_hash": {
+                        "type": "string",
+                        "minLength": 1,
+                        "pattern": "^[0-9a-f]{64}$"
+                    },
+                    "confirmed": {
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "confirmed",
+                    "plan_version",
+                    "revision_hash"
+                ]
+            },
+            "RebalancePlanRevisionResponse": {
+                "type": "object",
+                "description": "Keep the application's canonical revision body intact at the JSON edge.",
+                "properties": {
+                    "identity": {
+                        "$ref": "#/components/schemas/RebalancePlanIdentityResponse"
+                    },
+                    "transition_plan": {},
+                    "basis": {},
+                    "orders": {
+                        "type": "array",
+                        "items": {}
+                    },
+                    "status": {
+                        "type": "string",
+                        "maxLength": 48
+                    },
+                    "automatic_submission": {
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "automatic_submission",
+                    "basis",
+                    "identity",
+                    "orders",
+                    "status",
+                    "transition_plan"
+                ]
+            },
+            "RebalancePlanSuccessorRequestRequest": {
+                "type": "object",
+                "description": "Accept only optional new target intent for a freshly prepared successor.",
+                "properties": {
+                    "plan_version": {
+                        "type": "integer",
+                        "minimum": 1
+                    },
+                    "revision_hash": {
+                        "type": "string",
+                        "minLength": 1,
+                        "pattern": "^[0-9a-f]{64}$"
+                    },
+                    "confirmed": {
+                        "type": "boolean"
+                    },
+                    "target_weights": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 2048
+                    },
+                    "reference_price_basis": {
+                        "$ref": "#/components/schemas/ReferencePriceBasisEnum"
+                    }
+                },
+                "required": [
+                    "confirmed",
+                    "plan_version",
+                    "revision_hash"
+                ]
+            },
             "ReferencePriceBasisEnum": {
                 "enum": [
                     "market",
@@ -59839,8 +60886,9 @@
                     },
                     "lookback_period": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": -2147483648,
+                        "maximum": 9223372036854775807,
+                        "minimum": -9223372036854775808,
+                        "format": "int64",
                         "title": "回溯周期（天）"
                     },
                     "regime_allocations": {
@@ -59851,8 +60899,9 @@
                     },
                     "top_n": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": -2147483648,
+                        "maximum": 9223372036854775807,
+                        "minimum": -9223372036854775808,
+                        "format": "int64",
                         "title": "选资产数量"
                     },
                     "is_active": {
@@ -59925,8 +60974,9 @@
                     },
                     "lookback_period": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": -2147483648,
+                        "maximum": 9223372036854775807,
+                        "minimum": -9223372036854775808,
+                        "format": "int64",
                         "title": "回溯周期（天）"
                     },
                     "regime_allocations": {
@@ -59937,8 +60987,9 @@
                     },
                     "top_n": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": -2147483648,
+                        "maximum": 9223372036854775807,
+                        "minimum": -9223372036854775808,
+                        "format": "int64",
                         "title": "选资产数量"
                     },
                     "is_active": {
@@ -60127,8 +61178,9 @@
                     },
                     "display_order": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": -2147483648,
+                        "maximum": 9223372036854775807,
+                        "minimum": -9223372036854775808,
+                        "format": "int64",
                         "title": "展示顺序"
                     }
                 },
@@ -60196,8 +61248,9 @@
                     },
                     "priority": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": -2147483648,
+                        "maximum": 9223372036854775807,
+                        "minimum": -9223372036854775808,
+                        "format": "int64",
                         "title": "优先级"
                     },
                     "is_enabled": {
@@ -60264,8 +61317,9 @@
                     },
                     "priority": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": -2147483648,
+                        "maximum": 9223372036854775807,
+                        "minimum": -9223372036854775808,
+                        "format": "int64",
                         "title": "优先级"
                     },
                     "is_enabled": {
@@ -60326,8 +61380,9 @@
                     },
                     "priority": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": -2147483648,
+                        "maximum": 9223372036854775807,
+                        "minimum": -9223372036854775808,
+                        "format": "int64",
                         "title": "优先级"
                     },
                     "is_enabled": {
@@ -61322,8 +62377,9 @@
                     },
                     "account_id": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": -2147483648,
+                        "maximum": 9223372036854775807,
+                        "minimum": -9223372036854775808,
+                        "format": "int64",
                         "title": "关联账户ID",
                         "description": "关联的模拟账户ID"
                     },
@@ -61384,8 +62440,9 @@
                     },
                     "max_access_count": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": -2147483648,
+                        "maximum": 9223372036854775807,
+                        "minimum": -9223372036854775808,
+                        "format": "int64",
                         "nullable": true,
                         "title": "最大访问次数",
                         "description": "null 表示无限制"
@@ -61452,8 +62509,9 @@
                 "properties": {
                     "account_id": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": -2147483648,
+                        "maximum": 9223372036854775807,
+                        "minimum": -9223372036854775808,
+                        "format": "int64",
                         "title": "关联账户ID",
                         "description": "关联的模拟账户ID"
                     },
@@ -61504,8 +62562,9 @@
                     },
                     "max_access_count": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": -2147483648,
+                        "maximum": 9223372036854775807,
+                        "minimum": -9223372036854775808,
+                        "format": "int64",
                         "nullable": true,
                         "title": "最大访问次数",
                         "description": "null 表示无限制"
@@ -61602,8 +62661,9 @@
                     },
                     "version": {
                         "type": "integer",
-                        "maximum": 2147483647,
+                        "maximum": 9223372036854775807,
                         "minimum": 0,
+                        "format": "int64",
                         "default": 1,
                         "title": "版本号"
                     },
@@ -61693,8 +62753,9 @@
                     },
                     "version": {
                         "type": "integer",
-                        "maximum": 2147483647,
+                        "maximum": 9223372036854775807,
                         "minimum": 0,
+                        "format": "int64",
                         "default": 1,
                         "title": "版本号"
                     },
@@ -61786,8 +62847,9 @@
                     },
                     "execution_duration_ms": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": -2147483648,
+                        "maximum": 9223372036854775807,
+                        "minimum": -9223372036854775808,
+                        "format": "int64",
                         "title": "执行时长(ms)"
                     },
                     "execution_result": {
@@ -61836,8 +62898,9 @@
                     },
                     "execution_duration_ms": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": -2147483648,
+                        "maximum": 9223372036854775807,
+                        "minimum": -9223372036854775808,
+                        "format": "int64",
                         "title": "执行时长(ms)"
                     },
                     "is_success": {
@@ -61886,8 +62949,9 @@
                     },
                     "version": {
                         "type": "integer",
-                        "maximum": 2147483647,
+                        "maximum": 9223372036854775807,
                         "minimum": 0,
+                        "format": "int64",
                         "default": 1,
                         "title": "版本号"
                     },

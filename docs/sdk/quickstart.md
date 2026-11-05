@@ -381,6 +381,45 @@ resolved once; an explicit empty scope returns `noop`. Read the business `outcom
 even for HTTP 200. `stored=None` means uncertain ledger effects: inspect the original
 operation before taking further action. See the [HTTP contract](../testing/api/API_REFERENCE.md#14-自动模拟交易).
 
+## Session-only Simulated Rebalance Plans
+
+The saved rebalance-plan journey is available through the generic HTTP client only
+when using Django session credentials. API-token clients are rejected by these
+routes; there are no plan-specific SDK methods. The session client establishes the
+site session and handles CSRF for POST requests:
+
+```python
+from agomtradepro import AgomTradeProClient
+
+client = AgomTradeProClient(username=owner_username, password=owner_password)
+plans = client.get(
+    "api/simulated-trading/accounts/42/rebalance-plans/"
+)
+
+operation_key = "plan-create-2026-11-05-01"
+created = client.post(
+    "api/simulated-trading/accounts/42/rebalance-plans/",
+    json={"target_weights": "600000.SH,60", "reference_price_basis": "market"},
+    idempotency_key=operation_key,
+)
+```
+
+Use only server-issued `plan_id`, `plan_version`, `revision_hash`, order hashes,
+and binding IDs from the returned exact revision. POSTs accept user intent only;
+account balances, holdings, prices, fees, and permissions are read again by the
+server. Reuse the same key and original arguments after an uncertain response.
+Plan review is a request for separate human review, not approval or execution
+authority. A single-order preview still requires a separate explicit confirmation
+through the ordinary simulated-order flow. See the [complete route and status
+contract](../testing/api/API_REFERENCE.md#95-模拟调仓计划与逐笔订单旅程).
+
+These routes are not available to API-token mode or MCP tools. The generic MCP
+`terminal_execute_user_action` uses API-token authentication; plan TUI actions are
+marked `session_auth_required`, so the outer action-run request returns
+`403/tui_session_auth_required` before its internal executor is called. The token
+is never converted to a browser session. These routes do not create an automatic
+order sequence and cannot submit to a broker.
+
 ## Error Handling
 
 ```python

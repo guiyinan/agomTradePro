@@ -1750,6 +1750,140 @@ test("opted-in continuation reuses the source key and keeps only exact-key readb
     assert.equal(Object.hasOwn(recovery.params, "confirmation_token"), false);
 });
 
+test("plan-order confirmation uncertainty keeps its exact readback scope and source key", () => {
+    const source = {
+        key: "rebalance-plan.preview-order",
+        screen_key: "task.rebalance-plan",
+        method: "POST",
+        risk: "read",
+        effect: "read",
+        session_auth_required: true,
+        result_continuation: {
+            target_action_key: "rebalance-plan.order-confirm",
+            field_map: {
+                account_id: "account_id",
+                order_key: "order_key",
+                preview_token: "preview_token",
+            },
+            reuse_source_idempotency_key: true,
+            readback_action_key: "rebalance-plan.order-by-key",
+        },
+    };
+    const target = {
+        key: "rebalance-plan.order-confirm",
+        screen_key: source.screen_key,
+        method: "POST",
+        risk: "write",
+        session_auth_required: true,
+        confirmation_required: true,
+        fields: ["account_id", "order_key", "preview_token"].map(key => ({
+            key,
+            input_type: "hidden",
+            value_type: "string",
+            required: true,
+            binding: "body",
+            presentation_semantic: "api_token",
+            default: "",
+        })),
+    };
+    const readback = {
+        key: "rebalance-plan.order-by-key",
+        screen_key: source.screen_key,
+        method: "GET",
+        risk: "read",
+        effect: "read",
+        session_auth_required: true,
+        fields: ["account_id", "order_key"].map(key => ({
+            key,
+            input_type: "hidden",
+            value_type: "string",
+            required: true,
+            binding: "body",
+            presentation_semantic: "api_token",
+            default: "",
+        })),
+    };
+    const actions = [source, target, readback];
+    const controller = loadController();
+    const sourceRequest = controller.startSource(source, actions);
+    const result = successfulResult("opaque-preview", "2099-01-01T00:00:00Z");
+    result.continuation.action_key = target.key;
+    result.continuation.input = {
+        account_id: "41",
+        order_key: "order-key-private",
+        preview_token: "signed-preview-private",
+    };
+    assert.equal(controller.acceptResult(
+        source,
+        actions,
+        result,
+        1,
+        sourceRequest.requestToken,
+        "plan-order-attempt-key",
+    ).status, "stored");
+
+    const handoff = controller.targetParams(target, actions, {}, 2);
+    assert.equal(handoff.status, "ready");
+    assert.equal(handoff.idempotencyKey, "plan-order-attempt-key");
+    assert.equal(controller.rememberTargetRequest(target, actions, {
+        params: handoff.params,
+        idempotencyKey: handoff.idempotencyKey,
+        confirmed: true,
+        confirmation: { confirmed: true, confirmed_at: "2098-01-01T00:00:00Z", message: "确认" },
+        expiresAt: handoff.expiresAt,
+    }, 3).status, "stored");
+    assert.equal(controller.markTargetUnknown(target, actions), true);
+
+    const recovery = controller.readbackRequestForAction(readback, actions, 4);
+    assert.equal(recovery.status, "ready");
+    assert.equal(recovery.idempotencyKey, "plan-order-attempt-key");
+    assert.deepEqual(JSON.parse(JSON.stringify(recovery.params)), {
+        account_id: "41",
+        order_key: "order-key-private",
+    });
+    assert.equal(Object.hasOwn(recovery.params, "preview_token"), false);
+
+    const offerReadback = sourceBetween(
+        continuationUiSource,
+        "function offerContinuationReadback(",
+        "function continuationFailureState(",
+    );
+    let markup = "";
+    let buttonClick = null;
+    const runCalls = [];
+    const statusCalls = [];
+    const actionsByKey = new Map(actions.map(action => [action.key, action]));
+    const context = {
+        state: { screen: { actions } },
+        resultContinuations: controller,
+        els: {
+            main: {
+                set innerHTML(value) { markup = value; },
+                querySelector(selector) {
+                    if (selector !== "[data-continuation-readback]") return null;
+                    return { addEventListener(name, callback) {
+                        if (name === "click") buttonClick = callback;
+                    } };
+                },
+            },
+        },
+        currentAction: key => actionsByKey.get(key) || null,
+        runAction: (...args) => runCalls.push(args),
+        setStatus: value => statusCalls.push(value),
+    };
+    runInNewContext(`${offerReadback}\nglobalThis.offerReadback = offerContinuationReadback;`, context);
+    context.offerReadback(readback.key);
+    assert.match(markup, /上一笔计划订单确认结果尚未确认/);
+    assert.match(markup, /只读核对不会重新获取行情或创建新订单/);
+    assert.doesNotMatch(markup, /order-key-private|signed-preview-private/);
+    assert.equal(typeof buttonClick, "function");
+    buttonClick();
+    assert.equal(runCalls.length, 1);
+    assert.equal(runCalls[0][0], "rebalance-plan.order-by-key");
+    assert.deepEqual(JSON.parse(JSON.stringify(runCalls[0][2])), { continuationReadback: true });
+    assert.deepEqual(statusCalls, ["原请求结果待确认"]);
+});
+
 test("unresolved readback cannot be discarded and always blocks a new source", () => {
     const controller = loadController();
     const actions = makeReadbackActions();

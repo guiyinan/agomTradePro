@@ -151,6 +151,15 @@ Cancellation, expiry, a new preview, another action pair or screen exit clears t
 corresponding pending/retry context. Source generations prevent late responses from
 replacing a newer preview. Backend expiry, CAS and authority remain decisive.
 
+A dashboard row action may start a continuation only from an authenticated,
+same-screen POST read-preview (`risk: read`, `effect: read`) with at least one
+visible body input and a declared same-screen detail `result_panel_key`. The row
+action must target that same detail panel and must not refresh another panel.
+Confirmation and readback are never row-action sources; the UI exposes them only
+from the still-current preview result. The explicit confirmation is bound to that
+screen, panel and preview, and an uncertain confirmed result offers an explicit
+readback with the original idempotency key; it never resubmits automatically.
+
 A continuation may opt into `reuse_source_idempotency_key: true` and name a
 `readback_action_key`. The readback must be an authenticated, same-screen read-only
 GET with the exact mapped target path fields. The source key survives both the
@@ -440,7 +449,7 @@ Token history is supporting information. It shows only name, preview, level, cre
 
 ## Governance Table Pattern
 
-Actionable governance rows publish validated `row_actions` metadata. Each descriptor must reference an action on the same screen, map every required action parameter from a published row column, and use an accessible row-specific label.
+Actionable governance rows publish validated `dashboard_panels[].row_actions` metadata. Each descriptor must reference an action on the same screen, map every required action parameter from a visible `columns` field or an explicitly declared `hidden_columns` field, and use an accessible row-specific label. Hidden columns exist only to bind row-action parameters: they must be unique, disjoint from visible columns, mapped by a row action, and must not be used by visible labels or `visible_when` conditions.
 
 CRUD-style governance screens use a master-list workbench: the P0 table remains visible, while row reads and mutation receipts render into a declared same-screen result panel. `result_panel_key` identifies that result panel; `refresh_panel_key` identifies the data panel that must be reloaded after a mutation. A result-only panel may omit `action_key` and publish `empty_message` to guide the initial selection.
 
@@ -450,6 +459,7 @@ Hard rules:
 - Backend authorization, risk confirmation, and reauthentication remain authoritative; row actions do not bypass them.
 - A successful mutation row action refreshes the affected panel so the operator can verify the new state.
 - A read-only row action renders its returned detail/list result; it must not discard the result and only refresh the source panel.
+- A row action that starts a result continuation is limited to an authenticated same-screen POST read-preview with visible body input and a matching detail result panel; confirmed mutations and readback actions are not row-action sources.
 - Row actions with `result_panel_key` must keep navigation, filters, and the source table in place; they must not replace the entire work area.
 - Mutation actions should declare both `result_panel_key` and `refresh_panel_key`; the receipt remains visible while only the affected data panel refreshes.
 - Tool governance tables with several action controls use a full-width panel at desktop size; do not compress the actionable table beside a summary panel.

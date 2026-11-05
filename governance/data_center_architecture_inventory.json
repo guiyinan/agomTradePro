@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 6566,
+    "current_surface_references": 6655,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -16399,6 +16399,50 @@
       "text": "\"\"\"An exact current plan, subject, or receipt is unavailable.\"\"\""
     },
     {
+      "path": "apps/portfolio/application/transition_plan_lifecycle.py",
+      "text": "\"\"\"Build plan inputs from current server-owned account and evidence sources.\"\"\""
+    },
+    {
+      "path": "apps/portfolio/application/transition_plan_lifecycle.py",
+      "text": "\"\"\"Inject exact repository, current account scope and server clock.\"\"\""
+    },
+    {
+      "path": "apps/portfolio/application/transition_plan_lifecycle.py",
+      "text": "\"\"\"Read and bind current account, source, risk, fee and quantity context.\"\"\""
+    },
+    {
+      "path": "apps/portfolio/application/transition_plan_lifecycle.py",
+      "text": "\"\"\"Read one revision only by full identity, never by a latest alias.\"\"\""
+    },
+    {
+      "path": "apps/portfolio/application/transition_plan_lifecycle.py",
+      "text": "\"\"\"Recheck only current policy versions, not mutable post-execution account resources.\"\"\""
+    },
+    {
+      "path": "apps/portfolio/application/transition_plan_lifecycle.py",
+      "text": "\"\"\"Require the complete parent identity; never accept a latest-plan alias.\"\"\""
+    },
+    {
+      "path": "apps/portfolio/application/transition_plan_lifecycle.py",
+      "text": "\"\"\"Resolve current account read/write authority without exposing ORM models.\"\"\""
+    },
+    {
+      "path": "apps/portfolio/application/transition_plan_lifecycle.py",
+      "text": "\"\"\"Return bounded history only after resolving current read permission.\"\"\""
+    },
+    {
+      "path": "apps/portfolio/application/transition_plan_lifecycle.py",
+      "text": "\"\"\"Return the current timezone-aware server time.\"\"\""
+    },
+    {
+      "path": "apps/portfolio/application/transition_plan_lifecycle.py",
+      "text": "\"\"\"Submit a current exact plan to the existing approval-pending lifecycle.\"\"\""
+    },
+    {
+      "path": "apps/portfolio/application/transition_plan_lifecycle.py",
+      "text": "\"only the current family revision can enter review\""
+    },
+    {
       "path": "apps/portfolio/application/transition_plan_order_reader.py",
       "text": "\"\"\"Project one owner-canonical order row without implying latest-plan state.\"\"\""
     },
@@ -16655,6 +16699,14 @@
       "text": "total_value = current.cash + sum("
     },
     {
+      "path": "apps/portfolio/domain/transition_plan_revision_basis.py",
+      "text": "\"\"\"One current or target position retained for explanation and replay.\"\"\""
+    },
+    {
+      "path": "apps/portfolio/domain/transition_plan_revision_basis.py",
+      "text": "if positions.get(\"current\") != ["
+    },
+    {
       "path": "apps/portfolio/infrastructure/deterministic_optimizer.py",
       "text": "\"canonical current configuration has no positive portfolio value\","
     },
@@ -16761,6 +16813,58 @@
     {
       "path": "apps/portfolio/infrastructure/transition_plan_inactive_approval_repository.py",
       "text": "\"\"\"Return the current timezone-aware server timestamp.\"\"\""
+    },
+    {
+      "path": "apps/portfolio/infrastructure/transition_plan_revision_repository.py",
+      "text": "\"\"\"Require current policy pins; the ordinary Owner order chain checks cash and live risk.\"\"\""
+    },
+    {
+      "path": "apps/portfolio/infrastructure/transition_plan_revision_repository.py",
+      "text": "\"\"\"Return exact current manual context without treating an inactive receipt as authority.\"\"\""
+    },
+    {
+      "path": "apps/portfolio/infrastructure/transition_plan_revision_repository.py",
+      "text": "\"current plan-policy revalidation is unavailable\""
+    },
+    {
+      "path": "apps/portfolio/infrastructure/transition_plan_revision_repository.py",
+      "text": "\"only the current family revision may enter review\""
+    },
+    {
+      "path": "apps/portfolio/infrastructure/transition_plan_revision_repository.py",
+      "text": "\"stored cash summary differs from canonical-v1 plan\""
+    },
+    {
+      "path": "apps/portfolio/infrastructure/transition_plan_revision_repository.py",
+      "text": "\"stored current positions differ from the revision basis\""
+    },
+    {
+      "path": "apps/portfolio/infrastructure/transition_plan_revision_repository.py",
+      "text": "\"summary\": {"
+    },
+    {
+      "path": "apps/portfolio/infrastructure/transition_plan_revision_repository.py",
+      "text": "current = next("
+    },
+    {
+      "path": "apps/portfolio/infrastructure/transition_plan_revision_repository.py",
+      "text": "if current is None or current.identity.revision_hash != revision.identity.revision_hash:"
+    },
+    {
+      "path": "apps/portfolio/infrastructure/transition_plan_revision_repository.py",
+      "text": "if current.identity.owner_user_id != owner_user_id:"
+    },
+    {
+      "path": "apps/portfolio/infrastructure/transition_plan_revision_repository.py",
+      "text": "if summary.get(\"cash_before\") != str(plan.cash_before) or summary.get(\"cash_after\") != str("
+    },
+    {
+      "path": "apps/portfolio/infrastructure/transition_plan_revision_repository.py",
+      "text": "return current"
+    },
+    {
+      "path": "apps/portfolio/infrastructure/transition_plan_revision_repository.py",
+      "text": "summary = _json_object(row.summary, \"summary\")"
     },
     {
       "path": "apps/portfolio/interface/api_views.py",
@@ -21867,6 +21971,10 @@
       "text": "\"\"\"Revalidate a server-signed retained capture and current policy binding.\"\"\""
     },
     {
+      "path": "apps/simulated_trading/application/owner_order_submission.py",
+      "text": "\"\"\"Use the current FeeV2 schedule to bind a plan BUY budget, never its estimate.\"\"\""
+    },
+    {
       "path": "apps/simulated_trading/application/performance_calculator.py",
       "text": "\"\"\"Resolve only the current configured business date for cached metric writes.\"\"\""
     },
@@ -22053,6 +22161,138 @@
     {
       "path": "apps/simulated_trading/application/query_services.py",
       "text": "\"\"\"Return current account value only when cash and position values are known.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/rebalance_journey_authorization.py",
+      "text": "\"\"\"Inject the same account authority reader used by current portfolio risk.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/rebalance_journey_current_pins.py",
+      "text": "\"environment\": current.environment,"
+    },
+    {
+      "path": "apps/simulated_trading/application/rebalance_journey_current_pins.py",
+      "text": "\"ledger_money_unit\": current.ledger_money_unit,"
+    },
+    {
+      "path": "apps/simulated_trading/application/rebalance_journey_current_pins.py",
+      "text": "\"normalized_config_sha256\": current.normalized_config_sha256,"
+    },
+    {
+      "path": "apps/simulated_trading/application/rebalance_journey_current_pins.py",
+      "text": "\"profile_content_hash\": current.profile_content_hash,"
+    },
+    {
+      "path": "apps/simulated_trading/application/rebalance_journey_current_pins.py",
+      "text": "\"profile_id\": current.profile_id,"
+    },
+    {
+      "path": "apps/simulated_trading/application/rebalance_journey_current_pins.py",
+      "text": "\"profile_key\": current.profile_key,"
+    },
+    {
+      "path": "apps/simulated_trading/application/rebalance_journey_current_pins.py",
+      "text": "\"profile_version\": current.profile_version,"
+    },
+    {
+      "path": "apps/simulated_trading/application/rebalance_journey_current_pins.py",
+      "text": "comparable = replace(original, identity_evidence=identity, read_at=current.read_at)"
+    },
+    {
+      "path": "apps/simulated_trading/application/rebalance_journey_current_pins.py",
+      "text": "comparable.to_payload() != current.to_payload()"
+    },
+    {
+      "path": "apps/simulated_trading/application/rebalance_journey_current_pins.py",
+      "text": "current = self._calendars.read_calendar("
+    },
+    {
+      "path": "apps/simulated_trading/application/rebalance_journey_current_pins.py",
+      "text": "current = self._classifications.resolve_simulated_instrument_classification("
+    },
+    {
+      "path": "apps/simulated_trading/application/rebalance_journey_current_pins.py",
+      "text": "current = self._risk.read_policy("
+    },
+    {
+      "path": "apps/simulated_trading/application/rebalance_journey_current_pins.py",
+      "text": "current, prepared_at=as_of, expected_session=basis.execution_session"
+    },
+    {
+      "path": "apps/simulated_trading/application/rebalance_journey_current_pins.py",
+      "text": "current.validate_at(as_of=as_of)"
+    },
+    {
+      "path": "apps/simulated_trading/application/rebalance_journey_current_pins.py",
+      "text": "if current is None:"
+    },
+    {
+      "path": "apps/simulated_trading/application/rebalance_journey_current_pins.py",
+      "text": "if type(current) is not SimulatedInstrumentClassificationEvidenceV1:"
+    },
+    {
+      "path": "apps/simulated_trading/application/rebalance_journey_current_pins.py",
+      "text": "or current.simulated_asset_type != order.asset_type"
+    },
+    {
+      "path": "apps/simulated_trading/application/rebalance_journey_current_pins.py",
+      "text": "selected_at=current.identity_evidence.selection.selected_at,"
+    },
+    {
+      "path": "apps/simulated_trading/application/rebalance_journey_current_pins.py",
+      "text": "submission still performs its own current market, risk, cash and quantity"
+    },
+    {
+      "path": "apps/simulated_trading/application/rebalance_journey_preparation.py",
+      "text": "\"\"\"Bind every suggested BUY/SELL to current V2 fees, V3 rules, and identity.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/rebalance_journey_preparation.py",
+      "text": "\"\"\"Build exact current and target rows without guessing quantities or values.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/rebalance_journey_preparation.py",
+      "text": "\"current\": [item.to_payload() for item in current_positions],"
+    },
+    {
+      "path": "apps/simulated_trading/application/rebalance_journey_preparation.py",
+      "text": "current.append("
+    },
+    {
+      "path": "apps/simulated_trading/application/rebalance_journey_preparation.py",
+      "text": "current: list[TransitionPlanPositionBinding] = []"
+    },
+    {
+      "path": "apps/simulated_trading/application/rebalance_journey_preparation.py",
+      "text": "current_rows = tuple(sorted(current, key=lambda item: (item.asset_code, item.security_id)))"
+    },
+    {
+      "path": "apps/simulated_trading/application/rebalance_journey_preparation_support.py",
+      "text": "\"current\": [item.to_payload() for item in current_positions],"
+    },
+    {
+      "path": "apps/simulated_trading/application/rebalance_journey_service.py",
+      "text": "\"can_create_successor\": writable and current,"
+    },
+    {
+      "path": "apps/simulated_trading/application/rebalance_journey_service.py",
+      "text": "\"is_current_family_head\": current,"
+    },
+    {
+      "path": "apps/simulated_trading/application/rebalance_journey_service.py",
+      "text": "current = ("
+    },
+    {
+      "path": "apps/simulated_trading/application/rebalance_journey_service.py",
+      "text": "current"
+    },
+    {
+      "path": "apps/simulated_trading/application/rebalance_plan_capture.py",
+      "text": "summary: Mapping[str, object],"
+    },
+    {
+      "path": "apps/simulated_trading/application/rebalance_plan_capture.py",
+      "text": "summary=summary,"
     },
     {
       "path": "apps/simulated_trading/application/rebalance_plan_preview.py",
@@ -22341,6 +22581,38 @@
     {
       "path": "apps/simulated_trading/application/tasks.py",
       "text": "使用 realtime 模块的价格轮询服务，更新所有持仓资产的最新价格。"
+    },
+    {
+      "path": "apps/simulated_trading/application/transition_plan_execution.py",
+      "text": "\"\"\"Return the exact current-family revision or raise on any changed binding.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/transition_plan_execution.py",
+      "text": "\"\"\"Return the exact revision or None without resolving a latest alias.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/transition_plan_execution_progress.py",
+      "text": "\"\"\"Read the verified current immutable revision for an account and family.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/transition_plan_execution_progress.py",
+      "text": "current = tuple("
+    },
+    {
+      "path": "apps/simulated_trading/application/transition_plan_execution_progress.py",
+      "text": "history_complete=history_complete and len(current) == len(current_candidates),"
+    },
+    {
+      "path": "apps/simulated_trading/application/transition_plan_execution_progress.py",
+      "text": "if len(current) != len(current_candidates):"
+    },
+    {
+      "path": "apps/simulated_trading/application/transition_plan_execution_progress.py",
+      "text": "raise ValueError(\"exact plan revision is outside the current owner/read scope\")"
+    },
+    {
+      "path": "apps/simulated_trading/application/transition_plan_execution_progress.py",
+      "text": "reservations=current,"
     },
     {
       "path": "apps/simulated_trading/application/use_cases.py",
@@ -23483,6 +23755,10 @@
       "text": "\"\"\"Return the guarded global executed-sell PnL summary.\"\"\""
     },
     {
+      "path": "apps/simulated_trading/infrastructure/transition_plan_reservation_history.py",
+      "text": "\"\"\"Bind one exact plan line to the current owner intent before persistence.\"\"\""
+    },
+    {
       "path": "apps/simulated_trading/interface/_account_views.py",
       "text": "**summary,"
     },
@@ -23699,6 +23975,46 @@
       "text": "summary=\"读取本人模拟账户可选的已审批压力情景\","
     },
     {
+      "path": "apps/simulated_trading/interface/rebalance_plan_journey_views.py",
+      "text": "\"\"\"Create a revision only from user-selected target intent and current server facts.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/interface/rebalance_plan_journey_views.py",
+      "text": "\"\"\"Read the same exact revision's current ledger reconciliation.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/interface/rebalance_plan_journey_views.py",
+      "text": "description=\"绑定该计划版本的 SHA-256；不支持 latest 别名。\","
+    },
+    {
+      "path": "apps/simulated_trading/interface/rebalance_plan_journey_views.py",
+      "text": "summary=\"人工复核一个调仓计划版本\","
+    },
+    {
+      "path": "apps/simulated_trading/interface/rebalance_plan_journey_views.py",
+      "text": "summary=\"对账一个精确调仓计划版本\","
+    },
+    {
+      "path": "apps/simulated_trading/interface/rebalance_plan_journey_views.py",
+      "text": "summary=\"按当前事实生成模拟调仓计划\","
+    },
+    {
+      "path": "apps/simulated_trading/interface/rebalance_plan_journey_views.py",
+      "text": "summary=\"按当前事实生成调仓计划后继版本\","
+    },
+    {
+      "path": "apps/simulated_trading/interface/rebalance_plan_journey_views.py",
+      "text": "summary=\"查看或生成模拟调仓计划\","
+    },
+    {
+      "path": "apps/simulated_trading/interface/rebalance_plan_journey_views.py",
+      "text": "summary=\"读取一个精确调仓计划版本\","
+    },
+    {
+      "path": "apps/simulated_trading/interface/rebalance_plan_journey_views.py",
+      "text": "summary=\"预览一个调仓计划订单\","
+    },
+    {
       "path": "apps/simulated_trading/interface/sdk_contract_views.py",
       "text": "\"\"\"Close shares through the exact current-reference simulated ledger.\"\"\""
     },
@@ -23817,6 +24133,14 @@
     {
       "path": "apps/simulated_trading/portfolio_risk_close_snapshot_composition.py",
       "text": "\"\"\"Evaluate the pinned capture against current identity, calendar, and rule reads.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/transition_plan_journey_composition.py",
+      "text": "\"\"\"Build current read ports only when a bound order actually needs validation.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/transition_plan_journey_composition.py",
+      "text": "\"\"\"Require an explicit current-policy reader in addition to ordinary order guards.\"\"\""
     },
     {
       "path": "apps/strategy/application/allocation_service.py",
@@ -24537,6 +24861,34 @@
     {
       "path": "apps/terminal/application/tui_portfolio_risk_result.py",
       "text": "summary = _display(check.get(\"summary\"), missing=\"未提供检查说明\")"
+    },
+    {
+      "path": "apps/terminal/application/tui_rebalance_plan_result.py",
+      "text": "\"\"\"Show saved positions and targets as quantities, not as current account facts.\"\"\""
+    },
+    {
+      "path": "apps/terminal/application/tui_rebalance_plan_result.py",
+      "text": "\"business_summary\": summary,"
+    },
+    {
+      "path": "apps/terminal/application/tui_rebalance_plan_result.py",
+      "text": "summary = \"以下进度来自当前可核实的成交与有效预留；未知数据保持未知。\""
+    },
+    {
+      "path": "apps/terminal/application/tui_rebalance_plan_result.py",
+      "text": "summary = \"后继版本按当前来源和实际成交重新生成；旧版本不会继承执行资格。\""
+    },
+    {
+      "path": "apps/terminal/application/tui_rebalance_plan_result.py",
+      "text": "summary = \"查看保存时的目标、来源与规则，再与当前成交和预留对账。\""
+    },
+    {
+      "path": "apps/terminal/application/tui_rebalance_plan_result.py",
+      "text": "summary = \"申请已提交至既有独立审批流程；申请本身不会启用任何执行权限。\""
+    },
+    {
+      "path": "apps/terminal/application/tui_rebalance_plan_result.py",
+      "text": "summary = \"计划已保存供逐项核对；它不会提交或自动执行订单。\""
     },
     {
       "path": "apps/terminal/application/tui_reference_price_result.py",
@@ -25409,6 +25761,10 @@
     {
       "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_realtime.py",
       "text": "\"target_screen\": \"realtime-monitor.alerts\","
+    },
+    {
+      "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_rebalance_plan.py",
+      "text": "\"\"\"Read the existing owner account summary without claiming price freshness.\"\"\""
     },
     {
       "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_registry.py",

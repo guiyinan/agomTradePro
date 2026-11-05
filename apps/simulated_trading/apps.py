@@ -31,6 +31,9 @@ class SimulatedTradingConfig(AppConfig):
         from apps.simulated_trading.application.portfolio_risk_public import (
             configure_portfolio_risk_service,
         )
+        from apps.simulated_trading.application.rebalance_journey_public import (
+            configure_rebalance_journey_service,
+        )
         from apps.simulated_trading.execution_current_reference_composition import (
             build_automatic_trade_execution_bridge,
         )
@@ -47,6 +50,9 @@ class SimulatedTradingConfig(AppConfig):
             build_strategy_m1_risk_source_reader,
         )
         from apps.simulated_trading.portfolio_risk_composition import build_portfolio_risk_service
+        from apps.simulated_trading.transition_plan_journey_composition import (
+            build_rebalance_journey_service,
+        )
         from core.integration.portfolio_account_access import (
             register_portfolio_account_access_checker,
         )
@@ -61,3 +67,4 @@ class SimulatedTradingConfig(AppConfig):
         register_simulated_trading_share_gateway()
         register_portfolio_account_access_checker(get_account_access)
         configure_portfolio_risk_service(build_portfolio_risk_service)
+        configure_rebalance_journey_service(build_rebalance_journey_service)

@@ -44,6 +44,10 @@ class SimulatedTradeExecutionReadbackUnknown(SimulatedTradeExecutionResultUnknow
     default_code = "SIMULATED_TRADE_EXECUTION_READBACK_UNKNOWN"
 
 
+class UnsupportedManualInstrument(SimulatedTradeExecutionInputError):
+    """Identify an existing manual-adapter capability denial without changing its code."""
+
+
 class CurrentReferenceManualIdentityReader(Protocol):
     """Resolve an asset code and re-read one exact identity at the same cutoff."""
 
@@ -111,9 +115,7 @@ class ManualSimulatedTradeRequest:
                 "asset_name must be nonempty text of at most 100 chars"
             )
         if type(self.asset_type) is not str or self.asset_type != "equity":
-            raise SimulatedTradeExecutionInputError(
-                "only explicit A-share equity trades are supported"
-            )
+            raise UnsupportedManualInstrument("only explicit A-share equity trades are supported")
         if type(self.side) is not SimulatedTradeSide:
             raise SimulatedTradeExecutionInputError("side must be buy or sell")
         try:

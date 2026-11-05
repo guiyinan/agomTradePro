@@ -1,0 +1,236 @@
+{
+  "schema": "ash08.rebalance_journey_acceptance.v1",
+  "status": "development_gates_passed_full_current_source_journey_pending",
+  "unit_status": "active",
+  "goal_complete": false,
+  "authorization": "Owner full ASH08 handoff; main plan section19.158; registry2026-11-05.v310",
+  "git_head_at_run": "73c90d1e7f5c79c650ef0a901eafbbbfa76b7bec",
+  "implementation_commit": "Resolve from this tracked index history; private validation tree is not delivery.",
+  "source_code_digest_sha256": "233ef0a2b8416018afeace043ac39821a448cc7a785e643a0e1b08c05b74d944",
+  "source_code_inputs": {
+    "path": ".tmp/ash08-journey-20261105/runs/r011-session-boundary-final/candidate-inputs.json",
+    "sha256": "08e506c3ed8c83a5e5f76ef0fe605f88e41d20bcd4edf590b7fca760b4db9dcd"
+  },
+  "tests": {
+    "python_complete_scope_passed": 971,
+    "backend_complete_modules": 29,
+    "backend_passed": 527,
+    "tui_complete_modules": 4,
+    "tui_passed": 442,
+    "session_boundary_passed": 2,
+    "node_passed": 46,
+    "controlled_browser_contracts_passed": 3,
+    "production_python_incremental_files": 53,
+    "mypy_regressions": 0,
+    "mypy_debt": 0,
+    "domain_line_percent": 95.34,
+    "domain_combined_percent": 90.8,
+    "real_current_source_full_browser_journey": "not_run"
+  },
+  "source_availability": {
+    "business_date": "2026-11-05",
+    "cni_capture_completed_at": "2026-11-05T08:04:32.287953+00:00",
+    "http_status": 200,
+    "vendor_data": null,
+    "vendor_total": 0,
+    "vendor_sampleDate": "",
+    "same_day_contract_preserved": true,
+    "admitted": false,
+    "owner_material_request": null,
+    "last_recheck_completed_at": "2026-11-05T08:34:33.370997+00:00",
+    "last_recheck_result": "same vendor empty response; original same-day contract preserved"
+  },
+  "remaining": [
+    "Acquire genuine same-day industry members; refresh existing calendar/M1/Sina/admission through unchanged validators.",
+    "Run real Owner/observer/foreign browser workflow with explicitly synthetic partial fill; reconcile durable economics.",
+    "Observe applicable CI for the business delivery commit; do not treat development checks as full unit or production qualification."
+  ],
+  "ref_scope": "REF01/05 read-only; remaining REF await original prerequisites and formal serial window. ASH06/09/12 deferred.",
+  "artifacts": [
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r009-complete-journey-contracts/junit.xml",
+      "sha256": "a903530df972fe8ff6e92438076bc05cdaf233e28852df92b22638b56b085c1e",
+      "scope": "intermediate_full_scope_969_pass_2_tui_fixture_failures_retained"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r009-complete-journey-contracts/coverage.json",
+      "sha256": "a6a44e16722212241ffada557d3595665836d104aae87e303de5450466cb50dc",
+      "scope": "unchanged_domain_actual_coverage"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r010-tui-journey-closure/verified-backend-matter-reuse.json",
+      "sha256": "edc40ad1067cc6c285bf68ea30b5d7522b71550e546d3ffa459f16204ddd633a",
+      "scope": "complete_29_module_527_pass_unchanged_backend"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r010-tui-journey-closure/junit.xml",
+      "sha256": "75ea8be167b3fdccdaea5f5a0e02ca3bfa46c88d0c344335821e3ccc017d5361",
+      "scope": "complete_tui_intermediate_443_pass_1_fixture_assertion_failure_retained"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r010-tui-journey-closure/mypy-incremental.json",
+      "sha256": "e2f6d6c4269309ae72cb5208a1461cee72e6d6a0ebb1d724b5253d68691ab4aa",
+      "scope": "53_production_files_zero_regressions"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r010-tui-journey-closure/mypy-incremental.log",
+      "sha256": "7668dc17c4acaf4a3c41ecff622519e7db86c1f3fb93337bb0accfa623cf5c80",
+      "scope": "actual_incremental_output"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r010-tui-journey-closure/mypy-debt.json",
+      "sha256": "709521817a1a688a897a7cdb430599a95ab8ebf924e600f148b42140fe20dc2c",
+      "scope": "zero_full_debt"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r010-tui-journey-closure/mypy-debt.log",
+      "sha256": "def6c561b37227470bcda90c8450d9837ca85dd34af34d05e7d6af2afdf85ab1",
+      "scope": "actual_full_debt_output"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r010-tui-journey-closure/browser-contracts.log",
+      "sha256": "c801be6cdd8b4ea9d4ae7089176ad12dee78f912bc5d052917d75efabb8bbc7b",
+      "scope": "3_controlled_real_browser_contracts_pass"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r010-tui-journey-closure/frontend.log",
+      "sha256": "ac4d9b7a13648a605dab486e5d3dee8ffd98148872c9e9f90d89332d14b3fbad",
+      "scope": "46_node_contracts_pass"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r010-tui-journey-closure/metadata.log",
+      "sha256": "5e60df3f5e8708022f489a478937e452c4e172e0edf46ecd9275e67df795423f",
+      "scope": "actual_formal_metadata_32_screens_945_actions_sql_forbidden"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r010-tui-journey-closure/tui-build.json",
+      "sha256": "6405e824ef4637e8f864ff988272738677df2bbc3b4022dd82a00d1dc2666326",
+      "scope": "final_official_bundle_build"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r011-session-boundary-final/junit.xml",
+      "sha256": "1021b12ab990a6330bb87dd3a2729946100d4847b6d61fc50741c3c3ada8e5e5",
+      "scope": "complete_session_boundary_2_pass"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r011-session-boundary-final/verified-tui-matter-reuse.json",
+      "sha256": "203fe8091bc5169015c38b7697b758848df0a467a93057f49fd44607512c79b7",
+      "scope": "complete_4_module_442_pass_unchanged_tui"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r011-session-boundary-final/candidate-inputs.json",
+      "sha256": "08e506c3ed8c83a5e5f76ef0fe605f88e41d20bcd4edf590b7fca760b4db9dcd",
+      "scope": "final_source_input_identity_before_governance_registration_only_fixes"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r012-related-development-gates/candidate-tree.json",
+      "sha256": "c5ff3008d30a2029bd6bdc6598d9055444cc64d905f106be92ab7141ff2fb1b4",
+      "scope": "private_index_validation_tree_not_formal_delivery"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r012-related-development-gates/summary.json",
+      "sha256": "609203046a231b17b1551d2fdcefc55cbca837a3426baa5a0fb1803f9ca6f093",
+      "scope": "13_related_checks_with_2_governance_registration_failures_retained"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r013-governance-closure/summary.json",
+      "sha256": "0275999b81598e68cf22dee3a34387136ba39d0229e1d31647a0637dfe207673",
+      "scope": "exact_dependency_budget_and_governance_pass_marker_typo_failure_retained"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r014-freshness-registration-final/current-data.json",
+      "sha256": "ef6b07658bb80bb9be442d8056c6c3c997f6a719efa2f91355f34d3f48e0ec5a",
+      "scope": "final_current_data_marker_location_pass"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r014-freshness-registration-final/current-data.log",
+      "sha256": "577f251bc3880b8ec894678a1a689859935a411f95a4eb3a11593735942d0435",
+      "scope": "final_current_data_actual_output"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r008-full-journey-gates/schema-root.json",
+      "sha256": "8d011f01192cfa10f1badbc8f654d11f9762ef26328b937e992c4adcb1122df1",
+      "scope": "official_root_schema_generation"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r008-full-journey-gates/schema-yaml.json",
+      "sha256": "36cb84afd4a6bd23262ccf84937601f7e396b48f889d7796b21327899af69bf6",
+      "scope": "official_yaml_openapi_generation"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r008-full-journey-gates/schema-json.json",
+      "sha256": "a986baba272ce18507726d0ceada064679090815551214b57f0f30e8eca32401",
+      "scope": "official_json_openapi_generation"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/b-execution/capture-date/runs/attempt-1605/2026-11-05/industry.response.json",
+      "sha256": "3098a203d487b1886e8a50e92f991e397e1b3d9351f8ec9cee118a2b15e0f3d9",
+      "scope": "actual_current_day_industry_unavailable_not_admitted"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/b-execution/capture-date/runs/attempt-1605/2026-11-05/industry.capture.json",
+      "sha256": "d3b195e49cda46a0c77c247909e132ec73d29a25514725fc3f3d155423660d43",
+      "scope": "actual_current_day_industry_unavailable_not_admitted"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/b-execution/capture-date/runs/attempt-1605/2026-11-05/source-availability-conclusion.json",
+      "sha256": "ce6f1fbdd18c743a07bf20021b743c7f88669728103f47660fd97666c9f36410",
+      "scope": "actual_current_day_industry_unavailable_not_admitted"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r017-projection-short-path/candidate.json",
+      "sha256": "359df91735e7c96db568b3036571f43cc2e4c79c881bf2cf6495fbd7195b36de",
+      "scope": "complete_owned_git_tree_projection_candidate_not_delivery"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r017-projection-short-path/projection-diff-summary.json",
+      "sha256": "f273e975c956248516f867c93a6ccf47f801e63250f472088eda9c1304846280",
+      "scope": "two_generated_projection_deltas_reviewed"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r017-projection-short-path/adoption.json",
+      "sha256": "b02e756d48064637f62371c25b04e445a587095ad8d498a4f070f460859f4bb3",
+      "scope": "official_projection_generation_check_and_adoption_pass"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r017-projection-short-path/check-final-clean.log",
+      "sha256": "8dea15198c1dcda1c224be53a01a9a8549a35dd8213331991e4489108f75041f",
+      "scope": "actual_clean_candidate_projection_check_pass"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/b-execution/capture-date/runs/attempt-1635/2026-11-05/industry.capture.json",
+      "sha256": "6a7b4032274ae5e1de7b0eb0d4dc435fcf5ad5d51cf2a298f895ff18047d9777",
+      "scope": "bounded_later_current_day_source_recheck_still_unavailable"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/b-execution/capture-date/runs/attempt-1635/2026-11-05/industry.response.json",
+      "sha256": "3098a203d487b1886e8a50e92f991e397e1b3d9351f8ec9cee118a2b15e0f3d9",
+      "scope": "bounded_later_current_day_source_recheck_still_unavailable"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/b-execution/capture-date/runs/attempt-1635/2026-11-05/capture-failure.json",
+      "sha256": "343df822f67f7a2c487a11d9e84aa4ab7461d77ba865695a506bb422de3e04d9",
+      "scope": "bounded_later_current_day_source_recheck_still_unavailable"
+    }
+  ],
+  "prepared_harnesses": [
+    {
+      "path": ".tmp/ash08-journey-20261105/b-execution/real-browser-harness-v2/test_real_browser_handoff.py",
+      "sha256": "954eea53756e3623a4baf021cdbfd3b459fc2ce907473e6289078c3556145099",
+      "status": "prepared_not_executed"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/b-execution/real-browser-harness-v2/ipc-contract.json",
+      "sha256": "2b63120641bbc03524db734c73fd5ec9c27060b631f841f7048542c4d8a7321a",
+      "status": "prepared_not_executed"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/browser-qa/v2/extract_trace_actions.py",
+      "sha256": "ec2e0019099b1a0aec24b8f6c0055faa3443f79083230c0c347d041988d46eaa",
+      "status": "prepared_not_executed"
+    }
+  ],
+  "artifact_storage": "Ignored local originals; no claim of remote archive availability.",
+  "foreign_workspace": "Unrelated QMT files preserved and excluded from ASH08 integration.",
+  "governance_projection_status": "architecture_entrypoints_module_map_passed_on_complete_owned_candidate"
+}

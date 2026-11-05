@@ -7,6 +7,9 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Protocol
 
+from apps.portfolio.application.transition_plan_lifecycle import (
+    TransitionPlanOrderExecutionBinding,
+)
 from apps.risk_center.domain.execution_settlement_v3 import ExecutionSettlementBundleV3
 from apps.simulated_trading.application.execution_settlement_uow import (
     PreparedSimulatedTrade,
@@ -47,6 +50,8 @@ class SimulatedOrderReservationRepository(Protocol):
         intent: SimulatedTradeIntent,
         fee_budget: Decimal | None,
         market_purpose: str | None = None,
+        transition_plan_binding: TransitionPlanOrderExecutionBinding | None = None,
+        transition_plan_recorded_at: datetime | None = None,
     ) -> OrderReservationResult | None:
         """Replay exact intent, budget and optional owner-order market purpose."""
 
@@ -57,6 +62,8 @@ class SimulatedOrderReservationRepository(Protocol):
         execution_bundle: ExecutionSettlementBundleV3,
         fee_budget: Decimal | None,
         clock: SimulatedTradeExecutionClock,
+        transition_plan_binding: TransitionPlanOrderExecutionBinding | None = None,
+        transition_plan_recorded_at: datetime | None = None,
     ) -> OrderReservationResult:
         """Recheck evidence and available resources, then persist atomically."""
 

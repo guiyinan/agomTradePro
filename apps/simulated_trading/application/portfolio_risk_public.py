@@ -12,6 +12,7 @@ from apps.risk_center.application.portfolio_risk_contracts import (
     PortfolioRiskReportPayload,
 )
 from apps.simulated_trading.application.order_reservation_fill import LocalSimulatedFillEventV1
+from apps.simulated_trading.application.portfolio_risk_context import PreparedPortfolioRisk
 from apps.simulated_trading.application.portfolio_risk_qualification import (
     PortfolioRiskExecutionQualification,
 )
@@ -87,6 +88,12 @@ class PortfolioRiskService(Protocol):
         """Assess all candidate orders without placing or reserving them."""
         ...
 
+    def prepare_plan_context(
+        self, *, user_id: int, account_id: int, preview: RebalancePlanPreview
+    ) -> PreparedPortfolioRisk:
+        """Read the exact qualified basis for an owned plan without granting execution."""
+        ...
+
     def get_pressure_options(
         self, *, user_id: int, account_id: int
     ) -> PortfolioPressureOptionsPayload:
@@ -112,6 +119,22 @@ def _service(*, user_id: int, account_id: int, using: str = "default") -> Portfo
     if _service_factory is None:
         raise PortfolioRiskUnavailable()
     return _service_factory(using)
+
+
+def prepare_owned_portfolio_plan_context(
+    *, user_id: int, account_id: int, preview: RebalancePlanPreview, using: str = "default"
+) -> PreparedPortfolioRisk:
+    """Keep the qualified typed source/policy basis without inventing missing clocks.
+
+    The owner service rechecks write scope and the server cutoff. Its result may
+    remain blocked and never substitutes for ordinary-order authorization.
+    """
+
+    if type(preview) is not RebalancePlanPreview:
+        raise InvalidInputError(code="PORTFOLIO_RISK_PLAN_PREVIEW_INVALID")
+    return _service(user_id=user_id, account_id=account_id, using=using).prepare_plan_context(
+        user_id=user_id, account_id=account_id, preview=preview
+    )
 
 
 def validate_owner_portfolio_order(

@@ -805,16 +805,22 @@ class ReadOnlyRebalancePlanPreviewBuilder:
             )
             if identity_payload is None:
                 reasons.append("CURRENT_IDENTITY_UNAVAILABLE")
-            elif position is None and action == "buy":
-                asset_type, classification_evidence = (
+            else:
+                classified_type, classification_evidence = (
                     self._execution_evidence.read_asset_type_classification(
                         identity=identity_payload,
                         asset_code=asset_code,
                         as_of=as_of,
                     )
                 )
-                if asset_type is None:
+                if classified_type is None:
                     reasons.append("ASSET_TYPE_CLASSIFICATION_UNAVAILABLE")
+                    asset_type = None
+                elif position is not None and classified_type != asset_type:
+                    reasons.append("POSITION_ASSET_TYPE_CLASSIFICATION_CONFLICT")
+                    asset_type = None
+                else:
+                    asset_type = classified_type
         if action in {"buy", "sell"} and (type(asset_type) is not str or not asset_type.strip()):
             reasons.append("ASSET_TYPE_UNKNOWN")
         if type(asset_type) is str and asset_type.strip() and action in {"buy", "sell"}:

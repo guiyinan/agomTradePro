@@ -886,6 +886,7 @@
         let submittedParams = null;
         let continuationTarget = false;
         let receivedContinuation = null;
+        let continuationSourceActionKey = "";
         let continuationRequestToken;
         let continuationExpiresAt = null;
         let continuationReadback = false;
@@ -923,12 +924,22 @@
             }
             const incomingContinuation = resultContinuations.incomingForTarget(actions, actualActionKey);
             const incomingReadback = resultContinuations.incomingForReadback(actions, actualActionKey);
+            continuationSourceActionKey = incomingContinuation.sourceActionKey
+                || incomingReadback.sourceActionKey
+                || String(options.dashboardContinuationContext?.sourceActionKey || "");
             if (incomingContinuation.status === "invalid") {
                 renderContinuationFailure(action, "tui_result_continuation_metadata_invalid");
                 return;
             }
             if (incomingReadback.status === "invalid") {
                 renderContinuationFailure(action, "tui_result_continuation_metadata_invalid");
+                return;
+            }
+            if (options.dashboardContinuationContext
+                && !targetedContinuationContextIsCurrent(
+                    action, options.dashboardContinuationContext, actions,
+                )) {
+                renderContinuationFailure(action, "tui_continuation_context_changed");
                 return;
             }
             let params = options.params ? { ...options.params } : (form ? await collectParams(form, action) : {});
@@ -1271,6 +1282,25 @@
                     renderTargetedDashboardEnvelope(action, result,
                         targetPanelParams || submittedParams || {},
                         dashboardResultPanelKey, dashboardRefreshPanelKey);
+                    continuationSourceActionKey = receivedContinuation?.sourceActionKey
+                        || continuationSourceActionKey
+                        || actualActionKey;
+                    const panelContext = {
+                        sourceActionKey: continuationSourceActionKey,
+                        screenKey: String(action.screen_key || ""),
+                        panelKey: dashboardResultPanelKey,
+                        panelActionKey: action.key,
+                    };
+                    if (receivedContinuation) {
+                        appendTargetedContinuationNextAction(
+                            receivedContinuation.targetActionKey, panelContext,
+                        );
+                    } else if ((targetResultUnknown || (continuationReadback && !readbackResolved))
+                        && continuationReadbackActionKey) {
+                        appendTargetedContinuationReadback(
+                            continuationReadbackActionKey, panelContext,
+                        );
+                    }
                 }
                 if (hasDashboardRefreshTarget && dashboardRefreshPanelKey !== dashboardResultPanelKey) {
                     await refreshDashboardPanel(dashboardRefreshPanelKey);
@@ -1347,7 +1377,29 @@
                     resultContinuations.clearTargetRequest(action);
                 }
                 setStatus("请求已取消");
-                if (ambiguousTarget) offerContinuationReadback(continuationReadbackActionKey);
+                if (ambiguousTarget) {
+                    const dashboardResultPanelKey = String(options.dashboardResultPanelKey || "").trim();
+                    const panelContext = options.dashboardContinuationContext;
+                    if (dashboardResultPanelKey && panelContext) {
+                        renderDashboardActionError(
+                            dashboardResultPanelKey,
+                            error,
+                            action,
+                            targetPanelParams || submittedParams || {},
+                        );
+                        appendTargetedContinuationReadback(
+                            continuationReadbackActionKey,
+                            {
+                                sourceActionKey: panelContext.sourceActionKey,
+                                screenKey: String(action.screen_key || ""),
+                                panelKey: dashboardResultPanelKey,
+                                panelActionKey: action.key,
+                            },
+                        );
+                    } else {
+                        offerContinuationReadback(continuationReadbackActionKey);
+                    }
+                }
                 return;
             }
             const continuationFailure = continuationFailureState({
@@ -1405,6 +1457,15 @@
                     action,
                     targetPanelParams || submittedParams || {},
                 );
+                if (ambiguousTarget && continuationReadbackActionKey) {
+                    appendTargetedContinuationReadback(continuationReadbackActionKey, {
+                        sourceActionKey: continuationSourceActionKey
+                            || String(options.dashboardContinuationContext?.sourceActionKey || ""),
+                        screenKey: String(action.screen_key || ""),
+                        panelKey: dashboardResultPanelKey,
+                        panelActionKey: action.key,
+                    });
+                }
                 return;
             }
             if (options.dashboardPanelKey) {

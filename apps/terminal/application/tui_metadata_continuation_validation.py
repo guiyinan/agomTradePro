@@ -10,6 +10,49 @@ from apps.terminal.application.tui_metadata_filter_validation import (
 )
 
 
+def _is_safe_dashboard_preview_source(
+    *,
+    source: dict[str, Any],
+    row_action: dict[str, Any],
+    screen: dict[str, Any],
+) -> bool:
+    """Allow only an explicit, same-screen read-preview form to start a row handoff."""
+
+    result_panel_key = str(source.get("result_panel_key") or "")
+    screen_key = str(screen.get("key") or "")
+    if (
+        str(source.get("method") or "GET").upper() != "POST"
+        or str(source.get("risk") or "read") != "read"
+        or str(source.get("effect") or "read") != "read"
+        or source.get("confirmation_required")
+        or not source.get("session_auth_required")
+        or str(source.get("screen_key") or "") != screen_key
+        or not result_panel_key
+        or str(row_action.get("result_panel_key") or "") != result_panel_key
+        or row_action.get("refresh_panel_key")
+    ):
+        return False
+
+    has_visible_body_input = any(
+        isinstance(field, dict)
+        and str(field.get("input_type") or "").lower() not in {"hidden", "password", "file"}
+        and str(field.get("binding") or "body").lower() == "body"
+        for field in source.get("fields", [])
+    )
+    if not has_visible_body_input:
+        return False
+
+    result_panel = next(
+        (
+            panel
+            for panel in screen.get("dashboard_panels", [])
+            if isinstance(panel, dict) and str(panel.get("key") or "") == result_panel_key
+        ),
+        None,
+    )
+    return isinstance(result_panel, dict) and str(result_panel.get("kind") or "") == "detail"
+
+
 def _validate_result_continuations(
     *,
     actions: list[dict[str, Any]],
@@ -273,7 +316,18 @@ def _validate_result_continuations(
                 if not isinstance(row_action, dict):
                     continue
                 action_key = str(row_action.get("action_key") or "")
-                if action_key in continuation_keys:
-                    raise TuiMetadataValidationError(
-                        f"Dashboard row actions cannot carry result continuations: {action_key}"
+                if action_key not in continuation_keys:
+                    continue
+                row_source = action_by_key.get(action_key)
+                if (
+                    action_key in source_keys
+                    and isinstance(row_source, dict)
+                    and _is_safe_dashboard_preview_source(
+                        source=row_source, row_action=row_action, screen=screen
                     )
+                ):
+                    continue
+                raise TuiMetadataValidationError(
+                    f"Only a visible same-screen read-preview may start a dashboard row "
+                    f"continuation: {action_key}"
+                )

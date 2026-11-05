@@ -9,7 +9,7 @@
       "celery_dispatch_edge": 18,
       "celery_task": 130,
       "compatibility_facade": 95,
-      "current_data_surface": 104,
+      "current_data_surface": 105,
       "dynamic_import_edge": 15,
       "management_command": 50,
       "management_command_edge": 65,
@@ -30,13 +30,13 @@
       "workflow_step": 11
     },
     "by_status": {
-      "active_public": 905,
+      "active_public": 906,
       "adjacent_operational": 344,
       "candidate-review": 40,
       "compatibility": 139,
       "retired_blocked": 0
     },
-    "total": 1428
+    "total": 1429
   },
   "entries": [
     {
@@ -6081,7 +6081,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=10",
+      "evidence": "governed current-data contract; source_files=11",
       "id": "current_data_surface:governance/current_data_contracts.json:simulated_trading.owner_order_submission_market:Explicit Sina raw capture, source-clock-qualified paper market and owner preview/confirmation/readback; local simulated reservations only, immutable original recovery before current source reads; no broker authority",
       "locator": "Explicit Sina raw capture, source-clock-qualified paper market and owner preview/confirmation/readback; local simulated reservations only, immutable original recovery before current source reads; no broker authority",
       "path": "governance/current_data_contracts.json",
@@ -6107,6 +6107,16 @@
       "path": "governance/current_data_contracts.json",
       "status": "active_public",
       "symbol": "simulated_trading.readonly_rebalance_preview",
+      "target": ""
+    },
+    {
+      "category": "current_data_surface",
+      "evidence": "governed current-data contract; source_files=7",
+      "id": "current_data_surface:governance/current_data_contracts.json:simulated_trading.trusted_rebalance_journey:Owned finite-simulation immutable rebalance plan preparation and exact-version history. Captured preview and separately read financial resources are value-checked. A historical/latest family row is never an execution or freshness claim; a bound manual order additionally needs current policy/source constraints and the ordinary explicit preview/confirmation gates.",
+      "locator": "Owned finite-simulation immutable rebalance plan preparation and exact-version history. Captured preview and separately read financial resources are value-checked. A historical/latest family row is never an execution or freshness claim; a bound manual order additionally needs current policy/source constraints and the ordinary explicit preview/confirmation gates.",
+      "path": "governance/current_data_contracts.json",
+      "status": "active_public",
+      "symbol": "simulated_trading.trusted_rebalance_journey",
       "target": ""
     },
     {
@@ -14331,7 +14341,7 @@
   },
   "source_contract_counts": {
     "celery_tasks": 95,
-    "current_data_contracts": 104,
+    "current_data_contracts": 105,
     "legacy_entrypoints_and_wrappers": 0,
     "operational_governance_rules": 45,
     "runtime_config_keys": 48

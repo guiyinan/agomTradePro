@@ -9,6 +9,9 @@ from decimal import Decimal
 import pytest
 from django.core import signing
 
+from apps.portfolio.application.transition_plan_lifecycle import (
+    TransitionPlanOrderExecutionBinding,
+)
 from apps.risk_center.domain.execution_settlement_v3 import ExecutionSettlementBundleV3
 from apps.risk_center.domain.execution_submission_v2 import ExecutionSubmissionMarketV2
 from apps.simulated_trading.application.execution_settlement_uow import (
@@ -210,7 +213,11 @@ class _OwnerRepository:
         intent: SimulatedTradeIntent,
         fee_budget: Decimal | None,
         market_purpose: str | None = None,
+        transition_plan_binding: TransitionPlanOrderExecutionBinding | None = None,
+        transition_plan_recorded_at: datetime | None = None,
     ) -> OrderReservationResult | None:
+        assert transition_plan_binding is None, "legacy fixture only accepts unbound orders"
+        assert transition_plan_recorded_at is None
         self.idempotency_reads.append((intent, fee_budget))
         if (intent.account_id, intent.user_id) != (7, self.owner_user_id):
             raise SimulatedTradeAccountScopeUnavailable()
@@ -376,7 +383,11 @@ class _GuardedWriter:
         execution_bundle: ExecutionSettlementBundleV3,
         fee_budget: Decimal | None,
         clock: _MutableClock,
+        transition_plan_binding: TransitionPlanOrderExecutionBinding | None = None,
+        transition_plan_recorded_at: datetime | None = None,
     ) -> OrderReservationResult:
+        assert transition_plan_binding is None, "legacy fixture only accepts unbound orders"
+        assert transition_plan_recorded_at is None
         self.reserve_calls += 1
         # This is the real source guard invoked by the simulated ordinary writer while
         # it owns the account lock; it is not replaced with a test-side mirror.
@@ -991,10 +1002,18 @@ def test_preview_deadline_is_rechecked_after_writer_lock_delay(
         execution_bundle: ExecutionSettlementBundleV3,
         fee_budget: Decimal | None,
         clock: _MutableClock,
+        transition_plan_binding: TransitionPlanOrderExecutionBinding | None = None,
+        transition_plan_recorded_at: datetime | None = None,
     ) -> OrderReservationResult:
         clock.value = preview.expires_at
         return original_reserve(
-            self, plan=plan, execution_bundle=execution_bundle, fee_budget=fee_budget, clock=clock
+            self,
+            plan=plan,
+            execution_bundle=execution_bundle,
+            fee_budget=fee_budget,
+            clock=clock,
+            transition_plan_binding=transition_plan_binding,
+            transition_plan_recorded_at=transition_plan_recorded_at,
         )
 
     monkeypatch.setattr(_GuardedWriter, "reserve_order", delayed_reserve)

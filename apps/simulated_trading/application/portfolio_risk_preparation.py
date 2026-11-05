@@ -88,6 +88,7 @@ class PortfolioRiskContextBuilder:
         execution_session: date | None = None,
         require_write: bool = False,
         lower_bound: datetime | None = None,
+        additional_assets: tuple[PortfolioRiskAssetIdentity, ...] = (),
     ) -> PreparedPortfolioRisk:
         """Read the account first, then capture a real server cutoff for its assessment."""
 
@@ -130,7 +131,7 @@ class PortfolioRiskContextBuilder:
             account_id=account_id, as_of=as_of, business_date=business_date
         )
         policy = policy_read.policy
-        requested_assets = _requested_assets(snapshot, proposals)
+        requested_assets = _requested_assets(snapshot, proposals, additional_assets)
         capacity_requested_purpose = (
             _capacity_requested_purpose(policy.source_references, requested_assets)
             if policy is not None
@@ -169,7 +170,9 @@ class PortfolioRiskContextBuilder:
         )
         calendar = self._calendar_reader.read_calendar(
             PortfolioRiskCalendarReadRequest(
-                requested_assets=_resolved_calendar_assets(snapshot, proposals, assets),
+                requested_assets=_resolved_calendar_assets(
+                    snapshot, proposals, assets, additional_assets
+                ),
                 requested_session=session,
                 as_of=as_of,
             )
@@ -352,8 +355,12 @@ def combine_risk_outcomes(values: tuple[PortfolioRiskOutcome, ...]) -> Portfolio
 
 
 def _requested_assets(
-    snapshot: AccountSnapshot, proposals: tuple[ProposedOrder, ...]
+    snapshot: AccountSnapshot,
+    proposals: tuple[ProposedOrder, ...],
+    additional_assets: tuple[PortfolioRiskAssetIdentity, ...] = (),
 ) -> tuple[PortfolioRiskAssetIdentity, ...]:
+    if type(additional_assets) is not tuple:
+        raise PortfolioRiskUnavailable(code="PORTFOLIO_RISK_ADDITIONAL_ASSETS_INVALID")
     identities: dict[str, set[str]] = {}
     for holding in snapshot.holdings:
         if holding.quantity <= 0:
@@ -365,6 +372,16 @@ def _requested_assets(
         identities.setdefault(order.asset_code, set()).add(order.security_id)
     for proposal in proposals:
         identities.setdefault(proposal.asset_code, set()).add(proposal.security_id)
+    for item in additional_assets:
+        if type(item) is not PortfolioRiskAssetIdentity:
+            raise PortfolioRiskUnavailable(code="PORTFOLIO_RISK_ADDITIONAL_ASSETS_INVALID")
+        item.__post_init__()
+        if item.asset_code not in identities:
+            identities[item.asset_code] = (
+                {item.security_id} if item.security_id is not None else set()
+            )
+        elif item.security_id is not None and identities[item.asset_code]:
+            identities[item.asset_code].add(item.security_id)
     return tuple(
         PortfolioRiskAssetIdentity(code, security_id)
         for code, securities in sorted(identities.items())
@@ -443,6 +460,7 @@ def _resolved_calendar_assets(
     snapshot: AccountSnapshot,
     proposals: tuple[ProposedOrder, ...],
     assets: PortfolioRiskAssetsReadResult,
+    additional_assets: tuple[PortfolioRiskAssetIdentity, ...] = (),
 ) -> tuple[PortfolioRiskAssetIdentity, ...]:
     resolved: dict[str, set[str]] = {}
     for asset in assets.assets:
@@ -461,7 +479,7 @@ def _resolved_calendar_assets(
                 )
             ),
         )
-        for item in _requested_assets(snapshot, proposals)
+        for item in _requested_assets(snapshot, proposals, additional_assets)
     )
 
 

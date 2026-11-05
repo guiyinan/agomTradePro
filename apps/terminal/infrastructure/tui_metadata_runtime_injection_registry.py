@@ -148,6 +148,10 @@ from .tui_metadata_runtime_injection_realtime import (
     RUNTIME_REALTIME_MODULE,
     RUNTIME_REALTIME_SCREEN,
 )
+from .tui_metadata_runtime_injection_rebalance_plan import (
+    RUNTIME_REBALANCE_PLAN_ACTIONS,
+    RUNTIME_REBALANCE_PLAN_SCREENS,
+)
 from .tui_metadata_runtime_injection_risk_center import (
     RUNTIME_RISK_CENTER_ACTIONS,
     RUNTIME_RISK_CENTER_MODULE,
@@ -414,6 +418,11 @@ _LEGACY_RUNTIME_METADATA_INJECTIONS: tuple[RuntimeMetadataInjectionBundle, ...] 
         coverage_key="runtime_injected_owner_order_entry_metadata",
         screens=(RUNTIME_OWNER_ORDER_ENTRY_SCREEN,),
         actions=RUNTIME_OWNER_ORDER_ENTRY_ACTIONS,
+    ),
+    RuntimeMetadataInjectionBundle(
+        coverage_key="runtime_injected_rebalance_plan_metadata",
+        screens=RUNTIME_REBALANCE_PLAN_SCREENS,
+        actions=RUNTIME_REBALANCE_PLAN_ACTIONS,
     ),
     RuntimeMetadataInjectionBundle(
         coverage_key="runtime_injected_fee_correction_metadata",

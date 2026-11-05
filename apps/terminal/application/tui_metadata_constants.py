@@ -171,6 +171,7 @@ ALLOWED_TUI_DASHBOARD_PANEL_KEYS = {
     "user_priority",
     "presentation_semantic",
     "columns",
+    "hidden_columns",
     "field_rules",
     "row_actions",
     "layout_area",

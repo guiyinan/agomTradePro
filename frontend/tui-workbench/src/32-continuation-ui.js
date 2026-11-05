@@ -36,6 +36,83 @@ function renderContinuationFailure(action, code) {
     updateRawDrawer();
 }
 
+function targetedContinuationContextIsCurrent(action, context, actions) {
+    if (!action || !context || typeof context !== "object") return false;
+    const screenKey = String(state.screen?.screen?.key || state.screen?.key || "");
+    const source = currentAction(context.sourceActionKey);
+    const panelKey = String(context.panelKey || "");
+    const panel = typeof currentDashboardPanel === "function"
+        ? currentDashboardPanel(panelKey)
+        : null;
+    const container = panel
+        ? els.main.querySelector(`[data-dashboard-panel="${CSS.escape(panel.key)}"]`)
+        : null;
+    const hasDeclaredSourceRow = (state.screen?.screen?.dashboard_panels || [])
+        .some(sourcePanel => (sourcePanel.row_actions || []).some(descriptor => (
+            descriptor.action_key === source?.key
+            && descriptor.result_panel_key === panelKey
+            && !descriptor.refresh_panel_key
+        )));
+    if (!source || !panel || !container
+        || screenKey !== String(context.screenKey || "")
+        || screenKey !== String(action.screen_key || "")
+        || String(source.screen_key || "") !== screenKey
+        || !hasDeclaredSourceRow
+        || container.dashboardResultActionKey !== String(context.panelActionKey || "")) {
+        return false;
+    }
+    const incoming = context.kind === "readback"
+        ? resultContinuations.incomingForReadback(actions || [], action.key)
+        : resultContinuations.incomingForTarget(actions || [], action.key);
+    return incoming.status === "ready"
+        && incoming.sourceActionKey === String(context.sourceActionKey || "");
+}
+
+function appendTargetedContinuationAction(actionKey, context) {
+    const action = currentAction(actionKey);
+    const panel = typeof currentDashboardPanel === "function"
+        ? currentDashboardPanel(context?.panelKey)
+        : null;
+    const container = panel
+        ? els.main.querySelector(`[data-dashboard-panel="${CSS.escape(panel.key)}"]`)
+        : null;
+    const actions = Array.isArray(state.screen?.actions) ? state.screen.actions : [];
+    if (!targetedContinuationContextIsCurrent(action, context, actions) || !container) {
+        return false;
+    }
+    container.querySelector('[data-result-continuation="true"]')?.remove();
+    const section = document.createElement("section");
+    section.className = "tui-entry-actions";
+    section.dataset.resultContinuation = "true";
+    section.dataset.continuationPanelKey = String(context.panelKey);
+    section.dataset.continuationActionKey = action.key;
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = `继续：${action.label}`;
+    button.addEventListener("click", () => {
+        if (!targetedContinuationContextIsCurrent(action, context, state.screen?.actions || [])) {
+            renderContinuationFailure(action, "tui_continuation_context_changed");
+            return;
+        }
+        runAction(action.key, actionFormElement(action), {
+            dashboardResultPanelKey: String(context.panelKey),
+            dashboardContinuationContext: { ...context },
+            continuationReadback: context.kind === "readback",
+        });
+    });
+    section.appendChild(button);
+    container.appendChild(section);
+    return true;
+}
+
+function appendTargetedContinuationNextAction(targetActionKey, context) {
+    return appendTargetedContinuationAction(targetActionKey, { ...context, kind: "target" });
+}
+
+function appendTargetedContinuationReadback(readbackActionKey, context) {
+    return appendTargetedContinuationAction(readbackActionKey, { ...context, kind: "readback" });
+}
+
 function appendContinuationNextAction(targetActionKey) {
     const targetAction = currentAction(targetActionKey);
     if (!targetAction) {
@@ -119,6 +196,11 @@ function offerContinuationReadback(actionKey) {
         showUnknownContinuation(currentAction(targetActionKey), targetActionKey);
         return;
     }
+    if (actionKey === "rebalance-plan.order-by-key") {
+        const targetActionKey = "rebalance-plan.order-confirm";
+        showUnknownContinuation(currentAction(targetActionKey), targetActionKey);
+        return;
+    }
     const button = document.createElement("button");
     button.type = "button";
     button.className = "tui-action-submit";
@@ -134,8 +216,12 @@ function offerContinuationReadback(actionKey) {
 function showUnknownContinuation(action, targetActionKey) {
     const actions = Array.isArray(state.screen?.actions) ? state.screen.actions : [];
     const sourceDescriptor = resultContinuations.incomingForTarget(actions, targetActionKey);
-    const ownerOrderRecovery = sourceDescriptor.sourceActionKey === "simulated-trading.order-preview";
-    const readbackLabel = ownerOrderRecovery ? "核对同一原订单" : "查询原请求结果";
+    const planOrderRecovery = sourceDescriptor.sourceActionKey === "rebalance-plan.preview-order";
+    const ownerOrderRecovery = planOrderRecovery
+        || sourceDescriptor.sourceActionKey === "simulated-trading.order-preview";
+    const readbackLabel = planOrderRecovery
+        ? "核对同一计划订单"
+        : ownerOrderRecovery ? "核对同一原订单" : "查询原请求结果";
     const readbackAction = currentAction(
         sourceDescriptor.status === "ready" ? sourceDescriptor.readbackActionKey : "",
     );
@@ -144,7 +230,9 @@ function showUnknownContinuation(action, targetActionKey) {
             <div class="tui-view-status">原请求结果待确认</div>
             <div class="tui-entry-copy">
                 <strong>${ownerOrderRecovery
-                    ? "上一笔模拟订单确认结果尚未确认。请先查询同一原订单。"
+                    ? planOrderRecovery
+                        ? "上一笔计划订单确认结果尚未确认。请先核对同一计划订单。"
+                        : "上一笔模拟订单确认结果尚未确认。请先查询同一原订单。"
                     : "上一笔更正请求结果尚未确认。请先查询原请求。"}</strong>
                 <p>${ownerOrderRecovery
                     ? "只读核对不会重新获取行情或创建新订单；未找到订单时仍属于待核对状态。"

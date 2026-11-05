@@ -597,6 +597,16 @@ def test_v3_read_use_case_checks_scope_source_effective_and_local_knowledge_wind
     assert port.request == (bundle.settlement_policy_v1.security_id, AS_OF)
 
 
+def test_v3_record_read_retains_original_database_clock_without_relabeling_source_clock() -> None:
+    record = _record(_bundle())
+    result = ReadEffectiveExecutionSettlementV3UseCase(_ReadPort(record)).execute_record(
+        security_id=record.bundle.settlement_policy_v1.security_id, as_of=AS_OF
+    )
+    assert result is record
+    assert result.recorded_at == record.recorded_at
+    assert result.bundle.source_available_at == record.bundle.source_available_at
+
+
 def test_v3_read_use_case_respects_narrower_policy_window() -> None:
     base = _rule_v2().execution_rule_v1
     policy = replace(

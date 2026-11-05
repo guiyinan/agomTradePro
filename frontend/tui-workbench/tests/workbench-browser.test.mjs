@@ -1148,6 +1148,126 @@ function makeCalendarContinuationScreen() {
     };
 }
 
+function makeRebalancePlanRowContinuationScreen() {
+    const screenKey = "test.dashboard";
+    const orders = action("rebalance-plan.orders", {
+        label: "Read plan orders",
+        method: "GET",
+        risk: "read",
+        effect: "read",
+        view_type: "datagrid",
+        screen_key: screenKey,
+    });
+    const source = action("rebalance-plan.preview-order", {
+        label: "Preview exact plan order",
+        method: "POST",
+        risk: "read",
+        effect: "read",
+        screen_key: screenKey,
+        fields: [
+            ...[
+                ["account_id", "integer"], ["plan_id", "string"], ["order_ordinal", "integer"],
+                ["plan_version", "integer"], ["revision_hash", "string"],
+                ["order_content_hash", "string"], ["plan_order_binding_id", "string"],
+            ].map(([key, valueType]) => ({
+                key, label: key, input_type: "hidden", value_type: valueType, required: true,
+                binding: "body", presentation_semantic: "identifier", default: "",
+            })),
+            { key: "quantity", label: "Quantity", input_type: "text", value_type: "string", required: true, binding: "body" },
+            { key: "limit_price", label: "Limit price", input_type: "text", value_type: "string", required: true, binding: "body" },
+        ],
+    });
+    source.session_auth_required = true;
+    source.audience = "authenticated";
+    source.result_continuation = {
+        target_action_key: "rebalance-plan.order-confirm",
+        field_map: { account_id: "account_id", order_key: "order_key", preview_token: "preview_token" },
+        reuse_source_idempotency_key: true,
+        readback_action_key: "rebalance-plan.order-by-key",
+    };
+
+    const target = action("rebalance-plan.order-confirm", {
+        label: "Confirm the original simulated order",
+        method: "POST",
+        risk: "write",
+        effect: "update",
+        confirmation_required: true,
+        screen_key: screenKey,
+        fields: ["account_id", "order_key", "preview_token"].map(key => ({
+            key, label: key, input_type: "hidden", value_type: "string", required: true,
+            binding: "body", presentation_semantic: "api_token", default: "",
+        })),
+    });
+    target.endpoint = "/api/simulated-trading/accounts/<str:account_id>/orders/by-key/<str:order_key>/confirm/";
+    target.session_auth_required = true;
+    target.audience = "authenticated";
+
+    const readback = action("rebalance-plan.order-by-key", {
+        label: "Read the original simulated order",
+        method: "GET",
+        risk: "read",
+        effect: "read",
+        screen_key: screenKey,
+        fields: ["account_id", "order_key"].map(key => ({
+            key, label: key, input_type: "hidden", value_type: "string", required: true,
+            binding: "body", presentation_semantic: "api_token", default: "",
+        })),
+    });
+    readback.endpoint = "/api/simulated-trading/accounts/<str:account_id>/orders/by-key/<str:order_key>/";
+    readback.session_auth_required = true;
+    readback.audience = "authenticated";
+
+    const row = {
+        account_id: 42, plan_id: "plan-r7", order_ordinal: 0, plan_version: 2,
+        revision_hash: "revision-r7", order_content_hash: "order-r7",
+        plan_order_binding_id: "binding-r7", order_label: "600000.SH BUY",
+    };
+    return {
+        module: { key: "test", label: "Synthetic test module" },
+        screen: {
+            key: screenKey, label: "Plan order workspace", summary: "Exercise exact plan preview handoff.",
+            view_type: "datagrid", status: "online", audience: "authenticated",
+            chrome_mode: "immersive", entry_state: { mode: "dashboard" }, workflow: {},
+            default_action_key: orders.key,
+            user_experience: { primary_task: "Review a saved plan order", primary_outcome: "Preview, confirm, or read back the same order" },
+            dashboard_panels: [
+                {
+                    key: "plan-order-grid", title: "Saved plan orders", kind: "datagrid",
+                    user_priority: "p0", presentation_semantic: "primary_list", action_key: orders.key,
+                    hidden_columns: ["account_id", "plan_id", "order_ordinal", "plan_version", "revision_hash", "order_content_hash", "plan_order_binding_id"],
+                    columns: [{ key: "order_label", label: "Order" }],
+                    row_actions: [{
+                        action_key: source.key, label_template: "Preview {order_label}",
+                        param_map: {
+                            account_id: "account_id", plan_id: "plan_id", order_ordinal: "order_ordinal",
+                            plan_version: "plan_version", revision_hash: "revision_hash",
+                            order_content_hash: "order_content_hash", plan_order_binding_id: "plan_order_binding_id",
+                        },
+                        result_panel_key: "plan-order-preview",
+                    }],
+                },
+                { key: "plan-order-preview", title: "Preview result", kind: "detail", user_priority: "p1", presentation_semantic: "supporting_detail" },
+            ],
+        },
+        actions: [orders, source, target, readback],
+        syntheticRow: row,
+    };
+}
+
+function planOrderListResult(screenSpec) {
+    const orders = screenSpec.actions.find(item => item.key === "rebalance-plan.orders");
+    return {
+        version: "tui-workbench.v2", action: orders, outcome: "success",
+        response: { status_code: 200 },
+        view_model: {
+            kind: "datagrid", title: "Saved plan orders",
+            columns: [{ key: "order_label", label: "Order" }],
+            rows: [screenSpec.syntheticRow], total: 1,
+        },
+        debug: { raw_available: false, raw_response: null },
+    };
+}
+
 function makeFeeCorrectionContinuationScreen() {
     const source = action("simulated-trading.fee-correction-preview", {
         label: "保存费用材料并生成更正预览",
@@ -1228,6 +1348,299 @@ function makeFeeCorrectionContinuationScreen() {
         actions: [source, target, readback],
     };
 }
+
+test("plan row preview keeps confirmation inside its result panel and on the same exact handoff", async () => {
+    const screenSpec = makeRebalancePlanRowContinuationScreen();
+    const source = screenSpec.actions.find(item => item.key === "rebalance-plan.preview-order");
+    const target = screenSpec.actions.find(item => item.key === "rebalance-plan.order-confirm");
+    const token = "synthetic-plan-preview-token";
+    const { browser, page } = await openHarness("https://app.test/?screen=test.dashboard", {
+        catalog: experienceCatalog, dashboardScreen: screenSpec, waitForInitialRows: false,
+        actionRunMock: ({ actionKey }) => actionKey === "rebalance-plan.orders"
+            ? planOrderListResult(screenSpec) : null,
+    });
+    const sourceRequests = [];
+    const targetRequests = [];
+    try {
+        await page.locator('[data-dashboard-panel="plan-order-grid"] [data-dashboard-row-action]').waitFor({ state: "visible" });
+        await page.route("**/actions/rebalance-plan.preview-order/run/", async route => {
+            const request = route.request();
+            const body = request.postDataJSON();
+            sourceRequests.push({ body, key: request.headers()["idempotency-key"] });
+            await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({
+                version: "tui-workbench.v2", action: source, outcome: "success",
+                response: { status_code: 200 },
+                view_model: { kind: "detail", title: "Plan order preview", status: "Ready", fields: [{ label: "Order", value: "600000.SH BUY" }] },
+                continuation: {
+                    action_key: target.key,
+                    input: { account_id: "42", order_key: "reservation-r7", preview_token: token },
+                    expires_at: new Date(Date.now() + 60_000).toISOString(),
+                },
+                debug: { raw_available: false, raw_response: null },
+            }) });
+        });
+        await page.route("**/actions/rebalance-plan.order-confirm/run/", async route => {
+            const request = route.request();
+            const body = request.postDataJSON();
+            targetRequests.push({ body, key: request.headers()["idempotency-key"] });
+            if (!body.confirmed) {
+                await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({
+                    version: "tui-workbench.v2", action: target, confirmation_required: true,
+                    confirmation: { title: "Confirm simulated order", message: "Confirm the same preview.", confirm_label: "Confirm", cancel_label: "Cancel" },
+                    response: { status_code: 409 },
+                    view_model: { kind: "message", title: "Awaiting confirmation", status: "Confirm" },
+                    debug: { raw_available: false, raw_response: null },
+                }) });
+                return;
+            }
+            await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({
+                version: "tui-workbench.v2", action: target, outcome: "success",
+                response: { status_code: 200 },
+                view_model: { kind: "detail", title: "Reservation submitted", status: "Success", fields: [
+                    { key: "order_status", label: "Order status", value: "Reservation submitted" },
+                ] },
+                debug: { raw_available: false, raw_response: null },
+            }) });
+        });
+
+        await page.locator('[data-dashboard-panel="plan-order-grid"] [data-dashboard-row-action]').click();
+        const previewForm = page.locator('form[data-action-ui-key="rebalance-plan.preview-order"]');
+        await previewForm.waitFor({ state: "visible" });
+        await previewForm.locator('[name="quantity"]').fill("10");
+        await previewForm.locator('[name="limit_price"]').fill("10.25");
+        const previewResponse = page.waitForResponse(response => response.url().includes("/actions/rebalance-plan.preview-order/run/"));
+        await previewForm.locator(".tui-action-submit").click();
+        await previewResponse;
+
+        const previewPanel = page.locator('[data-dashboard-panel="plan-order-preview"]');
+        const continueButton = previewPanel.locator('[data-result-continuation="true"] button');
+        await continueButton.waitFor({ state: "visible" });
+        assert.equal(await page.locator('[data-main-panel] > [data-result-continuation]').count(), 0);
+        const preflightResponse = page.waitForResponse(response => response.url().includes("/actions/rebalance-plan.order-confirm/run/"));
+        await continueButton.click();
+        await preflightResponse;
+        await page.locator("[data-confirm-action]").waitFor({ state: "visible" });
+        const confirmedResponse = page.waitForResponse(response => (
+            response.url().includes("/actions/rebalance-plan.order-confirm/run/")
+            && response.request().postDataJSON().confirmed
+        ));
+        await page.locator("[data-confirm-action]").click();
+        await confirmedResponse;
+        await previewPanel.getByText("Reservation submitted", { exact: true }).waitFor({ state: "visible" });
+        assert.equal(sourceRequests.length, 1);
+        assert.deepEqual(targetRequests.map(item => item.body.confirmed), [false, true]);
+        assert.equal(targetRequests[0].key, sourceRequests[0].key);
+        assert.equal(targetRequests[1].key, sourceRequests[0].key);
+        assert.deepEqual(targetRequests[1].body.params, targetRequests[0].body.params);
+        assert.equal(targetRequests[1].body.params.preview_token, token);
+    } finally { await browser.close(); }
+});
+
+test("unknown plan-order confirmation offers only same-key readback in the active result panel", async () => {
+    const screenSpec = makeRebalancePlanRowContinuationScreen();
+    const source = screenSpec.actions.find(item => item.key === "rebalance-plan.preview-order");
+    const target = screenSpec.actions.find(item => item.key === "rebalance-plan.order-confirm");
+    const readback = screenSpec.actions.find(item => item.key === "rebalance-plan.order-by-key");
+    const token = "synthetic-plan-unknown-token";
+    const { browser, page } = await openHarness("https://app.test/?screen=test.dashboard", {
+        catalog: experienceCatalog, dashboardScreen: screenSpec, waitForInitialRows: false,
+        actionRunMock: ({ actionKey }) => actionKey === "rebalance-plan.orders"
+            ? planOrderListResult(screenSpec) : null,
+    });
+    const sourceRequests = [];
+    const targetRequests = [];
+    const readbackRequests = [];
+    try {
+        await page.locator('[data-dashboard-panel="plan-order-grid"] [data-dashboard-row-action]').waitFor({ state: "visible" });
+        await page.route("**/actions/rebalance-plan.preview-order/run/", async route => {
+            const request = route.request();
+            sourceRequests.push({ body: request.postDataJSON(), key: request.headers()["idempotency-key"] });
+            await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({
+                version: "tui-workbench.v2", action: source, outcome: "success", response: { status_code: 200 },
+                view_model: { kind: "detail", title: "Plan order preview", status: "Ready", fields: [] },
+                continuation: {
+                    action_key: target.key,
+                    input: { account_id: "42", order_key: "reservation-r7", preview_token: token },
+                    expires_at: new Date(Date.now() + 60_000).toISOString(),
+                },
+                debug: { raw_available: false, raw_response: null },
+            }) });
+        });
+        await page.route("**/actions/rebalance-plan.order-confirm/run/", async route => {
+            const request = route.request();
+            const body = request.postDataJSON();
+            targetRequests.push({ body, key: request.headers()["idempotency-key"] });
+            if (!body.confirmed) {
+                await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({
+                    version: "tui-workbench.v2", action: target, confirmation_required: true,
+                    confirmation: { title: "Confirm simulated order", message: "Confirm the same preview." },
+                    response: { status_code: 409 },
+                    view_model: { kind: "message", title: "Awaiting confirmation", status: "Confirm" },
+                    debug: { raw_available: false, raw_response: null },
+                }) });
+                return;
+            }
+            await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({
+                version: "tui-workbench.v2", action: target, outcome: "failed",
+                response: { status_code: 503 },
+                view_model: { kind: "message", title: "Confirmation result unknown", status: "Check original order" },
+                debug: { raw_available: false, raw_response: null },
+            }) });
+        });
+        await page.route("**/actions/rebalance-plan.order-by-key/run/", async route => {
+            const request = route.request();
+            readbackRequests.push({ body: request.postDataJSON(), key: request.headers()["idempotency-key"] });
+            await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({
+                version: "tui-workbench.v2", action: readback, outcome: "success",
+                response: { status_code: 200 },
+                view_model: { kind: "detail", title: "Original order status", status: "Read back", fields: [
+                    { key: "order_status", label: "Order status", value: "Original order status" },
+                ] },
+                debug: { raw_available: false, raw_response: null },
+            }) });
+        });
+
+        await page.locator('[data-dashboard-panel="plan-order-grid"] [data-dashboard-row-action]').click();
+        const previewForm = page.locator('form[data-action-ui-key="rebalance-plan.preview-order"]');
+        await previewForm.waitFor({ state: "visible" });
+        await previewForm.locator('[name="quantity"]').fill("10");
+        await previewForm.locator('[name="limit_price"]').fill("10.25");
+        const previewResponse = page.waitForResponse(response => response.url().includes("/actions/rebalance-plan.preview-order/run/"));
+        await previewForm.locator(".tui-action-submit").click();
+        await previewResponse;
+        const previewPanel = page.locator('[data-dashboard-panel="plan-order-preview"]');
+        const continueButton = previewPanel.locator('[data-result-continuation="true"] button');
+        await continueButton.waitFor({ state: "visible" });
+        const preflightResponse = page.waitForResponse(response => (
+            response.url().includes("/actions/rebalance-plan.order-confirm/run/")
+            && !response.request().postDataJSON().confirmed
+        ));
+        await continueButton.click();
+        await preflightResponse;
+        await page.locator("[data-confirm-action]").waitFor({ state: "visible" });
+        const confirmedResponse = page.waitForResponse(response => (
+            response.url().includes("/actions/rebalance-plan.order-confirm/run/")
+            && response.request().postDataJSON().confirmed
+        ));
+        await page.locator("[data-confirm-action]").click();
+        await confirmedResponse;
+
+        const readbackButton = previewPanel.locator('[data-result-continuation="true"] button');
+        await readbackButton.waitFor({ state: "visible" });
+        assert.equal(targetRequests.length, 2, "unknown confirmation must not auto-resubmit");
+        assert.equal(readbackRequests.length, 0, "readback requires an explicit click");
+        const readbackResponse = page.waitForResponse(response => response.url().includes("/actions/rebalance-plan.order-by-key/run/"));
+        await readbackButton.click();
+        await readbackResponse;
+        await previewPanel.getByText("Original order status", { exact: true }).waitFor({ state: "visible" });
+        assert.equal(readbackRequests.length, 1);
+        assert.equal(readbackRequests[0].key, sourceRequests[0].key);
+        assert.equal(readbackRequests[0].key, targetRequests[1].key);
+        assert.equal(readbackRequests[0].body.params.order_key, "reservation-r7");
+        assert.equal(targetRequests.filter(item => item.body.confirmed).length, 1);
+    } finally { await browser.close(); }
+});
+
+test("network-unknown plan confirmation keeps explicit same-key readback in its panel", async () => {
+    const screenSpec = makeRebalancePlanRowContinuationScreen();
+    const source = screenSpec.actions.find(item => item.key === "rebalance-plan.preview-order");
+    const target = screenSpec.actions.find(item => item.key === "rebalance-plan.order-confirm");
+    const readback = screenSpec.actions.find(item => item.key === "rebalance-plan.order-by-key");
+    const token = "synthetic-plan-network-unknown-token";
+    const { browser, page } = await openHarness("https://app.test/?screen=test.dashboard", {
+        catalog: experienceCatalog, dashboardScreen: screenSpec, waitForInitialRows: false,
+        actionRunMock: ({ actionKey }) => actionKey === "rebalance-plan.orders"
+            ? planOrderListResult(screenSpec) : null,
+    });
+    const sourceRequests = [];
+    const targetRequests = [];
+    const readbackRequests = [];
+    try {
+        await page.locator('[data-dashboard-panel="plan-order-grid"] [data-dashboard-row-action]').waitFor({ state: "visible" });
+        await page.route("**/actions/rebalance-plan.preview-order/run/", async route => {
+            const request = route.request();
+            sourceRequests.push({ body: request.postDataJSON(), key: request.headers()["idempotency-key"] });
+            await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({
+                version: "tui-workbench.v2", action: source, outcome: "success", response: { status_code: 200 },
+                view_model: { kind: "detail", title: "Plan order preview", status: "Ready", fields: [] },
+                continuation: {
+                    action_key: target.key,
+                    input: { account_id: "42", order_key: "reservation-network-r7", preview_token: token },
+                    expires_at: new Date(Date.now() + 60_000).toISOString(),
+                },
+                debug: { raw_available: false, raw_response: null },
+            }) });
+        });
+        await page.route("**/actions/rebalance-plan.order-confirm/run/", async route => {
+            const request = route.request();
+            const body = request.postDataJSON();
+            targetRequests.push({ body, key: request.headers()["idempotency-key"] });
+            if (!body.confirmed) {
+                await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({
+                    version: "tui-workbench.v2", action: target, confirmation_required: true,
+                    confirmation: { title: "Confirm simulated order", message: "Confirm the same preview." },
+                    response: { status_code: 409 },
+                    view_model: { kind: "message", title: "Awaiting confirmation", status: "Confirm" },
+                    debug: { raw_available: false, raw_response: null },
+                }) });
+                return;
+            }
+            await route.abort("failed");
+        });
+        await page.route("**/actions/rebalance-plan.order-by-key/run/", async route => {
+            const request = route.request();
+            readbackRequests.push({ body: request.postDataJSON(), key: request.headers()["idempotency-key"] });
+            await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({
+                version: "tui-workbench.v2", action: readback, outcome: "success",
+                response: { status_code: 200 },
+                view_model: { kind: "detail", title: "Original order status", status: "Read back", fields: [
+                    { key: "order_status", label: "Order status", value: "Original order status" },
+                ] },
+                debug: { raw_available: false, raw_response: null },
+            }) });
+        });
+
+        await page.locator('[data-dashboard-panel="plan-order-grid"] [data-dashboard-row-action]').click();
+        const previewForm = page.locator('form[data-action-ui-key="rebalance-plan.preview-order"]');
+        await previewForm.waitFor({ state: "visible" });
+        await previewForm.locator('[name="quantity"]').fill("10");
+        await previewForm.locator('[name="limit_price"]').fill("10.25");
+        const previewResponse = page.waitForResponse(response => response.url().includes("/actions/rebalance-plan.preview-order/run/"));
+        await previewForm.locator(".tui-action-submit").click();
+        await previewResponse;
+
+        const previewPanel = page.locator('[data-dashboard-panel="plan-order-preview"]');
+        const continueButton = previewPanel.locator('[data-result-continuation="true"] button');
+        await continueButton.waitFor({ state: "visible" });
+        const preflightResponse = page.waitForResponse(response => (
+            response.url().includes("/actions/rebalance-plan.order-confirm/run/")
+            && !response.request().postDataJSON().confirmed
+        ));
+        await continueButton.click();
+        await preflightResponse;
+        await page.locator("[data-confirm-action]").waitFor({ state: "visible" });
+        const failedConfirmation = page.waitForEvent("requestfailed", {
+            predicate: request => request.url().includes("/actions/rebalance-plan.order-confirm/run/")
+                && Boolean(request.postDataJSON()?.confirmed),
+        });
+        await page.locator("[data-confirm-action]").click();
+        await failedConfirmation;
+
+        const readbackButton = previewPanel.locator('[data-result-continuation="true"] button');
+        await readbackButton.waitFor({ state: "visible" });
+        assert.equal(targetRequests.length, 2, "transport failure must not auto-resubmit the mutation");
+        assert.equal(readbackRequests.length, 0, "readback requires a separate user click");
+        const readbackResponse = page.waitForResponse(response => response.url().includes("/actions/rebalance-plan.order-by-key/run/"));
+        await readbackButton.click();
+        await readbackResponse;
+        await previewPanel.getByText("Original order status", { exact: true }).waitFor({ state: "visible" });
+        assert.equal(targetRequests.length, 2);
+        assert.equal(readbackRequests.length, 1);
+        assert.equal(readbackRequests[0].key, sourceRequests[0].key);
+        assert.equal(readbackRequests[0].key, targetRequests[1].key);
+        assert.equal(readbackRequests[0].body.params.order_key, "reservation-network-r7");
+    } finally { await browser.close(); }
+});
 
 test("fee correction requires both write confirmations and changed input cannot reuse a cancelled preview", async () => {
     const screen = makeFeeCorrectionContinuationScreen();
