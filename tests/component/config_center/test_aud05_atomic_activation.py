@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import replace
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from threading import Barrier
 from uuid import uuid4
 
@@ -617,3 +617,42 @@ def test_postgresql_successor_race_has_one_first_winner() -> None:
     assert not RuntimeConfigSnapshotModel._default_manager.filter(
         profile_id=loser.profile_id
     ).exists()
+
+
+def test_snapshot_reader_breaks_generated_at_ties_by_profile_version() -> None:
+    """Equal snapshot clocks resolve to the later profile version deterministically."""
+
+    repository = RuntimeConfigSnapshotRepository()
+    profile_key = f"aud05-snapshot-tie-{uuid4()}"
+    higher_version = _snapshot(
+        _profile(profile_key=profile_key, version=6),
+    )
+    lower_version = _snapshot(
+        _profile(profile_key=profile_key, version=5),
+    )
+    assert higher_version.generated_at == lower_version.generated_at
+
+    # Insert the lower version last so a database's incidental row order cannot stand in
+    # for the repository's documented tie-break.
+    repository.save(higher_version)
+    repository.save(lower_version)
+
+    assert repository.get_latest(profile_key) == higher_version
+
+
+def test_snapshot_reader_keeps_generated_at_ahead_of_version() -> None:
+    """A later source clock remains primary even if its profile version is lower."""
+
+    repository = RuntimeConfigSnapshotRepository()
+    profile_key = f"aud05-snapshot-time-{uuid4()}"
+    later_clock = replace(
+        _snapshot(_profile(profile_key=profile_key, version=5)),
+        generated_at=NOW + timedelta(seconds=1),
+    )
+    higher_version_earlier_clock = _snapshot(
+        _profile(profile_key=profile_key, version=6),
+    )
+    repository.save(later_clock)
+    repository.save(higher_version_earlier_clock)
+
+    assert repository.get_latest(profile_key) == later_clock

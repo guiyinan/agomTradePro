@@ -223,7 +223,7 @@ class RuntimeConfigSnapshotRepository:
 
         model = (
             RuntimeConfigSnapshotModel._default_manager.filter(profile_key=profile_key)
-            .order_by("-generated_at")
+            .order_by("-generated_at", "-profile_version")
             .first()
         )
         if model is None:
