@@ -1,31 +1,52 @@
 {
   "schema": "ash08.rebalance_journey_acceptance.v1",
-  "status": "development_gates_passed_full_current_source_journey_pending",
+  "status": "development_gates_and_source_code_ci_passed_full_current_source_journey_pending",
   "unit_status": "active",
   "goal_complete": false,
   "authorization": "Owner full ASH08 handoff; main plan section19.158; registry2026-11-05.v310",
-  "git_head_at_run": "73c90d1e7f5c79c650ef0a901eafbbbfa76b7bec",
-  "implementation_commit": "Resolve from this tracked index history; private validation tree is not delivery.",
-  "source_code_digest_sha256": "233ef0a2b8416018afeace043ac39821a448cc7a785e643a0e1b08c05b74d944",
+  "git_head_at_run": "d48853c5769ba4340e2cd5aac98fe89b4e509550",
+  "implementation_commit": "39e38e3d86502fdea14d357b1c1aad02d047b25f",
+  "source_code_digest_sha256": "0d9f2f13d6c6aab129db539341463573cdd5c047cb2d867f8e7aa9b9b1d226bd",
   "source_code_inputs": {
-    "path": ".tmp/ash08-journey-20261105/runs/r011-session-boundary-final/candidate-inputs.json",
-    "sha256": "08e506c3ed8c83a5e5f76ef0fe605f88e41d20bcd4edf590b7fca760b4db9dcd"
+    "path": ".tmp/ash08-journey-20261105/runs/r031-final-closure-index/current-source-inputs.json",
+    "sha256": "90719138e0e46d9dc353cfd7c623db674a9ac663887316c19c561ad8fb41eb90"
   },
   "tests": {
-    "python_complete_scope_passed": 971,
-    "backend_complete_modules": 29,
-    "backend_passed": 527,
-    "tui_complete_modules": 4,
-    "tui_passed": 442,
-    "session_boundary_passed": 2,
-    "node_passed": 46,
+    "historical_source39_python_passed": 971,
+    "historical_source39_scope": "527 backend + 442 TUI + 2 Session; original failures and bounded scope proofs retained, not counted as a fresh 971 on followup code.",
+    "current_legacy_isolation_complete_modules": 11,
+    "current_legacy_isolation_passed": 78,
+    "current_legacy_isolation_failures": 0,
+    "current_legacy_isolation_skips": 0,
+    "frontend_complete_modules": 14,
+    "node_passed": 229,
+    "node_failures": 0,
+    "node_skips": 0,
     "controlled_browser_contracts_passed": 3,
-    "production_python_incremental_files": 53,
+    "controlled_browser_scope": "Included within the 229 frontend cases; controlled responses, not genuine-source full journey.",
+    "production_python_incremental_files": 8,
+    "historical_source39_production_python_incremental_files": 53,
     "mypy_regressions": 0,
     "mypy_debt": 0,
     "domain_line_percent": 95.34,
     "domain_combined_percent": 90.8,
-    "real_current_source_full_browser_journey": "not_run"
+    "domain_scope": "R009 unchanged Domain bytes; followup production changes only Core/Infrastructure/state migration.",
+    "real_current_source_full_browser_journey": "not_run",
+    "clock_and_runtime_guard_complete_modules": 2,
+    "clock_and_runtime_guard_passed": 23,
+    "clock_and_runtime_guard_skips": 0,
+    "current_incremental_type_scopes": [
+      {
+        "source": "603d5af",
+        "files": 8,
+        "regressions": 0
+      },
+      {
+        "source": "d48853c",
+        "files": 1,
+        "regressions": 0
+      }
+    ]
   },
   "source_availability": {
     "business_date": "2026-11-05",
@@ -37,13 +58,23 @@
     "same_day_contract_preserved": true,
     "admitted": false,
     "owner_material_request": null,
-    "last_recheck_completed_at": "2026-11-05T08:34:33.370997+00:00",
-    "last_recheck_result": "same vendor empty response; original same-day contract preserved"
+    "last_recheck_completed_at": "2026-11-05T10:43:55.732033+00:00",
+    "last_recheck_result": "HTTP200 vendor data=null/total0/sampleDate empty; same-day contract preserved, not admitted.",
+    "raw_body_sha256": "3098a203d487b1886e8a50e92f991e397e1b3d9351f8ec9cee118a2b15e0f3d9",
+    "official_alternate": {
+      "page": "https://www.cnindex.com.cn/zh_information/data_resource/fljg/",
+      "label": "2026-6",
+      "original_sha256": "cc669ae67f4e4a66736d40b337bd46d996fe1a44c27a3790d6936af6b7d15942",
+      "observed_on": null,
+      "taxonomy_version_in_workbook": null,
+      "admitted": false,
+      "reason": "No per-row observation/effective date; historical label cannot prove 2026-11-05 membership."
+    },
+    "other_source_review": "SSE/Sina/Wind use different classification standards or lack dated industry evidence; MSN not verifiable. No eligible replacement."
   },
   "remaining": [
     "Acquire genuine same-day industry members; refresh existing calendar/M1/Sina/admission through unchanged validators.",
-    "Run real Owner/observer/foreign browser workflow with explicitly synthetic partial fill; reconcile durable economics.",
-    "Observe applicable CI for the business delivery commit; do not treat development checks as full unit or production qualification."
+    "Run real Owner/observer/foreign browser workflow with explicitly synthetic partial fill and preserved original trace; reconcile durable economics."
   ],
   "ref_scope": "REF01/05 read-only; remaining REF await original prerequisites and formal serial window. ASH06/09/12 deferred.",
   "artifacts": [
@@ -211,26 +242,283 @@
       "path": ".tmp/ash08-journey-20261105/b-execution/capture-date/runs/attempt-1635/2026-11-05/capture-failure.json",
       "sha256": "343df822f67f7a2c487a11d9e84aa4ab7461d77ba865695a506bb422de3e04d9",
       "scope": "bounded_later_current_day_source_recheck_still_unavailable"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r019-business-delivery/fast-jobs-latest.json",
+      "sha256": "937332c77ed0c421d0c96fbae6f1d272696cd86e79c453e69af8e88994f5b0c5",
+      "scope": "actual_source39_python_matrix_success_and_frontend_failure"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r019-business-delivery/ci-consistency-failed.log",
+      "sha256": "10bee0534fe34c15e32289ba7961873230b19e12d6a5e172994ed3fa4f649d89",
+      "scope": "retained_source39_write_inventory_failure"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r019-business-delivery/ci-fast-incremental-job.log",
+      "sha256": "84e09bd17870c0eddaf2140fff994cf08da8996891bed794e0d1dbfd8baab09d",
+      "scope": "retained_source39_line_budget_failure_228_pass_1_fail"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r020-ci-write-surface-closure/remaining-consistency-guards.json",
+      "sha256": "15e400fe49372f4f62c4bd697bb548c1b1d8335dcf22a82ef4c1ea9758a2f43b",
+      "scope": "precise_frozen_write_and_related_guards"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r021-frontend-ci-closure/node-junit.xml",
+      "sha256": "346c056ba6d922e6bae7cb0f75cd3745fa5ed1b458b0fb5f8be5bc2178e95150",
+      "scope": "complete_frontend_229_pass_zero_skip"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r021-frontend-ci-closure/candidate-inputs.json",
+      "sha256": "3bcdf59e1cb1eec29a5d9d8f40c41bec5b7fca56d47dd090a226ad8426387b2b",
+      "scope": "frontend_candidate_identity_unchanged_on603"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r022-legacy-isolation/junit.xml",
+      "sha256": "5a6ee4b65a6289fa6abef60b073cc89bf9e9a73ff08328dd4e582460ffdafff8",
+      "scope": "complete_11_module_native_legacy_isolation_78_pass"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r022-legacy-isolation/candidate-inputs.json",
+      "sha256": "80f3a8ae79e50d05b5cf32fe3ef455de2f541b55bc2b7f6c1b1279f1d98a3b47",
+      "scope": "exact_frozen_native_source_and_selection"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r022-legacy-isolation/static-summary.json",
+      "sha256": "b05f8439f49145df26062a6d76e70b9372fbb0764a73bd4a8cd390763a47f379",
+      "scope": "incremental8_and_full_debt_zero"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r022-legacy-isolation/static-inputs.json",
+      "sha256": "230743028750f8351856441f1d4a6f605965a5ea0689cf84221e9bc545d8a10a",
+      "scope": "exact8_production_static_identity"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r022-legacy-isolation/existing-row-observation.json",
+      "sha256": "f328b91e2e4c421fe5427bce8c8a0b67de28afd89ef3980b84068835101553c7",
+      "scope": "two_readonly_qa_database_observations_not_all_databases"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r023-harness-v4-import/summary.json",
+      "sha256": "ee7cc0bcd6a79982e20fc9f188d2df2d210bd77670b4c95ea419a2637c577f86",
+      "scope": "sql_forbidden_cold_import_only_not_e2e"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r025-legacy-projections/summary.json",
+      "sha256": "aca8bc1682e828dfbc3dfb96b1122eb115a52b99a4037170ff3302464dc5c20c",
+      "scope": "complete_clean_owned_tree_official_projection_check_pass"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r025-legacy-projections/adoption.json",
+      "sha256": "5336daea79d37799065b00517d55bf2c0aa0a40781c8afb3212883f1757cf1e2",
+      "scope": "official_projection_bytes_unchanged"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r026-legacy-related-gates/summary.json",
+      "sha256": "3bed97896f9ec8732d080ce67b4e087f87d3714733f7c4d7d3efa69c1a5a26e6",
+      "scope": "actual_migration_state_architecture_delta_module_map_pass"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r027-delivery-index/current-source-inputs.json",
+      "sha256": "b497a883b02db9eca3d0efcd42669dea7b8e7fe9fbe3819d0efc8e223dc7bf4c",
+      "scope": "current_owned_source_identity"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/b-execution/capture-date/runs/attempt1735/2026-11-05/industry.capture.json",
+      "sha256": "70ca22ce356862f53e8e904487d818c0b83ba2f91e7780359f43b78204f2f322",
+      "scope": "actual1734_transport_only_not_admitted"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/b-execution/capture-date/runs/attempt1735/2026-11-05/industry.response.json",
+      "sha256": "3098a203d487b1886e8a50e92f991e397e1b3d9351f8ec9cee118a2b15e0f3d9",
+      "scope": "actual1734_empty_vendor_body_not_admitted"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r028-isolation-delivery/ci-job-127181178778.log",
+      "sha256": "216337ae81a4362d64f5a2464c99ac1a93cd6b6665a083438ce2deefbb08518c",
+      "scope": "retained603_python313_1396pass_1skip_1guard_failure"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r028-isolation-delivery/ci-job-127181179014.log",
+      "sha256": "df446766cda2a24430e7f2e294398378b5a4b86aee25a3e252dfaa1933d2b909",
+      "scope": "retained603_python311_1396pass_1skip_1guard_failure"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r029-etf-clock-ci-repair/candidate-inputs.json",
+      "sha256": "8d4fea9f3a63b981a1d421388db1879e4d32d96b9a9a68aa4a436200e07f374c",
+      "scope": "exact_clock_repair_clean_candidate"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r029-etf-clock-ci-repair/junit.xml",
+      "sha256": "701cf075f62a8af4f960d88406d5403282a2a4950622734cb2de701e861110d7",
+      "scope": "complete_clock_and_guard_modules_23_pass"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r029-etf-clock-ci-repair/static-summary.json",
+      "sha256": "be4fc26edf7998c4ee1d79325adb07f9eb0ceb05a679cf700fd8de8d529e7bd3",
+      "scope": "one_production_file_incremental_and_full_debt_zero"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r029-etf-clock-ci-repair/literal-only-reuse-proof.json",
+      "sha256": "934e383c0694118ebd0d8a154315d1c0345a7ca1bc4e79bb67f5248adedd653a",
+      "scope": "exact_single_literal_ast_proof_for_unchanged_matters"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r027-delivery-index/foreign-governance-failure.json",
+      "sha256": "8e80660c067692e652c6baef90f2930949aa4ac01722fd7b6d4f9bc217258d90",
+      "scope": "out_of_scope_concurrent_source_failure_preserved_not_repaired"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r027-delivery-index/governance-clean-final.json",
+      "sha256": "970915b1923fafc912bf405cd95eaa403890ff4d720c951f200bd0560a5d1111",
+      "scope": "actual_clean_delivered_source_plus_docs_governance_pass"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/b-execution/capture-date/runs/attempt1815/2026-11-05/industry.capture.json",
+      "sha256": "52bb917e1971608bbc242edcfbaa18b66df727df237ae09fd3944787ecb4f788",
+      "scope": "actual1815_negative_transport_not_admitted"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/b-execution/capture-date/runs/attempt1815/2026-11-05/industry.response.json",
+      "sha256": "3098a203d487b1886e8a50e92f991e397e1b3d9351f8ec9cee118a2b15e0f3d9",
+      "scope": "actual1815_vendor_empty_body"
+    },
+    {
+      "path": ".tmp/ash07-risk-20261105/source-followup-cni/a/classification-facts.json",
+      "sha256": "755f7d46ca7344d936d5a135bbab158d594ccf471a2b7efa8d226349355b3a7c",
+      "scope": "official_historical_alternate_facts_not_same_day_proof"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r031-final-closure-index/current-source-inputs.json",
+      "sha256": "90719138e0e46d9dc353cfd7c623db674a9ac663887316c19c561ad8fb41eb90",
+      "scope": "final_qualified_code_identity_excluding_foreign_work"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/runs/r030-clock-ci-delivery/ci-final.json",
+      "sha256": "e7b0c20d07be9909d71a5fa162c8d6b6a89601b8cc1461f858d793405fc5eecb",
+      "scope": "actual_final_code_ci_all5_success"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/b-execution/capture-date/runs/attempt1845/2026-11-05/industry.capture.json",
+      "sha256": "d9b450cfa94d36ae917b23ca43a63d273369e2230792a722c4391cb86903fcb6",
+      "scope": "actual1843_transport_not_admitted"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/b-execution/capture-date/runs/attempt1845/2026-11-05/industry.response.json",
+      "sha256": "3098a203d487b1886e8a50e92f991e397e1b3d9351f8ec9cee118a2b15e0f3d9",
+      "scope": "actual1843_empty_vendor_body"
     }
   ],
   "prepared_harnesses": [
     {
-      "path": ".tmp/ash08-journey-20261105/b-execution/real-browser-harness-v2/test_real_browser_handoff.py",
-      "sha256": "954eea53756e3623a4baf021cdbfd3b459fc2ce907473e6289078c3556145099",
+      "path": ".tmp/ash08-journey-20261105/b-execution/real-browser-harness-v5/test_real_browser_handoff.py",
+      "sha256": "80fe807632486aad28927a7ef30e2f1c6bba83586b76416a01437430084da3db",
       "status": "prepared_not_executed"
     },
     {
-      "path": ".tmp/ash08-journey-20261105/b-execution/real-browser-harness-v2/ipc-contract.json",
-      "sha256": "2b63120641bbc03524db734c73fd5ec9c27060b631f841f7048542c4d8a7321a",
+      "path": ".tmp/ash08-journey-20261105/b-execution/real-browser-harness-v5/ipc-contract.json",
+      "sha256": "f9e1a34c763a2461f4df8a9d2de782a8e2f07fe44759285339b596e0e8ff5727",
+      "status": "prepared_not_executed"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/b-execution/real-browser-harness-v5/handoff.json",
+      "sha256": "2a7fc671cdfc1c77f5db92a2261acd6c4b87167df5865c7a27158c37d2020c3a",
       "status": "prepared_not_executed"
     },
     {
       "path": ".tmp/ash08-journey-20261105/browser-qa/v2/extract_trace_actions.py",
       "sha256": "ec2e0019099b1a0aec24b8f6c0055faa3443f79083230c0c347d041988d46eaa",
       "status": "prepared_not_executed"
+    },
+    {
+      "path": ".tmp/ash08-journey-20261105/browser-qa/v3/trace_artifact_adapter.py",
+      "sha256": "d4a1e9daae5e09fd488c29a00a4657a453e89a73b14ecbed876a9cfa16ae6799",
+      "status": "prepared_not_executed"
     }
   ],
   "artifact_storage": "Ignored local originals; no claim of remote archive availability.",
-  "foreign_workspace": "Unrelated QMT files preserved and excluded from ASH08 integration.",
-  "governance_projection_status": "architecture_entrypoints_module_map_passed_on_complete_owned_candidate"
+  "foreign_workspace": "Unrelated QMT changes and an unowned root harness directory preserved and excluded.",
+  "governance_projection_status": "architecture_entrypoints_module_map_passed_on_complete_owned_candidate",
+  "followup_code_commits": [
+    "c074846d119f324c4a7f19390fa860cb019cb596",
+    "603d5af888134f2231bdc2cc41c0886059a175bd",
+    "d48853c5769ba4340e2cd5aac98fe89b4e509550"
+  ],
+  "legacy_isolation": {
+    "new_contract_family": "portfolio_plan_revision_v1",
+    "migration": "portfolio.0028_transition_plan_revision_family",
+    "migration_effect": "Model choice/state only; no financial-row reclassification or status rewrite.",
+    "legacy_marked_compatibility": "Strict revision decoder only; old canonical/Decision Rhythm reads and approvals refuse marker-bearing rows.",
+    "historical_marker_removed_limitation": "An old canonical row whose marker was already removed cannot be reliably classified; no automatic recovery or reclassification. The two observed QA databases had zero plan rows at observation time; no claim about other databases.",
+    "actual_valid_v1_projection_guard_test": "test_valid_marked_projection_stays_out_of_legacy_readers"
+  },
+  "ci": {
+    "business_source39": {
+      "architecture": "success",
+      "security": "success",
+      "engineering_progress": "success",
+      "publication_postgresql_contracts": "success",
+      "python311": "success",
+      "python313": "success",
+      "no_database_tdd": "success",
+      "consistency": "failure: four new HTTP writes absent from frozen inventory",
+      "incremental_quality": "failure: 30-actions.js exceeded maintained source line budget"
+    },
+    "repairs": "c074846 fixes precise frozen write registration and splits continuation helpers without raising budget; local 229 pass. 603d5af adds complete legacy revision isolation.",
+    "subject_code_commit": "d48853c5769ba4340e2cd5aac98fe89b4e509550",
+    "followup_status": "all5_applicable_workflows_success_on_d48853c",
+    "source603_result": {
+      "incremental_quality": "success",
+      "python311": {
+        "passed": 1396,
+        "skipped": 1,
+        "failed": 1
+      },
+      "python313": {
+        "passed": 1396,
+        "skipped": 1,
+        "failed": 1
+      },
+      "only_failure": "Runtime mock scanner matched the SYNTHETIC_OBSERVATION_TIME rejection reason literal; no runtime fake path."
+    },
+    "clock_repair": "Rename only the misleading rejection code to UNEXPECTED_INSTANT_OBSERVATION; unchanged guard/allowlist/if/clock/proof logic, exact AST proof and 23 tests.",
+    "runs": [
+      {
+        "conclusion": "success",
+        "databaseId": 42012426266,
+        "status": "completed",
+        "url": "https://github.com/guiyinan/agomTradePro/actions/runs/42012426266",
+        "workflowName": "Engineering progress dashboard"
+      },
+      {
+        "conclusion": "success",
+        "databaseId": 42012426214,
+        "status": "completed",
+        "url": "https://github.com/guiyinan/agomTradePro/actions/runs/42012426214",
+        "workflowName": "Security Scan"
+      },
+      {
+        "conclusion": "success",
+        "databaseId": 42012426219,
+        "status": "completed",
+        "url": "https://github.com/guiyinan/agomTradePro/actions/runs/42012426219",
+        "workflowName": "Architecture Layer Guard"
+      },
+      {
+        "conclusion": "success",
+        "databaseId": 42012426274,
+        "status": "completed",
+        "url": "https://github.com/guiyinan/agomTradePro/actions/runs/42012426274",
+        "workflowName": "Consistency Check"
+      },
+      {
+        "conclusion": "success",
+        "databaseId": 42012426313,
+        "status": "completed",
+        "url": "https://github.com/guiyinan/agomTradePro/actions/runs/42012426313",
+        "workflowName": "CI Fast Feedback"
+      }
+    ]
+  },
+  "workspace_boundary": "Qualification refers to committed d488 source and clean QA snapshot, not the concurrent working tree. Subsequent broker/TUI changes, including three overlapping common metadata files, are preserved and excluded."
 }
