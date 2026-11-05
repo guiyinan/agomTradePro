@@ -1208,11 +1208,14 @@ QB0 可与不依赖真实 SDK 的契约/Fake 实现分别推进；QB0 未通过�
 | WP0-T：仿真报单、成交、撤单、回调和重连最小实验 | **待执行，WP0 整体不能关闭** | 需要唯一识别一次委托及其成交/撤单结果；只读查询不能替代 |
 | WP4：目标 QMT 仿真连续报撤单与重启恢复 | **待外部验收** | 代码完成不是目标账户验收 |
 | WP7：Shadow、Dry-run、仿真、小额实盘和受限自动分级启用 | **待执行** | 保持 `dry_run=true`；仿真至少 5 个交易日、小额实盘至少 3 个交易日的门槛不降低 |
-| QB0/QB5：真实行情权限、字段口径与连续旁路供数 | **待独立验收** | 内置交易查询通过不证明行情权限、freshness、覆盖率或连续供数 |
+| QB0：真实行情权限、字段口径、源时间和重连 | **已执行，未通过** | 目标机 `xtdata` 导入成功，但 `subscribe_quote` 无法连接 XtQuant 服务，未取得快照或日线；报告为 `.tmp/qmt-live-probe/qb0-market-probe.json`。内置交易查询通过不证明行情可用 |
+| QB5：连续旁路供数 | **待执行** | QB0 未通过，不进入连续 5 个交易日供数、freshness、覆盖率或源优先级验收 |
 | VPS/生产部署与正式用户接入 | **未完成** | 当前 ZIP、页面和探针均在本地/隔离环境；没有生产写回执或自动交易授权 |
 
 本次新验收记录：相关 QMT/Agent/安装包回归 124 项通过；TUI Workbench 393 项、元数据/actionability 61 项、下载与页面契约 9 项通过；增量 mypy、全量 mypy 债务门禁、Ruff、模块图、OpenAPI 与迁移 inventory 通过。完整页面和下载证据保留在本地忽略目录，不把临时数据库、策略配置或联调凭证纳入仓库。
 
-后续补充验证：真实命名管道仿真对端新增响应丢失同请求重放、策略重启结合 SQLite/券商备注恢复、成交事件幂等和撤单检查，相关完整文件最终 93 项通过；未发生重复 `passorder`。目标客户端恢复运行后，5 个独立 Agent 进程的连接、资产、持仓、委托和成交探针全部 `ready=true`，持仓数稳定为 24，均未报单或撤单；脱敏原件为目标机 `.tmp/qmt-live-probe/builtin-stability-probe-1.json` 至 `builtin-stability-probe-5.json`。这只补充 WP0-R 和 WP4 的只读重连证据，不关闭 WP0-T 或 WP4 整体。
+后续补充验证：真实命名管道仿真对端新增响应丢失同请求重放、策略重启结合 SQLite/券商备注恢复、成交事件幂等和撤单检查，相关完整文件最终 93 项通过；未发生重复 `passorder`。目标客户端恢复运行后，5 个独立 Agent 进程的连接、资产、持仓、委托和成交探针全部 `ready=true`，持仓数稳定为 24，均未报单或撤单；脱敏原件为目标机 `.tmp/qmt-live-probe/builtin-stability-probe-1.json` 至 `builtin-stability-probe-5.json`。随后以 60 秒间隔另跑 10 轮独立 Agent 只读验证，783.5 秒内 10/10 均为退出码 0、`ready=true`，未报单或撤单；原件为同目录 `builtin-longrun-probe-1.json` 至 `builtin-longrun-probe-10.json`。这些只补充 WP0-R 和 WP4 的只读重连证据，不关闭 WP0-T 或 WP4 整体，也不替代 WP7 的交易日门槛。
+
+同一 `0.3.0` ZIP 另在 `.tmp/qmt-install-acceptance-ca6bb800` 完成真实 Windows 隔离安装：下载并校验锁定 XtQuant wheel、创建 Python 3.13.5 私有环境、preflight 和连接脚本通过，默认 `dry_run=true` 且交易接口仍为显式 `xtquant`；普通卸载保留配置，`-RemoveState` 后目录清空。未创建计划任务、凭证、订单或生产配置。该安装验收不代替 QB0 或 WP0-T。
 
 后续最小执行顺序：先完成 WP0-T 仿真最小报撤单与回调实验，再完成 WP4 重启/连续运行，随后进入 WP7；行情 QB0/QB5 和生产部署始终单独判定。
