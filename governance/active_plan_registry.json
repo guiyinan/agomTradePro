@@ -1,19 +1,19 @@
 {
-  "version": "2026-11-05.v309",
+  "version": "2026-11-05.v310",
   "updated_at": "2026-11-05",
   "execution_focus": {
-    "unit_id": null,
+    "unit_id": "ASH-08",
     "allowed_parallel_execution_modes": [
       "production",
       "external",
       "governance"
     ],
-    "policy": "ASH-07 finite simulation portfolio-risk Goal is recorded as completed. No repository integration unit is active; unit_id=null and the exact handoff_pending reference to primary plan section 19.157 records the wait for the Owner’s next formal focus decision. The marker does not select or activate a successor. ASH-08 remains planned with M1 early_delivery passed; its full Goal remains unstarted, and only the parallel_preparation entries already listed here remain in scope. REF-01/05 preparation remains read-only; REF-02/03/04/06 remain planned without an implementation window. All other unit statuses, dependencies, exit gates and M1 evidence are unchanged. ASH-06/09/12 remain deferred. This handoff grants no new Goal, production configuration, deployment, live brokerage or automatic execution permission.",
+    "policy": "Owner formally handed the sole repository integration focus to the complete ASH-08 finite simulated-account rebalance and TUI journey Goal on 2026-11-05; see primary plan section 19.158. ASH-03/04/07 are completed; ASH-08 M1 passed remains historical read-only acceptance, not full-unit closure. Reuse canonical TransitionPlan, exact bindings, ordinary simulated order/reservation/fill/settlement and ASH-07 risk services. Complete trusted server-bound plans, sell-before-buy funding dependencies, fact-based partial/cancel/expiry/recovery residuals, immutable successors and reapproval, and the ordinary-user reconciliation journey. Three Luna max agents prepare disjoint overlays under .tmp/ash08-journey-20261105; Root alone integrates shared Source/index/Git and projections. Use one pytest and one heavy static task at a time with isolated retained resources; freeze complete matters and reuse only unchanged, identically covered evidence. REF-01/05 remain read-only; no demonstrated blocker warrants a REF-02/03 window, and REF-02/03/04/06 have no new implementation window. Keep inactive approval and formal Evidence/live-execution denials. No new branches, production configuration or ledgers, deployment or automatic orders. ASH-06/09/12 remain deferred.",
     "parallel_preparation": [
       {
         "unit_id": "ASH-08",
-        "scope": "Implement and accept the bounded M1 ordinary-user readable plan defined in section 19.96; no order execution or ledger mutations.",
-        "owner": "ASH service and TUX user journey",
+        "scope": "Owner-approved full ASH-08 Goal, primary plan section 19.158: A prepares portfolio trusted plans/immutable revisions/reapproval in a-plan/overlay; B prepares simulated_trading funding dependencies/residual execution/reconciliation in b-execution/overlay; C prepares TUI task journey and permission/API/SDK/MCP contracts in c-tui/overlay. All are short-lived isolated overlays under .tmp/ash08-journey-20261105, adopted promptly by Root after review. No shared Source/index/Git/projection writes or competing heavy QA; Root owns common DTO acceptance, composition and serial integration. Simulation/manual fact-import only; inactive and live Evidence gates remain intact.",
+        "owner": "Three Luna max agents; Root serialized integration",
         "isolated_workspace": true,
         "shared_git_serialized": true,
         "isolated_test_resources": true
@@ -34,12 +34,7 @@
         "shared_git_serialized": true,
         "isolated_test_resources": true
       }
-    ],
-    "handoff_pending": {
-      "completed_unit_id": "ASH-07",
-      "owner_decision_ref": "docs/plans/a-share-usability-implementation-plan-2026-10-16.md#19.157",
-      "reason": "Wait for the Owner’s next formal repository-focus handoff; no successor is selected."
-    }
+    ]
   },
   "workstreams": [
     {
@@ -425,7 +420,7 @@
       "priority": "P0/P1",
       "owner": "portfolio+risk_center+data_center+simulated_trading+backtest+broker_execution+terminal",
       "status": "active",
-      "next_gate": "ASH07 remains sole active Goal/integration focus. Source code3c9fadab2 all7CIpassed. ETF disclosed-clock and independent report age/report/replay/deadlines delivered; three actual development risk draftsv1+v2inactive, reportage45 externaldata, pinsunbound. Calendar prerequisite actualfiniteNative acceptance now passed: create-only catalog4rows, uniqueProvider viaexistingpublic/encryptedsecretports, realfull-dateTusharerawcapture, genuineSession/CSRF+explicitpermission workbench prepare201/confirm201/currentpublished, initialNORMAL SSEtimezoneprofile withoutpredecessor orregisteredcriticalmissingkeys, existing simulatedcalendarconsumerqualified21:04:42Z beforeoriginal21:05:36Zdeadline. Lateractualexpiryrejected CALENDAR_FORMAL_TTL_EXPIRED,900budget/sourceunknownclocks unchanged; oldreferencecurrentlyexpired, normalfreshrecapture/publicationneededfornextfulljourney. Exactoriginals/failures inoneASH07receipt; ownedHTTP8357/PG59513stopped,schemasretained; existingRisk0013appliedwithbackup,defaultSQLite/canonical10/productionuntouched. Remaining full exits: current-day real allowed risk/plan/ordinary simulation/Scenario journey and realETFconservativefinancialcoverage. Nov03industry/quotes stayhistorical onNov04; explicitqualifiedgenuineclose simulationallowedwithoutblanketintradaywait. REF01/05readonly; otherREF onlyoriginalregistereddependencies/serialhandoff; ASH08beyondM1 andASH06/09/12deferred; noproduction/deploy/automaticorders.",
+      "next_gate": "ASH-03/04/07 are completed within their recorded finite scopes. Owner formally selects full ASH-08 as the sole repository focus; see primary plan section 19.158. M1 readable-preview acceptance remains passed and does not prove plan-level execution or continuation. Next exits: trusted server-side plan/resource/source/risk/cost snapshots; immutable exact plan/order versions and reapproval; sell-before-buy actual funding; partial fill/cancel/expiry/recovery residuals and reconciliation; ordinary/read-only/cross-account TUI browser/API/SDK/MCP contracts. Reuse ASH-03/04/07 services and declared current-source qualifications; historical originals stay historical. No evidenced REF prerequisite blocker was found; REF-01/05 stay read-only, other REF units have no new implementation window. Keep inactive approval/Evidence/live denials, manual fact import and explicit unsupported capability states. ASH-06/09/12 remain deferred; no production/deploy/automatic-order authority.",
       "documents": [
         {
           "path": "docs/plans/a-share-usability-implementation-plan-2026-10-16.md",
@@ -1780,7 +1775,7 @@
         "wave": 3,
         "priority": "P1",
         "execution_mode": "repository",
-        "status": "planned",
+        "status": "active",
         "title": "Deliver an account-specific rebalance plan and complete TUI user journey",
         "depends_on": [
           "ASH-03",
