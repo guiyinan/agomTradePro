@@ -1213,4 +1213,6 @@ QB0 可与不依赖真实 SDK 的契约/Fake 实现分别推进；QB0 未通过�
 
 本次新验收记录：相关 QMT/Agent/安装包回归 124 项通过；TUI Workbench 393 项、元数据/actionability 61 项、下载与页面契约 9 项通过；增量 mypy、全量 mypy 债务门禁、Ruff、模块图、OpenAPI 与迁移 inventory 通过。完整页面和下载证据保留在本地忽略目录，不把临时数据库、策略配置或联调凭证纳入仓库。
 
+后续补充验证：真实命名管道仿真对端新增响应丢失同请求重放、策略重启结合 SQLite/券商备注恢复、成交事件幂等和撤单检查，相关完整文件最终 93 项通过；未发生重复 `passorder`。目标客户端恢复运行后，5 个独立 Agent 进程的连接、资产、持仓、委托和成交探针全部 `ready=true`，持仓数稳定为 24，均未报单或撤单；脱敏原件为目标机 `.tmp/qmt-live-probe/builtin-stability-probe-1.json` 至 `builtin-stability-probe-5.json`。这只补充 WP0-R 和 WP4 的只读重连证据，不关闭 WP0-T 或 WP4 整体。
+
 后续最小执行顺序：先完成 WP0-T 仿真最小报撤单与回调实验，再完成 WP4 重启/连续运行，随后进入 WP7；行情 QB0/QB5 和生产部署始终单独判定。

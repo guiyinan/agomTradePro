@@ -41,7 +41,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\qmt_agent\scripts\install-
 
 券商反馈 9 月 18 日后外部 `xt`/MiniQMT 的函数查询、函数委托和撤单不可用时，可使用 Agent `0.3.0` 的内置 Python 桥。该模式仍保留服务端风控、Agent 幂等、租约期限和 STOP 门禁，但不代表已经通过真实券商验收。
 
-2026-11-05 目标国金 QMT `2.1.19.0` 已完成命名管道只读探针：连接、资产、持仓、当日委托和当日成交均成功，`submitted_order=false`、`canceled_order=false`。真实报单、撤单、回调和连续运行仍待仿真/受控验收，不得据此启用自动实盘。若客户端提示 `198.18.x.x` 非法 IP，应检查 Clash/Mihomo TUN；本机已为 `XtItClient.exe` 配置 `DIRECT`，并将 `+.gjzq.com.cn` 加入 `fake-ip-filter`。
+2026-11-05 目标国金 QMT `2.1.19.0` 已完成命名管道只读探针：连接、资产、持仓、当日委托和当日成交均成功，`submitted_order=false`、`canceled_order=false`；客户端恢复运行后，5 个独立 Agent 进程连续重连及查询均通过，持仓数稳定为 24。真实报单、撤单、回调和长期连续运行仍待仿真/受控验收，不得据此启用自动实盘。若客户端提示 `198.18.x.x` 非法 IP，应检查 Clash/Mihomo TUN；本机已为 `XtItClient.exe` 配置 `DIRECT`，并将 `+.gjzq.com.cn` 加入 `fake-ip-filter`。若探针报 `QMT built-in pipe is unavailable`，先检查 QMT 进程和模型交易策略是否运行，再核对管道名，不要通过重试报单排查。
 
 1. 正常安装新版 Agent，在 `config.json` 设置以下字段；管道名必须与 QMT 内置策略顶部的 `PIPE_ADDRESS` 一致：
 

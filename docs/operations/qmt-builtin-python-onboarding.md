@@ -104,12 +104,14 @@ powershell -NoProfile -ExecutionPolicy Bypass `
 | `IndentationError` 或 `SyntaxError` | 手工修改多行 `BRIDGE_DIR` 时留下残余代码 | 完整覆盖策略；命名管道版无需手工改代码 |
 | `future feature annotations is not defined` | 把外部 `builtin_adapter.py` 错贴进 QMT | QMT 只复制 `builtin_strategy.py` |
 | `PermissionError: Foribdden FileIO` | 券商客户端禁止内置策略文件 I/O | 使用当前命名管道版，不使用文件队列或外部文件加载入口 |
-| 探针提示管道不存在 | 策略未成功启动或管道名不一致 | 检查策略日志和双方 `agom_qmt_builtin_bridge` 配置 |
+| 探针提示管道不存在或 `QMT built-in pipe is unavailable` | QMT/策略未运行，策略启动失败，或管道名不一致 | 先确认 `XtItClient` 进程和模型交易条目均在运行，再检查策略日志及双方 `agom_qmt_builtin_bridge` 配置；不要反复重试报单 |
 | 管道存在但探针超时 | QMT 回调延迟或策略未处理队列 | 确认 `agom_poll` 已初始化并保持策略运行；可将超时调至 10 秒 |
 | 探针提示账号不匹配 | 模型交易绑定账号与 Agent 配置不同 | 核对两边普通股票账号，不要切换成信用账号 |
 | QMT 提示非法 `198.18.x.x` | Clash/Mihomo Fake IP/TUN 接管券商连接 | 按第 4 节配置直连和真实 DNS，重启 Clash/QMT |
 
-2026-11-05 最终真实只读结果：`ready=true`，资产、持仓、委托、成交查询全部成功，返回 24 条持仓、0 条当日委托、0 条当日成交；`submitted_order=false`、`canceled_order=false`。原始脱敏报告保存在目标机联调目录 `.tmp/qmt-live-probe/builtin-read-probe.json`，该目录不作为正式交付制品。
+2026-11-05 最终真实只读结果：`ready=true`，资产、持仓、委托、成交查询全部成功，返回 24 条持仓、0 条当日委托、0 条当日成交；`submitted_order=false`、`canceled_order=false`。客户端重启后，又以 5 个独立 Agent 进程连续重连并执行相同探针，5 次均为 `ready=true`、24 条持仓且未报撤单。原始脱敏报告保存在目标机联调目录 `.tmp/qmt-live-probe/builtin-read-probe.json` 和 `builtin-stability-probe-1.json` 至 `builtin-stability-probe-5.json`，该目录不作为正式交付制品。
+
+同一事项的命名管道安全回归新增响应丢失后的同请求缓存重放、策略重启后 SQLite/券商备注恢复、成交事件幂等与撤单参数检查；相关 Agent/安装包完整文件最终 93 项通过。响应丢失重放只调用一次原生 `passorder`，重启恢复只查询券商事实。这些只读和仿真对端证据不替代券商仿真账户的真实报撤单与回调验收。
 
 ## 6. 后续分级验收与回滚
 

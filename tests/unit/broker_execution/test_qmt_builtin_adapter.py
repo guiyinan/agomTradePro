@@ -16,9 +16,12 @@ from typing import Any
 
 import pytest
 
+import qmt_agent.builtin_adapter as bridge_adapter
 from qmt_agent import builtin_strategy
 from qmt_agent.builtin_adapter import BuiltinPythonAdapter
 from qmt_agent.config import AgentConfig
+from qmt_agent.executor import QmtAgentExecutor
+from qmt_agent.state_store import AgentStateStore
 
 
 class _NativeRuntime:
@@ -329,3 +332,129 @@ def test_config_selects_builtin_python_and_named_pipe(tmp_path: Path) -> None:
 
     assert config.qmt_trade_api == "builtin_python"
     assert config.qmt_builtin_pipe_name == "custom_pipe"
+
+
+def test_pipe_response_loss_replays_cached_submission_without_duplicate_order(
+    native_runtime: tuple[_NativeRuntime, str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runtime, pipe_name = native_runtime
+    adapter = _adapter(pipe_name, runtime)
+    adapter.connect()
+    original_client = bridge_adapter.PipeClient
+    responses_to_drop = 1
+
+    class _ResponseLossClient:
+        def __init__(self, address: str) -> None:
+            self.connection = original_client(address)
+
+        def send_bytes(self, data: bytes) -> None:
+            self.connection.send_bytes(data)
+
+        def poll(self, timeout: float) -> bool:
+            return self.connection.poll(timeout)
+
+        def recv_bytes(self) -> bytes:
+            nonlocal responses_to_drop
+            data = self.connection.recv_bytes()
+            if responses_to_drop:
+                responses_to_drop -= 1
+                raise RuntimeError("simulated response loss")
+            return data
+
+        def close(self) -> None:
+            self.connection.close()
+
+    request_id = uuid.uuid4()
+    monkeypatch.setattr(bridge_adapter, "PipeClient", _ResponseLossClient)
+    monkeypatch.setattr(bridge_adapter.uuid, "uuid4", lambda: request_id)
+
+    with pytest.raises(RuntimeError, match="simulated response loss"):
+        adapter.submit_order(_order())
+    recovered = adapter.submit_order(_order())
+
+    assert recovered.accepted is True
+    assert recovered.broker_order_id == "ORDER-1"
+    assert len(runtime.passorder_calls) == 1
+
+
+def test_strategy_restart_recovers_uncertain_submission_without_replaying_passorder(
+    native_runtime: tuple[_NativeRuntime, str],
+    tmp_path: Path,
+) -> None:
+    runtime, pipe_name = native_runtime
+    adapter = _adapter(pipe_name, runtime)
+    adapter.connect()
+    order = _order()
+    state_path = tmp_path / "agent-state.sqlite3"
+    state = AgentStateStore(state_path)
+    state.mark_submitting(order["client_order_id"], order)
+    adapter.submit_order(order)
+    state.mark_result(order["client_order_id"], "RECONCILIATION_REQUIRED")
+    state.close()
+
+    context = builtin_strategy._runtime["context"]
+    builtin_strategy.stop(context)
+    server_thread = builtin_strategy._server_thread
+    if server_thread is not None:
+        server_thread.join(timeout=2)
+    builtin_strategy._responses = {}
+    builtin_strategy._response_order = []
+    builtin_strategy._submission_markers = {}
+    builtin_strategy._pending = {}
+    builtin_strategy._requests = queue.Queue()
+    builtin_strategy.init(context)
+
+    class _RecoveryApi:
+        def __init__(self) -> None:
+            self.calls: list[tuple[str, dict[str, Any]]] = []
+
+        def post(self, path: str, payload: dict[str, Any]) -> dict[str, Any]:
+            self.calls.append((path, payload))
+            return {}
+
+    restarted_adapter = _adapter(pipe_name, runtime)
+    restarted_adapter.connect()
+    restarted_state = AgentStateStore(state_path)
+    api = _RecoveryApi()
+    executor = QmtAgentExecutor(
+        config=SimpleNamespace(),
+        api=api,
+        broker=restarted_adapter,
+        state=restarted_state,
+    )
+
+    executor.recover_uncertain_submissions()
+
+    recovered = restarted_state.get(order["client_order_id"])
+    assert recovered is not None
+    assert recovered["status"] == "PARTIALLY_FILLED"
+    assert recovered["broker_order_id"] == "ORDER-1"
+    assert api.calls[0][0] == "events/"
+    assert api.calls[0][1]["events"][0]["payload"]["found"] is True
+    assert len(runtime.passorder_calls) == 1
+    restarted_state.close()
+
+
+def test_builtin_adapter_reports_fill_and_cancel_with_idempotent_event_reads(
+    native_runtime: tuple[_NativeRuntime, str],
+) -> None:
+    runtime, pipe_name = native_runtime
+    runtime.orders = []
+    runtime.trades = []
+    adapter = _adapter(pipe_name, runtime)
+    adapter.connect()
+    adapter.submit_order(_order())
+    runtime.trades = [runtime._trade()]
+
+    first_events = adapter.poll_events()
+    second_events = adapter.poll_events()
+    assert adapter.cancel_order("ORDER-1") is True
+
+    assert [event["event_type"] for event in first_events] == ["QMT_TRADE", "QMT_ORDER_STATUS"]
+    assert first_events[0]["fill"]["broker_trade_id"] == "TRADE-1"
+    assert first_events[1]["status"] == "PARTIALLY_FILLED"
+    assert [event["event_id"] for event in second_events] == [
+        event["event_id"] for event in first_events
+    ]
+    assert runtime.cancel_calls[-1][:3] == ("ORDER-1", runtime.account_id, "STOCK")
