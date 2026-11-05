@@ -1,6 +1,6 @@
 # ASH-08 模拟账户调仓与 TUI 用户旅程验收
 
-状态：ASH-08 与 Goal 继续 active。业务代码已分三组提交并推送，业务基准为 `6f459d7d96a0bae6f4a1c3e8794352eb307f574e`；Native 完整整链路、事务/并发组件和本地类型门已通过。该提交的 CI 新增两处失败已定向修复并验证，修复后正式 CI 尚待实际确认。真实同日来源、显式收盘模式和 V8 普通 Owner 完整浏览器退出仍未完成。
+状态：ASH-08 与 Goal 继续 active。业务代码及 CI 修复已正式提交并推送，当前代码提交 `ddf16e6d844952409261fd7e9117c52c02fbc5ba` 的五项适用 CI 已实际全部通过。Native 完整整链路、事务/并发、类型和前端均有各自完整通过及未变覆盖输入复用证据。剩余退出仅为合格同日来源上的显式收盘模式及 V8 普通 Owner 完整浏览器验收。
 
 ## 当前实现工作与最近验收身份
 
@@ -31,7 +31,7 @@
 
 R009 至 R029 的旧通过数和覆盖率仅是各自历史候选证据。R051–R063 的模块级结果同样按运行身份分别记录，不能拼成当前整单元通过；R063 的完整模块状态与 Native fixture 修复见上节。
 
-正式交付为 QMT 可移植修复 `e706a5579`、配置同钟快照修复 `cbf976a29` 与 ASH-08 业务提交 `6f459d7d96a0bae6f4a1c3e8794352eb307f574e`。旧基础 fcf9b74 的两个生成投影失败已修齐，6f459d7d9 的 Consistency、Architecture、Engineering progress 与 PostgreSQL contracts 已实际通过。该轮 Security 把固定合成策略选择标识误判为密钥；已独立复核无认证能力，仅添加精确路径与整行 AND 例外，gitleaks 8.24.3 原失败区间扫描及四个正反边界均符合预期。Quality 唯一已知失败为测试期望值的多余 float 构造，修正后完整 preparation 模块 27 passed、37 个变更 Python 文件的 Ruff/Black/isort 均通过。生产输入不变，不重复 Native/前端/全量类型；修复后实际正式 CI 仍须确认，不能把本地结果当远端通过。
+正式交付包含 QMT 可移植修复 `e706a5579`、配置同钟快照修复 `cbf976a29`、ASH-08 业务提交 `6f459d7d9` 与 CI 精确修复 `ddf16e6d844952409261fd7e9117c52c02fbc5ba`。业务提交的 Python 3.11、3.13、无数据库 TDD、PostgreSQL contracts 均实际通过；后继仅修 scanner 的固定夹具标识误报和测试字面量 lint，21 个生产输入不变。精确例外保留 path+whole-line AND 及越界反例，不放宽通用扫描。后继五项正式 CI 已逐项查询全成功：[Consistency Check](https://github.com/guiyinan/agomTradePro/actions/runs/42096287809) / [Engineering progress dashboard](https://github.com/guiyinan/agomTradePro/actions/runs/42096288025) / [Security Scan](https://github.com/guiyinan/agomTradePro/actions/runs/42096287649) / [Architecture Layer Guard](https://github.com/guiyinan/agomTradePro/actions/runs/42096287796) / [CI Fast Feedback](https://github.com/guiyinan/agomTradePro/actions/runs/42096287836)。原失败与本地修复原件继续保留；不把旧 CI 或候选片段外推新代码。
 
 新 revision 使用独立持久 contract family。旧 canonical/Decision workspace 的读取与审批拒绝新 family 或旧 marker 行，最新旧计划查询不会被新计划遮挡；`0028` 仅登记模型 choice/state，不改既有流水、批准状态或自动重分类。旧 canonical 行若已丢 marker，现有列无法恢复身份；仅已核查的两个验收库当时无计划行，不外推其他库。失败时停用新入口并保留异类行，不自动降级或改写历史记录。
 
@@ -41,10 +41,8 @@ R009 至 R029 的旧通过数和覆盖率仅是各自历史候选证据。R051�
 
 当前剩余退出项：
 
-1. 对本次已验证 CI 修复取得实际后继提交的正式 CI 结果；保留首轮失败与精确候选身份。
-2. R060 及 6f459d7d9 的历史失败均保留；同名 JSON 中 CI 为采集时事件快照，后续正式 CI 的精确 head 与结果以本文实际记录为准。
-3. 当前日同日行业成员、报价、容量/会话和 M1 来源需在原资格门内实际取得并经既有 reader/普通用户完整链路通过。11/05 空响应不构成材料准入。
-4. 实际 V8 浏览器流程、真实账户作用域的 Owner/observer/foreign 对照，以及全部 API/SDK/MCP 合同需同一冻结候选验收。模拟部分成交只使用明确标记的 synthetic fill 并通过真实 Fill UOW，不冒称市场成交。
+1. 取得当前日合格行业成员、报价、容量/会话和 M1 原件，通过既有同日、用途、时钟和完整性门；11/05 的空响应不构成 11/06 资格，16:00（上海）前不采集当前收盘批次。
+2. 用显式 published_close 模拟模式实际完成 V8 普通 Owner/observer/foreign TUI 旅程并对账，保留权限、原键回读和真实 transport/order key。部分模拟成交必须明确 synthetic 且通过真实 Fill UOW，不能冒称供应商撮合。
 
 当前不向 Owner 索要外部材料。Goal 仍 active；REF-01/05 仅只读，其余 REF 暂无实施窗口；ASH-06/09/12 保持 deferred。
 
