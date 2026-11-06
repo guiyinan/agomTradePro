@@ -37,11 +37,24 @@ R009 至 R029 的旧通过数和覆盖率仅是各自历史候选证据。R051�
 
 ## 真实来源与剩余退出门
 
-2026-11-05 23:33 的国证同日查询为空，未满足 11/06 同日行业来源门。11/06 16:00（上海）前不采集收盘来源；不得用 11/05 报价或旧行业原件回填成 11/06 当前资格。已允许显式 published_close 模拟模式，不再统一等待盘中正例；该模式和完整 V8 真实来源 Owner 浏览器旅程仍须实际通过。
+2026-11-06 16:01至23:47共九次有界同日查询均返回HTTP 200、data=null、total=0，最后原件位于 `.tmp/ash08-journey-20261105/b-execution/capture-date/runs/attempt-20261106-234713/2026-11-06/`；响应SHA-256始终为 `3098a203d487b1886e8a50e92f991e397e1b3d9351f8ec9cee118a2b15e0f3d9`，没有行业成员准入或V8执行。11/07复核成功11/03原件的116行及两银行唯一行，并确认当前官方明细JS与原归档字节相同；成功/失败请求仅dateStr不同，未发现参数缺项。成功响应的sampleDate同样为空，资格依赖逐行tradeDate及真实回执；不能把页面默认日期、HTTP Date、汇总PE或旧成员记录当作当前资格。
+
+留存的Tushare交易日原件明确11/07、11/08为closed，11/09为open；该日历publication在11/04即过期，只作保守排期，不构成当前日历资格。现有ash-goal监控已改为周一至周五上海16:00后唤醒，下一候选为11/09 16:00；节假日、临时休市及当时有效日历仍走原门，不由工作日规则直接放行。已允许显式published_close模拟，不再统一等盘中正例；模式及完整V8仍须实际通过。国证发布说明仅承诺交易日收盘后更新，不能据此虚构精确发布时间；前端previousTradeDay接口也不是行业发布时钟。[官方说明](https://www.cnindex.com.cn/files/syljssm.pdf)
+
+11/06窗口前已把现有隔离快照按c206b40对齐8599项覆盖输入（其中八个相关生产文件先前过旧），复用现有Native库，只读确认canonical M1为0行、2个不可变触发器、570项迁移，未建库。真实空白浏览器及本地HTTP trace、保留原字节的ZIP封装与既有解析器已通过；V8整文件collection及13-App限制下所需reverse/resolve亦通过，未运行金融/来源fixture或完整用户旅程。原IPC目录缺陷猜测被排除（v2已有parents=True），URLConf疑点未复现，因此未改启动器、路由或available_apps。完整失败探针及原件留在原忽略目录，不算V8正向验收。
+
+元数据提交c206b40的五项CI已实际全部成功；Fast Feedback的Python 3.11、3.13、无数据库TDD和增量质量任务亦均成功。这是该精确提交的历史观察，不外推新候选。原件为 `.tmp/ash08-journey-20261105/idle-preparation/validation/ci-latest.json` 与 `ci-fast-feedback-complete.json`；[Fast Feedback](https://github.com/guiyinan/agomTradePro/actions/runs/42134575939)、[Consistency](https://github.com/guiyinan/agomTradePro/actions/runs/42134576025)、[Architecture](https://github.com/guiyinan/agomTradePro/actions/runs/42134576023)、[Security](https://github.com/guiyinan/agomTradePro/actions/runs/42134575900)、[Progress](https://github.com/guiyinan/agomTradePro/actions/runs/42134575902)。
+
+本机诊断与启动准备索引继续附在同一事项下，不声明远端持有；它们不构成整单元关闭。
+
+| 原件索引 | SHA-256 |
+| --- | --- |
+| `.tmp/ash08-journey-20261105/b-execution/source-contract-diagnostic-20261107/contract-check.json` | `ec506caadf1217a939beb72ef38b3cd398d7f8f094ed33326b0c39cb84f6218c` |
+| `.tmp/ash08-journey-20261105/browser-qa/output/pre16-20261106/readiness-index.json` | `df9d6ca98bd6876e8434d9ae68e7d04817ad5a1d70d803c366726a762314c281` |
 
 当前剩余退出项：
 
-1. 取得当前日合格行业成员、报价、容量/会话和 M1 原件，通过既有同日、用途、时钟和完整性门；11/05 的空响应不构成 11/06 资格，16:00（上海）前不采集当前收盘批次。
+1. 在实际可验收交易日取得合格同日行业成员、报价、容量/会话和M1原件，通过既有用途、时钟和完整性门；实际上海日期16:00前不采集收盘批次，旧日原件不得回填当前资格。
 2. 用显式 published_close 模拟模式实际完成 V8 普通 Owner/observer/foreign TUI 旅程并对账，保留权限、原键回读和真实 transport/order key。部分模拟成交必须明确 synthetic 且通过真实 Fill UOW，不能冒称供应商撮合。
 
 当前不向 Owner 索要外部材料。Goal 仍 active；REF-01/05 仅只读，其余 REF 暂无实施窗口；ASH-06/09/12 保持 deferred。
