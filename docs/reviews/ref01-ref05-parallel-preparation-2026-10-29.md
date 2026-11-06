@@ -59,3 +59,27 @@ REF-05 在独立登记的数据/资源窗口核原始发布日期、修订版本
 | `dynamic-literal-audit.json` | `e43a69de46c8f11daaf728b4e717f7deafa3fae128f06ba3de61a1f4d1398f18` |
 | `reviewed-findings.json` | `687a5127531c9e74e23fd26dae75053e3b5d8d7351ddbce21a2f175f1a863dd4` |
 | `evidence-index.json` | `1435a3c01b875a04d4247634715861b3e246f3a6a47e2d3a45f3cfe51048c0be` |
+
+## 2026-11-06 ASH-08 等待窗口内的差值续核
+
+输入为正式提交 `71fc46602e1600b136bdd96c6de9bcfd95bb151d`；三位 Luna max 分别复核授权族差值、PIT可行性与实验设计、依赖/后继整单元。所有检查仅源码与既有本机原件，不查数据库或provider、不运行实验/业务测试；历史输入与原件保留，不能把不同批次拼成运行验收。
+
+**REF-01 实际差值。** 相对既有 `ff91e8749c89e8fac66311816e7508fdffb6c291` 盘点，选定身份/authority族没有账户模型或迁移增改。相关三处代码差值是 V4 assignment Evidence、Authority V2 的单对象图成功验证/解码缓存包装，以及 Reobservation V1 锚点行自身锁定；后者 append 仍先分别锁定 Binding 与 Physical 父证据，未取消父锁。V1 provenance receipt 的 Issue/GetExact/GetCurrent、单append仓储及System Audit相关复用与原索引一致，不能因最大Vn存在就判定旧族可删除。
+
+ASH-08 的 `RebalanceJourneyAccountAuthorizer` 委托现有risk resource scope reader；`DjangoPortfolioRiskResourceRepository.read_account_scope`读取 `SimulatedAccountModel.user_id` 与只读observer grant，写入仍只允许owner。本范围未发现直接使用Account owner-assignment/authority receipt族作为计划执行授权的证据，因此没有需先插入REF-02/03的实证阻塞；REF-02/03本身仍缺REF-01退出与正式窗口。唯一后续候选保留为原V1 provenance receipt单族；实际使用/旧部署、行数、保留期限和归档恢复消费者均未知，本次没有停写、迁读或删表结论。
+
+**REF-05 可复用契约与证据缺口。** PIT manifest已有as_of、knowledge_scope、calendar/query版本、选中版本与质量/哈希绑定；PUBLIC available_at和SYSTEM ingested_at是不同口径。MacroFact的reporting_period不是发布日期，`get_series(use_pit=True)`本身不能证明修订与历史可得；PriceBar的fetched_at是本地采集时钟，不是供应商历史available_at。覆盖率必须显式给定非空expected keys/session grid并验证质量，不能把未给required_keys时的默认100%或空选择当真覆盖。既有历史Regime、时序split和ResearchExperiment/MultipleTestFamily/trial登记机制可复用，但本次未核实对应DB行或历史输入清单。
+
+当前不能识别Regime的真实增量价值。待独立登记的只读输入窗核实宏观首发/修订/first-known，日价格可得性/公司行为及历史成分、日历交集，和精确已有策略/Regime/基准/费用及family校正规则。现有10/29资料是代码/来源manifest，不是这些真实历史数据的证明；未知保持未知，不要求Owner为M1采购数据。
+
+预注册草案已固定方法：同一既有策略和历史股票池，无/有精确版本Regime规则；另列既有宽基持有和已有动量/均线定义。统一费用、现金/不可成交、次一合格session成交与缺失剔除；按真实PIT交集固定expanding训练/验证和不重叠forward OOS，不看OOS后调参，HP只算扩张前缀。费用或比较器没有精确版本则保留不可用，不以源码默认值代替批准政策。报告净OOS超额/回撤/换手/成本/样本/不确定性；未来版本、缺时钟、空覆盖或无法绑定策略即不可识别，负结果也有效，不自动晋级。当前不运行回测、不恢复ASH-06/STRAT-03，也不满足STRAT-02或ASH-11。
+
+**REF-01 完整后继候选。** GOV-03目前completed；ASH-08全部退出后才可正式交接。完整REF-01除了区分抽象声明、具体模型、继承字段与物理表、收齐current/exact/history/writer/外部与归档消费者、选一个可实施族，还须在已有字典/CI入口补实际base/head模型/版本差值与既有计划说明校验；新增无说明、伪装移动、未清引用删除等必须拒绝，合法说明与抽象/同身份移动须按合同处理。没有新baseline/审批服务，也不手改生成投影。A负责口径/族证据，B负责消费者与兼容边界，C负责既有增量门/正反例及验证，Root串行整合；只在实际改生产Python/ORM/结构时跑相应类型、投影和结构门。后续REF-02/03迁移或退役不混入REF-01。
+
+本机原件位于Git忽略目录 `.tmp/ash08-journey-20261105/idle-preparation/`，不声明远端持有；以下hash由程序计算并已核对。资料准备不构成任何REF单元关闭。
+
+| 原件 | SHA-256 |
+| --- | --- |
+| `a-ref01/handoff.json` | `95bbab76d1f43536120a5e4baeffb61a10107891b28222d7893a2849018abb01` |
+| `b-ref05/handoff.json` | `d568ed1b7a3a537563a1ee34d2840096c06470b23298158ff240c91c3016c199` |
+| `c-order/post-ash08-next-goal-candidate.json` | `f4a91c6a4727bdd24e73adacd9c70cac529a3a3f3adad7dc28ccc30b56d26e43` |

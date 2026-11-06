@@ -1,6 +1,6 @@
 {
-  "version": "2026-11-05.v310",
-  "updated_at": "2026-11-05",
+  "version": "2026-11-06.v311",
+  "updated_at": "2026-11-06",
   "execution_focus": {
     "unit_id": "ASH-08",
     "allowed_parallel_execution_modes": [
@@ -386,7 +386,7 @@
       "priority": "P1",
       "owner": "Repository Owner / Account / Research / Data Center / Portfolio / Governance / SDK / MCP",
       "status": "active",
-      "next_gate": "GOV-06/07 are deferred; record nonblocking responsibility/quality refactors as GOV-05 future work rather than expanding ASH-02. Current scope and history: docs/reviews/owner-scope-freeze-2026-10-18/owner-decision.md and registry-application-base.json in the same directory. Convergence: REF-01 through REF-06 are the bounded implementation backlog in docs/plans/data-boundary-convergence-plan-2026-10-26.md. Current ASH/TUX frozen work and M1 lead; inventory and PIT preparation are read-only. Reuse existing projections, CI and evidence indices; GOV-04/05 target actual delivery failures and GOV-06/07 stay deferred. See docs/plans/data-boundary-convergence-plan-2026-10-26.md. Owner sustainability order 2026-11-03: keep ASH-07 delivery first; REF-01 read-only inventory supports a conditional bounded REF-02/03 window before ASH-08, never a full-backlog prerequisite. Preserve prerequisites and serial focus handoff. REF-04/05 implementation is later; confirmed REF-06 security defects may use an earlier bounded window, not speculative expansion.",
+      "next_gate": "GOV-06/07 are deferred; record nonblocking responsibility/quality refactors as GOV-05 future work rather than expanding ASH-02. Current scope and history: docs/reviews/owner-scope-freeze-2026-10-18/owner-decision.md and registry-application-base.json in the same directory. Convergence: REF-01 through REF-06 are the bounded implementation backlog in docs/plans/data-boundary-convergence-plan-2026-10-26.md. ASH-03/04/07 are completed within their recorded finite scopes; ASH-08 remains the sole current repository focus under primary plan section 19.158. M1 acceptance is historical, not full ASH-08 closure. REF-01 and REF-05 remain read-only preparation; no REF-02/03/04/06 implementation window is opened. After complete ASH-08 exit and a serialized focus handoff, REF-01 is the next eligible convergence candidate while GOV-03 remains completed; its full exit includes implemented existing dictionary/model-version delta gates with positive and negative tests, not static inventory alone. REF-02/03 retain their REF-01 prerequisite and selected-family/handoff gates; REF-04 depends on REF-03. REF-05 requires a separately registered real PIT input/resource window before any experiment; REF-06 only admits an evidenced narrow safety exception, none newly found in this preparation. Preserve GOV-04/05 actual-failure scope and GOV-06/07 plus ASH-06/09/12 deferred status; no production activation or retirement is authorized by this scheduling prose.",
       "documents": [
         {
           "path": "docs/plans/scripts-docs-mcp-governance-plan-2026-10-14.md",
