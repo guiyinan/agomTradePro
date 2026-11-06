@@ -81,7 +81,7 @@ registry v312将唯一repository focus串行交接给REF-01并置active；ASH-08
 
 该单族方案继续保留一个append writer、Issue/GetExact/GetCurrent公开合同、共享actor类型身份及历史payload/hash。未来先核对旧运行方、真实保留/归档及恢复消费者，再在另行获准的REF-02/03窗口内做兼容特征测试、停写/影子比对与迁读；本窗口不执行停写、删模型/表、改迁移身份或解开append-only防线。回滚只回退本次开发工具/说明变更，不回写历史账本或数据库。
 
-11/07完整开发批已实际通过字典两模块25项、注册表89项、增量mypy与债务上限、两端投影/真实commit范围、治理检查及workflow四场景Bash接线验证。缺Markdown负例的夹具与Windows路径断言失败原件均保留；最终25项来自同一冻结候选。三位Luna max仅做有界实现/复核，Root串行整合；代码/配置输入未变的已通过证据经哈希核实复用，不重跑金融/浏览器或建库。精简原件索引在`.tmp/ref01-implementation-20261107/root/validation-index.json`（SHA-256 `562128c6eaf50398d0ad51ffd5d8b4f013c7e05cb6b11ddcac0c93b74c28b8ec`；含候选基础、输入/日志哈希、失败保留与复用边界；本计划由正式Git提交绑定，避免递归自哈希）；本次提交的实际CI仍须通过后才正式记录REF-01退出。
+11/07完整开发批已实际通过字典两模块25项、注册表89项、增量mypy与债务上限、两端投影/真实commit范围、治理检查及workflow四场景Bash接线验证。缺Markdown负例的夹具与Windows路径断言失败原件均保留；最终25项来自同一冻结候选。三位Luna max仅做有界实现/复核，Root串行整合；代码/配置输入未变的已通过证据经哈希核实复用，不重跑金融/浏览器或建库。精简原件索引在`.tmp/ref01-implementation-20261107/root/validation-index.json`（SHA-256 `562128c6eaf50398d0ad51ffd5d8b4f013c7e05cb6b11ddcac0c93b74c28b8ec`；含候选基础、输入/日志哈希、失败保留与复用边界；本计划由正式Git提交绑定，避免递归自哈希）；正式实现提交`643b671a6fc13a6ca8090b9409b1dad3799200e2`已推送，五项精确CI现均completed/success；原件`.tmp/ref01-implementation-20261107/root/formal-development-ci.json`的SHA-256为`acca42293b3c49210c15d78dd683a61673ab606bbdc279a8981fbf40bff6b802`。本窗口开发交付完成，无剩余实施/QA需要重复启动；依§2.3，正式REF-01退出与ASH-08焦点归还等真实来源资格恢复后串行一并登记，当前registry v312状态不提前改写。未知生产/旧部署、保留/归档恢复仍只阻断后续实际退役，不否定本次有界盘点与增量门证据。
 
 ### REF-02：账户族与业务 owner 收敛（WP1、WP5）
 
