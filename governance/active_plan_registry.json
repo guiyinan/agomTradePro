@@ -1,27 +1,27 @@
 {
-  "version": "2026-11-06.v311",
-  "updated_at": "2026-11-06",
+  "version": "2026-11-07.v312",
+  "updated_at": "2026-11-07",
   "execution_focus": {
-    "unit_id": "ASH-08",
+    "unit_id": "REF-01",
     "allowed_parallel_execution_modes": [
       "production",
       "external",
       "governance"
     ],
-    "policy": "Owner formally handed the sole repository integration focus to the complete ASH-08 finite simulated-account rebalance and TUI journey Goal on 2026-11-05; see primary plan section 19.158. ASH-03/04/07 are completed; ASH-08 M1 passed remains historical read-only acceptance, not full-unit closure. Reuse canonical TransitionPlan, exact bindings, ordinary simulated order/reservation/fill/settlement and ASH-07 risk services. Complete trusted server-bound plans, sell-before-buy funding dependencies, fact-based partial/cancel/expiry/recovery residuals, immutable successors and reapproval, and the ordinary-user reconciliation journey. Three Luna max agents prepare disjoint overlays under .tmp/ash08-journey-20261105; Root alone integrates shared Source/index/Git and projections. Use one pytest and one heavy static task at a time with isolated retained resources; freeze complete matters and reuse only unchanged, identically covered evidence. REF-01/05 remain read-only; no demonstrated blocker warrants a REF-02/03 window, and REF-02/03/04/06 have no new implementation window. Keep inactive approval and formal Evidence/live-execution denials. No new branches, production configuration or ledgers, deployment or automatic orders. ASH-06/09/12 remain deferred.",
+    "policy": "Owner explicitly opened the REF-01 implementation window on 2026-11-07 while ASH-08 is blocked on genuine same-day industry sources. This is a serialized repository-focus handoff to REF-01, not ASH-08 completion, Goal replacement or a new deferred scope. Preserve the full ASH-08 Goal and existing source/clock/permission/financial gates; the next candidate close window is 2026-11-09 after16:00 Shanghai subject to actual current calendar and sources. Save REF-01 safely and formally return the shared focus/resources to ASH-08 when qualified acceptance can resume. REF-01 reuses the existing dictionary/build/check and CI delta entry for tested model/version explanations, exact base/head identity, ownership/counting definitions and one bounded family inventory/compatibility proposal; no model/schema retirement, new baseline or approval system. Three Luna max overlays are disjoint and Root alone integrates shared Source/index/Git and projections. One pytest and one heavy static task; freeze complete matters and reuse only unchanged coverage. REF-05 remains read-only; REF-02/03/04/06 have no implementation window. ASH-06/09/12 remain deferred. No new branches, deployment, production config/ledger changes or auto orders.",
     "parallel_preparation": [
       {
-        "unit_id": "ASH-08",
-        "scope": "Owner-approved full ASH-08 Goal, primary plan section 19.158: A prepares portfolio trusted plans/immutable revisions/reapproval in a-plan/overlay; B prepares simulated_trading funding dependencies/residual execution/reconciliation in b-execution/overlay; C prepares TUI task journey and permission/API/SDK/MCP contracts in c-tui/overlay. All are short-lived isolated overlays under .tmp/ash08-journey-20261105, adopted promptly by Root after review. No shared Source/index/Git/projection writes or competing heavy QA; Root owns common DTO acceptance, composition and serial integration. Simulation/manual fact-import only; inactive and live Evidence gates remain intact.",
+        "unit_id": "REF-01",
+        "scope": "Owner 2026-11-07 implementation window: A owns existing dictionary/model-version delta gate in .tmp/ref01-implementation-20261107/a-gate/overlay; B owns meaningful temp-Git positive/negative tests in b-tests/overlay; C owns existing CI wiring and bounded consumer/family evidence in c-wiring/overlay. Root owns final contract, shared integration, governance and one complete QA batch. No business ORM/migration/projection schema changes or REF-02/03 retirement without separate evidence/window.",
         "owner": "Three Luna max agents; Root serialized integration",
         "isolated_workspace": true,
         "shared_git_serialized": true,
         "isolated_test_resources": true
       },
       {
-        "unit_id": "REF-01",
-        "scope": "Read-only model-family, current/exact/history caller, ownership and retirement inventory. No source, projection, migration or CI edits until serialized integration handoff; no restart or enlargement of frozen ASH/TUX QA inputs. Owner 2026-11-03 scheduling: prioritize account/source/risk interfaces needed by ASH-08 and identify one evidenced maintenance blocker with consumers, proposed boundary, benefit and rollback; this remains read-only, not full-unit completion or REF-02/03 activation.",
-        "owner": "Repository maintenance with ASH account/source owners",
+        "unit_id": "ASH-08",
+        "scope": "Externally blocked, unfinished full Goal; delivered business code and prior exact CI retained. Source/explicit published_close/V8 Owner-observer-foreign acceptance remains required. No duplicate QA or fresh labels on old quotes. Next candidate 11/09 after16 Shanghai still requires actual current calendar/source qualification; when actionable, safely save REF-01 and formally hand the sole integration focus/resources back to ASH-08.",
+        "owner": "Root; source and browser owners only when actual qualification returns",
         "isolated_workspace": true,
         "shared_git_serialized": true,
         "isolated_test_resources": true
@@ -386,7 +386,7 @@
       "priority": "P1",
       "owner": "Repository Owner / Account / Research / Data Center / Portfolio / Governance / SDK / MCP",
       "status": "active",
-      "next_gate": "GOV-06/07 are deferred; record nonblocking responsibility/quality refactors as GOV-05 future work rather than expanding ASH-02. Current scope and history: docs/reviews/owner-scope-freeze-2026-10-18/owner-decision.md and registry-application-base.json in the same directory. Convergence: REF-01 through REF-06 are the bounded implementation backlog in docs/plans/data-boundary-convergence-plan-2026-10-26.md. ASH-03/04/07 are completed within their recorded finite scopes; ASH-08 remains the sole current repository focus under primary plan section 19.158. M1 acceptance is historical, not full ASH-08 closure. REF-01 and REF-05 remain read-only preparation; no REF-02/03/04/06 implementation window is opened. After complete ASH-08 exit and a serialized focus handoff, REF-01 is the next eligible convergence candidate while GOV-03 remains completed; its full exit includes implemented existing dictionary/model-version delta gates with positive and negative tests, not static inventory alone. REF-02/03 retain their REF-01 prerequisite and selected-family/handoff gates; REF-04 depends on REF-03. REF-05 requires a separately registered real PIT input/resource window before any experiment; REF-06 only admits an evidenced narrow safety exception, none newly found in this preparation. Preserve GOV-04/05 actual-failure scope and GOV-06/07 plus ASH-06/09/12 deferred status; no production activation or retirement is authorized by this scheduling prose.",
+      "next_gate": "GOV-06/07 are deferred; record nonblocking responsibility/quality refactors as GOV-05 future work rather than expanding ASH-02. Current scope and history: docs/reviews/owner-scope-freeze-2026-10-18/owner-decision.md and registry-application-base.json in the same directory. Convergence: REF-01 through REF-06 are the bounded implementation backlog in docs/plans/data-boundary-convergence-plan-2026-10-26.md. Owner 2026-11-07 explicitly opens REF-01 implementation now, superseding the earlier wait-for-full-ASH-08 scheduling sentence for REF-01 only. REF-01 is the sole active repository focus; ASH-08 is blocked_external and its Goal remains unfinished, with11/09 actual source/V8 priority. Implement tested existing model/version delta entry and bounded family inventory without new baseline/approval/retirement. Preserve all original dependencies and exit gates. REF-02/03/04/06 stay without implementation window, REF-05 stays read-only, GOV-06/07 and ASH-06/09/12 stay deferred. See docs/plans/data-boundary-convergence-plan-2026-10-26.md section2.3.",
       "documents": [
         {
           "path": "docs/plans/scripts-docs-mcp-governance-plan-2026-10-14.md",
@@ -420,7 +420,7 @@
       "priority": "P0/P1",
       "owner": "portfolio+risk_center+data_center+simulated_trading+backtest+broker_execution+terminal",
       "status": "active",
-      "next_gate": "ASH-03/04/07 are completed within their recorded finite scopes. Owner formally selects full ASH-08 as the sole repository focus; see primary plan section 19.158. M1 readable-preview acceptance remains passed and does not prove plan-level execution or continuation. Next exits: trusted server-side plan/resource/source/risk/cost snapshots; immutable exact plan/order versions and reapproval; sell-before-buy actual funding; partial fill/cancel/expiry/recovery residuals and reconciliation; ordinary/read-only/cross-account TUI browser/API/SDK/MCP contracts. Reuse ASH-03/04/07 services and declared current-source qualifications; historical originals stay historical. No evidenced REF prerequisite blocker was found; REF-01/05 stay read-only, other REF units have no new implementation window. Keep inactive approval/Evidence/live denials, manual fact import and explicit unsupported capability states. ASH-06/09/12 remain deferred; no production/deploy/automatic-order authority.",
+      "next_gate": "ASH-03/04/07 are completed within their recorded finite scopes. ASH-08 business development and exact applicable CI are delivered, but genuine same-day source admission, explicit published_close mode and actual complete ordinary Owner/observer/foreign V8 journey remain unproven. Owner 2026-11-07 opens REF-01 implementation while ASH-08 is blocked_external: current sole repository focus is REF-01, primary plan section19.159/convergence plan2.3, not ASH-08 completion or Goal replacement. Preserve original ASH-08 full exit, current-source qualification, actual financial reconciliation, immutable plan/order binding and all permission/live/inactive-Evidence gates. Next candidate same-day source window is11/09 after16 Shanghai, subject to actual current calendar and complete source gates; safely save REF-01 and formally return focus/resources when ASH-08 acceptance becomes actionable. REF-01 window covers existing tested model/version delta entry and bounded family inventory only; REF-05 stays read-only and REF-02/03/04/06 have no new window. Manual fact import and explicit unsupported capability states remain. ASH-06/09/12 remain deferred; no production/deploy/automatic-order authority.",
       "documents": [
         {
           "path": "docs/plans/a-share-usability-implementation-plan-2026-10-16.md",
@@ -1775,7 +1775,7 @@
         "wave": 3,
         "priority": "P1",
         "execution_mode": "repository",
-        "status": "active",
+        "status": "blocked_external",
         "title": "Deliver an account-specific rebalance plan and complete TUI user journey",
         "depends_on": [
           "ASH-03",
@@ -1965,7 +1965,7 @@
         "wave": 3,
         "priority": "P1",
         "execution_mode": "repository",
-        "status": "planned",
+        "status": "active",
         "title": "Inventory model ownership and retireable versions using existing delta gates",
         "depends_on": [
           "GOV-03"

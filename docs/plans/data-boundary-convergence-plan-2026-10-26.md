@@ -49,6 +49,16 @@ Owner 授权上海时间16:00后在本主线程自动采集同日来源并继续
 
 精确源码差值、PIT字段/缺口、候选的三位Luna分工及完整退出标准见既有[准备结论的11/06续核](../reviews/ref01-ref05-parallel-preparation-2026-10-29.md)。本轮没有源码、模型、迁移、投影、provider、数据库或研究实验改动。
 
+### 2.3 Owner 开放 REF-01 实施窗口（2026-11-07）
+
+Owner明确选择“开放REF-01实施窗口”，允许现在补齐既有模型/版本差值门及正反例，不继续只做盘点。此授权仅覆盖REF-01，取代§2.2中“等ASH-08完整退出才开始REF-01”的当前排期；REF-01原依赖GOV-03已completed，原完整退出门不缩小。
+
+registry v312将唯一repository focus串行交接给REF-01并置active；ASH-08置blocked_external，其原Goal保持active、未完成，不创建替代Goal或把准备工作计作关闭。下一来源候选窗口11/09上海16:00后；一旦真正有资格继续ASH-08验收，先安全保存REF-01，再正式归还焦点和资源。REF-05仍只读，REF-02/03/04/06无新实施窗口，ASH-06/09/12仍deferred。
+
+本窗口交付：复用已有字典/CI入口实现真实base/head模型和版本差值说明校验；明确抽象声明、具体模型、实际表、声明/继承字段的口径；保留当前/exact/history/writer/SQL/CLI/Admin/SDK/MCP/FK/trigger及归档消费者清单，并为一个族给有界兼容、停写/迁读/删除条件与回滚方案。未知运行使用、真实存量或归档恢复仍明确未知，不先删表、搬账本或启动REF-02/03。
+
+三位Luna max隔离分工：A实现既有字典差值门，B补临时Git仓库正反例，C接已有Architecture CI与单族消费者边界；Root冻结公共契约、串行整合Source/index/Git/治理。临时根为`.tmp/ref01-implementation-20261107/`，不新增分支、独立基线或审批服务，不手改生成投影。整事项冻结后合批跑相关完整单元、真实差值CLI、生产脚本增量类型与债务、适用治理/结构门；无ORM改动不建库，不重复业务金融/前端回归。
+
 ## 3. 工作包与验收
 
 ### REF-01：现状、增量约束与可退役清单（WP0、WP5 盘点）
@@ -58,6 +68,20 @@ Owner 授权上海时间16:00后在本主线程自动采集同日来源并继续
 按模型族登记当前 writer、current/exact/history reader、CLI/Admin/SDK/MCP/原始 SQL、触发器/FK、部署开关、存量数量及归档消费者；未知使用保持未知。只存必要的去标识计数、版本与路径，不把用户记录、token 或密钥写进证据。为第一族给出停写、迁读、兼容期、删除和回滚点。
 
 在已有 CI/字典增量检查入口补“新增模型/版本说明”和差值校验，不新建审批服务、独立基线文件或手工编辑生成投影。两迭代是停止无边界旧版扩展的目标，不是强制删数据期限。首批退出为：清晰口径、一个可实施退役族、实际运行的增量门与正反例；仅本次规划不能算退出。
+
+#### REF-01 实施契约与口径（11/07窗口）
+
+原无参数`python scripts/check_data_dictionary.py`保留当前投影漂移检查。增量模式由既有Architecture CI向同一入口传`--base-ref`、`--head-ref`两枚完整commit OID：必须都存在且不同，head等于当前checkout；两端JSON/Markdown各自与其Git树AST重建一致。缺base、损坏投影或缺版本证据不能解释成“无差值”，本地未提交模型改动不由此已提交范围代证。
+
+模型声明identity为`app.Class`，不是文件路径；同identity仅搬文件或改docstring不制造模型新增/删除。真正字段、bases、Meta、choices、abstract等变化单独报告；`FooV2Model`、`FooModelV2`等实际命名的更高版本须有说明，不按最大Vn推断旧版可退役。新增但未被现有投影识别的直接Django模型或已知模型子类必须明确阻断，不能作为“零差值”通过；现有未投影子类的方法/文案修复不冒充schema变化。静态边界不声称覆盖运行期动态造类或所有继承字段。
+
+说明写回本次修改的既有业务计划，扫描精确head中相对base已变且两端都存在的`docs/plans/**/*.md`。表头六列为`base_sha`、`identity`、`change_kind`、`rationale`、`consumer_audit`、`compatibility_or_rollback`；每个需说明的真实差值与当前base/identity/kind一一对应，重复、漏项、多余当前条目或通配豁免不接受；历史base行不授当前豁免。说明是变更理由，不是删除许可，不建立独立模型登记表、审批服务或新基线。删除仍有非migration直接消费者、审计未知时拒绝；物理退役仍须原retirement/compatibility/恢复门和后续正式窗口。
+
+本轮口径以5a06e90正式业务树为输入：生成器统计599个直接AST模型声明，含57个abstract与542个非abstract声明；仅记录类体字段，不展开继承或隐式主键。它们不能等同Django运行模型总数或数据库实表数。本机开发源库克隆的只读metadata显示591张public表、569条migration记录；包含系统/关联表且范围不同，不能直接相减判缺失。唯一候选V1 receipt为`account_owner_assignment_provenance_receipt_ledger`，本机克隆存在、0行、46物理列；完整约束/trigger/FK原件仅在`.tmp/ref01-implementation-20261107/root/family-readonly-source-inventory.json`，不外推当前生产、旧部署或仓外消费者。
+
+该单族方案继续保留一个append writer、Issue/GetExact/GetCurrent公开合同、共享actor类型身份及历史payload/hash。未来先核对旧运行方、真实保留/归档及恢复消费者，再在另行获准的REF-02/03窗口内做兼容特征测试、停写/影子比对与迁读；本窗口不执行停写、删模型/表、改迁移身份或解开append-only防线。回滚只回退本次开发工具/说明变更，不回写历史账本或数据库。
+
+11/07完整开发批已实际通过字典两模块25项、注册表89项、增量mypy与债务上限、两端投影/真实commit范围、治理检查及workflow四场景Bash接线验证。缺Markdown负例的夹具与Windows路径断言失败原件均保留；最终25项来自同一冻结候选。三位Luna max仅做有界实现/复核，Root串行整合；代码/配置输入未变的已通过证据经哈希核实复用，不重跑金融/浏览器或建库。精简原件索引在`.tmp/ref01-implementation-20261107/root/validation-index.json`（SHA-256 `562128c6eaf50398d0ad51ffd5d8b4f013c7e05cb6b11ddcac0c93b74c28b8ec`；含候选基础、输入/日志哈希、失败保留与复用边界；本计划由正式Git提交绑定，避免递归自哈希）；本次提交的实际CI仍须通过后才正式记录REF-01退出。
 
 ### REF-02：账户族与业务 owner 收敛（WP1、WP5）
 

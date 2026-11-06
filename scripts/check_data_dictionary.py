@@ -1,12 +1,5 @@
 #!/usr/bin/env python
-"""Verify that the committed data dictionary projections match the source tree.
-
-The data dictionary is a generated projection (see
-``scripts/build_data_dictionary.py``); this script regenerates both the JSON
-(``governance/data_dictionary.json``) and the Markdown rendering
-(``docs/architecture/DATA_DICTIONARY.md``) in memory and fails when either
-committed file has drifted from the code, printing a concise diff summary.
-"""
+"""Verify the generated data-dictionary projections and optional exact delta."""
 
 from __future__ import annotations
 
@@ -26,7 +19,27 @@ from build_data_dictionary import (  # noqa: E402
     build_data_dictionary,
     render_markdown,
 )
+from check_data_dictionary_model_delta import (  # noqa: E402
+    ModelDelta,
+    Ref01ExplanationRow,
+    compare_model_projections,
+    parse_ref01_explanation_rows,
+    run_model_delta_check,
+    validate_deleted_model_consumers,
+    validate_delta_explanations,
+    validate_unprojected_new_model_declarations,
+)
 
+__all__ = [
+    "ModelDelta",
+    "Ref01ExplanationRow",
+    "compare_model_projections",
+    "parse_ref01_explanation_rows",
+    "run_model_delta_check",
+    "validate_deleted_model_consumers",
+    "validate_delta_explanations",
+    "validate_unprojected_new_model_declarations",
+]
 REMEDIATION = "run: python scripts/build_data_dictionary.py"
 
 
@@ -112,7 +125,7 @@ def _diff_text(committed: str, regenerated: str, label: str) -> list[str]:
 
 
 def main() -> int:
-    """Regenerate the data dictionary in memory and compare committed files."""
+    """Regenerate current projections and optionally verify an exact model delta."""
 
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -127,7 +140,23 @@ def main() -> int:
         default=DEFAULT_MARKDOWN_OUTPUT,
         help="committed data dictionary Markdown path to verify",
     )
+    parser.add_argument(
+        "--base-ref",
+        help="full Git object id of the exact baseline commit (requires --head-ref)",
+    )
+    parser.add_argument(
+        "--head-ref",
+        help="full Git object id of the checked-out candidate commit (requires --base-ref)",
+    )
+    parser.add_argument(
+        "--plan-file",
+        type=Path,
+        default=None,
+        help="optional repository-relative changed docs/plans Markdown file to scan",
+    )
     args = parser.parse_args()
+    if (args.base_ref is None) != (args.head_ref is None):
+        parser.error("--base-ref and --head-ref must be supplied together")
 
     payload = build_data_dictionary()
     failed = False
@@ -184,7 +213,16 @@ def main() -> int:
         f"data dictionary OK: {args.json_file} and {args.md_file} match the source tree "
         f"(apps={app_count} models={model_count})"
     )
-    return 0
+    if args.base_ref is None or args.head_ref is None:
+        return 0
+    return run_model_delta_check(
+        repository_root=Path(__file__).resolve().parents[1],
+        base_ref=args.base_ref,
+        head_ref=args.head_ref,
+        json_path=args.json_file,
+        markdown_path=args.md_file,
+        plan_file=args.plan_file,
+    )
 
 
 if __name__ == "__main__":

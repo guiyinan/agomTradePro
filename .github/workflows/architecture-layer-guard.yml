@@ -42,25 +42,41 @@ jobs:
 
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
             git fetch --no-tags --prune --depth=1 origin "${{ github.base_ref }}"
-            echo "BASE_REF=origin/${{ github.base_ref }}" >> "$GITHUB_ENV"
-            echo "HEAD_REF=${{ github.sha }}" >> "$GITHUB_ENV"
+            BASE_REF="${{ github.event.pull_request.base.sha }}"
+            HEAD_REF="${{ github.sha }}"
+            ARCH_BASE_REF="origin/${{ github.base_ref }}"
+            ARCH_HEAD_REF="${{ github.sha }}"
+            if ! git cat-file -e "${BASE_REF}^{commit}" 2>/dev/null; then
+              git fetch --no-tags origin "$BASE_REF"
+            fi
           elif [[ "${{ github.event_name }}" == "push" ]]; then
             BASE_REF="${{ github.event.before }}"
             HEAD_REF="${{ github.sha }}"
-            if [[ "${BASE_REF}" == "0000000000000000000000000000000000000000" ]] || ! git cat-file -e "${BASE_REF}^{commit}" 2>/dev/null; then
+            ARCH_BASE_REF="${BASE_REF}"
+            if [[ "${BASE_REF}" =~ ^0{40}$ ]] || [[ "${BASE_REF}" =~ ^0{64}$ ]] || ! git cat-file -e "${BASE_REF}^{commit}" 2>/dev/null; then
               if git rev-parse "${HEAD_REF}^" >/dev/null 2>&1; then
-                BASE_REF="$(git rev-parse "${HEAD_REF}^")"
+                ARCH_BASE_REF="$(git rev-parse "${HEAD_REF}^")"
               else
-                BASE_REF="${HEAD_REF}"
+                ARCH_BASE_REF="${HEAD_REF}"
               fi
             fi
-            echo "BASE_REF=${BASE_REF}" >> "$GITHUB_ENV"
-            echo "HEAD_REF=${HEAD_REF}" >> "$GITHUB_ENV"
           else
             # workflow_dispatch: check only the latest commit to avoid flagging legacy code
-            echo "BASE_REF=$(git rev-parse HEAD~1)" >> "$GITHUB_ENV"
-            echo "HEAD_REF=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+            HEAD_REF="$(git rev-parse HEAD)"
+            if git rev-parse "${HEAD_REF}^" >/dev/null 2>&1; then
+              BASE_REF="$(git rev-parse "${HEAD_REF}^")"
+              ARCH_BASE_REF="${BASE_REF}"
+            else
+              BASE_REF=""
+              ARCH_BASE_REF="${HEAD_REF}"
+            fi
+            ARCH_HEAD_REF="${HEAD_REF}"
           fi
+          ARCH_HEAD_REF="${HEAD_REF}"
+          echo "BASE_REF=${BASE_REF}" >> "$GITHUB_ENV"
+          echo "HEAD_REF=${HEAD_REF}" >> "$GITHUB_ENV"
+          echo "ARCH_BASE_REF=${ARCH_BASE_REF}" >> "$GITHUB_ENV"
+          echo "ARCH_HEAD_REF=${ARCH_HEAD_REF}" >> "$GITHUB_ENV"
 
       - name: Enforce four-layer architecture guard
         shell: bash
@@ -68,8 +84,8 @@ jobs:
           set -euo pipefail
           python scripts/check_architecture_delta.py \
             --rules-file governance/architecture_rules.json \
-            --base-ref "$BASE_REF" \
-            --head-ref "$HEAD_REF" \
+            --base-ref "$ARCH_BASE_REF" \
+            --head-ref "$ARCH_HEAD_REF" \
             --include-audit \
             --fail-on-audit-violations \
             --format text
@@ -94,6 +110,42 @@ jobs:
 
       - name: Verify data dictionary projection is current
         run: python scripts/check_data_dictionary.py
+
+      - name: Enforce REF-01 data dictionary model delta
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${BASE_REF}" || -z "${HEAD_REF}" ]]; then
+            echo "REF-01 model delta requires exact base and head commit OIDs; no valid base was collected."
+            exit 2
+          fi
+          if [[ ! "${BASE_REF}" =~ ^([0-9a-f]{40}|[0-9a-f]{64})$ ]] || [[ ! "${HEAD_REF}" =~ ^([0-9a-f]{40}|[0-9a-f]{64})$ ]]; then
+            echo "REF-01 model delta requires full commit OIDs; symbolic refs and zero push bases are not accepted."
+            exit 2
+          fi
+          if [[ "${BASE_REF}" =~ ^0{40}$ ]] || [[ "${BASE_REF}" =~ ^0{64}$ ]]; then
+            echo "REF-01 model delta cannot use an all-zero push base; an exact prior commit is required."
+            exit 2
+          fi
+          if [[ "${BASE_REF}" == "${HEAD_REF}" ]]; then
+            echo "REF-01 model delta requires distinct base and head commits; an empty same-commit range is not accepted."
+            exit 2
+          fi
+          if ! git cat-file -e "${BASE_REF}^{commit}" 2>/dev/null || ! git cat-file -e "${HEAD_REF}^{commit}" 2>/dev/null; then
+            echo "REF-01 model delta could not resolve the exact base/head commit pair."
+            exit 2
+          fi
+          if [[ "$(git rev-parse HEAD)" != "${HEAD_REF}" ]]; then
+            echo "REF-01 model delta head must match the checked-out commit."
+            exit 2
+          fi
+          python scripts/check_data_dictionary.py \
+            --base-ref "$BASE_REF" \
+            --head-ref "$HEAD_REF"
+
+      - name: Test REF-01 data dictionary model delta cases
+        run: python -m unittest tests.unit.test_data_dictionary_delta
 
   structure-audit-report:
     runs-on: ubuntu-latest
