@@ -6,6 +6,11 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 
+from .promotion_lifecycle_replay import (
+    replay_promotion_lifecycle_prefix,
+    validate_promotion_lifecycle_append_clocks,
+    validate_promotion_lifecycle_transition,
+)
 from .r4_promotion_decision import (
     R4PromotionDecision,
     R4PromotionDecisionOutcome,
@@ -26,7 +31,7 @@ def r4_promotion_stream_id(scope: R4PromotionScope) -> str:
     return f"research:r4:macro-risk:{scope.scope_id}"
 
 
-class R4PromotionLifecycleEventType(str, Enum):
+class R4PromotionLifecycleEventType(str, Enum):  # noqa: UP042 - keep str()
     """Research-owned lifecycle transitions."""
 
     PROMOTED = "promoted"
@@ -34,7 +39,7 @@ class R4PromotionLifecycleEventType(str, Enum):
     ROLLED_BACK = "rolled_back"
 
 
-class R4PromotionLifecycleState(str, Enum):
+class R4PromotionLifecycleState(str, Enum):  # noqa: UP042 - keep str()
     """Current state derived only by replaying a recorded prefix."""
 
     PROMOTED = "promoted"
@@ -493,42 +498,43 @@ def create_r4_promotion_lifecycle_event(
 
     stack, _ = _replay_chain(previous_events)
     previous = previous_events[-1]
-    if (
-        occurred_at < previous.occurred_at
-        or occurred_at < previous.recorded_at
-        or recorded_at < previous.recorded_at
-    ):
-        raise ValueError("R4 lifecycle dual clocks cannot move backwards")
+    validate_promotion_lifecycle_append_clocks(
+        previous,
+        occurred_at=occurred_at,
+        recorded_at=recorded_at,
+        family="R4",
+    )
     decision_identity = R4PromotionDecisionIdentity.from_decision(decision)
     target_identity = (
         None
         if rollback_target is None
         else R4PromotionDecisionIdentity.from_decision(rollback_target)
     )
-    if decision_identity.scope != previous.scope:
-        raise ValueError("R4 lifecycle cannot append across scopes")
-    if target_identity is not None and target_identity.scope != previous.scope:
-        raise ValueError("R4 lifecycle rollback cannot cross scopes")
-    if event_type is R4PromotionLifecycleEventType.PROMOTED:
-        if stack and stack[-1] == decision_identity:
-            raise ValueError("R4 lifecycle cannot promote the active decision again")
-    elif event_type is R4PromotionLifecycleEventType.RETIRED:
-        if not stack or stack[-1] != decision_identity:
-            raise ValueError("R4 retirement must target the active decision")
-    elif len(stack) < 2 or stack[-1] != decision_identity or target_identity != stack[-2]:
-        raise ValueError("R4 rollback target must be exactly stack[-2]")
+    position = validate_promotion_lifecycle_transition(
+        tuple(stack),
+        previous_scope=previous.scope,
+        previous_sequence=previous.sequence,
+        previous_event_hash=previous.content_hash,
+        event_type=event_type,
+        decision=decision_identity,
+        rollback_target=target_identity,
+        promoted_type=R4PromotionLifecycleEventType.PROMOTED,
+        retired_type=R4PromotionLifecycleEventType.RETIRED,
+        rolled_back_type=R4PromotionLifecycleEventType.ROLLED_BACK,
+        family="R4",
+    )
     return _build_event(
         event_id=event_id,
         event_version=event_version,
         event_type=event_type,
-        sequence=previous.sequence + 1,
+        sequence=position.sequence,
         decision=decision,
         rollback_target=rollback_target,
         authorization=authorization,
         reason_codes=reason_codes,
         occurred_at=occurred_at,
         recorded_at=recorded_at,
-        previous_event_hash=previous.content_hash,
+        previous_event_hash=position.previous_event_hash,
     )
 
 
@@ -626,41 +632,15 @@ def derive_r4_promotion_lifecycle_state(
 def _replay_chain(
     events: tuple[R4PromotionLifecycleEvent, ...],
 ) -> tuple[list[R4PromotionDecisionIdentity], R4PromotionLifecycleEventType]:
-    if not events:
-        raise ValueError("R4 lifecycle chain cannot be empty")
-    stack: list[R4PromotionDecisionIdentity] = []
-    expected_previous: str | None = None
-    previous_occurred_at: datetime | None = None
-    previous_recorded_at: datetime | None = None
-    scope = events[0].scope
-    stream_id = r4_promotion_stream_id(scope)
-    for expected_sequence, event in enumerate(events, start=1):
-        if event.scope != scope or event.stream_id != stream_id:
-            raise ValueError("R4 lifecycle chain crosses scopes")
-        if event.sequence != expected_sequence or event.previous_event_hash != expected_previous:
-            raise ValueError("R4 lifecycle chain is discontinuous")
-        if previous_occurred_at is not None and event.occurred_at < previous_occurred_at:
-            raise ValueError("R4 lifecycle occurred_at moves backwards")
-        if previous_recorded_at is not None and event.recorded_at < previous_recorded_at:
-            raise ValueError("R4 lifecycle recorded_at moves backwards")
-        if previous_recorded_at is not None and event.occurred_at < previous_recorded_at:
-            raise ValueError("R4 lifecycle occurrence predates the previous receipt")
-        if event.event_type is R4PromotionLifecycleEventType.PROMOTED:
-            if stack and stack[-1] == event.decision:
-                raise ValueError("R4 lifecycle duplicates the active decision")
-            stack.append(event.decision)
-        elif event.event_type is R4PromotionLifecycleEventType.RETIRED:
-            if not stack or stack[-1] != event.decision:
-                raise ValueError("R4 retirement does not target the active decision")
-            stack.clear()
-        else:
-            if len(stack) < 2 or stack[-1] != event.decision or event.rollback_target != stack[-2]:
-                raise ValueError("R4 rollback does not target stack[-2]")
-            stack.pop()
-        expected_previous = event.content_hash
-        previous_occurred_at = event.occurred_at
-        previous_recorded_at = event.recorded_at
-    return stack, events[-1].event_type
+    replay = replay_promotion_lifecycle_prefix(
+        events,
+        stream_id_for_scope=r4_promotion_stream_id,
+        promoted_type=R4PromotionLifecycleEventType.PROMOTED,
+        retired_type=R4PromotionLifecycleEventType.RETIRED,
+        rolled_back_type=R4PromotionLifecycleEventType.ROLLED_BACK,
+        family="R4",
+    )
+    return list(replay.stack), replay.last_event_type
 
 
 __all__ = [

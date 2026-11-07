@@ -13,6 +13,11 @@ from apps.fixed_income.domain.evidence import (
     require_sha256,
     require_token,
 )
+from apps.research.domain.promotion_lifecycle_replay import (
+    replay_promotion_lifecycle_prefix,
+    validate_promotion_lifecycle_append_clocks,
+    validate_promotion_lifecycle_transition,
+)
 from apps.research.domain.r5_relative_value_promotion_decision import (
     R5RelativeValuePromotionDecision,
     R5RelativeValuePromotionDecisionOutcome,
@@ -30,7 +35,7 @@ def r5_relative_value_promotion_stream_id(
     return f"research:r5:relative-value:{scope.scope_id}"
 
 
-class R5RelativeValueLifecycleEventType(str, Enum):
+class R5RelativeValueLifecycleEventType(str, Enum):  # noqa: UP042 - keep str()
     """Research-owned lifecycle transitions."""
 
     PROMOTED = "promoted"
@@ -38,7 +43,7 @@ class R5RelativeValueLifecycleEventType(str, Enum):
     ROLLED_BACK = "rolled_back"
 
 
-class R5RelativeValueLifecycleState(str, Enum):
+class R5RelativeValueLifecycleState(str, Enum):  # noqa: UP042 - keep str()
     """PIT state derived by replaying an exact recorded prefix."""
 
     PROMOTED = "promoted"
@@ -550,43 +555,51 @@ def create_r5_relative_value_lifecycle_event(
 ) -> R5RelativeValueLifecycleEvent:
     """Create the next legal event after replaying the exact scope stack."""
 
-    stack, _ = _replay_chain(previous_events)
+    replay = replay_promotion_lifecycle_prefix(
+        previous_events,
+        stream_id_for_scope=r5_relative_value_promotion_stream_id,
+        promoted_type=R5RelativeValueLifecycleEventType.PROMOTED,
+        retired_type=R5RelativeValueLifecycleEventType.RETIRED,
+        rolled_back_type=R5RelativeValueLifecycleEventType.ROLLED_BACK,
+        family="R5",
+    )
     previous = previous_events[-1]
-    if (
-        occurred_at < previous.occurred_at
-        or occurred_at < previous.recorded_at
-        or recorded_at < previous.recorded_at
-    ):
-        raise ValueError("R5 lifecycle dual clocks cannot move backwards")
+    validate_promotion_lifecycle_append_clocks(
+        previous,
+        occurred_at=occurred_at,
+        recorded_at=recorded_at,
+        family="R5",
+    )
     decision_identity = R5RelativeValueDecisionIdentity.from_decision(decision)
     target_identity = (
         None
         if rollback_target is None
         else R5RelativeValueDecisionIdentity.from_decision(rollback_target)
     )
-    if decision_identity.scope != previous.scope:
-        raise ValueError("R5 lifecycle cannot append across scopes")
-    if target_identity is not None and target_identity.scope != previous.scope:
-        raise ValueError("R5 lifecycle rollback cannot cross scopes")
-    if event_type is R5RelativeValueLifecycleEventType.PROMOTED:
-        if stack and stack[-1] == decision_identity:
-            raise ValueError("R5 lifecycle cannot promote the active decision again")
-    elif event_type is R5RelativeValueLifecycleEventType.RETIRED:
-        if not stack or stack[-1] != decision_identity:
-            raise ValueError("R5 retirement must target the active decision")
-    elif len(stack) < 2 or stack[-1] != decision_identity or target_identity != stack[-2]:
-        raise ValueError("R5 rollback target must be exactly stack[-2]")
+    position = validate_promotion_lifecycle_transition(
+        replay.stack,
+        previous_scope=previous.scope,
+        previous_sequence=previous.sequence,
+        previous_event_hash=previous.content_hash,
+        event_type=event_type,
+        decision=decision_identity,
+        rollback_target=target_identity,
+        promoted_type=R5RelativeValueLifecycleEventType.PROMOTED,
+        retired_type=R5RelativeValueLifecycleEventType.RETIRED,
+        rolled_back_type=R5RelativeValueLifecycleEventType.ROLLED_BACK,
+        family="R5",
+    )
     return _build_event(
         event_version=event_version,
         event_type=event_type,
-        sequence=previous.sequence + 1,
+        sequence=position.sequence,
         decision=decision,
         rollback_target=rollback_target,
         authorization=authorization,
         reason_codes=reason_codes,
         occurred_at=occurred_at,
         recorded_at=recorded_at,
-        previous_event_hash=previous.content_hash,
+        previous_event_hash=position.previous_event_hash,
     )
 
 
@@ -688,41 +701,15 @@ def derive_r5_relative_value_lifecycle_state(
 def _replay_chain(
     events: tuple[R5RelativeValueLifecycleEvent, ...],
 ) -> tuple[list[R5RelativeValueDecisionIdentity], R5RelativeValueLifecycleEventType]:
-    if not events:
-        raise ValueError("R5 lifecycle chain cannot be empty")
-    stack: list[R5RelativeValueDecisionIdentity] = []
-    expected_previous: str | None = None
-    previous_occurred_at: datetime | None = None
-    previous_recorded_at: datetime | None = None
-    scope = events[0].scope
-    stream_id = r5_relative_value_promotion_stream_id(scope)
-    for expected_sequence, event in enumerate(events, start=1):
-        if event.scope != scope or event.stream_id != stream_id:
-            raise ValueError("R5 lifecycle chain crosses scopes")
-        if event.sequence != expected_sequence or event.previous_event_hash != expected_previous:
-            raise ValueError("R5 lifecycle chain is discontinuous")
-        if previous_occurred_at is not None and event.occurred_at < previous_occurred_at:
-            raise ValueError("R5 lifecycle occurred_at moves backwards")
-        if previous_recorded_at is not None and event.recorded_at < previous_recorded_at:
-            raise ValueError("R5 lifecycle recorded_at moves backwards")
-        if previous_recorded_at is not None and event.occurred_at < previous_recorded_at:
-            raise ValueError("R5 lifecycle occurrence predates the previous receipt")
-        if event.event_type is R5RelativeValueLifecycleEventType.PROMOTED:
-            if stack and stack[-1] == event.decision:
-                raise ValueError("R5 lifecycle duplicates the active decision")
-            stack.append(event.decision)
-        elif event.event_type is R5RelativeValueLifecycleEventType.RETIRED:
-            if not stack or stack[-1] != event.decision:
-                raise ValueError("R5 retirement does not target the active decision")
-            stack.clear()
-        else:
-            if len(stack) < 2 or stack[-1] != event.decision or event.rollback_target != stack[-2]:
-                raise ValueError("R5 rollback does not target stack[-2]")
-            stack.pop()
-        expected_previous = event.content_hash
-        previous_occurred_at = event.occurred_at
-        previous_recorded_at = event.recorded_at
-    return stack, events[-1].event_type
+    result = replay_promotion_lifecycle_prefix(
+        events,
+        stream_id_for_scope=r5_relative_value_promotion_stream_id,
+        promoted_type=R5RelativeValueLifecycleEventType.PROMOTED,
+        retired_type=R5RelativeValueLifecycleEventType.RETIRED,
+        rolled_back_type=R5RelativeValueLifecycleEventType.ROLLED_BACK,
+        family="R5",
+    )
+    return list(result.stack), result.last_event_type
 
 
 __all__ = [
