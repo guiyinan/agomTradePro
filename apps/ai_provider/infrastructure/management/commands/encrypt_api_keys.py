@@ -103,6 +103,12 @@ class Command(BaseCommand):
             self.stdout.write("\nDry run complete. No changes were made.")
             self.stdout.write("Run without --dry-run to apply encryption.")
 
+        if error_count > 0:
+            raise CommandError(
+                f"Failed to encrypt {error_count} provider(s); "
+                "retry after correcting the underlying errors."
+            )
+
     def _encrypt_provider(
         self,
         provider: AIProviderConfig,

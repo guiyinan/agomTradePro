@@ -5,6 +5,7 @@ from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 import pytest
+from django.core.management import load_command_class
 from django.core.management.base import CommandError
 
 from apps.ai_provider.infrastructure.management.commands.encrypt_api_keys import (
@@ -17,6 +18,19 @@ def _command() -> tuple[Command, StringIO]:
     output = StringIO()
     command.stdout = output
     return command, output
+
+
+def _loaded_cli_command() -> tuple[Command, StringIO, StringIO]:
+    """Load the app command through Django and capture its CLI streams."""
+
+    command = load_command_class("apps.ai_provider", "encrypt_api_keys")
+    assert isinstance(command, Command)
+    command.requires_system_checks = []
+    stdout = StringIO()
+    stderr = StringIO()
+    command.stdout = stdout
+    command.stderr = stderr
+    return command, stdout, stderr
 
 
 @pytest.mark.parametrize("service", [None, RuntimeError("key service failed")])
@@ -102,7 +116,8 @@ def test_command_dry_run_summarizes_each_outcome_and_force_uses_all_rows() -> No
             side_effect=["encrypted", "skipped", "error"],
         ) as encrypt,
     ):
-        command.handle(dry_run=True, force=True)
+        with pytest.raises(CommandError, match=r"Failed to encrypt 1 provider\(s\)"):
+            command.handle(dry_run=True, force=True)
 
     all_rows.assert_called_once_with()
     assert encrypt.call_count == 3
@@ -279,3 +294,85 @@ def test_encrypt_provider_contains_failure_and_never_prints_plaintext() -> None:
 )
 def test_mask_key_never_returns_complete_secret(api_key: str, expected: str) -> None:
     assert Command._mask_key(api_key) == expected
+
+
+def test_django_loaded_cli_exits_nonzero_after_partial_failure() -> None:
+    command, output, error_output = _loaded_cli_command()
+    providers = [SimpleNamespace(name="migrated"), SimpleNamespace(name="failed")]
+    queryset = Mock()
+    queryset.filter.return_value = queryset
+    queryset.count.return_value = len(providers)
+    queryset.__iter__ = Mock(return_value=iter(providers))
+
+    with (
+        patch(
+            "apps.ai_provider.infrastructure.management.commands.encrypt_api_keys."
+            "get_encryption_service",
+            return_value=Mock(),
+        ),
+        patch(
+            "apps.ai_provider.infrastructure.management.commands.encrypt_api_keys."
+            "AIProviderConfig.objects.exclude",
+            return_value=queryset,
+        ),
+        patch.object(command, "_encrypt_provider", side_effect=["encrypted", "error"]),
+    ):
+        with pytest.raises(SystemExit) as exit_info:
+            command.run_from_argv(["manage.py", "encrypt_api_keys"])
+
+    assert exit_info.value.code == 1
+    assert "Encrypted: 1" in output.getvalue()
+    assert "Errors: 1" in output.getvalue()
+    assert "Failed to encrypt 1 provider(s)" in error_output.getvalue()
+
+
+def test_django_loaded_cli_keeps_success_for_processed_and_skipped_rows() -> None:
+    command, output, error_output = _loaded_cli_command()
+    providers = [SimpleNamespace(name="migrated"), SimpleNamespace(name="already-done")]
+    queryset = Mock()
+    queryset.filter.return_value = queryset
+    queryset.count.return_value = len(providers)
+    queryset.__iter__ = Mock(return_value=iter(providers))
+
+    with (
+        patch(
+            "apps.ai_provider.infrastructure.management.commands.encrypt_api_keys."
+            "get_encryption_service",
+            return_value=Mock(),
+        ),
+        patch(
+            "apps.ai_provider.infrastructure.management.commands.encrypt_api_keys."
+            "AIProviderConfig.objects.exclude",
+            return_value=queryset,
+        ),
+        patch.object(command, "_encrypt_provider", side_effect=["encrypted", "skipped"]),
+    ):
+        command.run_from_argv(["manage.py", "encrypt_api_keys"])
+
+    assert "Encrypted: 1" in output.getvalue()
+    assert "Skipped: 1" in output.getvalue()
+    assert error_output.getvalue() == ""
+
+
+def test_django_loaded_cli_keeps_success_for_noop() -> None:
+    command, output, error_output = _loaded_cli_command()
+    queryset = Mock()
+    queryset.filter.return_value = queryset
+    queryset.count.return_value = 0
+
+    with (
+        patch(
+            "apps.ai_provider.infrastructure.management.commands.encrypt_api_keys."
+            "get_encryption_service",
+            return_value=Mock(),
+        ),
+        patch(
+            "apps.ai_provider.infrastructure.management.commands.encrypt_api_keys."
+            "AIProviderConfig.objects.exclude",
+            return_value=queryset,
+        ),
+    ):
+        command.run_from_argv(["manage.py", "encrypt_api_keys"])
+
+    assert "No API keys found to encrypt." in output.getvalue()
+    assert error_output.getvalue() == ""

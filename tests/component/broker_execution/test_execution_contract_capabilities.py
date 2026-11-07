@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import timedelta
+from datetime import datetime, timedelta
 from decimal import Decimal
+from unittest.mock import Mock
 
 import pytest
 from django.contrib.auth import get_user_model
@@ -20,10 +21,12 @@ from apps.broker_execution.domain.execution_contract_capabilities import (
 from apps.broker_execution.infrastructure import broker_repository_agent_runtime as runtime
 from apps.broker_execution.infrastructure.models import (
     BrokerAccountBindingModel,
+    BrokerAccountSnapshotModel,
     BrokerAgentCredentialModel,
     BrokerAgentModel,
     LiveOrderModel,
     OrderLeaseModel,
+    TradingControlModel,
 )
 from apps.broker_execution.infrastructure.repositories import DjangoBrokerExecutionRepository
 
@@ -164,3 +167,183 @@ def test_signed_heartbeat_api_validates_schema_declaration(
         ]
     else:
         assert agent.health_snapshot == {}
+
+
+def _mark_agent_online_for_submission(
+    agent: BrokerAgentModel, *, now: datetime, observed_at: datetime
+) -> None:
+    """Create only the source health projection required to reach lease guards."""
+
+    agent.status = BrokerAgentModel.STATUS_ONLINE
+    agent.qmt_connected = True
+    agent.last_heartbeat_at = now
+    agent.health_snapshot = {
+        "source_observed_at": observed_at.isoformat(),
+        "execution_constraint_schemas": [EXECUTION_CONSTRAINT_SCHEMA_V2],
+    }
+    agent.save(
+        update_fields=[
+            "status",
+            "qmt_connected",
+            "last_heartbeat_at",
+            "health_snapshot",
+            "updated_at",
+        ]
+    )
+
+
+def _ready_order_for_agent(agent: BrokerAgentModel, *, now: datetime) -> LiveOrderModel:
+    """Persist a READY fixture without turning it into approval authority."""
+
+    return LiveOrderModel.objects.create(
+        user=agent.user,
+        account_id=7,
+        agent=agent,
+        asset_code="600000.SH",
+        side="BUY",
+        quantity=Decimal("100"),
+        limit_price=Decimal("10.00"),
+        estimated_amount=Decimal("1000.00"),
+        risk_policy_version="risk-v1",
+        risk_snapshot={"passed": True},
+        status="READY",
+        expires_at=now + timedelta(hours=1),
+    )
+
+
+@pytest.mark.parametrize("binding_state", ["missing", "inactive", "disabled"])
+def test_lease_requires_an_active_auto_enabled_binding_after_test_only_gate_bypass(
+    binding_state: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    agent = _bound_agent()
+    binding = BrokerAccountBindingModel.objects.get(agent=agent, account_id=7)
+    binding.auto_execution_enabled = True
+    binding.enforce_trading_session = False
+    if binding_state == "missing":
+        binding.delete()
+    elif binding_state == "inactive":
+        binding.is_active = False
+        binding.save(
+            update_fields=[
+                "is_active",
+                "auto_execution_enabled",
+                "enforce_trading_session",
+                "updated_at",
+            ]
+        )
+    elif binding_state == "disabled":
+        binding.auto_execution_enabled = False
+        binding.save(
+            update_fields=["auto_execution_enabled", "enforce_trading_session", "updated_at"]
+        )
+    else:
+        raise AssertionError(f"Unexpected binding state: {binding_state}")
+
+    now = timezone.now()
+    _mark_agent_online_for_submission(agent, now=now, observed_at=now)
+    order = _ready_order_for_agent(agent, now=now)
+    BrokerAccountSnapshotModel.objects.create(
+        user=agent.user,
+        agent=agent,
+        account_id=7,
+        captured_at=now,
+    )
+    assert BrokerAccountSnapshotModel.objects.filter(
+        agent=agent, account_id=7, captured_at=now
+    ).exists()
+    assert TradingControlModel.objects.filter(user=agent.user, account_id=7).exists() is False
+    snapshot_manager = BrokerAccountSnapshotModel._default_manager
+    snapshot_filter = Mock(wraps=snapshot_manager.filter)
+    monkeypatch.setattr(snapshot_manager, "filter", snapshot_filter)
+    monkeypatch.setattr(runtime, "broker_order_evidence_integrated", lambda: True)
+
+    result = DjangoBrokerExecutionRepository().lease_agent_orders(
+        agent_pk=agent.pk,
+        allowed_account_ids=[7],
+        limit=1,
+        lease_seconds=30,
+    )
+
+    assert result == {"orders": [], "total_count": 0, "stopped": False}
+    snapshot_filter.assert_not_called()
+    assert OrderLeaseModel.objects.filter(order=order).exists() is False
+    order.refresh_from_db()
+    assert order.status == "READY"
+
+
+def test_lease_rejects_stale_agent_source_before_mutating_ready_order(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    agent = _bound_agent()
+    binding = BrokerAccountBindingModel.objects.get(agent=agent, account_id=7)
+    binding.auto_execution_enabled = True
+    binding.enforce_trading_session = False
+    binding.save(update_fields=["auto_execution_enabled", "enforce_trading_session", "updated_at"])
+    now = timezone.now()
+    _mark_agent_online_for_submission(
+        agent,
+        now=now,
+        observed_at=now - timedelta(seconds=91),
+    )
+    BrokerAccountSnapshotModel.objects.create(
+        user=agent.user,
+        agent=agent,
+        account_id=7,
+        captured_at=now,
+    )
+    order = _ready_order_for_agent(agent, now=now)
+    monkeypatch.setattr(runtime, "broker_order_evidence_integrated", lambda: True)
+
+    with pytest.raises(BrokerExecutionConflictError, match="heartbeat source or receipt is stale"):
+        DjangoBrokerExecutionRepository().lease_agent_orders(
+            agent_pk=agent.pk,
+            allowed_account_ids=[7],
+            limit=1,
+            lease_seconds=30,
+        )
+
+    assert OrderLeaseModel.objects.filter(order=order).exists() is False
+    order.refresh_from_db()
+    assert order.status == "READY"
+
+
+def test_lease_does_not_use_a_stale_broker_snapshot_after_test_only_gate_bypass(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    agent = _bound_agent()
+    binding = BrokerAccountBindingModel.objects.get(agent=agent, account_id=7)
+    binding.auto_execution_enabled = True
+    binding.enforce_trading_session = False
+    binding.save(update_fields=["auto_execution_enabled", "enforce_trading_session", "updated_at"])
+    now = timezone.now()
+    _mark_agent_online_for_submission(agent, now=now, observed_at=now)
+    BrokerAccountSnapshotModel.objects.create(
+        user=agent.user,
+        agent=agent,
+        account_id=7,
+        captured_at=now - timedelta(seconds=121),
+    )
+    order = _ready_order_for_agent(agent, now=now)
+    monkeypatch.setattr(runtime, "broker_order_evidence_integrated", lambda: True)
+
+    snapshot_manager = BrokerAccountSnapshotModel._default_manager
+    snapshot_filter = Mock(wraps=snapshot_manager.filter)
+    monkeypatch.setattr(snapshot_manager, "filter", snapshot_filter)
+    transaction_atomic = Mock(wraps=runtime.transaction.atomic)
+    monkeypatch.setattr(runtime.transaction, "atomic", transaction_atomic)
+
+    result = DjangoBrokerExecutionRepository().lease_agent_orders(
+        agent_pk=agent.pk,
+        allowed_account_ids=[7],
+        limit=1,
+        lease_seconds=30,
+    )
+
+    assert result == {"orders": [], "total_count": 0, "stopped": False}
+    snapshot_filter.assert_called_once()
+    assert "captured_at__gte" in snapshot_filter.call_args.kwargs
+    transaction_atomic.assert_not_called()
+    assert OrderLeaseModel.objects.filter(order=order).exists() is False
+    order.refresh_from_db()
+    assert order.status == "READY"

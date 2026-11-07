@@ -1426,3 +1426,104 @@ def test_strict_get_endpoints_do_not_mutate_persisted_execution_state() -> None:
         "controls": TradingControlModel.objects.count(),
     }
     assert after == before
+
+
+@pytest.mark.django_db
+def test_revoked_agent_credential_rejects_a_later_signed_request() -> None:
+    admin = _user("ref06-revoke-admin", "admin", superuser=True)
+    owner = _user("ref06-revoke-owner", "owner")
+    agent, binding = _binding(owner, account_id=96)
+    secret = "ref06-synthetic-agent-secret"
+    credential = BrokerAgentCredentialModel.objects.create(
+        agent=agent,
+        secret_hash=hashlib.sha256(secret.encode()).hexdigest(),
+        scopes=["agent.heartbeat.write"],
+        allowed_account_ids=[binding.account_id],
+        expires_at=timezone.now() + timedelta(days=1),
+    )
+    token = f"{credential.credential_id}.{secret}"
+    payload: dict[str, object] = {
+        "contract_version": "1.0",
+        "observed_at": timezone.now().isoformat(),
+        "qmt_connected": True,
+        "account_ids": [binding.account_id],
+        "agent_version": "0.1.0",
+        "qmt_version": "fake",
+        "dry_run": True,
+    }
+    body = json.dumps(payload).encode()
+    agent_client = Client()
+    first = agent_client.post(
+        "/api/broker-execution/agent/v1/heartbeat/",
+        data=body,
+        content_type="application/json",
+        **_signed_headers(token, agent.agent_id, body, "before-revoke"),
+    )
+    assert first.status_code == 200
+    assert first["Content-Type"].startswith("application/json")
+    first_payload = first.json()
+    assert set(first_payload) == {"success", "data"}
+    assert first_payload["success"] is True
+    assert set(first_payload["data"]) == {
+        "accepted",
+        "server_time",
+        "kill_switch_active",
+        "alerts",
+        "task_monitor_alert_ids",
+        "task_monitor_alert_failure_count",
+    }
+    assert first_payload["data"]["accepted"] is True
+    assert first_payload["data"]["kill_switch_active"] is False
+    assert first_payload["data"]["alerts"] == []
+    assert first_payload["data"]["task_monitor_alert_ids"] == []
+    assert first_payload["data"]["task_monitor_alert_failure_count"] == 0
+    agent.refresh_from_db()
+    first_heartbeat_at = agent.last_heartbeat_at
+    assert first_heartbeat_at is not None
+
+    admin_client = Client()
+    admin_client.force_login(admin)
+    revoked = admin_client.post(
+        f"/api/broker-execution/credentials/{credential.credential_id}/revoke/",
+        data=json.dumps(
+            {
+                "reason": "retire credential after API check",
+                "preview_only": False,
+                "idempotency_key": "ref06-revoke-after-api-check",
+            }
+        ),
+        content_type="application/json",
+    )
+    assert revoked.status_code == 200
+    assert revoked["Content-Type"].startswith("application/json")
+    revoked_payload = revoked.json()
+    assert set(revoked_payload) == {"success", "data"}
+    assert revoked_payload["success"] is True
+    assert revoked_payload["data"] == {
+        "credential_id": str(credential.credential_id),
+        "revoked": True,
+    }
+    credential.refresh_from_db()
+    assert credential.revoked_at is not None
+
+    payload["observed_at"] = timezone.now().isoformat()
+    body = json.dumps(payload).encode()
+    revoked_headers = _signed_headers(token, agent.agent_id, body, "after-revoke")
+    rejected = agent_client.post(
+        "/api/broker-execution/agent/v1/heartbeat/",
+        data=body,
+        content_type="application/json",
+        **revoked_headers,
+    )
+    assert rejected.status_code == 403
+    assert rejected["Content-Type"].startswith("application/json")
+    rejected_payload = rejected.json()
+    assert set(rejected_payload) == {"success", "error"}
+    assert rejected_payload["success"] is False
+    assert rejected_payload["error"] == "Agent credential is expired or revoked"
+    agent.refresh_from_db()
+    assert agent.last_heartbeat_at == first_heartbeat_at
+    assert BrokerExecutionAuditModel.objects.filter(
+        action="agent_auth_failed",
+        request_id=revoked_headers["HTTP_X_REQUEST_ID"],
+    ).exists()
