@@ -49,6 +49,9 @@ from apps.account.infrastructure.physical_account_row_observation_models import 
 from apps.account.infrastructure.physical_account_row_observation_repository import (
     DjangoPhysicalAccountRowObservationRepository,
 )
+from tests.component.account.test_account_owner_assignment_provenance_receipt_repository import (
+    legacy_receipt_corruption_fixture,
+)
 
 NOW = datetime(2026, 11, 7, 12, 0, tzinfo=UTC)
 RECEIPT_ID = "ref02-provenance-account-7"
@@ -609,17 +612,17 @@ def test_tampered_v1_ledger_fails_closed_without_appending_another_row() -> None
     before = (_row_count(), _receipt_count())
     table = connection.ops.quote_name(AccountOwnerAssignmentProvenanceReceiptModel._meta.db_table)
     column = connection.ops.quote_name("ledger_header_hash")
-    with connection.cursor() as cursor:
-        cursor.execute(
-            f"UPDATE {table} SET {column} = %s",
-            ["f" * 64],
-        )
-
-    with pytest.raises(AccountOwnerAssignmentProvenanceReceiptCorruption):
-        GetCurrentAccountOwnerAssignmentProvenanceReceipt(receipt_repository).execute(
-            GetCurrentAccountOwnerAssignmentProvenanceReceiptCommand(
-                receipt=receipt,
-                as_of=NOW,
+    with legacy_receipt_corruption_fixture():
+        with connection.cursor() as cursor:
+            cursor.execute(
+                f"UPDATE {table} SET {column} = %s",
+                ["f" * 64],
             )
-        )
-    assert (_row_count(), _receipt_count()) == before
+        with pytest.raises(AccountOwnerAssignmentProvenanceReceiptCorruption):
+            GetCurrentAccountOwnerAssignmentProvenanceReceipt(receipt_repository).execute(
+                GetCurrentAccountOwnerAssignmentProvenanceReceiptCommand(
+                    receipt=receipt,
+                    as_of=NOW,
+                )
+            )
+        assert (_row_count(), _receipt_count()) == before

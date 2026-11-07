@@ -109,6 +109,14 @@ ASH-08来源真正合格后优先：安全保存REF-02、正式串行归还焦�
 
 测试物理观察/actor仍为显式夹具，未新增生产V1组合；测试envelope仅证明同版回执业务ID/version/hash/payload/as_of和隔离恢复/只读重放，DB自增主键不在envelope内。真实生产调用、行/FK/trigger/ACL、归档保留和恢复、genuine V5/EVID-01/02门仍未证实。首批不停止写入、不切默认、不删除入口/表/行，净删除0；不关闭完整REF-02或替代ASH-08 Goal。
 
+#### REF-02 V1 数据库行保护（2026-11-07）
+
+生产只读快照确认 V1 为零行，应用连接角色拥有 UPDATE/DELETE 权限，表上无自定义触发器。原件及部署身份见 `.tmp/ref02-production-evidence-20261107/production-evidence-index.json`，SHA-256 `e613f30606b606b632d760df21ea15aef83aed331d32301daf3b41aa717b5588`。
+
+开发迁移 `account.0069_protect_v1_provenance_receipts` 为 PostgreSQL 的 V1 表增加行级 UPDATE/DELETE 保护，沿用现有追加写入和历史读取合同。回滚仅移除该迁移创建的触发器和函数，保留已有回执。该迁移无 ORM 状态变化。TRUNCATE 仍由部署角色 ACL 控制，本次生产快照中应用角色无此权限。生产零调用、归档恢复及 V5/EVID-01/02 仍按原退出门单独验收。当前交付范围为开发分支。
+
+隔离 PostgreSQL 验证覆盖直接 SQL 拒绝、正常追加及读取、含既有行时的迁移回滚、并发事务和历史重放。同一冻结候选 27 项通过、零跳过。其中一项首次在 Django 清理测试数据库时超时，同配置单项复跑通过并完成清理。增量 mypy 与债务上限通过。原件索引见 `.tmp/ref02-implementation-20261107/root/whole-v1-db-guard/evidence.json`，SHA-256 `cd3f50ee0109d696b2339973858d44915556373dca13fcabe212bb0be289b303`。
+
 ### REF-03：合格读取边界与存储主从语义（WP2、WP3）
 
 复用已有 Publication 和各 owner 的 typed Query Service/Protocol。研究原件默认不能被决策或执行用例直接取得；合法读入口核验用途、来源观测/可得时间、版本、scope、freshness、撤销和完整性。静态禁止跨层依赖之外，增加通过公开 API/SDK/MCP 的旁路反例；不能把 import 扫描当完整证明。

@@ -1,12 +1,15 @@
 """Component tests for the Account provenance receipt append-only ledger."""
 
 import importlib
+from collections.abc import Iterator
+from contextlib import contextmanager
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
 from django.core.exceptions import ValidationError
-from django.db import connection
+from django.db import IntegrityError, connection, transaction
+from django.db.migrations.executor import MigrationExecutor
 from django.db.migrations.state import ModelState, ProjectState
 
 from apps.account.application.account_owner_assignment_evidence import (
@@ -240,6 +243,75 @@ def test_mutation_bulk_delete_and_noncanonical_codec_are_rejected() -> None:
         decode_account_owner_assignment_provenance_receipt_record(payload)
 
 
+@pytest.mark.django_db
+def test_postgres_rejects_direct_mutation_of_existing_receipts(
+    django_db_use_migrations: bool,
+) -> None:
+    if connection.vendor != "postgresql" or not django_db_use_migrations:
+        pytest.skip("V1 receipt SQL protection requires migrated PostgreSQL")
+
+    repository = DjangoAccountOwnerAssignmentProvenanceReceiptRepository(clock=_Clock())
+    record = _record()
+    with repository.atomic():
+        repository.append(
+            record, expected_predecessor_hash=None, recorded_at=record.receipt.recorded_at
+        )
+
+    table = connection.ops.quote_name(AccountOwnerAssignmentProvenanceReceiptModel._meta.db_table)
+    for statement, params in (
+        (f"UPDATE {table} SET receipt_id = %s", ["rewritten"]),
+        (f"DELETE FROM {table}", []),
+    ):
+        with pytest.raises(IntegrityError, match="V1 provenance receipts are append-only"):
+            with transaction.atomic(), connection.cursor() as cursor:
+                cursor.execute(statement, params)
+
+    assert repository.get_current_head(receipt_id=record.receipt.receipt_id, as_of=NOW) == record
+
+
+@pytest.mark.django_db
+def test_postgres_receipt_guard_reverses_and_reinstalls_without_rewriting_history(
+    django_db_use_migrations: bool,
+) -> None:
+    if connection.vendor != "postgresql" or not django_db_use_migrations:
+        pytest.skip("V1 receipt SQL protection requires migrated PostgreSQL")
+
+    with transaction.atomic():
+        MigrationExecutor(connection).migrate([("account", "0068_broker_trade_reconciliation")])
+        repository = DjangoAccountOwnerAssignmentProvenanceReceiptRepository(clock=_Clock())
+        record = _record()
+        with repository.atomic():
+            repository.append(
+                record, expected_predecessor_hash=None, recorded_at=record.receipt.recorded_at
+            )
+
+        MigrationExecutor(connection).migrate([("account", "0069_protect_v1_provenance_receipts")])
+        assert (
+            repository.get_current_head(receipt_id=record.receipt.receipt_id, as_of=NOW) == record
+        )
+        MigrationExecutor(connection).migrate([("account", "0068_broker_trade_reconciliation")])
+        assert (
+            repository.get_current_head(receipt_id=record.receipt.receipt_id, as_of=NOW) == record
+        )
+        transaction.set_rollback(True)
+
+
+@contextmanager
+def legacy_receipt_corruption_fixture() -> Iterator[None]:
+    """Simulate pre-guard stored corruption, rolling back the DDL and fixture together."""
+    with transaction.atomic():
+        if connection.vendor == "postgresql":
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    "DROP TRIGGER IF EXISTS acct_prov_receipt_v1_immutable "
+                    "ON public.account_owner_assignment_provenance_receipt_ledger"
+                )
+        try:
+            yield
+        finally:
+            transaction.set_rollback(True)
+
+
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.parametrize(
     "column", ["receipt_id", "content_hash", "row_binding_hash", "ledger_header_hash"]
@@ -253,10 +325,11 @@ def test_closed_world_restore_rejects_header_and_clock_tamper(column: str) -> No
         )
     table = AccountOwnerAssignmentProvenanceReceiptModel._meta.db_table
     value: object = "tampered-value"
-    with connection.cursor() as cursor:
-        cursor.execute(f'UPDATE "{table}" SET "{column}" = %s', [value])
-    with pytest.raises(AccountOwnerAssignmentProvenanceReceiptCorruption):
-        repository.get_current_head(receipt_id=record.receipt.receipt_id, as_of=NOW)
+    with legacy_receipt_corruption_fixture():
+        with connection.cursor() as cursor:
+            cursor.execute(f'UPDATE "{table}" SET "{column}" = %s', [value])
+        with pytest.raises(AccountOwnerAssignmentProvenanceReceiptCorruption):
+            repository.get_current_head(receipt_id=record.receipt.receipt_id, as_of=NOW)
 
 
 def test_0041_migration_is_schema_only_and_zero_seed() -> None:
