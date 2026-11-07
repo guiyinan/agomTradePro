@@ -1,26 +1,18 @@
 {
-  "version": "2026-11-07.v316",
+  "version": "2026-11-07.v317",
   "updated_at": "2026-11-07",
   "execution_focus": {
-    "unit_id": "REF-04",
+    "unit_id": null,
     "allowed_parallel_execution_modes": [
       "production",
       "external",
       "governance"
     ],
-    "policy": "Owner2026-11-07 formally opens REF-04 whole-unit closure and hands the sole repository focus from completed REF-03 to REF-04, per convergence section2.6 and A-share section19.162. Extract typed R4/R5 deterministic lifecycle transition, prefix replay, ordering and idempotency within research Domain; preserve distinct business evidence/policies, API/Facade/storage and history identities; zero new models. Three Luna max isolated overlays, Root serialized adoption/projection/Git, one pytest plus one heavy static task. ASH-08 genuine same-day published_close/full V8 retains priority when sources actually qualify. REF-02 retirement remains blocked; REF-05 read-only, REF-06 no new window, DATA-18 and deferred boundaries unchanged. No deployment, production writes, table/seal removal, portfolio receipt move, new algorithms, production promotion or auto orders.",
+    "policy": "REF-04 whole-unit typed R4/R5 lifecycle deduplication is complete after 400 local tests and exact implementation-head CI, per convergence section2.6 and A-share section19.162. Sole repository focus is null pending formal handoff; do not start successors automatically. ASH-08 original unfinished Goal retains priority when genuine same-day sources actually recover and qualify; explicit published_close and complete V8 remain its required acceptance gates. REF-02 full retirement remains blocked; REF-05 read-only, REF-06 no new window, DATA-18 and all deferred boundaries unchanged. No new models, table consolidation, deployment, production writes, algorithms, production promotion, portfolio receipt move or auto orders.",
     "parallel_preparation": [
       {
-        "unit_id": "REF-04",
-        "scope": "Three isolated Luna max overlays under .tmp/ref04-implementation-20261107: A common Domain mechanism and R4 adapter, B R5 adapter preserving its typed policy/evidence, C independent baseline/equivalence and boundary tests. Root owns shared adoption, governance, generated projections and whole-item frozen QA. Agents do not run heavy QA or mutate shared source/index/Git.",
-        "owner": "Three Luna max; Root serialized integration",
-        "isolated_workspace": true,
-        "shared_git_serialized": true,
-        "isolated_test_resources": true
-      },
-      {
         "unit_id": "ASH-08",
-        "scope": "Original unfinished Goal remains externally blocked on same-day sources and actual published_close/full V8 acceptance. Next candidate11/09 after16 Shanghai requires actual current calendar/source qualification. When actionable, safely save REF-04 and formally return unique focus/resources; do not fake clocks/freshness or reuse stale quotes.",
+        "scope": "Original unfinished Goal remains externally blocked on same-day sources and actual published_close/full V8 acceptance. Next candidate11/09 after16 Shanghai requires actual current calendar/source qualification. When actionable, formally return unique focus/resources after the completed REF-04 handoff; do not fake clocks/freshness or reuse stale quotes.",
         "owner": "Root; source/browser owners when qualification returns",
         "isolated_workspace": true,
         "shared_git_serialized": true,
@@ -34,7 +26,12 @@
         "shared_git_serialized": true,
         "isolated_test_resources": true
       }
-    ]
+    ],
+    "handoff_pending": {
+      "completed_unit_id": "REF-04",
+      "owner_decision_ref": "docs/plans/a-share-usability-implementation-plan-2026-10-16.md#19.162",
+      "reason": "REF-04 typed lifecycle pilot is complete. Preserve the original ASH-08 Goal and source-qualified priority; candidate dates do not establish eligibility. REF-05 remains read-only and REF-06 requires a separate formal window. Do not automatically start another repository unit."
+    }
   },
   "workstreams": [
     {
@@ -386,7 +383,7 @@
       "priority": "P1",
       "owner": "Repository Owner / Account / Research / Data Center / Portfolio / Governance / SDK / MCP",
       "status": "active",
-      "next_gate": "REF-01/03 completed. Owner formally opens REF-04 R4/R5 typed lifecycle deduplication with zero new models and unchanged policy/API/storage, sole repository focus; see convergence section2.6 and A-share section19.162. REF-02 full retirement remains externally blocked. Qualified ASH-08 sources retain priority. REF-05 read-only, REF-06 no new window and deferred boundaries unchanged.",
+      "next_gate": "REF-01/03/04 completed. REF-04 preserved typed R4/R5 policy, API, storage and history with zero new models; 400 local tests and exact implementation-head CI passed. Repository focus is null with the explicit section19.162 handoff marker. REF-02 full retirement remains externally blocked. Qualified ASH-08 sources retain priority. REF-05 read-only, REF-06 no new window and all deferred boundaries unchanged. See convergence section2.6.",
       "documents": [
         {
           "path": "docs/plans/scripts-docs-mcp-governance-plan-2026-10-14.md",
@@ -2004,7 +2001,7 @@
         "wave": 3,
         "priority": "P2",
         "execution_mode": "repository",
-        "status": "active",
+        "status": "completed",
         "title": "Deduplicate R4 and R5 lifecycle replay before considering shared persistence",
         "depends_on": [
           "REF-03"

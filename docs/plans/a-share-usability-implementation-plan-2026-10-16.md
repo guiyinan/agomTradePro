@@ -2886,3 +2886,5 @@ registry v315 按上述范围登记 REF-03 completed，唯一共享焦点置空�
 Owner 明确授权下一个 Goal 为 REF-04 整单元收口；registry v316 将 REF-04 置 active 并交接唯一共享 repository focus。范围、三位 Luna max 隔离分工、Root 串行整合和合批退出要求统一见[收敛计划 §2.6](data-boundary-convergence-plan-2026-10-26.md)。本次只做 R4/R5 类型化生命周期机制去重，保留业务政策与原接口/存储；不以试点恢复生产晋级或实施合表。
 
 ASH-08 原 Goal 仍待真实同日来源、显式 `published_close` 和完整 V8；来源实际合格后保留原优先级，安全保存 REF-04 并串行交还资源。REF-02 完整退役仍外部阻塞，REF-05 只读、REF-06 无新窗口，DATA-18 与所有 deferred 边界不扩。REF-04 完成须有实际退出证据、正式交付及精确 CI；之后共享焦点置空，以本节记录待 Owner 正式交接，不自动启动其他单元。
+
+REF-04 实现 `0b3ce019cea9557ff00d636406f2b622a7cf7569` 已正式交付，400 项合批零跳过通过，共用 Domain 覆盖率 95.86%，五项精确 CI 全绿；整单元结论、存储保留原因、回滚和唯一证据索引见上述 §2.6。registry v317 将 REF-04 登记 completed、共享焦点置空，以本节作为正式待交接依据；不会自动启动后继。ASH-08 原 Goal 与真实来源恢复后的优先级、REF-02 外部阻塞及其余边界保持。完成登记和最终提交的检查记录追加到同一索引。
