@@ -2870,3 +2870,9 @@ Owner在记录来源阻断后明确授权“开放REF-01实施窗口”。regist
 Owner明确授权REF-02首批兼容、事务和恢复验证。registry v313正式登记REF-01 completed、REF-02 active唯一repository focus；取代§19.159中REF-01排期等待语句，不改变原依赖/退出。完整范围、三位Luna max隔离分工、首批与整单元退出边界见[收敛计划§2.4](data-boundary-convergence-plan-2026-10-26.md)。先不做停写、默认版本切换、删表或生产变更，既有retention与EVID生产门保留。
 
 ASH-08维持blocked_external，原Goal当前blocked且未完成；同日真实来源、显式published_close与普通Owner/observer/foreign V8仍须实际通过。真实来源资格恢复后优先安全保存REF-02并串行归还焦点/资源；不把首批REF验证当ASH-08验收，也不新建替代Goal。其余REF和deferred范围不变，未变且同覆盖证据按hash复用、整事项冻结合批，不重复已过M1/REF-01或无关回归。
+
+### 19.161 Owner 开放 REF-03 单一 Publication 读取窗口（2026-11-07）
+
+registry v314 将唯一共享整合焦点从 REF-02 交接到 REF-03。REF-02 首批验证、开发保护和归档证据保留，完整退役仍待生产材料。REF-03 仅推进 RiskCenter 所有者发布的 M1 风险策略修订到普通模拟调仓预览这一条读取链，分工及整事项验收见[收敛计划 §2.5](data-boundary-convergence-plan-2026-10-26.md)。
+
+ASH-08 原 Goal 仍待同日真实来源、显式 `published_close` 及普通 Owner、observer、foreign 的 V8 完整验收。来源实际合格后，先保存 REF-03，再串行交还焦点和验收资源。其余依赖和 deferred 事项沿现行 registry。

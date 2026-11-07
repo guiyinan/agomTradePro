@@ -1,18 +1,18 @@
 {
-  "version": "2026-11-07.v313",
+  "version": "2026-11-07.v314",
   "updated_at": "2026-11-07",
   "execution_focus": {
-    "unit_id": "REF-02",
+    "unit_id": "REF-03",
     "allowed_parallel_execution_modes": [
       "production",
       "external",
       "governance"
     ],
-    "policy": "Owner explicitly opens the REF-02 first compatibility, transaction and recovery-verification implementation window on2026-11-07. REF-01 complete development, inventory, exact delta gates and hosted CI are delivered; formally record REF-01 completed and hand the sole repository focus to REF-02 active. This supersedes the earlier REF-01 exit scheduling sentence only; ASH-08 remains blocked_external and its original Goal remains blocked/unfinished, never completed or replaced. REF-02 scope is one existing V1 provenance receipt family: preserve the current single writer and typed readers, prove Application/repository compatibility, real PostgreSQL first-winner/successor races and outer rollback/retry, and same-version historical recovery/replay. Do not create a production V1 writer/composition only to satisfy a test; minimal adapters require evidenced need. No stop-write, default-version switch, schema/table/row deletion, migration identity or retention-floor change. Synthetic recovery is development evidence only, not production retirement. Three Luna max disjoint overlays; Root alone integrates Source/index/Git/projections, one pytest and one heavy static task, freeze complete matters and reuse exact unchanged evidence. Qualified ASH-08 same-day published_close and full Owner/observer/foreign V8 acceptance takes priority: save REF-02 safely and formally return focus/resources when actual sources qualify. REF-03/04/06 have no new window, REF-05 stays read-only, ASH-06/09/12 stay deferred; no new branches, deployment, production config/ledger writes or auto orders.",
+    "policy": "Owner2026-11-07 opens one REF-03 Publication reader and serially hands the sole repository focus from REF-02 to REF-03. REF-02 remains unfinished, blocked on retirement evidence and approval; its delivered compatibility, transaction and archive evidence is retained. Select only the RiskCenter owner-published M1 risk policy revision through its existing typed qualification reader and ordinary simulated rebalance preview. Keep the existing revision and revocation authority, validate read projections, and deny wrong account/owner, expired, revoked, corrupt and public bypass cases. No new route, writer, model, alternate fact source, seal removal or DATA-18 fence change. Three Luna max isolated overlays; Root owns shared Source/index/Git and one consolidated pytest plus one heavy static task. Qualified ASH-08 same-day published_close and full Owner/observer/foreign V8 takes priority with serialized handoff. REF-04/06 have no implementation window, REF-05 stays read-only, ASH-06/09/12 stay deferred; no new branches, deployment, production config/ledger writes or auto orders.",
     "parallel_preparation": [
       {
-        "unit_id": "REF-02",
-        "scope": "Owner2026-11-07 first batch: Luna A existing V1 contracts and Application-to-real-repository integration/zero-write tests in .tmp/ref02-implementation-20261107/a-contract/overlay; Luna B actual PostgreSQL race/outer rollback/retry in b-transactions/overlay; Luna C same-version archive-envelope/recovery/replay and precise external materials in c-recovery/overlay. No shared Source writes or independent heavy QA. Root owns final contract/integration and a single frozen whole-batch PG run. First batch does not close full REF-02 retirement.",
+        "unit_id": "REF-03",
+        "scope": "Luna A typed qualification contract in a-contract/overlay; Luna B negative read and storage cases in b-negatives/overlay; Luna C existing public preview bypass contracts in c-entrypoint/overlay, all under .tmp/ref03-implementation-20261107. Root owns source adoption, preview composition, governance, generated projections and one frozen whole-item validation; no parallel heavy QA.",
         "owner": "Three Luna max; Root serialized integration",
         "isolated_workspace": true,
         "shared_git_serialized": true,
@@ -386,7 +386,7 @@
       "priority": "P1",
       "owner": "Repository Owner / Account / Research / Data Center / Portfolio / Governance / SDK / MCP",
       "status": "active",
-      "next_gate": "REF-01 is completed after actual inventory/counting, exact model/version delta gate and meaningful positive/negative tests and formal643b671a6 development plus ef70c9b14 handoff, each exact5 hosted CI success. Owner2026-11-07 now opens REF-02 first compatibility/transaction/recovery window, sole active repository focus. Follow convergence plan section2.4. Preserve original REF-02 full exit; first batch is not full retirement. No stop-write/default switch/deletion/retention-floor changes. Production runtime/rows/archive and genuine V5/EVID-01/02 remain retirement blockers. REF-03/04/06 have no new implementation window, REF-05 read-only; deferred unchanged.",
+      "next_gate": "REF-01 completed. REF-02 first batch and V1 guard delivered; genuine V5/EVID-01/02, runtime audit and complete archive/retirement evidence remain outstanding. Owner2026-11-07 opens a single REF-03 owner-published M1 risk policy reader and hands over sole focus, see convergence section2.5. REF-04/06 await their formal window, REF-05 read-only; deferred unchanged.",
       "documents": [
         {
           "path": "docs/plans/scripts-docs-mcp-governance-plan-2026-10-14.md",
@@ -420,7 +420,7 @@
       "priority": "P0/P1",
       "owner": "portfolio+risk_center+data_center+simulated_trading+backtest+broker_execution+terminal",
       "status": "active",
-      "next_gate": "ASH-03/04/07 remain completed within recorded finite scopes. ASH-08 remains blocked_external and original Goal blocked/unfinished: genuine same-day sources, explicit published_close and full ordinary Owner/observer/foreign V8 remain mandatory. Owner2026-11-07 completes REF-01 and hands sole repository focus to REF-02 first compatibility/transaction/recovery batch, main plan section19.160/convergence2.4. Actual qualified ASH-08 source acceptance has priority and requires safe save/serialized return from REF-02. Same-day clocks/300sec, financial and permission/version/order gates unchanged. ASH-06/09/12 deferred; no production/deploy/auto-order authority.",
+      "next_gate": "ASH-03/04/07 remain completed within recorded finite scopes. ASH-08 remains blocked_external and the original Goal unfinished. Genuine same-day sources, explicit published_close and full ordinary Owner/observer/foreign V8 remain mandatory and take priority upon source qualification. Owner2026-11-07 hands sole repository focus from REF-02 to a single REF-03 M1 risk policy Publication reader, main plan section19.161. Same-day clocks/300sec, financial and permission/version/order gates unchanged; ASH-06/09/12 deferred.",
       "documents": [
         {
           "path": "docs/plans/a-share-usability-implementation-plan-2026-10-16.md",
@@ -1978,7 +1978,7 @@
         "wave": 3,
         "priority": "P1",
         "execution_mode": "repository",
-        "status": "active",
+        "status": "blocked_external",
         "title": "Converge account ownership and retire one evidenced model family at a time",
         "depends_on": [
           "REF-01"
@@ -1991,7 +1991,7 @@
         "wave": 3,
         "priority": "P1",
         "execution_mode": "repository",
-        "status": "planned",
+        "status": "active",
         "title": "Unify qualified read boundaries and canonical storage semantics",
         "depends_on": [
           "REF-01"

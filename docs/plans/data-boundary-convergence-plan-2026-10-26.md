@@ -71,6 +71,14 @@ Owner明确授权先推进REF-02兼容、事务和恢复验证，并正式登记
 
 ASH-08来源真正合格后优先：安全保存REF-02、正式串行归还焦点与验收资源，继续原同日来源/显式published_close/Owner-observer-foreign V8完整验收；11/09上海16:00后仅为下一候选窗，仍须实际日历与来源准入及300秒门。REF-03/04/06无新窗口、REF-05只读，ASH-06/09/12仍deferred；不部署、不写生产配置/账本、不启自动下单。
 
+### 2.5 Owner 开放 REF-03 单一 Publication 读取窗口（2026-11-07）
+
+Owner 明确开放单一读取链路。基础提交 `9b0c68f01` 五项 CI 已通过。registry v314 将唯一共享整合焦点由 REF-02 串行交接给 REF-03。REF-02 首批兼容、事务、恢复验证和 V1 行保护已交付，生产调用审计、完整归档保留和 V5/EVID-01/02 仍待证，状态记为 `blocked_external`。远端备份目录当前可见 5 份归档，V1 数据项均为零行，结论限于该目录。归档清点原件在 `.tmp/ref02-production-evidence-20261107/c-archive/visible-remote-v1-archive-catalogue.json`，SHA-256 `5d99c3b8c7dd57ba625943a736a3bded7659982035f93e042e07d8c3b4aeb267`。
+
+本窗口选择 RiskCenter 所有者发布的 M1 风险策略修订，经既有 typed qualification 读口进入普通模拟调仓预览。修订的类型化字段是策略原件，源快照和撤销审计保留既有职责，派生规则须核对原件。验收涵盖同账户正例、错账户或 owner、过期、撤销、篡改和公开入口绕过，同时保留同账户的可解释阻断状态和 DATA-18 门禁。
+
+三位 Luna max 在 `.tmp/ref03-implementation-20261107` 的 A 契约、B 反例、C 公开入口 overlay 各自推进。Root 负责公开组装接线、治理、正式整合和单一冻结候选的合批验收。ASH-08 同日来源通过原门后优先，安全保存 REF-03 并串行归还焦点。该窗口保留 REF-04/06 待交接和 REF-05 只读范围，以及原 deferred 状态。
+
 ## 3. 工作包与验收
 
 ### REF-01：现状、增量约束与可退役清单（WP0、WP5 盘点）
