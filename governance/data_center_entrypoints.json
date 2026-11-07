@@ -26,17 +26,17 @@
       "script": 19,
       "sdk": 57,
       "terminal_tui": 32,
-      "test_evidence": 123,
+      "test_evidence": 124,
       "workflow_step": 11
     },
     "by_status": {
       "active_public": 906,
       "adjacent_operational": 344,
-      "candidate-review": 41,
+      "candidate-review": 42,
       "compatibility": 139,
       "retired_blocked": 0
     },
-    "total": 1430
+    "total": 1431
   },
   "entries": [
     {
@@ -13037,6 +13037,16 @@
       "path": "tests/component/account/test_account_authority_generation_postgres.py",
       "status": "adjacent_operational",
       "symbol": "test_account_authority_generation_postgres",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/component/account/test_account_owner_assignment_provenance_receipt_repository.py:test_account_owner_assignment_provenance_receipt_repository:",
+      "locator": "",
+      "path": "tests/component/account/test_account_owner_assignment_provenance_receipt_repository.py",
+      "status": "candidate-review",
+      "symbol": "test_account_owner_assignment_provenance_receipt_repository",
       "target": ""
     },
     {
