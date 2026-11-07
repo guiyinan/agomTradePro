@@ -1,5 +1,5 @@
 {
-  "version": "2026-11-07.v318",
+  "version": "2026-11-08.v319",
   "updated_at": "2026-11-07",
   "execution_focus": {
     "unit_id": "REF-06",
@@ -8,7 +8,7 @@
       "external",
       "governance"
     ],
-    "policy": "Owner2026-11-07 explicitly opens the REF-06 credential-safe retirement, PostgreSQL and execution-denial acceptance Goal and transfers the sole repository focus from completed REF-04; see convergence section2.7 and A-share section19.163. First fix partial encryption migration errors returning successful command status. Three Luna max isolated overlays, Root serialized adoption/projection/Git and one pytest plus one heavy static task. Preserve plaintext fallback/column unless actual migration and recovery evidence is sufficient; do not count partial repairs as whole-unit completion. Reuse existing no-skip PostgreSQL workflow and keep live-order evidence hard gates/default-off/manual fact import. ASH-08 genuine same-day source recovery and qualification preempts REF-06 through serialized handoff; published_close/full V8 remain ASH-08 completion gates. REF-02 remains externally blocked, REF-05 read-only, DATA-18 and deferred boundaries unchanged. No production migration, deployment, live-order activation, app removal or unrelated expansion in this development window.",
+    "policy": "Owner2026-11-07 explicitly opens the REF-06 credential-safe retirement, PostgreSQL and execution-denial acceptance Goal and transfers the sole repository focus from completed REF-04; see convergence section2.7 and A-share section19.163. Partial encryption migration failure status is repaired in 99d12314f1691e8f9da0de5d230d33dd720b72d4; 376 local cases, five exact-head CI workflows and the complete no-skip PostgreSQL workflow passed. Remaining real-target migration counts and backup/key recovery proof keep REF-06 active and plaintext compatibility intact. Three Luna max isolated overlays, Root serialized adoption/projection/Git and one pytest plus one heavy static task. Preserve plaintext fallback/column unless actual migration and recovery evidence is sufficient; do not count partial repairs as whole-unit completion. Reuse existing no-skip PostgreSQL workflow and keep live-order evidence hard gates/default-off/manual fact import. ASH-08 genuine same-day source recovery and qualification preempts REF-06 through serialized handoff; published_close/full V8 remain ASH-08 completion gates. REF-02 remains externally blocked, REF-05 read-only, DATA-18 and deferred boundaries unchanged. No production migration, deployment, live-order activation, app removal or unrelated expansion in this development window.",
     "parallel_preparation": [
       {
         "unit_id": "REF-06",
@@ -386,7 +386,7 @@
       "priority": "P1",
       "owner": "Repository Owner / Account / Research / Data Center / Portfolio / Governance / SDK / MCP",
       "status": "active",
-      "next_gate": "REF-01/03/04 completed. Owner formally opens REF-06 credential-safe retirement and PostgreSQL/execution-denial acceptance with sole repository focus, per convergence section2.7 and A-share section19.163. First repair partial migration command failure status. Preserve plaintext compatibility until actual migration/restore gates pass; do not close the unit on partial fixes. Qualified ASH-08 sources retain priority. REF-02 full retirement externally blocked; REF-05 read-only and all deferred boundaries unchanged.",
+      "next_gate": "REF-01/03/04 completed. REF-06 remains active with sole repository focus: partial credential migration failure status, bounded execution-denial contracts and the full isolated PostgreSQL gate passed on 99d12314f1691e8f9da0de5d230d33dd720b72d4; see convergence section2.7. Next require actual target identity, plaintext/mixed-row migration counts and verified backup/key recovery evidence before a separate plaintext-path retirement commit. Current development window still excludes production migration/deployment. Qualified ASH-08 real sources retain priority; REF-02 externally blocked, REF-05 read-only and deferred boundaries unchanged.",
       "documents": [
         {
           "path": "docs/plans/scripts-docs-mcp-governance-plan-2026-10-14.md",
