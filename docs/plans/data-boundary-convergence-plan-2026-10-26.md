@@ -108,6 +108,17 @@ R4、R5 各自五张持久表保留。R4 policy/receipt 与宏观、R3、Portfol
 唯一当前验收索引为 `.tmp/ref04-implementation-20261107/root/validation-index.json`，记录冻结候选、原件路径及 SHA-256、全部失败轮次、复用依据和精确 CI；完整日志/JUnit/coverage/overlay 留在该忽略目录。registry v317 将 REF-04 记为 completed，焦点置空并指向 A 股计划 §19.162；完成登记后的治理检查和最终提交 CI 在同一索引追加。此结论为本地 SQLite 业务及仓储合同验收，未新增 PostgreSQL 专项或生产/VPS 验收，不构成生产晋级、ASH-08 真实同日来源或完整 V8。ASH-08 原 Goal、REF-02 完整退役仍未完成；REF-05 只读、REF-06 无新窗口及 DATA-18/deferred 边界保持。
 
 
+### 2.7 Owner 开放 REF-06 安全退役与合批验收 Goal（2026-11-07）
+
+Owner 明确将“REF-06 凭据安全退役及 PG、执行拒绝链合批验收”设为下一个 Goal，并正式交接焦点。以已交付且五项 CI 全绿的 `8c9bdffaa44ba36b705fffde87322c1cb064cef9` 为基础；registry v318 将 REF-06 置 active、清除 REF-04 待交接标记，唯一 repository focus 为 REF-06。唯一显式依赖 GOV-03 已 completed；原 depends_on 和 exit_gate 保持，不把 REF-02 或 ASH-08 整单完成新增为前置。本节取代旧排期中的 REF-06 无新窗口表述。
+
+先修复 `encrypt_api_keys` 逐行失败只打印计数而整体正常返回的问题：汇总后传播失败状态，保留已经安全迁移的成功行，失败原值和重试幂等不退化，输出不含凭据。范围仍为 §3 的三条线：凭据迁移/恢复与明文路径退役、既有隔离 PostgreSQL trigger/concurrency/ACL/迁移恢复门、执行拒绝链。真实目标迁移和恢复证据不足时保留明文列/回退并明确阻塞，不能以部分修复或通用 CI 通过关闭整单元。保持正式执行 evidence 硬拒绝、默认关闭与人工事实导入；不以测试或复验接通实盘，不拆可选 app、不新增全量 CI 或扩大 DATA-18/deferred 范围。本开发窗口不运行生产迁移、部署或生产账本写入；可用的现网只读证据仅输出计数/状态，不输出密钥。
+
+三个 Luna max 复用本轮只读复核，在 `.tmp/ref06-implementation-20261107/` 隔离准备：A 负责命令失败传播与凭据契约，B 负责既有 PG 入口/证据及迁移恢复前置，C 负责有界执行拒绝反例。Root 独占共享 Source/index/Git、正式采用、投影生成和治理；资源预算为一个 pytest 加一个重静态任务，代理不运行重 QA。先保留针对命令缺陷的 RED，再按完整事项冻结合批；API 契约覆盖状态码、Content-Type 和拒绝/零执行结果。PG 使用既有工作流与完整 required/no-skip 门，`ai_provider` 变更不会自动触发该 workflow 时，在精确候选显式 dispatch；不把历史 PG 或 SQLite 结果冒充新候选 PG 证明。完整原件、失败和候选身份统一归 `.tmp/ref06-implementation-20261107/root/validation-index.json`。
+
+ASH-08 原 Goal 保持独立；真实同日来源实际恢复合格时优先，安全保存 REF-06 后串行交还焦点与验收资源。显式 `published_close` 和完整 V8 是 ASH-08 的完成门，不是恢复优先工作的前提。REF-02 完整退役仍外部阻塞，REF-05 只读，其他边界不扩。
+
+
 ## 3. 工作包与验收
 
 ### REF-01：现状、增量约束与可退役清单（WP0、WP5 盘点）
