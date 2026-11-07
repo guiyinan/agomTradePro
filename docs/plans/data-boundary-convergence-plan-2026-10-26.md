@@ -59,6 +59,18 @@ registry v312将唯一repository focus串行交接给REF-01并置active；ASH-08
 
 三位Luna max隔离分工：A实现既有字典差值门，B补临时Git仓库正反例，C接已有Architecture CI与单族消费者边界；Root冻结公共契约、串行整合Source/index/Git/治理。临时根为`.tmp/ref01-implementation-20261107/`，不新增分支、独立基线或审批服务，不手改生成投影。整事项冻结后合批跑相关完整单元、真实差值CLI、生产脚本增量类型与债务、适用治理/结构门；无ORM改动不建库，不重复业务金融/前端回归。
 
+### 2.4 Owner 开放 REF-02 首批实施窗口（2026-11-07）
+
+Owner明确授权先推进REF-02兼容、事务和恢复验证，并正式登记REF-01退出、交接焦点。本节取代§2.3及REF-01段落“等ASH-08来源资格恢复才登记REF-01退出”的排期；不更改REF-01/02原退出门，也不把ASH-08完整关闭作为REF-02前置。REF-01已完成真实盘点/单族方案、增量门及正反例，643b671a6与ef70c9b14精确五项CI均成功；M1原件与registry哈希一致，现有证据复用，不重复25/89项、M1或全库类型检查。registry v313将REF-01置completed、REF-02置active并设为唯一repository focus。ASH-08仍blocked_external，其原Goal为blocked、未完成，不创建或替换Goal。
+
+首批仅选V1 provenance receipt既有单写/typed读取链：A补Application到真实仓储及拒绝时实际零写验证，真实物理行provider仅在合同能无损满足时通过测试composition接入；B补PostgreSQL首写/后继竞争、外层回滚与重试；C补同版历史envelope、链和精确as_of的只读恢复重放。三个Luna max分别在`.tmp/ref02-implementation-20261107/`下a-contract/b-transactions/c-recovery隔离overlay实施；Root独占共享Source/index/Git、投影和整事项整合。不得为测试新增生产V1写入口、façade或第二账本；发现真实生产缺陷时只定向修复并验证其合同。
+
+首批退出必须由同一冻结候选的完整相关模块、隔离PostgreSQL无skip并发/回滚、实际拒绝零写、同回执ID/version/hash/payload/as_of保持及适用静态/治理门证明，并正式提交、核对精确CI。只使用一个pytest和一个重静态任务；未变且同覆盖的证据按hash复用，无模型/结构/生产Python变化不额外建库或跑无关类型/投影/金融/TUI包。当前真实provider、生产归档或运行方仍缺证据时明确保留边界，不能把fixture/fake或synthetic恢复写成完整生产端到端证明。
+
+本窗口先不停止旧写入、不切默认V3到推荐V5、不删入口/表/行、不改历史migration或retention floor；全部V1～V5保留面与共享actor类型身份、inactive/must_not_execute合同保持。完整REF-02仍受真实运行调用、生产行/FK/trigger/ACL、保留归档/备份恢复及历史hash重放、genuine V5与EVID-01/02生产退出约束；首批通过不等于退役或整单元关闭，净删除如为0就报告0。上述材料优先只读采集，不能代造真实使用方、保留政策或人工授权。
+
+ASH-08来源真正合格后优先：安全保存REF-02、正式串行归还焦点与验收资源，继续原同日来源/显式published_close/Owner-observer-foreign V8完整验收；11/09上海16:00后仅为下一候选窗，仍须实际日历与来源准入及300秒门。REF-03/04/06无新窗口、REF-05只读，ASH-06/09/12仍deferred；不部署、不写生产配置/账本、不启自动下单。
+
 ## 3. 工作包与验收
 
 ### REF-01：现状、增量约束与可退役清单（WP0、WP5 盘点）
@@ -90,6 +102,12 @@ registry v312将唯一repository focus串行交接给REF-01并置active；ASH-08
 优先选择 REF-01 证明外部依赖最小的旧 owner-assignment/authority 族，**不得默认最大 Vn 已替代所有旧版**。步骤为特征测试 → 通过公开 Application 端口单写入 → 停止旧写入 → 带旧 ID/hash/as_of 的只读影子比对 → 切读与兼容回滚 → 核对存量/恢复 → 删除旧入口及适用表。不得双写两套可变账本，不改历史 migrations，不回填虚构时钟。
 
 净删除先报告实际值；不以 account≤15 或“只剩三张授权表”为退出门。新增中间结构须有明确撤除路径，不能用 V6 替代退役工作。保留只读令牌、账户范围、撤销与已被实际使用的分享合同。
+
+#### REF-02 首批运行验证（2026-11-07）
+
+同一冻结候选在专用隔离PostgreSQL完整跑八模块，185 passed / 0 skipped / 0 failures，含Application经测试专用适配接既有真实PhysicalRow仓储/current reader和V1仓储、实际拒绝零写、双连接根/后继竞争、外层回滚重试、约束错误原样保留、同版历史恢复及registry状态。实际PG负例先复现非唯一约束被误报Conflict；已收窄仓储只对本表声明逻辑唯一约束查找赢家，非唯一/无关主键或其他表/无赢家原抛。两处具体列名类型由`typing.cast`收窄，已核对Django字段合同、Python原值返回及归一AST完全相同，复用这一完整运行批，不拼部分候选结果。原始失败/QA配置修正及证据索引在`.tmp/ref02-implementation-20261107/root/validation-index.json`，SHA-256 `6ffcf5b763600f15ef9515dcdbd3d8ceae0944de9b6c7f9037b62ef7ccef6d1a`；最终适用静态和精确CI分别核验。
+
+测试物理观察/actor仍为显式夹具，未新增生产V1组合；测试envelope仅证明同版回执业务ID/version/hash/payload/as_of和隔离恢复/只读重放，DB自增主键不在envelope内。真实生产调用、行/FK/trigger/ACL、归档保留和恢复、genuine V5/EVID-01/02门仍未证实。首批不停止写入、不切默认、不删除入口/表/行，净删除0；不关闭完整REF-02或替代ASH-08 Goal。
 
 ### REF-03：合格读取边界与存储主从语义（WP2、WP3）
 

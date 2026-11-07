@@ -2864,3 +2864,9 @@ Owner在记录来源阻断后明确授权“开放REF-01实施窗口”。regist
 11/09上海16:00后仍优先尝试实际同日来源和显式published_close/V8验收；当资格真正恢复时安全保存REF-01、正式归还焦点和验收资源，保持所有来源/时钟/费用/资金/权限门。静态准备或REF-01交付不能代替ASH-08整单元退出。其他单元依赖与退出门不变。
 
 11/07窗口结果：REF-01既有字典/版本差值门、完整CLI正反例、CI接线及有界单族盘点已正式交付于`643b671a6fc13a6ca8090b9409b1dad3799200e2`，该精确提交五项CI全success；开发合批25项字典测试、89项注册表测试和适用类型/投影/治理门均通过，原件及哈希见收敛计划REF-01段。无剩余REF-01实现/测试要重复启动；registry v312继续保留串行窗口，待ASH-08真实资格恢复时才一并记录REF-01退出并归还焦点。ASH-08原Goal与全部剩余来源/显式模式/Owner-observer-foreign V8退出不变，11/09是候选交易窗而非已证实资格；不创建替代Goal，也不开放其他REF。
+
+### 19.160 Owner 开放 REF-02 首批窗口并正式交接（2026-11-07）
+
+Owner明确授权REF-02首批兼容、事务和恢复验证。registry v313正式登记REF-01 completed、REF-02 active唯一repository focus；取代§19.159中REF-01排期等待语句，不改变原依赖/退出。完整范围、三位Luna max隔离分工、首批与整单元退出边界见[收敛计划§2.4](data-boundary-convergence-plan-2026-10-26.md)。先不做停写、默认版本切换、删表或生产变更，既有retention与EVID生产门保留。
+
+ASH-08维持blocked_external，原Goal当前blocked且未完成；同日真实来源、显式published_close与普通Owner/observer/foreign V8仍须实际通过。真实来源资格恢复后优先安全保存REF-02并串行归还焦点/资源；不把首批REF验证当ASH-08验收，也不新建替代Goal。其余REF和deferred范围不变，未变且同覆盖证据按hash复用、整事项冻结合批，不重复已过M1/REF-01或无关回归。

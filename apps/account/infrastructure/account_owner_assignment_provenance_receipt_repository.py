@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import hashlib
 import json
+import sqlite3
 from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import UTC, datetime
-from typing import Protocol
+from typing import Protocol, cast
 
-from django.db import IntegrityError, transaction
+from django.db import IntegrityError, connections, transaction
+from django.db.models import UniqueConstraint
 from django.utils import timezone
 
 from apps.account.application.account_owner_assignment_evidence import (
@@ -139,12 +141,12 @@ class DjangoAccountOwnerAssignmentProvenanceReceiptRepository:
                     expected_values=values,
                 ):
                     model.save(force_insert=True, using=self._using)
-        except IntegrityError:
+        except IntegrityError as error:
+            if not _is_unique_violation(error, using=self._using):
+                raise
             winner = self._exact_model(checked)
             if winner is None:
-                raise AccountOwnerAssignmentProvenanceReceiptConflict(
-                    "provenance append conflicted without an exact first winner"
-                ) from None
+                raise
             return self._restore(winner)
         return self._restore(model)
 
@@ -321,6 +323,51 @@ class DjangoAccountOwnerAssignmentProvenanceReceiptRepository:
                 "account provenance persistence clock is invalid"
             )
         return record
+
+
+def _is_unique_violation(error: IntegrityError, *, using: str) -> bool:
+    """Recognize declared logical uniqueness before probing a first winner."""
+
+    cause = error.__cause__
+    state = getattr(cause, "sqlstate", None)
+    if not isinstance(state, str):
+        state = getattr(cause, "pgcode", None)
+    if isinstance(state, str):
+        if state != "23505":
+            return False
+        diagnostic = getattr(cause, "diag", None)
+        table_name = getattr(diagnostic, "table_name", None)
+        constraint_name = getattr(diagnostic, "constraint_name", None)
+        model = AccountOwnerAssignmentProvenanceReceiptModel
+        if table_name != model._meta.db_table or not isinstance(constraint_name, str):
+            return False
+        database = connections[using]
+        with database.cursor() as cursor:
+            constraints = database.introspection.get_constraints(cursor, model._meta.db_table)
+        violated = constraints.get(constraint_name)
+        if not violated or violated.get("primary_key") or violated.get("unique") is not True:
+            return False
+        columns = violated.get("columns")
+        if not isinstance(columns, list) or not all(isinstance(value, str) for value in columns):
+            return False
+        logical_columns: set[tuple[str, ...]] = {
+            (cast(str, field.column),)
+            for field in model._meta.local_concrete_fields
+            if field.unique and not field.primary_key
+        }
+        field_columns = {
+            field.name: cast(str, field.column) for field in model._meta.local_concrete_fields
+        }
+        for constraint in model._meta.constraints:
+            if (
+                isinstance(constraint, UniqueConstraint)
+                and constraint.fields
+                and all(name in field_columns for name in constraint.fields)
+            ):
+                logical_columns.add(tuple(field_columns[name] for name in constraint.fields))
+        return tuple(columns) in logical_columns
+    code = getattr(cause, "sqlite_errorcode", None)
+    return isinstance(code, int) and code == sqlite3.SQLITE_CONSTRAINT_UNIQUE
 
 
 def _active_token() -> object:
