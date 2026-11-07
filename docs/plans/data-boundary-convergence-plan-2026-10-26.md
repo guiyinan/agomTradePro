@@ -117,6 +117,12 @@ ASH-08来源真正合格后优先：安全保存REF-02、正式串行归还焦�
 
 隔离 PostgreSQL 验证覆盖直接 SQL 拒绝、正常追加及读取、含既有行时的迁移回滚、并发事务和历史重放。同一冻结候选 27 项通过、零跳过。其中一项首次在 Django 清理测试数据库时超时，同配置单项复跑通过并完成清理。增量 mypy 与债务上限通过。原件索引见 `.tmp/ref02-implementation-20261107/root/whole-v1-db-guard/evidence.json`，SHA-256 `cd3f50ee0109d696b2339973858d44915556373dca13fcabe212bb0be289b303`。
 
+#### REF-02 生产归档的 V1 单表隔离恢复（2026-11-07）
+
+复用与远端 SHA-256 一致的 `postgres-20261101T013356Z.dump`。在本地隔离 PostgreSQL 16.15 中从归档原件恢复 V1 表、数据项、序列、约束和索引。归档与恢复后均为 0 行，恢复库含 46 列、17 个索引、15 个约束，外键和自定义触发器均为 0。临时库已清理。盘点本地保留的 38 份归档，29 份含 V1 表且均为 0 行，9 份无 V1 表。原件索引见 `.tmp/ref02-production-evidence-20261107/c-archive/isolated-restore/evidence.json`，SHA-256 `4f80c0ab6f4c9bb1ac2d6071a89a79e2651d6ca483c513ccd59c7dbd378a25cd`。
+
+该证据覆盖指定归档中的 V1 单表恢复和本地归档样本。远端较晚的 `postgres-20261101T145307Z.dump` 目前只有归档清单证据。完整保留范围和真实非空回执重放仍待证实，生产调用审计及 V5/EVID-01/02 退出门仍开放。
+
 ### REF-03：合格读取边界与存储主从语义（WP2、WP3）
 
 复用已有 Publication 和各 owner 的 typed Query Service/Protocol。研究原件默认不能被决策或执行用例直接取得；合法读入口核验用途、来源观测/可得时间、版本、scope、freshness、撤销和完整性。静态禁止跨层依赖之外，增加通过公开 API/SDK/MCP 的旁路反例；不能把 import 扫描当完整证明。
