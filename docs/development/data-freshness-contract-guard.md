@@ -2,6 +2,8 @@
 
 2026-11-07 REF-03 单一 M1 风险策略读链。调仓预览先核对服务端账户来源的精确账户及 owner，来源缺失或身份不匹配时在查询策略修订前阻断，响应不携带修订标识和时间。RiskCenter 资格入口对错账户或错 owner 的候选也隐藏修订，同账户的过期、撤销和来源变更仍返回既有阻断状态。策略条件列保持原件，读取时核对派生规则。现有巡检 API、SDK 路由和 MCP 透传同一服务端资格。
 
+REF-03 公开调用验收补充：真实 SDK 普通预览覆盖当前策略、来源变化和真实时钟到期；真实 MCP `ClientSession` 经公开工具确认后调用同一预览，并在确认前撤销后保留 BUY 阻断。MCP 确认前账户摘要不代表策略资格已通过。测试在隔离 PostgreSQL 和本地 HTTP 中保留不可变修订保护；行情等非目标端口使用明确夹具，不据此声明 ASH-08 同日来源、V8 或生产资格。对应回归登记在既有 `simulated_trading.readonly_rebalance_preview` 合同。
+
 2026-11-02 普通 owner 自动 SELL 与恢复补验：真实 Session/CSRF 请求沿原 invocation/Engine/普通结算 UoW，来源 must-not 标记不变；可卖量、费用或原源快照未知归一化 blocked、零财务效果。原键运行重放不重入，未入账 MATCHED 的 read_at 可推进但原记录/事件时钟不改，新的持久 Match/Cancel 保持拒绝；预留重建按原键回读而非刷新已封存来源。Alpha 的显式回测结算 port 沿同一 Fee V2/日历语义，原生 PG 同输入对照不授予真实来源、盘中 Reserve 或实盘资格。测试补入原 current-reference、local-daily-match、fee-policy 三项合同，不新增合同或资格平台。
 
 2026-11-02 Alpha 来源证据贯通：Simple 评分继续使用既有 Publication/PIT 读口，在 `source_evidence_by_asset` 保留本次实际选中的估值及最新报告期财务行的来源、期间、观测/可用/获取时间、原件标识和知识截止点；信号计划日不改作源时钟，未知字段保持空值，不透出任意原始载荷。ETF 持仓权重仅供研究观察，`asof_date=None`、来源时钟未知、degraded，并明确阻断决策与执行；报告期末不作为观测或可用时点。评分读取仅使用本地持仓，缺失时提示基金数据管理员补齐并核验报告或切换合格评分来源，不隐式远端抓取/回填，也不指向不存在的同步命令。真实推荐保留阻断并在独立合格来源恢复后清除本资产旧阻断；dashboard 仅透传允许的来源字段及安全提示。扩展既有 `decision_rhythm.feature_freshness`、`data_center.financial_as_of_reads`，不增加资格平台、默认授权或生产来源声明。

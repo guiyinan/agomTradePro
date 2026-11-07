@@ -12105,6 +12105,21 @@
           "case": "mismatched_account_owner_skips_publication_lookup",
           "test_file": "tests/integration/test_m1_risk_public_preview_scope.py",
           "test_function": "test_preview_owner_source_mismatch_returns_unknown_without_revision_lookup"
+        },
+        {
+          "case": "actual_mcp_confirmation_requalifies_after_owner_revocation",
+          "test_file": "tests/component/simulated_trading/test_m1_risk_sdk_mcp_public_read.py",
+          "test_function": "test_mcp_public_call_requires_confirmation_before_qualified_inspection"
+        },
+        {
+          "case": "actual_sdk_body_cannot_override_owner_or_revision",
+          "test_file": "tests/component/simulated_trading/test_m1_risk_sdk_mcp_public_read.py",
+          "test_function": "test_public_sdk_raw_body_cannot_select_another_owner_revision"
+        },
+        {
+          "case": "actual_sdk_current_source_change_and_real_clock_expiry",
+          "test_file": "tests/component/simulated_trading/test_m1_risk_sdk_mcp_public_read.py",
+          "test_function": "test_public_sdk_ordinary_preview_preserves_policy_qualification"
         }
       ],
       "notes": "Current-purpose V2 is used only as the approved explicit normal-simulation instrument mapping. Nested V1 unknown source clocks and restrictive flags are retained; this does not qualify those source records for generic decisions, historical PIT, prices, automated trading, or broker execution. Local financial_snapshot_read_at is a locked ledger read time. Rule bundle and inner execution-rule validity are separate. Currency is not inferred from an account model without a currency field. Synthetic-port HTTP and native database evidence do not establish actual Owner M1 acceptance or production qualification. Strategy absence is an explicit validated query result, not an error fallback. Assignment-specific risk overrides remain unsupported and fail closed. M1 BUY preview requires a qualified owner-published risk revision whose immutable source matches the live account and owner-scoped Strategy content. Unknown, changed, revoked, future or expired revisions remain blocking. Ordinary inspections use the account owner User-to-Profile mapping before allowing Strategy data into checks or reports; assignment is not sharing authorization. Exposure includes held value, remaining accepted BUY limit notional and requested BUY value, with known fees reducing equity; unsettled SELLs cannot reduce exposure. Missing active-order notional or fees stays unknown. Publication/revocation writes policy and audit records only; it does not modify financial ledgers or grant order authorization. Explicit published_close mode uses only the M1 publication lane and one aware preview cutoff. All asset prices must share a publication identity. Missing provenance does not trigger market fallback. Daily-close reference does not grant execution/proposal authority or actual-user acceptance. Missing or mismatched authenticated account sources stop before the policy revision query. The public account and SDK routes retain the same server-side account selection; a request cannot supply a revision or a different account."

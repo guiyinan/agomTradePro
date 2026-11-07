@@ -42,7 +42,7 @@ M1_SCOPE_REF = (
     "docs/plans/a-share-usability-implementation-plan-2026-10-16.md" "#1996-m1-first-delivery"
 )
 HANDOFF_PLAN_PATH = "docs/plans/a-share-usability-implementation-plan-2026-10-16.md"
-AUTHORIZED_HANDOFF_SECTIONS = {"ASH-03": "19.156", "ASH-07": "19.157"}
+AUTHORIZED_HANDOFF_SECTIONS = {"ASH-03": "19.156", "ASH-07": "19.157", "REF-03": "19.161"}
 M1_REQUIRED_CHECKS = {
     "account_authorization",
     "qualified_current_source",
@@ -135,7 +135,7 @@ def _dependency_cycle(unit_dependencies: dict[str, tuple[str, ...]]) -> bool:
 
 
 def _has_handoff_reference(root: Path, unit_id: object, value: object) -> bool:
-    """Validate a citation for one of the two explicitly authorized unit handoffs."""
+    """Validate a citation for an explicitly authorized completed-unit handoff."""
     section = AUTHORIZED_HANDOFF_SECTIONS.get(unit_id) if isinstance(unit_id, str) else None
     if section is None or value != f"{HANDOFF_PLAN_PATH}#{section}":
         return False

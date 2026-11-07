@@ -426,6 +426,61 @@ def test_registry_accepts_explicit_ash07_closure_handoff_without_starting_succes
     assert units["ASH-08"]["status"] == "planned"
 
 
+@pytest.mark.parametrize(
+    ("mutation", "expected_code"),
+    [
+        ("none", None),
+        ("missing_marker", "execution_focus_missing_eligible_unit"),
+        ("missing_section", "execution_focus_handoff_pending_reference"),
+        ("wrong_reference", "execution_focus_handoff_pending_reference"),
+        ("unfinished_anchor", "execution_focus_handoff_pending_anchor"),
+        ("active_successor", "execution_focus_handoff_pending_active"),
+    ],
+)
+def test_registry_ref03_closure_requires_explicit_handoff_without_starting_ref04(
+    tmp_path: Path, mutation: str, expected_code: str | None
+) -> None:
+    """REF-03 closure cannot authorize a successor or hide an unfinished anchor."""
+
+    module = _load_module()
+    registry_path, index_path = _write_fixture_repository(tmp_path)
+    _prepare_ash07_handoff_fixture(tmp_path, registry_path)
+    payload = json.loads(registry_path.read_text(encoding="utf-8"))
+    units = payload["closure_backlog"]["units"]
+    rename = {"ASH-03": "REF-01", "ASH-07": "REF-03", "ASH-08": "REF-04"}
+    for unit in units:
+        unit["id"] = rename.get(unit["id"], unit["id"])
+        unit["depends_on"] = [rename.get(value, value) for value in unit["depends_on"]]
+    marker = payload["execution_focus"]["handoff_pending"]
+    marker["completed_unit_id"] = "REF-03"
+    marker["owner_decision_ref"] = f"{module.HANDOFF_PLAN_PATH}#19.161"
+    plan_path = tmp_path / module.HANDOFF_PLAN_PATH
+    plan_path.write_text(
+        "# A-share plan\n\n### 19.161 Owner-authorized REF-03 closure\n",
+        encoding="utf-8",
+    )
+    if mutation == "missing_marker":
+        del payload["execution_focus"]["handoff_pending"]
+    elif mutation == "missing_section":
+        plan_path.write_text("# A-share plan\n", encoding="utf-8")
+    elif mutation == "wrong_reference":
+        marker["owner_decision_ref"] = f"{module.HANDOFF_PLAN_PATH}#19.157"
+    elif mutation == "unfinished_anchor":
+        next(unit for unit in units if unit["id"] == "REF-03")["status"] = "blocked_external"
+    elif mutation == "active_successor":
+        next(unit for unit in units if unit["id"] == "REF-04")["status"] = "active"
+    registry_path.write_text(json.dumps(payload), encoding="utf-8")
+
+    report = module.evaluate_registry(tmp_path, registry_path, index_path)
+
+    if expected_code is None:
+        assert report.violation_count == 0, report.violations
+        assert payload["execution_focus"]["unit_id"] is None
+        assert next(unit for unit in units if unit["id"] == "REF-04")["status"] == "planned"
+    else:
+        assert expected_code in {violation.code for violation in report.violations}
+
+
 @pytest.mark.parametrize("anchor", ["", "MISSING-99", "EXAMPLE-01", "ASH-08"])
 def test_registry_rejects_ash07_handoff_with_another_anchor(tmp_path: Path, anchor: str) -> None:
     module = _load_module()

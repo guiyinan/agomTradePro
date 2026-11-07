@@ -2876,3 +2876,7 @@ ASH-08维持blocked_external，原Goal当前blocked且未完成；同日真实�
 registry v314 将唯一共享整合焦点从 REF-02 交接到 REF-03。REF-02 首批验证、开发保护和归档证据保留，完整退役仍待生产材料。REF-03 仅推进 RiskCenter 所有者发布的 M1 风险策略修订到普通模拟调仓预览这一条读取链，分工及整事项验收见[收敛计划 §2.5](data-boundary-convergence-plan-2026-10-26.md)。
 
 ASH-08 原 Goal 仍待同日真实来源、显式 `published_close` 及普通 Owner、observer、foreign 的 V8 完整验收。来源实际合格后，先保存 REF-03，再串行交还焦点和验收资源。其余依赖和 deferred 事项沿现行 registry。
+
+Owner 随后明确将接续 Goal 扩为 REF-03 整单元收口，完成门及选定的 M1 风险策略族见收敛计划 §2.5。全部适用门禁通过并正式交付后，REF-03 可登记完成；共享焦点置空并以本节登记 `handoff_pending`，不据依赖已满足而自动启动 REF-04/06。ASH-08 原同日来源及完整 V8 Goal 保持独立；来源实际合格时仍按既有优先级串行交还资源。REF-05 只读、DATA-18 及 deferred 边界保持。
+
+registry v315 按上述范围登记 REF-03 completed，唯一共享焦点置空并待正式交接。新增公开 SDK/MCP 调用与治理合批 100 项通过、零跳过，未变业务及反例复用原 51 项证据；原件、复用边界及精确交付身份统一见收敛计划 §2.5 的验收索引。ASH-08 与 REF-02 仍未完成，REF-04/06 未开启，不将本次开发验收写成来源或生产资格。

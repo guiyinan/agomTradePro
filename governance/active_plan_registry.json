@@ -1,23 +1,15 @@
 {
-  "version": "2026-11-07.v314",
+  "version": "2026-11-07.v315",
   "updated_at": "2026-11-07",
   "execution_focus": {
-    "unit_id": "REF-03",
+    "unit_id": null,
     "allowed_parallel_execution_modes": [
       "production",
       "external",
       "governance"
     ],
-    "policy": "Owner2026-11-07 opens one REF-03 Publication reader and serially hands the sole repository focus from REF-02 to REF-03. REF-02 remains unfinished, blocked on retirement evidence and approval; its delivered compatibility, transaction and archive evidence is retained. Select only the RiskCenter owner-published M1 risk policy revision through its existing typed qualification reader and ordinary simulated rebalance preview. Keep the existing revision and revocation authority, validate read projections, and deny wrong account/owner, expired, revoked, corrupt and public bypass cases. No new route, writer, model, alternate fact source, seal removal or DATA-18 fence change. Three Luna max isolated overlays; Root owns shared Source/index/Git and one consolidated pytest plus one heavy static task. Qualified ASH-08 same-day published_close and full Owner/observer/foreign V8 takes priority with serialized handoff. REF-04/06 have no implementation window, REF-05 stays read-only, ASH-06/09/12 stay deferred; no new branches, deployment, production config/ledger writes or auto orders.",
+    "policy": "Owner2026-11-07 authorized REF-03 whole-unit closure for the selected RiskCenter owner-published M1 risk-policy revision family. Canonical typed conditions, source snapshot, derived read projections, qualification and actual API/SDK/MCP positive and bypass/denial evidence are delivered as one matter under convergence section2.5. REF-03 completion does not activate REF-04/06; wait for a formal Owner focus handoff. REF-02 remains externally blocked on full retirement evidence. Qualified ASH-08 same-day published_close/full Owner-observer-foreign V8 retains priority and its separate unfinished Goal. REF-05 remains read-only; DATA-18 and ASH-06/09/12 deferred boundaries remain unchanged. No deployment, production config/ledger writes, seal removal or auto orders.",
     "parallel_preparation": [
-      {
-        "unit_id": "REF-03",
-        "scope": "Luna A typed qualification contract in a-contract/overlay; Luna B negative read and storage cases in b-negatives/overlay; Luna C existing public preview bypass contracts in c-entrypoint/overlay, all under .tmp/ref03-implementation-20261107. Root owns source adoption, preview composition, governance, generated projections and one frozen whole-item validation; no parallel heavy QA.",
-        "owner": "Three Luna max; Root serialized integration",
-        "isolated_workspace": true,
-        "shared_git_serialized": true,
-        "isolated_test_resources": true
-      },
       {
         "unit_id": "ASH-08",
         "scope": "Original unfinished Goal remains externally blocked on same-day sources and actual published_close/full V8 acceptance. Next candidate11/09 after16 Shanghai requires actual current calendar/source qualification. When actionable, safely save REF-02 and formally return unique focus/resources; do not fake clocks/freshness or reuse stale quotes.",
@@ -34,7 +26,12 @@
         "shared_git_serialized": true,
         "isolated_test_resources": true
       }
-    ]
+    ],
+    "handoff_pending": {
+      "completed_unit_id": "REF-03",
+      "owner_decision_ref": "docs/plans/a-share-usability-implementation-plan-2026-10-16.md#19.161",
+      "reason": "REF-03 selected M1 family is complete; REF-04/06 require their own formal Owner window. Resume the original ASH-08 Goal first only when genuine same-day sources qualify; do not infer eligibility from the candidate date."
+    }
   },
   "workstreams": [
     {
@@ -386,7 +383,7 @@
       "priority": "P1",
       "owner": "Repository Owner / Account / Research / Data Center / Portfolio / Governance / SDK / MCP",
       "status": "active",
-      "next_gate": "REF-01 completed. REF-02 first batch and V1 guard delivered; genuine V5/EVID-01/02, runtime audit and complete archive/retirement evidence remain outstanding. Owner2026-11-07 opens a single REF-03 owner-published M1 risk policy reader and hands over sole focus, see convergence section2.5. REF-04/06 await their formal window, REF-05 read-only; deferred unchanged.",
+      "next_gate": "REF-01 and the selected M1-family REF-03 unit are completed. REF-02 full retirement remains blocked on genuine V5/EVID-01/02, runtime caller audit and archive/retention evidence. Shared focus is null with an explicit REF-03 handoff marker, see convergence section2.5 and A-share section19.161; REF-04/06 await a separate Owner window and REF-05 remains read-only. Genuine qualified ASH-08 same-day sources retain priority; DATA-18 and deferred states are unchanged.",
       "documents": [
         {
           "path": "docs/plans/scripts-docs-mcp-governance-plan-2026-10-14.md",
@@ -1991,7 +1988,7 @@
         "wave": 3,
         "priority": "P1",
         "execution_mode": "repository",
-        "status": "active",
+        "status": "completed",
         "title": "Unify qualified read boundaries and canonical storage semantics",
         "depends_on": [
           "REF-01"
