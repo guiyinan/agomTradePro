@@ -168,6 +168,13 @@ class GetM1RiskPolicyQualificationUseCase:
     ) -> M1RiskPolicyQualification:
         """Return unknown when active revisions overlap or any source is unresolved."""
 
+        if current_source.account_id != account_id:
+            return M1RiskPolicyQualification(
+                state=RiskQualificationState.SOURCE_CHANGED,
+                reason_codes=("M1_RISK_POLICY_ACCOUNT_MISMATCH",),
+                revision=None,
+            )
+
         try:
             revisions = self._repository.list_revisions(account_id=account_id)
         except M1RiskPolicySourceCorruptError:

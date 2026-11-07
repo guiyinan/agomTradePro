@@ -162,6 +162,27 @@ def test_account_owner_change_invalidates_the_previous_owner_revision() -> None:
     assert qualification.state is RiskQualificationState.SOURCE_CHANGED
     assert qualification.reason_codes == ("M1_RISK_POLICY_OWNER_SOURCE_CHANGED",)
     assert qualification.ready_for_buy is False
+    assert qualification.revision is None
+
+
+def test_revision_from_another_account_is_not_exposed() -> None:
+    """An unrelated persisted revision cannot disclose its version or dates."""
+
+    qualification = qualify_revision(
+        revision=replace(
+            _revision(),
+            account_id=702,
+            source_snapshot=replace(_source_snapshot(), account_id=702),
+        ),
+        account_id=701,
+        as_of=EFFECTIVE_FROM + timedelta(days=1),
+        current_source=_source_snapshot(),
+    )
+
+    assert qualification.state is RiskQualificationState.SOURCE_CHANGED
+    assert qualification.reason_codes == ("M1_RISK_POLICY_ACCOUNT_MISMATCH",)
+    assert qualification.revision is None
+    assert qualification.ready_for_buy is False
 
 
 def test_null_stop_loss_remains_unknown_even_when_policy_has_an_explicit_value() -> None:

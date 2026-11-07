@@ -482,13 +482,13 @@ def qualify_revision(
         return M1RiskPolicyQualification(
             state=RiskQualificationState.SOURCE_CHANGED,
             reason_codes=("M1_RISK_POLICY_ACCOUNT_MISMATCH",),
-            revision=revision,
+            revision=None,
         )
     if revision.actor_user_id != current_source.account_owner_user_id:
         return M1RiskPolicyQualification(
             state=RiskQualificationState.SOURCE_CHANGED,
             reason_codes=("M1_RISK_POLICY_OWNER_SOURCE_CHANGED",),
-            revision=revision,
+            revision=None,
         )
     if not revision.effective_from <= as_of < revision.effective_until:
         return M1RiskPolicyQualification(

@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import hashlib
+from dataclasses import replace
 from datetime import datetime, timedelta
 from decimal import Decimal
-from typing import cast
+from typing import NoReturn, cast
 from uuid import uuid4
 
 import pytest
@@ -30,6 +31,9 @@ from apps.risk_center.domain.m1_rebalance_risk_policy import (
     RiskApplicability,
     RiskQualificationState,
 )
+from apps.risk_center.infrastructure import (
+    m1_rebalance_risk_policy_repository as risk_policy_repository_module,
+)
 from apps.risk_center.infrastructure.m1_rebalance_risk_policy_models import (
     M1RebalanceRiskPolicyRevisionModel,
 )
@@ -37,6 +41,9 @@ from apps.risk_center.infrastructure.m1_rebalance_risk_policy_repository import 
     DjangoM1RiskPolicyRevisionRepository,
 )
 from apps.risk_center.infrastructure.models import RiskPolicyAuditModel
+from apps.simulated_trading.application.m1_rebalance_risk_policy import M1RiskPolicyAccountSource
+from apps.simulated_trading.application.rebalance_preview_m1_risk import qualify_m1_risk_policy
+from apps.simulated_trading.domain.entities import AccountType, SimulatedAccount
 
 
 def _idempotency(
@@ -403,6 +410,7 @@ def test_repository_revokes_by_appending_audit_and_reader_never_rewrites_revisio
         current_source=revision.source_snapshot,
     )
     assert final_qualification.state is RiskQualificationState.REVOKED
+    assert final_qualification.ready_for_buy is False
 
     changed_payload = _idempotency(
         account_id=987656,
@@ -488,3 +496,265 @@ def test_revoked_window_can_be_replaced_by_new_owner_revision() -> None:
     assert qualified.ready_for_buy is True
     assert qualified.revision is not None
     assert qualified.revision.risk_policy_version == replacement.risk_policy_version
+
+
+@pytest.mark.django_db
+def test_preview_owner_and_account_scope_fail_before_reading_a_persisted_revision() -> None:
+    """A real stored version cannot cross the preview account or owner boundary."""
+
+    owner = get_user_model().objects.create_user(
+        username=f"m1-risk-scope-owner-{uuid4().hex}",
+        password="unused",
+    )
+    other_user = get_user_model().objects.create_user(
+        username=f"m1-risk-scope-other-{uuid4().hex}",
+        password="unused",
+    )
+    account_id = 987657
+    publishing_repository = DjangoM1RiskPolicyRevisionRepository()
+    revision = _create_revision(
+        publishing_repository,
+        _command(
+            actor_id=owner.pk,
+            account_id=account_id,
+            effective_from=timezone.now() + timedelta(minutes=5),
+        ),
+        key="scope-guard-publish",
+    )
+    assert M1RebalanceRiskPolicyRevisionModel.objects.filter(
+        risk_policy_version=revision.risk_policy_version,
+        account_id=account_id,
+        actor_id=owner.pk,
+    ).exists()
+
+    class CountingRepository(DjangoM1RiskPolicyRevisionRepository):
+        def __init__(self) -> None:
+            super().__init__()
+            self.list_revisions_calls = 0
+
+        def list_revisions(
+            self,
+            *,
+            account_id: int,
+        ) -> tuple[M1RiskPolicyRevision, ...]:
+            self.list_revisions_calls += 1
+            return super().list_revisions(account_id=account_id)
+
+    class FixedAccountSourceReader:
+        def __init__(self, source: M1RiskPolicyAccountSource) -> None:
+            self.source = source
+
+        def read_owner_source(self, *, account_id: int) -> M1RiskPolicyAccountSource:
+            del account_id
+            return self.source
+
+    class UnexpectedStrategySourceReader:
+        def get_owner_inspection_selection(
+            self,
+            account_id: int,
+            owner_user_id: int,
+            strategy_id: int | None = None,
+        ) -> NoReturn:
+            del account_id, owner_user_id, strategy_id
+            raise AssertionError("scope rejection must precede Strategy reads")
+
+    account_source = M1RiskPolicyAccountSource(
+        account_id=account_id,
+        owner_user_id=owner.pk,
+        account_type="simulated",
+        is_active=True,
+        max_single_position_pct=Decimal("20"),
+        max_total_position_pct=Decimal("95"),
+        stop_loss_pct=Decimal("8"),
+    )
+    account = SimulatedAccount(
+        account_id=account_id,
+        account_name="Synthetic scope-bound account",
+        account_type=AccountType.SIMULATED,
+        initial_capital=10000.0,
+        current_cash=10000.0,
+        current_market_value=0.0,
+        total_value=10000.0,
+        max_position_pct=20.0,
+        max_total_position_pct=95.0,
+        stop_loss_pct=8.0,
+    )
+
+    mismatch_sources = (
+        (
+            replace(account_source, account_id=account_id + 1),
+            owner.pk,
+            "M1_RISK_ACCOUNT_SOURCE_UNKNOWN",
+        ),
+        (
+            account_source,
+            other_user.pk,
+            "M1_RISK_ACCOUNT_OWNER_SOURCE_MISMATCH",
+        ),
+    )
+    for source, actor_id, expected_code in mismatch_sources:
+        counting_repository = CountingRepository()
+        result = qualify_m1_risk_policy(
+            risk_policy_qualifier=GetM1RiskPolicyQualificationUseCase(counting_repository),
+            account_source_reader=FixedAccountSourceReader(source),
+            strategy_source_reader=UnexpectedStrategySourceReader(),
+            account=account,
+            user_id=actor_id,
+            as_of=revision.effective_from,
+            strategy_id=None,
+            position_rule_id=None,
+            strategy_name=None,
+            strategy_type=None,
+            strategy_version=None,
+            max_position_pct=Decimal("20"),
+            max_total_position_pct=Decimal("95"),
+            stop_loss_pct=Decimal("8"),
+            strategy_selection_state="confirmed_unconfigured",
+        )
+
+        assert result.state is RiskQualificationState.UNKNOWN
+        assert result.reason_codes == (expected_code,)
+        assert result.revision is None
+        assert result.ready_for_buy is False
+        assert counting_repository.list_revisions_calls == 0
+
+    counting_repository = CountingRepository()
+    result = GetM1RiskPolicyQualificationUseCase(counting_repository).execute(
+        account_id=account_id,
+        as_of=revision.effective_from,
+        current_source=replace(revision.source_snapshot, account_id=account_id + 1),
+    )
+    assert result.reason_codes == ("M1_RISK_POLICY_ACCOUNT_MISMATCH",)
+    assert result.revision is None
+    assert result.ready_for_buy is False
+    assert counting_repository.list_revisions_calls == 0
+
+
+@pytest.mark.django_db
+def test_persisted_reader_keeps_same_scope_source_drift_blocked_metadata() -> None:
+    """A real revision remains identifiable while same-account source drift blocks it."""
+
+    owner = get_user_model().objects.create_user(
+        username=f"m1-risk-source-drift-{uuid4().hex}",
+        password="unused",
+    )
+    repository = DjangoM1RiskPolicyRevisionRepository()
+    revision = _create_revision(
+        repository,
+        _command(
+            actor_id=owner.pk,
+            account_id=987658,
+            effective_from=timezone.now() + timedelta(minutes=5),
+        ),
+        key="same-scope-source-drift",
+    )
+    changed_source = replace(
+        revision.source_snapshot,
+        account_max_total_position_pct=Decimal("94"),
+    )
+
+    result = GetM1RiskPolicyQualificationUseCase(repository).execute(
+        account_id=revision.account_id,
+        as_of=revision.effective_from,
+        current_source=changed_source,
+    )
+
+    assert result.state is RiskQualificationState.SOURCE_CHANGED
+    assert result.reason_codes == ("M1_RISK_POLICY_SOURCE_CHANGED",)
+    assert result.revision == revision
+    assert result.ready_for_buy is False
+
+
+@pytest.mark.django_db
+def test_persisted_reader_blocks_at_the_exact_effective_until_boundary() -> None:
+    """The real repository does not treat the exclusive validity end as active."""
+
+    owner = get_user_model().objects.create_user(
+        username=f"m1-risk-expiry-{uuid4().hex}",
+        password="unused",
+    )
+    repository = DjangoM1RiskPolicyRevisionRepository()
+    revision = _create_revision(
+        repository,
+        _command(
+            actor_id=owner.pk,
+            account_id=987659,
+            effective_from=timezone.now() + timedelta(minutes=5),
+        ),
+        key="effective-until-boundary",
+    )
+
+    result = GetM1RiskPolicyQualificationUseCase(repository).execute(
+        account_id=revision.account_id,
+        as_of=revision.effective_until,
+        current_source=revision.source_snapshot,
+    )
+
+    assert result.state is RiskQualificationState.NOT_EFFECTIVE
+    assert result.reason_codes == ("M1_RISK_POLICY_OUTSIDE_EFFECTIVE_WINDOW",)
+    assert result.revision == revision
+    assert result.ready_for_buy is False
+
+
+@pytest.mark.django_db
+def test_persisted_reader_rejects_tampered_falsification_projection(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The actual ORM reader rejects a corrupted decode projection without DB mutation."""
+
+    owner = get_user_model().objects.create_user(
+        username=f"m1-risk-tampered-projection-{uuid4().hex}",
+        password="unused",
+    )
+    repository = DjangoM1RiskPolicyRevisionRepository()
+    revision = _create_revision(
+        repository,
+        _command(
+            actor_id=owner.pk,
+            account_id=987660,
+            effective_from=timezone.now() + timedelta(minutes=5),
+        ),
+        key="tampered-projection",
+    )
+    qualifier = GetM1RiskPolicyQualificationUseCase(repository)
+    qualified = qualifier.execute(
+        account_id=revision.account_id,
+        as_of=revision.effective_from,
+        current_source=revision.source_snapshot,
+    )
+    assert qualified.state is RiskQualificationState.QUALIFIED
+    assert qualified.ready_for_buy is True
+
+    row = M1RebalanceRiskPolicyRevisionModel.objects.get(
+        risk_policy_version=revision.risk_policy_version,
+        account_id=revision.account_id,
+    )
+    original_rules = [dict(rule) for rule in row.risk_falsification_rules]
+    original_decoder = risk_policy_repository_module._revision_from_model
+
+    def decode_with_corrupt_projection(
+        persisted_row: M1RebalanceRiskPolicyRevisionModel,
+    ) -> M1RiskPolicyRevision:
+        rules = [dict(rule) for rule in persisted_row.risk_falsification_rules]
+        rules[0]["limit_pct"] = "99.000"
+        persisted_row.risk_falsification_rules = rules
+        return original_decoder(persisted_row)
+
+    monkeypatch.setattr(
+        risk_policy_repository_module,
+        "_revision_from_model",
+        decode_with_corrupt_projection,
+    )
+
+    blocked = qualifier.execute(
+        account_id=revision.account_id,
+        as_of=revision.effective_from,
+        current_source=revision.source_snapshot,
+    )
+
+    assert blocked.state is RiskQualificationState.UNKNOWN
+    assert blocked.reason_codes == ("M1_RISK_POLICY_VERSION_SOURCE_CORRUPT",)
+    assert blocked.revision is None
+    assert blocked.ready_for_buy is False
+    row.refresh_from_db()
+    assert row.risk_falsification_rules == original_rules

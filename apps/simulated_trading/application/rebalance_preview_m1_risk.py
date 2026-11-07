@@ -23,7 +23,6 @@ from apps.simulated_trading.application.m1_rebalance_risk_policy import (
     M1RiskPolicyAccountSourceReader,
     StrategyM1RiskSourceReader,
     build_m1_risk_source_snapshot,
-    unknown_m1_risk_source_snapshot,
 )
 from apps.simulated_trading.application.rebalance_plan_preview_contracts import (
     RebalancePlanPreviewItem,
@@ -75,28 +74,16 @@ def qualify_m1_risk_policy(
         return unavailable_m1_risk_qualification("M1_RISK_POLICY_READ_PORT_UNAVAILABLE")
     account_source = account_source_reader.read_owner_source(account_id=account.account_id)
     if account_source is None or account_source.account_id != account.account_id:
-        source_snapshot = unknown_m1_risk_source_snapshot(account_id=account.account_id)
-        qualification = risk_policy_qualifier.execute(
-            account_id=account.account_id,
-            as_of=as_of,
-            current_source=source_snapshot,
-        )
         return M1RiskPolicyQualification(
             state=RiskQualificationState.UNKNOWN,
             reason_codes=("M1_RISK_ACCOUNT_SOURCE_UNKNOWN",),
-            revision=qualification.revision,
+            revision=None,
         )
     if account_source.owner_user_id != user_id or account_source.is_active is not True:
-        source_snapshot = unknown_m1_risk_source_snapshot(account_id=account.account_id)
-        qualification = risk_policy_qualifier.execute(
-            account_id=account.account_id,
-            as_of=as_of,
-            current_source=source_snapshot,
-        )
         return M1RiskPolicyQualification(
             state=RiskQualificationState.UNKNOWN,
             reason_codes=("M1_RISK_ACCOUNT_OWNER_SOURCE_MISMATCH",),
-            revision=qualification.revision,
+            revision=None,
         )
     strategy_selection = strategy_source_reader.get_owner_inspection_selection(
         account.account_id,

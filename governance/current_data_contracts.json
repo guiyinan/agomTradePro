@@ -12095,9 +12095,19 @@
           "case": "missing_expired_or_future_published_close_blocks_held_sell_without_fallback",
           "test_file": "tests/integration/simulated_trading/test_m1_published_close_owner_api.py",
           "test_function": "test_missing_expired_or_future_published_close_blocks_held_sell_without_fallback"
+        },
+        {
+          "case": "owner_publication_is_bound_to_public_path_and_authenticated_owner",
+          "test_file": "tests/integration/test_m1_risk_public_preview_scope.py",
+          "test_function": "test_preview_uses_path_owner_and_server_active_revision"
+        },
+        {
+          "case": "mismatched_account_owner_skips_publication_lookup",
+          "test_file": "tests/integration/test_m1_risk_public_preview_scope.py",
+          "test_function": "test_preview_owner_source_mismatch_returns_unknown_without_revision_lookup"
         }
       ],
-      "notes": "Current-purpose V2 is used only as the approved explicit normal-simulation instrument mapping. Nested V1 unknown source clocks and restrictive flags are retained; this does not qualify those source records for generic decisions, historical PIT, prices, automated trading, or broker execution. Local financial_snapshot_read_at is a locked ledger read time. Rule bundle and inner execution-rule validity are separate. Currency is not inferred from an account model without a currency field. Synthetic-port HTTP and native database evidence do not establish actual Owner M1 acceptance or production qualification. Strategy absence is an explicit validated query result, not an error fallback. Assignment-specific risk overrides remain unsupported and fail closed. M1 BUY preview requires a qualified owner-published risk revision whose immutable source matches the live account and owner-scoped Strategy content. Unknown, changed, revoked, future or expired revisions remain blocking. Ordinary inspections use the account owner User-to-Profile mapping before allowing Strategy data into checks or reports; assignment is not sharing authorization. Exposure includes held value, remaining accepted BUY limit notional and requested BUY value, with known fees reducing equity; unsettled SELLs cannot reduce exposure. Missing active-order notional or fees stays unknown. Publication/revocation writes policy and audit records only; it does not modify financial ledgers or grant order authorization. Explicit published_close mode uses only the M1 publication lane and one aware preview cutoff. All asset prices must share a publication identity. Missing provenance does not trigger market fallback. Daily-close reference does not grant execution/proposal authority or actual-user acceptance."
+      "notes": "Current-purpose V2 is used only as the approved explicit normal-simulation instrument mapping. Nested V1 unknown source clocks and restrictive flags are retained; this does not qualify those source records for generic decisions, historical PIT, prices, automated trading, or broker execution. Local financial_snapshot_read_at is a locked ledger read time. Rule bundle and inner execution-rule validity are separate. Currency is not inferred from an account model without a currency field. Synthetic-port HTTP and native database evidence do not establish actual Owner M1 acceptance or production qualification. Strategy absence is an explicit validated query result, not an error fallback. Assignment-specific risk overrides remain unsupported and fail closed. M1 BUY preview requires a qualified owner-published risk revision whose immutable source matches the live account and owner-scoped Strategy content. Unknown, changed, revoked, future or expired revisions remain blocking. Ordinary inspections use the account owner User-to-Profile mapping before allowing Strategy data into checks or reports; assignment is not sharing authorization. Exposure includes held value, remaining accepted BUY limit notional and requested BUY value, with known fees reducing equity; unsettled SELLs cannot reduce exposure. Missing active-order notional or fees stays unknown. Publication/revocation writes policy and audit records only; it does not modify financial ledgers or grant order authorization. Explicit published_close mode uses only the M1 publication lane and one aware preview cutoff. All asset prices must share a publication identity. Missing provenance does not trigger market fallback. Daily-close reference does not grant execution/proposal authority or actual-user acceptance. Missing or mismatched authenticated account sources stop before the policy revision query. The public account and SDK routes retain the same server-side account selection; a request cannot supply a revision or a different account."
     },
     {
       "id": "account.legacy_automated_exit_price_observation",
@@ -12879,6 +12889,10 @@
         "apps/risk_center/infrastructure/m1_rebalance_risk_policy_repository.py": [
           "command.effective_from < row.known_at",
           "M1_RISK_POLICY_RETROACTIVE_EFFECTIVE_WINDOW_FORBIDDEN"
+        ],
+        "apps/risk_center/application/m1_rebalance_risk_policy.py": [
+          "if current_source.account_id != account_id:",
+          "M1_RISK_POLICY_ACCOUNT_MISMATCH"
         ]
       },
       "required_tests": [
@@ -12911,9 +12925,29 @@
           "case": "lost_revocation_actor",
           "test_file": "tests/unit/test_m1_rebalance_risk_policy.py",
           "test_function": "test_revocation_audit_with_lost_actor_fails_closed"
+        },
+        {
+          "case": "foreign_revision_omits_scope_metadata",
+          "test_file": "tests/unit/test_m1_rebalance_risk_policy.py",
+          "test_function": "test_revision_from_another_account_is_not_exposed"
+        },
+        {
+          "case": "wrong_account_stops_before_revision_lookup",
+          "test_file": "tests/integration/test_m1_risk_policy_repository.py",
+          "test_function": "test_preview_owner_and_account_scope_fail_before_reading_a_persisted_revision"
+        },
+        {
+          "case": "stored_revision_exclusive_expiry",
+          "test_file": "tests/integration/test_m1_risk_policy_repository.py",
+          "test_function": "test_persisted_reader_blocks_at_the_exact_effective_until_boundary"
+        },
+        {
+          "case": "stored_projection_corruption_is_rejected",
+          "test_file": "tests/integration/test_m1_risk_policy_repository.py",
+          "test_function": "test_persisted_reader_rejects_tampered_falsification_projection"
         }
       ],
-      "notes": "known_at is local publication evidence, not a vendor observation clock or a historical strategy version. Source values, owner, validity and revocation are rechecked for each qualification. Unknown source limits never become zero or disabled; owner N/A cannot omit configured caps. Qualification is limited to M1 preview policy and does not authorize orders, establish source current-use eligibility, or prove real-user acceptance."
+      "notes": "known_at is local publication evidence, not a vendor observation clock or a historical strategy version. Source values, owner, validity and revocation are rechecked for each qualification. Unknown source limits never become zero or disabled; owner N/A cannot omit configured caps. Qualification is limited to M1 preview policy and does not authorize orders, establish source current-use eligibility, or prove real-user acceptance. Wrong-account or wrong-owner qualification suppresses the revision and its metadata; the account identity must match before querying the repository."
     },
     {
       "id": "data_center.decision_repair_publication_eligibility",
