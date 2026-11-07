@@ -21,6 +21,7 @@ import requests
 from django.db import DEFAULT_DB_ALIAS, connections
 from django.utils import timezone
 from mcp.shared.memory import create_connected_server_and_client_session
+from pytest_django.plugin import DjangoDbBlocker
 from rest_framework.test import APIClient
 
 from apps.account.infrastructure.identity_models import AccountProfileModel, UserAccessTokenModel
@@ -102,19 +103,40 @@ def _effective_port(parts: Any) -> int:
     return 443 if parts.scheme.lower() == "https" else 80
 
 
+@pytest.fixture(scope="module", autouse=True)
+def _canonical_policy_table_remains_queryable(
+    django_db_blocker: DjangoDbBlocker,
+) -> Iterator[None]:
+    """Verify real canonical ORM reads after all disposable table fixtures exit."""
+    original_table = M1RebalanceRiskPolicyRevisionModel._meta.db_table
+    yield
+    with django_db_blocker.unblock():
+        assert M1RebalanceRiskPolicyRevisionModel._meta.db_table == original_table
+        assert (
+            list(M1RebalanceRiskPolicyRevisionModel.objects.values_list("pk", flat=True)[:1]) == []
+        )
+
+
+def _clear_policy_column_cache() -> None:
+    """Discard cached aliases when entering or leaving a disposable policy table."""
+    for field in M1RebalanceRiskPolicyRevisionModel._meta.concrete_fields:
+        field.__dict__.pop("cached_col", None)
+
+
 @pytest.fixture
 def _m1_owner_case(
     monkeypatch: pytest.MonkeyPatch,
     isolated_m1_revision_table: None,
     preserve_account_authority_generation: None,
     record_property: Callable[[str, object], None],
+    request: pytest.FixtureRequest,
 ) -> _M1OwnerCase:
     """Publish real owner revisions while keeping market inputs as local fixtures."""
     del isolated_m1_revision_table, preserve_account_authority_generation
     record_property("native_postgresql_database", assert_native_postgres_test_database())
     # Django caches the column's table alias; each fixture has a new disposable schema.
-    for field in M1RebalanceRiskPolicyRevisionModel._meta.concrete_fields:
-        field.__dict__.pop("cached_col", None)
+    _clear_policy_column_cache()
+    request.addfinalizer(_clear_policy_column_cache)
     configure_account_runtime()
     monkeypatch.delenv("AGOMTRADEPRO_DISABLE_USER_PROVISIONING_SIGNALS", raising=False)
     real_now = timezone.now
