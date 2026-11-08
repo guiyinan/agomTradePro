@@ -11,6 +11,9 @@ from django.db.migrations.recorder import MigrationRecorder
 
 from shared.config.secrets import get_secrets
 from shared.infrastructure.crypto import FieldEncryptionService
+from tests.support.account_authority_generation_flush import (  # noqa: F401
+    preserve_account_authority_generation,
+)
 
 _BEFORE = ("ai_provider", "0004_aiuserfallbackquota_aiproviderconfig_owner_user_and_more")
 _AFTER = ("ai_provider", "0005_drop_plaintext_api_key")
@@ -92,7 +95,7 @@ def test_failed_removal_preserves_schema_and_credential_values(
 
     executor = MigrationExecutor(connection)
     leaf_nodes = executor.loader.graph.leaf_nodes()
-    name = f"ref06-plaintext-guard-{failure_case}-{uuid4().hex}"
+    name = f"ref06-{uuid4().hex}"
     plaintext = ""
     encrypted_key = ""
     active_key = "ref06-migration-active-key"
@@ -177,7 +180,7 @@ def test_empty_provider_state_migrates_without_encryption_key(
 
     monkeypatch.delenv("AGOMTRADEPRO_ENCRYPTION_KEY", raising=False)
     get_secrets.cache_clear()
-    name = f"ref06-plaintext-removal-empty-{uuid4().hex}"
+    name = f"ref06-{uuid4().hex}"
     executor = MigrationExecutor(connection)
     leaf_nodes = executor.loader.graph.leaf_nodes()
 
@@ -227,7 +230,7 @@ def test_valid_removal_is_idempotent_and_preserves_decryptable_ciphertext(
     crypto = FieldEncryptionService(encryption_key=key)
     plaintext = "sk-ref06-valid-migration-credential"
     ciphertext = crypto.encrypt(plaintext)
-    name = f"ref06-plaintext-removal-valid-{uuid4().hex}"
+    name = f"ref06-{uuid4().hex}"
     executor = MigrationExecutor(connection)
     leaf_nodes = executor.loader.graph.leaf_nodes()
 

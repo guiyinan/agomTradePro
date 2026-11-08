@@ -26,17 +26,17 @@
       "script": 19,
       "sdk": 57,
       "terminal_tui": 32,
-      "test_evidence": 124,
+      "test_evidence": 125,
       "workflow_step": 11
     },
     "by_status": {
       "active_public": 906,
       "adjacent_operational": 344,
-      "candidate-review": 42,
+      "candidate-review": 43,
       "compatibility": 139,
       "retired_blocked": 0
     },
-    "total": 1431
+    "total": 1432
   },
   "entries": [
     {
@@ -13647,6 +13647,16 @@
       "path": "tests/component/simulated_trading/test_settlement_exchange_migration.py",
       "status": "adjacent_operational",
       "symbol": "test_settlement_exchange_migration",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/component/test_ai_provider_plaintext_removal_migration.py:test_ai_provider_plaintext_removal_migration:",
+      "locator": "",
+      "path": "tests/component/test_ai_provider_plaintext_removal_migration.py",
+      "status": "candidate-review",
+      "symbol": "test_ai_provider_plaintext_removal_migration",
       "target": ""
     },
     {

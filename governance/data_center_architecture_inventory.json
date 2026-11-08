@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 6659,
+    "current_surface_references": 6658,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -5445,10 +5445,6 @@
     {
       "path": "apps/ai_provider/infrastructure/config_summary_repository.py",
       "text": "\"summary\": {"
-    },
-    {
-      "path": "apps/ai_provider/infrastructure/management/commands/encrypt_api_keys.py",
-      "text": "self.stdout.write(\"Encryption Summary:\")"
     },
     {
       "path": "apps/ai_provider/infrastructure/repositories.py",
