@@ -6,21 +6,33 @@ from apps.ai_provider.application.use_cases import (
     CreateProviderUseCase,
     UpdateProviderUseCase,
 )
+
+# isort: split
 from apps.ai_provider.application.use_cases import (
     TestProviderConnectionUseCase as ProviderConnectionUseCase,
 )
-from apps.ai_provider.infrastructure.models import AIProviderConfig
+from apps.ai_provider.infrastructure.repositories import AIProviderRepository
 from apps.ai_provider.interface.serializers import (
     AIChatRequestSerializer,
     AIProviderConfigCreateSerializer,
     PersonalProviderCreateSerializer,
     UserFallbackQuotaUpdateSerializer,
 )
+from shared.infrastructure.crypto import FieldEncryptionService
+
+
+@pytest.fixture(autouse=True)
+def _provider_encryption_key(settings):
+    settings.AGOMTRADEPRO_ENCRYPTION_KEY = FieldEncryptionService.generate_key()
+
+
+def _create_provider(**fields):
+    return AIProviderRepository().create(**fields)
 
 
 @pytest.mark.django_db
 def test_ai_provider_config_mode_defaults():
-    provider = AIProviderConfig.objects.create(
+    provider = _create_provider(
         name="openai-defaults",
         provider_type="openai",
         is_active=True,
@@ -51,7 +63,7 @@ def test_create_provider_use_case_validates_api_mode():
 
 @pytest.mark.django_db
 def test_update_provider_use_case_validates_api_mode():
-    provider = AIProviderConfig.objects.create(
+    provider = _create_provider(
         name="openai-update-mode",
         provider_type="openai",
         is_active=True,
@@ -137,7 +149,7 @@ def test_quota_and_chat_serializers_reject_invalid_numeric_ranges():
 @pytest.mark.django_db
 def test_system_management_scope_cannot_mutate_personal_provider():
     owner = get_user_model().objects.create_user(username="personal-owner")
-    provider = AIProviderConfig.objects.create(
+    provider = _create_provider(
         name="personal-only",
         scope="user",
         owner_user=owner,
@@ -159,7 +171,7 @@ def test_system_management_scope_cannot_mutate_personal_provider():
 @pytest.mark.django_db
 def test_personal_management_scope_cannot_access_system_provider(monkeypatch):
     user = get_user_model().objects.create_user(username="personal-caller")
-    provider = AIProviderConfig.objects.create(
+    provider = _create_provider(
         name="system-only",
         scope="system",
         provider_type="openai",
@@ -190,7 +202,7 @@ def test_personal_management_scope_cannot_access_system_provider(monkeypatch):
 @pytest.mark.django_db
 def test_direct_use_case_rejects_budget_and_scope_escalation():
     owner = get_user_model().objects.create_user(username="scope-owner")
-    provider = AIProviderConfig.objects.create(
+    provider = _create_provider(
         name="personal-budget",
         scope="user",
         owner_user=owner,

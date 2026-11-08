@@ -528,7 +528,7 @@ mypy apps/ --strict
 | Consistency Check | push / PR（main、dev/**） | 治理/契约一致性，docs 变更也会跑（不加 paths-ignore） |
 | Security Scan | push / PR（main、dev/**）+ 每周一 02:00 UTC | 依赖与密钥扫描；定时仅为兜底，随提交扫描不变 |
 | Nightly Tests | 每日 02:00 UTC（北京 10:00） | 全量测试与覆盖率 |
-| CI Publication Postgres | push / PR 且命中 data_center/account 等路径 | PostgreSQL 发布链路契约 |
+| CI Publication Postgres | push / PR 且命中 data_center/account 等路径或 AI 凭据 schema/迁移验收路径 | PostgreSQL 发布链路及凭据退役契约 |
 | RC Gate | 推送 v*.*.*-rc* 标签 | 发布候选门禁 |
 
 所有 workflow 均支持 `workflow_dispatch` 手动触发，需要时不必等定时：

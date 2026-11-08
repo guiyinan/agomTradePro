@@ -16031,16 +16031,6 @@
               "positional_args": []
             },
             {
-              "field_type": "CharField",
-              "kwargs": {
-                "blank": true,
-                "help_text": "API Key (plaintext, deprecated - use api_key_encrypted)",
-                "max_length": 500
-              },
-              "name": "api_key",
-              "positional_args": []
-            },
-            {
               "field_type": "TextField",
               "kwargs": {
                 "blank": true,

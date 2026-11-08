@@ -149,6 +149,11 @@ class GithubStub:
             or "test_financial_publication_capacity_workflow" in identity
             or "test_financial_capacity_manifest" in identity
         ]
+        ai_provider_migration = [
+            identity
+            for identity in required
+            if "test_ai_provider_plaintext_removal_migration" in identity
+        ]
         financial_capacity = [
             identity
             for identity in required
@@ -162,6 +167,7 @@ class GithubStub:
             and identity not in account_final
             and identity not in financial_slice
             and identity not in financial_capacity
+            and identity not in ai_provider_migration
         ]
         self.junit_files = {
             "publication-postgres.xml": _junit_bytes(
@@ -178,6 +184,9 @@ class GithubStub:
             ),
             "financial-slice-sync-contracts.xml": _junit_bytes(
                 financial_slice, timestamp, self.skip_required_test
+            ),
+            "ai-provider-plaintext-removal-postgres.xml": _junit_bytes(
+                ai_provider_migration, timestamp, self.skip_required_test
             ),
         }
         if self.omit_junit_file is not None:

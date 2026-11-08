@@ -6,11 +6,14 @@ on:
     branches: [main, 'dev/**']
     paths:
       - 'apps/data_center/**'
+      - 'apps/ai_provider/migrations/**'
+      - 'apps/ai_provider/infrastructure/models.py'
       - 'apps/account/**'
       - 'apps/audit/**'
       - 'apps/simulated_trading/**'
       - 'tests/component/account/**'
       - 'tests/component/data_center/**'
+      - 'tests/component/test_ai_provider_plaintext_removal_migration.py'
       - 'tests/component/config_center/test_aud05_atomic_activation.py'
       - 'tests/support/account_authority_generation_flush.py'
       - 'tests/unit/ci/test_publication_postgres_workflow.py'
@@ -31,11 +34,14 @@ on:
     branches: [main, 'dev/**']
     paths:
       - 'apps/data_center/**'
+      - 'apps/ai_provider/migrations/**'
+      - 'apps/ai_provider/infrastructure/models.py'
       - 'apps/account/**'
       - 'apps/audit/**'
       - 'apps/simulated_trading/**'
       - 'tests/component/account/**'
       - 'tests/component/data_center/**'
+      - 'tests/component/test_ai_provider_plaintext_removal_migration.py'
       - 'tests/component/config_center/test_aud05_atomic_activation.py'
       - 'tests/support/account_authority_generation_flush.py'
       - 'tests/unit/ci/test_publication_postgres_workflow.py'
@@ -308,6 +314,20 @@ jobs:
           --ds=core.settings.critical_postgres_test
           --create-db
           -q -o addopts='' --junitxml=financial-slice-sync-contracts.xml
+      - name: Exercise AI-provider plaintext removal on PostgreSQL
+        env:
+          DATABASE_URL: postgresql://contract_test:disposable_ci_only@127.0.0.1:5432/agom_release_rehearsal_ci
+          DJANGO_SETTINGS_MODULE: core.settings.critical_postgres_test
+          AGOM_CRITICAL_TEST_DB_NAME: test_ref06_ai_provider_migration
+          SECRET_KEY: publication-postgres-ai-provider-migration-secret-key
+          ALLOWED_HOSTS: localhost,127.0.0.1,testserver
+        run: >-
+          python -m pytest
+          tests/component/test_ai_provider_plaintext_removal_migration.py
+          --ds=core.settings.critical_postgres_test
+          --confcutdir=tests/component
+          --create-db
+          -q -o addopts='' --junitxml=ai-provider-plaintext-removal-postgres.xml
       - name: Exercise statement logging maintenance window and failure recovery
         env:
           PGPASSWORD: disposable_ci_only
@@ -548,6 +568,7 @@ jobs:
               'backfill-control-plane-postgres.xml',
               'financial-capacity-postgres.xml',
               'financial-slice-sync-contracts.xml',
+              'ai-provider-plaintext-removal-postgres.xml',
           )
           cases = []
           for filename in junit_files:
@@ -598,6 +619,7 @@ jobs:
             backfill-control-plane-postgres.xml
             financial-capacity-postgres.xml
             financial-slice-sync-contracts.xml
+            ai-provider-plaintext-removal-postgres.xml
             role-bootstrap-postgres.log
             statement-logging-guard.log
             statement-logging-window.log

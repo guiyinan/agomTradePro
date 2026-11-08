@@ -247,7 +247,6 @@ class AIProviderRepository:
             if crypto is None:
                 raise ValueError("AI provider credential encryption is unavailable.")
             defaults["api_key_encrypted"] = crypto.encrypt(api_key)
-            defaults["api_key"] = ""  # Clear deprecated plaintext field
 
         AIProviderConfig.objects.update_or_create(
             name=config.name,

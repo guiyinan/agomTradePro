@@ -57,7 +57,6 @@ def test_repository_returns_empty_for_invalid_encrypted_api_key(settings):
         name="guardrail-invalid-encrypted",
         provider_type="custom",
         base_url="https://example.invalid/v1",
-        api_key="",
         api_key_encrypted=wrong_service.encrypt("sk-invalid-for-current-key"),
         default_model="gpt-4o-mini",
         api_mode="dual",
@@ -77,7 +76,6 @@ def test_repository_filters_out_unusable_active_system_providers(settings):
         name="guardrail-invalid-system-provider",
         provider_type="custom",
         base_url="https://invalid.example.invalid/v1",
-        api_key="",
         api_key_encrypted=wrong_service.encrypt("sk-invalid-for-current-key"),
         default_model="gpt-4o-mini",
         api_mode="dual",
@@ -111,7 +109,6 @@ def test_model_rejects_plaintext_in_encrypted_field(settings):
             name="guardrail-plaintext-in-encrypted-field",
             provider_type="custom",
             base_url="https://example.invalid/v1",
-            api_key="",
             api_key_encrypted="sk-misfiled-plaintext",
             default_model="gpt-4o-mini",
         )

@@ -2,7 +2,17 @@ import pytest
 from django.contrib.auth import get_user_model
 from django.urls import reverse
 
-from apps.ai_provider.infrastructure.models import AIProviderConfig
+from apps.ai_provider.infrastructure.repositories import AIProviderRepository
+from shared.infrastructure.crypto import FieldEncryptionService
+
+
+@pytest.fixture(autouse=True)
+def _provider_encryption_key(settings):
+    settings.AGOMTRADEPRO_ENCRYPTION_KEY = FieldEncryptionService.generate_key()
+
+
+def _create_provider(**fields):
+    return AIProviderRepository().create(**fields)
 
 
 @pytest.fixture
@@ -37,14 +47,13 @@ def test_usage_log_page_normalizes_untrusted_filters(
     assert response.context["filter_limit"] == expected_limit
     assert response.context["filter_status"] is None
     assert (
-        b"/tui/?screen=ai-ops.system-providers&amp;action=ai-ops.system-ai-logs"
-        in response.content
+        b"/tui/?screen=ai-ops.system-providers&amp;action=ai-ops.system-ai-logs" in response.content
     )
 
 
 @pytest.mark.django_db
 def test_system_management_page_includes_inactive_provider(client, page_admin):
-    inactive = AIProviderConfig.objects.create(
+    inactive = _create_provider(
         name="inactive-system-provider",
         scope="system",
         provider_type="openai",
@@ -104,7 +113,7 @@ def test_provider_detail_and_edit_publish_scope_aware_tui_deep_links(
             password="testpass123",
         )
     )
-    provider = AIProviderConfig.objects.create(
+    provider = _create_provider(
         name=f"{scope}-provider",
         scope=scope,
         owner_user=None if scope == "system" else user,
@@ -123,12 +132,10 @@ def test_provider_detail_and_edit_publish_scope_aware_tui_deep_links(
     assert detail_response.status_code == 200
     assert edit_response.status_code == 200
     detail_href = (
-        f"/tui/?screen={screen}&amp;action={detail_action}"
-        f"&amp;provider_id={provider.id}"
+        f"/tui/?screen={screen}&amp;action={detail_action}" f"&amp;provider_id={provider.id}"
     ).encode()
     edit_href = (
-        f"/tui/?screen={screen}&amp;action={update_action}"
-        f"&amp;provider_id={provider.id}"
+        f"/tui/?screen={screen}&amp;action={update_action}" f"&amp;provider_id={provider.id}"
     ).encode()
     assert detail_href in detail_response.content
     assert edit_href in edit_response.content
@@ -154,8 +161,7 @@ def test_personal_provider_and_log_pages_publish_user_tui_tasks(client):
     assert logs_response.status_code == 200
     assert (
         b"/tui/?screen=ai-ops.providers&amp;action=ai-ops.my-ai-logs"
-        b"&amp;status=success&amp;limit=25"
-        in logs_response.content
+        b"&amp;status=success&amp;limit=25" in logs_response.content
     )
 
 
@@ -166,7 +172,4 @@ def test_quota_page_publishes_admin_tui_task(client, page_admin):
     response = client.get(reverse("ai_provider:quota-manage"))
 
     assert response.status_code == 200
-    assert (
-        b"/tui/?screen=ai-ops.user-quotas&amp;action=ai-ops.list-user-quotas"
-        in response.content
-    )
+    assert b"/tui/?screen=ai-ops.user-quotas&amp;action=ai-ops.list-user-quotas" in response.content

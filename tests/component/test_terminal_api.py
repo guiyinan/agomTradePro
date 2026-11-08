@@ -4,6 +4,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 from django.contrib.auth.models import User
+from django.test import override_settings
 from rest_framework.test import APIClient
 
 from apps.agent_runtime.application.terminal_agent import (
@@ -14,7 +15,7 @@ from apps.agent_runtime.infrastructure.models import (
     AgentExecutionRecordModel,
     AgentProposalModel,
 )
-from apps.ai_provider.infrastructure.models import AIProviderConfig
+from apps.ai_provider.infrastructure.repositories import AIProviderRepository
 from apps.terminal.infrastructure.models import TerminalAuditLogORM
 from apps.terminal.infrastructure.tui_adapters import TuiInternalActionExecutor
 from core.exceptions import MissingConfigError
@@ -67,8 +68,9 @@ class TestDeprecatedCommandEndpoints:
 
 
 @pytest.mark.django_db
+@override_settings(AGOMTRADEPRO_ENCRYPTION_KEY="terminal-api-provider-test-key")
 def test_terminal_page_bootstraps_provider_selector(client, regular_user):
-    AIProviderConfig.objects.create(
+    AIProviderRepository().create(
         name="terminal-provider",
         provider_type="openai",
         is_active=True,

@@ -203,6 +203,16 @@ REQUIRED_POSTGRESQL_TESTS = (
     "tests.unit.data_center.test_financial_publication_capacity_workflow::test_django_checkpoint_repository_consumes_receipt_once_even_after_reapproval",
     "tests.unit.data_center.test_financial_publication_capacity_workflow::test_django_concurrent_duplicate_observes_live_claim_without_database_mutation",
     "tests.unit.data_center.test_financial_capacity_manifest::test_formal_manifest_uses_asset_subquery_for_5572_active_assets",
+    "tests.component.test_ai_provider_plaintext_removal_migration::test_failed_removal_preserves_schema_and_credential_values[plaintext]",
+    "tests.component.test_ai_provider_plaintext_removal_migration::test_failed_removal_preserves_schema_and_credential_values[mixed]",
+    "tests.component.test_ai_provider_plaintext_removal_migration::test_failed_removal_preserves_schema_and_credential_values[unprefixed]",
+    "tests.component.test_ai_provider_plaintext_removal_migration::test_failed_removal_preserves_schema_and_credential_values[wrong-key]",
+    "tests.component.test_ai_provider_plaintext_removal_migration::test_failed_removal_preserves_schema_and_credential_values[corrupt]",
+    "tests.component.test_ai_provider_plaintext_removal_migration::test_failed_removal_preserves_schema_and_credential_values[empty-decryption]",
+    "tests.component.test_ai_provider_plaintext_removal_migration::test_failed_removal_preserves_schema_and_credential_values[missing-key]",
+    "tests.component.test_ai_provider_plaintext_removal_migration::test_empty_provider_state_migrates_without_encryption_key[absent-row]",
+    "tests.component.test_ai_provider_plaintext_removal_migration::test_empty_provider_state_migrates_without_encryption_key[empty-row]",
+    "tests.component.test_ai_provider_plaintext_removal_migration::test_valid_removal_is_idempotent_and_preserves_decryptable_ciphertext",
 )
 REQUIRED_REPLAY_CASES = {
     "valid",
@@ -242,6 +252,7 @@ REQUIRED_JUNIT_FILES = {
     "backfill-control-plane-postgres.xml",
     "financial-capacity-postgres.xml",
     "financial-slice-sync-contracts.xml",
+    "ai-provider-plaintext-removal-postgres.xml",
 }
 RELEASE_POLICY_PATH = (
     Path(__file__).resolve().parents[1] / "governance" / "release_rehearsal_policy.json"

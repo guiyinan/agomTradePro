@@ -6,7 +6,7 @@ from django.conf import settings
 from django.contrib.auth.models import User
 from django.test import Client
 
-from apps.ai_provider.infrastructure.models import AIProviderConfig
+from apps.ai_provider.infrastructure.repositories import AIProviderRepository
 from apps.beta_gate.infrastructure.models import GateConfigModel
 
 
@@ -67,7 +67,7 @@ class TestOpsModernizedFlows:
         assert self.client.login(username="ops_user", password="test_password")
 
     def test_ai_provider_edit_form_updates_without_admin(self):
-        provider = AIProviderConfig.objects.create(
+        provider = AIProviderRepository().create(
             name="openai-main",
             scope="user",
             owner_user=self.user,
@@ -106,9 +106,8 @@ class TestOpsModernizedFlows:
         provider.refresh_from_db()
         assert provider.priority == 5
         assert provider.default_model == "gpt-4o"
-        # api_key is cleared after encryption; verify it was preserved via encrypted field
-        assert provider.api_key == ""  # plaintext cleared after encryption
-        assert provider.api_key_encrypted  # encrypted key should exist
+        assert provider.api_key_encrypted
+        assert AIProviderRepository().get_api_key(provider) == "sk-test-original"
         assert provider.extra_config == {"timeout": 30, "retry": 2}
 
     def test_beta_gate_create_edit_activate_without_admin(self):

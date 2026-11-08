@@ -9,7 +9,7 @@
 
 ## Authorized completion handoff-pending focus
 
-`execution_focus.handoff_pending` 是可选的交接等待标记，只适用于以下两项明确授权的完成交接：ASH-03 指向主计划 `docs/plans/a-share-usability-implementation-plan-2026-10-16.md#19.156`，ASH-07 指向同一主计划的 `#19.157`。标记必须精确包含非空 `completed_unit_id`、`owner_decision_ref`、`reason`；锚定单元必须是已登记且已 completed 的 repository 单元，引用必须精确匹配该单元获准的章节，且目标章节必须存在。其他单元、章节或引用不由此例外授权。
+`execution_focus.handoff_pending` 是可选的交接等待标记，只适用于以下明确授权的完成交接：ASH-03 指向主计划 `docs/plans/a-share-usability-implementation-plan-2026-10-16.md#19.156`，ASH-07 指向同一主计划的 `#19.157`，REF-03 指向 `#19.161`，REF-04 指向 `#19.162`，REF-06 指向 `#19.164`。REF-06 仅适用于主计划 §19.164 记录的本轮授权：原 Goal 全部退出门通过后结束当前焦点并等待正式交接，保留 ASH-08 合格来源恢复优先级，不自动启动后继。标记必须精确包含非空 `completed_unit_id`、`owner_decision_ref`、`reason`；锚定单元必须是已登记且已 completed 的 repository 单元，引用必须精确匹配该单元获准的章节，且目标章节必须存在。其他单元、章节或引用不由此例外授权。
 
 该标记只允许 `execution_focus.unit_id=null` 且没有 active repository 单元时等待下一次正式 Owner 焦点交接，并保留已 eligible 的后续计划。ASH-07 交接不会自动选择或激活 ASH-08、REF 单元或其他后继。完成单元必须同时从 `parallel_preparation` 移除，以符合该字段仅容纳未完成 repository work 的既有规则。标记不修改状态、依赖或 eligibility，不满足任何依赖，也不授予新 Goal、实施、生产或交易权限。没有有效标记时，原有规则仍拒绝以 null 隐藏 eligible repository work；标记与非空焦点、任何 active repository 单元、错误锚点、错误引用或额外/缺失字段并存均拒绝。
 

@@ -368,11 +368,13 @@ from apps.ai_provider.infrastructure.repositories import (
 # 获取提供商配置
 provider_repo = AIProviderRepository()
 provider = provider_repo.get_by_name('deepseek-primary')
+if provider is None:
+    raise ValueError('AI provider is not configured')
 
 # 创建适配器
 adapter = OpenAICompatibleAdapter(
     base_url=provider.base_url,
-    api_key=provider.api_key,
+    api_key=provider_repo.get_api_key(provider),
     default_model=provider.default_model
 )
 

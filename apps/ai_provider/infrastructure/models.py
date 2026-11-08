@@ -328,11 +328,6 @@ class AIProviderConfig(models.Model):
     base_url = models.URLField(
         max_length=500, help_text="API Base URL（如 https://api.openai.com/v1）"
     )
-    api_key = models.CharField(
-        max_length=500,
-        blank=True,
-        help_text="API Key (plaintext, deprecated - use api_key_encrypted)",
-    )
     api_key_encrypted = models.TextField(blank=True, help_text="API Key (encrypted at rest)")
     default_model = models.CharField(
         max_length=50, default="gpt-3.5-turbo", help_text="默认模型名称"
@@ -418,10 +413,8 @@ class AIProviderConfig(models.Model):
             raise ValidationError(
                 {"base_url": "base_url must be an HTTP(S) URL without credentials"}
             )
-        if not isinstance(self.api_key, str) or not isinstance(self.api_key_encrypted, str):
-            raise ValidationError("API key fields must be strings")
-        if self.api_key and self.api_key_encrypted:
-            raise ValidationError("plaintext and encrypted API keys cannot both be populated")
+        if not isinstance(self.api_key_encrypted, str):
+            raise ValidationError({"api_key_encrypted": "encrypted API key must be a string"})
         if self.api_key_encrypted and not self.api_key_encrypted.startswith(
             FieldEncryptionService.PREFIX
         ):

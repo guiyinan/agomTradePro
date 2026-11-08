@@ -47,6 +47,7 @@ AUTHORIZED_HANDOFF_SECTIONS = {
     "ASH-07": "19.157",
     "REF-03": "19.161",
     "REF-04": "19.162",
+    "REF-06": "19.164",
 }
 M1_REQUIRED_CHECKS = {
     "account_authorization",

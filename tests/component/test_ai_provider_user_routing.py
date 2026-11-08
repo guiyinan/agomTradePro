@@ -3,7 +3,7 @@ from django.contrib.auth import get_user_model
 
 from apps.ai_provider.infrastructure.client_factory import AIClientFactory
 from apps.ai_provider.infrastructure.models import AIProviderConfig, AIUsageLog, AIUserFallbackQuota
-from apps.ai_provider.infrastructure.repositories import AIUsageRepository
+from apps.ai_provider.infrastructure.repositories import AIProviderRepository, AIUsageRepository
 from shared.infrastructure.crypto import FieldEncryptionService
 
 
@@ -79,8 +79,13 @@ def user(db):
     )
 
 
+@pytest.fixture(autouse=True)
+def _provider_encryption_key(settings):
+    settings.AGOMTRADEPRO_ENCRYPTION_KEY = FieldEncryptionService.generate_key()
+
+
 def _create_provider(*, name, scope, base_url, owner_user=None, priority=1):
-    return AIProviderConfig.objects.create(
+    return AIProviderRepository().create(
         name=name,
         scope=scope,
         owner_user=owner_user,
@@ -234,10 +239,10 @@ def test_cached_scoped_client_rebuilds_adapter_after_provider_rotation(monkeypat
     client = AIClientFactory().get_client()
 
     first = client.chat_completion(messages=[{"role": "user", "content": "first"}])
-    AIProviderConfig.objects.filter(pk=provider.pk).update(
+    AIProviderRepository().update(
+        int(provider.pk),
         base_url="https://system-new.example.invalid/v1",
         api_key="sk-rotated",
-        api_key_encrypted="",
     )
     second = client.chat_completion(messages=[{"role": "user", "content": "second"}])
 
@@ -395,7 +400,6 @@ def test_system_routing_skips_provider_with_unusable_credentials(monkeypatch, se
         is_active=True,
         priority=1,
         base_url="https://system-invalid.example.invalid/v1",
-        api_key="",
         api_key_encrypted=wrong_service.encrypt("sk-invalid-for-current-key"),
         default_model="gpt-4o-mini",
     )

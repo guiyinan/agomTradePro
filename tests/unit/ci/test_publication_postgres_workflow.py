@@ -301,6 +301,24 @@ def _required_postgresql_tests() -> tuple[str, ...]:
     return value
 
 
+def _required_junit_files() -> set[str]:
+    """Read the required JUnit filename inventory without importing operational code."""
+    module = ast.parse(VALIDATOR_PATH.read_text(encoding="utf-8"))
+    assignment = next(
+        node
+        for node in module.body
+        if isinstance(node, ast.Assign)
+        and any(
+            isinstance(target, ast.Name) and target.id == "REQUIRED_JUNIT_FILES"
+            for target in node.targets
+        )
+    )
+    value = ast.literal_eval(assignment.value)
+    assert isinstance(value, set)
+    assert all(isinstance(item, str) for item in value)
+    return value
+
+
 def _evidence_gate_source() -> tuple[str, set[str]]:
     """Read the embedded validator and the official artifact's JUnit file list."""
 
@@ -440,6 +458,21 @@ FINANCIAL_SLICE_NODEIDS = (
     "tests/unit/data_center/test_financial_capacity_manifest.py::test_formal_manifest_uses_asset_subquery_for_5572_active_assets",
 )
 
+AI_PROVIDER_MIGRATION_FILE = "tests/component/test_ai_provider_plaintext_removal_migration.py"
+AI_PROVIDER_MIGRATION_REQUIRED_IDENTITIES = (
+    "tests.component.test_ai_provider_plaintext_removal_migration::test_failed_removal_preserves_schema_and_credential_values[plaintext]",
+    "tests.component.test_ai_provider_plaintext_removal_migration::test_failed_removal_preserves_schema_and_credential_values[mixed]",
+    "tests.component.test_ai_provider_plaintext_removal_migration::test_failed_removal_preserves_schema_and_credential_values[unprefixed]",
+    "tests.component.test_ai_provider_plaintext_removal_migration::test_failed_removal_preserves_schema_and_credential_values[wrong-key]",
+    "tests.component.test_ai_provider_plaintext_removal_migration::test_failed_removal_preserves_schema_and_credential_values[corrupt]",
+    "tests.component.test_ai_provider_plaintext_removal_migration::test_failed_removal_preserves_schema_and_credential_values[empty-decryption]",
+    "tests.component.test_ai_provider_plaintext_removal_migration::test_failed_removal_preserves_schema_and_credential_values[missing-key]",
+    "tests.component.test_ai_provider_plaintext_removal_migration::test_empty_provider_state_migrates_without_encryption_key[absent-row]",
+    "tests.component.test_ai_provider_plaintext_removal_migration::test_empty_provider_state_migrates_without_encryption_key[empty-row]",
+    "tests.component.test_ai_provider_plaintext_removal_migration::test_valid_removal_is_idempotent_and_preserves_decryptable_ciphertext",
+)
+AI_PROVIDER_MIGRATION_JUNIT = "ai-provider-plaintext-removal-postgres.xml"
+
 
 def _pytest_nodeids(command: str) -> tuple[str, ...]:
     """Return explicit file::test selectors from a workflow step command."""
@@ -468,6 +501,45 @@ def test_financial_slice_step_uses_the_strict_isolated_postgres_settings() -> No
     assert step["env"]["AGOM_CRITICAL_TEST_DB_NAME"] == "test_agom_release_rehearsal_ci"
     assert "--ds=core.settings.critical_postgres_test" in step["run"]
     assert "--create-db" in step["run"]
+
+
+def test_ai_provider_plaintext_migration_step_is_a_required_postgres_gate() -> None:
+    """The migration preservation and success cases run under isolated PostgreSQL."""
+    workflow = yaml.load(WORKFLOW_PATH.read_text(encoding="utf-8"), Loader=yaml.BaseLoader)
+    events = workflow["on"]
+    for event_name in ("pull_request", "push"):
+        paths = events[event_name]["paths"]
+        assert "apps/ai_provider/migrations/**" in paths
+        assert "apps/ai_provider/infrastructure/models.py" in paths
+        assert AI_PROVIDER_MIGRATION_FILE in paths
+        assert "apps/ai_provider/**" not in paths
+
+    steps = workflow["jobs"]["publication-postgres"]["steps"]
+    step = next(
+        item
+        for item in steps
+        if item.get("name") == "Exercise AI-provider plaintext removal on PostgreSQL"
+    )
+    command = step["run"].split()
+    assert tuple(command[:4]) == (
+        "python",
+        "-m",
+        "pytest",
+        AI_PROVIDER_MIGRATION_FILE,
+    )
+    assert step["env"]["DJANGO_SETTINGS_MODULE"] == CRITICAL_SETTINGS
+    assert step["env"]["AGOM_CRITICAL_TEST_DB_NAME"] == "test_ref06_ai_provider_migration"
+    assert step["env"]["DATABASE_URL"].endswith("/agom_release_rehearsal_ci")
+    assert "--ds=core.settings.critical_postgres_test" in step["run"]
+    assert "--confcutdir=tests/component" in step["run"]
+    assert "--create-db" in step["run"]
+    assert "-o addopts=''" in step["run"]
+    assert "--no-migrations" not in step["run"]
+    assert f"--junitxml={AI_PROVIDER_MIGRATION_JUNIT}" in step["run"]
+    assert set(AI_PROVIDER_MIGRATION_REQUIRED_IDENTITIES) <= set(_required_postgresql_tests())
+    assert AI_PROVIDER_MIGRATION_JUNIT in _required_junit_files()
+    _, artifact_junit_files = _evidence_gate_source()
+    assert AI_PROVIDER_MIGRATION_JUNIT in artifact_junit_files
 
 
 def test_account_research_authority_step_checks_scope_and_exact_junit_identities() -> None:

@@ -838,11 +838,17 @@ def _build_evidence(
         or "test_financial_publication_capacity_workflow" in test_id
         or "test_financial_capacity_manifest" in test_id
     }
+    ai_provider_migration_tests = {
+        test_id
+        for test_id in required_tests
+        if "test_ai_provider_plaintext_removal_migration" in test_id
+    }
     publication_tests = required_tests.difference(
         backfill_tests,
         account_final_tests,
         financial_capacity_tests,
         financial_slice_tests,
+        ai_provider_migration_tests,
     )
     junit_partitions = {
         "publication-postgres.xml": publication_tests,
@@ -850,6 +856,7 @@ def _build_evidence(
         "account-authority-final-revalidation-postgres.xml": account_final_tests,
         "financial-capacity-postgres.xml": financial_capacity_tests,
         "financial-slice-sync-contracts.xml": financial_slice_tests,
+        "ai-provider-plaintext-removal-postgres.xml": ai_provider_migration_tests,
     }
     assert all(junit_partitions.values())
     assert set().union(*junit_partitions.values()) == required_tests

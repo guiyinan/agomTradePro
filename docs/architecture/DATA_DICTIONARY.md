@@ -8,7 +8,7 @@
 
 - App 数：42
 - 模型数：599
-- 字段数：9345
+- 字段数：9344
 
 口径说明：仅覆盖 `apps/*/infrastructure/` 下的 `models.py`、`models/` 包与 `*_models.py`；字段为类体内显式赋值的 Django 字段，继承字段不展开，动态字段与隐式自增主键不在投影内。
 
@@ -2484,7 +2484,6 @@
 | `is_active` | `BooleanField` |  |  | True | 是否启用 |  |
 | `priority` | `IntegerField` |  |  | 10 | 优先级（数字越小越优先，用于failover） |  |
 | `base_url` | `URLField` |  |  |  | API Base URL（如 https://api.openai.com/v1） |  |
-| `api_key` | `CharField` |  |  |  | API Key (plaintext, deprecated - use api_key_encrypted) |  |
 | `api_key_encrypted` | `TextField` |  |  |  | API Key (encrypted at rest) |  |
 | `default_model` | `CharField` |  |  | gpt-3.5-turbo | 默认模型名称 |  |
 | `api_mode` | `CharField` |  |  | dual | OpenAI API 模式：dual/responses_only/chat_only |  |

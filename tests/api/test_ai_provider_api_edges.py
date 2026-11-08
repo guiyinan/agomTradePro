@@ -4,6 +4,17 @@ from django.test import override_settings
 from rest_framework.test import APIClient
 
 from apps.ai_provider.infrastructure.models import AIProviderConfig, AIUsageLog, AIUserFallbackQuota
+from apps.ai_provider.infrastructure.repositories import AIProviderRepository
+from shared.infrastructure.crypto import FieldEncryptionService
+
+
+@pytest.fixture(autouse=True)
+def _provider_encryption_key(settings):
+    settings.AGOMTRADEPRO_ENCRYPTION_KEY = FieldEncryptionService.generate_key()
+
+
+def _create_provider(**fields):
+    return AIProviderRepository().create(**fields)
 
 
 @pytest.fixture
@@ -32,7 +43,7 @@ def test_ai_provider_logs_reject_invalid_provider_filter(admin_client):
 
 @pytest.mark.django_db
 def test_ai_provider_logs_list_success_contract(admin_client):
-    provider = AIProviderConfig.objects.create(
+    provider = _create_provider(
         name="system-main",
         scope="system",
         provider_type="openai",
@@ -88,7 +99,7 @@ def test_user_usage_logs_filter_by_owned_provider_only(
         username="other-log-user",
         password="testpass123",
     )
-    owned_provider = AIProviderConfig.objects.create(
+    owned_provider = _create_provider(
         name="owned-personal",
         scope="user",
         owner_user=auth_user,
@@ -99,7 +110,7 @@ def test_user_usage_logs_filter_by_owned_provider_only(
         api_key="sk-owned",
         default_model="gpt-4o-mini",
     )
-    other_provider = AIProviderConfig.objects.create(
+    other_provider = _create_provider(
         name="other-personal",
         scope="user",
         owner_user=other_user,
@@ -173,13 +184,13 @@ def test_admin_can_create_system_ai_provider(admin_client):
     assert "main" not in payload["api_key"]
 
     provider = AIProviderConfig.objects.get(pk=payload["id"])
-    assert provider.api_key == ""
     assert provider.api_key_encrypted.startswith("encrypted:v1:")
+    assert AIProviderRepository().get_api_key(provider) == "sk-system-main"
 
 
 @pytest.mark.django_db
 def test_admin_can_toggle_system_ai_provider_active_state(admin_client):
-    provider = AIProviderConfig.objects.create(
+    provider = _create_provider(
         name="system-main",
         scope="system",
         provider_type="openai",
@@ -215,7 +226,7 @@ def test_user_can_list_own_personal_providers(authenticated_client, auth_user):
         username="other-provider-owner",
         password="testpass123",
     )
-    AIProviderConfig.objects.create(
+    _create_provider(
         name="personal-main",
         scope="user",
         owner_user=auth_user,
@@ -226,7 +237,7 @@ def test_user_can_list_own_personal_providers(authenticated_client, auth_user):
         api_key="sk-user",
         default_model="gpt-4o-mini",
     )
-    AIProviderConfig.objects.create(
+    _create_provider(
         name="system-main",
         scope="system",
         provider_type="openai",
@@ -236,7 +247,7 @@ def test_user_can_list_own_personal_providers(authenticated_client, auth_user):
         api_key="sk-system",
         default_model="gpt-4o-mini",
     )
-    AIProviderConfig.objects.create(
+    _create_provider(
         name="other-personal",
         scope="user",
         owner_user=other_user,
@@ -269,7 +280,7 @@ def test_personal_provider_detail_and_update_reject_foreign_owner(
         username="foreign-provider-owner",
         password="testpass123",
     )
-    foreign_provider = AIProviderConfig.objects.create(
+    foreign_provider = _create_provider(
         name="foreign-personal",
         scope="user",
         owner_user=other_user,
@@ -325,13 +336,41 @@ def test_user_can_create_personal_provider_without_api_key(
     assert payload["api_key_configured"] is False
 
     provider = AIProviderConfig.objects.get(pk=payload["id"])
-    assert provider.api_key == ""
     assert provider.api_key_encrypted == ""
 
 
 @pytest.mark.django_db
+def test_user_can_create_personal_provider_with_encrypted_api_key(
+    authenticated_client,
+    auth_user,
+):
+    plaintext = "sk-personal-api-create"
+    response = authenticated_client.post(
+        "/api/ai/me/providers/",
+        {
+            "name": "personal-with-key",
+            "provider_type": "custom",
+            "base_url": "https://example.invalid/personal-key",
+            "api_key": plaintext,
+            "is_active": True,
+        },
+        format="json",
+    )
+
+    assert response.status_code == 201
+    payload = response.json()
+    assert payload["api_key_configured"] is True
+    assert payload["api_key"] == "****"
+    assert plaintext not in response.content.decode("utf-8")
+
+    provider = AIProviderConfig.objects.get(pk=payload["id"], owner_user=auth_user)
+    assert provider.api_key_encrypted.startswith(FieldEncryptionService.PREFIX)
+    assert AIProviderRepository().get_api_key(provider) == plaintext
+
+
+@pytest.mark.django_db
 def test_admin_system_provider_list_includes_usage_fields(admin_client):
-    AIProviderConfig.objects.create(
+    _create_provider(
         name="system-main",
         scope="system",
         provider_type="openai",
@@ -357,7 +396,7 @@ def test_admin_system_provider_list_includes_usage_fields(admin_client):
 
 @pytest.mark.django_db
 def test_admin_can_get_system_ai_provider_detail(admin_client):
-    provider = AIProviderConfig.objects.create(
+    provider = _create_provider(
         name="system-main",
         scope="system",
         provider_type="openai",
@@ -451,7 +490,7 @@ def test_admin_partial_quota_update_preserves_unspecified_fields(admin_client, a
 
 @pytest.mark.django_db
 def test_system_provider_put_update_preserves_unspecified_fields(admin_client):
-    provider = AIProviderConfig.objects.create(
+    provider = _create_provider(
         name="system-main",
         scope="system",
         provider_type="openai",
@@ -487,7 +526,7 @@ def test_system_provider_put_update_preserves_unspecified_fields(admin_client):
 
 @pytest.mark.django_db
 def test_personal_provider_put_update_preserves_unspecified_fields(authenticated_client, auth_user):
-    provider = AIProviderConfig.objects.create(
+    provider = _create_provider(
         name="personal-main",
         scope="user",
         owner_user=auth_user,
@@ -535,7 +574,7 @@ def test_ai_provider_test_connection_success_contract(admin_client, monkeypatch)
         "apps.ai_provider.application.use_cases.build_openai_compatible_adapter",
         _HealthyAdapter,
     )
-    provider = AIProviderConfig.objects.create(
+    provider = _create_provider(
         name="system-main",
         scope="system",
         provider_type="openai",

@@ -14,8 +14,10 @@ def test_provider_admin_does_not_expose_plaintext_api_key_field():
     field_names = {
         field_name for _title, options in model_admin.fieldsets for field_name in options["fields"]
     }
+    model_field_names = {field.name for field in AIProviderConfig._meta.concrete_fields}
 
     assert isinstance(model_admin, AIProviderConfigAdmin)
+    assert "api_key" not in model_field_names
     assert "api_key" not in field_names
     assert "api_key_encrypted" not in field_names
     assert "masked_api_key" in field_names
@@ -39,8 +41,8 @@ def test_provider_admin_mask_does_not_disclose_key_suffix(settings):
     assert masked == "****"
     assert "1234" not in masked
     provider.refresh_from_db()
-    assert provider.api_key == ""
     assert provider.api_key_encrypted
+    assert AIProviderRepository().get_api_key(provider) == "sk-sensitive-suffix-1234"
 
 
 @pytest.mark.django_db

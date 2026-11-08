@@ -3,8 +3,9 @@ from unittest.mock import patch
 
 import pytest
 from django.contrib.auth import get_user_model
+from django.test import override_settings
 
-from apps.ai_provider.infrastructure.models import AIProviderConfig
+from apps.ai_provider.infrastructure.repositories import AIProviderRepository
 from apps.prompt.application.dtos import GenerateSignalResponse
 from apps.prompt.infrastructure.models import ChainConfigORM, PromptTemplateORM
 
@@ -522,8 +523,9 @@ def test_prompt_agent_portfolio_scope_is_blocked_before_provider_execution(authe
 
 
 @pytest.mark.django_db
+@override_settings(AGOMTRADEPRO_ENCRYPTION_KEY="prompt-api-edge-test-key")
 def test_prompt_chat_models_uses_supported_models_from_extra_config(authenticated_client):
-    AIProviderConfig.objects.create(
+    AIProviderRepository().create(
         name="openai-main",
         provider_type="openai",
         is_active=True,
@@ -541,8 +543,9 @@ def test_prompt_chat_models_uses_supported_models_from_extra_config(authenticate
 
 
 @pytest.mark.django_db
+@override_settings(AGOMTRADEPRO_ENCRYPTION_KEY="prompt-api-edge-test-key")
 def test_prompt_chat_providers_embeds_models_for_initial_selector(authenticated_client):
-    AIProviderConfig.objects.create(
+    AIProviderRepository().create(
         name="openai-main",
         provider_type="openai",
         is_active=True,

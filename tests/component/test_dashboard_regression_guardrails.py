@@ -15,6 +15,7 @@ from apps.account.infrastructure.repositories import (
     PositionRepository,
 )
 from apps.ai_provider.infrastructure.models import AIProviderConfig
+from apps.ai_provider.infrastructure.repositories import AIProviderRepository
 from apps.dashboard.application.queries import RegimeSummaryQuery
 from apps.dashboard.application.use_cases import GetDashboardDataUseCase
 from apps.data_center.application.macro_fact_governance import MacroFactGovernanceNormalizer
@@ -347,7 +348,8 @@ def test_dashboard_ai_insights_uses_ai_provider_config_model(settings, monkeypat
         signal_repo=DjangoSignalRepository(),
     )
 
-    AIProviderConfig.objects.create(
+    settings.AGOMTRADEPRO_ENCRYPTION_KEY = FieldEncryptionService.generate_key()
+    AIProviderRepository().create(
         name="dashboard-test-provider",
         provider_type="openai",
         is_active=True,
@@ -417,7 +419,6 @@ def test_dashboard_ai_insights_falls_back_when_encrypted_key_is_invalid(settings
         is_active=True,
         priority=1,
         base_url="https://example.test/v1",
-        api_key="",
         api_key_encrypted=wrong_service.encrypt("sk-invalid-for-current-key"),
         default_model="deepseek-chat",
     )
@@ -474,11 +475,10 @@ def test_dashboard_ai_insights_skips_invalid_provider_when_later_provider_is_usa
         is_active=True,
         priority=1,
         base_url="https://invalid.example.test/v1",
-        api_key="",
         api_key_encrypted=wrong_service.encrypt("sk-invalid-for-current-key"),
         default_model="deepseek-chat",
     )
-    AIProviderConfig.objects.create(
+    AIProviderRepository().create(
         name="dashboard-valid-provider",
         provider_type="openai",
         is_active=True,

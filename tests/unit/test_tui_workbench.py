@@ -12,13 +12,14 @@ from django.contrib.auth.models import User
 from django.contrib.sessions.backends.db import SessionStore
 from django.db import OperationalError
 from django.test import Client as DjangoClient
+from django.test import override_settings
 from django.utils import timezone
 from rest_framework.authentication import SessionAuthentication
 from rest_framework.test import APIRequestFactory, force_authenticate
 
 import apps.terminal.application.tui_workbench as tui_workbench_module
 import apps.terminal.interface.api_views as tui_api_views
-from apps.ai_provider.infrastructure.models import AIProviderConfig
+from apps.ai_provider.infrastructure.repositories import AIProviderRepository
 from apps.alpha.infrastructure.models import QlibModelRegistryModel
 from apps.config_center.application.runtime_public import activate_runtime_profile_patch
 from apps.config_center.infrastructure.repositories import ConfigCenterSettingsRepository
@@ -2168,10 +2169,11 @@ def test_tui_providers_screen_hides_personal_provider_detail_without_rows(client
     assert "param.api.get.api.ai.me.providers.pk" not in actions
 
 
+@override_settings(AGOMTRADEPRO_ENCRYPTION_KEY="tui-workbench-provider-test-key")
 def test_tui_providers_screen_shows_personal_provider_detail_when_user_has_provider(
     client, tui_user
 ):
-    AIProviderConfig.objects.create(
+    AIProviderRepository().create(
         name="tui-personal-provider",
         scope="user",
         owner_user=tui_user,

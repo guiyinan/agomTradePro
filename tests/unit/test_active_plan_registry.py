@@ -442,6 +442,7 @@ def test_registry_accepts_explicit_ash07_closure_handoff_without_starting_succes
     [
         ("REF-01", "REF-03", "REF-04", "19.161"),
         ("REF-03", "REF-04", "REF-06", "19.162"),
+        ("REF-04", "REF-06", "REF-05", "19.164"),
     ],
 )
 def test_registry_ref_closure_requires_explicit_handoff_without_starting_successor(
