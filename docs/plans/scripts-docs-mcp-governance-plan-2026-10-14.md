@@ -145,7 +145,7 @@ GOV-05 首批候选按影响排序如下。
 
 两份通用备份脚本分别 126／118 行，其中 115 行精确匹配。先核实源根目录、目标及保留行为，再评估复用。发布线的共享 JSON、候选与证据处理候选按各自入口契约比较，原观察在同一索引。
 
-合批原件在本机 `.tmp/gov04-20261108/root/validation-index.json`，本次审计封存 SHA-256 `750b43cb72f1c212138ddc599080f05b02b5e2b573bed33d83f95bc9d1d65311`。该索引记录候选、各组原件与哈希、执行命令、已知失败和超时。最终提交的 CI 观察会在同一目录以实际提交绑定。
+本机持续索引为 `.tmp/gov04-20261108/root/validation-index.json`，包含候选、各组原件与哈希、执行命令、已知失败和超时。审计检查点 `.tmp/gov04-20261108/root/validation-index.before-closure.json` 的 SHA-256 为 `750b43cb72f1c212138ddc599080f05b02b5e2b573bed33d83f95bc9d1d65311`。审计交付提交 `d2fbd413eb6918d49b636f836a9ce0e6dfaf0fe9` 五项适用 CI 均通过，原件 `.tmp/gov04-20261108/root/audit-ci-final.json` 的 SHA-256 为 `e25c02557c2ff1fcbbadf51fbe2994ad4b7e890a92b7161c2d136f58eafe02a5`。治理清单 v322 正式登记 GOV-04 整单元收口，焦点清空并以 A 股计划 §19.165 保留后续交接。登记提交的 CI 单独绑定。
 
 ## 7. S2 / S3：修复、覆盖率与规则复用
 

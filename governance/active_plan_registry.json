@@ -1,14 +1,14 @@
 {
-  "version": "2026-11-08.v321",
+  "version": "2026-11-08.v322",
   "updated_at": "2026-11-08",
   "execution_focus": {
-    "unit_id": "GOV-04",
+    "unit_id": null,
     "allowed_parallel_execution_modes": [
       "production",
       "external",
       "governance"
     ],
-    "policy": "Owner 2026-11-08 formally hands the sole repository focus from completed REF-06 to GOV-04 S1 script audit; see A-share section 19.165 and scripts governance section 6. Audit the pinned source with three Luna max isolated preparations and Root serialized integration, whole-unit acceptance and exact latest CI. Qualified ASH-08 genuine same-day sources regain priority. REF-02 remains externally blocked with specified archive restoration evidence aligned; REF-05 stays read-only. GOV-05/06/07, DATA-18 and other boundaries retain their registered scope and state. No release, production operation or implementation of audit findings is authorized by S1.",
+    "policy": "GOV-04 S1 completed on audited inputs ac03fc5ce2de5c07ef19bb31e434c2e68b1f36ce and accepted delivery d2fbd413eb6918d49b636f836a9ce0e6dfaf0fe9. All high-risk script owners, inputs/outputs/exit, callers and executed negatives or explicit gaps are recorded in scripts governance section 6.4. The sole repository focus is released pending formal handoff. Qualified ASH-08 genuine same-day sources retain priority, REF-05 remains read-only, and REF-02 remains externally blocked with specified archive recovery aligned. GOV-05, DATA-18 and deferred boundaries remain registered as before.",
     "parallel_preparation": [
       {
         "unit_id": "ASH-08",
@@ -26,7 +26,12 @@
         "shared_git_serialized": true,
         "isolated_test_resources": true
       }
-    ]
+    ],
+    "handoff_pending": {
+      "completed_unit_id": "GOV-04",
+      "owner_decision_ref": "docs/plans/a-share-usability-implementation-plan-2026-10-16.md#19.165",
+      "reason": "GOV-04 passed the S1 exit gate and exact delivery CI. Await the next formal handoff with qualified ASH-08 real-source priority."
+    }
   },
   "workstreams": [
     {
@@ -378,7 +383,7 @@
       "priority": "P1",
       "owner": "Repository Owner / Account / Research / Data Center / Portfolio / Governance / SDK / MCP",
       "status": "active",
-      "next_gate": "GOV-04 owns the sole repository focus for S1. Bind all high-risk script contracts, caller and failure evidence or explicit gaps to a frozen audit candidate, denominator and first bounded repair batch. REF-01/03/04/06 completed; REF-02 remains externally blocked, with the specified archive recovery aligned in convergence section REF-02. Qualified ASH-08 retains priority and REF-05 remains read-only.",
+      "next_gate": "GOV-04 S1 script audit completed with candidate-bound contracts, failure evidence or explicit gaps, and the first bounded remediation batch. GOV-05 remains planned pending its own formal handoff. REF-01/03/04/06 completed, REF-02 externally blocked with specified archive recovery aligned, REF-05 read-only. Qualified ASH-08 retains priority.",
       "documents": [
         {
           "path": "docs/plans/scripts-docs-mcp-governance-plan-2026-10-14.md",
@@ -1608,7 +1613,7 @@
         "wave": 3,
         "priority": "P1",
         "execution_mode": "repository",
-        "status": "active",
+        "status": "completed",
         "title": "Audit script ownership, callers, risk and failure-test evidence",
         "depends_on": [
           "GOV-03"
