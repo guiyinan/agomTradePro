@@ -11,6 +11,7 @@ from pathlib import Path
 
 import pytest
 
+from scripts import replay_ref05_public_evidence as replay
 from scripts.replay_ref05_public_evidence import run_replay
 from scripts.select_tests import select_tests
 
@@ -82,7 +83,10 @@ def _fixture(tmp_path: Path) -> tuple[Path, Path]:
         "code_inputs": [
             {
                 "path": source_path,
-                "sha256": hashlib.sha256((REPO / source_path).read_bytes()).hexdigest(),
+                "sha256": hashlib.sha256(
+                    (REPO / source_path).read_bytes().replace(b"\r\n", b"\n")
+                ).hexdigest(),
+                "hash_basis": "lf_normalized_bytes",
             }
         ],
         "parameters": {
@@ -146,14 +150,44 @@ def test_replay_uses_public_versions_without_tmp_or_database(tmp_path: Path) -> 
     assert result["database_writes"] == 0
 
 
+def test_code_hash_accepts_both_checkout_line_endings(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    recipe, evidence = _fixture(tmp_path)
+    code_root = tmp_path / "checkout"
+    source = "apps/regime/domain/services_v2.py"
+    target = code_root / source
+    target.parent.mkdir(parents=True)
+    raw = (REPO / source).read_bytes().replace(b"\r\n", b"\n")
+    monkeypatch.setattr(replay, "REPO", code_root)
+    target.write_bytes(raw)
+    linux_result = run_replay(recipe, evidence)
+    target.write_bytes(raw.replace(b"\n", b"\r\n"))
+    assert run_replay(recipe, evidence) == linux_result
+
+
 @pytest.mark.parametrize(
-    "mutation", ["payload", "value", "empty", "duplicate", "naive", "escape", "code", "archive"]
+    "mutation",
+    [
+        "payload",
+        "raw_newlines",
+        "value",
+        "empty",
+        "duplicate",
+        "naive",
+        "escape",
+        "code",
+        "archive",
+    ],
 )
 def test_replay_rejects_invalid_evidence(tmp_path: Path, mutation: str) -> None:
     recipe, evidence = _fixture(tmp_path)
     data = json.loads(recipe.read_text())
     if mutation == "payload":
         (evidence / "pmi.html").write_text("tampered")
+    elif mutation == "raw_newlines":
+        path = evidence / "pmi.html"
+        path.write_bytes(path.read_bytes().replace(b"</title>", b"</title>\r\n"))
     elif mutation == "value":
         data["sources"][1]["observations"][0]["value"] = "99"
     elif mutation == "empty":

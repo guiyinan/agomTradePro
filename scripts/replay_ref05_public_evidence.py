@@ -81,12 +81,15 @@ def _json_hash(value: object) -> str:
     return _hash(json.dumps(value, sort_keys=True, separators=(",", ":"), default=str).encode())
 
 
-def _verified_file(root: Path, relative: object, expected_hash: object) -> bytes:
+def _verified_file(
+    root: Path, relative: object, expected_hash: object, *, normalize_newlines: bool = False
+) -> bytes:
     path = (root / _text(relative)).resolve()
     if not path.is_relative_to(root.resolve()):
         raise ValueError("Evidence path escapes its declared root")
     raw = path.read_bytes()
-    if _hash(raw) != _text(expected_hash):
+    hash_input = raw.replace(b"\r\n", b"\n") if normalize_newlines else raw
+    if _hash(hash_input) != _text(expected_hash):
         raise ValueError(f"Evidence hash mismatch: {relative}")
     return raw
 
@@ -271,7 +274,9 @@ def run_replay(recipe_path: Path, evidence_dir: Path) -> dict[str, Any]:
         raise ValueError("Unsupported replay recipe")
     for item in _array(recipe["code_inputs"]):
         code = _object(item)
-        _verified_file(REPO, code["path"], code["sha256"])
+        if code.get("hash_basis") != "lf_normalized_bytes":
+            raise ValueError("Code input must declare portable LF hash semantics")
+        _verified_file(REPO, code["path"], code["sha256"], normalize_newlines=True)
     params = {key: _number(value) for key, value in _object(recipe["parameters"]).items()}
     calculator = RegimeCalculatorV2(ThresholdConfig(**params))
     roles = _object(recipe["roles"])
