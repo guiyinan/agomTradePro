@@ -1,16 +1,32 @@
-# Environment
-venv/
-agomtradepro/
-!sdk/agomtradepro/
-!sdk/agomtradepro/**
-.env
-.env.local
-.env.*.local
-*.sqlite3
-*.sqlite3.*
-db.sqlite3
+# Local environments (the SDK package sdk/agomtradepro/ is source code)
+/venv/
+/.venv/
+/env/
+/agomtradepro/
 
-# Python
+# Local credentials; sanitized examples and templates belong in Git
+.env
+.env.*
+*.env
+!.env.example
+!.env.*.example
+!*.env.example
+!.env.sample
+!.env.*.sample
+!*.env.sample
+!.env.template
+!.env.*.template
+!*.env.template
+.mcp.json
+/.codex/config.toml
+/doc/admin_credentials.md
+/doc/secrets.md
+/doc/passwords.md
+/docs/deployment/docker命令.txt
+/docs/deployment/docker命令-远端.txt
+/cookies.txt
+
+# Python bytecode, extension modules and packaging output
 __pycache__/
 *.py[cod]
 *$py.class
@@ -19,63 +35,56 @@ __pycache__/
 build/
 develop-eggs/
 dist/
-downloads/
+/downloads/
 eggs/
 .eggs/
-lib/
-lib64/
-parts/
+/lib/
+/lib64/
+/parts/
 sdist/
-var/
+/var/
 wheels/
 *.egg-info/
 .installed.cfg
 *.egg
 
-# Testing
+# Test, coverage and type-checking caches
 .pytest_cache/
 .ruff_cache/
 .coverage
-htmlcov/
-.tox/
-.hypothesis/
-test_db_*.sqlite3
+.coverage.*
+coverage.xml
 coverage-*.xml
-reports/coverage-*.xml
-reports/journey-results.xml
-reports/quality/*.json
-reports/security/bandit-report.json
-reports/security/pip-audit-report.json
-reports/security/pip-audit-requirements.json
-reports/security/safety-report.json
-reports/security/safety-requirements.json
-
-# Type checking
+htmlcov/
+/htmlcov-*/
+.tox/
+.nox/
+.hypothesis/
 .mypy_cache/
 /.mypy_cache_*/
 .dmypy.json
 dmypy.json
 .pyre/
 .pytype/
+/pytest-tmp/
+/pytest-tmp-*/
+/.pytest_*/
 
-# IDE
+# IDE and operating-system files
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
-
-# OS
 .DS_Store
 Thumbs.db
+*.stackdump
 
-# Logs
-*.log
-
-# Build / download cache (local only)
-.cache/
+# Dependency and browser caches
 node_modules/
-# Retain only the Linux wheel placeholder in Git, not downloaded cache files.
+.playwright-cli/
+.cache/
+# Retain the Linux wheel placeholder, not downloaded wheels.
 !/.cache/
 /.cache/*
 !/.cache/pip-wheels/
@@ -84,78 +93,59 @@ node_modules/
 /.cache/pip-wheels/linux-py311/*
 !/.cache/pip-wheels/linux-py311/.keep
 
-# Django
-media/
-# static/ - 开发源代码目录，需要提交
-# staticfiles/ - 生产部署目录，通过 collectstatic 生成，也提交（4.7MB）
-
-# Jupyter
-.ipynb_checkpoints/
-*.ipynb
-
-# Distribution
-.Pear
-
-# Security - DO NOT COMMIT CREDENTIALS
-doc/admin_credentials.md
-doc/secrets.md
-doc/passwords.md
-/screenshots
-sqlite-backup.json
-sqlite-backup-utf8.json
-/backups/vps-secrets/
-/backups/vps-postgres/
-/docs/deployment/docker命令.txt
-/docs/deployment/docker命令-远端.txt
-
-# Celery beat schedule files
+# Local databases, runtime state and downloaded datasets
+*.sqlite3
+*.sqlite3.*
+*.sqlite3-*
 celerybeat-schedule*
-# /reports
-# /tests/playwright/reports
-/tests/playwright/reports/screenshots
-/.claude
-.claude/settings.local.json
-/output
-pytest-tmp/
-/pytest-tmp-*/
-tmp_tui_*.txt
-tmp_tui_*.json
-docs/deployment/docker命令-远端.txt
-docs/docs.7z
-.mcp.json
-/.codex/config.toml
-tmp_asset_screen_before.png
-docs/DEV_DIARY.md
-*.sqlite3-journal
-/data/qlib
-/data/*.json
-*.type
-/mlruns
-/tests/screenshots
-/.tmp
-/tests/uat/reports
-/test_screenshots
-/reports
-*.gz
-/logs
-cookies.txt
-/tmp
+/sqlite-backup.json
+/sqlite-backup-utf8.json
+media/
+/data/qlib/
+/data/macro_data_latest.json
+/data/regime_latest.json
+/data/update_summary.json
+/mlruns/
+# static/ and staticfiles/ remain versioned under the current project policy.
+# collectstatic compression copies are generated alongside those files.
+/staticfiles/**/*.gz
+/staticfiles/**/*.br
+
+# Generated evidence and local archives; commit reusable code and concise
+# receipts/indexes under scripts/, tests/ and docs/ (see docs/GIT_WORKFLOW.md).
+*.log
+*.log.gz
+/logs/
+# The consistency baseline is an active CI input, not a generated report.
+/reports/*
+!/reports/consistency/
+/reports/consistency/*
+!/reports/consistency/baseline.json
+/artifacts/
+/backups/
+/output/
+/debug/
+/screenshots/
+/test_screenshots/
+/tests/screenshots/
+/tests/playwright/reports/screenshots/
+/tests/uat/reports/
+
+# Short-lived workspace files; these are not implementation delivery locations
+/.tmp/
+/tmp/
+/.tmp_*/
+/.tmp-*/
 /.codex_tmp/
-/debug
-*.stackdump
-docs/xiaohongshu-draft-2026-04-24.md
-.playwright-cli/
-/.codex-test-deps
-.tmp_black_cache/24.10.0/Grammar3.13.5.final.0.pickle
-/.tmp_black_cache
-/.tmp_*
-/.tmp-*
-/.pytest_*/
-/backups
-# Generated QA/deployment originals stay local or in an external archive.
-# Commit concise receipts under docs/; do not force-add logs or source snapshots.
-/artifacts
-/pytest-tmp-s6-recovery
 /.codex-*
-/htmlcov-unit/
-/.coverage.*
+/.claude/
+/tmp_tui_*.txt
+/tmp_tui_*.json
+/tmp_asset_screen_before.png
+
+# Notebook checkpoints are generated; notebooks themselves may be source
+.ipynb_checkpoints/
+
+# Existing local document bundles and personal drafts
+/docs/docs.7z
+/docs/xiaohongshu-draft-2026-04-24.md
