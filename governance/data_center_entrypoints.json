@@ -23,7 +23,7 @@
       "runbook": 7,
       "runtime_config_key": 48,
       "scheduler_writer": 18,
-      "script": 19,
+      "script": 20,
       "sdk": 57,
       "terminal_tui": 32,
       "test_evidence": 126,
@@ -32,11 +32,11 @@
     "by_status": {
       "active_public": 906,
       "adjacent_operational": 346,
-      "candidate-review": 44,
+      "candidate-review": 45,
       "compatibility": 139,
       "retired_blocked": 0
     },
-    "total": 1435
+    "total": 1436
   },
   "entries": [
     {
@@ -12065,6 +12065,16 @@
       "id": "script:scripts/refresh_s6_isolated_market_graph.py:__main__:",
       "locator": "",
       "path": "scripts/refresh_s6_isolated_market_graph.py",
+      "status": "candidate-review",
+      "symbol": "__main__",
+      "target": ""
+    },
+    {
+      "category": "script",
+      "evidence": "static Data Center reference; explicit owner review required",
+      "id": "script:scripts/replay_ref05_public_evidence.py:__main__:",
+      "locator": "",
+      "path": "scripts/replay_ref05_public_evidence.py",
       "status": "candidate-review",
       "symbol": "__main__",
       "target": ""
