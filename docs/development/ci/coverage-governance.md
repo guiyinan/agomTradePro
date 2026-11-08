@@ -2,7 +2,7 @@
 
 ## Source of truth
 
-Coverage configuration is owned by `.coveragerc`. Thresholds and completion targets are owned by
+Repository coverage configuration is owned by `.coveragerc`. Thresholds and completion targets are owned by
 `governance/testing_quality_baseline.json`. Workflows must not duplicate those values.
 
 Fast Feedback reads `coverage.domain_module_minimum` through
@@ -35,6 +35,34 @@ layer, and file so prioritization does not depend on manually reading XML.
 `scripts/generate_quality_report.py` reads those four scope reports and publishes their line and
 branch values independently. Its `overall_coverage` is the `apps` repository value, not an average
 of cumulative Unit/Integration/Guardrail reports.
+
+## Script reliability pilot
+
+GOV-05 measures its three Python entrypoints with the independent
+`config/coverage/gov05-script-reliability.coveragerc` profile. The profile measures branches and
+includes Python subprocesses so CLI refusals count. The initial per-entrypoint floors live under
+`coverage.script_reliability` in the quality baseline. The POSIX restore script is measured
+separately by the outcomes of its isolated CLI safety tests, including whether mocked destructive
+commands were reached. The pilot uses a separate coverage data file and denominator.
+
+For an isolated Python coverage run, use coverage.py 7.10 or newer and a fresh output directory.
+
+```bash
+mkdir -p .tmp
+output=$(mktemp -d .tmp/gov05-coverage.XXXXXX)
+export COVERAGE_FILE="$PWD/$output/.coverage"
+profile=config/coverage/gov05-script-reliability.coveragerc
+python -m coverage run --rcfile="$profile" -m pytest -q \
+  tests/unit/test_decision_write_surface_freeze.py \
+  tests/unit/test_web_to_tui_cutover_readiness.py \
+  tests/unit/data_center/test_data02_reconciliation_evidence.py
+python -m coverage combine --rcfile="$profile" --keep
+python -m coverage json --rcfile="$profile" -o "$output/coverage.json"
+```
+
+Compare `covered_lines / num_statements` and `covered_branches / num_branches` for each entrypoint
+with its own floor. Fast Feedback selects each entrypoint's CLI contract tests on a source-only
+change through the existing `logic_guardrails` profile.
 
 ## Branch measurement
 

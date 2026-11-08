@@ -21,6 +21,8 @@ from scripts.record_data02_reconciliation_evidence import (
     record_data02_reconciliation_evidence,
 )
 
+REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
+
 
 def _payload() -> dict[str, object]:
     """Build a complete externally captured select-only snapshot envelope."""
@@ -188,12 +190,131 @@ def test_recorder_cli_defaults_to_dry_run_and_supports_explicit_write(
     assert list((output_root / "data02-reconciliation").rglob("*.json"))
 
 
+@pytest.mark.parametrize(
+    ("input_kind", "expected_error"),
+    [
+        ("missing", "error: snapshot I/O failed\n"),
+        ("malformed", "error: invalid snapshot evidence\n"),
+        ("invalid", "error: invalid snapshot evidence\n"),
+    ],
+)
+def test_recorder_cli_rejects_invalid_inputs_without_artifacts(
+    tmp_path: Path,
+    input_kind: str,
+    expected_error: str,
+) -> None:
+    """Failure inputs exit safely before the explicit writer creates any artifact."""
+
+    input_path = tmp_path / "snapshot.json"
+    if input_kind == "malformed":
+        input_path.write_bytes(b'{"secret_marker":"never-echo-this",')
+    elif input_kind == "invalid":
+        payload = _payload()
+        payload["private_marker"] = "never-echo-this"
+        input_path.write_bytes(_payload_bytes(payload))
+    else:
+        assert input_kind == "missing"
+
+    output_root = tmp_path / "evidence"
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(REPOSITORY_ROOT / "scripts" / "record_data02_reconciliation_evidence.py"),
+            "--input",
+            str(input_path),
+            "--output-root",
+            str(output_root),
+            "--write",
+        ],
+        cwd=REPOSITORY_ROOT,
+        timeout=30,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 1
+    assert result.stdout == ""
+    assert not output_root.exists()
+    assert result.stderr == expected_error
+
+
+def test_recorder_cli_keeps_valid_dry_run_and_explicit_write_contract(tmp_path: Path) -> None:
+    """Valid subprocess runs keep the established JSON summary and write behavior."""
+
+    input_path = tmp_path / "snapshot.json"
+    input_path.write_bytes(_payload_bytes())
+    output_root = tmp_path / "evidence"
+    command = [
+        sys.executable,
+        str(REPOSITORY_ROOT / "scripts" / "record_data02_reconciliation_evidence.py"),
+        "--input",
+        str(input_path),
+        "--output-root",
+        str(output_root),
+    ]
+    dry_run = subprocess.run(
+        command,
+        cwd=REPOSITORY_ROOT,
+        timeout=30,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert dry_run.returncode == 0
+    assert dry_run.stderr == ""
+    dry_output = json.loads(dry_run.stdout)
+    assert set(dry_output) == {
+        "artifact_sha256",
+        "evidence_scope",
+        "production_claim",
+        "production_ready",
+        "reconciliation_clean",
+        "runtime_enablement",
+        "source_payload_sha256",
+        "written",
+    }
+    assert dry_output["evidence_scope"] == "data02_external_snapshot_reconciliation"
+    assert dry_output["production_claim"] is False
+    assert dry_output["production_ready"] is False
+    assert dry_output["runtime_enablement"] == "not_authorized"
+    assert dry_output["written"] is False
+    assert not output_root.exists()
+
+    write_run = subprocess.run(
+        [*command, "--write"],
+        cwd=REPOSITORY_ROOT,
+        timeout=30,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert write_run.returncode == 0
+    assert write_run.stderr == ""
+    write_output = json.loads(write_run.stdout)
+    assert set(write_output) == set(dry_output) | {"path"}
+    assert write_output["artifact_sha256"] == dry_output["artifact_sha256"]
+    assert write_output["source_payload_sha256"] == dry_output["source_payload_sha256"]
+    assert write_output["written"] is True
+    artifact_path = Path(write_output["path"])
+    artifact_payload = artifact_path.read_bytes()
+    assert (
+        data02_reconciliation_artifact_sha256(artifact_payload) == write_output["artifact_sha256"]
+    )
+    assert artifact_path.with_suffix(".sha256").read_text(encoding="ascii") == (
+        f"{write_output['artifact_sha256']}\n"
+    )
+
+
 def test_recorder_script_runs_directly_from_repository_root() -> None:
     """The server-side recorder is usable without a PYTHONPATH adjustment."""
 
     result = subprocess.run(
         [sys.executable, "scripts/record_data02_reconciliation_evidence.py", "--help"],
         cwd=Path(__file__).resolve().parents[3],
+        timeout=30,
         check=False,
         capture_output=True,
         text=True,

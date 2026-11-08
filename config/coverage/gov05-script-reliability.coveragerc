@@ -1,0 +1,17 @@
+[run]
+branch = true
+parallel = true
+patch = subprocess
+include =
+    */scripts/check_decision_write_surface_freeze.py
+    */scripts/check_web_to_tui_cutover_readiness.py
+    */scripts/record_data02_reconciliation_evidence.py
+
+[paths]
+scripts =
+    scripts
+    */scripts
+
+[report]
+precision = 1
+show_missing = true

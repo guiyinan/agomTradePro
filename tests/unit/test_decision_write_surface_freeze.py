@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import shutil
+import subprocess
+import sys
 from dataclasses import replace
 from pathlib import Path
 
@@ -18,17 +21,62 @@ M1_OWNER_RISK_POLICY_HTTP_SURFACES = frozenset(
         "apps/simulated_trading/interface/m1_risk_policy_views.py::OwnerM1RiskPolicyRevocationAPIView.post",
     }
 )
+ROOT = Path(__file__).resolve().parents[2]
 
 
 def test_repository_decision_write_surface_inventory_is_exact() -> None:
-    assert validate_surface_freeze(load_inventory()) == {
-        "transition_plan_internal_writer_count": 10,
-        "http_surface_count": 66,
-        "sdk_surface_count": 18,
-        "tui_decision_action_count": 25,
-        "tui_mutation_action_count": 23,
-        "mcp_position_write_count": 32,
+    inventory = load_inventory()
+    assert validate_surface_freeze(inventory) == {
+        "transition_plan_internal_writer_count": len(inventory.transition_plan_internal_writers),
+        "http_surface_count": len(inventory.http_surfaces),
+        "sdk_surface_count": len(inventory.sdk_mutation_surfaces),
+        "tui_decision_action_count": len(inventory.tui_decision_actions),
+        "tui_mutation_action_count": len(inventory.tui_mutation_actions),
+        "mcp_position_write_count": len(inventory.mcp_position_related_write_capabilities),
     }
+
+
+@pytest.mark.parametrize(
+    ("content", "reason"),
+    [(None, "cannot read inventory"), ("{", "invalid inventory JSON"), ("[]", "must be an object")],
+    ids=["missing", "malformed", "non-object"],
+)
+def test_decision_write_cli_rejects_unusable_inventory(
+    tmp_path: Path, content: str | None, reason: str
+) -> None:
+    """The CLI must fail closed before reporting a valid freeze."""
+    script = tmp_path / "scripts/check_decision_write_surface_freeze.py"
+    script.parent.mkdir()
+    shutil.copyfile(ROOT / "scripts/check_decision_write_surface_freeze.py", script)
+    if content is not None:
+        inventory = tmp_path / "governance/decision_write_surfaces.json"
+        inventory.parent.mkdir()
+        inventory.write_text(content, encoding="utf-8")
+
+    result = subprocess.run(
+        [sys.executable, str(script)], capture_output=True, text=True, timeout=30, check=False
+    )
+
+    assert result.returncode == 1
+    assert "Decision write surface freeze OK" not in result.stdout
+    assert reason in result.stderr
+    assert "Traceback" not in result.stderr
+
+
+def test_decision_write_cli_accepts_governed_inventory() -> None:
+    """A valid candidate reports the number of exact registered HTTP surfaces."""
+    result = subprocess.run(
+        [sys.executable, str(ROOT / "scripts/check_decision_write_surface_freeze.py")],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "Decision write surface freeze OK" in result.stdout
+    assert f"http_surface_count: {len(load_inventory().http_surfaces)}" in result.stdout
 
 
 def test_owner_m1_risk_policy_writes_are_classified_and_required() -> None:

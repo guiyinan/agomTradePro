@@ -28,6 +28,27 @@ select_tests_func = select_tests.select_tests
 class TestSelectTests(unittest.TestCase):
     """测试智能测试选择逻辑"""
 
+    def test_gov05_script_only_changes_select_their_direct_contracts(self) -> None:
+        contracts = {
+            "scripts/vps-restore.sh": "tests/unit/test_vps_restore_script.py",
+            "scripts/record_data02_reconciliation_evidence.py": (
+                "tests/unit/data_center/test_data02_reconciliation_evidence.py"
+            ),
+            "scripts/check_web_to_tui_cutover_readiness.py": (
+                "tests/unit/test_web_to_tui_cutover_readiness.py"
+            ),
+            "scripts/check_decision_write_surface_freeze.py": (
+                "tests/unit/test_decision_write_surface_freeze.py"
+            ),
+        }
+        for source, test in contracts.items():
+            for changed in ([source], [source.replace("/", "\\"), "shared/numeric.py"]):
+                with self.subTest(changed=changed):
+                    targets = select_tests_func(
+                        get_changed_modules(changed), changed, "logic_guardrails"
+                    )
+                    self.assertIn(test, targets)
+
     def test_sdk_only_change_selects_sdk_and_mcp_contracts_for_pull_requests(self):
         changed = ["sdk/agomtradepro/modules/signal.py"]
         targets = select_tests_func(get_changed_modules(changed), changed, "logic_guardrails")

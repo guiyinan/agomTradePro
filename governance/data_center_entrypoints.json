@@ -15,7 +15,7 @@
       "management_command_edge": 65,
       "mcp_tool": 40,
       "migration_evidence": 14,
-      "operational_dispatch_edge": 72,
+      "operational_dispatch_edge": 74,
       "operational_script": 40,
       "orchestration_entry": 18,
       "public_port": 97,
@@ -26,17 +26,17 @@
       "script": 19,
       "sdk": 57,
       "terminal_tui": 32,
-      "test_evidence": 125,
+      "test_evidence": 126,
       "workflow_step": 11
     },
     "by_status": {
       "active_public": 906,
-      "adjacent_operational": 344,
-      "candidate-review": 43,
+      "adjacent_operational": 346,
+      "candidate-review": 44,
       "compatibility": 139,
       "retired_blocked": 0
     },
-    "total": 1432
+    "total": 1435
   },
   "entries": [
     {
@@ -8582,6 +8582,16 @@
     {
       "category": "operational_dispatch_edge",
       "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
+      "id": "operational_dispatch_edge:scripts/select_tests.py:vps-restore.sh:token:vps-restore.sh",
+      "locator": "token:vps-restore.sh",
+      "path": "scripts/select_tests.py",
+      "status": "adjacent_operational",
+      "symbol": "vps-restore.sh",
+      "target": "scripts/vps-restore.sh"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
       "id": "operational_dispatch_edge:scripts/start-dev.ps1:manage.py migrate:token:manage.py migrate",
       "locator": "token:manage.py migrate",
       "path": "scripts/start-dev.ps1",
@@ -8698,6 +8708,16 @@
       "status": "adjacent_operational",
       "symbol": "dropdb",
       "target": "postgres:dropdb"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
+      "id": "operational_dispatch_edge:scripts/vps-restore.sh:pg_dump:token:pg_dump",
+      "locator": "token:pg_dump",
+      "path": "scripts/vps-restore.sh",
+      "status": "adjacent_operational",
+      "symbol": "pg_dump",
+      "target": "postgres:pg_dump"
     },
     {
       "category": "operational_dispatch_edge",
@@ -9057,7 +9077,7 @@
       "path": "scripts/select_tests.py",
       "status": "adjacent_operational",
       "symbol": "__main__",
-      "target": "scripts/deploy-on-vps.sh,scripts/deploy-vps.ps1,scripts/remote_build_deploy_vps.py"
+      "target": "scripts/deploy-on-vps.sh,scripts/deploy-vps.ps1,scripts/remote_build_deploy_vps.py,scripts/vps-restore.sh"
     },
     {
       "category": "operational_script",
@@ -9117,7 +9137,7 @@
       "path": "scripts/vps-restore.sh",
       "status": "adjacent_operational",
       "symbol": "__main__",
-      "target": "postgres:createdb,postgres:dropdb,postgres:pg_restore,scripts/vps-restore.sh"
+      "target": "postgres:createdb,postgres:dropdb,postgres:pg_dump,postgres:pg_restore,scripts/vps-restore.sh"
     },
     {
       "category": "operational_script",
@@ -14237,6 +14257,16 @@
       "path": "tests/unit/test_verify_postgres_backup_restore.py",
       "status": "active_public",
       "symbol": "test_verify_postgres_backup_restore",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/unit/test_vps_restore_script.py:test_vps_restore_script:",
+      "locator": "",
+      "path": "tests/unit/test_vps_restore_script.py",
+      "status": "candidate-review",
+      "symbol": "test_vps_restore_script",
       "target": ""
     },
     {

@@ -38,6 +38,19 @@ def _load_test_id_migrations() -> dict[str, str]:
 
 TEST_ID_MIGRATIONS = _load_test_id_migrations()
 
+SCRIPT_TEST_MAP = {
+    "scripts/vps-restore.sh": "tests/unit/test_vps_restore_script.py",
+    "scripts/record_data02_reconciliation_evidence.py": (
+        "tests/unit/data_center/test_data02_reconciliation_evidence.py"
+    ),
+    "scripts/check_web_to_tui_cutover_readiness.py": (
+        "tests/unit/test_web_to_tui_cutover_readiness.py"
+    ),
+    "scripts/check_decision_write_surface_freeze.py": (
+        "tests/unit/test_decision_write_surface_freeze.py"
+    ),
+}
+
 
 # 模块到测试的映射表
 MODULE_TEST_MAP: dict[str, list[str]] = {
@@ -492,11 +505,18 @@ def get_changed_modules(changed_files: list[str]) -> set[str]:
     return modules
 
 
-def get_changed_test_targets(changed_files: list[str]) -> set[str]:
-    """Return directly changed pytest files or their containing test directories."""
+def get_changed_test_targets(
+    changed_files: list[str], *, include_script_contracts: bool = False
+) -> set[str]:
+    """Return changed tests and the focused contracts for changed reliability scripts."""
     targets: set[str] = set()
     for path in changed_files:
         normalized = path.replace("\\", "/")
+        script_test = SCRIPT_TEST_MAP.get(normalized) if include_script_contracts else None
+        if script_test is not None:
+            if not (PROJECT_ROOT / script_test).is_file():
+                raise ValueError(f"Missing direct script test: {script_test}")
+            targets.add(script_test)
         parts = Path(normalized).parts
         is_repo_test = normalized.startswith("tests/")
         is_app_test = len(parts) >= 3 and parts[0] == "apps" and parts[2] == "tests"
@@ -534,13 +554,14 @@ def select_tests(
         base_targets = select_tests(modules - {"sdk"}, remaining_files, profile)
         return sorted(set(base_targets) | {"sdk/tests/test_sdk/", "sdk/tests/test_mcp/"})
 
-    changed_test_targets = get_changed_test_targets(changed_files)
+    use_logic_guardrails_profile = profile == "logic_guardrails"
+    changed_test_targets = get_changed_test_targets(
+        changed_files, include_script_contracts=use_logic_guardrails_profile
+    )
     tests = set(changed_test_targets)
 
     # 始终添加核心 guardrail 测试
     tests.update(CORE_GUARDRAIL_TESTS)
-
-    use_logic_guardrails_profile = profile == "logic_guardrails"
 
     changed_app_modules = {
         Path(path).parts[1]

@@ -357,18 +357,39 @@ Restore latest backup:
 ```bash
 bash /opt/agomtradepro/current/scripts/vps-restore.sh \
   --target-dir /opt/agomtradepro/current \
-  --backup-dir /opt/agomtradepro/backups
+  --backup-dir /opt/agomtradepro/backups \
+  --confirm-target agomtradepro
 ```
 
-Restore specific files:
+For a PostgreSQL restore, the target database must match `POSTGRES_DB` and the
+database name in `DATABASE_URL` in `deploy/.env`. The PostgreSQL service must
+already be running in this Compose project; the restore script will not start a
+missing database container. Before dropping the target, it stops the application
+writers, verifies a custom-format dump of the current database, and saves that
+rollback archive with a SHA-256 sidecar under `backups/database/`. A failed
+rollback preflight leaves the database intact, but application writers may
+remain stopped; inspect service status and restart only services that should be
+running.
+
+`vps-backup.sh` writes matching database hashes to
+`backups/meta/manifest-<timestamp>.txt`; the restore script requires exactly one
+matching entry and checks the staged archive against it. For an archive produced
+elsewhere or moved without its manifest, pass the SHA-256 from the independent
+original backup manifest:
 
 ```bash
+DATABASE_SHA256="<sha256 from the original backup manifest>"
 bash /opt/agomtradepro/current/scripts/vps-restore.sh \
   --target-dir /opt/agomtradepro/current \
   --backup-dir /opt/agomtradepro/backups \
-  --sqlite-file /opt/agomtradepro/backups/database/db_backup_20260208-130000.sqlite3.gz \
-  --redis-file /opt/agomtradepro/backups/redis/dump-20260208-130000.rdb.gz
+  --database-file /opt/agomtradepro/backups/database/postgres-20260208-130000.dump \
+  --database-sha256 "$DATABASE_SHA256" \
+  --confirm-target agomtradepro
 ```
+
+For a legacy SQLite deployment, keep using `--sqlite-file`; that path retains
+the existing SQLite restore behavior. The `--confirm-target` and
+`--database-sha256` requirements apply to PostgreSQL restores.
 
 ## 12. Troubleshooting
 

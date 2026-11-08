@@ -114,6 +114,21 @@ class ReadinessResult:
     gates: list[GateResult]
 
 
+class _ReadinessInputError(ValueError):
+    """Represent a bounded failure to load a required cutover input."""
+
+    def __init__(self, input_name: str, failure_kind: str) -> None:
+        self.input_name = input_name
+        self.failure_kind = failure_kind
+        super().__init__(f"required input {failure_kind}: {input_name}")
+
+    @property
+    def detail(self) -> str:
+        """Return a stable diagnostic without exposing local paths or contents."""
+
+        return f"required input {self.failure_kind}: {self.input_name}"
+
+
 def _load_object(path: Path) -> dict[str, Any]:
     """Load one JSON object from disk."""
 
@@ -765,12 +780,32 @@ def evaluate_readiness(
         raise ValueError("evaluated_at must be an exact UTC timestamp on the as_of date")
     exact_evaluated_at = exact_evaluated_at.astimezone(UTC)
 
-    matrix_bytes = _normalized_source_bytes(matrix_path)
+    try:
+        matrix_bytes = _normalized_source_bytes(matrix_path)
+    except OSError as exc:
+        raise _ReadinessInputError("matrix", "unavailable") from exc
+    except UnicodeError as exc:
+        raise _ReadinessInputError("matrix", "invalid") from exc
     matrix_sha256 = hashlib.sha256(matrix_bytes).hexdigest()
-    catalog_payload = _load_object(catalog_path)
-    catalog = _load_catalog(catalog_path)
-    evidence = _load_object(evidence_path)
-    routes = required_route_pages(matrix_path)
+    try:
+        catalog_payload = _load_object(catalog_path)
+        catalog = _load_catalog(catalog_path)
+    except OSError as exc:
+        raise _ReadinessInputError("catalog", "unavailable") from exc
+    except (UnicodeError, ValueError) as exc:
+        raise _ReadinessInputError("catalog", "invalid") from exc
+    try:
+        evidence = _load_object(evidence_path)
+    except OSError as exc:
+        raise _ReadinessInputError("evidence", "unavailable") from exc
+    except (UnicodeError, ValueError) as exc:
+        raise _ReadinessInputError("evidence", "invalid") from exc
+    try:
+        routes = required_route_pages(matrix_path)
+    except OSError as exc:
+        raise _ReadinessInputError("matrix", "unavailable") from exc
+    except (UnicodeError, csv.Error) as exc:
+        raise _ReadinessInputError("matrix", "invalid") from exc
     tasks = required_task_keys(catalog)
     gates: list[GateResult] = []
 
@@ -830,13 +865,18 @@ def evaluate_readiness(
         if retained_observation is not None
         else None
     )
-    expected_binding = build_candidate_binding(
-        stable_version=stable_version,
-        candidate_commit=candidate_commit,
-        matrix_path=matrix_path,
-        graph_path=graph_path,
-        runtime_manifest_path=runtime_manifest_path,
-    )
+    try:
+        expected_binding = build_candidate_binding(
+            stable_version=stable_version,
+            candidate_commit=candidate_commit,
+            matrix_path=matrix_path,
+            graph_path=graph_path,
+            runtime_manifest_path=runtime_manifest_path,
+        )
+    except OSError as exc:
+        raise _ReadinessInputError("candidate sources", "unavailable") from exc
+    except (UnicodeError, ValueError) as exc:
+        raise _ReadinessInputError("candidate sources", "invalid") from exc
     candidate_binding_ok = binding_matches(candidate.get("binding"), expected_binding)
     candidate_source_ok = all(
         _candidate_contains_source(
@@ -1195,16 +1235,27 @@ def main() -> None:
     if cast(datetime, evaluated_at) > current_time:
         parser.error("--evaluated-at cannot be in the future")
 
-    result = evaluate_readiness(
-        matrix_path=args.matrix.resolve(),
-        catalog_path=args.catalog.resolve(),
-        evidence_path=args.evidence.resolve(),
-        as_of=as_of,
-        evaluated_at=cast(datetime, evaluated_at),
-        graph_path=args.graph.resolve(),
-        runtime_manifest_path=args.runtime_manifest.resolve(),
-        plan_registry_path=args.plan_registry.resolve(),
-    )
+    input_failure: _ReadinessInputError | None = None
+    try:
+        result = evaluate_readiness(
+            matrix_path=args.matrix.resolve(),
+            catalog_path=args.catalog.resolve(),
+            evidence_path=args.evidence.resolve(),
+            as_of=as_of,
+            evaluated_at=cast(datetime, evaluated_at),
+            graph_path=args.graph.resolve(),
+            runtime_manifest_path=args.runtime_manifest.resolve(),
+            plan_registry_path=args.plan_registry.resolve(),
+        )
+    except _ReadinessInputError as exc:
+        input_failure = exc
+        result = ReadinessResult(
+            decision="DENY",
+            as_of=as_of.isoformat(),
+            required_route_pages=0,
+            required_tasks=0,
+            gates=[GateResult("input_validation", False, exc.detail)],
+        )
     if args.json:
         print(json.dumps(asdict(result), ensure_ascii=False, indent=2))
     else:
@@ -1212,7 +1263,7 @@ def main() -> None:
         for gate in result.gates:
             marker = "PASS" if gate.passed else "FAIL"
             print(f"[{marker}] {gate.key}: {gate.detail}")
-    if args.require_allow and result.decision != "ALLOW":
+    if input_failure is not None or (args.require_allow and result.decision != "ALLOW"):
         raise SystemExit(1)
 
 

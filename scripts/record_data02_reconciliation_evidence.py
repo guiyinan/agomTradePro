@@ -23,6 +23,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from apps.data_center.application.data02_reconciliation_evidence import (
+    Data02ReconciliationEvidenceError,
     data02_reconciliation_artifact_sha256,
     parse_data02_reconciliation_snapshot,
     serialize_data02_reconciliation_evidence,
@@ -108,11 +109,18 @@ def main() -> int:
     """Validate one snapshot pair and print a stable dry-run/write summary."""
 
     args = _parser().parse_args()
-    result = record_data02_reconciliation_evidence(
-        args.input,
-        output_root=args.output_root,
-        write=args.write,
-    )
+    try:
+        result = record_data02_reconciliation_evidence(
+            args.input,
+            output_root=args.output_root,
+            write=args.write,
+        )
+    except OSError:
+        print("error: snapshot I/O failed", file=sys.stderr)
+        return 1
+    except Data02ReconciliationEvidenceError:
+        print("error: invalid snapshot evidence", file=sys.stderr)
+        return 1
     output: dict[str, object] = {
         "artifact_sha256": result.artifact_sha256,
         "evidence_scope": "data02_external_snapshot_reconciliation",

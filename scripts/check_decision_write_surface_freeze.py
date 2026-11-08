@@ -73,6 +73,8 @@ def load_inventory(path: Path = DEFAULT_INVENTORY) -> DecisionWriteSurfaceInvent
     """Load and validate the machine inventory."""
 
     payload = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise ValueError("decision write surface inventory must be an object")
     if payload.get("version") != 1:
         raise ValueError("decision write surface inventory version must be 1")
     raw_writer_scopes = _sorted_text_list(
@@ -454,7 +456,24 @@ def validate_surface_freeze(inventory: DecisionWriteSurfaceInventory) -> dict[st
 def main() -> int:
     """Run the repository decision-write freeze guard."""
 
-    summary = validate_surface_freeze(load_inventory())
+    try:
+        summary = validate_surface_freeze(load_inventory())
+    except json.JSONDecodeError as exc:
+        print(
+            f"Decision write surface freeze failed: invalid inventory JSON or governed JSON "
+            f"at line {exc.lineno}, column {exc.colno}",
+            file=sys.stderr,
+        )
+        return 1
+    except (OSError, UnicodeError):
+        print(
+            "Decision write surface freeze failed: cannot read inventory or governed source",
+            file=sys.stderr,
+        )
+        return 1
+    except ValueError as exc:
+        print(f"Decision write surface freeze: {exc}", file=sys.stderr)
+        return 1
     print("Decision write surface freeze OK")
     for key, value in summary.items():
         print(f"- {key}: {value}")

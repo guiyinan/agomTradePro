@@ -290,16 +290,23 @@ Create backup:
 bash scripts/vps-backup.sh --target-dir /opt/agomtradepro/current --backup-dir /opt/agomtradepro/backups --keep-days 14
 ```
 
-Restore latest backup:
+Restore the latest PostgreSQL backup into the running Compose PostgreSQL service. Set
+`--confirm-target` to the database name in the deployment configuration.
 
 ```sh
-bash scripts/vps-restore.sh --target-dir /opt/agomtradepro/current --backup-dir /opt/agomtradepro/backups
+bash scripts/vps-restore.sh \
+  --target-dir /opt/agomtradepro/current \
+  --backup-dir /opt/agomtradepro/backups \
+  --confirm-target agomtradepro \
+  --no-redis
 ```
 
-The backup script detects the configured database engine. PostgreSQL backups
-use a verified custom-format `pg_dump`; legacy SQLite deployments retain the
-online backup and integrity-check path. Restore validates the selected archive
-before replacing the active database.
+The backup script detects the configured database engine. PostgreSQL backups use
+a verified custom-format `pg_dump`. The restore checks the source archive against
+the backup manifest and saves a verified rollback archive before dropping the confirmed
+database. For an explicitly selected archive from another backup producer, pass its
+independently recorded digest with `--database-sha256`. Legacy SQLite deployments retain
+the online backup and integrity-check path.
 
 ## Rollback Semantics: Code Rollback Is Not Data Rollback
 

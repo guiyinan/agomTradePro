@@ -6,6 +6,7 @@ import csv
 import hashlib
 import json
 import subprocess
+import sys
 from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
@@ -51,6 +52,40 @@ def _file_digest(path: Path) -> str:
         else path.read_bytes()
     )
     return hashlib.sha256(content).hexdigest()
+
+
+def _run_readiness_cli(*arguments: str) -> subprocess.CompletedProcess[str]:
+    """Run the real cutover command in a subprocess."""
+
+    return subprocess.run(
+        [
+            sys.executable,
+            str(ROOT / "scripts/check_web_to_tui_cutover_readiness.py"),
+            *arguments,
+        ],
+        cwd=ROOT,
+        capture_output=True,
+        check=False,
+        text=True,
+        encoding="utf-8",
+    )
+
+
+def _assert_readiness_cli_json(payload_text: str) -> dict[str, Any]:
+    """Assert the stable top-level JSON contract emitted by the CLI."""
+
+    payload = json.loads(payload_text)
+    assert set(payload) == {
+        "decision",
+        "as_of",
+        "required_route_pages",
+        "required_tasks",
+        "gates",
+    }
+    assert payload["decision"] in {"ALLOW", "DENY"}
+    assert isinstance(payload["gates"], list)
+    assert all(set(gate) == {"key", "passed", "detail"} for gate in payload["gates"])
+    return payload
 
 
 def _repository_head() -> str:
@@ -1266,3 +1301,81 @@ def test_approvals_require_role_bound_structured_attestations(tmp_path: Path) ->
 
     assert result.decision == "DENY"
     assert next(gate for gate in result.gates if gate.key == "cutover_approvals").passed is False
+
+
+def test_real_cli_reports_missing_evidence_as_bounded_failure_in_both_modes(
+    tmp_path: Path,
+) -> None:
+    """Missing evidence has a bounded DENY report and a nonzero process result."""
+
+    missing_path = tmp_path / "missing-cutover-evidence.json"
+    report = _run_readiness_cli("--evidence", str(missing_path), "--json")
+    assert report.returncode == 1
+    assert report.stderr == ""
+    assert len(report.stdout) <= 1024
+    report_payload = _assert_readiness_cli_json(report.stdout)
+    assert report_payload["decision"] == "DENY"
+    report_gate = next(
+        gate for gate in report_payload["gates"] if gate["key"] == "input_validation"
+    )
+    assert report_gate["passed"] is False
+    assert report_gate["detail"] == "required input unavailable: evidence"
+
+    hard_gate = _run_readiness_cli("--evidence", str(missing_path), "--json", "--require-allow")
+    assert hard_gate.returncode == 1
+    assert hard_gate.stderr == ""
+    hard_payload = _assert_readiness_cli_json(hard_gate.stdout)
+    assert hard_payload["decision"] == "DENY"
+
+
+def test_real_cli_reports_malformed_evidence_as_bounded_failure_in_both_modes(
+    tmp_path: Path,
+) -> None:
+    """Malformed JSON is a bounded input failure without echoing source bytes."""
+
+    malformed_path = tmp_path / "malformed-cutover-evidence.json"
+    malformed_path.write_text("!" * 8192, encoding="utf-8")
+
+    report = _run_readiness_cli("--evidence", str(malformed_path), "--json")
+    assert report.returncode == 1
+    assert report.stderr == ""
+    assert len(report.stdout) <= 1024
+    report_payload = _assert_readiness_cli_json(report.stdout)
+    assert report_payload["decision"] == "DENY"
+    report_gate = next(
+        gate for gate in report_payload["gates"] if gate["key"] == "input_validation"
+    )
+    assert report_gate["passed"] is False
+    assert report_gate["detail"] == "required input invalid: evidence"
+    assert "!" not in report.stdout
+
+    hard_gate = _run_readiness_cli("--evidence", str(malformed_path), "--json", "--require-allow")
+    assert hard_gate.returncode == 1
+    assert hard_gate.stderr == ""
+    hard_payload = _assert_readiness_cli_json(hard_gate.stdout)
+    assert hard_payload["decision"] == "DENY"
+
+
+def test_real_cli_keeps_stale_candidate_evidence_denied_in_both_modes(
+    tmp_path: Path,
+) -> None:
+    """A stale candidate binding remains DENY for reports and nonzero for authorization."""
+
+    payload = json.loads(EVIDENCE_PATH.read_text(encoding="utf-8"))
+    payload["candidate"]["candidate_commit"] = "0" * 40
+    stale_path = tmp_path / "stale-cutover-evidence.json"
+    stale_path.write_text(json.dumps(payload), encoding="utf-8")
+
+    report = _run_readiness_cli("--evidence", str(stale_path), "--json")
+    assert report.returncode == 0
+    report_payload = _assert_readiness_cli_json(report.stdout)
+    assert report_payload["decision"] == "DENY"
+    stable_window = next(
+        gate for gate in report_payload["gates"] if gate["key"] == "stable_version_window"
+    )
+    assert stable_window["passed"] is False
+
+    hard_gate = _run_readiness_cli("--evidence", str(stale_path), "--json", "--require-allow")
+    assert hard_gate.returncode == 1
+    hard_payload = _assert_readiness_cli_json(hard_gate.stdout)
+    assert hard_payload["decision"] == "DENY"
