@@ -1,0 +1,219 @@
+{
+  "schema": "ref05.public-replay.v1",
+  "purpose": "Bounded retrospective PUBLIC macro diagnostic; no DB, network, trading or performance experiment.",
+  "data_code_candidate": "8acf659ba3c0cc86f937ae45ad2e46ca21c83762",
+  "frozen_at_utc": "2026-11-08T13:44:44.617648+00:00",
+  "scope": {
+    "official_dates": "Source-stated dates accepted from named NBS releases, usable next calendar day in Asia/Shanghai. Not independently archived historical bytes.",
+    "archive_clock": "Separate third-party capture with matching CDX payload digest.",
+    "configuration": "2026 local configuration frozen before calculation; not asserted to have been deployed in 2024.",
+    "historical_system_replay": false,
+    "production_eligibility": false
+  },
+  "archive": {
+    "default_relative_dir": "artifacts/ref05-public-20261108",
+    "availability": "local_only; raw evidence is intentionally not in Git",
+    "index_path": "archive-index.json",
+    "index_sha256": "1a4119c4446a1190f5f405076ab156942c81dcdfa8403df2dd428c5a69207acb"
+  },
+  "code_inputs": [
+    {
+      "path": "apps/regime/domain/services_v2.py",
+      "sha256": "bb2b5373b0cd04714c8b04cf3b546bc6ca028e2b9710d0c977586fced6fccc4c"
+    },
+    {
+      "path": "apps/regime/application/regime_v2_use_cases.py",
+      "sha256": "e9edccd1ece7246954cb9000687dbcc9fe8de2a33a0e3c7409345ca6c49c9a87"
+    },
+    {
+      "path": "apps/data_center/domain/pit.py",
+      "sha256": "59127483b7a2d1d81169f0f8411b07c109a014e53cae39e9615b62e4168058a3"
+    },
+    {
+      "path": "apps/data_center/infrastructure/pit_repository.py",
+      "sha256": "f7180b9e9a075dd2ee854250c62d32dc202c7f0a0c891d978c5e67681e799355"
+    }
+  ],
+  "parameters": {
+    "pmi_expansion": 50.0,
+    "pmi_contraction": 50.0,
+    "cpi_high": 2.0,
+    "cpi_low": 1.0,
+    "cpi_deflation": 0.0,
+    "momentum_weight": 0.3,
+    "high_confidence_threshold": 0.6
+  },
+  "roles": {
+    "growth": "CN_PMI",
+    "inflation": "CN_CPI_NATIONAL_YOY"
+  },
+  "cutoffs": [
+    {
+      "at": "2024-11-08T09:00:00+08:00",
+      "expected_periods": {
+        "CN_PMI": [
+          "2024-07",
+          "2024-08",
+          "2024-09",
+          "2024-10"
+        ],
+        "CN_CPI_NATIONAL_YOY": [
+          "2024-06",
+          "2024-07",
+          "2024-08",
+          "2024-09"
+        ]
+      }
+    },
+    {
+      "at": "2024-11-11T09:00:00+08:00",
+      "expected_periods": {
+        "CN_PMI": [
+          "2024-07",
+          "2024-08",
+          "2024-09",
+          "2024-10"
+        ],
+        "CN_CPI_NATIONAL_YOY": [
+          "2024-07",
+          "2024-08",
+          "2024-09",
+          "2024-10"
+        ]
+      }
+    }
+  ],
+  "sources": [
+    {
+      "label": "nbs-pmi-oct",
+      "parser": "nbs_pmi_table",
+      "url": "https://www.stats.gov.cn/sj/zxfb/202410/t20241031_1957214.html",
+      "raw_path": "http/nbs-pmi-oct/body.bin",
+      "sha256": "208f2f44639d1858f9ee14586418f7a68bcadc76d681296f46a8de7da8adf019",
+      "title": "2024年10月中国采购经理指数运行情况 - 国家统计局",
+      "published_at": "2024-10-31T09:30:00+08:00",
+      "retrieved_at": "2026-11-08T13:44:59.5769364+00:00",
+      "indicator": "CN_PMI",
+      "unit": "指数",
+      "observations": [
+        {
+          "period": "2024-07",
+          "value": "49.4"
+        },
+        {
+          "period": "2024-08",
+          "value": "49.1"
+        },
+        {
+          "period": "2024-09",
+          "value": "49.8"
+        },
+        {
+          "period": "2024-10",
+          "value": "50.1"
+        }
+      ]
+    },
+    {
+      "label": "nbs-cpi-jun",
+      "parser": "nbs_cpi_yoy",
+      "url": "https://www.stats.gov.cn/sj/zxfb/202407/t20240710_1955508.html",
+      "raw_path": "http/nbs-cpi-jun/body.bin",
+      "sha256": "6ba8b78f268cf87604586c8c670ce5ae283fe2ce29f09c3843c26c2295542b96",
+      "title": "2024年6月份居民消费价格同比上涨0.2% - 国家统计局",
+      "published_at": "2024-07-10T09:30:00+08:00",
+      "retrieved_at": "2026-11-08T13:44:59.6713688+00:00",
+      "indicator": "CN_CPI_NATIONAL_YOY",
+      "unit": "%",
+      "observations": [
+        {
+          "period": "2024-06",
+          "value": "0.2"
+        }
+      ]
+    },
+    {
+      "label": "nbs-cpi-jul",
+      "parser": "nbs_cpi_yoy",
+      "url": "https://www.stats.gov.cn/sj/zxfb/202408/t20240809_1955948.html",
+      "raw_path": "http/nbs-cpi-jul/body.bin",
+      "sha256": "10e3d67bfff2f275c8295458d207e25f3c1f6b75455cdbe2ce78d4f667cdbada",
+      "title": "2024年7月份居民消费价格上涨0.5% - 国家统计局",
+      "published_at": "2024-08-09T09:30:00+08:00",
+      "retrieved_at": "2026-11-08T13:44:59.6858553+00:00",
+      "indicator": "CN_CPI_NATIONAL_YOY",
+      "unit": "%",
+      "observations": [
+        {
+          "period": "2024-07",
+          "value": "0.5"
+        }
+      ]
+    },
+    {
+      "label": "nbs-cpi-aug",
+      "parser": "nbs_cpi_yoy",
+      "url": "https://www.stats.gov.cn/sj/zxfb/202409/t20240909_1956311.html",
+      "raw_path": "http/nbs-cpi-aug/body.bin",
+      "sha256": "cde942ed2e781513943b7599ceb1bb4b5096fa6c6fe8b2fd879be93ec9524723",
+      "title": "2024年8月份居民消费价格同比上涨0.6% - 国家统计局",
+      "published_at": "2024-09-09T09:30:00+08:00",
+      "retrieved_at": "2026-11-08T13:45:01.4291875+00:00",
+      "indicator": "CN_CPI_NATIONAL_YOY",
+      "unit": "%",
+      "observations": [
+        {
+          "period": "2024-08",
+          "value": "0.6"
+        }
+      ]
+    },
+    {
+      "label": "nbs-cpi-sep",
+      "parser": "nbs_cpi_yoy",
+      "url": "https://www.stats.gov.cn/sj/zxfb/202410/t20241013_1956899.html",
+      "raw_path": "http/nbs-cpi-sep/body.bin",
+      "sha256": "daa70d5e2a44af60736b510a084b58c62903b95f9dbe4450f4d725924162a01b",
+      "title": "2024年9月份居民消费价格同比上涨0.4% - 国家统计局",
+      "published_at": "2024-10-13T09:30:00+08:00",
+      "retrieved_at": "2026-11-08T13:45:01.4344474+00:00",
+      "indicator": "CN_CPI_NATIONAL_YOY",
+      "unit": "%",
+      "observations": [
+        {
+          "period": "2024-09",
+          "value": "0.4"
+        }
+      ]
+    },
+    {
+      "label": "nbs-cpi-oct",
+      "parser": "nbs_cpi_yoy",
+      "url": "https://www.stats.gov.cn/sj/zxfb/202411/t20241109_1957353.html",
+      "raw_path": "http/nbs-cpi-oct/body.bin",
+      "sha256": "384012d93bc45eaeb07837c2dd2793281a766aa879b1a2cacf331cdcc9ac28a1",
+      "title": "2024年10月份居民消费价格同比上涨0.3% - 国家统计局",
+      "published_at": "2024-11-09T09:30:00+08:00",
+      "retrieved_at": "2026-11-08T13:45:01.6576804+00:00",
+      "indicator": "CN_CPI_NATIONAL_YOY",
+      "unit": "%",
+      "observations": [
+        {
+          "period": "2024-10",
+          "value": "0.3"
+        }
+      ]
+    }
+  ],
+  "archive_sample": {
+    "raw_path": "http/wayback-stcn-raw/body.bin",
+    "sha256": "faf738d9fd8270d4d999e447a9da93aee627b4b73a3ba7f68ffd66aaa8701448",
+    "cdx_path": "http/wayback-stcn-cdx/body.bin",
+    "cdx_sha256": "29086671d437b2ac9ce06792562daa33f08f4fbda40870292e6a6ad7816b5d74",
+    "original_url": "http://www.stcn.com/article/detail/1401103.html",
+    "required_text": "沪市投资者账户新开户739.40万户",
+    "value": "739.40",
+    "unit": "万户",
+    "metric": "SSE all new accounts, not unique new investors"
+  }
+}

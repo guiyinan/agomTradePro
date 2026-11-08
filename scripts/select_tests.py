@@ -39,6 +39,7 @@ def _load_test_id_migrations() -> dict[str, str]:
 TEST_ID_MIGRATIONS = _load_test_id_migrations()
 
 SCRIPT_TEST_MAP = {
+    "scripts/replay_ref05_public_evidence.py": "tests/unit/test_replay_ref05_public_evidence.py",
     "scripts/vps-restore.sh": "tests/unit/test_vps_restore_script.py",
     "scripts/record_data02_reconciliation_evidence.py": (
         "tests/unit/data_center/test_data02_reconciliation_evidence.py"

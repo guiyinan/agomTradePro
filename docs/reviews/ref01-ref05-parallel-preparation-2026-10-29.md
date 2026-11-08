@@ -96,3 +96,15 @@ Owner 已授权必要推进。本节接续上面的准备记录，受限范围�
 原件仅在本机 `.tmp/ref05-single-month-source-20261108/continuation-03-public/`；`frozen-case.json` 固定规则/参数/必需键，`public-fact-versions.json`、两个 `manifest-*.json`、`diagnostic-results.json` 与 `account-public-candidate.json` 提供可复核结果。唯一证据索引 `evidence-index.json` SHA-256 为 `2b43244b5df01a27e05f097e8b1b2bf49a44b11ba6ec1e3f99c48c08501f2f69`，数据/算法候选为 `8acf659ba3c0cc86f937ae45ad2e46ca21c83762`；既有封存目录未改。不得把这些本机原件声明为已同步远端。
 
 已解决的是受限 PUBLIC 数据选择与计算路径；未完成的是足够长的实际必需输入覆盖、完整市场/公司行为/日历及策略/比较器/费用/split/family 绑定，因而 REF-05 整单实证退出仍未满足。后续优先扩大这条已跑通的文档路径，按实际缺口补齐，不再把开户数精确首发当成该 V2 的前置，也不将一个样例的完整覆盖率推广为整段历史覆盖率。
+
+### 可复用成果进入正式分支
+
+`dbb4f3aa0` 只提交了本节、计划和 registry，`.tmp` 中的一次性解析/重放脚本并未随仓库交付。该缺口在本次修正：正式入口为 `scripts/replay_ref05_public_evidence.py`，契约测试为 `tests/unit/test_replay_ref05_public_evidence.py`，具名来源、9 条提取值、参数、非空输入网格及源码/原件哈希由 [ref05-public-replay-20261108.json](ref05-public-replay-20261108.json) 绑定。来源层级与原研究限制保持不变，脚本只有本地只读输入与新增结果文件能力，不访问网络或数据库。
+
+必要网页、HTTP 原件、原始输出和交付记录共 57 份、1,914,909 字节，已经逐文件核对后复制到本机 `artifacts/ref05-public-20261108/`。该目录是忽略的持久证据归档，不是业务实现位置；`archive-index.json` 的摘要写入正式 JSON 索引。原 `.tmp` 目录保留作历史封存来源，正式重放不再读取它。新机器需要另行恢复这些相同哈希的原件；仅克隆 Git 即可审查规则和运行无数据库合成契约测试，不能声称已取得本机原件。
+
+```text
+python scripts/replay_ref05_public_evidence.py --evidence-dir artifacts/ref05-public-20261108 --output artifacts/ref05-public-20261108/replay-new.json
+```
+
+输出文件必须不存在；缺件或错件返回非零退出码，不覆盖旧报告。正式入口已用归档真实原件复跑，两个时点的全部 V2 输出与原报告一致。验证覆盖未来版本排除、SYSTEM 时钟分离、数值/原件/代码摘要篡改、重复业务键、空预期集合、无时区时间、路径越界、缺件 CLI 和输出覆盖拒绝，并登记脚本单独变更时的 CI 测试选择。最新命令、真实退出码及源码身份保留在归档目录的 `delivery/`；不把原报告旧候选的通过结果冒充新入口的验收。
