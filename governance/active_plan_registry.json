@@ -1,6 +1,6 @@
 {
-  "version": "2026-11-08.v326",
-  "updated_at": "2026-11-08",
+  "version": "2026-11-09.v327",
+  "updated_at": "2026-11-09",
   "execution_focus": {
     "unit_id": "REF-05",
     "allowed_parallel_execution_modes": [
@@ -8,11 +8,11 @@
       "external",
       "governance"
     ],
-    "policy": "GOV-05 formal handoff completed under Owner instruction on 2026-11-08; accepted candidate 008110d6eea2f34f8ff15e1099a40dcd01975d87 and closure 8acf659ba3c0cc86f937ae45ad2e46ca21c83762 each have successful exact CI. The sole repository focus is formally handed to REF-05 for its bounded source-qualification phase. The successor session owns PUBLIC document qualification and deterministic replay preparation only; the original full-unit exit remains required and no strategy-performance experiment is authorized. See scripts governance section 7.4. Qualified ASH-08 genuine same-day sources retain priority at the next candidate window 2026-11-09 after 16:00 Asia/Shanghai; preserve its original unfinished Goal and all source/calendar/published_close/V8 gates. GOV-06/07 and other deferred boundaries remain unchanged.",
+    "policy": "Owner formally accepted and handed off the bounded twelve-observation REF-05 source-qualification stage on 2026-11-09. Development commit 66e07b473291c0f4acb47187a47cfd1230ed88b8 has five successful exact CI runs; the bounded Goal is complete, while REF-05 remains active with its original full-unit exit gate. The sole repository focus stays REF-05 and is transferred to a new session for six-document historical-capture/version qualification and deterministic late-version rejection under the existing PIT/replay contracts. Scope and acceptance are in docs/plans/data-boundary-convergence-plan-2026-10-26.md, REF-05 formal handoff 2026-11-09. Qualified ASH-08 genuine same-day sources take priority: safely save REF-05 and serially return focus/resources; the 2026-11-09 after 16:00 Asia/Shanghai candidate window alone is not qualification. Preserve its original unfinished Goal, monitoring, actual calendar/source checks, explicit published_close and complete Owner-observer-foreign V8. No returns/OOS experiment, canonical/provider/production writes, purchases, deployment or deferred work is authorized.",
     "parallel_preparation": [
       {
         "unit_id": "ASH-08",
-        "scope": "Original unfinished Goal remains externally blocked on same-day sources and actual published_close/full V8 acceptance. Next candidate11/09 after16 Shanghai requires actual current calendar/source qualification. When actionable, formally reclaim unique focus/resources after REF-06 completion; do not fake clocks/freshness or reuse stale quotes.",
+        "scope": "Original unfinished Goal and monitoring remain unchanged. Next candidate is 2026-11-09 after 16:00 Asia/Shanghai and still requires actual current calendar and genuine same-day source qualification. Once qualified, safely save the current REF-05 bounded work and serially reclaim the sole focus/resources. Explicit published_close and complete Owner-observer-foreign V8 remain exit gates; do not fake clocks/freshness or reuse stale quotes.",
         "owner": "Root; source/browser owners when qualification returns",
         "isolated_workspace": true,
         "shared_git_serialized": true,
@@ -20,7 +20,7 @@
       },
       {
         "unit_id": "REF-05",
-        "scope": "Owner authorized bounded PUBLIC document qualification and local deterministic replay of the existing Regime V2 on 2026-11-08. Accept explicitly distinguished authoritative dated-release and digest-matched historical-capture evidence under the frozen conservative policy; do not require historical SYSTEM ingestion for PUBLIC. Read-only source GETs and isolated evidence outputs are permitted. No canonical/provider/production writes, strategy-performance experiment, data purchase or deferred algorithm/promotion window. Scope and current evidence: docs/plans/data-boundary-convergence-plan-2026-10-26.md REF-05 and docs/reviews/ref01-ref05-parallel-preparation-2026-10-29.md, 11/08 PUBLIC diagnostic. Successor handoff 2026-11-08: freeze a bounded twelve-observation 2024 monthly PMI/CPI PUBLIC evidence grid before collection; qualify original official releases and replay with the existing CLI, explicitly recording missing coverage. No return/performance experiment, canonical writes or full-unit completion claim. Preserve ASH-08 source-window priority.",
+        "scope": "The twelve-point 2024 PMI/CPI stage is delivered at 66e07b473291c0f4acb47187a47cfd1230ed88b8 with five successful exact CI runs. Owner authorized a new session/Goal on 2026-11-09 for a bounded six-document historical-capture/version qualification: PMI 2023-09, 2023-12, 2024-02, 2024-03 and national CPI YoY 2023-09, 2024-01. Freeze targets, earliest affected existing cutoffs, capture-query limits and missing rules before GETs; verify independent capture clock/body digest and compare versions; reuse existing PIT/offline replay to reject post-cutoff or unproved versions. Deliver explicit proved/unknown/blocked coverage and deterministic results, including honest unavailable evidence. The prior thirty-source recipe and twelve cutoffs stay frozen. No exact-first-release prerequisite for all PUBLIC uses, no new months or indefinite archive search, no historical SYSTEM clock fabrication. Public GETs, isolated local evidence, minimal reusable replay/test fixes and concise tracked evidence are allowed. No returns/OOS experiment, canonical/provider/production writes, purchases or deferred activation. ASH-08 qualified sources take priority. Details: data-boundary convergence plan REF-05 formal handoff 2026-11-09.",
         "owner": "Research/backtest with ASH data owner",
         "isolated_workspace": true,
         "shared_git_serialized": true,
