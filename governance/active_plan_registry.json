@@ -1,14 +1,14 @@
 {
-  "version": "2026-11-08.v320",
+  "version": "2026-11-08.v321",
   "updated_at": "2026-11-08",
   "execution_focus": {
-    "unit_id": null,
+    "unit_id": "GOV-04",
     "allowed_parallel_execution_modes": [
       "production",
       "external",
       "governance"
     ],
-    "policy": "Owner2026-11-08 authorized new isolated recovery evidence to complete the original REF-06 Goal; see convergence section2.7 and A-share section19.164. REF-06 is completed on accepted implementation 521e2a0443f795d6d3c46f29df931aa25c4d3f1f: actual backup and independent protected-file key recovery, two real-copy guarded retirements, 1137 complete local cases, all exact-candidate CI workflows and 134 no-skip PostgreSQL cases with all 69 required identities passed. Plaintext runtime fallback/column are retired in code and the two authorized isolated copies; production remains unchanged. Repository focus is empty with handoff_pending, no successor is activated. Root serialized final integration after three Luna max bounded preparations. ASH-08 genuine same-day sources regain priority only after qualification; published_close/full V8 remain its own completion gates. Existing live-order evidence hard gates, default-off automation and manual fact import remain required. REF-02 stays externally blocked, REF-05 read-only, DATA-18 and deferred boundaries unchanged. No production migration/deployment, live-order activation, app removal or unrelated expansion. Completion-registration CI is recorded separately with unchanged runtime/test/PG-input bindings.",
+    "policy": "Owner 2026-11-08 formally hands the sole repository focus from completed REF-06 to GOV-04 S1 script audit; see A-share section 19.165 and scripts governance section 6. Audit the pinned source with three Luna max isolated preparations and Root serialized integration, whole-unit acceptance and exact latest CI. Qualified ASH-08 genuine same-day sources regain priority. REF-02 remains externally blocked with specified archive restoration evidence aligned; REF-05 stays read-only. GOV-05/06/07, DATA-18 and other boundaries retain their registered scope and state. No release, production operation or implementation of audit findings is authorized by S1.",
     "parallel_preparation": [
       {
         "unit_id": "ASH-08",
@@ -26,12 +26,7 @@
         "shared_git_serialized": true,
         "isolated_test_resources": true
       }
-    ],
-    "handoff_pending": {
-      "completed_unit_id": "REF-06",
-      "owner_decision_ref": "docs/plans/a-share-usability-implementation-plan-2026-10-16.md#19.164",
-      "reason": "REF-06 exit gates passed; await formal Owner handoff, preserving qualified ASH-08 source recovery priority without activating a successor."
-    }
+    ]
   },
   "workstreams": [
     {
@@ -383,7 +378,7 @@
       "priority": "P1",
       "owner": "Repository Owner / Account / Research / Data Center / Portfolio / Governance / SDK / MCP",
       "status": "active",
-      "next_gate": "REF-01/03/04/06 completed. REF-06 actual recovery, guarded plaintext retirement and complete credential/PG/execution-denial acceptance passed on 521e2a0443f795d6d3c46f29df931aa25c4d3f1f; see convergence section2.7. Await the next formal Owner handoff under A-share section19.164, with no automatic successor activation. Qualified ASH-08 real sources retain priority; REF-02 externally blocked, REF-05 read-only and deferred boundaries unchanged. Production migration/deployment remain outside this completed development window.",
+      "next_gate": "GOV-04 owns the sole repository focus for S1. Bind all high-risk script contracts, caller and failure evidence or explicit gaps to a frozen audit candidate, denominator and first bounded repair batch. REF-01/03/04/06 completed; REF-02 remains externally blocked, with the specified archive recovery aligned in convergence section REF-02. Qualified ASH-08 retains priority and REF-05 remains read-only.",
       "documents": [
         {
           "path": "docs/plans/scripts-docs-mcp-governance-plan-2026-10-14.md",
@@ -1612,8 +1607,8 @@
         "workstream_id": "repository-maintenance-governance",
         "wave": 3,
         "priority": "P1",
-        "execution_mode": "governance",
-        "status": "planned",
+        "execution_mode": "repository",
+        "status": "active",
         "title": "Audit script ownership, callers, risk and failure-test evidence",
         "depends_on": [
           "GOV-03"

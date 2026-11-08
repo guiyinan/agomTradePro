@@ -201,7 +201,9 @@ registry v320 将 REF-06 置 completed、清空 repository focus，并引用 A �
 
 复用与远端 SHA-256 一致的 `postgres-20261101T013356Z.dump`。在本地隔离 PostgreSQL 16.15 中从归档原件恢复 V1 表、数据项、序列、约束和索引。归档与恢复后均为 0 行，恢复库含 46 列、17 个索引、15 个约束，外键和自定义触发器均为 0。临时库已清理。盘点本地保留的 38 份归档，29 份含 V1 表且均为 0 行，9 份无 V1 表。原件索引见 `.tmp/ref02-production-evidence-20261107/c-archive/isolated-restore/evidence.json`，SHA-256 `4f80c0ab6f4c9bb1ac2d6071a89a79e2651d6ca483c513ccd59c7dbd378a25cd`。
 
-该证据覆盖指定归档中的 V1 单表恢复和本地归档样本。远端较晚的 `postgres-20261101T145307Z.dump` 目前只有归档清单证据。完整保留范围和真实非空回执重放仍待证实，生产调用审计及 V5/EVID-01/02 退出门仍开放。
+该证据覆盖指定归档中的 V1 单表恢复和本地归档样本。
+
+2026-11-08 对齐 REF-06 的隔离恢复原件。REF-02 索引中 `current_restore_report_located=false` 是当时对 `postgres-20261101T145307Z.dump` 的记录。归档 SHA-256 `09a301afd22c49740dfd05d43de2d7023d03a8fe36370256ff6a30c685473724` 与 REF-06 实际恢复输入一致。该归档恢复及二次恢复的快照均显示 V1～V4 回执各 0 行、V5 为 8 行，覆盖此归档的恢复子门。原件位于本机 `.tmp/ref06-retirement-evidence-20261108/root/real-recovery/`，`restore-source-resume-summary.json` SHA-256 `79828df580fbda3c66c2f31b9e7841fee4a3f67f77bd3be8c748140884374fdd`，`full-recovery-summary.json` SHA-256 `24e75b07d3a093e9d5a3aa86aec9b649e8871dac4e13a9cc1b13a3c86c1b0709`。两个报告与同目录的初始及二次恢复快照相互绑定。REF-02 仍为 `blocked_external`，尚缺生产运行调用审计、写保护、完整归档保留范围及非空历史的精确重放证据，以及真实 V5/EVID-01/02 生产验收。
 
 ### REF-03：合格读取边界与存储主从语义（WP2、WP3）
 
