@@ -2,6 +2,7 @@
 * text=auto
 .gitattributes text eol=lf
 docs/reviews/ref05-public-replay-20261108.json text eol=lf
+docs/reviews/ref05-monthly-2024-replay-20261108.json text eol=lf
 
 # Preserve original A-share evidence bytes and deterministic generated code.
 docs/testing/a-share-usability-ash01-* -text

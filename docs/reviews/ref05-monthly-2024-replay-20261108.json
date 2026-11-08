@@ -1,0 +1,1150 @@
+{
+  "schema": "ref05.public-replay.v1",
+  "purpose": "Twelve frozen calendar observations in 2024; bounded PUBLIC source qualification only.",
+  "data_code_base_commit": "d2dcb627f48944d2fe82d107507586a24d1709e6",
+  "frozen_at_utc": "2026-11-08T15:23:20.533627+00:00",
+  "scope": {
+    "grid": "One fixed calendar observation on the 15th at 09:00 Asia/Shanghai each month of 2024; not a trading calendar. Required periods are four previous months for each indicator.",
+    "missing": "Any missing, future, unverified or conflicting required key blocks the cutoff; no imputation, forward fill, revised-current substitution or cutoff changes.",
+    "source": "Original named NBS monthly releases only; source-stated publication metadata and visible clock must agree; usable next calendar day Shanghai midnight. URL creation date is not publication time.",
+    "version": "One captured original monthly document per key; current byte hash identifies the captured version, not an independently archived 2024 byte sequence. First release and revision completeness unknown without evidence.",
+    "system": "Actual retrieval clock only; historical SYSTEM ingestion unknown.",
+    "parameters": "Frozen existing 2026 local parameters, not asserted 2024 deployment configuration.",
+    "scope": "No DB/canonical/provider writes, trading, strategy returns or OOS experiment; REF-05 full-unit exit remains open.",
+    "official_dates": "Source-stated visible release timestamps only. Missing metadata stays null; present metadata must agree. Current URL date is recorded separately and does not prove first publication or revision timing.",
+    "historical_system_replay": false,
+    "production_eligibility": false,
+    "full_ref05_exit": false
+  },
+  "archive": {
+    "default_relative_dir": "artifacts/ref05-monthly-2024-20261108",
+    "availability": "local_only; raw bytes intentionally excluded from Git"
+  },
+  "grid_freeze": {
+    "raw_path": "grid-freeze.json",
+    "sha256": "e5673f6576ad83c860ba574f6a8124d277b10c7bb5d675557844368a7052fbd9"
+  },
+  "code_inputs": [
+    {
+      "path": "apps/regime/domain/services_v2.py",
+      "sha256": "73283a53b0361add7f729e14eef241c05dcdab029aca044dfd180ce722dc3e38",
+      "hash_basis": "lf_normalized_bytes"
+    },
+    {
+      "path": "apps/regime/application/regime_v2_use_cases.py",
+      "sha256": "da0b98c054d09d429c7bd89ef96c9a4ad430d7535451a18d0a8940756c035fb0",
+      "hash_basis": "lf_normalized_bytes"
+    },
+    {
+      "path": "apps/data_center/domain/pit.py",
+      "sha256": "e67fe49ebdb21b12b718fbd51232fff8589903f5c4eb376d4b1ae53ed55045f6",
+      "hash_basis": "lf_normalized_bytes"
+    },
+    {
+      "path": "apps/data_center/infrastructure/pit_repository.py",
+      "sha256": "8ef25801b98a8cbd204555d3412a57e5fb5ac9ca2c2346f77796a429240c3b44",
+      "hash_basis": "lf_normalized_bytes"
+    },
+    {
+      "path": "scripts/replay_ref05_public_evidence.py",
+      "sha256": "9e02ae86766e1a39570813d1b5c27144ddef98c4a47c5fa91e9604c4322d490b",
+      "hash_basis": "lf_normalized_bytes"
+    },
+    {
+      "path": "shared/numeric.py",
+      "sha256": "9bc8026b2eca29887b2bd14d0c8b58e1dd9b58c15e5e9f242bfedf49549ab771",
+      "hash_basis": "lf_normalized_bytes"
+    }
+  ],
+  "parameters": {
+    "pmi_expansion": 50.0,
+    "pmi_contraction": 50.0,
+    "cpi_high": 2.0,
+    "cpi_low": 1.0,
+    "cpi_deflation": 0.0,
+    "momentum_weight": 0.3,
+    "high_confidence_threshold": 0.6
+  },
+  "roles": {
+    "growth": "CN_PMI",
+    "inflation": "CN_CPI_NATIONAL_YOY"
+  },
+  "cutoffs": [
+    {
+      "at": "2024-01-15T09:00:00+08:00",
+      "expected_periods": {
+        "CN_PMI": [
+          "2023-09",
+          "2023-10",
+          "2023-11",
+          "2023-12"
+        ],
+        "CN_CPI_NATIONAL_YOY": [
+          "2023-09",
+          "2023-10",
+          "2023-11",
+          "2023-12"
+        ]
+      }
+    },
+    {
+      "at": "2024-02-15T09:00:00+08:00",
+      "expected_periods": {
+        "CN_PMI": [
+          "2023-10",
+          "2023-11",
+          "2023-12",
+          "2024-01"
+        ],
+        "CN_CPI_NATIONAL_YOY": [
+          "2023-10",
+          "2023-11",
+          "2023-12",
+          "2024-01"
+        ]
+      }
+    },
+    {
+      "at": "2024-03-15T09:00:00+08:00",
+      "expected_periods": {
+        "CN_PMI": [
+          "2023-11",
+          "2023-12",
+          "2024-01",
+          "2024-02"
+        ],
+        "CN_CPI_NATIONAL_YOY": [
+          "2023-11",
+          "2023-12",
+          "2024-01",
+          "2024-02"
+        ]
+      }
+    },
+    {
+      "at": "2024-04-15T09:00:00+08:00",
+      "expected_periods": {
+        "CN_PMI": [
+          "2023-12",
+          "2024-01",
+          "2024-02",
+          "2024-03"
+        ],
+        "CN_CPI_NATIONAL_YOY": [
+          "2023-12",
+          "2024-01",
+          "2024-02",
+          "2024-03"
+        ]
+      }
+    },
+    {
+      "at": "2024-05-15T09:00:00+08:00",
+      "expected_periods": {
+        "CN_PMI": [
+          "2024-01",
+          "2024-02",
+          "2024-03",
+          "2024-04"
+        ],
+        "CN_CPI_NATIONAL_YOY": [
+          "2024-01",
+          "2024-02",
+          "2024-03",
+          "2024-04"
+        ]
+      }
+    },
+    {
+      "at": "2024-06-15T09:00:00+08:00",
+      "expected_periods": {
+        "CN_PMI": [
+          "2024-02",
+          "2024-03",
+          "2024-04",
+          "2024-05"
+        ],
+        "CN_CPI_NATIONAL_YOY": [
+          "2024-02",
+          "2024-03",
+          "2024-04",
+          "2024-05"
+        ]
+      }
+    },
+    {
+      "at": "2024-07-15T09:00:00+08:00",
+      "expected_periods": {
+        "CN_PMI": [
+          "2024-03",
+          "2024-04",
+          "2024-05",
+          "2024-06"
+        ],
+        "CN_CPI_NATIONAL_YOY": [
+          "2024-03",
+          "2024-04",
+          "2024-05",
+          "2024-06"
+        ]
+      }
+    },
+    {
+      "at": "2024-08-15T09:00:00+08:00",
+      "expected_periods": {
+        "CN_PMI": [
+          "2024-04",
+          "2024-05",
+          "2024-06",
+          "2024-07"
+        ],
+        "CN_CPI_NATIONAL_YOY": [
+          "2024-04",
+          "2024-05",
+          "2024-06",
+          "2024-07"
+        ]
+      }
+    },
+    {
+      "at": "2024-09-15T09:00:00+08:00",
+      "expected_periods": {
+        "CN_PMI": [
+          "2024-05",
+          "2024-06",
+          "2024-07",
+          "2024-08"
+        ],
+        "CN_CPI_NATIONAL_YOY": [
+          "2024-05",
+          "2024-06",
+          "2024-07",
+          "2024-08"
+        ]
+      }
+    },
+    {
+      "at": "2024-10-15T09:00:00+08:00",
+      "expected_periods": {
+        "CN_PMI": [
+          "2024-06",
+          "2024-07",
+          "2024-08",
+          "2024-09"
+        ],
+        "CN_CPI_NATIONAL_YOY": [
+          "2024-06",
+          "2024-07",
+          "2024-08",
+          "2024-09"
+        ]
+      }
+    },
+    {
+      "at": "2024-11-15T09:00:00+08:00",
+      "expected_periods": {
+        "CN_PMI": [
+          "2024-07",
+          "2024-08",
+          "2024-09",
+          "2024-10"
+        ],
+        "CN_CPI_NATIONAL_YOY": [
+          "2024-07",
+          "2024-08",
+          "2024-09",
+          "2024-10"
+        ]
+      }
+    },
+    {
+      "at": "2024-12-15T09:00:00+08:00",
+      "expected_periods": {
+        "CN_PMI": [
+          "2024-08",
+          "2024-09",
+          "2024-10",
+          "2024-11"
+        ],
+        "CN_CPI_NATIONAL_YOY": [
+          "2024-08",
+          "2024-09",
+          "2024-10",
+          "2024-11"
+        ]
+      }
+    }
+  ],
+  "sources": [
+    {
+      "label": "nbs-pmi-2023-09",
+      "parser": "nbs_pmi_table",
+      "url": "https://www.stats.gov.cn/sj/zxfb/202309/t20230928_1943291.html",
+      "raw_path": "http/nbs-pmi-2023-09/body.bin",
+      "sha256": "5fc419efabd49116402af527e858cf917b4674a2346e18b36f4f96e2a99a3442",
+      "title": "2023年9月中国采购经理指数运行情况 - 国家统计局",
+      "published_at": "2023-09-30T09:30:00+08:00",
+      "publication_basis": "visible_release_header",
+      "pubdate_metadata": null,
+      "url_date_token": "20230928",
+      "retrieved_at": "2026-11-08T15:25:58.063078+00:00",
+      "indicator": "CN_PMI",
+      "unit": "%",
+      "source_unit": "%",
+      "value_transform": "identity; percent-scale number, no division by 100",
+      "observations": [
+        {
+          "period": "2023-09",
+          "value": "50.2"
+        }
+      ],
+      "version_identity": "current_capture_sha256:5fc419efabd49116402af527e858cf917b4674a2346e18b36f4f96e2a99a3442",
+      "source_first_publication_at": null,
+      "source_revision_number": null,
+      "revision_history_complete": null,
+      "independent_historical_capture_at": null,
+      "historical_system_known_at": null
+    },
+    {
+      "label": "nbs-pmi-2023-10",
+      "parser": "nbs_pmi_table",
+      "url": "https://www.stats.gov.cn/sj/zxfb/202310/t20231031_1944037.html",
+      "raw_path": "http/nbs-pmi-2023-10/body.bin",
+      "sha256": "94bcdbc1c98ab6dcb8b1d84923adef7064df81d13e4d7da99d8cb58e7ff013a9",
+      "title": "2023年10月中国采购经理指数运行情况 - 国家统计局",
+      "published_at": "2023-10-31T09:30:00+08:00",
+      "publication_basis": "visible_release_header",
+      "pubdate_metadata": null,
+      "url_date_token": "20231031",
+      "retrieved_at": "2026-11-08T15:25:57.834557+00:00",
+      "indicator": "CN_PMI",
+      "unit": "%",
+      "source_unit": "%",
+      "value_transform": "identity; percent-scale number, no division by 100",
+      "observations": [
+        {
+          "period": "2023-10",
+          "value": "49.5"
+        }
+      ],
+      "version_identity": "current_capture_sha256:94bcdbc1c98ab6dcb8b1d84923adef7064df81d13e4d7da99d8cb58e7ff013a9",
+      "source_first_publication_at": null,
+      "source_revision_number": null,
+      "revision_history_complete": null,
+      "independent_historical_capture_at": null,
+      "historical_system_known_at": null
+    },
+    {
+      "label": "nbs-pmi-2023-11",
+      "parser": "nbs_pmi_table",
+      "url": "https://www.stats.gov.cn/sj/zxfb/202311/t20231130_1945018.html",
+      "raw_path": "http/nbs-pmi-2023-11/body.bin",
+      "sha256": "468b192bf3e2f645ac5bfe2158f4ce36f88f8feb3c8d7f2633605060eb605bfb",
+      "title": "2023年11月中国采购经理指数运行情况 - 国家统计局",
+      "published_at": "2023-11-30T09:30:00+08:00",
+      "publication_basis": "visible_release_header",
+      "pubdate_metadata": null,
+      "url_date_token": "20231130",
+      "retrieved_at": "2026-11-08T15:25:57.992156+00:00",
+      "indicator": "CN_PMI",
+      "unit": "%",
+      "source_unit": "%",
+      "value_transform": "identity; percent-scale number, no division by 100",
+      "observations": [
+        {
+          "period": "2023-11",
+          "value": "49.4"
+        }
+      ],
+      "version_identity": "current_capture_sha256:468b192bf3e2f645ac5bfe2158f4ce36f88f8feb3c8d7f2633605060eb605bfb",
+      "source_first_publication_at": null,
+      "source_revision_number": null,
+      "revision_history_complete": null,
+      "independent_historical_capture_at": null,
+      "historical_system_known_at": null
+    },
+    {
+      "label": "nbs-pmi-2023-12",
+      "parser": "nbs_pmi_table",
+      "url": "https://www.stats.gov.cn/sj/zxfb/202312/t20231229_1946102.html",
+      "raw_path": "http/nbs-pmi-2023-12/body.bin",
+      "sha256": "7f679a77e3950a27339a3c63953b62fc7d20c62ea16af2a2eee8329fd36b2ff7",
+      "title": "2023年12月中国采购经理指数运行情况 - 国家统计局",
+      "published_at": "2023-12-31T09:30:00+08:00",
+      "publication_basis": "visible_release_header",
+      "pubdate_metadata": null,
+      "url_date_token": "20231229",
+      "retrieved_at": "2026-11-08T15:25:58.449537+00:00",
+      "indicator": "CN_PMI",
+      "unit": "%",
+      "source_unit": "%",
+      "value_transform": "identity; percent-scale number, no division by 100",
+      "observations": [
+        {
+          "period": "2023-12",
+          "value": "49.0"
+        }
+      ],
+      "version_identity": "current_capture_sha256:7f679a77e3950a27339a3c63953b62fc7d20c62ea16af2a2eee8329fd36b2ff7",
+      "source_first_publication_at": null,
+      "source_revision_number": null,
+      "revision_history_complete": null,
+      "independent_historical_capture_at": null,
+      "historical_system_known_at": null
+    },
+    {
+      "label": "nbs-pmi-2024-01",
+      "parser": "nbs_pmi_table",
+      "url": "https://www.stats.gov.cn/sj/zxfb/202401/t20240131_1947009.html",
+      "raw_path": "http/nbs-pmi-2024-01/body.bin",
+      "sha256": "b0dc7bd0a4655b8d71ca6c336e9c22b5673aba8fe0f0d7fd6ccb22324807d7f9",
+      "title": "2024年1月中国采购经理指数运行情况 - 国家统计局",
+      "published_at": "2024-01-31T09:30:00+08:00",
+      "publication_basis": "visible_release_header",
+      "pubdate_metadata": null,
+      "url_date_token": "20240131",
+      "retrieved_at": "2026-11-08T15:25:58.524751+00:00",
+      "indicator": "CN_PMI",
+      "unit": "%",
+      "source_unit": "%",
+      "value_transform": "identity; percent-scale number, no division by 100",
+      "observations": [
+        {
+          "period": "2024-01",
+          "value": "49.2"
+        }
+      ],
+      "version_identity": "current_capture_sha256:b0dc7bd0a4655b8d71ca6c336e9c22b5673aba8fe0f0d7fd6ccb22324807d7f9",
+      "source_first_publication_at": null,
+      "source_revision_number": null,
+      "revision_history_complete": null,
+      "independent_historical_capture_at": null,
+      "historical_system_known_at": null
+    },
+    {
+      "label": "nbs-pmi-original-2024-02",
+      "parser": "nbs_pmi_table",
+      "url": "https://www.stats.gov.cn/sj/zxfb/202403/t20240318_1948006.html",
+      "raw_path": "http/nbs-pmi-original-2024-02/body.bin",
+      "sha256": "134c65af9a125639dea472d1b83e3b91bb1bc2d98fef8694839972dffc551cdf",
+      "title": "2024年2月中国采购经理指数运行情况 - 国家统计局",
+      "published_at": "2024-03-01T09:30:00+08:00",
+      "publication_basis": "visible_release_header",
+      "pubdate_metadata": null,
+      "url_date_token": "20240318",
+      "retrieved_at": "2026-11-08T15:29:09.227124+00:00",
+      "indicator": "CN_PMI",
+      "unit": "%",
+      "source_unit": "%",
+      "value_transform": "identity; percent-scale number, no division by 100",
+      "observations": [
+        {
+          "period": "2024-02",
+          "value": "49.1"
+        }
+      ],
+      "version_identity": "current_capture_sha256:134c65af9a125639dea472d1b83e3b91bb1bc2d98fef8694839972dffc551cdf",
+      "source_first_publication_at": null,
+      "source_revision_number": null,
+      "revision_history_complete": null,
+      "independent_historical_capture_at": null,
+      "historical_system_known_at": null
+    },
+    {
+      "label": "nbs-pmi-2024-03",
+      "parser": "nbs_pmi_table",
+      "url": "https://www.stats.gov.cn/sj/zxfb/202404/t20240411_1948446.html",
+      "raw_path": "http/nbs-pmi-2024-03/body.bin",
+      "sha256": "379d3a7a6ae0db1ad221c4fb554d44e9c1a0b62b4a69c16b0ca21b3224b1ae1d",
+      "title": "2024年3月中国采购经理指数运行情况 - 国家统计局",
+      "published_at": "2024-03-31T09:30:00+08:00",
+      "publication_basis": "visible_release_header",
+      "pubdate_metadata": null,
+      "url_date_token": "20240411",
+      "retrieved_at": "2026-11-08T15:25:58.331368+00:00",
+      "indicator": "CN_PMI",
+      "unit": "%",
+      "source_unit": "%",
+      "value_transform": "identity; percent-scale number, no division by 100",
+      "observations": [
+        {
+          "period": "2024-03",
+          "value": "50.8"
+        }
+      ],
+      "version_identity": "current_capture_sha256:379d3a7a6ae0db1ad221c4fb554d44e9c1a0b62b4a69c16b0ca21b3224b1ae1d",
+      "source_first_publication_at": null,
+      "source_revision_number": null,
+      "revision_history_complete": null,
+      "independent_historical_capture_at": null,
+      "historical_system_known_at": null
+    },
+    {
+      "label": "nbs-pmi-2024-04",
+      "parser": "nbs_pmi_table",
+      "url": "https://www.stats.gov.cn/sj/zxfb/202404/t20240430_1948787.html",
+      "raw_path": "http/nbs-pmi-2024-04/body.bin",
+      "sha256": "1bcdd0994a7560efe3c8e228c021da7b6374e2aa8d65b10205cb8b91161a7118",
+      "title": "2024年4月中国采购经理指数运行情况 - 国家统计局",
+      "published_at": "2024-04-30T09:30:00+08:00",
+      "publication_basis": "visible_release_header",
+      "pubdate_metadata": "2024/04/30 09:30",
+      "url_date_token": "20240430",
+      "retrieved_at": "2026-11-08T15:25:58.646508+00:00",
+      "indicator": "CN_PMI",
+      "unit": "%",
+      "source_unit": "%",
+      "value_transform": "identity; percent-scale number, no division by 100",
+      "observations": [
+        {
+          "period": "2024-04",
+          "value": "50.4"
+        }
+      ],
+      "version_identity": "current_capture_sha256:1bcdd0994a7560efe3c8e228c021da7b6374e2aa8d65b10205cb8b91161a7118",
+      "source_first_publication_at": null,
+      "source_revision_number": null,
+      "revision_history_complete": null,
+      "independent_historical_capture_at": null,
+      "historical_system_known_at": null
+    },
+    {
+      "label": "nbs-pmi-2024-05",
+      "parser": "nbs_pmi_table",
+      "url": "https://www.stats.gov.cn/sj/zxfb/202405/t20240531_1954176.html",
+      "raw_path": "http/nbs-pmi-2024-05/body.bin",
+      "sha256": "149ffc8999ab282b2054103acbfeb84efb463f6416ce0a39e86707772dd527f2",
+      "title": "2024年5月中国采购经理指数运行情况 - 国家统计局",
+      "published_at": "2024-05-31T09:30:00+08:00",
+      "publication_basis": "visible_release_header",
+      "pubdate_metadata": null,
+      "url_date_token": "20240531",
+      "retrieved_at": "2026-11-08T15:25:59.050647+00:00",
+      "indicator": "CN_PMI",
+      "unit": "%",
+      "source_unit": "%",
+      "value_transform": "identity; percent-scale number, no division by 100",
+      "observations": [
+        {
+          "period": "2024-05",
+          "value": "49.5"
+        }
+      ],
+      "version_identity": "current_capture_sha256:149ffc8999ab282b2054103acbfeb84efb463f6416ce0a39e86707772dd527f2",
+      "source_first_publication_at": null,
+      "source_revision_number": null,
+      "revision_history_complete": null,
+      "independent_historical_capture_at": null,
+      "historical_system_known_at": null
+    },
+    {
+      "label": "nbs-pmi-2024-06",
+      "parser": "nbs_pmi_table",
+      "url": "https://www.stats.gov.cn/sj/zxfb/202406/t20240630_1955251.html",
+      "raw_path": "http/nbs-pmi-2024-06/body.bin",
+      "sha256": "8ff0aeed443742020fc22727cf0b1d0b3859f18b04d2c13b137a40db1bb7353f",
+      "title": "2024年6月中国采购经理指数运行情况 - 国家统计局",
+      "published_at": "2024-06-30T09:30:00+08:00",
+      "publication_basis": "visible_release_header",
+      "pubdate_metadata": "2024/06/30 09:30",
+      "url_date_token": "20240630",
+      "retrieved_at": "2026-11-08T15:25:58.845269+00:00",
+      "indicator": "CN_PMI",
+      "unit": "%",
+      "source_unit": "%",
+      "value_transform": "identity; percent-scale number, no division by 100",
+      "observations": [
+        {
+          "period": "2024-06",
+          "value": "49.5"
+        }
+      ],
+      "version_identity": "current_capture_sha256:8ff0aeed443742020fc22727cf0b1d0b3859f18b04d2c13b137a40db1bb7353f",
+      "source_first_publication_at": null,
+      "source_revision_number": null,
+      "revision_history_complete": null,
+      "independent_historical_capture_at": null,
+      "historical_system_known_at": null
+    },
+    {
+      "label": "nbs-pmi-2024-07",
+      "parser": "nbs_pmi_table",
+      "url": "https://www.stats.gov.cn/sj/zxfb/202407/t20240731_1955901.html",
+      "raw_path": "http/nbs-pmi-2024-07/body.bin",
+      "sha256": "6b8e3553853e42674fb2357f69b2019952738085c6ae934e6912dce921595ac2",
+      "title": "2024年7月中国采购经理指数运行情况 - 国家统计局",
+      "published_at": "2024-07-31T09:30:00+08:00",
+      "publication_basis": "visible_release_header",
+      "pubdate_metadata": "2024/07/31 09:30",
+      "url_date_token": "20240731",
+      "retrieved_at": "2026-11-08T15:25:58.937638+00:00",
+      "indicator": "CN_PMI",
+      "unit": "%",
+      "source_unit": "%",
+      "value_transform": "identity; percent-scale number, no division by 100",
+      "observations": [
+        {
+          "period": "2024-07",
+          "value": "49.4"
+        }
+      ],
+      "version_identity": "current_capture_sha256:6b8e3553853e42674fb2357f69b2019952738085c6ae934e6912dce921595ac2",
+      "source_first_publication_at": null,
+      "source_revision_number": null,
+      "revision_history_complete": null,
+      "independent_historical_capture_at": null,
+      "historical_system_known_at": null
+    },
+    {
+      "label": "nbs-pmi-2024-08",
+      "parser": "nbs_pmi_table",
+      "url": "https://www.stats.gov.cn/sj/zxfb/202408/t20240831_1956161.html",
+      "raw_path": "http/nbs-pmi-2024-08/body.bin",
+      "sha256": "2ae1871f300dc87af8612bcd608ba19c22de6236b04f07da6df7652c0cb06451",
+      "title": "2024年8月中国采购经理指数运行情况 - 国家统计局",
+      "published_at": "2024-08-31T09:30:00+08:00",
+      "publication_basis": "visible_release_header",
+      "pubdate_metadata": "2024/08/31 09:30",
+      "url_date_token": "20240831",
+      "retrieved_at": "2026-11-08T15:25:59.109425+00:00",
+      "indicator": "CN_PMI",
+      "unit": "%",
+      "source_unit": "%",
+      "value_transform": "identity; percent-scale number, no division by 100",
+      "observations": [
+        {
+          "period": "2024-08",
+          "value": "49.1"
+        }
+      ],
+      "version_identity": "current_capture_sha256:2ae1871f300dc87af8612bcd608ba19c22de6236b04f07da6df7652c0cb06451",
+      "source_first_publication_at": null,
+      "source_revision_number": null,
+      "revision_history_complete": null,
+      "independent_historical_capture_at": null,
+      "historical_system_known_at": null
+    },
+    {
+      "label": "nbs-pmi-2024-09",
+      "parser": "nbs_pmi_table",
+      "url": "https://www.stats.gov.cn/sj/zxfb/202409/t20240930_1956798.html",
+      "raw_path": "http/nbs-pmi-2024-09/body.bin",
+      "sha256": "775167727ed3d668c2ff872f582fbae1be32049782cc3c72132e1eb5e2ad3da6",
+      "title": "2024年9月中国采购经理指数运行情况 - 国家统计局",
+      "published_at": "2024-09-30T09:30:00+08:00",
+      "publication_basis": "visible_release_header",
+      "pubdate_metadata": "2024/09/30 09:30",
+      "url_date_token": "20240930",
+      "retrieved_at": "2026-11-08T15:25:59.343819+00:00",
+      "indicator": "CN_PMI",
+      "unit": "%",
+      "source_unit": "%",
+      "value_transform": "identity; percent-scale number, no division by 100",
+      "observations": [
+        {
+          "period": "2024-09",
+          "value": "49.8"
+        }
+      ],
+      "version_identity": "current_capture_sha256:775167727ed3d668c2ff872f582fbae1be32049782cc3c72132e1eb5e2ad3da6",
+      "source_first_publication_at": null,
+      "source_revision_number": null,
+      "revision_history_complete": null,
+      "independent_historical_capture_at": null,
+      "historical_system_known_at": null
+    },
+    {
+      "label": "nbs-pmi-2024-10",
+      "parser": "nbs_pmi_table",
+      "url": "https://www.stats.gov.cn/sj/zxfb/202410/t20241031_1957214.html",
+      "raw_path": "http/nbs-pmi-2024-10/body.bin",
+      "sha256": "208f2f44639d1858f9ee14586418f7a68bcadc76d681296f46a8de7da8adf019",
+      "title": "2024年10月中国采购经理指数运行情况 - 国家统计局",
+      "published_at": "2024-10-31T09:30:00+08:00",
+      "publication_basis": "visible_release_header",
+      "pubdate_metadata": "2024/10/31 09:30",
+      "url_date_token": "20241031",
+      "retrieved_at": "2026-11-08T15:25:59.436920+00:00",
+      "indicator": "CN_PMI",
+      "unit": "%",
+      "source_unit": "%",
+      "value_transform": "identity; percent-scale number, no division by 100",
+      "observations": [
+        {
+          "period": "2024-10",
+          "value": "50.1"
+        }
+      ],
+      "version_identity": "current_capture_sha256:208f2f44639d1858f9ee14586418f7a68bcadc76d681296f46a8de7da8adf019",
+      "source_first_publication_at": null,
+      "source_revision_number": null,
+      "revision_history_complete": null,
+      "independent_historical_capture_at": null,
+      "historical_system_known_at": null
+    },
+    {
+      "label": "nbs-pmi-2024-11",
+      "parser": "nbs_pmi_table",
+      "url": "https://www.stats.gov.cn/sj/zxfb/202411/t20241130_1957624.html",
+      "raw_path": "http/nbs-pmi-2024-11/body.bin",
+      "sha256": "02757871f581c935114c4556119c4dbd17be18bf75c4eaaa690a1d6152a2d60f",
+      "title": "2024年11月中国采购经理指数运行情况 - 国家统计局",
+      "published_at": "2024-11-30T09:30:00+08:00",
+      "publication_basis": "visible_release_header",
+      "pubdate_metadata": "2024/11/30 09:30",
+      "url_date_token": "20241130",
+      "retrieved_at": "2026-11-08T15:25:59.296588+00:00",
+      "indicator": "CN_PMI",
+      "unit": "%",
+      "source_unit": "%",
+      "value_transform": "identity; percent-scale number, no division by 100",
+      "observations": [
+        {
+          "period": "2024-11",
+          "value": "50.3"
+        }
+      ],
+      "version_identity": "current_capture_sha256:02757871f581c935114c4556119c4dbd17be18bf75c4eaaa690a1d6152a2d60f",
+      "source_first_publication_at": null,
+      "source_revision_number": null,
+      "revision_history_complete": null,
+      "independent_historical_capture_at": null,
+      "historical_system_known_at": null
+    },
+    {
+      "label": "nbs-cpi-original-2023-09",
+      "parser": "nbs_cpi_yoy",
+      "url": "https://www.stats.gov.cn/sj/zxfb/202310/t20231013_1943548.html",
+      "raw_path": "http/nbs-cpi-original-2023-09/body.bin",
+      "sha256": "4e552baca76bfb856a8e282e21f8e1f17d2f2baeb9b891e24ffb06d32808afcc",
+      "title": "2023年9月份居民消费价格同比持平 环比上涨0.2% - 国家统计局",
+      "published_at": "2023-10-13T09:30:00+08:00",
+      "publication_basis": "visible_release_header",
+      "pubdate_metadata": null,
+      "url_date_token": "20231013",
+      "retrieved_at": "2026-11-08T15:29:09.469422+00:00",
+      "indicator": "CN_CPI_NATIONAL_YOY",
+      "unit": "%",
+      "source_unit": "%",
+      "value_transform": "identity; percent-scale number, no division by 100",
+      "observations": [
+        {
+          "period": "2023-09",
+          "value": "0.0"
+        }
+      ],
+      "version_identity": "current_capture_sha256:4e552baca76bfb856a8e282e21f8e1f17d2f2baeb9b891e24ffb06d32808afcc",
+      "source_first_publication_at": null,
+      "source_revision_number": null,
+      "revision_history_complete": null,
+      "independent_historical_capture_at": null,
+      "historical_system_known_at": null
+    },
+    {
+      "label": "nbs-cpi-original-2023-10",
+      "parser": "nbs_cpi_yoy",
+      "url": "https://www.stats.gov.cn/sj/zxfb/202311/t20231109_1944382.html",
+      "raw_path": "http/nbs-cpi-original-2023-10/body.bin",
+      "sha256": "739f1dc6062e027416ab9a8082e661bf84deb5578b85e79762318b826504c0c7",
+      "title": "2023年10月份居民消费价格同比下降0.2% 环比下降0.1% - 国家统计局",
+      "published_at": "2023-11-09T09:30:00+08:00",
+      "publication_basis": "visible_release_header",
+      "pubdate_metadata": null,
+      "url_date_token": "20231109",
+      "retrieved_at": "2026-11-08T15:29:09.726921+00:00",
+      "indicator": "CN_CPI_NATIONAL_YOY",
+      "unit": "%",
+      "source_unit": "%",
+      "value_transform": "identity; percent-scale number, no division by 100",
+      "observations": [
+        {
+          "period": "2023-10",
+          "value": "-0.2"
+        }
+      ],
+      "version_identity": "current_capture_sha256:739f1dc6062e027416ab9a8082e661bf84deb5578b85e79762318b826504c0c7",
+      "source_first_publication_at": null,
+      "source_revision_number": null,
+      "revision_history_complete": null,
+      "independent_historical_capture_at": null,
+      "historical_system_known_at": null
+    },
+    {
+      "label": "nbs-cpi-2023-11",
+      "parser": "nbs_cpi_yoy",
+      "url": "https://www.stats.gov.cn/sj/zxfb/202312/t20231209_1945394.html",
+      "raw_path": "http/nbs-cpi-2023-11/body.bin",
+      "sha256": "8cf8757a481f00550f1cfb51e8dfca3af6272f226a4c8a31dacb88d075b14649",
+      "title": "2023年11月份居民消费价格同比下降0.5% 环比下降0.5% - 国家统计局",
+      "published_at": "2023-12-09T09:30:00+08:00",
+      "publication_basis": "visible_release_header",
+      "pubdate_metadata": null,
+      "url_date_token": "20231209",
+      "retrieved_at": "2026-11-08T15:25:59.734793+00:00",
+      "indicator": "CN_CPI_NATIONAL_YOY",
+      "unit": "%",
+      "source_unit": "%",
+      "value_transform": "identity; percent-scale number, no division by 100",
+      "observations": [
+        {
+          "period": "2023-11",
+          "value": "-0.5"
+        }
+      ],
+      "version_identity": "current_capture_sha256:8cf8757a481f00550f1cfb51e8dfca3af6272f226a4c8a31dacb88d075b14649",
+      "source_first_publication_at": null,
+      "source_revision_number": null,
+      "revision_history_complete": null,
+      "independent_historical_capture_at": null,
+      "historical_system_known_at": null
+    },
+    {
+      "label": "nbs-cpi-2023-12",
+      "parser": "nbs_cpi_yoy",
+      "url": "https://www.stats.gov.cn/sj/zxfb/202401/t20240112_1946465.html",
+      "raw_path": "http/nbs-cpi-2023-12/body.bin",
+      "sha256": "4d46be21f4bbaa038b0d2f619b10a1c27200eb9485e50afd1ea1cdee23fff580",
+      "title": "2023年12月份居民消费价格同比下降0.3% 环比上涨0.1% - 国家统计局",
+      "published_at": "2024-01-12T09:30:00+08:00",
+      "publication_basis": "visible_release_header",
+      "pubdate_metadata": null,
+      "url_date_token": "20240112",
+      "retrieved_at": "2026-11-08T15:25:59.593108+00:00",
+      "indicator": "CN_CPI_NATIONAL_YOY",
+      "unit": "%",
+      "source_unit": "%",
+      "value_transform": "identity; percent-scale number, no division by 100",
+      "observations": [
+        {
+          "period": "2023-12",
+          "value": "-0.3"
+        }
+      ],
+      "version_identity": "current_capture_sha256:4d46be21f4bbaa038b0d2f619b10a1c27200eb9485e50afd1ea1cdee23fff580",
+      "source_first_publication_at": null,
+      "source_revision_number": null,
+      "revision_history_complete": null,
+      "independent_historical_capture_at": null,
+      "historical_system_known_at": null
+    },
+    {
+      "label": "nbs-cpi-2024-01",
+      "parser": "nbs_cpi_yoy",
+      "url": "https://www.stats.gov.cn/sj/zxfb/202402/t20240208_1947623.html",
+      "raw_path": "http/nbs-cpi-2024-01/body.bin",
+      "sha256": "e42c30e7c6ee1b407940f8f9bc40b7bef111f8a91b796c5bac428320feaad44a",
+      "title": "2024年1月份居民消费价格环比上涨0.3% - 国家统计局",
+      "published_at": "2024-02-08T09:30:00+08:00",
+      "publication_basis": "visible_release_header",
+      "pubdate_metadata": null,
+      "url_date_token": "20240208",
+      "retrieved_at": "2026-11-08T15:25:59.639824+00:00",
+      "indicator": "CN_CPI_NATIONAL_YOY",
+      "unit": "%",
+      "source_unit": "%",
+      "value_transform": "identity; percent-scale number, no division by 100",
+      "observations": [
+        {
+          "period": "2024-01",
+          "value": "-0.8"
+        }
+      ],
+      "version_identity": "current_capture_sha256:e42c30e7c6ee1b407940f8f9bc40b7bef111f8a91b796c5bac428320feaad44a",
+      "source_first_publication_at": null,
+      "source_revision_number": null,
+      "revision_history_complete": null,
+      "independent_historical_capture_at": null,
+      "historical_system_known_at": null
+    },
+    {
+      "label": "nbs-cpi-2024-02",
+      "parser": "nbs_cpi_yoy",
+      "url": "https://www.stats.gov.cn/sj/zxfb/202403/t20240309_1948279.html",
+      "raw_path": "http/nbs-cpi-2024-02/body.bin",
+      "sha256": "29d81d859b472363f73a4971580be0585df409d5dd721de21b82a6e26e58333a",
+      "title": "2024年2月份居民消费价格同比上涨0.7% 环比上涨1.0% - 国家统计局",
+      "published_at": "2024-03-09T09:30:00+08:00",
+      "publication_basis": "visible_release_header",
+      "pubdate_metadata": null,
+      "url_date_token": "20240309",
+      "retrieved_at": "2026-11-08T15:25:59.889414+00:00",
+      "indicator": "CN_CPI_NATIONAL_YOY",
+      "unit": "%",
+      "source_unit": "%",
+      "value_transform": "identity; percent-scale number, no division by 100",
+      "observations": [
+        {
+          "period": "2024-02",
+          "value": "0.7"
+        }
+      ],
+      "version_identity": "current_capture_sha256:29d81d859b472363f73a4971580be0585df409d5dd721de21b82a6e26e58333a",
+      "source_first_publication_at": null,
+      "source_revision_number": null,
+      "revision_history_complete": null,
+      "independent_historical_capture_at": null,
+      "historical_system_known_at": null
+    },
+    {
+      "label": "nbs-cpi-2024-03",
+      "parser": "nbs_cpi_yoy",
+      "url": "https://www.stats.gov.cn/sj/zxfb/202404/t20240411_1948448.html",
+      "raw_path": "http/nbs-cpi-2024-03/body.bin",
+      "sha256": "44bd3993dd6d643a1a092646e3c187f09001531d13b9d27de534b2c629856a38",
+      "title": "2024年3月份居民消费价格同比上涨0.1% - 国家统计局",
+      "published_at": "2024-04-11T09:30:00+08:00",
+      "publication_basis": "visible_release_header",
+      "pubdate_metadata": null,
+      "url_date_token": "20240411",
+      "retrieved_at": "2026-11-08T15:25:59.959782+00:00",
+      "indicator": "CN_CPI_NATIONAL_YOY",
+      "unit": "%",
+      "source_unit": "%",
+      "value_transform": "identity; percent-scale number, no division by 100",
+      "observations": [
+        {
+          "period": "2024-03",
+          "value": "0.1"
+        }
+      ],
+      "version_identity": "current_capture_sha256:44bd3993dd6d643a1a092646e3c187f09001531d13b9d27de534b2c629856a38",
+      "source_first_publication_at": null,
+      "source_revision_number": null,
+      "revision_history_complete": null,
+      "independent_historical_capture_at": null,
+      "historical_system_known_at": null
+    },
+    {
+      "label": "nbs-cpi-2024-04",
+      "parser": "nbs_cpi_yoy",
+      "url": "https://www.stats.gov.cn/sj/zxfb/202405/t20240511_1950302.html",
+      "raw_path": "http/nbs-cpi-2024-04/body.bin",
+      "sha256": "78fdcb03a6562f25a9c9860b974bdb9bf25498b994b170e3022f3d4c4b61c453",
+      "title": "2024年4月份居民消费价格同比上涨0.3% - 国家统计局",
+      "published_at": "2024-05-11T09:30:00+08:00",
+      "publication_basis": "visible_release_header",
+      "pubdate_metadata": null,
+      "url_date_token": "20240511",
+      "retrieved_at": "2026-11-08T15:25:59.929971+00:00",
+      "indicator": "CN_CPI_NATIONAL_YOY",
+      "unit": "%",
+      "source_unit": "%",
+      "value_transform": "identity; percent-scale number, no division by 100",
+      "observations": [
+        {
+          "period": "2024-04",
+          "value": "0.3"
+        }
+      ],
+      "version_identity": "current_capture_sha256:78fdcb03a6562f25a9c9860b974bdb9bf25498b994b170e3022f3d4c4b61c453",
+      "source_first_publication_at": null,
+      "source_revision_number": null,
+      "revision_history_complete": null,
+      "independent_historical_capture_at": null,
+      "historical_system_known_at": null
+    },
+    {
+      "label": "nbs-cpi-2024-05",
+      "parser": "nbs_cpi_yoy",
+      "url": "https://www.stats.gov.cn/sj/zxfb/202406/t20240612_1954519.html",
+      "raw_path": "http/nbs-cpi-2024-05/body.bin",
+      "sha256": "f7ab50f46007a33838519211eba2b18676e18bed068058e9bf26c0bcfc1a634e",
+      "title": "2024年5月份居民消费价格同比上涨0.3% - 国家统计局",
+      "published_at": "2024-06-12T09:30:00+08:00",
+      "publication_basis": "visible_release_header",
+      "pubdate_metadata": null,
+      "url_date_token": "20240612",
+      "retrieved_at": "2026-11-08T15:26:00.097281+00:00",
+      "indicator": "CN_CPI_NATIONAL_YOY",
+      "unit": "%",
+      "source_unit": "%",
+      "value_transform": "identity; percent-scale number, no division by 100",
+      "observations": [
+        {
+          "period": "2024-05",
+          "value": "0.3"
+        }
+      ],
+      "version_identity": "current_capture_sha256:f7ab50f46007a33838519211eba2b18676e18bed068058e9bf26c0bcfc1a634e",
+      "source_first_publication_at": null,
+      "source_revision_number": null,
+      "revision_history_complete": null,
+      "independent_historical_capture_at": null,
+      "historical_system_known_at": null
+    },
+    {
+      "label": "nbs-cpi-2024-06",
+      "parser": "nbs_cpi_yoy",
+      "url": "https://www.stats.gov.cn/sj/zxfb/202407/t20240710_1955508.html",
+      "raw_path": "http/nbs-cpi-2024-06/body.bin",
+      "sha256": "6ba8b78f268cf87604586c8c670ce5ae283fe2ce29f09c3843c26c2295542b96",
+      "title": "2024年6月份居民消费价格同比上涨0.2% - 国家统计局",
+      "published_at": "2024-07-10T09:30:00+08:00",
+      "publication_basis": "visible_release_header",
+      "pubdate_metadata": "2024/07/10 09:30",
+      "url_date_token": "20240710",
+      "retrieved_at": "2026-11-08T15:26:00.165268+00:00",
+      "indicator": "CN_CPI_NATIONAL_YOY",
+      "unit": "%",
+      "source_unit": "%",
+      "value_transform": "identity; percent-scale number, no division by 100",
+      "observations": [
+        {
+          "period": "2024-06",
+          "value": "0.2"
+        }
+      ],
+      "version_identity": "current_capture_sha256:6ba8b78f268cf87604586c8c670ce5ae283fe2ce29f09c3843c26c2295542b96",
+      "source_first_publication_at": null,
+      "source_revision_number": null,
+      "revision_history_complete": null,
+      "independent_historical_capture_at": null,
+      "historical_system_known_at": null
+    },
+    {
+      "label": "nbs-cpi-2024-07",
+      "parser": "nbs_cpi_yoy",
+      "url": "https://www.stats.gov.cn/sj/zxfb/202408/t20240809_1955948.html",
+      "raw_path": "http/nbs-cpi-2024-07/body.bin",
+      "sha256": "10e3d67bfff2f275c8295458d207e25f3c1f6b75455cdbe2ce78d4f667cdbada",
+      "title": "2024年7月份居民消费价格上涨0.5% - 国家统计局",
+      "published_at": "2024-08-09T09:30:00+08:00",
+      "publication_basis": "visible_release_header",
+      "pubdate_metadata": "2024/08/09 09:30",
+      "url_date_token": "20240809",
+      "retrieved_at": "2026-11-08T15:26:00.130896+00:00",
+      "indicator": "CN_CPI_NATIONAL_YOY",
+      "unit": "%",
+      "source_unit": "%",
+      "value_transform": "identity; percent-scale number, no division by 100",
+      "observations": [
+        {
+          "period": "2024-07",
+          "value": "0.5"
+        }
+      ],
+      "version_identity": "current_capture_sha256:10e3d67bfff2f275c8295458d207e25f3c1f6b75455cdbe2ce78d4f667cdbada",
+      "source_first_publication_at": null,
+      "source_revision_number": null,
+      "revision_history_complete": null,
+      "independent_historical_capture_at": null,
+      "historical_system_known_at": null
+    },
+    {
+      "label": "nbs-cpi-2024-08",
+      "parser": "nbs_cpi_yoy",
+      "url": "https://www.stats.gov.cn/sj/zxfb/202409/t20240909_1956311.html",
+      "raw_path": "http/nbs-cpi-2024-08/body.bin",
+      "sha256": "cde942ed2e781513943b7599ceb1bb4b5096fa6c6fe8b2fd879be93ec9524723",
+      "title": "2024年8月份居民消费价格同比上涨0.6% - 国家统计局",
+      "published_at": "2024-09-09T09:30:00+08:00",
+      "publication_basis": "visible_release_header",
+      "pubdate_metadata": "2024/09/09 09:30",
+      "url_date_token": "20240909",
+      "retrieved_at": "2026-11-08T15:26:00.317031+00:00",
+      "indicator": "CN_CPI_NATIONAL_YOY",
+      "unit": "%",
+      "source_unit": "%",
+      "value_transform": "identity; percent-scale number, no division by 100",
+      "observations": [
+        {
+          "period": "2024-08",
+          "value": "0.6"
+        }
+      ],
+      "version_identity": "current_capture_sha256:cde942ed2e781513943b7599ceb1bb4b5096fa6c6fe8b2fd879be93ec9524723",
+      "source_first_publication_at": null,
+      "source_revision_number": null,
+      "revision_history_complete": null,
+      "independent_historical_capture_at": null,
+      "historical_system_known_at": null
+    },
+    {
+      "label": "nbs-cpi-2024-09",
+      "parser": "nbs_cpi_yoy",
+      "url": "https://www.stats.gov.cn/sj/zxfb/202410/t20241013_1956899.html",
+      "raw_path": "http/nbs-cpi-2024-09/body.bin",
+      "sha256": "daa70d5e2a44af60736b510a084b58c62903b95f9dbe4450f4d725924162a01b",
+      "title": "2024年9月份居民消费价格同比上涨0.4% - 国家统计局",
+      "published_at": "2024-10-13T09:30:00+08:00",
+      "publication_basis": "visible_release_header",
+      "pubdate_metadata": "2024/10/13 09:30",
+      "url_date_token": "20241013",
+      "retrieved_at": "2026-11-08T15:26:00.405883+00:00",
+      "indicator": "CN_CPI_NATIONAL_YOY",
+      "unit": "%",
+      "source_unit": "%",
+      "value_transform": "identity; percent-scale number, no division by 100",
+      "observations": [
+        {
+          "period": "2024-09",
+          "value": "0.4"
+        }
+      ],
+      "version_identity": "current_capture_sha256:daa70d5e2a44af60736b510a084b58c62903b95f9dbe4450f4d725924162a01b",
+      "source_first_publication_at": null,
+      "source_revision_number": null,
+      "revision_history_complete": null,
+      "independent_historical_capture_at": null,
+      "historical_system_known_at": null
+    },
+    {
+      "label": "nbs-cpi-2024-10",
+      "parser": "nbs_cpi_yoy",
+      "url": "https://www.stats.gov.cn/sj/zxfb/202411/t20241109_1957353.html",
+      "raw_path": "http/nbs-cpi-2024-10/body.bin",
+      "sha256": "384012d93bc45eaeb07837c2dd2793281a766aa879b1a2cacf331cdcc9ac28a1",
+      "title": "2024年10月份居民消费价格同比上涨0.3% - 国家统计局",
+      "published_at": "2024-11-09T09:30:00+08:00",
+      "publication_basis": "visible_release_header",
+      "pubdate_metadata": "2024/11/09 09:30",
+      "url_date_token": "20241109",
+      "retrieved_at": "2026-11-08T15:26:00.442017+00:00",
+      "indicator": "CN_CPI_NATIONAL_YOY",
+      "unit": "%",
+      "source_unit": "%",
+      "value_transform": "identity; percent-scale number, no division by 100",
+      "observations": [
+        {
+          "period": "2024-10",
+          "value": "0.3"
+        }
+      ],
+      "version_identity": "current_capture_sha256:384012d93bc45eaeb07837c2dd2793281a766aa879b1a2cacf331cdcc9ac28a1",
+      "source_first_publication_at": null,
+      "source_revision_number": null,
+      "revision_history_complete": null,
+      "independent_historical_capture_at": null,
+      "historical_system_known_at": null
+    },
+    {
+      "label": "nbs-cpi-2024-11",
+      "parser": "nbs_cpi_yoy",
+      "url": "https://www.stats.gov.cn/sj/zxfb/202412/t20241209_1957689.html",
+      "raw_path": "http/nbs-cpi-2024-11/body.bin",
+      "sha256": "f2641365a27b4d37c97b4ea1a897aac87173f67cfa63e0c67d92fe69e192b2b6",
+      "title": "2024年11月份居民消费价格同比上涨0.2% - 国家统计局",
+      "published_at": "2024-12-09T09:30:00+08:00",
+      "publication_basis": "visible_release_header",
+      "pubdate_metadata": "2024/12/09 09:30",
+      "url_date_token": "20241209",
+      "retrieved_at": "2026-11-08T15:26:00.477025+00:00",
+      "indicator": "CN_CPI_NATIONAL_YOY",
+      "unit": "%",
+      "source_unit": "%",
+      "value_transform": "identity; percent-scale number, no division by 100",
+      "observations": [
+        {
+          "period": "2024-11",
+          "value": "0.2"
+        }
+      ],
+      "version_identity": "current_capture_sha256:f2641365a27b4d37c97b4ea1a897aac87173f67cfa63e0c67d92fe69e192b2b6",
+      "source_first_publication_at": null,
+      "source_revision_number": null,
+      "revision_history_complete": null,
+      "independent_historical_capture_at": null,
+      "historical_system_known_at": null
+    }
+  ]
+}

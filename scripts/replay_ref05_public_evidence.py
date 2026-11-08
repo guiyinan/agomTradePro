@@ -102,6 +102,8 @@ class ReleaseDocument(HTMLParser):
         super().__init__(convert_charrefs=True)
         self.title = ""
         self.publication = ""
+        self.release_header: list[str] = []
+        self._header_depth = 0
         self.text_parts: list[str] = []
         self.rows: list[list[str]] = []
         self._in_title = False
@@ -119,6 +121,11 @@ class ReleaseDocument(HTMLParser):
             self._in_title = True
         if tag == "meta" and attributes.get("name") == "PubDate":
             self.publication = attributes.get("content") or ""
+        if tag == "div":
+            if self._header_depth:
+                self._header_depth += 1
+            elif "detail-title-des" in (attributes.get("class") or "").split():
+                self._header_depth = 1
         if tag == "table" and not self._finished:
             self._depth += 1
         if self._depth == 1:
@@ -131,6 +138,8 @@ class ReleaseDocument(HTMLParser):
         """Finish complete cells and rows without joining separate tables."""
         if tag == "title":
             self._in_title = False
+        if tag == "div" and self._header_depth:
+            self._header_depth -= 1
         if self._depth == 1:
             if tag in {"td", "th"} and self._cell is not None:
                 self._row.append(re.sub(r"\s+", "", "".join(self._cell)))
@@ -145,6 +154,8 @@ class ReleaseDocument(HTMLParser):
     def handle_data(self, data: str) -> None:
         """Keep source text, title and current table cell independently."""
         self.text_parts.append(data)
+        if self._header_depth:
+            self.release_header.append(data)
         if self._in_title:
             self.title += data
         if self._cell is not None:
@@ -158,15 +169,27 @@ def _source_facts(spec: dict[str, Any], evidence: Path, first_id: int) -> list[P
     retrieved = _clock(spec["retrieved_at"])
     url = _text(spec["url"])
     address = urlparse(url)
+    visible_clock = published.strftime("%Y/%m/%d %H:%M")
+    publication_basis = spec.get("publication_basis", "metadata_and_visible_text")
+    if publication_basis == "visible_release_header":
+        header_clocks = re.findall(
+            r"\d{4}/\d{2}/\d{2} \d{2}:\d{2}", "".join(document.release_header)
+        )
+        publication_valid = header_clocks == [visible_clock] and (
+            not document.publication or document.publication == visible_clock
+        )
+    elif publication_basis == "metadata_and_visible_text":
+        publication_valid = document.publication == visible_clock
+    else:
+        raise ValueError("Unsupported publication evidence basis")
     if (
         address.scheme != "https"
         or address.hostname != "www.stats.gov.cn"
-        or not address.path.startswith("/sj/zxfb/")
-        or f"t{published:%Y%m%d}_" not in address.path
+        or re.fullmatch(r"/sj/zxfb/\d{6}/t\d{8}_[A-Za-z0-9]+\.html", address.path) is None
         or document.title.strip() != _text(spec["title"])
         or not document.title.strip().endswith(" - 国家统计局")
-        or document.publication != published.strftime("%Y/%m/%d %H:%M")
-        or document.publication not in "".join(document.text_parts)
+        or not publication_valid
+        or visible_clock not in "".join(document.text_parts)
         or retrieved < published
     ):
         raise ValueError("Official document identity or publication evidence differs")
@@ -194,11 +217,25 @@ def _source_facts(spec: dict[str, Any], evidence: Path, first_id: int) -> list[P
         ):
             raise ValueError("National CPI year-on-year column differs")
         period = f"{int(match[1]):04d}-{int(match[2]):02d}"
-        value_text = rows[1][2]
-        narrative = f"{int(match[1])}年{int(match[2])}月份，全国居民消费价格同比上涨{value_text}%"
-        if narrative not in re.sub(r"\s+", "", "".join(document.text_parts)):
+        value = _number(rows[1][2])
+        narrative = re.search(
+            rf"(?:{int(match[1])}年|(?<![\d年])){int(match[2])}月份，"
+            r"[^。；]*?全国居民消费价格同比"
+            r"(?:(上涨|下降)(\d+(?:\.\d+)?)%|持平)(?=[。，；])",
+            re.sub(r"\s+", "", "".join(document.text_parts)),
+        )
+        narrative_value = (
+            None
+            if narrative is None
+            else (
+                0.0
+                if narrative[1] is None
+                else _number(narrative[2]) * (-1 if narrative[1] == "下降" else 1)
+            )
+        )
+        if narrative_value != value:
             raise ValueError("CPI narrative and table disagree")
-        parsed[period] = _number(value_text)
+        parsed[period] = value
     else:
         raise ValueError("Unsupported frozen document parser")
     result: list[PITFactVersion] = []
@@ -233,6 +270,9 @@ def _source_facts(spec: dict[str, Any], evidence: Path, first_id: int) -> list[P
                     "unit": _text(spec["unit"]),
                     "availability_basis": "official_dated_release_next_calendar_day",
                     "source_first_publication_at": None,
+                    "source_revision_number": None,
+                    "historical_system_known_at": None,
+                    "independent_historical_capture_at": None,
                     "research_only": True,
                 },
             )
@@ -272,6 +312,13 @@ def run_replay(recipe_path: Path, evidence_dir: Path) -> dict[str, Any]:
     recipe = _object(json.loads(recipe_raw))
     if recipe.get("schema") != "ref05.public-replay.v1":
         raise ValueError("Unsupported replay recipe")
+    if "grid_freeze" in recipe:
+        binding = _object(recipe["grid_freeze"])
+        frozen = _object(
+            json.loads(_verified_file(evidence_dir, binding["raw_path"], binding["sha256"]))
+        )
+        if any(recipe[key] != frozen[key] for key in ("cutoffs", "roles", "parameters")):
+            raise ValueError("Replay differs from the frozen observation grid or configuration")
     for item in _array(recipe["code_inputs"]):
         code = _object(item)
         if code.get("hash_basis") != "lf_normalized_bytes":
@@ -384,7 +431,11 @@ def run_replay(recipe_path: Path, evidence_dir: Path) -> dict[str, Any]:
         "recipe_sha256": _hash(recipe_raw),
         "fact_count": len(facts),
         "cutoffs": outputs,
-        "archive_sample": _archive_sample(_object(recipe["archive_sample"]), evidence_dir),
+        "archive_sample": (
+            _archive_sample(_object(recipe["archive_sample"]), evidence_dir)
+            if "archive_sample" in recipe
+            else None
+        ),
         "database_writes": 0,
         "canonical_registration": False,
         "production_eligibility": False,

@@ -59,7 +59,7 @@ def _fixture(tmp_path: Path) -> tuple[Path, Path]:
             narrative = ""
         else:
             table = f"<tr><td></td><td>环比涨跌幅（%）</td><td>同比涨跌幅（%）</td></tr><tr><td>居民消费价格</td><td>-9.9</td><td>{value}</td></tr>"
-            narrative = f"2024年{month}月份，全国居民消费价格同比上涨{value}%"
+            narrative = f"2024年{month}月份，全国居民消费价格同比上涨{value}%。"
         raw = f'<html><title>{title}</title><meta name="PubDate" content="{visible}"><body>{visible}<p>{narrative}</p><table>{table}</table></body></html>'.encode()
         (evidence / (label + ".html")).write_bytes(raw)
         sources.append(
@@ -252,3 +252,127 @@ def test_cli_preserves_existing_output(tmp_path: Path) -> None:
     )
     assert completed.returncode == 2
     assert output.read_text() == "existing"
+
+
+@pytest.mark.parametrize("value,phrase", [("-0.2", "下降0.2%"), ("0.0", "持平")])
+@pytest.mark.parametrize("explanation", [False, True])
+def test_cpi_signed_and_flat_narratives(
+    tmp_path: Path, value: str, phrase: str, explanation: bool
+) -> None:
+    recipe, evidence = _fixture(tmp_path)
+    data = json.loads(recipe.read_text())
+    source = data["sources"][1]
+    raw = (evidence / source["raw_path"]).read_text(encoding="utf-8")
+    raw = raw.replace("同比上涨0.2%", "同比" + phrase).replace("<td>0.2</td>", f"<td>{value}</td>")
+    if explanation:
+        raw = raw.replace(
+            "2024年6月份，全国", "环比保持稳定。6月份，受上年同期春节错月高基数影响，全国"
+        )
+    (evidence / source["raw_path"]).write_text(raw, encoding="utf-8")
+    source["title"] = source["title"].replace("同比上涨0.2%", "同比" + phrase)
+    source["sha256"] = hashlib.sha256(raw.encode()).hexdigest()
+    source["observations"][0]["value"] = value
+    recipe.write_text(json.dumps(data))
+    result = run_replay(recipe, evidence)
+    assert result["cutoffs"][0]["selected"]["CN_CPI_NATIONAL_YOY"][0]["value"] == float(value)
+    bad = raw.replace("全国居民消费价格同比" + phrase, "全国居民消费价格同比上涨9.9%")
+    (evidence / source["raw_path"]).write_text(bad, encoding="utf-8")
+    source["sha256"] = hashlib.sha256(bad.encode()).hexdigest()
+    recipe.write_text(json.dumps(data))
+    with pytest.raises(ValueError, match="narrative"):
+        run_replay(recipe, evidence)
+
+
+@pytest.mark.parametrize("metadata", [False, True])
+def test_visible_release_header_is_independent_of_url_date(tmp_path: Path, metadata: bool) -> None:
+    recipe, evidence = _fixture(tmp_path)
+    data = json.loads(recipe.read_text())
+    source = data["sources"][0]
+    raw = (evidence / source["raw_path"]).read_text(encoding="utf-8")
+    if not metadata:
+        raw = raw.replace('<meta name="PubDate" content="2024/10/31 09:30">', "")
+    raw = raw.replace(
+        "<body>", '<body><div class="detail-title-des"><h2><p>2024/10/31 09:30</p></h2></div>'
+    )
+    (evidence / source["raw_path"]).write_text(raw, encoding="utf-8")
+    source["sha256"] = hashlib.sha256(raw.encode()).hexdigest()
+    source["url"] = source["url"].replace("t20241031_", "t20241112_")
+    source["publication_basis"] = "visible_release_header"
+    recipe.write_text(json.dumps(data))
+    result = run_replay(recipe, evidence)
+    assert (
+        result["cutoffs"][0]["selected"]["CN_PMI"][-1]["available_at"]
+        == "2024-11-01T00:00:00+08:00"
+    )
+    bad = raw.replace("<p>2024/10/31 09:30</p>", "<p>2024/11/30 09:30</p>")
+    (evidence / source["raw_path"]).write_text(bad, encoding="utf-8")
+    source["sha256"] = hashlib.sha256(bad.encode()).hexdigest()
+    recipe.write_text(json.dumps(data))
+    with pytest.raises(ValueError, match="publication"):
+        run_replay(recipe, evidence)
+
+
+def test_frozen_grid_is_bound_and_archive_sample_is_optional(tmp_path: Path) -> None:
+    recipe, evidence = _fixture(tmp_path)
+    data = json.loads(recipe.read_text())
+    del data["archive_sample"]
+    frozen = {key: data[key] for key in ("cutoffs", "roles", "parameters")}
+    raw = json.dumps(frozen).encode()
+    (evidence / "grid.json").write_bytes(raw)
+    data["grid_freeze"] = {"raw_path": "grid.json", "sha256": hashlib.sha256(raw).hexdigest()}
+    recipe.write_text(json.dumps(data))
+    assert run_replay(recipe, evidence)["archive_sample"] is None
+    data["cutoffs"][0]["at"] = "2024-11-08T10:00:00+08:00"
+    recipe.write_text(json.dumps(data))
+    with pytest.raises(ValueError, match="frozen"):
+        run_replay(recipe, evidence)
+
+
+@pytest.mark.parametrize("mutation", ["missing", "future", "metadata_conflict"])
+def test_monthly_grid_rejects_unusable_sources(tmp_path: Path, mutation: str) -> None:
+    recipe, evidence = _fixture(tmp_path)
+    data = json.loads(recipe.read_text())
+    if mutation == "missing":
+        del data["sources"][1]
+    elif mutation == "future":
+        data["cutoffs"][0]["at"] = "2024-10-31T12:00:00+08:00"
+    else:
+        source = data["sources"][0]
+        raw = (evidence / source["raw_path"]).read_text(encoding="utf-8")
+        raw = raw.replace("<body>", '<body><div class="detail-title-des">2024/10/31 09:30</div>')
+        raw = raw.replace('content="2024/10/31 09:30"', 'content="2024/10/30 09:30"')
+        (evidence / source["raw_path"]).write_text(raw, encoding="utf-8")
+        source["sha256"] = hashlib.sha256(raw.encode()).hexdigest()
+        source["publication_basis"] = "visible_release_header"
+    recipe.write_text(json.dumps(data))
+    with pytest.raises(ValueError):
+        run_replay(recipe, evidence)
+
+
+def test_tracked_monthly_sample_preserves_scope_and_required_keys() -> None:
+    data = json.loads(
+        (REPO / "docs/reviews/ref05-monthly-2024-replay-20261108.json").read_text(encoding="utf-8")
+    )
+    assert [c["at"] for c in data["cutoffs"]] == [
+        f"2024-{m:02}-15T09:00:00+08:00" for m in range(1, 13)
+    ]
+    required: set[tuple[str, str]] = set()
+    for month, cutoff in enumerate(data["cutoffs"], 1):
+        expected = []
+        for offset in range(4, 0, -1):
+            year, index = divmod(2024 * 12 + month - 1 - offset, 12)
+            expected.append(f"{year:04}-{index + 1:02}")
+        assert cutoff["expected_periods"] == dict.fromkeys(data["roles"].values(), expected)
+        required.update(
+            (indicator, period) for indicator in data["roles"].values() for period in expected
+        )
+    supplied = {(s["indicator"], o["period"]) for s in data["sources"] for o in s["observations"]}
+    assert required == supplied and len(supplied) == 30
+    assert len(data["sources"]) == 30
+    for source in data["sources"]:
+        assert source["unit"] == source["source_unit"] == "%"
+        assert source["source_first_publication_at"] is None
+        assert source["source_revision_number"] is None
+        assert source["independent_historical_capture_at"] is None
+        assert source["historical_system_known_at"] is None
+        assert source["retrieved_at"] > data["frozen_at_utc"]
