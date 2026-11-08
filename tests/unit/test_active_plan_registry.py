@@ -443,9 +443,10 @@ def test_registry_accepts_explicit_ash07_closure_handoff_without_starting_succes
         ("REF-01", "REF-03", "REF-04", "19.161"),
         ("REF-03", "REF-04", "REF-06", "19.162"),
         ("REF-04", "REF-06", "REF-05", "19.164"),
+        ("REF-06", "GOV-04", "GOV-05", "19.165"),
     ],
 )
-def test_registry_ref_closure_requires_explicit_handoff_without_starting_successor(
+def test_registry_closure_requires_explicit_handoff_without_starting_successor(
     tmp_path: Path,
     mutation: str,
     expected_code: str | None,
@@ -454,7 +455,7 @@ def test_registry_ref_closure_requires_explicit_handoff_without_starting_success
     successor: str,
     section: str,
 ) -> None:
-    """REF closure cannot authorize a successor or hide an unfinished anchor."""
+    """A closure cannot authorize a successor or hide an unfinished anchor."""
 
     module = _load_module()
     registry_path, index_path = _write_fixture_repository(tmp_path)
