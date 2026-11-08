@@ -1,5 +1,5 @@
 {
-  "version": "2026-11-08.v324",
+  "version": "2026-11-08.v325",
   "updated_at": "2026-11-08",
   "execution_focus": {
     "unit_id": null,
@@ -20,7 +20,7 @@
       },
       {
         "unit_id": "REF-05",
-        "scope": "Existing read-only PIT availability and experiment design only. No new provider writes, offline experiment, data purchase or deferred algorithm/promotion window.",
+        "scope": "Owner authorized bounded PUBLIC document qualification and local deterministic replay of the existing Regime V2 on 2026-11-08. Accept explicitly distinguished authoritative dated-release and digest-matched historical-capture evidence under the frozen conservative policy; do not require historical SYSTEM ingestion for PUBLIC. Read-only source GETs and isolated evidence outputs are permitted. No canonical/provider/production writes, strategy-performance experiment, data purchase or deferred algorithm/promotion window. Scope and current evidence: docs/plans/data-boundary-convergence-plan-2026-10-26.md REF-05 and docs/reviews/ref01-ref05-parallel-preparation-2026-10-29.md, 11/08 PUBLIC diagnostic.",
         "owner": "Research/backtest with ASH data owner",
         "isolated_workspace": true,
         "shared_git_serialized": true,

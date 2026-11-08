@@ -83,3 +83,16 @@ ASH-08 的 `RebalanceJourneyAccountAuthorizer` 委托现有risk resource scope r
 | `a-ref01/handoff.json` | `95bbab76d1f43536120a5e4baeffb61a10107891b28222d7893a2849018abb01` |
 | `b-ref05/handoff.json` | `d568ed1b7a3a537563a1ee34d2840096c06470b23298158ff240c91c3016c199` |
 | `c-order/post-ash08-next-goal-candidate.json` | `f4a91c6a4727bdd24e73adacd9c70cac529a3a3f3adad7dc28ccc30b56d26e43` |
+
+## 2026-11-08 PUBLIC 数据诊断
+
+Owner 已授权必要推进。本节接续上面的准备记录，受限范围与源时间规则以[收敛计划 REF-05](../plans/data-boundary-convergence-plan-2026-10-26.md#ref-05regime-增量价值的有界实验wp7-验证)为准。精确首发未知不再作为所有 PUBLIC 用途的共同前置；SYSTEM 仍需真实系统接收历史。此次仅复用既有 Domain 做本机确定性诊断，没有新增算法、生产代码、模型、写库或策略收益实验。
+
+- **真实输入：** 6 份国家统计局具名公告，提取 4 条 2024-07 至 10 月制造业 PMI 和 5 条 2024-06 至 10 月全国 CPI 同比。PMI 四个月都属于 10/31 公告的同一表格版本，只从 11/01 零点后可用，不能借该表倒推它们更早的公开版本。CPI 用各月公告，全国同比列与正文双重核对，未混入 CPI 指数水平、环比或累计同比。
+- **规则：** 官方发布日期保留为来源断言，按次日上海零点起使用；这不等同于独立历史字节捕获。开户数另用已核验 CDX/正文摘要的存档时间 2024-11-06 19:36:07，证明 739.40 万户这一总开户 proxy 的 PUBLIC 可得上界，首发与系统历史接收仍为空。两类原件均冻结 SHA-256；源修订史不作完整性承诺。
+- **结果：** 固定两个观察时点 2024-11-08、11-11 的 09:00，分别选入 CPI 0.4%、0.3%，PMI 均为 50.1；现有 V2 均给出 Recovery。两组各 8 个预先列明的必需键完整，PUBLIC Domain manifest 完整性通过。所有历史 SYSTEM 选择均为空；没有以当前接收时钟回填 2024。当前配置在计算前冻结，不声明为当年部署参数。结果为本机诊断，非 canonical 研究登记或投资结论。
+- **验证：** 27 项功能与边界校验通过，覆盖发布前排除/准入边界、SYSTEM 分离、原件篡改、manifest 篡改及既有源码身份；66 项原件/输入完整性核验通过。SSE 英文日历请求 TLS 失败原件保留且未采纳，本例观察网格不声称具备成交日历资格。没有生产 Python 改动，未据此重跑生产类型或数据库测试；治理交付命令及实际状态追加在下列目录的 `delivery.json`。
+
+原件仅在本机 `.tmp/ref05-single-month-source-20261108/continuation-03-public/`；`frozen-case.json` 固定规则/参数/必需键，`public-fact-versions.json`、两个 `manifest-*.json`、`diagnostic-results.json` 与 `account-public-candidate.json` 提供可复核结果。唯一证据索引 `evidence-index.json` SHA-256 为 `2b43244b5df01a27e05f097e8b1b2bf49a44b11ba6ec1e3f99c48c08501f2f69`，数据/算法候选为 `8acf659ba3c0cc86f937ae45ad2e46ca21c83762`；既有封存目录未改。不得把这些本机原件声明为已同步远端。
+
+已解决的是受限 PUBLIC 数据选择与计算路径；未完成的是足够长的实际必需输入覆盖、完整市场/公司行为/日历及策略/比较器/费用/split/family 绑定，因而 REF-05 整单实证退出仍未满足。后续优先扩大这条已跑通的文档路径，按实际缺口补齐，不再把开户数精确首发当成该 V2 的前置，也不将一个样例的完整覆盖率推广为整段历史覆盖率。
