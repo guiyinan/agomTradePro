@@ -181,7 +181,7 @@ GOV-05 首批候选按影响排序如下。
 
 本地同一源码树 Python 合批 79 项、Shell 与支持门 230 项全部通过，无跳过。独立 Python 行与分支覆盖初始下限登记在测试质量基线，原覆盖分母及下限保持。Shell 用 15 个隔离 CLI 用例和成功路径的 Bash 跟踪衡量。增量 mypy 与全仓债务检查通过。Data Center 入口投影用原生成器刷新，包含新增回滚备份调用和测试引用。先前的生成投影过期与 Shell CRLF 调试失败原件均保留。
 
-合批索引保留在本机 `.tmp/gov05-20261108/root/validation-index.json`，验收检查点 SHA-256 `dd5e727e110bd0c898a660487f0cd9b0f580df63bacaa0bdb9d43ed88a7972c5`。候选提交与 CI 回执按实际 SHA 绑定。
+本机持续索引为 `.tmp/gov05-20261108/root/validation-index.json`。验收检查点 `.tmp/gov05-20261108/root/validation-index.before-closure.json` 的 SHA-256 为 `dd5e727e110bd0c898a660487f0cd9b0f580df63bacaa0bdb9d43ed88a7972c5`。验收提交 `008110d6eea2f34f8ff15e1099a40dcd01975d87` 五项适用 CI 全部通过，回执 `.tmp/gov05-20261108/root/acceptance-ci-final.json` SHA-256 `91cf5e029c35610a76ee37befa4094a7889fbeb52b95414341ebcc8b4153a273`。治理清单 v324 登记 GOV-05 完成并释放焦点，登记提交的 CI 单独绑定。
 
 ## 8. M1：MCP 分类核验与退役
 

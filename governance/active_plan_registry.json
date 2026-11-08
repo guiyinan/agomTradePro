@@ -1,14 +1,14 @@
 {
-  "version": "2026-11-08.v323",
+  "version": "2026-11-08.v324",
   "updated_at": "2026-11-08",
   "execution_focus": {
-    "unit_id": "GOV-05",
+    "unit_id": null,
     "allowed_parallel_execution_modes": [
       "production",
       "external",
       "governance"
     ],
-    "policy": "Owner 2026-11-08 formally hands the sole repository focus from completed GOV-04 to GOV-05 S2 for its four audited entrypoints. See A-share section 19.166 and scripts governance sections 6.4 and 7. Three Luna max isolated preparations write failure tests first and Root integrates serially for whole-unit coverage, CI wiring, and actual latest CI. Qualified ASH-08 genuine same-day sources retain priority. REF-05 is read-only, REF-02 remains externally blocked, and other registered boundaries remain in force.",
+    "policy": "GOV-05 S2 completed on accepted candidate 008110d6eea2f34f8ff15e1099a40dcd01975d87. The four audited entrypoints passed failing-first and successful CLI contracts, independent coverage and source-only CI selection. See scripts governance section 7.3. The sole repository focus is released pending formal handoff. Qualified ASH-08 genuine same-day sources retain priority; REF-05 remains read-only and REF-02 externally blocked. All other registered boundaries remain in force.",
     "parallel_preparation": [
       {
         "unit_id": "ASH-08",
@@ -26,7 +26,12 @@
         "shared_git_serialized": true,
         "isolated_test_resources": true
       }
-    ]
+    ],
+    "handoff_pending": {
+      "completed_unit_id": "GOV-05",
+      "owner_decision_ref": "docs/plans/a-share-usability-implementation-plan-2026-10-16.md#19.166",
+      "reason": "GOV-05 passed its four-entry S2 exit and exact acceptance CI. Await the next formal handoff with qualified ASH-08 source priority."
+    }
   },
   "workstreams": [
     {
@@ -378,7 +383,7 @@
       "priority": "P1",
       "owner": "Repository Owner / Account / Research / Data Center / Portfolio / Governance / SDK / MCP",
       "status": "active",
-      "next_gate": "GOV-05 owns the sole repository focus for the four audited S2 entrypoints. Complete failure-first repair, independent coverage, selected CI tests and exact latest CI before closure. Qualified ASH-08 retains priority. REF-05 remains read-only and REF-02 externally blocked.",
+      "next_gate": "GOV-05 S2 completed for the four audited scripts with retained failing-first, independent coverage, source-only selection and exact acceptance CI. Await formal handoff. Qualified ASH-08 retains priority, REF-05 remains read-only, and REF-02 remains externally blocked. GOV-06/07 retain their registered boundaries.",
       "documents": [
         {
           "path": "docs/plans/scripts-docs-mcp-governance-plan-2026-10-14.md",
@@ -1621,7 +1626,7 @@
         "wave": 3,
         "priority": "P1",
         "execution_mode": "repository",
-        "status": "active",
+        "status": "completed",
         "title": "Repair critical script failure handling and establish measured coverage",
         "depends_on": [
           "GOV-04"
