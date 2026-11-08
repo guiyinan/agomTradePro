@@ -116,11 +116,28 @@ media/
 *.log
 *.log.gz
 /logs/
-# The consistency baseline is an active CI input, not a generated report.
+# Active baselines and named historical summaries are retained; generated
+# reports remain ignored. Decisions: docs/testing/tracked-ignored-files-2026-11-08.json
 /reports/*
 !/reports/consistency/
 /reports/consistency/*
 !/reports/consistency/baseline.json
+!/reports/security/
+/reports/security/*
+!/reports/security/bandit-baseline.json
+!/reports/regression/
+/reports/regression/*
+!/reports/regression/2026-02-27/
+/reports/regression/2026-02-27/*
+!/reports/regression/2026-02-27/defects.csv
+!/reports/regression/2026-02-27/evidence-index.md
+!/reports/regression/2026-02-27/gate-status.md
+!/reports/regression/2026-02-27/manifest.json
+!/reports/regression/2026-02-27/risk-register.md
+!/reports/regression/2026-02-27/self-test-report.md
+!/reports/regression/2026-03-04/
+/reports/regression/2026-03-04/*
+!/reports/regression/2026-03-04/postdeploy-gate.md
 /artifacts/
 /backups/
 /output/

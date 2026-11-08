@@ -1,0 +1,374 @@
+{
+  "scope": "39 tracked paths matched ignore rules at the recorded commit; no history rewrite and no original local-file deletion.",
+  "prior_commit": "adfd9b6905a7886a8f206c9a9f228be4b9eb9ff8",
+  "local_archive_root": "artifacts/workspace-hygiene/tracked-ignored-20261108/originals",
+  "archive_availability": "local_only",
+  "counts": {
+    "retain_original_path": 8,
+    "relocate_content_keep_original_local": 1,
+    "untrack": 30
+  },
+  "reasons": {
+    "security_baseline": "Required by scripts/run_full_regression.py::RegressionRunner.run_bandit; keep exact baseline.",
+    "historical_summary": "Concise historical conclusions, defects, risk register and run manifest; keep the historical status, including failures, without treating it as current acceptance.",
+    "audit_report": "Still referenced by capability-access plans; retain prose under docs/reviews and replace raw-image embeds with the archive locator.",
+    "obsolete_package": "Version 0.1.0 build output; current qmt_agent version is 0.3.0 and provider resolves the running version or explicit configured path.",
+    "generated_data": "Output of scripts/update_system_data.py; debug consumer explicitly requests generation if missing. Not a canonical fixture or fresh decision input.",
+    "frozen_log_original": "Raw TUX-10 stdout archives; keep frozen manifest and acceptance metadata unchanged and retain original bytes locally.",
+    "raw_browser_evidence": "Generated screenshots; preserve local originals and hashes, retain the narrative report separately.",
+    "generated_report": "Historical UAT/URL-scan run output; source commands and meaningful historical summary records remain tracked."
+  },
+  "files": [
+    {
+      "path": "artifacts/qmt-agent/agom-qmt-agent-windows-0.1.0.zip",
+      "bytes": 37771,
+      "sha256": "3157d30dd7566990aee0c04ba3c9dd8e5974715687832e675ca018c922182915",
+      "git_blob_sha256": "3157d30dd7566990aee0c04ba3c9dd8e5974715687832e675ca018c922182915",
+      "action": "untrack",
+      "reason": "obsolete_package",
+      "retained_path": null
+    },
+    {
+      "path": "artifacts/qmt-agent/agom-qmt-agent-windows-0.1.0.zip.sha256",
+      "bytes": 99,
+      "sha256": "de309881a93815035b627a87791ed634b3b23e40776e707c23b520a46fd52afc",
+      "git_blob_sha256": "de309881a93815035b627a87791ed634b3b23e40776e707c23b520a46fd52afc",
+      "action": "untrack",
+      "reason": "obsolete_package",
+      "retained_path": null
+    },
+    {
+      "path": "data/macro_data_latest.json",
+      "bytes": 13322,
+      "sha256": "4df3bbf362dd8d0968273ae654fe43564a53177d8f2c85e295691efb08d44e1c",
+      "git_blob_sha256": "6f2f3e6204fc84aa8ac934abc89ff82a10cf372c36ffdb0325e24b2510c4c436",
+      "action": "untrack",
+      "reason": "generated_data",
+      "retained_path": null
+    },
+    {
+      "path": "data/regime_latest.json",
+      "bytes": 391,
+      "sha256": "8231a2af36c69956719f600a1cbaadd515619fab59bcf08cba07c60150b2557e",
+      "git_blob_sha256": "0170c885bbd569a6ab103f116fe9339f70fe3cd3cbd6e01c360d18d07b780656",
+      "action": "untrack",
+      "reason": "generated_data",
+      "retained_path": null
+    },
+    {
+      "path": "data/update_summary.json",
+      "bytes": 542,
+      "sha256": "b8756194c2f499d6a81eea60bf3e7d02254421c201ce9e8c4296e086462dfe2d",
+      "git_blob_sha256": "ae9f5773d4e5cef48312e90ce61da732193cb77d6b9bb15ae24b67379b87fdb3",
+      "action": "untrack",
+      "reason": "generated_data",
+      "retained_path": null
+    },
+    {
+      "path": "docs/testing/tui-task-first-2026-10-17/tux10/previous-round/runtime-build-01.log.gz",
+      "bytes": 85,
+      "sha256": "4535c7bb5812b81f369eee7d2caf69ce3fe158756f222fe9e55266ea87ad88c5",
+      "git_blob_sha256": "4535c7bb5812b81f369eee7d2caf69ce3fe158756f222fe9e55266ea87ad88c5",
+      "action": "untrack",
+      "reason": "frozen_log_original",
+      "retained_path": null
+    },
+    {
+      "path": "docs/testing/tui-task-first-2026-10-17/tux10/previous-round/runtime-build-03.log.gz",
+      "bytes": 85,
+      "sha256": "4535c7bb5812b81f369eee7d2caf69ce3fe158756f222fe9e55266ea87ad88c5",
+      "git_blob_sha256": "4535c7bb5812b81f369eee7d2caf69ce3fe158756f222fe9e55266ea87ad88c5",
+      "action": "untrack",
+      "reason": "frozen_log_original",
+      "retained_path": null
+    },
+    {
+      "path": "docs/testing/tui-task-first-2026-10-17/tux10/previous-round/runtime-build-05.log.gz",
+      "bytes": 85,
+      "sha256": "4535c7bb5812b81f369eee7d2caf69ce3fe158756f222fe9e55266ea87ad88c5",
+      "git_blob_sha256": "4535c7bb5812b81f369eee7d2caf69ce3fe158756f222fe9e55266ea87ad88c5",
+      "action": "untrack",
+      "reason": "frozen_log_original",
+      "retained_path": null
+    },
+    {
+      "path": "docs/testing/tui-task-first-2026-10-17/tux10/previous-round/runtime-check-02.log.gz",
+      "bytes": 93,
+      "sha256": "cae5fb7c49b5588901b22bf711622363b8677bbaf0e95e404a104cc502cb9abc",
+      "git_blob_sha256": "cae5fb7c49b5588901b22bf711622363b8677bbaf0e95e404a104cc502cb9abc",
+      "action": "untrack",
+      "reason": "frozen_log_original",
+      "retained_path": null
+    },
+    {
+      "path": "docs/testing/tui-task-first-2026-10-17/tux10/runtime-build-01.log.gz",
+      "bytes": 85,
+      "sha256": "4535c7bb5812b81f369eee7d2caf69ce3fe158756f222fe9e55266ea87ad88c5",
+      "git_blob_sha256": "4535c7bb5812b81f369eee7d2caf69ce3fe158756f222fe9e55266ea87ad88c5",
+      "action": "untrack",
+      "reason": "frozen_log_original",
+      "retained_path": null
+    },
+    {
+      "path": "docs/testing/tui-task-first-2026-10-17/tux10/runtime-check-02.log.gz",
+      "bytes": 93,
+      "sha256": "cae5fb7c49b5588901b22bf711622363b8677bbaf0e95e404a104cc502cb9abc",
+      "git_blob_sha256": "cae5fb7c49b5588901b22bf711622363b8677bbaf0e95e404a104cc502cb9abc",
+      "action": "untrack",
+      "reason": "frozen_log_original",
+      "retained_path": null
+    },
+    {
+      "path": "output/playwright/tui-capability-router-audit/01-entry.png",
+      "bytes": 159498,
+      "sha256": "6546d56d96575fd3979a29e992383eaec216fd919a07869526ecdeed273d440b",
+      "git_blob_sha256": "6546d56d96575fd3979a29e992383eaec216fd919a07869526ecdeed273d440b",
+      "action": "untrack",
+      "reason": "raw_browser_evidence",
+      "retained_path": null
+    },
+    {
+      "path": "output/playwright/tui-capability-router-audit/02-gateway.png",
+      "bytes": 188440,
+      "sha256": "6039c4ee9b84249be7d23ec5ea5537fb1ac5c70921762c9d1672eb34b1f25761",
+      "git_blob_sha256": "6039c4ee9b84249be7d23ec5ea5537fb1ac5c70921762c9d1672eb34b1f25761",
+      "action": "untrack",
+      "reason": "raw_browser_evidence",
+      "retained_path": null
+    },
+    {
+      "path": "output/playwright/tui-capability-router-audit/03-self-service-redacted.png",
+      "bytes": 152141,
+      "sha256": "064d8fcb053c5a8253628258b244ca636bdef981f264367dc88497e3238fd083",
+      "git_blob_sha256": "064d8fcb053c5a8253628258b244ca636bdef981f264367dc88497e3238fd083",
+      "action": "untrack",
+      "reason": "raw_browser_evidence",
+      "retained_path": null
+    },
+    {
+      "path": "output/playwright/tui-capability-router-audit/04-mcp-center.png",
+      "bytes": 89985,
+      "sha256": "f1e113b98ee6998e1010ff6347430e759a49446d0570f339e29777801a2f5f9c",
+      "git_blob_sha256": "f1e113b98ee6998e1010ff6347430e759a49446d0570f339e29777801a2f5f9c",
+      "action": "untrack",
+      "reason": "raw_browser_evidence",
+      "retained_path": null
+    },
+    {
+      "path": "output/playwright/tui-capability-router-audit/05-admin-access.png",
+      "bytes": 85535,
+      "sha256": "81fdebb4581017ec1b8453feda227eb06bc5e684465ab2cb10d048b05112c74b",
+      "git_blob_sha256": "81fdebb4581017ec1b8453feda227eb06bc5e684465ab2cb10d048b05112c74b",
+      "action": "untrack",
+      "reason": "raw_browser_evidence",
+      "retained_path": null
+    },
+    {
+      "path": "output/playwright/tui-capability-router-audit/admin-self-service-masked.png",
+      "bytes": 46849,
+      "sha256": "fe85b82be7facb0e47a8c0cce546854cd3cb211563735625dd14012790f86d76",
+      "git_blob_sha256": "fe85b82be7facb0e47a8c0cce546854cd3cb211563735625dd14012790f86d76",
+      "action": "untrack",
+      "reason": "raw_browser_evidence",
+      "retained_path": null
+    },
+    {
+      "path": "output/playwright/tui-capability-router-audit/admin-user-governance-row-actions.png",
+      "bytes": 46975,
+      "sha256": "8d095217cbb7b65ecf8a47ba851cbc113b7459cb9add2929e32531d4bdcd1e61",
+      "git_blob_sha256": "8d095217cbb7b65ecf8a47ba851cbc113b7459cb9add2929e32531d4bdcd1e61",
+      "action": "untrack",
+      "reason": "raw_browser_evidence",
+      "retained_path": null
+    },
+    {
+      "path": "output/playwright/tui-capability-router-audit/audit-report.md",
+      "bytes": 16611,
+      "sha256": "d6979f3712ad508d5afe8e5b3909d8858d7afb5f8d0b7203e190ef55548d8004",
+      "git_blob_sha256": "96de6d621bba314c3919801fa057ebdcf9d3326b56a70455592cbcb4a8fd2a8a",
+      "action": "relocate",
+      "reason": "audit_report",
+      "retained_path": "docs/reviews/tui-capability-router-audit-2026-07-14.md"
+    },
+    {
+      "path": "output/playwright/tui-capability-router-audit/mcp-governance-row-actions.png",
+      "bytes": 126635,
+      "sha256": "a2c55aad049cf00a132a331038a28111d1716a53ce0a3450c73f3290c5e20dc6",
+      "git_blob_sha256": "a2c55aad049cf00a132a331038a28111d1716a53ce0a3450c73f3290c5e20dc6",
+      "action": "untrack",
+      "reason": "raw_browser_evidence",
+      "retained_path": null
+    },
+    {
+      "path": "output/playwright/tui-capability-router-audit/ordinary-user-forbidden.png",
+      "bytes": 12454,
+      "sha256": "7d79313f784d58f80d951ee6b032695db7d8d24e0e253ad14be531f75e42b3d1",
+      "git_blob_sha256": "7d79313f784d58f80d951ee6b032695db7d8d24e0e253ad14be531f75e42b3d1",
+      "action": "untrack",
+      "reason": "raw_browser_evidence",
+      "retained_path": null
+    },
+    {
+      "path": "output/playwright/tui-capability-router-audit/ordinary-user-self-service-masked.png",
+      "bytes": 47335,
+      "sha256": "6e5ea89e935b1954de792690fdb60a73913c131df0b60b85af73c9f529b04a7f",
+      "git_blob_sha256": "6e5ea89e935b1954de792690fdb60a73913c131df0b60b85af73c9f529b04a7f",
+      "action": "untrack",
+      "reason": "raw_browser_evidence",
+      "retained_path": null
+    },
+    {
+      "path": "output/playwright/tui-capability-router-audit/unknown-screen-bounded-error.png",
+      "bytes": 14930,
+      "sha256": "c4ebcb18c4c093a403947bae1baf7d7f0f2459e44332bcefcc14cb86eb2f213e",
+      "git_blob_sha256": "c4ebcb18c4c093a403947bae1baf7d7f0f2459e44332bcefcc14cb86eb2f213e",
+      "action": "untrack",
+      "reason": "raw_browser_evidence",
+      "retained_path": null
+    },
+    {
+      "path": "reports/regression/2026-02-27/defects.csv",
+      "bytes": 1284,
+      "sha256": "8be52b24bc0b879d80879bead23e2921ffc043bf9a2fbbefe498443220011725",
+      "git_blob_sha256": "8be52b24bc0b879d80879bead23e2921ffc043bf9a2fbbefe498443220011725",
+      "action": "retain",
+      "reason": "historical_summary",
+      "retained_path": "reports/regression/2026-02-27/defects.csv"
+    },
+    {
+      "path": "reports/regression/2026-02-27/evidence-index.md",
+      "bytes": 2425,
+      "sha256": "d67cd797f2693923f29c0fac71dc4104135e6501ceffeb567cfeeee2e389866a",
+      "git_blob_sha256": "d67cd797f2693923f29c0fac71dc4104135e6501ceffeb567cfeeee2e389866a",
+      "action": "retain",
+      "reason": "historical_summary",
+      "retained_path": "reports/regression/2026-02-27/evidence-index.md"
+    },
+    {
+      "path": "reports/regression/2026-02-27/gate-status.md",
+      "bytes": 2092,
+      "sha256": "f613dcb565349033de30ffa76f04caa3d82ca616b661274e72c5d345f1e5f39a",
+      "git_blob_sha256": "f613dcb565349033de30ffa76f04caa3d82ca616b661274e72c5d345f1e5f39a",
+      "action": "retain",
+      "reason": "historical_summary",
+      "retained_path": "reports/regression/2026-02-27/gate-status.md"
+    },
+    {
+      "path": "reports/regression/2026-02-27/manifest.json",
+      "bytes": 1608,
+      "sha256": "c9d72002c73e0f22896b96c2ac76a6fbf7dd120b434178029bb2495fb1b1b860",
+      "git_blob_sha256": "c9d72002c73e0f22896b96c2ac76a6fbf7dd120b434178029bb2495fb1b1b860",
+      "action": "retain",
+      "reason": "historical_summary",
+      "retained_path": "reports/regression/2026-02-27/manifest.json"
+    },
+    {
+      "path": "reports/regression/2026-02-27/risk-register.md",
+      "bytes": 1440,
+      "sha256": "cac3d462aab9fae8fe41983665e9f3c7722f4b006a2a6086a7e1a44c000cc5fe",
+      "git_blob_sha256": "cac3d462aab9fae8fe41983665e9f3c7722f4b006a2a6086a7e1a44c000cc5fe",
+      "action": "retain",
+      "reason": "historical_summary",
+      "retained_path": "reports/regression/2026-02-27/risk-register.md"
+    },
+    {
+      "path": "reports/regression/2026-02-27/self-test-report.md",
+      "bytes": 3217,
+      "sha256": "56d18c16b09f7e742e7d675a4b0c57337b0227845ffc4e44f5e69c527f23de6b",
+      "git_blob_sha256": "56d18c16b09f7e742e7d675a4b0c57337b0227845ffc4e44f5e69c527f23de6b",
+      "action": "retain",
+      "reason": "historical_summary",
+      "retained_path": "reports/regression/2026-02-27/self-test-report.md"
+    },
+    {
+      "path": "reports/regression/2026-03-04/postdeploy-gate.md",
+      "bytes": 5145,
+      "sha256": "4d5b692e26cab29def61d734d87516c5d312971da074b84f0d1d40e027fb1bef",
+      "git_blob_sha256": "d297229bd31198df7cd3d91624e7c54dd211c2c6ef72321d3ea6139117e825d1",
+      "action": "retain",
+      "reason": "historical_summary",
+      "retained_path": "reports/regression/2026-03-04/postdeploy-gate.md"
+    },
+    {
+      "path": "reports/security/bandit-baseline.json",
+      "bytes": 253,
+      "sha256": "c5c2f5542dddc1977a355d210557c6f324a25f2ece02342d49bb31fba1dbfe80",
+      "git_blob_sha256": "41c680f3288bc35ced9a3feae70dd404bd6815fb4b667bab0a3ace638db184d9",
+      "action": "retain",
+      "reason": "security_baseline",
+      "retained_path": "reports/security/bandit-baseline.json"
+    },
+    {
+      "path": "reports/uat_report.md",
+      "bytes": 816,
+      "sha256": "2c4a82ce821f6503535c33991fef28a6c3ed18e0ad7e050777c4f291c1361eed",
+      "git_blob_sha256": "0691216fa506e544ffb5fa533108c807017d20fa424977135c8e1b596fdd51df",
+      "action": "untrack",
+      "reason": "generated_report",
+      "retained_path": null
+    },
+    {
+      "path": "reports/uat_screenshots/20260226-173740_Login_Page_Elements.png",
+      "bytes": 52792,
+      "sha256": "59b7dbcecfe4be0cb704bf7426e7e09b1f2745e465e3260b82ca289b961efe2b",
+      "git_blob_sha256": "59b7dbcecfe4be0cb704bf7426e7e09b1f2745e465e3260b82ca289b961efe2b",
+      "action": "untrack",
+      "reason": "raw_browser_evidence",
+      "retained_path": null
+    },
+    {
+      "path": "reports/url_scan/url-api-scan-20260217-212620.json",
+      "bytes": 121320,
+      "sha256": "54eef462cba42dcba193814a6063c7d4add5251f73d95884dd7d38776cb4171a",
+      "git_blob_sha256": "25ec6145034a7f23aa5dd773b7dd7733b8a7d65e955de9ad8ab37b25c48e9952",
+      "action": "untrack",
+      "reason": "generated_report",
+      "retained_path": null
+    },
+    {
+      "path": "reports/url_scan/url-api-scan-20260217-212620.txt",
+      "bytes": 3125,
+      "sha256": "b88fd070c7a7e8d5ece54e2c4fc9658e329747d635996db8c4af040321c22369",
+      "git_blob_sha256": "5670754dd0978bcfbeaeddf51c212514831336d9cd7958837dfff7d358927cd6",
+      "action": "untrack",
+      "reason": "generated_report",
+      "retained_path": null
+    },
+    {
+      "path": "reports/url_scan/url-api-scan-20260217-213345.json",
+      "bytes": 121318,
+      "sha256": "22ba652c37fae3cefded56583c96f9cc45bf6ab0a4c05a0a36b110ef4eb1c1d6",
+      "git_blob_sha256": "b6ab16acb73076eb3756763539aa8a33f3cd238d57f8b9fb1a8412f5042c5ae3",
+      "action": "untrack",
+      "reason": "generated_report",
+      "retained_path": null
+    },
+    {
+      "path": "reports/url_scan/url-api-scan-20260217-213345.txt",
+      "bytes": 3123,
+      "sha256": "f46c8293a786eee195f2ed9f2b4f6262c0f9c934e2c5d8d782b76c0c09c6c1e6",
+      "git_blob_sha256": "8a0ad1fcc7d1f8d1a9f780774872605c7e5235ffcce5b4e111fac0e902ba5aa1",
+      "action": "untrack",
+      "reason": "generated_report",
+      "retained_path": null
+    },
+    {
+      "path": "reports/url_scan/url-api-scan-20260217-214558.json",
+      "bytes": 134365,
+      "sha256": "4ad65a32a526e8002c8bc3ca117cdc5fd9120359c1791c2e785cb2558fd84a08",
+      "git_blob_sha256": "28defe2b0bc4637899e79344582f91bb4b1060dd866802254c7dee8fa29055d7",
+      "action": "untrack",
+      "reason": "generated_report",
+      "retained_path": null
+    },
+    {
+      "path": "reports/url_scan/url-api-scan-20260217-214558.txt",
+      "bytes": 62,
+      "sha256": "06b42a9a9c978cb239c08f2d84a1f1417bae75f754f97d9e2bfae9951752d0f0",
+      "git_blob_sha256": "ad769effef80943b8ce672d1d615fcb7ba59e3d0f0f728ae5a18ca9b49a652d3",
+      "action": "untrack",
+      "reason": "generated_report",
+      "retained_path": null
+    }
+  ]
+}

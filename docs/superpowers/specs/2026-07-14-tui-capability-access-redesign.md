@@ -8,7 +8,7 @@
 
 ## 1. Goal
 
-Repair every actionable finding in `output/playwright/tui-capability-router-audit/audit-report.md` so that an ordinary user can open one clearly named entry, obtain one recommended MCP token, copy one complete connection package, verify the connection, and manage their own token lifecycle without understanding routing internals. Administrators must have separate, explicit tool-governance and user-credential workflows. Developer routing diagnostics must not be part of the ordinary-user onboarding path.
+Repair every actionable finding in `docs/reviews/tui-capability-router-audit-2026-07-14.md` so that an ordinary user can open one clearly named entry, obtain one recommended MCP token, copy one complete connection package, verify the connection, and manage their own token lifecycle without understanding routing internals. Administrators must have separate, explicit tool-governance and user-credential workflows. Developer routing diagnostics must not be part of the ordinary-user onboarding path.
 
 The redesign preserves the existing TUI rendering system and existing screen keys. It changes module ownership, screen visibility, result semantics, error contracts, task affordances, and presentation. It does not replace the workbench or introduce a separate frontend framework.
 
@@ -203,7 +203,7 @@ The change updates together:
 - workbench JavaScript and CSS;
 - unit, API contract, and browser tests;
 - `docs/development/tui-user-facing-design-standard.md`;
-- `output/playwright/tui-capability-router-audit/audit-report.md` with final evidence.
+- `docs/reviews/tui-capability-router-audit-2026-07-14.md` with final evidence.
 
 No user-facing copy teaches `/api/`, `auto.api`, `param.api`, HTTP methods, path placeholders, or internal routing implementation keys.
 

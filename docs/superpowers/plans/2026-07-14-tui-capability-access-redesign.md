@@ -10,7 +10,7 @@
 
 **Authoritative design:** `docs/superpowers/specs/2026-07-14-tui-capability-access-redesign.md`
 
-**Execution status (2026-07-14):** Tasks 1-7 have been implemented and verified. The checklists below are retained as the original execution script; exact automated results, browser evidence, and remaining risks are recorded in `output/playwright/tui-capability-router-audit/audit-report.md`.
+**Execution status (2026-07-14):** Tasks 1-7 have been implemented and verified. The checklists below are retained as the original execution script; exact automated results, browser evidence, and remaining risks are recorded in `docs/reviews/tui-capability-router-audit-2026-07-14.md`.
 
 ---
 
@@ -375,8 +375,8 @@ git commit -m "fix: harden tui recovery and accessibility"
 **Files:**
 
 - Modify: `docs/development/tui-user-facing-design-standard.md`
-- Modify: `output/playwright/tui-capability-router-audit/audit-report.md`
-- Add/update: `output/playwright/tui-capability-router-audit/` acceptance screenshots
+- Modify: `docs/reviews/tui-capability-router-audit-2026-07-14.md`
+- Archive locally: `output/playwright/tui-capability-router-audit/` acceptance screenshots; do not add raw screenshots to Git.
 
 - [ ] **Step 1: Update the user-facing standard**
 
@@ -431,7 +431,7 @@ Confirm unrelated `governance/governance_baseline.json` changes remain untouched
 - [ ] **Step 6: Commit documentation and acceptance evidence**
 
 ```powershell
-git add docs/development/tui-user-facing-design-standard.md output/playwright/tui-capability-router-audit/audit-report.md output/playwright/tui-capability-router-audit
+git add docs/development/tui-user-facing-design-standard.md docs/reviews/tui-capability-router-audit-2026-07-14.md
 git commit -m "docs: close tui capability access audit"
 ```
 

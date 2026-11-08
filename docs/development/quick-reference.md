@@ -31,7 +31,8 @@
 - pytest 默认临时目录为 `.tmp/pytest`，缓存为 `.tmp/pytest-cache`；并行运行须分别指定独立的 `--basetemp=.tmp/<任务名>/pytest`。
 - 需要保留的测试、审计和部署产物放在 Git 忽略的 `artifacts/<任务名>/` 或仓库外持久归档；源码仓库只提交精简结论及可定位/校验的证据索引，不强制加入整包日志和源码快照。已迁出的历史原件见[归档索引](../testing/evidence-archive-2026-10-19.md)。清理前保留数据库、源码副本、补丁和证据，确认没有进程占用；`.codex/config.toml`、正式虚拟环境与 Linux wheel 缓存应保留。
 - `.gitignore` 管理提交范围，`.dockerignore` 管理构建上下文；两者不会自动删除本地文件。清理归档位于 `artifacts/workspace-hygiene/`，通过同目录 manifest 查询原路径和 SHA-256。
-- 忽略规则按生成目录或具体运行文件限定；源码、测试、配置示例、研究 notebook 和精简证据索引应可正常提交。根目录 `agomtradepro/` 是虚拟环境，`sdk/agomtradepro/` 是源码；`.env` 及环境变体忽略，脱敏的 `.env.example`、`.env.*.example`、`*.env.example` 及对应 sample/template 保留。`reports/consistency/baseline.json` 是现有 CI 输入，单独放行，其余报告继续忽略。新增规则可用 `git check-ignore -v --no-index <路径>` 核对；已跟踪文件不受忽略规则追溯移除，历史归档迁移应单独核对引用后处理。
+- 忽略规则按生成目录或具体运行文件限定；源码、测试、配置示例、研究 notebook 和精简证据索引应可正常提交。根目录 `agomtradepro/` 是虚拟环境，`sdk/agomtradepro/` 是源码；`.env` 及环境变体忽略，脱敏的 `.env.example`、`.env.*.example`、`*.env.example` 及对应 sample/template 保留。`reports/consistency/baseline.json` 是现有 CI 输入，单独放行，其余生成报告继续忽略。新增规则可用 `git check-ignore -v --no-index <路径>` 核对；已跟踪文件不受忽略规则追溯移除，历史归档迁移应单独核对引用后处理。
+- 已跟踪但命中忽略规则的历史文件按[逐文件清单](../testing/tracked-ignored-files-2026-11-08.json)处理：Bandit 基线和具名精简回归记录单独放行，审计正文迁入 docs，原始产物仅退出索引并保留本机文件；原件定位和恢复规则见[归档补充](../testing/evidence-archive-2026-10-19.md#tracked-ignored-20261108)。
 
 ### 发布收口 / readiness 验收
 

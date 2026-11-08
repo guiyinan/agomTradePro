@@ -1,5 +1,7 @@
 # TUI 能力路由用户体验审计
 
+> 2026-11-08 归档整理：本文仍描述 2026-07-14 的历史审计，未重新认定验收结果。原报告和截图保留在本机；[逐文件位置、哈希及恢复方式](../testing/evidence-archive-2026-10-19.md#tracked-ignored-20261108)。
+
 审计日期：2026-07-14
 
 审计对象：`/tui/` 中的能力路由、MCP 自助接入、MCP 工具治理和用户治理
@@ -51,7 +53,7 @@
 
 ### 1. 总入口
 
-![TUI 总入口](01-entry.png)
+[TUI 总入口（本机原件）](../testing/evidence-archive-2026-10-19.md#tracked-ignored-20261108) `01-entry.png`
 
 - 能力路由位于第 37 个工作区，默认视口只展示到第 22 项。
 - 顶栏暴露 `screen:*`、`JSON: DEBUG ONLY`、`STYLE: B` 等实现概念。
@@ -59,7 +61,7 @@
 
 ### 2. 当前 8000 的能力路由接入
 
-![能力路由接入](02-gateway.png)
+[能力路由接入（本机原件）](../testing/evidence-archive-2026-10-19.md#tracked-ignored-20261108) `02-gateway.png`
 
 - 主任务是“测试统一路由”，不是“完成 MCP 接入”。
 - 用户必须理解路由候选、能力命中、确认状态和内部能力类型。
@@ -68,7 +70,7 @@
 
 ### 3. 当前代码版个人自助接入（Token 已脱敏）
 
-![个人自助接入](03-self-service-redacted.png)
+[个人自助接入（本机原件）](../testing/evidence-archive-2026-10-19.md#tracked-ignored-20261108) `03-self-service-redacted.png`
 
 - 优点：Token、Endpoint 和提示词终于进入首屏，且支持复制。
 - 问题：首屏同时出现多组凭证字段和 5 条历史令牌，主凭证不够唯一。
@@ -79,7 +81,7 @@
 
 ### 4. MCP 工具治理错误态
 
-![MCP 工具治理](04-mcp-center.png)
+[MCP 工具治理（本机原件）](../testing/evidence-archive-2026-10-19.md#tracked-ignored-20261108) `04-mcp-center.png`
 
 - 三个面板同时失败，只重复错误码。
 - 没有说明是“工具同步失败”“目录读取失败”还是“本地迁移缺失”。
@@ -88,7 +90,7 @@
 
 ### 5. MCP 用户治理
 
-![MCP 用户治理](05-admin-access.png)
+[MCP 用户治理（本机原件）](../testing/evidence-archive-2026-10-19.md#tracked-ignored-20261108) `05-admin-access.png`
 
 - 用户、角色、MCP、令牌数清晰，但整个页面大面积空白。
 - 列表行没有明显的“查看/发令牌/关闭/撤销”操作。
@@ -208,13 +210,13 @@
 
 | 原问题 | 状态 | 实现证据 | 自动化/浏览器证据 |
 |---|---|---|---|
-| P0 运行版本与发布目录不一致，未知 screen 静默回退 | 已关闭 | 运行时注入支持受控覆盖旧 screen/action；screen 响应携带 registry/version；未知与越权 screen 使用稳定 404/403 边界 | `test_tui_runtime_injection_replaces_stale_mcp_screen_and_action_contracts`；[未知页面结构化 404](unknown-screen-bounded-error.png)；[普通用户结构化 403](ordinary-user-forbidden.png) |
+| P0 运行版本与发布目录不一致，未知 screen 静默回退 | 已关闭 | 运行时注入支持受控覆盖旧 screen/action；screen 响应携带 registry/version；未知与越权 screen 使用稳定 404/403 边界 | `test_tui_runtime_injection_replaces_stale_mcp_screen_and_action_contracts`；[未知页面结构化 404（本机原件）](../testing/evidence-archive-2026-10-19.md#tracked-ignored-20261108) `unknown-screen-bounded-error.png`；[普通用户结构化 403（本机原件）](../testing/evidence-archive-2026-10-19.md#tracked-ignored-20261108) `ordinary-user-forbidden.png` |
 | P0 普通用户没有独立接入主线 | 已关闭 | 导航拆为 `mcp-access`、`mcp-governance`、`capability-router-debug`；screen audience 与目录/直达授权统一 | 管理员可见 3 类模块；普通用户只看到个人 MCP 接入；普通用户直达治理页返回 403 |
-| P0 Token 主凭证不唯一 | 已关闭 | 应用层输出 `disabled/no_token/ready/unavailable` 四态和至多一个推荐令牌；历史记录不含明文 | Account API 契约测试；[管理员接入包（已遮罩）](admin-self-service-masked.png)；[普通用户接入包（已遮罩）](ordinary-user-self-service-masked.png) |
+| P0 Token 主凭证不唯一 | 已关闭 | 应用层输出 `disabled/no_token/ready/unavailable` 四态和至多一个推荐令牌；历史记录不含明文 | Account API 契约测试；[管理员接入包（已遮罩）（本机原件）](../testing/evidence-archive-2026-10-19.md#tracked-ignored-20261108) `admin-self-service-masked.png`；[普通用户接入包（已遮罩）（本机原件）](../testing/evidence-archive-2026-10-19.md#tracked-ignored-20261108) `ordinary-user-self-service-masked.png` |
 | P1 缺少一次复制即可接入的产出 | 已关闭 | 服务端生成 canonical access package，包含 Token、Route、Catalog、最短提示词和环境说明；页面只有一个主“复制完整接入包”动作 | 浏览器确认主动作数量为 1；只读“验证接入”成功，未触发模型调用或令牌写入 |
 | P1 流程编号互相矛盾 | 已关闭 | 删除跨角色共享 step/total；个人接入、管理员治理和调试分别发布独立 journey | 元数据编译器与目录权限测试；浏览器导航按角色分离 |
 | P1 错误态不可恢复 | 已关闭 | 404/403/502/503 和数据库 readiness 统一为 `error_code/title/detail/recovery_actions/trace_id`；面板失败保留成功兄弟面板 | 404/403 截图均有追踪号、重试和安全返回动作；单元测试禁止把原始异常文本插入普通 UI |
-| P2 治理列表缺少明显行操作 | 已关闭 | 工具和用户表发布经编译器校验的 `row_actions`；使用原生按钮并保留确认、再认证和后端授权 | [MCP 工具行操作](mcp-governance-row-actions.png)；[用户治理行操作](admin-user-governance-row-actions.png)；row-action schema/compiler/browser-source 测试 |
+| P2 治理列表缺少明显行操作 | 已关闭 | 工具和用户表发布经编译器校验的 `row_actions`；使用原生按钮并保留确认、再认证和后端授权 | [MCP 工具行操作（本机原件）](../testing/evidence-archive-2026-10-19.md#tracked-ignored-20261108) `mcp-governance-row-actions.png`；[用户治理行操作（本机原件）](../testing/evidence-archive-2026-10-19.md#tracked-ignored-20261108) `admin-user-governance-row-actions.png`；row-action schema/compiler/browser-source 测试 |
 | P2 信息密度、嵌套滚动和焦点不清 | 已关闭（限定范围） | 个人/管理员最多两列；工具治理改为单列全宽；P2 默认折叠；面板入口与行操作为原生按钮并有 `:focus-visible` | 1440×1000 浏览器复验；TUI 浏览器源契约测试。未据此声称完整 WCAG 合规 |
 
 ### 真实浏览器复验

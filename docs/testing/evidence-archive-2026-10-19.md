@@ -49,3 +49,19 @@
 | `docs/testing/tui-task-first-2026-10-17/tux10/previous-round` | 29 | 60903 |
 
 机器可读的精简包索引见[JSON](evidence-archive-2026-10-19.json)。
+
+<a id="tracked-ignored-20261108"></a>
+
+## 2026-11-08 已跟踪忽略文件清理
+
+本轮仅处理 `adfd9b6905a7886a8f206c9a9f228be4b9eb9ff8` 上已跟踪且命中忽略规则的 39 个文件，不改变上述 10/19 归档记录。逐文件决定、理由、原路径、本机原件 SHA-256 和历史 Git blob SHA-256 见 [39 文件清单](tracked-ignored-files-2026-11-08.json)。
+
+| 处理 | 数量 | 范围与依据 |
+| --- | ---: | --- |
+| 原路径继续跟踪 | 8 | `reports/security/bandit-baseline.json` 仍是回归脚本输入；2/27 的 6 份结论/缺陷/风险/清单和 3/4 的部署结论是精简历史记录。`.gitignore` 仅放行这些具名文件，不放行整类报告。 |
+| 内容迁入 docs，原文件留本机 | 1 | TUI 能力路由[审计报告](../reviews/tui-capability-router-audit-2026-07-14.md)迁入 `docs/reviews/`，更新原有引用；截图链接改为本归档索引。 |
+| 退出 Git 跟踪 | 30 | QMT 0.1.0 旧包及摘要 2 份、运行数据快照 3 份、TUX-10 原始日志 6 份、浏览器截图 12 份、UAT/URL 扫描报告 7 份。保留构建/采集脚本和测试；没有运行数据更新、安装、部署或数据库写入。 |
+
+39 个原路径文件均留在本机，另已逐文件复制并校验到 `artifacts/workspace-hygiene/tracked-ignored-20261108/originals/<原路径>`。完整核对记录在同级归档目录的 `before.json`、`references.log` 和 `verification.json`。这些额外原件只在本机，未随 Git 上传；原本已提交的内容仍可从上述历史提交读取，未重写历史。
+
+恢复时先按清单找到本机归档成员，校验 `sha256`，再恢复到独立审查目录；不要覆盖当前源码、数据库或用户文件。若从历史提交恢复，则校验 `git_blob_sha256`，不要混用本机文本的 CRLF 摘要与 Git 的 LF 摘要。历史 TUX-10 `artifact-manifest.json`、`acceptance.json` 及其引用路径/哈希保持原样；重新验证那批原始材料需要同时取得这些本地日志和原有 10/19 归档，并不由新克隆自动提供。历史报告中的失败、待办和条件通过状态均保持原意，不构成本轮验收或生产资格。
