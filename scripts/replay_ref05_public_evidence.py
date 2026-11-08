@@ -306,10 +306,213 @@ def _archive_sample(spec: dict[str, Any], evidence: Path) -> dict[str, object]:
     }
 
 
+def _history_choice(
+    facts: list[PITFactVersion], cutoff: datetime, scope: KnowledgeScope
+) -> PITFactVersion | None:
+    def order(fact: PITFactVersion) -> tuple[datetime, int, int]:
+        clock = fact.available_at if scope is KnowledgeScope.PUBLIC else fact.ingested_at
+        assert clock is not None
+        return clock, fact.revision_number, fact.version_id
+
+    eligible = [
+        fact
+        for fact in facts
+        if fact.pit_quality is PITQuality.VERIFIED
+        and fact.effective_at <= cutoff
+        and (fact.effective_to is None or cutoff < fact.effective_to)
+        and (
+            (fact.available_at is not None and fact.available_at <= cutoff)
+            if scope is KnowledgeScope.PUBLIC
+            else fact.ingested_at <= cutoff
+        )
+    ]
+    return max(eligible, key=order) if eligible else None
+
+
+def _history_identity(fact: PITFactVersion | None) -> dict[str, object] | None:
+    if fact is None:
+        return None
+    return {
+        "content_hash": fact.content_hash,
+        "source_record_id": fact.source_record_id,
+        "value": _number(fact.payload["value"]),
+        "available_at": fact.available_at.isoformat() if fact.available_at else None,
+        "ingested_at": fact.ingested_at.isoformat(),
+    }
+
+
+def _run_history_audit(
+    recipe: dict[str, Any], recipe_raw: bytes, evidence_dir: Path
+) -> dict[str, Any]:
+    binding = _object(recipe["base_recipe"])
+    base = _object(json.loads(_verified_file(evidence_dir, binding["raw_path"], binding["sha256"])))
+    binding = _object(recipe["query_freeze"])
+    freeze = _object(
+        json.loads(_verified_file(evidence_dir, binding["raw_path"], binding["sha256"]))
+    )
+    base_dir = (evidence_dir / _text(recipe["base_evidence_dir"])).resolve()
+    if not base_dir.is_relative_to(evidence_dir.resolve()):
+        raise ValueError("Base evidence escapes its declared root")
+    for item in _array(recipe["code_inputs"]):
+        code = _object(item)
+        if code.get("hash_basis") != "lf_normalized_bytes":
+            raise ValueError("Code input must declare portable LF hash semantics")
+        _verified_file(REPO, code["path"], code["sha256"], normalize_newlines=True)
+    targets = [_object(item) for item in _array(freeze["targets"])]
+    labels = [_text(target["label"]) for target in targets]
+    if len(set(labels)) != len(labels):
+        raise ValueError("Duplicate historical target")
+    raw_captures = recipe["captures"]
+    if not isinstance(raw_captures, list):
+        raise ValueError("Captures must be an explicit list, possibly empty")
+    captures = [_object(item) for item in raw_captures]
+    if any(capture["label"] not in labels for capture in captures):
+        raise ValueError("Capture is outside frozen targets")
+    outputs: list[dict[str, Any]] = []
+    count = 0
+    for target in targets:
+        source = _object(target["source"])
+        if source not in _array(base["sources"]) or source["label"] != target["label"]:
+            raise ValueError("Target differs from frozen source recipe")
+        cutoff = _clock(target["cutoff"])
+        indicator, period = _text(target["business_key"]).split(":", 1)
+        if not any(
+            _clock(_object(case)["at"]) == cutoff
+            and period in _object(_object(case)["expected_periods"]).get(indicator, [])
+            for case in _array(base["cutoffs"])
+        ):
+            raise ValueError("Historical cutoff/key is outside the frozen grid")
+        current = [
+            fact
+            for fact in _source_facts(source, base_dir, 1)
+            if fact.business_key == target["business_key"]
+        ]
+        if len(current) != 1:
+            raise ValueError("Historical target must identify exactly one source fact")
+        asserted = current[0]
+        facts = [
+            replace(
+                asserted,
+                available_at=None,
+                pit_quality=PITQuality.UNKNOWN,
+                payload=dict(
+                    asserted.payload,
+                    source_published_at=source["published_at"],
+                    source_title=source["title"],
+                ),
+            )
+        ]
+        seen: set[tuple[str, str]] = set()
+        for capture in captures:
+            if capture["label"] != target["label"]:
+                continue
+            document = _object(capture["source"])
+            original = _text(capture["original_url"])
+            if (
+                original not in _array(target["addresses"])
+                or original.replace("http:", "https:", 1) != source["url"]
+                or any(
+                    document[key] != source[key] for key in ("url", "indicator", "unit", "parser")
+                )
+                or any(capture[key] != document[key] for key in ("raw_path", "sha256"))
+                or capture["required_text"] != document["title"]
+            ):
+                raise ValueError("Capture document identity differs from admitted source")
+            archive = _archive_sample(capture, evidence_dir)
+            captured = _clock(archive["public_usable_from"])
+            if not _clock(document["published_at"]) <= captured <= _clock(document["retrieved_at"]):
+                raise ValueError("Capture clock contradicts publication or actual retrieval")
+            identity = (original, captured.isoformat())
+            if identity in seen:
+                raise ValueError("Duplicate historical capture")
+            seen.add(identity)
+            versions = _source_facts(document, evidence_dir, len(facts) + 1)
+            if len(versions) != 1 or versions[0].business_key != asserted.business_key:
+                raise ValueError("Capture must contain the exact frozen target key")
+            version = versions[0]
+            if version.available_at is None:
+                raise ValueError("Capture lacks source publication availability")
+            facts.append(
+                replace(
+                    version,
+                    available_at=max(version.available_at, captured),
+                    source_record_id=original + "#" + period + "@" + captured.isoformat(),
+                    payload=dict(
+                        version.payload,
+                        independent_historical_capture_at=captured.isoformat(),
+                        source_published_at=document["published_at"],
+                        source_title=document["title"],
+                        availability_basis="verified_archive_capture_and_source_date",
+                    ),
+                )
+            )
+        public = _history_choice(facts, cutoff, KnowledgeScope.PUBLIC)
+        system = _history_choice(facts, cutoff, KnowledgeScope.SYSTEM)
+        versions_out: list[dict[str, object]] = []
+        for fact in facts:
+            identity_out = _history_identity(fact)
+            assert identity_out is not None
+            reason = (
+                "independent_capture_unproved"
+                if fact.pit_quality is PITQuality.UNKNOWN
+                else (
+                    "after_cutoff"
+                    if fact.available_at is None or fact.available_at > cutoff
+                    else (
+                        "not_effective"
+                        if fact.effective_at > cutoff
+                        else "selected" if fact == public else "superseded_by_later_eligible"
+                    )
+                )
+            )
+            versions_out.append(
+                dict(
+                    identity_out,
+                    public_result=reason,
+                    published_at=_text(fact.payload["source_published_at"]),
+                    title=_text(fact.payload["source_title"]),
+                    independent_capture_at=fact.payload["independent_historical_capture_at"],
+                    same_date_as_current=fact.payload["source_published_at"]
+                    == source["published_at"],
+                    same_title_as_current=fact.payload["source_title"] == source["title"],
+                    same_bytes_as_current=fact.content_hash == asserted.content_hash,
+                    same_value_as_current=fact.payload["value"] == asserted.payload["value"],
+                )
+            )
+        count += len(facts)
+        outputs.append(
+            {
+                "label": target["label"],
+                "business_key": asserted.business_key,
+                "at": cutoff.isoformat(),
+                "source_asserted_public": _history_identity(
+                    _history_choice([asserted], cutoff, KnowledgeScope.PUBLIC)
+                ),
+                "independent_public": _history_identity(public),
+                "system": _history_identity(system),
+                "versions": versions_out,
+            }
+        )
+    return {
+        "recipe_sha256": _hash(recipe_raw),
+        "fact_count": count,
+        "cutoffs": outputs,
+        "database_writes": 0,
+        "canonical_registration": False,
+        "production_eligibility": False,
+        "first_publication": None,
+        "revision_history_complete": None,
+        "historical_system_clock": None,
+        "evidence_basis": "Bounded named archive versions; separate from source-asserted PUBLIC and historical SYSTEM qualification.",
+    }
+
+
 def run_replay(recipe_path: Path, evidence_dir: Path) -> dict[str, Any]:
     """Verify exact external inputs and replay the tracked case without side effects."""
     recipe_raw = recipe_path.read_bytes()
     recipe = _object(json.loads(recipe_raw))
+    if recipe.get("schema") == "ref05.history-audit.v1":
+        return _run_history_audit(recipe, recipe_raw, evidence_dir)
     if recipe.get("schema") != "ref05.public-replay.v1":
         raise ValueError("Unsupported replay recipe")
     if "grid_freeze" in recipe:

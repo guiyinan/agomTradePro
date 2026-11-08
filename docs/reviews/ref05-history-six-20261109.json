@@ -1,0 +1,557 @@
+{
+  "schema": "ref05.history-audit.v1",
+  "purpose": "Six-document bounded independent historical byte/clock qualification; no Regime or returns calculation.",
+  "base_commit": "f33b68fd29b5fda0b613bf94e748a6f731a8ff48",
+  "base_recipe": {
+    "raw_path": "ref05-history-six-20261109/base-recipe.json",
+    "sha256": "9706ba69bcf2b68f199e940fc3698ab34b510f373805d17b4c9ea959ad10a01b"
+  },
+  "base_recipe_tracked": {
+    "path": "docs/reviews/ref05-monthly-2024-replay-20261108.json",
+    "sha256": "9706ba69bcf2b68f199e940fc3698ab34b510f373805d17b4c9ea959ad10a01b"
+  },
+  "base_evidence_dir": "ref05-monthly-2024-20261108",
+  "query_freeze": {
+    "raw_path": "ref05-history-six-20261109/query-freeze.json",
+    "sha256": "2e0821744286068a72dfd4cc26de33f777e870eb22d41cd6eb99dffb4b9a1e17"
+  },
+  "capture_results": {
+    "raw_path": "ref05-history-six-20261109/capture-results.json",
+    "sha256": "b6e0b5ad2cd28ae44d4ddb8777c8fb1d895cb3b7d176a963d14b3664ffb28024"
+  },
+  "code_inputs": [
+    {
+      "path": "apps/regime/domain/services_v2.py",
+      "sha256": "73283a53b0361add7f729e14eef241c05dcdab029aca044dfd180ce722dc3e38",
+      "hash_basis": "lf_normalized_bytes"
+    },
+    {
+      "path": "apps/regime/application/regime_v2_use_cases.py",
+      "sha256": "da0b98c054d09d429c7bd89ef96c9a4ad430d7535451a18d0a8940756c035fb0",
+      "hash_basis": "lf_normalized_bytes"
+    },
+    {
+      "path": "apps/data_center/domain/pit.py",
+      "sha256": "e67fe49ebdb21b12b718fbd51232fff8589903f5c4eb376d4b1ae53ed55045f6",
+      "hash_basis": "lf_normalized_bytes"
+    },
+    {
+      "path": "apps/data_center/infrastructure/pit_repository.py",
+      "sha256": "8ef25801b98a8cbd204555d3412a57e5fb5ac9ca2c2346f77796a429240c3b44",
+      "hash_basis": "lf_normalized_bytes"
+    },
+    {
+      "path": "scripts/replay_ref05_public_evidence.py",
+      "sha256": "8e0efab56f2c12eead735b03fec81a1ca77faf479ecd30ae9f0a076495c51ef4",
+      "hash_basis": "lf_normalized_bytes"
+    },
+    {
+      "path": "shared/numeric.py",
+      "sha256": "9bc8026b2eca29887b2bd14d0c8b58e1dd9b58c15e5e9f242bfedf49549ab771",
+      "hash_basis": "lf_normalized_bytes"
+    }
+  ],
+  "captures": [
+    {
+      "label": "nbs-pmi-2023-09",
+      "source": {
+        "label": "nbs-pmi-2023-09",
+        "parser": "nbs_pmi_table",
+        "url": "https://www.stats.gov.cn/sj/zxfb/202309/t20230928_1943291.html",
+        "raw_path": "ref05-history-six-20261109/requests/nbs-pmi-2023-09/0-before/body/attempt-1.bin",
+        "sha256": "36927af7c210d6251b2ac2b62a621c0c682a8dce61adc5c78e652070b84f70cc",
+        "title": "2023年9月中国采购经理指数运行情况 - 国家统计局",
+        "published_at": "2023-09-30T09:30:00+08:00",
+        "publication_basis": "visible_release_header",
+        "pubdate_metadata": null,
+        "url_date_token": "20230928",
+        "retrieved_at": "2026-11-08T16:32:36.845984+00:00",
+        "indicator": "CN_PMI",
+        "unit": "%",
+        "source_unit": "%",
+        "value_transform": "identity; percent-scale number, no division by 100",
+        "observations": [
+          {
+            "period": "2023-09",
+            "value": "50.2"
+          }
+        ]
+      },
+      "original_url": "https://www.stats.gov.cn/sj/zxfb/202309/t20230928_1943291.html",
+      "raw_path": "ref05-history-six-20261109/requests/nbs-pmi-2023-09/0-before/body/attempt-1.bin",
+      "sha256": "36927af7c210d6251b2ac2b62a621c0c682a8dce61adc5c78e652070b84f70cc",
+      "required_text": "2023年9月中国采购经理指数运行情况 - 国家统计局",
+      "cdx_path": "ref05-history-six-20261109/requests/nbs-pmi-2023-09/0-before/selected-cdx.json",
+      "cdx_sha256": "9b6a43a0e46270fe5567811e037368376a07d8fc64bf059d66db9cb337b52154"
+    },
+    {
+      "label": "nbs-pmi-2023-09",
+      "source": {
+        "label": "nbs-pmi-2023-09",
+        "parser": "nbs_pmi_table",
+        "url": "https://www.stats.gov.cn/sj/zxfb/202309/t20230928_1943291.html",
+        "raw_path": "ref05-history-six-20261109/requests/nbs-pmi-2023-09/0-after/body/attempt-1.bin",
+        "sha256": "9f7a2d80a8e55ea54bb9b2f3a479cd6a2d879205d1974d04fdfcdc7ce4ea5691",
+        "title": "2023年9月中国采购经理指数运行情况 - 国家统计局",
+        "published_at": "2023-09-30T09:30:00+08:00",
+        "publication_basis": "visible_release_header",
+        "pubdate_metadata": null,
+        "url_date_token": "20230928",
+        "retrieved_at": "2026-11-08T16:32:38.218535+00:00",
+        "indicator": "CN_PMI",
+        "unit": "%",
+        "source_unit": "%",
+        "value_transform": "identity; percent-scale number, no division by 100",
+        "observations": [
+          {
+            "period": "2023-09",
+            "value": "50.2"
+          }
+        ]
+      },
+      "original_url": "https://www.stats.gov.cn/sj/zxfb/202309/t20230928_1943291.html",
+      "raw_path": "ref05-history-six-20261109/requests/nbs-pmi-2023-09/0-after/body/attempt-1.bin",
+      "sha256": "9f7a2d80a8e55ea54bb9b2f3a479cd6a2d879205d1974d04fdfcdc7ce4ea5691",
+      "required_text": "2023年9月中国采购经理指数运行情况 - 国家统计局",
+      "cdx_path": "ref05-history-six-20261109/requests/nbs-pmi-2023-09/0-after/selected-cdx.json",
+      "cdx_sha256": "ae64a4b9ce3777176606f3a90440b4db7d62c904cd835eb27e7d6d5215774822"
+    },
+    {
+      "label": "nbs-pmi-2023-09",
+      "source": {
+        "label": "nbs-pmi-2023-09",
+        "parser": "nbs_pmi_table",
+        "url": "https://www.stats.gov.cn/sj/zxfb/202309/t20230928_1943291.html",
+        "raw_path": "ref05-history-six-20261109/requests/nbs-pmi-2023-09/1-before/body/attempt-1.bin",
+        "sha256": "d974193985ee5e3881af63da352cd280fd68988b5277a888706b1b9e9c7917ae",
+        "title": "2023年9月中国采购经理指数运行情况 - 国家统计局",
+        "published_at": "2023-09-30T09:30:00+08:00",
+        "publication_basis": "visible_release_header",
+        "pubdate_metadata": null,
+        "url_date_token": "20230928",
+        "retrieved_at": "2026-11-08T16:32:39.998952+00:00",
+        "indicator": "CN_PMI",
+        "unit": "%",
+        "source_unit": "%",
+        "value_transform": "identity; percent-scale number, no division by 100",
+        "observations": [
+          {
+            "period": "2023-09",
+            "value": "50.2"
+          }
+        ]
+      },
+      "original_url": "http://www.stats.gov.cn/sj/zxfb/202309/t20230928_1943291.html",
+      "raw_path": "ref05-history-six-20261109/requests/nbs-pmi-2023-09/1-before/body/attempt-1.bin",
+      "sha256": "d974193985ee5e3881af63da352cd280fd68988b5277a888706b1b9e9c7917ae",
+      "required_text": "2023年9月中国采购经理指数运行情况 - 国家统计局",
+      "cdx_path": "ref05-history-six-20261109/requests/nbs-pmi-2023-09/1-before/selected-cdx.json",
+      "cdx_sha256": "3b2935f1803c38ccebbf1f762d8a32d240e96c9307fcc217d1d38056c73eb7d5"
+    },
+    {
+      "label": "nbs-pmi-2023-12",
+      "source": {
+        "label": "nbs-pmi-2023-12",
+        "parser": "nbs_pmi_table",
+        "url": "https://www.stats.gov.cn/sj/zxfb/202312/t20231229_1946102.html",
+        "raw_path": "ref05-history-six-20261109/requests/nbs-pmi-2023-12/0-before/body/attempt-1.bin",
+        "sha256": "e38370b75968f6d7258ecc3a7b1266f652005e53886fecbb4b101b2c50b49545",
+        "title": "2023年12月中国采购经理指数运行情况 - 国家统计局",
+        "published_at": "2023-12-31T09:30:00+08:00",
+        "publication_basis": "visible_release_header",
+        "pubdate_metadata": null,
+        "url_date_token": "20231229",
+        "retrieved_at": "2026-11-08T16:32:43.600892+00:00",
+        "indicator": "CN_PMI",
+        "unit": "%",
+        "source_unit": "%",
+        "value_transform": "identity; percent-scale number, no division by 100",
+        "observations": [
+          {
+            "period": "2023-12",
+            "value": "49.0"
+          }
+        ]
+      },
+      "original_url": "https://www.stats.gov.cn/sj/zxfb/202312/t20231229_1946102.html",
+      "raw_path": "ref05-history-six-20261109/requests/nbs-pmi-2023-12/0-before/body/attempt-1.bin",
+      "sha256": "e38370b75968f6d7258ecc3a7b1266f652005e53886fecbb4b101b2c50b49545",
+      "required_text": "2023年12月中国采购经理指数运行情况 - 国家统计局",
+      "cdx_path": "ref05-history-six-20261109/requests/nbs-pmi-2023-12/0-before/selected-cdx.json",
+      "cdx_sha256": "3055a0d1d5b27706e3688ba8e7f7405cfe94f5440fba75fecda005158d4f0ba9"
+    },
+    {
+      "label": "nbs-pmi-2023-12",
+      "source": {
+        "label": "nbs-pmi-2023-12",
+        "parser": "nbs_pmi_table",
+        "url": "https://www.stats.gov.cn/sj/zxfb/202312/t20231229_1946102.html",
+        "raw_path": "ref05-history-six-20261109/requests/nbs-pmi-2023-12/0-after/body/attempt-1.bin",
+        "sha256": "28d7b35d9fc0cb5297447e0ce831f04c195dbe273e491243f17a0b33891ac685",
+        "title": "2023年12月中国采购经理指数运行情况 - 国家统计局",
+        "published_at": "2023-12-31T09:30:00+08:00",
+        "publication_basis": "visible_release_header",
+        "pubdate_metadata": null,
+        "url_date_token": "20231229",
+        "retrieved_at": "2026-11-08T16:32:43.581539+00:00",
+        "indicator": "CN_PMI",
+        "unit": "%",
+        "source_unit": "%",
+        "value_transform": "identity; percent-scale number, no division by 100",
+        "observations": [
+          {
+            "period": "2023-12",
+            "value": "49.0"
+          }
+        ]
+      },
+      "original_url": "https://www.stats.gov.cn/sj/zxfb/202312/t20231229_1946102.html",
+      "raw_path": "ref05-history-six-20261109/requests/nbs-pmi-2023-12/0-after/body/attempt-1.bin",
+      "sha256": "28d7b35d9fc0cb5297447e0ce831f04c195dbe273e491243f17a0b33891ac685",
+      "required_text": "2023年12月中国采购经理指数运行情况 - 国家统计局",
+      "cdx_path": "ref05-history-six-20261109/requests/nbs-pmi-2023-12/0-after/selected-cdx.json",
+      "cdx_sha256": "e722ff1d362ee733de05c715f33120ca5fe8ec656a21edbfc5a2a71a28431678"
+    }
+  ],
+  "evidence_matrix": [
+    {
+      "label": "nbs-pmi-2023-09",
+      "business_key": "CN_PMI:2023-09",
+      "cutoff": "2024-01-15T09:00:00+08:00",
+      "source_asserted_public": "retained; original frozen source-date rule",
+      "capture_queries": [
+        {
+          "address": "https://www.stats.gov.cn/sj/zxfb/202309/t20230928_1943291.html",
+          "side": "before",
+          "result": "capture_retrieved",
+          "cdx_candidate": {
+            "timestamp": "20240106220640",
+            "original": "https://www.stats.gov.cn/sj/zxfb/202309/t20230928_1943291.html",
+            "digest": "QIIR2BVUIFZO3QMHZ46RLMNB5WBHRT6G",
+            "statuscode": "200",
+            "mimetype": "text/html"
+          },
+          "response_or_error_records": [
+            "ref05-history-six-20261109/requests/nbs-pmi-2023-09/0-before/cdx/attempt-1.json"
+          ]
+        },
+        {
+          "address": "https://www.stats.gov.cn/sj/zxfb/202309/t20230928_1943291.html",
+          "side": "after",
+          "result": "capture_retrieved",
+          "cdx_candidate": {
+            "timestamp": "20250613123138",
+            "original": "https://www.stats.gov.cn/sj/zxfb/202309/t20230928_1943291.html",
+            "digest": "GKYL6ULULEPW5MXWL5AJJTXTYBUHHYBV",
+            "statuscode": "200",
+            "mimetype": "text/html"
+          },
+          "response_or_error_records": [
+            "ref05-history-six-20261109/requests/nbs-pmi-2023-09/0-after/cdx/attempt-1.json"
+          ]
+        },
+        {
+          "address": "http://www.stats.gov.cn/sj/zxfb/202309/t20230928_1943291.html",
+          "side": "before",
+          "result": "capture_retrieved",
+          "cdx_candidate": {
+            "timestamp": "20231001223903",
+            "original": "http://www.stats.gov.cn/sj/zxfb/202309/t20230928_1943291.html",
+            "digest": "VOIQBKWVERPDOEZW66LDWIONB5W2IKDA",
+            "statuscode": "200",
+            "mimetype": "text/html"
+          },
+          "response_or_error_records": [
+            "ref05-history-six-20261109/requests/nbs-pmi-2023-09/1-before/cdx/attempt-1.json"
+          ]
+        },
+        {
+          "address": "http://www.stats.gov.cn/sj/zxfb/202309/t20230928_1943291.html",
+          "side": "after",
+          "result": "no_matching_capture",
+          "cdx_candidate": null,
+          "response_or_error_records": [
+            "ref05-history-six-20261109/requests/nbs-pmi-2023-09/1-after/cdx/attempt-1.json"
+          ]
+        }
+      ],
+      "first_publication": null,
+      "revision_completeness": null,
+      "historical_system_clock": null
+    },
+    {
+      "label": "nbs-pmi-2023-12",
+      "business_key": "CN_PMI:2023-12",
+      "cutoff": "2024-01-15T09:00:00+08:00",
+      "source_asserted_public": "retained; original frozen source-date rule",
+      "capture_queries": [
+        {
+          "address": "https://www.stats.gov.cn/sj/zxfb/202312/t20231229_1946102.html",
+          "side": "before",
+          "result": "capture_retrieved",
+          "cdx_candidate": {
+            "timestamp": "20240110031042",
+            "original": "https://www.stats.gov.cn/sj/zxfb/202312/t20231229_1946102.html",
+            "digest": "CSTCJLBVAT66JEAX3M6WI6FNCWIBNFVL",
+            "statuscode": "200",
+            "mimetype": "text/html"
+          },
+          "response_or_error_records": [
+            "ref05-history-six-20261109/requests/nbs-pmi-2023-12/0-before/cdx/attempt-1.json"
+          ]
+        },
+        {
+          "address": "https://www.stats.gov.cn/sj/zxfb/202312/t20231229_1946102.html",
+          "side": "after",
+          "result": "capture_retrieved",
+          "cdx_candidate": {
+            "timestamp": "20240425140910",
+            "original": "https://www.stats.gov.cn/sj/zxfb/202312/t20231229_1946102.html",
+            "digest": "GACUVC4GZC7E65NL3QLNKKD2BSN2L3MS",
+            "statuscode": "200",
+            "mimetype": "text/html"
+          },
+          "response_or_error_records": [
+            "ref05-history-six-20261109/requests/nbs-pmi-2023-12/0-after/cdx/attempt-1.json"
+          ]
+        },
+        {
+          "address": "http://www.stats.gov.cn/sj/zxfb/202312/t20231229_1946102.html",
+          "side": "before",
+          "result": "no_matching_capture",
+          "cdx_candidate": null,
+          "response_or_error_records": [
+            "ref05-history-six-20261109/requests/nbs-pmi-2023-12/1-before/cdx/attempt-1.json"
+          ]
+        },
+        {
+          "address": "http://www.stats.gov.cn/sj/zxfb/202312/t20231229_1946102.html",
+          "side": "after",
+          "result": "no_matching_capture",
+          "cdx_candidate": null,
+          "response_or_error_records": [
+            "ref05-history-six-20261109/requests/nbs-pmi-2023-12/1-after/cdx/attempt-1.json"
+          ]
+        }
+      ],
+      "first_publication": null,
+      "revision_completeness": null,
+      "historical_system_clock": null
+    },
+    {
+      "label": "nbs-pmi-original-2024-02",
+      "business_key": "CN_PMI:2024-02",
+      "cutoff": "2024-03-15T09:00:00+08:00",
+      "source_asserted_public": "retained; original frozen source-date rule",
+      "capture_queries": [
+        {
+          "address": "https://www.stats.gov.cn/sj/zxfb/202403/t20240318_1948006.html",
+          "side": "before",
+          "result": "no_matching_capture",
+          "cdx_candidate": null,
+          "response_or_error_records": [
+            "ref05-history-six-20261109/requests/nbs-pmi-original-2024-02/0-before/cdx/attempt-1.json"
+          ]
+        },
+        {
+          "address": "https://www.stats.gov.cn/sj/zxfb/202403/t20240318_1948006.html",
+          "side": "after",
+          "result": "invalid_cdx_response",
+          "cdx_candidate": null,
+          "response_or_error_records": [
+            "ref05-history-six-20261109/requests/nbs-pmi-original-2024-02/0-after/cdx/attempt-1.json"
+          ]
+        },
+        {
+          "address": "http://www.stats.gov.cn/sj/zxfb/202403/t20240318_1948006.html",
+          "side": "before",
+          "result": "no_matching_capture",
+          "cdx_candidate": null,
+          "response_or_error_records": [
+            "ref05-history-six-20261109/requests/nbs-pmi-original-2024-02/1-before/cdx/attempt-1.json"
+          ]
+        },
+        {
+          "address": "http://www.stats.gov.cn/sj/zxfb/202403/t20240318_1948006.html",
+          "side": "after",
+          "result": "no_matching_capture",
+          "cdx_candidate": null,
+          "response_or_error_records": [
+            "ref05-history-six-20261109/requests/nbs-pmi-original-2024-02/1-after/cdx/attempt-1.json"
+          ]
+        }
+      ],
+      "first_publication": null,
+      "revision_completeness": null,
+      "historical_system_clock": null
+    },
+    {
+      "label": "nbs-pmi-2024-03",
+      "business_key": "CN_PMI:2024-03",
+      "cutoff": "2024-04-15T09:00:00+08:00",
+      "source_asserted_public": "retained; original frozen source-date rule",
+      "capture_queries": [
+        {
+          "address": "https://www.stats.gov.cn/sj/zxfb/202404/t20240411_1948446.html",
+          "side": "before",
+          "result": "no_matching_capture",
+          "cdx_candidate": null,
+          "response_or_error_records": [
+            "ref05-history-six-20261109/requests/nbs-pmi-2024-03/0-before/cdx/attempt-1.json"
+          ]
+        },
+        {
+          "address": "https://www.stats.gov.cn/sj/zxfb/202404/t20240411_1948446.html",
+          "side": "after",
+          "result": "capture_blocked",
+          "cdx_candidate": {
+            "timestamp": "20250123072305",
+            "original": "https://www.stats.gov.cn/sj/zxfb/202404/t20240411_1948446.html",
+            "digest": "SBDBQ2WNWRXXY34WWAJJWNMWQBZGEK23",
+            "statuscode": "200",
+            "mimetype": "text/html"
+          },
+          "response_or_error_records": [
+            "ref05-history-six-20261109/requests/nbs-pmi-2024-03/0-after/cdx/attempt-1.json"
+          ]
+        },
+        {
+          "address": "http://www.stats.gov.cn/sj/zxfb/202404/t20240411_1948446.html",
+          "side": "before",
+          "result": "no_matching_capture",
+          "cdx_candidate": null,
+          "response_or_error_records": [
+            "ref05-history-six-20261109/requests/nbs-pmi-2024-03/1-before/cdx/attempt-1.json"
+          ]
+        },
+        {
+          "address": "http://www.stats.gov.cn/sj/zxfb/202404/t20240411_1948446.html",
+          "side": "after",
+          "result": "blocked",
+          "cdx_candidate": null,
+          "response_or_error_records": [
+            "ref05-history-six-20261109/requests/nbs-pmi-2024-03/1-after/cdx/attempt-1.json",
+            "ref05-history-six-20261109/requests/nbs-pmi-2024-03/1-after/cdx/attempt-2.json"
+          ]
+        }
+      ],
+      "first_publication": null,
+      "revision_completeness": null,
+      "historical_system_clock": null
+    },
+    {
+      "label": "nbs-cpi-original-2023-09",
+      "business_key": "CN_CPI_NATIONAL_YOY:2023-09",
+      "cutoff": "2024-01-15T09:00:00+08:00",
+      "source_asserted_public": "retained; original frozen source-date rule",
+      "capture_queries": [
+        {
+          "address": "https://www.stats.gov.cn/sj/zxfb/202310/t20231013_1943548.html",
+          "side": "before",
+          "result": "blocked",
+          "cdx_candidate": null,
+          "response_or_error_records": [
+            "ref05-history-six-20261109/requests/nbs-cpi-original-2023-09/0-before/cdx/attempt-1.json",
+            "ref05-history-six-20261109/requests/nbs-cpi-original-2023-09/0-before/cdx/attempt-2.json"
+          ]
+        },
+        {
+          "address": "https://www.stats.gov.cn/sj/zxfb/202310/t20231013_1943548.html",
+          "side": "after",
+          "result": "blocked",
+          "cdx_candidate": null,
+          "response_or_error_records": [
+            "ref05-history-six-20261109/requests/nbs-cpi-original-2023-09/0-after/cdx/attempt-1.json",
+            "ref05-history-six-20261109/requests/nbs-cpi-original-2023-09/0-after/cdx/attempt-2.json"
+          ]
+        },
+        {
+          "address": "http://www.stats.gov.cn/sj/zxfb/202310/t20231013_1943548.html",
+          "side": "before",
+          "result": "blocked",
+          "cdx_candidate": null,
+          "response_or_error_records": [
+            "ref05-history-six-20261109/requests/nbs-cpi-original-2023-09/1-before/cdx/attempt-1.json",
+            "ref05-history-six-20261109/requests/nbs-cpi-original-2023-09/1-before/cdx/attempt-2.json"
+          ]
+        },
+        {
+          "address": "http://www.stats.gov.cn/sj/zxfb/202310/t20231013_1943548.html",
+          "side": "after",
+          "result": "blocked",
+          "cdx_candidate": null,
+          "response_or_error_records": [
+            "ref05-history-six-20261109/requests/nbs-cpi-original-2023-09/1-after/cdx/attempt-1.json",
+            "ref05-history-six-20261109/requests/nbs-cpi-original-2023-09/1-after/cdx/attempt-2.json"
+          ]
+        }
+      ],
+      "first_publication": null,
+      "revision_completeness": null,
+      "historical_system_clock": null
+    },
+    {
+      "label": "nbs-cpi-2024-01",
+      "business_key": "CN_CPI_NATIONAL_YOY:2024-01",
+      "cutoff": "2024-02-15T09:00:00+08:00",
+      "source_asserted_public": "retained; original frozen source-date rule",
+      "capture_queries": [
+        {
+          "address": "https://www.stats.gov.cn/sj/zxfb/202402/t20240208_1947623.html",
+          "side": "before",
+          "result": "blocked",
+          "cdx_candidate": null,
+          "response_or_error_records": [
+            "ref05-history-six-20261109/requests/nbs-cpi-2024-01/0-before/cdx/attempt-1.json",
+            "ref05-history-six-20261109/requests/nbs-cpi-2024-01/0-before/cdx/attempt-2.json"
+          ]
+        },
+        {
+          "address": "https://www.stats.gov.cn/sj/zxfb/202402/t20240208_1947623.html",
+          "side": "after",
+          "result": "blocked",
+          "cdx_candidate": null,
+          "response_or_error_records": [
+            "ref05-history-six-20261109/requests/nbs-cpi-2024-01/0-after/cdx/attempt-1.json",
+            "ref05-history-six-20261109/requests/nbs-cpi-2024-01/0-after/cdx/attempt-2.json"
+          ]
+        },
+        {
+          "address": "http://www.stats.gov.cn/sj/zxfb/202402/t20240208_1947623.html",
+          "side": "before",
+          "result": "blocked",
+          "cdx_candidate": null,
+          "response_or_error_records": [
+            "ref05-history-six-20261109/requests/nbs-cpi-2024-01/1-before/cdx/attempt-1.json",
+            "ref05-history-six-20261109/requests/nbs-cpi-2024-01/1-before/cdx/attempt-2.json"
+          ]
+        },
+        {
+          "address": "http://www.stats.gov.cn/sj/zxfb/202402/t20240208_1947623.html",
+          "side": "after",
+          "result": "blocked",
+          "cdx_candidate": null,
+          "response_or_error_records": [
+            "ref05-history-six-20261109/requests/nbs-cpi-2024-01/1-after/cdx/attempt-1.json",
+            "ref05-history-six-20261109/requests/nbs-cpi-2024-01/1-after/cdx/attempt-2.json"
+          ]
+        }
+      ],
+      "first_publication": null,
+      "revision_completeness": null,
+      "historical_system_clock": null
+    }
+  ],
+  "scope": {
+    "original_30_sources_12_cutoffs_parameters": "unchanged; original replay evidence is reused at its accepted code revision",
+    "current_entrypoint": "history-only schema reuses original parser, archive verifier and PIT objects; original recipe/code hashes are not rewritten or bypassed",
+    "qualification": "Digest-matched named captures prove only the captured bytes at the archive clock; values/dates compared with current bytes. No exact first release, complete revision history or old SYSTEM ingestion inference.",
+    "full_ref05_exit": false,
+    "production_eligibility": false,
+    "synthetic_fixture_credit": 0
+  },
+  "archive": {
+    "availability": "local_only; raw evidence is not uploaded",
+    "validation_index": "artifacts/ref05-history-six-20261109/validation-index.json"
+  }
+}

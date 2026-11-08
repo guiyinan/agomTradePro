@@ -7,6 +7,7 @@ import hashlib
 import json
 import subprocess
 import sys
+from copy import deepcopy
 from pathlib import Path
 
 import pytest
@@ -21,6 +22,178 @@ REPO = Path(__file__).resolve().parents[2]
 def test_source_only_change_selects_replay_contracts() -> None:
     selected = select_tests(set(), ["scripts/replay_ref05_public_evidence.py"], "logic_guardrails")
     assert "tests/unit/test_replay_ref05_public_evidence.py" in selected
+
+
+def _history_fixture(tmp_path: Path) -> tuple[Path, Path]:
+    """Synthetic captures exercise clocks; they are not historical evidence."""
+    base_path, evidence = _fixture(tmp_path)
+    base = json.loads(base_path.read_text())
+    (evidence / "base.json").write_bytes(base_path.read_bytes())
+    source = base["sources"][1]
+    target = {
+        "label": source["label"],
+        "business_key": "CN_CPI_NATIONAL_YOY:2024-06",
+        "cutoff": base["cutoffs"][0]["at"],
+        "source": source,
+        "addresses": [source["url"], source["url"].replace("https:", "http:")],
+    }
+    freeze = {"targets": [target]}
+    frozen_raw = json.dumps(freeze).encode()
+    (evidence / "freeze.json").write_bytes(frozen_raw)
+    captures = []
+    for name, timestamp, value in [
+        ("before", "20241108005959", "0.2"),
+        ("after", "20241108010001", "0.9"),
+    ]:
+        document = deepcopy(source)
+        raw = (evidence / source["raw_path"]).read_bytes().replace(b"0.2", value.encode())
+        document.update(raw_path=name + ".html", sha256=hashlib.sha256(raw).hexdigest())
+        document["title"] = document["title"].replace("0.2", value)
+        document["observations"][0]["value"] = value
+        (evidence / document["raw_path"]).write_bytes(raw)
+        original = target["addresses"][1]
+        cdx_raw = json.dumps(
+            [
+                ["timestamp", "original", "digest", "statuscode"],
+                [timestamp, original, base64.b32encode(hashlib.sha1(raw).digest()).decode(), "200"],
+            ]
+        ).encode()
+        (evidence / (name + "-cdx.json")).write_bytes(cdx_raw)
+        captures.append(
+            {
+                "label": source["label"],
+                "source": document,
+                "original_url": original,
+                "raw_path": document["raw_path"],
+                "sha256": document["sha256"],
+                "required_text": document["title"],
+                "cdx_path": name + "-cdx.json",
+                "cdx_sha256": hashlib.sha256(cdx_raw).hexdigest(),
+            }
+        )
+    audit = {
+        "schema": "ref05.history-audit.v1",
+        "code_inputs": base["code_inputs"],
+        "base_recipe": {
+            "raw_path": "base.json",
+            "sha256": hashlib.sha256(base_path.read_bytes()).hexdigest(),
+        },
+        "base_evidence_dir": ".",
+        "query_freeze": {
+            "raw_path": "freeze.json",
+            "sha256": hashlib.sha256(frozen_raw).hexdigest(),
+        },
+        "captures": captures,
+    }
+    path = tmp_path / "history.json"
+    path.write_text(json.dumps(audit))
+    return path, evidence
+
+
+def test_history_clocks_reject_late_revision_and_current_bytes(tmp_path: Path) -> None:
+    recipe, evidence = _history_fixture(tmp_path)
+    result = run_replay(recipe, evidence)
+    row = result["cutoffs"][0]
+    assert row["source_asserted_public"]["value"] == 0.2
+    assert row["independent_public"]["value"] == 0.2
+    assert row["independent_public"]["available_at"] == "2024-11-08T08:59:59+08:00"
+    assert row["system"] is None
+    assert {v["public_result"] for v in row["versions"]} == {
+        "selected",
+        "after_cutoff",
+        "independent_capture_unproved",
+    }
+    assert result == run_replay(recipe, evidence)
+    assert result["database_writes"] == 0
+    assert result["first_publication"] is None
+    assert result["revision_history_complete"] is None
+
+
+def test_history_no_captures_does_not_disqualify_source_asserted_public(tmp_path: Path) -> None:
+    recipe, evidence = _history_fixture(tmp_path)
+    data = json.loads(recipe.read_text())
+    data["captures"] = []
+    recipe.write_text(json.dumps(data))
+    row = run_replay(recipe, evidence)["cutoffs"][0]
+    assert row["source_asserted_public"]["value"] == 0.2
+    assert row["independent_public"] is None
+    assert row["system"] is None
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        "digest",
+        "original",
+        "clock",
+        "body",
+        "source",
+        "scope",
+        "duplicate",
+        "base",
+        "freeze",
+        "escape",
+    ],
+)
+def test_history_rejects_unbound_capture(tmp_path: Path, mutation: str) -> None:
+    recipe, evidence = _history_fixture(tmp_path)
+    data = json.loads(recipe.read_text())
+    capture = data["captures"][0]
+    if mutation in {"digest", "original", "clock"}:
+        path = evidence / capture["cdx_path"]
+        cdx = json.loads(path.read_text())
+        index, value = {
+            "digest": (2, "INVALID"),
+            "original": (1, "https://example.com/"),
+            "clock": (0, "20271108005959"),
+        }[mutation]
+        cdx[1][index] = value
+        raw = json.dumps(cdx).encode()
+        path.write_bytes(raw)
+        capture["cdx_sha256"] = hashlib.sha256(raw).hexdigest()
+    elif mutation == "body":
+        (evidence / capture["raw_path"]).write_text("tampered")
+    elif mutation == "source":
+        capture["source"]["observations"][0]["value"] = "99"
+    elif mutation == "scope":
+        capture["label"] = "not-admitted"
+    elif mutation == "duplicate":
+        data["captures"].append(capture)
+    elif mutation in {"base", "freeze"}:
+        data["base_recipe" if mutation == "base" else "query_freeze"]["sha256"] = "0" * 64
+    else:
+        data["base_evidence_dir"] = ".."
+    recipe.write_text(json.dumps(data))
+    message = {
+        "digest": "CDX digest differs",
+        "original": "CDX digest differs",
+        "clock": "Capture clock contradicts",
+        "body": "Evidence hash mismatch",
+        "source": "Declared observation differs",
+        "scope": "outside frozen targets",
+        "duplicate": "Duplicate historical capture",
+        "base": "Evidence hash mismatch",
+        "freeze": "Evidence hash mismatch",
+        "escape": "Base evidence escapes",
+    }[mutation]
+    with pytest.raises(ValueError, match=message):
+        run_replay(recipe, evidence)
+
+
+def test_history_cutoff_equality_and_latest_eligible_version(tmp_path: Path) -> None:
+    recipe, evidence = _history_fixture(tmp_path)
+    data = json.loads(recipe.read_text())
+    capture = data["captures"][1]
+    path = evidence / capture["cdx_path"]
+    cdx = json.loads(path.read_text())
+    cdx[1][0] = "20241108010000"
+    raw = json.dumps(cdx).encode()
+    path.write_bytes(raw)
+    capture["cdx_sha256"] = hashlib.sha256(raw).hexdigest()
+    recipe.write_text(json.dumps(data))
+    row = run_replay(recipe, evidence)["cutoffs"][0]
+    assert row["independent_public"]["value"] == 0.9
+    assert "superseded_by_later_eligible" in {v["public_result"] for v in row["versions"]}
 
 
 def _fixture(tmp_path: Path) -> tuple[Path, Path]:
