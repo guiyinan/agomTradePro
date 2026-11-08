@@ -1,26 +1,18 @@
 {
-  "version": "2026-11-08.v319",
-  "updated_at": "2026-11-07",
+  "version": "2026-11-08.v320",
+  "updated_at": "2026-11-08",
   "execution_focus": {
-    "unit_id": "REF-06",
+    "unit_id": null,
     "allowed_parallel_execution_modes": [
       "production",
       "external",
       "governance"
     ],
-    "policy": "Owner2026-11-07 explicitly opens the REF-06 credential-safe retirement, PostgreSQL and execution-denial acceptance Goal and transfers the sole repository focus from completed REF-04; see convergence section2.7 and A-share section19.163. Partial encryption migration failure status is repaired in 99d12314f1691e8f9da0de5d230d33dd720b72d4; 376 local cases, five exact-head CI workflows and the complete no-skip PostgreSQL workflow passed. Remaining real-target migration counts and backup/key recovery proof keep REF-06 active and plaintext compatibility intact. Three Luna max isolated overlays, Root serialized adoption/projection/Git and one pytest plus one heavy static task. Preserve plaintext fallback/column unless actual migration and recovery evidence is sufficient; do not count partial repairs as whole-unit completion. Reuse existing no-skip PostgreSQL workflow and keep live-order evidence hard gates/default-off/manual fact import. ASH-08 genuine same-day source recovery and qualification preempts REF-06 through serialized handoff; published_close/full V8 remain ASH-08 completion gates. REF-02 remains externally blocked, REF-05 read-only, DATA-18 and deferred boundaries unchanged. No production migration, deployment, live-order activation, app removal or unrelated expansion in this development window.",
+    "policy": "Owner2026-11-08 authorized new isolated recovery evidence to complete the original REF-06 Goal; see convergence section2.7 and A-share section19.164. REF-06 is completed on accepted implementation 521e2a0443f795d6d3c46f29df931aa25c4d3f1f: actual backup and independent protected-file key recovery, two real-copy guarded retirements, 1137 complete local cases, all exact-candidate CI workflows and 134 no-skip PostgreSQL cases with all 69 required identities passed. Plaintext runtime fallback/column are retired in code and the two authorized isolated copies; production remains unchanged. Repository focus is empty with handoff_pending, no successor is activated. Root serialized final integration after three Luna max bounded preparations. ASH-08 genuine same-day sources regain priority only after qualification; published_close/full V8 remain its own completion gates. Existing live-order evidence hard gates, default-off automation and manual fact import remain required. REF-02 stays externally blocked, REF-05 read-only, DATA-18 and deferred boundaries unchanged. No production migration/deployment, live-order activation, app removal or unrelated expansion. Completion-registration CI is recorded separately with unchanged runtime/test/PG-input bindings.",
     "parallel_preparation": [
       {
-        "unit_id": "REF-06",
-        "scope": "Three isolated Luna max preparations under .tmp/ref06-implementation-20261107: A migration-command failure propagation and credential contracts; B existing PostgreSQL runner/evidence and migration/restore prerequisites; C bounded execution-denial contracts. Root alone adopts shared source, runs QA, generates projections, updates governance and commits. No plaintext-path removal without migration/recovery proof; agents run no heavy QA or production operations.",
-        "owner": "Three Luna max; Root serialized integration",
-        "isolated_workspace": true,
-        "shared_git_serialized": true,
-        "isolated_test_resources": true
-      },
-      {
         "unit_id": "ASH-08",
-        "scope": "Original unfinished Goal remains externally blocked on same-day sources and actual published_close/full V8 acceptance. Next candidate11/09 after16 Shanghai requires actual current calendar/source qualification. When actionable, safely save REF-06 and formally return unique focus/resources; do not fake clocks/freshness or reuse stale quotes.",
+        "scope": "Original unfinished Goal remains externally blocked on same-day sources and actual published_close/full V8 acceptance. Next candidate11/09 after16 Shanghai requires actual current calendar/source qualification. When actionable, formally reclaim unique focus/resources after REF-06 completion; do not fake clocks/freshness or reuse stale quotes.",
         "owner": "Root; source/browser owners when qualification returns",
         "isolated_workspace": true,
         "shared_git_serialized": true,
@@ -34,7 +26,12 @@
         "shared_git_serialized": true,
         "isolated_test_resources": true
       }
-    ]
+    ],
+    "handoff_pending": {
+      "completed_unit_id": "REF-06",
+      "owner_decision_ref": "docs/plans/a-share-usability-implementation-plan-2026-10-16.md#19.164",
+      "reason": "REF-06 exit gates passed; await formal Owner handoff, preserving qualified ASH-08 source recovery priority without activating a successor."
+    }
   },
   "workstreams": [
     {
@@ -386,7 +383,7 @@
       "priority": "P1",
       "owner": "Repository Owner / Account / Research / Data Center / Portfolio / Governance / SDK / MCP",
       "status": "active",
-      "next_gate": "REF-01/03/04 completed. REF-06 remains active with sole repository focus: partial credential migration failure status, bounded execution-denial contracts and the full isolated PostgreSQL gate passed on 99d12314f1691e8f9da0de5d230d33dd720b72d4; see convergence section2.7. Next require actual target identity, plaintext/mixed-row migration counts and verified backup/key recovery evidence before a separate plaintext-path retirement commit. Current development window still excludes production migration/deployment. Qualified ASH-08 real sources retain priority; REF-02 externally blocked, REF-05 read-only and deferred boundaries unchanged.",
+      "next_gate": "REF-01/03/04/06 completed. REF-06 actual recovery, guarded plaintext retirement and complete credential/PG/execution-denial acceptance passed on 521e2a0443f795d6d3c46f29df931aa25c4d3f1f; see convergence section2.7. Await the next formal Owner handoff under A-share section19.164, with no automatic successor activation. Qualified ASH-08 real sources retain priority; REF-02 externally blocked, REF-05 read-only and deferred boundaries unchanged. Production migration/deployment remain outside this completed development window.",
       "documents": [
         {
           "path": "docs/plans/scripts-docs-mcp-governance-plan-2026-10-14.md",
@@ -2030,7 +2027,7 @@
         "wave": 3,
         "priority": "P1",
         "execution_mode": "repository",
-        "status": "active",
+        "status": "completed",
         "title": "Retire plaintext credentials and verify PostgreSQL and execution denial contracts",
         "depends_on": [
           "GOV-03"
