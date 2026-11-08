@@ -1,14 +1,14 @@
 {
-  "version": "2026-11-08.v325",
+  "version": "2026-11-08.v326",
   "updated_at": "2026-11-08",
   "execution_focus": {
-    "unit_id": null,
+    "unit_id": "REF-05",
     "allowed_parallel_execution_modes": [
       "production",
       "external",
       "governance"
     ],
-    "policy": "GOV-05 S2 completed on accepted candidate 008110d6eea2f34f8ff15e1099a40dcd01975d87. The four audited entrypoints passed failing-first and successful CLI contracts, independent coverage and source-only CI selection. See scripts governance section 7.3. The sole repository focus is released pending formal handoff. Qualified ASH-08 genuine same-day sources retain priority; REF-05 remains read-only and REF-02 externally blocked. All other registered boundaries remain in force.",
+    "policy": "GOV-05 formal handoff completed under Owner instruction on 2026-11-08; accepted candidate 008110d6eea2f34f8ff15e1099a40dcd01975d87 and closure 8acf659ba3c0cc86f937ae45ad2e46ca21c83762 each have successful exact CI. The sole repository focus is formally handed to REF-05 for its bounded source-qualification phase. The successor session owns PUBLIC document qualification and deterministic replay preparation only; the original full-unit exit remains required and no strategy-performance experiment is authorized. See scripts governance section 7.4. Qualified ASH-08 genuine same-day sources retain priority at the next candidate window 2026-11-09 after 16:00 Asia/Shanghai; preserve its original unfinished Goal and all source/calendar/published_close/V8 gates. GOV-06/07 and other deferred boundaries remain unchanged.",
     "parallel_preparation": [
       {
         "unit_id": "ASH-08",
@@ -20,18 +20,13 @@
       },
       {
         "unit_id": "REF-05",
-        "scope": "Owner authorized bounded PUBLIC document qualification and local deterministic replay of the existing Regime V2 on 2026-11-08. Accept explicitly distinguished authoritative dated-release and digest-matched historical-capture evidence under the frozen conservative policy; do not require historical SYSTEM ingestion for PUBLIC. Read-only source GETs and isolated evidence outputs are permitted. No canonical/provider/production writes, strategy-performance experiment, data purchase or deferred algorithm/promotion window. Scope and current evidence: docs/plans/data-boundary-convergence-plan-2026-10-26.md REF-05 and docs/reviews/ref01-ref05-parallel-preparation-2026-10-29.md, 11/08 PUBLIC diagnostic.",
+        "scope": "Owner authorized bounded PUBLIC document qualification and local deterministic replay of the existing Regime V2 on 2026-11-08. Accept explicitly distinguished authoritative dated-release and digest-matched historical-capture evidence under the frozen conservative policy; do not require historical SYSTEM ingestion for PUBLIC. Read-only source GETs and isolated evidence outputs are permitted. No canonical/provider/production writes, strategy-performance experiment, data purchase or deferred algorithm/promotion window. Scope and current evidence: docs/plans/data-boundary-convergence-plan-2026-10-26.md REF-05 and docs/reviews/ref01-ref05-parallel-preparation-2026-10-29.md, 11/08 PUBLIC diagnostic. Successor handoff 2026-11-08: freeze a bounded twelve-observation 2024 monthly PMI/CPI PUBLIC evidence grid before collection; qualify original official releases and replay with the existing CLI, explicitly recording missing coverage. No return/performance experiment, canonical writes or full-unit completion claim. Preserve ASH-08 source-window priority.",
         "owner": "Research/backtest with ASH data owner",
         "isolated_workspace": true,
         "shared_git_serialized": true,
         "isolated_test_resources": true
       }
-    ],
-    "handoff_pending": {
-      "completed_unit_id": "GOV-05",
-      "owner_decision_ref": "docs/plans/a-share-usability-implementation-plan-2026-10-16.md#19.166",
-      "reason": "GOV-05 passed its four-entry S2 exit and exact acceptance CI. Await the next formal handoff with qualified ASH-08 source priority."
-    }
+    ]
   },
   "workstreams": [
     {
@@ -2014,7 +2009,7 @@
         "wave": 3,
         "priority": "P1",
         "execution_mode": "repository",
-        "status": "planned",
+        "status": "active",
         "title": "Measure Regime incremental value with a bounded reproducible PIT experiment",
         "depends_on": [
           "GOV-03"

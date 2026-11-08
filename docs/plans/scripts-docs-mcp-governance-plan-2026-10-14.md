@@ -183,6 +183,14 @@ GOV-05 首批候选按影响排序如下。
 
 本机持续索引为 `.tmp/gov05-20261108/root/validation-index.json`。验收检查点 `.tmp/gov05-20261108/root/validation-index.before-closure.json` 的 SHA-256 为 `dd5e727e110bd0c898a660487f0cd9b0f580df63bacaa0bdb9d43ed88a7972c5`。验收提交 `008110d6eea2f34f8ff15e1099a40dcd01975d87` 五项适用 CI 全部通过，回执 `.tmp/gov05-20261108/root/acceptance-ci-final.json` SHA-256 `91cf5e029c35610a76ee37befa4094a7889fbeb52b95414341ebcc8b4153a273`。治理清单 v324 登记 GOV-05 完成并释放焦点，登记提交的 CI 单独绑定。
 
+### 7.4 GOV-05 正式交接与窗口前接续（2026-11-08）
+
+Owner 本轮要求完成正式交接并开新 session/Goal。GOV-05 四入口整改、CLI 正反例、独立覆盖和选测接线均已完成，无待整合实现；验收提交 `008110d6eea2f34f8ff15e1099a40dcd01975d87` 与完成登记 `8acf659ba3c0cc86f937ae45ad2e46ca21c83762` 分别绑定五项成功 CI。§7.3 两份原件 SHA-256 已再次核对一致；历史失败和生产恢复未验证边界继续保留，不重跑无变化的实现验收。当前正式分支为 `dev/next-development`，工作起点 `adceb887741453c9d57cc77c717671ae118041a1`，交接前工作区无外来 WIP。
+
+registry v326 清除已履行的 GOV-05 待交接标记，保留 completed；唯一 repository 焦点正式交接至 REF-05，并将其登记 active，仅推进来源资格阶段，原整单元退出门不缩小。新 session 接收已有 REF-05 只读数据权限，Goal 为先冻结覆盖 2024 年的 12 个 PMI/CPI 月度观察点及回看必需键，再查原始官方公告的发布时间、版本和哈希，复用 `scripts/replay_ref05_public_evidence.py` 形成覆盖/缺口与确定性重放结论。缺件或无法证明的首发/修订时钟明确保留未知；不启动收益实验、不写 canonical/生产数据，不把该 Goal 完成等同 REF-05 整单退出。持久原件进入忽略的 `artifacts/`，可复用样例和精简证据索引进入正式目录。
+
+ASH-08 原未完成 Goal 保留，下一候选窗口为 **2026-11-09 上海时间 16:00 后**，仍以当时实际日历、合格同日来源和显式 `published_close`/完整 V8 为准。真实资格恢复时优先归还焦点与资源；窗口前工作可随时安全停止。GOV-06/07 及其他 deferred 项不由此次接续恢复。新 session 首先设置此 Goal，并核实本交接提交的精确 CI；失败先修正，不能用旧提交的绿灯替代新登记验收。
+
 ## 8. M1：MCP 分类核验与退役
 
 ### 8.1 三个独立分母
