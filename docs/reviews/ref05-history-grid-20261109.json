@@ -1,0 +1,52 @@
+{
+  "schema": "ref05.history-projection.v1",
+  "purpose": "Offline per-key qualification of the frozen twelve observations; no downstream calculation.",
+  "base_commit": "7428b9efd061c111bb24d758cefd183b027b8a44",
+  "history_recipe": {
+    "raw_path": "ref05-history-grid-20261109/history-recipe.json",
+    "sha256": "119eac7e9e9256630318dd12476e53e99642979b60647a8c938a37f04e24cc03"
+  },
+  "history_code_root": "ref05-history-grid-20261109/history-code",
+  "base_code_root": "ref05-history-grid-20261109/base-code",
+  "lineage_policy": "Verify old recipe bytes and all old source hashes against archived committed code; verify current executor separately. No old recipe is rebound or silently executed with changed source.",
+  "code_inputs": [
+    {
+      "path": "apps/regime/domain/services_v2.py",
+      "sha256": "73283a53b0361add7f729e14eef241c05dcdab029aca044dfd180ce722dc3e38",
+      "hash_basis": "lf_normalized_bytes"
+    },
+    {
+      "path": "apps/regime/application/regime_v2_use_cases.py",
+      "sha256": "da0b98c054d09d429c7bd89ef96c9a4ad430d7535451a18d0a8940756c035fb0",
+      "hash_basis": "lf_normalized_bytes"
+    },
+    {
+      "path": "apps/data_center/domain/pit.py",
+      "sha256": "e67fe49ebdb21b12b718fbd51232fff8589903f5c4eb376d4b1ae53ed55045f6",
+      "hash_basis": "lf_normalized_bytes"
+    },
+    {
+      "path": "apps/data_center/infrastructure/pit_repository.py",
+      "sha256": "8ef25801b98a8cbd204555d3412a57e5fb5ac9ca2c2346f77796a429240c3b44",
+      "hash_basis": "lf_normalized_bytes"
+    },
+    {
+      "path": "scripts/replay_ref05_public_evidence.py",
+      "sha256": "e95fc13b91d01057033c79b4b5e0b40e134427f76d20f760cd446f2c49b2d4cf",
+      "hash_basis": "lf_normalized_bytes"
+    },
+    {
+      "path": "shared/numeric.py",
+      "sha256": "9bc8026b2eca29887b2bd14d0c8b58e1dd9b58c15e5e9f242bfedf49549ab771",
+      "hash_basis": "lf_normalized_bytes"
+    }
+  ],
+  "raw_evidence_index": "artifacts/ref05-history-grid-20261109/validation-index.json",
+  "limits": {
+    "new_sources": 0,
+    "new_archive_queries": 0,
+    "regime_returns_oos_calculations": 0,
+    "production_canonical_provider_writes": 0,
+    "ref05_full_unit_complete": false
+  }
+}

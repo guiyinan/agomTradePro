@@ -19,6 +19,176 @@ from scripts.select_tests import select_tests
 REPO = Path(__file__).resolve().parents[2]
 
 
+def _projection_fixture(tmp_path: Path) -> tuple[Path, Path]:
+    """Derive a synthetic grid; none of these bytes are historical evidence."""
+    history_path, evidence = _history_fixture(tmp_path)
+    history = json.loads(history_path.read_text())
+    base_path = evidence / history["base_recipe"]["raw_path"]
+    base = json.loads(base_path.read_text())
+    base["cutoffs"][1] = deepcopy(base["cutoffs"][0])
+    base["cutoffs"][1]["at"] = "2024-11-08T09:00:02+08:00"
+    base_path.write_text(json.dumps(base))
+    history["base_recipe"]["sha256"] = hashlib.sha256(base_path.read_bytes()).hexdigest()
+    history_path.write_text(json.dumps(history))
+    (evidence / "history.json").write_bytes(history_path.read_bytes())
+    for code in base["code_inputs"]:
+        target = evidence / "old-code" / code["path"]
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes((REPO / code["path"]).read_bytes())
+    recipe = {
+        "schema": "ref05.history-projection.v1",
+        "code_inputs": base["code_inputs"],
+        "history_recipe": {
+            "raw_path": "history.json",
+            "sha256": hashlib.sha256(history_path.read_bytes()).hexdigest(),
+        },
+        "history_code_root": "old-code",
+        "base_code_root": "old-code",
+    }
+    path = tmp_path / "projection.json"
+    path.write_text(json.dumps(recipe))
+    return path, evidence
+
+
+def test_projection_blocks_partial_grid_without_calculation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    recipe, evidence = _projection_fixture(tmp_path)
+
+    def forbidden(*args: object, **kwargs: object) -> None:
+        pytest.fail("Historical qualification must never calculate Regime")
+
+    monkeypatch.setattr(replay, "RegimeCalculatorV2", forbidden)
+    result = run_replay(recipe, evidence)
+    assert result == run_replay(recipe, evidence)
+    assert result["required_key_count"] == 16
+    assert result["source_asserted_public_count"] == 16
+    assert result["independent_public_count"] == 2
+    assert result["verified_observation_count"] == 0
+    assert result["downstream_calculation_count"] == 0
+    for row, value in zip(result["cutoffs"], [0.2, 0.9], strict=True):
+        assert len(row["keys"]) == 8
+        assert row["manifest_verified"] is False
+        assert row["manifest"]["coverage"] == {"CN_PMI": 0.0, "CN_CPI_NATIONAL_YOY": 0.25}
+        assert len(row["manifest"]["missing"]) == len(row["manifest"]["unknown"]) == 7
+        assert row["manifest"]["selected_versions"][0]["value"] == value
+        assert row["system_manifest_verified"] is False
+        assert len(row["system_manifest"]["missing"]) == 8
+        assert len(row["system_manifest"]["unknown"]) == 8
+        target = next(k for k in row["keys"] if k["business_key"].endswith(":2024-06"))
+        assert target["independent_public"]["value"] == value
+        assert target["historical_system_known_at"] is None
+        assert "independent_capture_unproved" in {v["public_result"] for v in target["versions"]}
+    assert "after_cutoff" in {
+        v["public_result"] for v in result["cutoffs"][0]["keys"][4]["versions"]
+    }
+
+
+@pytest.mark.parametrize("mutation", ["old-code", "new-code", "history", "body", "escape"])
+def test_projection_verifies_both_lineages_and_new_candidate(tmp_path: Path, mutation: str) -> None:
+    recipe, evidence = _projection_fixture(tmp_path)
+    data = json.loads(recipe.read_text())
+    if mutation == "old-code":
+        (evidence / "old-code" / data["code_inputs"][0]["path"]).write_text("tampered")
+    elif mutation == "new-code":
+        data["code_inputs"][0]["sha256"] = "0" * 64
+    elif mutation == "history":
+        (evidence / "history.json").write_text("{}")
+    elif mutation == "body":
+        (evidence / "before.html").write_text("tampered")
+    else:
+        data["base_code_root"] = ".."
+    recipe.write_text(json.dumps(data))
+    with pytest.raises(ValueError, match="hash mismatch|escapes"):
+        run_replay(recipe, evidence)
+
+
+def _update_projection_history(recipe: Path, evidence: Path, history: dict[str, object]) -> None:
+    raw = json.dumps(history).encode()
+    (evidence / "history.json").write_bytes(raw)
+    data = json.loads(recipe.read_text())
+    data["history_recipe"]["sha256"] = hashlib.sha256(raw).hexdigest()
+    recipe.write_text(json.dumps(data))
+
+
+def test_projection_empty_captures_preserves_unknown_and_source_assertions(tmp_path: Path) -> None:
+    recipe, evidence = _projection_fixture(tmp_path)
+    history = json.loads((evidence / "history.json").read_bytes())
+    history["captures"] = []
+    _update_projection_history(recipe, evidence, history)
+    result = run_replay(recipe, evidence)
+    assert result["independent_public_count"] == 0
+    assert result["source_asserted_public_count"] == 16
+    for row in result["cutoffs"]:
+        assert row["manifest_verified"] is False
+        assert len(row["manifest"]["missing"]) == len(row["manifest"]["unknown"]) == 8
+        reasons = {k["blocking_reason"] for k in row["keys"]}
+        assert reasons == {"no_independent_version_by_cutoff", "not_independently_audited"}
+
+
+def test_projection_complete_synthetic_grid_uses_domain_verification(tmp_path: Path) -> None:
+    """Positive fixture proves blocking is evidence-based, never historical coverage."""
+    recipe, evidence = _projection_fixture(tmp_path)
+    history = json.loads((evidence / "history.json").read_bytes())
+    base_path = evidence / "base.json"
+    base = json.loads(base_path.read_bytes())
+    for cutoff in base["cutoffs"]:
+        cutoff["expected_periods"] = {"CN_PMI": ["2024-07"], "CN_CPI_NATIONAL_YOY": ["2024-06"]}
+    base_path.write_text(json.dumps(base))
+    history["base_recipe"]["sha256"] = hashlib.sha256(base_path.read_bytes()).hexdigest()
+    freeze = json.loads((evidence / "freeze.json").read_bytes())
+    source = base["sources"][0]
+    freeze["targets"].append(
+        {
+            "label": source["label"],
+            "source": source,
+            "business_key": "CN_PMI:2024-07",
+            "cutoff": base["cutoffs"][0]["at"],
+            "addresses": [source["url"]],
+        }
+    )
+    (evidence / "freeze.json").write_text(json.dumps(freeze))
+    history["query_freeze"]["sha256"] = hashlib.sha256(
+        (evidence / "freeze.json").read_bytes()
+    ).hexdigest()
+    document = deepcopy(source)
+    document["observations"] = [document["observations"][0]]
+    raw = (evidence / document["raw_path"]).read_bytes()
+    cdx_raw = json.dumps(
+        [
+            ["timestamp", "original", "digest", "statuscode"],
+            [
+                "20241108005959",
+                source["url"],
+                base64.b32encode(hashlib.sha1(raw).digest()).decode(),
+                "200",
+            ],
+        ]
+    ).encode()
+    (evidence / "pmi-cdx.json").write_bytes(cdx_raw)
+    history["captures"].append(
+        {
+            "label": source["label"],
+            "source": document,
+            "original_url": source["url"],
+            "raw_path": document["raw_path"],
+            "sha256": document["sha256"],
+            "required_text": document["title"],
+            "cdx_path": "pmi-cdx.json",
+            "cdx_sha256": hashlib.sha256(cdx_raw).hexdigest(),
+        }
+    )
+    _update_projection_history(recipe, evidence, history)
+    result = run_replay(recipe, evidence)
+    assert result["verified_observation_count"] == 2
+    assert result["independent_public_count"] == result["required_key_count"] == 4
+    for row in result["cutoffs"]:
+        assert row["manifest_verified"] is True
+        assert not row["manifest"]["missing"] and not row["manifest"]["unknown"]
+        assert row["system_manifest_verified"] is False
+    assert result["downstream_calculation_count"] == 0
+
+
 def test_source_only_change_selects_replay_contracts() -> None:
     selected = select_tests(set(), ["scripts/replay_ref05_public_evidence.py"], "logic_guardrails")
     assert "tests/unit/test_replay_ref05_public_evidence.py" in selected

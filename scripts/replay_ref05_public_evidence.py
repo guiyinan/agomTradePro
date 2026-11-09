@@ -342,7 +342,7 @@ def _history_identity(fact: PITFactVersion | None) -> dict[str, object] | None:
 
 
 def _run_history_audit(
-    recipe: dict[str, Any], recipe_raw: bytes, evidence_dir: Path
+    recipe: dict[str, Any], recipe_raw: bytes, evidence_dir: Path, *, code_root: Path = REPO
 ) -> dict[str, Any]:
     binding = _object(recipe["base_recipe"])
     base = _object(json.loads(_verified_file(evidence_dir, binding["raw_path"], binding["sha256"])))
@@ -357,7 +357,7 @@ def _run_history_audit(
         code = _object(item)
         if code.get("hash_basis") != "lf_normalized_bytes":
             raise ValueError("Code input must declare portable LF hash semantics")
-        _verified_file(REPO, code["path"], code["sha256"], normalize_newlines=True)
+        _verified_file(code_root, code["path"], code["sha256"], normalize_newlines=True)
     targets = [_object(item) for item in _array(freeze["targets"])]
     labels = [_text(target["label"]) for target in targets]
     if len(set(labels)) != len(labels):
@@ -507,10 +507,251 @@ def _run_history_audit(
     }
 
 
+def _bound_root(evidence: Path, relative: object) -> Path:
+    root = (evidence / _text(relative)).resolve()
+    if not root.is_relative_to(evidence.resolve()):
+        raise ValueError("Code evidence escapes its declared root")
+    return root
+
+
+def _verify_code(recipe: dict[str, Any], root: Path) -> None:
+    for item in _array(recipe["code_inputs"]):
+        code = _object(item)
+        if code.get("hash_basis") != "lf_normalized_bytes":
+            raise ValueError("Code input must declare portable LF hash semantics")
+        _verified_file(root, code["path"], code["sha256"], normalize_newlines=True)
+
+
+def _qualification_manifest(
+    cutoff: datetime,
+    scope: KnowledgeScope,
+    expected: dict[str, list[str]],
+    selected: list[PITFactVersion],
+    missing: list[dict[str, str]],
+    recipe_hash: str,
+) -> PITDatasetManifest:
+    manifest = PITDatasetManifest(
+        manifest_id="local-ref05-history-" + scope.value + "-" + cutoff.isoformat(),
+        as_of_time=cutoff,
+        knowledge_scope=scope,
+        calendar_version="recipe-observation-grid-not-execution-calendar",
+        query_spec={"macro": {"recipe_sha256": recipe_hash, "expected_periods": expected}},
+        selected_versions=tuple(
+            dict(
+                _history_identity(fact) or {},
+                id=fact.version_id,
+                dataset=fact.dataset,
+                business_key=fact.business_key,
+                pit_quality=fact.pit_quality.value,
+                payload_hash=_json_hash(fact.payload),
+            )
+            for fact in selected
+        ),
+        coverage={
+            indicator: sum(f.business_key.startswith(indicator + ":") for f in selected)
+            / len(periods)
+            for indicator, periods in expected.items()
+        },
+        missing=tuple(dict(item) for item in missing),
+        estimated=(),
+        unknown=tuple(dict(item) for item in missing),
+        manifest_hash="",
+    )
+    return replace(manifest, manifest_hash=calculate_pit_manifest_hash(manifest))
+
+
+def _run_history_projection(
+    recipe: dict[str, Any], recipe_raw: bytes, evidence_dir: Path
+) -> dict[str, Any]:
+    _verify_code(recipe, REPO)
+    binding = _object(recipe["history_recipe"])
+    history_raw = _verified_file(evidence_dir, binding["raw_path"], binding["sha256"])
+    history = _object(json.loads(history_raw))
+    if history.get("schema") != "ref05.history-audit.v1":
+        raise ValueError("Projection requires the frozen history audit recipe")
+    audit = _run_history_audit(
+        history,
+        history_raw,
+        evidence_dir,
+        code_root=_bound_root(evidence_dir, recipe["history_code_root"]),
+    )
+    binding = _object(history["base_recipe"])
+    base = _object(json.loads(_verified_file(evidence_dir, binding["raw_path"], binding["sha256"])))
+    if base.get("schema") != "ref05.public-replay.v1":
+        raise ValueError("Projection requires the frozen PUBLIC source recipe")
+    _verify_code(base, _bound_root(evidence_dir, recipe["base_code_root"]))
+    base_dir = _bound_root(evidence_dir, history["base_evidence_dir"])
+    if "grid_freeze" in base:
+        binding = _object(base["grid_freeze"])
+        frozen = _object(
+            json.loads(_verified_file(base_dir, binding["raw_path"], binding["sha256"]))
+        )
+        if any(base[key] != frozen[key] for key in ("cutoffs", "roles", "parameters")):
+            raise ValueError("Projection differs from frozen grid or configuration")
+    current: dict[str, PITFactVersion] = {}
+    for source in _array(base["sources"]):
+        for fact in _source_facts(_object(source), base_dir, len(current) + 1):
+            if fact.business_key in current:
+                raise ValueError("Duplicate business keys in frozen document case")
+            current[fact.business_key] = fact
+    audited = {
+        _text(_object(row)["business_key"]): _object(row) for row in _array(audit["cutoffs"])
+    }
+    if len(audited) != len(_array(audit["cutoffs"])):
+        raise ValueError("Duplicate audited business key")
+    versions: dict[str, list[PITFactVersion]] = {}
+    for key, asserted in current.items():
+        versions[key] = [replace(asserted, available_at=None, pit_quality=PITQuality.UNKNOWN)]
+        if key not in audited:
+            continue
+        for raw_version in _array(audited[key]["versions"]):
+            version = _object(raw_version)
+            if version["independent_capture_at"] is None:
+                continue
+            versions[key].append(
+                replace(
+                    asserted,
+                    version_id=len(current) + sum(len(v) - 1 for v in versions.values()) + 1,
+                    available_at=_clock(version["available_at"]),
+                    ingested_at=_clock(version["ingested_at"]),
+                    source_record_id=_text(version["source_record_id"]),
+                    content_hash=_text(version["content_hash"]),
+                    payload=dict(
+                        asserted.payload,
+                        value=_number(version["value"]),
+                        independent_historical_capture_at=version["independent_capture_at"],
+                        source_published_at=version["published_at"],
+                        source_title=version["title"],
+                        availability_basis="verified_archive_capture_and_source_date",
+                    ),
+                )
+            )
+    roles = [_text(value) for value in _object(base["roles"]).values()]
+    if len(roles) != 2 or len(set(roles)) != 2:
+        raise ValueError("Expected two distinct frozen input roles")
+    outputs: list[dict[str, Any]] = []
+    seen: set[datetime] = set()
+    for raw_case in _array(base["cutoffs"]):
+        case = _object(raw_case)
+        cutoff = _clock(case["at"])
+        if cutoff in seen:
+            raise ValueError("Duplicate observation cutoff")
+        seen.add(cutoff)
+        expected = {
+            indicator: [_text(p) for p in _array(periods)]
+            for indicator, periods in _object(case["expected_periods"]).items()
+        }
+        if set(expected) != set(roles) or any(
+            periods != sorted(set(periods)) for periods in expected.values()
+        ):
+            raise ValueError(
+                "Required grid keys must include ordered unique periods for both roles"
+            )
+        rows: list[dict[str, Any]] = []
+        selected: list[PITFactVersion] = []
+        missing: list[dict[str, str]] = []
+        system_missing: list[dict[str, str]] = []
+        for indicator, periods in expected.items():
+            for period in periods:
+                key = indicator + ":" + period
+                facts = versions.get(key, [])
+                chosen = _history_choice(facts, cutoff, KnowledgeScope.PUBLIC)
+                reason = (
+                    "no_independent_version_by_cutoff"
+                    if key in audited
+                    else "not_independently_audited"
+                )
+                if chosen is None:
+                    missing.append({"business_key": key, "reason": reason})
+                else:
+                    selected.append(chosen)
+                system_missing.append(
+                    {"business_key": key, "reason": "historical_system_clock_unknown"}
+                )
+                candidates = []
+                for fact in facts:
+                    public_result = (
+                        "independent_capture_unproved"
+                        if fact.pit_quality is PITQuality.UNKNOWN
+                        else (
+                            "after_cutoff"
+                            if fact.available_at is None or fact.available_at > cutoff
+                            else (
+                                "not_effective"
+                                if fact.effective_at > cutoff
+                                else (
+                                    "selected" if fact == chosen else "superseded_by_later_eligible"
+                                )
+                            )
+                        )
+                    )
+                    candidates.append(
+                        dict(_history_identity(fact) or {}, public_result=public_result)
+                    )
+                source_asserted = (
+                    _history_choice([current[key]], cutoff, KnowledgeScope.PUBLIC)
+                    if key in current
+                    else None
+                )
+                rows.append(
+                    {
+                        "business_key": key,
+                        "audit_status": "audited" if key in audited else "unknown_not_audited",
+                        "source_asserted_public": _history_identity(source_asserted),
+                        "independent_public": _history_identity(chosen),
+                        "blocking_reason": reason if chosen is None else None,
+                        "versions": candidates,
+                        "system": None,
+                        "historical_system_known_at": None,
+                    }
+                )
+        manifest = _qualification_manifest(
+            cutoff, KnowledgeScope.PUBLIC, expected, selected, missing, _hash(recipe_raw)
+        )
+        system_manifest = _qualification_manifest(
+            cutoff, KnowledgeScope.SYSTEM, expected, [], system_missing, _hash(recipe_raw)
+        )
+        outputs.append(
+            {
+                "at": cutoff.isoformat(),
+                "keys": rows,
+                "manifest_verified": manifest.is_verified,
+                "manifest": asdict(manifest),
+                "system_manifest_verified": system_manifest.is_verified,
+                "system_manifest": asdict(system_manifest),
+                "outcome": "qualified" if manifest.is_verified else "blocked",
+            }
+        )
+    keys = [row for output in outputs for row in output["keys"]]
+    return {
+        "recipe_sha256": _hash(recipe_raw),
+        "history_recipe_sha256": _hash(history_raw),
+        "fact_count": sum(len(facts) for facts in versions.values()),
+        "required_key_count": len(keys),
+        "source_asserted_public_count": sum(
+            row["source_asserted_public"] is not None for row in keys
+        ),
+        "independent_public_count": sum(row["independent_public"] is not None for row in keys),
+        "verified_observation_count": sum(output["manifest_verified"] for output in outputs),
+        "cutoffs": outputs,
+        "missing_unknown_semantics": "Missing means no eligible version; unknown records the unresolved evidence for that same required key. Counts overlap.",
+        "first_publication": None,
+        "revision_history_complete": None,
+        "historical_system_clock": None,
+        "downstream_calculation_count": 0,
+        "database_writes": 0,
+        "canonical_registration": False,
+        "production_eligibility": False,
+        "evidence_basis": "Frozen named independent captures only; source assertions and SYSTEM clocks remain separate. Legacy recipes and their archived code are verified, never executed as current code.",
+    }
+
+
 def run_replay(recipe_path: Path, evidence_dir: Path) -> dict[str, Any]:
     """Verify exact external inputs and replay the tracked case without side effects."""
     recipe_raw = recipe_path.read_bytes()
     recipe = _object(json.loads(recipe_raw))
+    if recipe.get("schema") == "ref05.history-projection.v1":
+        return _run_history_projection(recipe, recipe_raw, evidence_dir)
     if recipe.get("schema") == "ref05.history-audit.v1":
         return _run_history_audit(recipe, recipe_raw, evidence_dir)
     if recipe.get("schema") != "ref05.public-replay.v1":
