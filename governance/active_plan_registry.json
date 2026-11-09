@@ -1,14 +1,14 @@
 {
-  "version": "2026-11-09.v334",
+  "version": "2026-11-09.v335",
   "updated_at": "2026-11-09",
   "execution_focus": {
-    "unit_id": "REF-05",
+    "unit_id": null,
     "allowed_parallel_execution_modes": [
       "production",
       "external",
       "governance"
     ],
-    "policy": "Owner formally closed repeated REF-05 historical recovery on 2026-11-09: engineering is delivered, while CN_CPI_NATIONAL_YOY:2024-09 before 2024-10-15 09:00 Asia/Shanghai remains blocked_external for independent historical evidence. No scheduled, new-session or blind archive retries without a new concrete evidence lead. Independent PUBLIC remains 95/96 with eleven complete observations; source-asserted PUBLIC remains 96/96 and historical SYSTEM 0/96. The next bounded offline research-use assessment is complete: all 95 independently qualified values equal the existing diagnostic inputs, and eleven complete numeric vectors match; the one October comparison remains unknown. Reuse accepted computations and tests without re-running them. Apply the existing 2026-11-08 limited source-asserted PUBLIC research policy, not a blanket waiver or promotion of historical qualification. Preserve the original four historical gap records and all first-publication/revision-completeness/historical SYSTEM unknowns. REF-05 remains active; empirical incremental value is still unidentifiable pending the original market/actions/calendar/cost/comparator/OOS evidence and sample gates. All unit states/dependencies/exit gates/deferred boundaries remain unchanged. No new archive acquisition, Regime/returns/OOS computation, production/canonical/provider writes, purchases or deployment. ASH-08 original Goal/monitoring and genuinely qualified calendar/same-day sources retain immediate priority with safe save and serial focus/resource return; a candidate time window is not qualification. Evidence and exact delivery CI: artifacts/ref05-research-use-20261109/validation-index.json and existing convergence plan. The next bounded market/comparator feasibility assessment is now delivered: freeze REF05-MARKET-FIRST-INTERVAL-2024 (2024-01-15 and 2024-02-15 09:00 Asia/Shanghai) before reading its prices; read one existing local SQLite snapshot only. The real stored-row read-through found 180 unadjusted bars for two assets, but no historical pool, raw/source-clock binding, corporate-action history, real calendar/tradability, in-window 000300.SH benchmark or exact effective cost/neutral-Regime/simple-comparator contract sufficient for a paired run. Both checkpoints are blocked; unknown bindings and coverage denominator stay null. No stock selection, Regime, returns/OOS or synthetic market computation was run. This establishes bounded local feasibility gaps, not global data absence or empirical validation; uninspected remote/snapshot coverage is unknown. Evidence: artifacts/ref05-market-feasibility-20261109/validation-index.json and the existing review/plan. Further bounded work requires named existing market/pool/calendar/action/benchmark evidence or exact comparator/cost definitions; do not expand acquisition or reopen the sealed CPI route. Original REF-05 exit gates, ASH-08 priority/Goal/monitoring and all production/deferred protections remain unchanged.",
+    "policy": "Owner authorized closure of REF-05 and completion of ASH-08 real-source acceptance. REF-05 is completed under its existing insufficient-PIT exit: Regime incremental value remains unidentifiable within the audited historical grid and inspected local market snapshot. Preserve 95/96 independent PUBLIC, 96/96 source-asserted PUBLIC, 0/96 historical SYSTEM, and the sealed September CPI gap and uninspected coverage unknowns. No empirical result or deferred scope is opened. The repository focus is released pending qualified ASH-08 inputs. Resume ASH-08 when verifiable direct CNI classification or a complete same-taxonomy effective change history covers the acceptance date and independent close quotes, capacity/session, M1 and calendar evidence qualify. Use one isolated published_close Owner/observer/foreign V8, with actual transport, permissions and ledger reconciliation. The sealed simulation is reused; do not use the legacy P/E detail capture. The real source preflight is blocked at industry validity and did not start the browser phase.",
     "parallel_preparation": [
       {
         "unit_id": "ASH-08",
@@ -17,16 +17,13 @@
         "isolated_workspace": true,
         "shared_git_serialized": true,
         "isolated_test_resources": true
-      },
-      {
-        "unit_id": "REF-05",
-        "scope": "Repeated archive recovery is formally closed as delivered engineering plus one blocked_external historical-evidence gap. Do not requery known addresses or reopen due only to a new session/date; require a concrete new historical original, verifiable capture/version archive or trustworthy historical delivery record. The bounded reuse assessment of the frozen 12-point/96-key grid is completed: 95/95 comparable values match, eleven complete vectors match, and October remains 7/8. Existing source-asserted research references may continue only with explicit evidence labels under the already authorized limited PUBLIC policy. Neither value equality nor a research allowance proves first publication, revision completeness, historical SYSTEM or empirical incremental value. Further bounded work follows the existing preregistered market-data/execution/cost/comparator feasibility gates, not more blind CPI archive searches; no returns/OOS run or full-unit closure is authorized by this assessment. Preserve four historical records and all unknowns. ASH-08 original Goal/monitoring and genuinely qualified sources retain priority; production protections and deferred boundaries remain unchanged. The next bounded market/comparator feasibility assessment is now delivered: freeze REF05-MARKET-FIRST-INTERVAL-2024 (2024-01-15 and 2024-02-15 09:00 Asia/Shanghai) before reading its prices; read one existing local SQLite snapshot only. The real stored-row read-through found 180 unadjusted bars for two assets, but no historical pool, raw/source-clock binding, corporate-action history, real calendar/tradability, in-window 000300.SH benchmark or exact effective cost/neutral-Regime/simple-comparator contract sufficient for a paired run. Both checkpoints are blocked; unknown bindings and coverage denominator stay null. No stock selection, Regime, returns/OOS or synthetic market computation was run. This establishes bounded local feasibility gaps, not global data absence or empirical validation; uninspected remote/snapshot coverage is unknown. Evidence: artifacts/ref05-market-feasibility-20261109/validation-index.json and the existing review/plan. Further bounded work requires named existing market/pool/calendar/action/benchmark evidence or exact comparator/cost definitions; do not expand acquisition or reopen the sealed CPI route. Original REF-05 exit gates, ASH-08 priority/Goal/monitoring and all production/deferred protections remain unchanged.",
-        "owner": "Research/backtest with ASH data owner",
-        "isolated_workspace": true,
-        "shared_git_serialized": true,
-        "isolated_test_resources": true
       }
-    ]
+    ],
+    "handoff_pending": {
+      "completed_unit_id": "REF-05",
+      "owner_decision_ref": "docs/plans/a-share-usability-implementation-plan-2026-10-16.md#19.167",
+      "reason": "The REF-05 exit is registered. Wait for qualified real ASH-08 evidence before assigning the shared integration focus."
+    }
   },
   "workstreams": [
     {
@@ -2009,7 +2006,7 @@
         "wave": 3,
         "priority": "P1",
         "execution_mode": "repository",
-        "status": "active",
+        "status": "completed",
         "title": "Measure Regime incremental value with a bounded reproducible PIT experiment",
         "depends_on": [
           "GOV-03"
