@@ -260,6 +260,88 @@ def _history_fixture(tmp_path: Path) -> tuple[Path, Path]:
     return path, evidence
 
 
+def _historical_alias_fixture(tmp_path: Path, scheme: str = "https") -> tuple[Path, Path]:
+    """Bind a synthetic prior official address without changing the original source."""
+    recipe, evidence = _history_fixture(tmp_path)
+    data = json.loads(recipe.read_text())
+    data["captures"] = data["captures"][:1]
+    capture = data["captures"][0]
+    alias = "https://www.stats.gov.cn/sj/zxfb/202407/t20240710_legacy.html"
+    capture["source"]["url"] = alias
+    capture["original_url"] = alias.replace("https:", scheme + ":", 1)
+    cdx_path = evidence / capture["cdx_path"]
+    cdx = json.loads(cdx_path.read_text())
+    cdx[1][1] = capture["original_url"]
+    raw = json.dumps(cdx).encode()
+    cdx_path.write_bytes(raw)
+    capture["cdx_sha256"] = hashlib.sha256(raw).hexdigest()
+    freeze_path = evidence / data["query_freeze"]["raw_path"]
+    freeze = json.loads(freeze_path.read_text())
+    freeze["targets"][0]["addresses"].append(capture["original_url"])
+    freeze["targets"][0]["alternate_documents"] = [deepcopy(capture["source"])]
+    raw = json.dumps(freeze).encode()
+    freeze_path.write_bytes(raw)
+    data["query_freeze"]["sha256"] = hashlib.sha256(raw).hexdigest()
+    recipe.write_text(json.dumps(data))
+    return recipe, evidence
+
+
+@pytest.mark.parametrize("scheme", ["https", "http"])
+def test_historical_alias_preserves_provenance_and_clocks(tmp_path: Path, scheme: str) -> None:
+    recipe, evidence = _historical_alias_fixture(tmp_path, scheme)
+    result = run_replay(recipe, evidence)
+    row = result["cutoffs"][0]
+    selected = row["independent_public"]
+    assert "_legacy.html#2024-06@" in selected["source_record_id"]
+    assert selected["source_record_id"].startswith(scheme + ":")
+    assert "_legacy.html" not in row["source_asserted_public"]["source_record_id"]
+    assert selected["available_at"] == "2024-11-08T08:59:59+08:00"
+    assert row["system"] is None
+    assert result["first_publication"] is result["revision_history_complete"] is None
+    assert result["historical_system_clock"] is None
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    ["not_frozen", "address", "title", "date", "indicator", "unit", "parser", "period", "bytes"],
+)
+def test_historical_alias_rejects_unbound_or_different_announcement(
+    tmp_path: Path, mutation: str
+) -> None:
+    recipe, evidence = _historical_alias_fixture(tmp_path)
+    data = json.loads(recipe.read_text())
+    capture = data["captures"][0]
+    freeze_path = evidence / data["query_freeze"]["raw_path"]
+    freeze = json.loads(freeze_path.read_text())
+    target = freeze["targets"][0]
+    if mutation == "not_frozen":
+        target["alternate_documents"] = []
+    elif mutation == "address":
+        target["addresses"].remove(capture["original_url"])
+    elif mutation == "bytes":
+        (evidence / capture["raw_path"]).write_text("not the frozen historical bytes")
+    else:
+        if mutation == "period":
+            capture["source"]["observations"][0]["period"] = "2024-07"
+        else:
+            field, value = {
+                "title": ("title", "Another announcement - 国家统计局"),
+                "date": ("published_at", "2024-07-09T09:30:00+08:00"),
+                "indicator": ("indicator", "CN_PMI"),
+                "unit": ("unit", "basis-points"),
+                "parser": ("parser", "nbs_pmi_table"),
+            }[mutation]
+            capture["source"][field] = value
+        target["alternate_documents"] = [deepcopy(capture["source"])]
+        capture["required_text"] = capture["source"]["title"]
+    raw = json.dumps(freeze).encode()
+    freeze_path.write_bytes(raw)
+    data["query_freeze"]["sha256"] = hashlib.sha256(raw).hexdigest()
+    recipe.write_text(json.dumps(data))
+    with pytest.raises(ValueError):
+        run_replay(recipe, evidence)
+
+
 def test_history_clocks_reject_late_revision_and_current_bytes(tmp_path: Path) -> None:
     recipe, evidence = _history_fixture(tmp_path)
     result = run_replay(recipe, evidence)

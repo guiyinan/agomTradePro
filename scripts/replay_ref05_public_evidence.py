@@ -408,12 +408,18 @@ def _run_history_audit(
                 continue
             document = _object(capture["source"])
             original = _text(capture["original_url"])
+            alternates = target.get("alternate_documents", [])
+            if not isinstance(alternates, list):
+                raise ValueError("Alternate documents must be an explicit frozen list")
+            same_announcement = document["url"] == source["url"] or (
+                document in alternates
+                and all(document[key] == source[key] for key in ("title", "published_at"))
+            )
             if (
                 original not in _array(target["addresses"])
-                or original.replace("http:", "https:", 1) != source["url"]
-                or any(
-                    document[key] != source[key] for key in ("url", "indicator", "unit", "parser")
-                )
+                or original.replace("http:", "https:", 1) != document["url"]
+                or not same_announcement
+                or any(document[key] != source[key] for key in ("indicator", "unit", "parser"))
                 or any(capture[key] != document[key] for key in ("raw_path", "sha256"))
                 or capture["required_text"] != document["title"]
             ):

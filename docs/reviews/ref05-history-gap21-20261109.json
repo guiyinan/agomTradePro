@@ -1,0 +1,62 @@
+{
+  "schema": "ref05.history-projection.v1",
+  "purpose": "Recover remaining historical PUBLIC required-key uses with exact original official addresses, unchanged original grid and no downstream computation.",
+  "base_commit": "c111940c216c8678935db81fb7283e42fd5eb793",
+  "history_recipe": {
+    "raw_path": "ref05-history-gap21-20261109/history-recipe.json",
+    "sha256": "d2802e121100809accde00198695d665640826a9e65a858ca96d6fc3788d22c8"
+  },
+  "history_code_root": "ref05-history-gap21-20261109/current-code",
+  "base_code_root": "ref05-history-grid-20261109/base-code",
+  "code_inputs": [
+    {
+      "path": "apps/regime/domain/services_v2.py",
+      "sha256": "73283a53b0361add7f729e14eef241c05dcdab029aca044dfd180ce722dc3e38",
+      "hash_basis": "lf_normalized_bytes"
+    },
+    {
+      "path": "apps/regime/application/regime_v2_use_cases.py",
+      "sha256": "da0b98c054d09d429c7bd89ef96c9a4ad430d7535451a18d0a8940756c035fb0",
+      "hash_basis": "lf_normalized_bytes"
+    },
+    {
+      "path": "apps/data_center/domain/pit.py",
+      "sha256": "e67fe49ebdb21b12b718fbd51232fff8589903f5c4eb376d4b1ae53ed55045f6",
+      "hash_basis": "lf_normalized_bytes"
+    },
+    {
+      "path": "apps/data_center/infrastructure/pit_repository.py",
+      "sha256": "8ef25801b98a8cbd204555d3412a57e5fb5ac9ca2c2346f77796a429240c3b44",
+      "hash_basis": "lf_normalized_bytes"
+    },
+    {
+      "path": "scripts/replay_ref05_public_evidence.py",
+      "sha256": "11506faa2ca9b19b2e36da5b23191f68246a982a18ab414b385465a18af73ef5",
+      "hash_basis": "lf_normalized_bytes"
+    },
+    {
+      "path": "shared/numeric.py",
+      "sha256": "9bc8026b2eca29887b2bd14d0c8b58e1dd9b58c15e5e9f242bfedf49549ab771",
+      "hash_basis": "lf_normalized_bytes"
+    }
+  ],
+  "acquisition_freeze": {
+    "raw_path": "ref05-history-gap21-20261109/query-freeze.json",
+    "sha256": "829a7e0ae7e43bc946d8aa9016cec35c26daa7a9357f11b3777cc512b71f6b1b"
+  },
+  "raw_evidence_index": "artifacts/ref05-history-gap21-20261109/validation-index.json",
+  "limits": {
+    "original_sources": 30,
+    "required_key_uses": 96,
+    "downstream_calculations": 0,
+    "production_canonical_provider_writes": 0,
+    "first_publication": null,
+    "revision_history_complete": null,
+    "historical_system_clock": null,
+    "ref05_full_unit_complete": false
+  },
+  "acquisition_inventory": {
+    "raw_path": "ref05-history-gap21-20261109/acquisition-inventory.json",
+    "sha256": "02c04169272baab3a08443f12610995fccde51ce1c8a87e16b327f307d3ab8b9"
+  }
+}
