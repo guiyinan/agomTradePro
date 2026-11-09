@@ -88,6 +88,14 @@ R009 至 R029 的旧通过数和覆盖率仅是各自历史候选证据。R051�
 
 11 月 9 日已启动真实 V8 的来源前置，逐份回读分类与行情原件并核对哈希。分类返回 `NO_VERIFIABLE_CLASSIFICATION_VALIDITY_FOR_ACCEPTANCE_DATE`，先前报价收件也已过现行时限。退出码为 2，浏览器阶段未启动。本机启动记录 `artifacts/ash08-source-split-20261109/real-v8-start-20261109.json` 的 SHA-256 为 `011727760b0d565905740f159c1f436f3615fe61bcafdd7baa1566d6911c5cd4`。
 
+收盘行情可独立做只读原件校验。使用隔离测试 settings，候选只需 `business_date`、`unit_mapping` 和 `sina_quotes`，报价条目仍绑定各自的原始字节、接收回执、证券映射和单位证据。
+
+```powershell
+python -m tests.support.ash07_public_risk_sources --quotes-only --candidate artifacts/ash08-source-split-20261109/quote-admission/quote-only-candidate.json --output artifacts/ash08-source-split-20261109/quote-admission/quote-manifests-replay.json
+```
+
+11 月 9 日两份真实行情生成了六份 dry-run 清单，覆盖估值、单会话容量和会话状态。把容量起点改成另一业务日后，校验拒绝且未输出清单。报告未检查分类、当前身份和时限，数据库未写入。只读行情报告 SHA-256 为 `df08ec072be0cd6d8cc63702f90f3df7e4bd8e2ed257ab7cdccf0d8570f2e986`。
+
 ## 2026-11-09 V8 隔离模拟验收通过
 
 按 Owner 批准的测试假设，招商银行和工商银行沿用国证 2026 年 6 月工作簿中的 `C070101`。第 19 次候选在隔离 PostgreSQL 内发布受控收盘价，用同一份 `published_close` 发布记录贯穿三个普通用户浏览器会话。旅程通过浏览器发起真实 TUI 动作请求，成交使用明确标记为 synthetic 的事件并经正式 Fill UOW 入账。

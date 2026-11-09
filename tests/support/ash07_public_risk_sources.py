@@ -231,7 +231,17 @@ def _admission_documents(candidate: dict[str, Any]) -> list[dict[str, Any]]:
             }
         )
 
-    for quote in candidate["sina_quotes"]:
+    documents.extend(_quote_admission_documents(candidate))
+    return documents
+
+
+def _quote_admission_documents(candidate: dict[str, Any]) -> list[dict[str, Any]]:
+    """Build valuation, capacity and session documents from quote evidence alone."""
+    quotes = candidate.get("sina_quotes")
+    if type(quotes) is not list or not quotes:
+        raise ValueError("candidate must contain nonempty retained Sina quote evidence")
+    documents: list[dict[str, Any]] = []
+    for quote in quotes:
         for kind in ("valuation", "capacity_window", "execution_session_state"):
             template_key = (
                 "capacity_source_evidence_template"
@@ -865,17 +875,13 @@ def _resolve_evidence_path(value: object) -> Path:
     return path.resolve() if path.is_absolute() else (REPOSITORY_ROOT / path).resolve()
 
 
-def _dry_run_manifest(document: dict[str, Any]) -> dict[str, Any]:
+def _dry_run_manifest(request: PortfolioRiskSourceAdmissionRequest) -> dict[str, Any]:
     """Build one hash-addressed manifest without writing it to RawPayload."""
 
     from apps.risk_center.source_admission_composition import (
         build_portfolio_risk_source_admission_use_case,
     )
 
-    body_path = _resolve_evidence_path(document["body_path"])
-    original_body = body_path.read_bytes()
-    actual_hash = sha256(original_body).hexdigest()
-    request = _admission_request(document)
     result = build_portfolio_risk_source_admission_use_case().execute(request, persist=False)
     payload = result.payload
     receipt = request.capture_receipt
@@ -884,12 +890,12 @@ def _dry_run_manifest(document: dict[str, Any]) -> dict[str, Any]:
     if result.stored or payload.fetched_at != receipt.response_completed_at:
         raise ValueError("dry-run admission unexpectedly stored or changed its capture clock")
     return {
-        "kind": document["kind"],
-        "asset_code": document["asset_code"],
-        "security_id": document["security_id"],
-        "source_record_id": document["source_record_id"],
-        "source_id": document["source_evidence"]["source_id"],
-        "original_body_sha256": actual_hash,
+        "kind": request.kind,
+        "asset_code": request.asset_code,
+        "security_id": request.security_id,
+        "source_record_id": request.source_record_id,
+        "source_id": receipt.source_id,
+        "original_body_sha256": receipt.original_body_sha256,
         "raw_payload_manifest_hash": payload.payload_hash,
         "schema_fingerprint": payload.schema_fingerprint,
         "dataset_key": payload.dataset_key,
@@ -911,8 +917,12 @@ def main() -> int:
     )
     parser.add_argument(
         "--as-of",
-        required=True,
         help="aware ISO cutoff for exact CurrentReference identity checks",
+    )
+    parser.add_argument(
+        "--quotes-only",
+        action="store_true",
+        help="verify retained quote bytes and units without industry, identity or freshness admission",
     )
     parser.add_argument(
         "--output",
@@ -921,6 +931,8 @@ def main() -> int:
         help="explicit external output path for non-persistent manifest hashes",
     )
     args = parser.parse_args()
+    if args.quotes_only == (args.as_of is not None):
+        parser.error("pass either --quotes-only or an explicit --as-of cutoff")
     if not os.environ.get("DJANGO_SETTINGS_MODULE"):
         raise SystemExit("DJANGO_SETTINGS_MODULE must point to the isolated test settings")
     candidate_argument = args.candidate or os.environ.get("ASH07_REAL_SOURCE_CANDIDATE_PATH")
@@ -937,6 +949,37 @@ def main() -> int:
         candidate_path = (REPOSITORY_ROOT / candidate_path).resolve()
     candidate = _read_json(candidate_path)
     unit_mapping = verify_source_unit_mapping(candidate)
+    output_path = _resolve_evidence_path(str(args.output))
+    if args.quotes_only:
+        documents = _quote_admission_documents(candidate)
+        business_date = candidate["business_date"]
+        for document in documents:
+            if document["kind"] != "capacity_window":
+                continue
+            facts = document["facts"]
+            if (
+                facts["window_kind"] != "session_cumulative"
+                or facts["start"] != business_date
+                or facts["end"] != business_date
+                or facts["sessions"] != 1
+            ):
+                raise ValueError("retained quote only supports capacity for its own session")
+        requests = [_admission_request(document) for document in documents]
+        verify_source_request_units(requests, unit_mapping=unit_mapping)
+        _write_dry_run_result(
+            output_path,
+            {
+                "schema": "ash08.retained_quote_manifests.v1",
+                "persisted": False,
+                "identity_status": "not_checked",
+                "freshness_status": "not_checked",
+                "industry_status": "not_checked",
+                "business_date": business_date,
+                "unit_mapping": unit_mapping,
+                "manifests": [_dry_run_manifest(request) for request in requests],
+            },
+        )
+        return 0
     as_of = datetime.fromisoformat(args.as_of)
     if as_of.tzinfo is None or as_of.utcoffset() is None:
         raise SystemExit("--as-of must include a timezone offset")
@@ -970,28 +1013,25 @@ def main() -> int:
             }
         )
     documents = _admission_documents(candidate)
-    manifests = [_dry_run_manifest(document) for document in documents]
-    output_path = args.output
-    if not output_path.is_absolute():
-        output_path = (REPOSITORY_ROOT / output_path).resolve()
-    output_path.write_text(
-        json.dumps(
-            {
-                "schema": "ash07.raw_payload_admission_candidates.v1",
-                "persisted": False,
-                "identity_status": "exact_current_reference_resolution_verified",
-                "as_of": as_of.isoformat(),
-                "unit_mapping": unit_mapping,
-                "identities": verified_identities,
-                "manifests": manifests,
-            },
-            ensure_ascii=False,
-            indent=2,
-        )
-        + "\n",
-        encoding="utf-8",
+    manifests = [_dry_run_manifest(_admission_request(document)) for document in documents]
+    _write_dry_run_result(
+        output_path,
+        {
+            "schema": "ash07.raw_payload_admission_candidates.v1",
+            "persisted": False,
+            "identity_status": "exact_current_reference_resolution_verified",
+            "as_of": as_of.isoformat(),
+            "unit_mapping": unit_mapping,
+            "identities": verified_identities,
+            "manifests": manifests,
+        },
     )
     return 0
+
+
+def _write_dry_run_result(path: Path, result: dict[str, object]) -> None:
+    """Write one dry-run result to the requested output."""
+    path.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
 if __name__ == "__main__":
