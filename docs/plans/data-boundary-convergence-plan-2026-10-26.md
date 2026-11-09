@@ -255,6 +255,10 @@ registry v320 将 REF-06 置 completed、清空 repository focus，并引用 A �
 
 **2026-11-09 十二点历史资格投影有界交付。** 接收交接提交 `7428b9efd061c111bb24d758cefd183b027b8a44` 后实际创建新 Goal；核验旧阶段及交接附件 201 个文件哈希，复用未变证据。现有离线入口增加显式派生配方，分别校验旧配方／归档源码与本次执行源码，将原五份历史正文投影到冻结的 30 来源、12 点／96 次必需键。来源自述覆盖仍为 96/96，独立历史资格为 5/96，91 次缺口逐项进入 missing／unknown；SYSTEM 为 0/96，12 个观察点全部受阻，无 verified manifest 或下游计算。四项原缺口、未核验键未知及全部首发／修订完整性／SYSTEM 时钟未知均保留。具名版本、逐点矩阵和复现入口见 [阶段结论](../reviews/ref01-ref05-parallel-preparation-2026-10-29.md#2026-11-09-十二观察点独立历史资格投影)，本机原件／候选／适用检查／精确 CI 唯一索引为 `artifacts/ref05-history-grid-20261109/validation-index.json`。旧原件只读，新阶段没有存档请求、月份或来源扩展，也没有 Regime／收益／OOS 计算、canonical/provider/生产写入。Goal 关闭不等于 REF-05 整单退出，registry 状态／依赖／退出门与 deferred 边界未变；ASH-08 原 Goal 和监控保持，真实日历与同日来源合格后立即安全保存并串行交回焦点／资源，16:00 候选窗不替代来源资格。
 
+**2026-11-09 十二点资格阶段正式交接。** Owner 要求跟进接收 session 的 Goal 并在完成后核对交付及精确 CI。该 Goal 已完成，实施提交 `463f641e493254e139fcdde2f8c47c029ca05bc4` 已推送；在线只读核对五项精确 CI 全部成功，五个交付文件与已检查候选及提交 blob 身份一致，80 份索引文件哈希全匹配。46 项契约测试、9 项本地检查及两次确定性重放直接复用，不重跑原验收。阶段索引封存在 `artifacts/ref05-history-grid-20261109/handoff/stage-validation-index.json`，SHA-256 `555866c372acb203ac49e41bef232583d208493bb688082e643038f78db688b6`；交接登记及其候选、适用检查、精确 CI 追加至原 `validation-index.json`。
+
+交接结论保持来源自述 96/96、独立历史 5/96、91 次缺口和十二点全部阻断；missing／unknown 为同一缺口的不同记录，不相加。四项历史资格缺口（PMI 2024-02、2024-03，全国 CPI 同比 2023-09、2024-01）、其他未核验键，以及全部首发／修订完整性／SYSTEM 历史时钟未知均保留。registry v329 仅更新为阶段已验收交接，REF-05 active／唯一 repository focus、所有单元状态、依赖、退出门与 deferred 均不变；后续有界实施范围须另行明确，本轮不赋予收益／OOS 或整单退出资格。ASH-08 原 Goal 和监控保持，实际日历与真实同日来源恢复合格后优先安全保存 REF-05、串行交还焦点和验收资源，继续原显式 `published_close` 与完整 Owner-observer-foreign V8 门；11/09 上海 16:00 只是候选窗。无新存档请求、来源／月份扩展、生产／canonical／provider 写入、购买、部署或 deferred 恢复。
+
 ### REF-06：明文退役与默认拒绝复验（WP6）
 
 先验证现有 key encryption 命令、读写 fallback 和新写入路径；只统计待迁移数量，不输出密钥。加密必须有往返解密、失败不毁原值、幂等重跑和兼容恢复测试。数据迁移验证后才移除 plaintext fallback/字段；源码有列不能证明现网有值或已泄露。
