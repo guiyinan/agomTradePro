@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from threading import BoundedSemaphore
 from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import urlencode, urlparse
 
 from django.conf import settings
 from django.template.response import SimpleTemplateResponse
@@ -66,14 +66,17 @@ class TuiInternalActionExecutor:
             if idempotency_key is not None:
                 request_options["HTTP_IDEMPOTENCY_KEY"] = idempotency_key
             if method == "GET":
-                request = request_method(endpoint, data=params, **request_options)
+                _, _, fixed_query = endpoint.partition("?")
+                action_query = urlencode(params, doseq=True)
+                query = "&".join(filter(None, (fixed_query, action_query)))
+                request = request_method(endpoint, QUERY_STRING=query, **request_options)
             else:
                 request = request_method(endpoint, data=body, format="json", **request_options)
             request.user = user
             if session is not None:
                 request.session = session
 
-            match = resolve(endpoint)
+            match = resolve(request.path_info)
             request.resolver_match = match
             response = match.func(request, *match.args, **match.kwargs)
             status_code = getattr(response, "status_code", 200)

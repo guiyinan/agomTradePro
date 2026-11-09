@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from decimal import Decimal
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import pytest
 from django.conf import settings
@@ -15,6 +16,13 @@ from rest_framework.test import APIRequestFactory, force_authenticate
 
 from apps.simulated_trading.application.rebalance_journey_public import (
     RebalanceJourneyAccessDenied,
+)
+from apps.simulated_trading.application.rebalance_journey_service import (
+    RebalanceJourneyApplication,
+    _targets,
+)
+from apps.simulated_trading.application.temporary_target_entry import (
+    parse_temporary_security_targets,
 )
 from apps.simulated_trading.interface.rebalance_plan_journey_views import (
     RebalancePlanExactAPIView,
@@ -232,6 +240,53 @@ def test_create_rejects_client_financial_facts_and_missing_idempotency_key() -> 
     assert extra_response.status_code == 400
     assert missing_key_response.status_code == 400
     run.assert_not_called()
+
+
+def test_list_serializes_the_application_response() -> None:
+    revision = Mock()
+    revision.to_payload.return_value = _PLAN
+    repository = Mock()
+    repository.list_for_account.return_value = (revision,)
+    clock = Mock()
+    clock.now.return_value = datetime(2026, 10, 16, tzinfo=UTC)
+    application = RebalanceJourneyApplication(
+        repository=repository,
+        authorizer=Mock(),
+        clock=clock,
+        preparation_factory=Mock(),
+        progress_reader=Mock(),
+        order_previewer=Mock(),
+    )
+    request = APIRequestFactory().get("/api/simulated-trading/accounts/9/rebalance-plans/")
+    force_authenticate(request, user=_principal())
+    with patch(
+        "apps.simulated_trading.interface.rebalance_plan_journey_views.run_rebalance_journey",
+        side_effect=application.execute,
+    ):
+        response = RebalancePlanListCreateAPIView.as_view()(request, account_id=9)
+
+    assert response.status_code == 200
+    response.render()
+    assert response["Content-Type"] == "application/json"
+    assert response.data["plans"][0]["identity"]["revision_hash"] == _REVISION_HASH
+    assert response.data["review"] is None
+    assert response.data["progress"] is None
+    assert response.data["capabilities"] == {"read_only": True, "can_execute_plan": False}
+
+
+def test_retained_successor_targets_round_trip_through_the_entry_contract() -> None:
+    revision = Mock()
+    revision.basis.target_positions = [
+        SimpleNamespace(asset_code="600036.SH", target_weight=Decimal("0.00000000")),
+        SimpleNamespace(asset_code="601398.SH", target_weight=Decimal("0.00000001")),
+    ]
+
+    targets = parse_temporary_security_targets(_targets(revision))
+
+    assert [(item.asset_code, item.weight) for item in targets.items] == [
+        ("600036.SH", Decimal("0")),
+        ("601398.SH", Decimal("0.00000001")),
+    ]
 
 
 def test_exact_read_requires_version_and_hash_and_does_not_require_write_key() -> None:

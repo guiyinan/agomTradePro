@@ -101,6 +101,9 @@ class RebalanceJourneyApplication:
                 "success": True,
                 "account_id": command.account_id,
                 "plans": [plan.to_payload() for plan in plans],
+                "review": None,
+                "progress": None,
+                "capabilities": {"read_only": True, "can_execute_plan": False},
             }
         if command.action == "create":
             if command.target_weights is None:
@@ -266,7 +269,8 @@ def _targets(revision: TransitionPlanRevision) -> str:
     for position in revision.basis.target_positions:
         if position.target_weight is None:
             raise RebalanceJourneyUnavailable(code="REBALANCE_JOURNEY_RETAINED_TARGET_UNKNOWN")
-        rows.append(f"{position.asset_code} {position.target_weight * Decimal('100')}%")
+        percent = (position.target_weight * Decimal("100")).normalize()
+        rows.append(f"{position.asset_code},{percent:f}")
     if not rows:
         raise RebalanceJourneyUnavailable(code="REBALANCE_JOURNEY_RETAINED_TARGET_UNKNOWN")
     return "\n".join(rows)

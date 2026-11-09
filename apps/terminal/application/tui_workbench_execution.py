@@ -251,6 +251,8 @@ class TuiWorkbenchExecutionMixin:
             "simulated-trading.order-confirm",
             "simulated-trading.order-by-key",
             "simulated-trading.order-entry-orders",
+            "rebalance-plan.order-confirm",
+            "rebalance-plan.order-by-key",
         }
         try:
             endpoint, request_params = self._bind_endpoint_params(
@@ -333,7 +335,14 @@ class TuiWorkbenchExecutionMixin:
                     projection_action["_task_focus_professional_target"] = task_target
             view_model = self._to_view_model(
                 action=projection_action,
-                payload=safe_payload,
+                # The plan preview projector checks the ordinary handoff against
+                # the displayed plan and emits only its allowlisted fields.
+                payload=(
+                    payload
+                    if action_key == "rebalance-plan.preview-order"
+                    and owner_continuation is not None
+                    else safe_payload
+                ),
                 status_code=status_code,
                 request_params=(
                     resolved_params
@@ -579,12 +588,18 @@ class TuiWorkbenchExecutionMixin:
         }:
             return payload, None, "tui_result_continuation_invalid"
         target_action_key = descriptor.get("target_action_key")
+        source_target_key = (
+            "simulated-trading.order-confirm"
+            if action.get("key") == "rebalance-plan.preview-order"
+            and target_action_key == "rebalance-plan.order-confirm"
+            else target_action_key
+        )
         field_map = descriptor.get("field_map")
         continuation_input = continuation.get("input")
         if (
             not isinstance(target_action_key, str)
             or not isinstance(field_map, dict)
-            or continuation.get("action_key") != target_action_key
+            or continuation.get("action_key") != source_target_key
             or not isinstance(continuation_input, dict)
             or set(continuation_input) != set(field_map)
             or any(type(value) is not str or not value for value in continuation_input.values())

@@ -93,7 +93,10 @@ class TuiWorkbenchSpecializedResultMixin(
         """Project owner results into task-specific user-facing summaries."""
 
         action_key = str(action.get("key") or "")
-        if action_key.startswith("rebalance-plan."):
+        if action_key.startswith("rebalance-plan.") and action_key not in {
+            "rebalance-plan.order-confirm",
+            "rebalance-plan.order-by-key",
+        }:
             return dict(
                 project_rebalance_plan_result(
                     action_key,

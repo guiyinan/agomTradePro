@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import json
+from datetime import UTC, datetime
+from types import SimpleNamespace
+from unittest.mock import Mock
 
 import pytest
 
@@ -11,6 +14,10 @@ from apps.terminal.application.tui_rebalance_plan_quantity_details import (
 )
 from apps.terminal.application.tui_rebalance_plan_result import (
     project_rebalance_plan_result,
+)
+from apps.terminal.application.tui_workbench import TuiWorkbenchService
+from apps.terminal.infrastructure.tui_metadata_runtime_injection_rebalance_plan import (
+    RUNTIME_REBALANCE_PLAN_ACTIONS,
 )
 
 _REVISION_HASH = "a" * 64
@@ -706,6 +713,49 @@ def test_plan_order_preview_displays_only_exact_single_order_preview_and_never_t
     assert "private-attempt-key" not in rendered
     assert "internal-plan-17" not in rendered
     assert _REVISION_HASH not in rendered
+
+
+def test_workbench_binds_the_ordinary_preview_to_its_same_screen_confirmation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    now = datetime(2026, 11, 4, 7, 5, tzinfo=UTC)
+    monkeypatch.setattr(
+        "apps.terminal.application.tui_workbench_execution.timezone.now", lambda: now
+    )
+    upstream = _preview_envelope()
+    upstream["continuation"]["expires_at"] = "2026-11-04T07:06:00+00:00"
+    executor = Mock()
+    executor.execute.return_value = {"status_code": 200, "payload": upstream}
+    service = TuiWorkbenchService(metadata_repository=Mock(), action_executor=executor)
+    monkeypatch.setattr(
+        service,
+        "_metadata",
+        lambda: {"actions": list(RUNTIME_REBALANCE_PLAN_ACTIONS), "screens": []},
+    )
+
+    result = service.run_action(
+        action_key="rebalance-plan.preview-order",
+        params={
+            "account_id": 9,
+            "plan_id": "internal-plan-17",
+            "plan_version": 2,
+            "revision_hash": _REVISION_HASH,
+            "order_ordinal": 0,
+            "order_content_hash": _ORDER_HASH,
+            "plan_order_binding_id": _BINDING_HASH,
+            "quantity": "100",
+            "limit_price": "13.40",
+        },
+        user=SimpleNamespace(is_authenticated=True, is_staff=False, is_superuser=False),
+    )
+
+    assert result["response"]["status_code"] == 200
+    assert result["continuation"]["action_key"] == "rebalance-plan.order-confirm"
+    assert result["continuation"]["input"] == upstream["continuation"]["input"]
+    assert any(field["key"] == "requested_quantity" for field in result["view_model"]["fields"])
+    assert "secret-preview-token" not in json.dumps(
+        {key: value for key, value in result.items() if key != "continuation"}
+    )
 
 
 def test_readonly_scope_cannot_render_a_preview_even_if_order_facts_claim_ready() -> None:
