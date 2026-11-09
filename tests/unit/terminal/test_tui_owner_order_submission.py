@@ -657,6 +657,8 @@ def test_close_snapshot_confirm_and_readback_use_durable_double_purpose() -> Non
 
     assert confirmed["outcome"] == "success"
     assert readback["outcome"] == "success"
+    assert readback["read_only"] is True
+    assert readback["must_not_execute"] is True
     assert _field_values(confirmed)["market_purpose"] == "收盘快照模拟（非官方收盘价）"
     assert _field_values(readback)["market_purpose"] == "收盘快照模拟（非官方收盘价）"
     assert "非官方收盘价" in str(confirmed["business_summary"])

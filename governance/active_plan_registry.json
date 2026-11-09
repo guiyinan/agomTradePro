@@ -1,29 +1,15 @@
 {
-  "version": "2026-11-09.v335",
-  "updated_at": "2026-11-09",
+  "version": "2026-11-10.v336",
+  "updated_at": "2026-11-10",
   "execution_focus": {
-    "unit_id": null,
+    "unit_id": "ASH-08",
     "allowed_parallel_execution_modes": [
       "production",
       "external",
       "governance"
     ],
-    "policy": "Owner authorized closure of REF-05 and completion of ASH-08 real-source acceptance. REF-05 is completed under its existing insufficient-PIT exit: Regime incremental value remains unidentifiable within the audited historical grid and inspected local market snapshot. Preserve 95/96 independent PUBLIC, 96/96 source-asserted PUBLIC, 0/96 historical SYSTEM, and the sealed September CPI gap and uninspected coverage unknowns. No empirical result or deferred scope is opened. The repository focus is released pending qualified ASH-08 inputs. Resume ASH-08 when verifiable direct CNI classification or a complete same-taxonomy effective change history covers the acceptance date and independent close quotes, capacity/session, M1 and calendar evidence qualify. Use one isolated published_close Owner/observer/foreign V8, with actual transport, permissions and ledger reconciliation. The sealed simulation is reused; do not use the legacy P/E detail capture. The real source preflight is blocked at industry validity and did not start the browser phase.",
-    "parallel_preparation": [
-      {
-        "unit_id": "ASH-08",
-        "scope": "Resume the unfinished ASH-08 real-source acceptance when verifiable industry evidence covers the actual business date. Use a direct CNI classification version with proven applicability, or a complete same-taxonomy effective change history. Exclude the legacy P/E-detail membership capture and keep index constituent lists as corroboration. Capture genuine after-close quotes independently and bind qualified capacity, session, M1 and calendar evidence to the same candidate. Once qualified, safely save REF-05 work, serially reclaim the sole focus/resources, and run explicit published_close Owner-observer-foreign V8. Reuse the completed isolated simulation evidence. See docs/testing/a-share-ash08-rebalance-journey-2026-11-05.md.",
-        "owner": "Root; source/browser owners when qualification returns",
-        "isolated_workspace": true,
-        "shared_git_serialized": true,
-        "isolated_test_resources": true
-      }
-    ],
-    "handoff_pending": {
-      "completed_unit_id": "REF-05",
-      "owner_decision_ref": "docs/plans/a-share-usability-implementation-plan-2026-10-16.md#19.167",
-      "reason": "The REF-05 exit is registered. Wait for qualified real ASH-08 evidence before assigning the shared integration focus."
-    }
+    "policy": "Owner-authorized repository focus is ASH-08 real-source acceptance under section 19.167. The 2026-11-09 CNI effective roster and bounded same-taxonomy change histories qualified alongside independent close quotes, capacity/session, M1 and calendar originals. Isolated published_close V8 reached successor BUY reservation. The final verifier rejected missing read-only flags on the original-order readback, so whole-unit acceptance remains open. Reuse the archived classification method and prior simulation. Bind the next eligible session's inputs to one candidate with the readback fix and complete three-actor transport, permission and ledger verification before closure. REF-05 remains completed under its insufficient-PIT exit.",
+    "parallel_preparation": []
   },
   "workstreams": [
     {
@@ -1764,7 +1750,7 @@
         "wave": 3,
         "priority": "P1",
         "execution_mode": "repository",
-        "status": "blocked_external",
+        "status": "active",
         "title": "Deliver an account-specific rebalance plan and complete TUI user journey",
         "depends_on": [
           "ASH-03",

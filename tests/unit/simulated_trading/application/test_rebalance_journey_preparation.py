@@ -145,6 +145,11 @@ class _RuleReader:
         return self.record
 
 
+class _PreparationClock:
+    def now(self) -> datetime:
+        return _PREPARED_AT
+
+
 class _Reads(ServerRebalanceJourneyReads):
     """Use the real typed read contract while supplying one captured synthetic result."""
 
@@ -490,7 +495,7 @@ def _preview(
         asset_name="Synthetic Shanghai Equity",
         asset_type="equity",
         currency_unit=None,
-        quantity_unit="share",
+        quantity_unit="shares",
         current_weight=adjustment.current_weight,
         target_weight=target_weight,
         portfolio_value=Decimal("11000"),
@@ -613,6 +618,7 @@ def _provider(
     classification_source_restricted: bool = False,
     classification_outer_flags: bool | None = None,
     classification_purpose: str | None = None,
+    preview_as_of: datetime = _AS_OF,
 ) -> tuple[PortfolioJourneyPreparationProvider, RebalancePlanPreview]:
     """Compose the real risk application over explicit synthetic typed inputs."""
 
@@ -632,6 +638,7 @@ def _provider(
         classification_outer_flags=classification_outer_flags,
         classification_purpose=classification_purpose,
     )
+    preview = replace(preview, as_of=preview_as_of)
     prepared = harness.service.prepare_plan_context(
         user_id=risk_fixtures._OWNER_ID,
         account_id=risk_fixtures._ACCOUNT_ID,
@@ -655,6 +662,7 @@ def _provider(
             target_weights=target_weights,
             reference_price_basis="market",
             business_timezone=ZoneInfo("Asia/Shanghai"),
+            clock=_PreparationClock(),
         ),
         preview,
     )
@@ -665,10 +673,11 @@ def test_prepare_maps_one_typed_preview_and_qualified_risk_result_to_immutable_d
 ) -> None:
     """The producer seals exact source/risk/policy evidence without granting execution."""
 
-    provider, _preview_result = _provider(monkeypatch)
+    provider, _preview_result = _provider(monkeypatch, preview_as_of=_AS_OF - timedelta(seconds=1))
 
-    result = provider.prepare(_request(), prepared_at=_PREPARED_AT, parent=None)
+    result = provider.prepare(_request(), prepared_at=_AS_OF - timedelta(seconds=2), parent=None)
 
+    assert result.basis.prepared_at == _PREPARED_AT
     assert result.plan.status == "DRAFT"
     assert len(result.plan.orders) == 1
     assert result.plan.orders[0].side == "buy"

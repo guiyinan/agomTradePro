@@ -1237,11 +1237,13 @@ def test_real_preview_partial_sell_funds_only_actual_successor_buy(
         using="default",
     )
     reads.diagnostic_root = tmp_path
+    repository = DjangoTransitionPlanRevisionRepository(using="default")
     provider = PortfolioJourneyPreparationProvider(
         reads,
         target_weights=_TARGET_WEIGHTS,
         reference_price_basis="market",
         business_timezone=ZoneInfo("Asia/Shanghai"),
+        clock=repository,
     )
     from apps.simulated_trading.composition import build_observer_grant_repository
     from apps.simulated_trading.infrastructure.portfolio_risk_resource_repository import (
@@ -1253,7 +1255,6 @@ def test_real_preview_partial_sell_funds_only_actual_successor_buy(
         observer_grant_repository=build_observer_grant_repository(using="default"),
     )
     authorizer = RebalanceJourneyAccountAuthorizer(resource_reader)
-    repository = DjangoTransitionPlanRevisionRepository(using="default")
     initial_use_case = CreateInitialTransitionPlanRevisionUseCase(
         repository=repository,
         preparation_provider=provider,

@@ -6,7 +6,10 @@ from datetime import datetime, tzinfo
 from decimal import Decimal
 from typing import Literal
 
-from apps.portfolio.application.transition_plan_lifecycle import TransitionPlanRevisionRequest
+from apps.portfolio.application.transition_plan_lifecycle import (
+    TransitionPlanRevisionClock,
+    TransitionPlanRevisionRequest,
+)
 from apps.portfolio.domain.entities import ConstraintDecision, OrderDraft, TransitionPlan
 from apps.portfolio.domain.transition_plan_revision import (
     TransitionPlanOrderSpecification,
@@ -95,6 +98,7 @@ class PortfolioJourneyPreparationProvider:
         target_weights: str,
         reference_price_basis: ReferencePriceBasis,
         business_timezone: tzinfo,
+        clock: TransitionPlanRevisionClock,
     ) -> None:
         """Inject one server reader and retain only the explicitly chosen target."""
 
@@ -108,6 +112,7 @@ class PortfolioJourneyPreparationProvider:
         self._target_weights = target_weights
         self._reference_price_basis = reference_price_basis
         self._business_timezone = business_timezone
+        self._clock = clock
 
     def prepare(
         self,
@@ -136,6 +141,11 @@ class PortfolioJourneyPreparationProvider:
         )
         if type(prepared) is not PreparedPortfolioRisk:
             raise RebalanceJourneyUnavailable(code="REBALANCE_PLAN_RISK_CONTEXT_INVALID")
+        assembled_at = self._clock.now()
+        _require_aware(assembled_at, "assembled_at")
+        if assembled_at < prepared_at:
+            raise RebalanceJourneyUnavailable(code="REBALANCE_PLAN_READ_CLOCK_INVALID")
+        prepared_at = assembled_at
         self._validate_context(
             request=request,
             preview=preview,
@@ -425,6 +435,8 @@ class PortfolioJourneyPreparationProvider:
             or not prepared.snapshot.executed_usage_complete
         ):
             raise RebalanceJourneyUnavailable(code="REBALANCE_PLAN_ACCOUNT_CONTEXT_UNAVAILABLE")
+        # The preview market cutoff precedes its ledger read. Validate each clock
+        # against preparation and require the later risk read to follow the ledger read.
         if (
             type(preview.as_of) is not datetime
             or type(preview.financial_snapshot_read_at) is not datetime
@@ -434,7 +446,7 @@ class PortfolioJourneyPreparationProvider:
             or preview.as_of > prepared_at
             or preview.financial_snapshot_read_at > prepared_at
             or prepared.snapshot.read_at > prepared.as_of
-            or preview.financial_snapshot_read_at > preview.as_of
+            or preview.financial_snapshot_read_at > prepared.snapshot.read_at
         ):
             raise RebalanceJourneyUnavailable(code="REBALANCE_PLAN_READ_CLOCK_INVALID")
         policy = prepared.policy

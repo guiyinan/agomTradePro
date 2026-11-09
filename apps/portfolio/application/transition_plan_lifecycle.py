@@ -168,7 +168,7 @@ class TransitionPlanRevisionPreparationProvider(Protocol):
         prepared_at: datetime,
         parent: TransitionPlanRevision | None,
     ) -> TransitionPlanRevisionPreparation:
-        """Read and bind current account, source, risk, fee and quantity context."""
+        """Read current context and timestamp its assembly at or after the start."""
         ...
 
 
@@ -278,7 +278,14 @@ class CreateInitialTransitionPlanRevisionUseCase:
             _check_replay(existing, request, owner_user_id, parent=None)
             return existing
         preparation = self._provider.prepare(request, prepared_at=now, parent=None)
-        _check_preparation(preparation, request, owner_user_id, prepared_at=now, parent=None)
+        _check_preparation(
+            preparation,
+            request,
+            owner_user_id,
+            started_at=now,
+            completed_at=_require_server_time(self._clock.now()),
+            parent=None,
+        )
         return self._repository.append_initial(
             build_transition_plan_revision(preparation),
             idempotency_key=request.idempotency_key,
@@ -344,7 +351,14 @@ class CreateTransitionPlanSuccessorUseCase:
         if head is None or head.identity.revision_hash != parent.identity.revision_hash:
             raise TransitionPlanRevisionConflict("successor parent is no longer the family head")
         preparation = self._provider.prepare(request, prepared_at=now, parent=parent)
-        _check_preparation(preparation, request, owner_user_id, prepared_at=now, parent=parent)
+        _check_preparation(
+            preparation,
+            request,
+            owner_user_id,
+            started_at=now,
+            completed_at=_require_server_time(self._clock.now()),
+            parent=parent,
+        )
         return self._repository.append_successor(
             build_transition_plan_revision(preparation),
             expected_parent=parent.identity,
@@ -582,10 +596,11 @@ def _check_preparation(
     request: TransitionPlanRevisionRequest,
     owner_user_id: int,
     *,
-    prepared_at: datetime,
+    started_at: datetime,
+    completed_at: datetime,
     parent: TransitionPlanRevision | None,
 ) -> None:
-    """Check the provider output against only the authorized request identity."""
+    """Check the authorized request identity and server preparation window."""
 
     basis = preparation.basis
     if (
@@ -595,11 +610,13 @@ def _check_preparation(
         or basis.target_portfolio_id != request.target_portfolio_id
         or basis.selection_id != request.selection_id
         or basis.selection_hash != request.expected_selection_hash
-        or basis.prepared_at != prepared_at
+        or not started_at <= basis.prepared_at <= completed_at
     ):
         raise TransitionPlanRevisionCorruption(
             "server preparation does not match requested identity"
         )
+    if completed_at >= basis.valid_until:
+        raise TransitionPlanRevisionConflict("plan expired during server preparation")
     if parent is None:
         if preparation.parent_plan_id is not None or preparation.version != 1:
             raise TransitionPlanRevisionCorruption("initial preparation carries successor lineage")

@@ -489,12 +489,18 @@ def verify_preview_asset_math(
         asset = code_to_asset.get(row.asset_code)
         if asset is None:
             continue
+        # The preview uses a display label while Risk stores the canonical unit.
+        preview_quantity_unit = (
+            "share"
+            if row.asset_type == "equity" and row.quantity_unit == "shares"
+            else row.quantity_unit
+        )
         if (
             asset.price is None
             or asset.price_unit is None
             or row.reference_price is None
             or row.reference_price != asset.price
-            or row.quantity_unit != asset.quantity_unit
+            or preview_quantity_unit != asset.quantity_unit
         ):
             raise RebalanceJourneyUnavailable(code="REBALANCE_PLAN_REFERENCE_BASIS_MISMATCH")
         adjustment = calculate_asset_adjustment(

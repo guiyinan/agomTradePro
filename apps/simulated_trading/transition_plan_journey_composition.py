@@ -227,6 +227,7 @@ def build_rebalance_journey_service(using: str = DEFAULT_DB_ALIAS) -> RebalanceJ
             target_weights=target_weights,
             reference_price_basis=reference_price_basis,
             business_timezone=timezone.get_default_timezone(),
+            clock=repository,
         )
 
     progress = GetTransitionPlanExecutionProgressUseCase(
