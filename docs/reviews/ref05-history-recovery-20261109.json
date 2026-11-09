@@ -1,0 +1,76 @@
+{
+  "schema": "ref05.history-projection.v1",
+  "purpose": "Recover historical eligibility from additional verified bodies without changing the original grid or calculating downstream results.",
+  "base_commit": "34138c42d29a1ad4b4e0e5db82c910d37993a967",
+  "history_recipe": {
+    "raw_path": "ref05-history-recovery-20261109/history-recipe.json",
+    "sha256": "b52b81510109b69e0bee4b0755daf87f140eea23f242f45a01aae48a3ded5c1e"
+  },
+  "history_code_root": "ref05-history-recovery-20261109/current-code",
+  "base_code_root": "ref05-history-grid-20261109/base-code",
+  "code_inputs": [
+    {
+      "path": "apps/regime/domain/services_v2.py",
+      "sha256": "73283a53b0361add7f729e14eef241c05dcdab029aca044dfd180ce722dc3e38",
+      "hash_basis": "lf_normalized_bytes"
+    },
+    {
+      "path": "apps/regime/application/regime_v2_use_cases.py",
+      "sha256": "da0b98c054d09d429c7bd89ef96c9a4ad430d7535451a18d0a8940756c035fb0",
+      "hash_basis": "lf_normalized_bytes"
+    },
+    {
+      "path": "apps/data_center/domain/pit.py",
+      "sha256": "e67fe49ebdb21b12b718fbd51232fff8589903f5c4eb376d4b1ae53ed55045f6",
+      "hash_basis": "lf_normalized_bytes"
+    },
+    {
+      "path": "apps/data_center/infrastructure/pit_repository.py",
+      "sha256": "8ef25801b98a8cbd204555d3412a57e5fb5ac9ca2c2346f77796a429240c3b44",
+      "hash_basis": "lf_normalized_bytes"
+    },
+    {
+      "path": "scripts/replay_ref05_public_evidence.py",
+      "sha256": "e95fc13b91d01057033c79b4b5e0b40e134427f76d20f760cd446f2c49b2d4cf",
+      "hash_basis": "lf_normalized_bytes"
+    },
+    {
+      "path": "shared/numeric.py",
+      "sha256": "9bc8026b2eca29887b2bd14d0c8b58e1dd9b58c15e5e9f242bfedf49549ab771",
+      "hash_basis": "lf_normalized_bytes"
+    }
+  ],
+  "acquisition_freeze": {
+    "raw_path": "ref05-history-recovery-20261109/query-freeze.json",
+    "sha256": "11ecfc74444d1fc55c8bb4078251fe848657df7d81ad341f22d73ce311ac935d"
+  },
+  "raw_evidence_index": "artifacts/ref05-history-recovery-20261109/validation-index.json",
+  "limits": {
+    "original_sources": 30,
+    "required_key_uses": 96,
+    "regime_returns_oos_calculations": 0,
+    "production_canonical_provider_writes": 0,
+    "first_publication": null,
+    "revision_history_complete": null,
+    "historical_system_clock": null,
+    "ref05_full_unit_complete": false
+  },
+  "acquisition_inventory": {
+    "raw_path": "ref05-history-recovery-20261109/acquisition-inventory.json",
+    "sha256": "43f63049dfbe49b5815811e11014eff35968aa57ada1886d4075eabb9713b4f0"
+  },
+  "clock_rule": {
+    "raw_path": "ref05-history-recovery-20261109/redirect-clock-rule.json",
+    "sha256": "34d9cc9bdcd9a6cddb49ca5c1584e61ee3cb0b42f62ff37d69f1d96d3fd03c04"
+  },
+  "result_summary": {
+    "independent_public_required_key_uses": 75,
+    "required_key_uses": 96,
+    "complete_public_observations": 5,
+    "total_observations": 12,
+    "system_required_key_uses": 0,
+    "new_verified_historical_bodies": 23,
+    "reused_historical_bodies": 5,
+    "unresolved_required_key_uses": 21
+  }
+}
