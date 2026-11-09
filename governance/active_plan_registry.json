@@ -1,15 +1,20 @@
 {
-  "version": "2026-11-10.v336",
+  "version": "2026-11-10.v337",
   "updated_at": "2026-11-10",
   "execution_focus": {
-    "unit_id": "ASH-08",
+    "unit_id": null,
     "allowed_parallel_execution_modes": [
       "production",
       "external",
       "governance"
     ],
-    "policy": "Owner-authorized repository focus is ASH-08 real-source acceptance under section 19.167. The 2026-11-09 CNI effective roster and bounded same-taxonomy change histories qualified alongside independent close quotes, capacity/session, M1 and calendar originals. Isolated published_close V8 reached successor BUY reservation. The final verifier rejected missing read-only flags on the original-order readback, so whole-unit acceptance remains open. Reuse the archived classification method and prior simulation. Bind the next eligible session's inputs to one candidate with the readback fix and complete three-actor transport, permission and ledger verification before closure. REF-05 remains completed under its insufficient-PIT exit.",
-    "parallel_preparation": []
+    "policy": "ASH-08 is completed under the Owner-authorized section 19.167 exit. Candidate 2e83e3ba483716ab2d694e1d952b0622db53cc9d passed the complete isolated published_close V8 on the retained 2026-11-09 market originals at an explicit historical cutoff. The same candidate passed three-actor transport and permissions, exact original-order readback, fill and cancellation, successor BUY reservation, and final ledger reconciliation. REF-05 is completed under its insufficient-PIT exit. Hold repository focus for the next authorized handoff.",
+    "parallel_preparation": [],
+    "handoff_pending": {
+      "completed_unit_id": "ASH-08",
+      "owner_decision_ref": "docs/plans/a-share-usability-implementation-plan-2026-10-16.md#19.167",
+      "reason": "The Owner-authorized ASH-08 and REF-05 exits are registered. Await the next repository focus decision."
+    }
   },
   "workstreams": [
     {
@@ -395,7 +400,7 @@
       "priority": "P0/P1",
       "owner": "portfolio+risk_center+data_center+simulated_trading+backtest+broker_execution+terminal",
       "status": "active",
-      "next_gate": "ASH-03/04/07 remain completed within recorded finite scopes. ASH-08 remains blocked_external and the original Goal unfinished. Genuine same-day sources, explicit published_close and full ordinary Owner/observer/foreign V8 remain mandatory and take priority upon source qualification. Owner2026-11-07 hands sole repository focus from REF-02 to a single REF-03 M1 risk policy Publication reader, main plan section19.161. Same-day clocks/300sec, financial and permission/version/order gates unchanged; ASH-06/09/12 deferred.",
+      "next_gate": "ASH-03/04/07 and ASH-08 are completed within their recorded acceptance scopes. ASH-08 passed the ordinary Owner/observer/foreign published_close V8 and final ledger reconciliation using retained 2026-11-09 public-source originals at the authorized historical cutoff. See section 19.167 for closure evidence and await the next repository focus decision. ASH-06/09/12 are deferred.",
       "documents": [
         {
           "path": "docs/plans/a-share-usability-implementation-plan-2026-10-16.md",
@@ -1750,7 +1755,7 @@
         "wave": 3,
         "priority": "P1",
         "execution_mode": "repository",
-        "status": "active",
+        "status": "completed",
         "title": "Deliver an account-specific rebalance plan and complete TUI user journey",
         "depends_on": [
           "ASH-03",
