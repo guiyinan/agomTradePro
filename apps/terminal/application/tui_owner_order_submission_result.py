@@ -69,25 +69,17 @@ def project_tui_owner_order_submission_result(
         if not 200 <= http_status < 300:
             return _owner_order_failure(action_key, payload, http_status, requested_params)
         return _project_owner_order_preview(payload, requested_params)
-    if action_key == _ORDER_ENTRY_CONFIRM_ACTION:
-        if not 200 <= http_status < 300:
-            return _owner_order_failure(action_key, payload, http_status, requested_params)
-        return _project_owner_order_reservation(
-            payload,
-            requested_params,
-            title="模拟订单预留结果",
-            readback=False,
-        )
     if not 200 <= http_status < 300:
         return _owner_order_failure(action_key, payload, http_status, requested_params)
+    readback = action_key == _ORDER_ENTRY_READBACK_ACTION
     result = _project_owner_order_reservation(
         payload,
         requested_params,
-        title="原模拟订单核对结果",
-        readback=True,
+        title="原模拟订单核对结果" if readback else "模拟订单预留结果",
+        readback=readback,
     )
-    result["read_only"] = True
-    result["must_not_execute"] = True
+    if readback:
+        result.update(read_only=True, must_not_execute=True)
     return result
 
 

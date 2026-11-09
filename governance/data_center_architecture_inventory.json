@@ -16420,7 +16420,7 @@
     },
     {
       "path": "apps/portfolio/application/transition_plan_lifecycle.py",
-      "text": "\"\"\"Read and bind current account, source, risk, fee and quantity context.\"\"\""
+      "text": "\"\"\"Read current context and timestamp its assembly at or after the start.\"\"\""
     },
     {
       "path": "apps/portfolio/application/transition_plan_lifecycle.py",
