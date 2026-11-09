@@ -87,6 +87,13 @@ def isolated_m1_revision_table(
     qualified_table = f"{quote(schema_name)}.{quote(original_table)}"
     schema_created = False
 
+    def select_policy_table(table_name: str) -> None:
+        model_options = M1RebalanceRiskPolicyRevisionModel._meta
+        model_options.db_table = table_name
+        # Django's cached Col keeps the alias of the previous disposable table.
+        for field in model_options.concrete_fields:
+            field.__dict__.pop("cached_col", None)
+
     try:
         with django_db_blocker.unblock():
             database.ensure_connection()
@@ -96,7 +103,7 @@ def isolated_m1_revision_table(
                 cursor.execute(f"CREATE SCHEMA {quote(schema_name)}")
             schema_created = True
 
-            M1RebalanceRiskPolicyRevisionModel._meta.db_table = qualified_table
+            select_policy_table(qualified_table)
             with database.cursor() as cursor:
                 cursor.execute(f"SET search_path TO {quote(schema_name)}, public")
             with database.schema_editor() as schema_editor:
@@ -129,7 +136,7 @@ def isolated_m1_revision_table(
 
         yield None
     finally:
-        M1RebalanceRiskPolicyRevisionModel._meta.db_table = original_table
+        select_policy_table(original_table)
         if schema_created:
             with django_db_blocker.unblock():
                 database.ensure_connection()
