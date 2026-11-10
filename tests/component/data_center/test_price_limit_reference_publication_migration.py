@@ -69,7 +69,7 @@ def test_empty_reverse_forward_and_history_refusal_preserve_constraint_and_rows(
         )
         historical_content_type = state.apps.get_model("contenttypes", "ContentType")
         historical_permission = state.apps.get_model("auth", "Permission")
-        target_content_type = historical_content_type.objects.get(
+        target_content_type, _ = historical_content_type.objects.get_or_create(
             app_label="data_center",
             model="pricelimitsnapshotfactmodel",
         )

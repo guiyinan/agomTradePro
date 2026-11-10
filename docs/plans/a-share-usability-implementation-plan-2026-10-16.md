@@ -3001,3 +3001,5 @@ Data Center 将同一证券及日期窗口的深交所公告全页列表、两�
 `a55061f0cbf064ad87b7fa4ead614a1bafe7744f` 的本地模型差值门通过；首次远端 Consistency Check 在 Data Center 架构清单过期处失败，失败原件为 `artifacts/ash05-coverage-20261110/ci-consistency-a550-failed.txt`。按生成器补齐 `governance/data_center_architecture_inventory.json` 后需以新提交重跑精确 CI，不能拼接旧候选结果。
 
 同一源码在隔离 SQLite 的公开交易所复核中，002727.SZ 的 2026-09-01 至 09-30 窗口列 11 篇、选入 3 篇，原 v1 manifest 仍为 `d5e9f840e47f836e42a80848d2f65e385f8793e421a50336030118361b88f42b`，新覆盖证明为 `ef3503e40f16d5e73c3009cd1537d1a53770500c1a3653fa6a464b65bfc72b61`；301237.SZ 的 2026-08-01 至 09-15 窗口列 6 篇、选入 1 篇，原 v1 manifest 仍为 `6fcf46ea8347118cecf0c1d1a278925ac419bf77ac98c16627b09e3298aa7226`，新覆盖证明为 `d976483f6757efa85836c83e901281daa0a86214a7f59b7d97efc1f489309d76`。两者均在证明落库时返回 `partial/LISTED_EVENT_NOT_REPRESENTED`。原件为 `artifacts/ash05-coverage-20261110/live-official-verify.log`、脚本及原始响应；此运行未接生产数据库或生产入账。
+
+`a55061f0c` 的 Fast Feedback 在 5,161 项通过后有 1 项历史迁移测试因预设 `ContentType` 行存在而失败；这项测试依赖共享测试顺序，未验证其自身准备。修复为测试内对历史 ContentType `get_or_create`，保留删除/重建权限和迁移正反例；本地完整迁移单项重跑 **1 passed**，日志为 `artifacts/ash05-coverage-20261110/price-limit-migration-repro-fixed.log`。该单项不替代新候选的完整 CI。
