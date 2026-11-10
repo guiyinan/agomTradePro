@@ -30,6 +30,20 @@ class TransitionPlanEventSnapshotReadError(RuntimeError):
     """A source adapter could not prove complete event history for a requested cutoff."""
 
 
+class TransitionPlanEventSourceRevisionChanged(RuntimeError):
+    """A confirmed in-window source event append or correction needs successor review."""
+
+    def __init__(
+        self,
+        snapshot: TransitionPlanEventAssetSnapshot,
+        message: str,
+    ) -> None:
+        """Carry the exact current proof so Review can validate its lease before changing state."""
+
+        super().__init__(message)
+        self.snapshot = snapshot
+
+
 @dataclass(frozen=True, slots=True)
 class TransitionPlanEventSnapshotReadRequest:
     """Read one certified security/source snapshot at an exact knowledge cutoff."""
@@ -67,6 +81,12 @@ class TransitionPlanEventSnapshotReader(Protocol):
         self, request: TransitionPlanEventSnapshotReadRequest
     ) -> TransitionPlanEventAssetSnapshot | None:
         """Return complete or explicitly incomplete coverage; return None when unavailable."""
+        ...
+
+    def read_latest_snapshot(
+        self, request: TransitionPlanEventSnapshotReadRequest
+    ) -> TransitionPlanEventAssetSnapshot | None:
+        """Select the latest proof at the request cutoff, then reread its durable clock."""
         ...
 
 
@@ -128,9 +148,9 @@ class AssessTransitionPlanEventReview:
         coverage_bindings = transition_plan_event_coverage_bindings(bindings)
         if not coverage_bindings:
             return _blocked("EVENT_COVERAGE_PIN_MISSING")
-        if self._lease_policy is None or any(
-            not _valid_coverage_lease(item, self._lease_policy, as_of=as_of)
-            for item in coverage_bindings
+        lease_policy = self._lease_policy
+        if lease_policy is None or any(
+            not _valid_coverage_lease(item, lease_policy, as_of=as_of) for item in coverage_bindings
         ):
             return _blocked("EVENT_COVERAGE_LEASE_INVALID_OR_EXPIRED")
         marker_keys = tuple(
@@ -219,24 +239,34 @@ class AssessTransitionPlanEventReview:
                 ):
                     return _blocked("EVENT_HISTORY_PIN_MISMATCH")
 
-            current = self._read_complete_snapshot(
-                TransitionPlanEventSnapshotReadRequest(
-                    asset_code=pin.asset_code,
-                    security_id=pin.security_id,
-                    source_id=pin.source_id,
-                    start_on=pin.coverage_start_on,
-                    end_on=pin.coverage_end_on,
-                    as_of=as_of,
-                )
+            current_request = TransitionPlanEventSnapshotReadRequest(
+                asset_code=pin.asset_code,
+                security_id=pin.security_id,
+                source_id=pin.source_id,
+                start_on=pin.coverage_start_on,
+                end_on=pin.coverage_end_on,
+                as_of=as_of,
             )
+            current_changed = False
+            try:
+                current = self._read_complete_snapshot(current_request, read_latest=True)
+            except TransitionPlanEventSourceRevisionChanged as error:
+                current = self._validate_complete_snapshot(
+                    current_request,
+                    error.snapshot,
+                    read_latest=True,
+                )
+                current_changed = True
             if current is None:
                 return _blocked("EVENT_CURRENT_PROOF_MISSING")
+            if not _valid_current_proof_lease(current, lease_policy, as_of=as_of):
+                return _blocked("EVENT_CURRENT_PROOF_LEASE_INVALID_OR_EXPIRED")
             current_events = {item.source_event_id: item for item in current.events}
             if any(event_id not in current_events for event_id in historical_events):
                 return _blocked("EVENT_CURRENT_PROOF_MISSING")
             if any(_is_unknown_event(item.event_type) for item in current.events):
                 return _blocked("EVENT_TYPE_UNKNOWN")
-            if transition_plan_event_snapshot_sha256(current) != historical_hash:
+            if current_changed or transition_plan_event_snapshot_sha256(current) != historical_hash:
                 changed = True
 
         if changed:
@@ -247,13 +277,31 @@ class AssessTransitionPlanEventReview:
         return _unchanged()
 
     def _read_complete_snapshot(
-        self, request: TransitionPlanEventSnapshotReadRequest
+        self,
+        request: TransitionPlanEventSnapshotReadRequest,
+        *,
+        read_latest: bool = False,
     ) -> TransitionPlanEventAssetSnapshot | None:
-        """Read and validate one exact complete coverage proof at the requested cutoff."""
+        """Read exact coverage or explicitly select and validate the latest durable proof."""
 
         if self._reader is None:
             return None
-        snapshot = self._reader.read_snapshot(request)
+        snapshot = (
+            self._reader.read_latest_snapshot(request)
+            if read_latest
+            else self._reader.read_snapshot(request)
+        )
+        return self._validate_complete_snapshot(request, snapshot, read_latest=read_latest)
+
+    @staticmethod
+    def _validate_complete_snapshot(
+        request: TransitionPlanEventSnapshotReadRequest,
+        snapshot: TransitionPlanEventAssetSnapshot | None,
+        *,
+        read_latest: bool,
+    ) -> TransitionPlanEventAssetSnapshot | None:
+        """Validate identity, cutoff, completeness, and event classifications of one snapshot."""
+
         if snapshot is None:
             return None
         if type(snapshot) is not TransitionPlanEventAssetSnapshot:
@@ -264,7 +312,14 @@ class AssessTransitionPlanEventReview:
             or snapshot.source_id != request.source_id
             or snapshot.start_on != request.start_on
             or snapshot.end_on != request.end_on
-            or snapshot.as_of != request.as_of
+            or (
+                snapshot.as_of != request.as_of
+                and not (
+                    read_latest
+                    and snapshot.as_of == snapshot.proof_recorded_at
+                    and snapshot.as_of < request.as_of
+                )
+            )
             or snapshot.coverage_status is not TransitionPlanEventCoverageStatus.COMPLETE
             or snapshot.source_scope_sha256 is None
             or snapshot.source_observed_at > request.as_of
@@ -278,6 +333,28 @@ class AssessTransitionPlanEventReview:
             )
             return None
         return snapshot
+
+
+def _valid_current_proof_lease(
+    snapshot: TransitionPlanEventAssetSnapshot,
+    policy: TransitionPlanEventCoverageLeasePolicy,
+    *,
+    as_of: datetime,
+) -> bool:
+    """Require the current durable proof's own half-open lease to be live at action time."""
+
+    if (
+        type(snapshot) is not TransitionPlanEventAssetSnapshot
+        or type(policy) is not TransitionPlanEventCoverageLeasePolicy
+        or snapshot.proof_recorded_at > as_of
+        or policy.ttl > policy.maximum_ttl
+    ):
+        return False
+    try:
+        expires_at = snapshot.proof_recorded_at + policy.ttl
+    except OverflowError:
+        return False
+    return snapshot.proof_recorded_at <= as_of < expires_at
 
 
 def _is_coverage_marker(binding: TransitionPlanSourceBinding) -> bool:
@@ -368,6 +445,7 @@ def _blocked(reason_code: str) -> TransitionPlanEventReviewAssessment:
 __all__ = [
     "AssessTransitionPlanEventReview",
     "TransitionPlanEventReviewValidator",
+    "TransitionPlanEventSourceRevisionChanged",
     "TransitionPlanEventSnapshotReadError",
     "TransitionPlanEventSnapshotReadRequest",
     "TransitionPlanEventSnapshotReader",

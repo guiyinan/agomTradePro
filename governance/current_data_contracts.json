@@ -13774,7 +13774,9 @@
         "apps/simulated_trading/application/rebalance_journey_preparation_support.py",
         "apps/simulated_trading/application/rebalance_journey_sources.py",
         "apps/simulated_trading/application/rebalance_journey_current_pins.py",
-        "apps/risk_center/application/execution_settlement_v3.py"
+        "apps/risk_center/application/execution_settlement_v3.py",
+        "apps/portfolio/application/transition_plan_event_review.py",
+        "apps/simulated_trading/transition_plan_event_coverage_adapter.py"
       ],
       "required_markers": {
         "apps/portfolio/domain/transition_plan_revision_basis.py": [
@@ -13799,6 +13801,17 @@
         "apps/risk_center/application/execution_settlement_v3.py": [
           "def execute_record(",
           "record.recorded_at <= as_of"
+        ],
+        "apps/portfolio/application/transition_plan_event_review.py": [
+          "def read_latest_snapshot(",
+          "_valid_current_proof_lease",
+          "TransitionPlanEventSourceRevisionChanged"
+        ],
+        "apps/simulated_trading/transition_plan_event_coverage_adapter.py": [
+          "def read_latest_snapshot(",
+          "def read_snapshot(",
+          "_validate_action_time_events",
+          "QuerySecurityDisclosureEventsUseCase"
         ]
       },
       "required_tests": [
@@ -13826,9 +13839,34 @@
           "case": "database knowledge timestamp and supplier availability remain separate",
           "test_file": "tests/unit/risk_center/test_execution_settlement_v3.py",
           "test_function": "test_v3_record_read_retains_original_database_clock_without_relabeling_source_clock"
+        },
+        {
+          "case": "exact later cutoff remains unknown rather than claiming a fresh proof",
+          "test_file": "tests/unit/simulated_trading/test_transition_plan_event_coverage_adapter.py",
+          "test_function": "test_reader_keeps_later_exact_cutoff_unknown_and_original_recorded_at"
+        },
+        {
+          "case": "latest action proof is rechecked at its durable recorded timestamp",
+          "test_file": "tests/unit/simulated_trading/test_transition_plan_event_coverage_adapter.py",
+          "test_function": "test_reader_rechecks_latest_action_time_proof_at_exact_recorded_at"
+        },
+        {
+          "case": "action-time event append or correction is never hidden by an earlier proof",
+          "test_file": "tests/unit/simulated_trading/test_transition_plan_event_coverage_adapter.py",
+          "test_function": "test_reader_signals_confirmed_action_time_event_append_or_correction"
+        },
+        {
+          "case": "proof clock renewal with stable facts does not invent an event change",
+          "test_file": "tests/unit/portfolio/test_transition_plan_revision_asset_identity.py",
+          "test_function": "test_latest_proof_clock_renewal_with_stable_manifest_and_revisions_is_unchanged"
+        },
+        {
+          "case": "a later security scope can still block after an earlier confirmed change",
+          "test_file": "tests/unit/portfolio/test_transition_plan_revision_asset_identity.py",
+          "test_function": "test_later_scope_lease_failure_blocks_after_earlier_scope_event_change"
         }
       ],
-      "notes": "Controlled-port and Native component tests do not establish current external-source or ordinary-browser acceptance. Vendor availability/expiry unknown remain null; local source admission_until is separate. Full original evidence stays embedded and hashed. Current risk/profile, native limits, fees, rule records, published-calendar members and classifier/source/mapping pins are rechecked without using the naturally changing account cash/full report hash as an immutable policy identity. Inactive staff approval remains must_not_execute; a manual binding grants no formal Evidence, live, automated or broker authority."
+      "notes": "Controlled-port and Native component tests do not establish current external-source or ordinary-browser acceptance. Vendor availability/expiry unknown remain null; local source admission_until is separate. Full original evidence stays embedded and hashed. Current risk/profile, native limits, fees, rule records, published-calendar members and classifier/source/mapping pins are rechecked without using the naturally changing account cash/full report hash as an immutable policy identity. Inactive staff approval remains must_not_execute; a manual binding grants no formal Evidence, live, automated or broker authority. Opt-in official disclosure review keeps the exact later-cutoff read UNKNOWN, selects current proof by a separate latest-to-exact DB-only reread, checks action-time event revisions and both half-open 60-second leases, and blocks on missing or contradictory evidence. It does not claim exchange-guaranteed freshness or production execution authority."
     },
     {
       "id": "simulated_trading.holding_disclosure_reference",

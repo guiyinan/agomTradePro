@@ -8055,7 +8055,8 @@
           "TransitionPlanEventReviewValidator",
           "TransitionPlanEventSnapshotReadError",
           "TransitionPlanEventSnapshotReadRequest",
-          "TransitionPlanEventSnapshotReader"
+          "TransitionPlanEventSnapshotReader",
+          "TransitionPlanEventSourceRevisionChanged"
         ],
         "application/transition_plan_inactive_approval.py": [
           "ApproveTransitionPlanInactive",

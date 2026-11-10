@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 6694,
+    "current_surface_references": 6705,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -16460,11 +16460,31 @@
     },
     {
       "path": "apps/portfolio/application/transition_plan_event_review.py",
+      "text": "\"\"\"Carry the exact current proof so Review can validate its lease before changing state.\"\"\""
+    },
+    {
+      "path": "apps/portfolio/application/transition_plan_event_review.py",
       "text": "\"\"\"Compare exact plan coverage pins against complete historical and current snapshots.\"\"\""
     },
     {
       "path": "apps/portfolio/application/transition_plan_event_review.py",
-      "text": "current = self._read_complete_snapshot("
+      "text": "\"\"\"Read exact coverage or explicitly select and validate the latest durable proof.\"\"\""
+    },
+    {
+      "path": "apps/portfolio/application/transition_plan_event_review.py",
+      "text": "\"\"\"Require the current durable proof's own half-open lease to be live at action time.\"\"\""
+    },
+    {
+      "path": "apps/portfolio/application/transition_plan_event_review.py",
+      "text": "\"\"\"Select the latest proof at the request cutoff, then reread its durable clock.\"\"\""
+    },
+    {
+      "path": "apps/portfolio/application/transition_plan_event_review.py",
+      "text": "current = self._read_complete_snapshot(current_request, read_latest=True)"
+    },
+    {
+      "path": "apps/portfolio/application/transition_plan_event_review.py",
+      "text": "current = self._validate_complete_snapshot("
     },
     {
       "path": "apps/portfolio/application/transition_plan_event_review.py",
@@ -16480,7 +16500,11 @@
     },
     {
       "path": "apps/portfolio/application/transition_plan_event_review.py",
-      "text": "if transition_plan_event_snapshot_sha256(current) != historical_hash:"
+      "text": "if current_changed or transition_plan_event_snapshot_sha256(current) != historical_hash:"
+    },
+    {
+      "path": "apps/portfolio/application/transition_plan_event_review.py",
+      "text": "if not _valid_current_proof_lease(current, lease_policy, as_of=as_of):"
     },
     {
       "path": "apps/portfolio/application/transition_plan_inactive_approval.py",
@@ -24289,6 +24313,26 @@
     {
       "path": "apps/simulated_trading/portfolio_risk_close_snapshot_composition.py",
       "text": "\"\"\"Evaluate the pinned capture against current identity, calendar, and rule reads.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/transition_plan_event_coverage_adapter.py",
+      "text": "\"Action-time event revisions are unavailable for latest proof review.\""
+    },
+    {
+      "path": "apps/simulated_trading/transition_plan_event_coverage_adapter.py",
+      "text": "\"Action-time event revisions are unavailable for latest proof review.\""
+    },
+    {
+      "path": "apps/simulated_trading/transition_plan_event_coverage_adapter.py",
+      "text": "\"The latest listing proof changed during its exact durable reread.\""
+    },
+    {
+      "path": "apps/simulated_trading/transition_plan_event_coverage_adapter.py",
+      "text": "\"The latest listing proof disappeared during its exact durable reread.\""
+    },
+    {
+      "path": "apps/simulated_trading/transition_plan_event_coverage_adapter.py",
+      "text": "\"\"\"Inject public Data Center reads; latest review requires the action-time event query.\"\"\""
     },
     {
       "path": "apps/simulated_trading/transition_plan_journey_composition.py",

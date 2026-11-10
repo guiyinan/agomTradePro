@@ -16,6 +16,7 @@ import pytest
 from apps.portfolio.application.transition_plan_event_review import (
     AssessTransitionPlanEventReview,
     TransitionPlanEventSnapshotReadRequest,
+    TransitionPlanEventSourceRevisionChanged,
 )
 from apps.portfolio.application.transition_plan_lifecycle import (
     CreateInitialTransitionPlanRevisionUseCase,
@@ -90,6 +91,98 @@ class _EventSnapshotReader:
     ) -> TransitionPlanEventAssetSnapshot | None:
         self.requests.append(request)
         return self.snapshots.get(request.as_of)
+
+    def read_latest_snapshot(
+        self, request: TransitionPlanEventSnapshotReadRequest
+    ) -> TransitionPlanEventAssetSnapshot | None:
+        """Serve the explicit action-time latest-proof read from the test snapshot map."""
+
+        return self.read_snapshot(request)
+
+
+class _ActionTimeEventSnapshotReader:
+    """Return an exact historical snapshot and a current proof at its own recorded clock."""
+
+    def __init__(
+        self,
+        *,
+        snapshots_by_request_time: dict[datetime, TransitionPlanEventAssetSnapshot],
+    ) -> None:
+        self.snapshots = snapshots_by_request_time
+        self.requests: list[TransitionPlanEventSnapshotReadRequest] = []
+
+    def read_snapshot(
+        self,
+        request: TransitionPlanEventSnapshotReadRequest,
+    ) -> TransitionPlanEventAssetSnapshot | None:
+        """Serve only the selected read while allowing a current proof's own durable time."""
+
+        self.requests.append(request)
+        return self.snapshots.get(request.as_of)
+
+    def read_latest_snapshot(
+        self,
+        request: TransitionPlanEventSnapshotReadRequest,
+    ) -> TransitionPlanEventAssetSnapshot | None:
+        """Serve a selected proof without moving its durable recorded clock."""
+
+        return self.read_snapshot(request)
+
+
+class _ChangedLatestEventSnapshotReader(_EventSnapshotReader):
+    """Signal a confirmed action-time event revision after serving pinned history."""
+
+    def __init__(
+        self,
+        snapshots: tuple[TransitionPlanEventAssetSnapshot, ...],
+        *,
+        latest_snapshot: TransitionPlanEventAssetSnapshot,
+    ) -> None:
+        super().__init__(snapshots)
+        self.latest_snapshot = latest_snapshot
+
+    def read_latest_snapshot(
+        self, request: TransitionPlanEventSnapshotReadRequest
+    ) -> TransitionPlanEventAssetSnapshot | None:
+        self.requests.append(request)
+        raise TransitionPlanEventSourceRevisionChanged(
+            self.latest_snapshot,
+            "new in-window event revision",
+        )
+
+
+class _MultiScopeEventSnapshotReader:
+    """Serve two histories, with one confirmed change and a later expired proof."""
+
+    def __init__(
+        self,
+        *,
+        historical_snapshots: tuple[TransitionPlanEventAssetSnapshot, ...],
+        current_snapshots: dict[str, TransitionPlanEventAssetSnapshot],
+        changed_assets: set[str],
+    ) -> None:
+        self.historical = {(item.asset_code, item.as_of): item for item in historical_snapshots}
+        self.current = current_snapshots
+        self.changed_assets = changed_assets
+        self.latest_requests: list[TransitionPlanEventSnapshotReadRequest] = []
+
+    def read_snapshot(
+        self, request: TransitionPlanEventSnapshotReadRequest
+    ) -> TransitionPlanEventAssetSnapshot | None:
+        return self.historical.get((request.asset_code, request.as_of))
+
+    def read_latest_snapshot(
+        self,
+        request: TransitionPlanEventSnapshotReadRequest,
+    ) -> TransitionPlanEventAssetSnapshot | None:
+        self.latest_requests.append(request)
+        snapshot = self.current.get(request.asset_code)
+        if request.asset_code in self.changed_assets and snapshot is not None:
+            raise TransitionPlanEventSourceRevisionChanged(
+                snapshot,
+                "confirmed action-time event change",
+            )
+        return snapshot
 
 
 class _LockCheckingEventValidator:
@@ -1271,6 +1364,122 @@ def test_event_gate_requires_complete_historical_and_current_coverage() -> None:
         no_history.assess(revision, as_of=current_at).state
         is TransitionPlanEventReviewState.BLOCKED
     )
+
+
+def test_latest_proof_clock_renewal_with_stable_manifest_and_revisions_is_unchanged() -> None:
+    """A fresh proof timestamp alone does not mean the disclosure facts changed."""
+
+    action_at = _NOW + timedelta(seconds=30)
+    renewed_at = _NOW + timedelta(seconds=10)
+    event = _event_revision()
+    historical = _event_snapshot(as_of=_NOW, events=(event,))
+    current = _event_snapshot(
+        as_of=renewed_at,
+        events=(event,),
+        proof_recorded_at=renewed_at,
+    )
+    revision = _revision(additional_source_bindings=_event_coverage_bindings(historical))
+    reader = _ActionTimeEventSnapshotReader(
+        snapshots_by_request_time={_NOW: historical, action_at: current}
+    )
+
+    result = AssessTransitionPlanEventReview(
+        reader=reader,
+        lease_policy=_event_lease_policy(),
+    ).assess(revision, as_of=action_at)
+
+    assert result.state is TransitionPlanEventReviewState.UNCHANGED
+    assert result.reason_code == "EVENTS_UNCHANGED"
+    assert reader.requests[-1].as_of == action_at
+
+
+def test_confirmed_action_time_event_append_requires_successor_review() -> None:
+    """Only the dedicated, confirmed source-change signal maps to REVIEW_REQUIRED."""
+
+    action_at = _NOW + timedelta(seconds=30)
+    historical = _event_snapshot(as_of=_NOW, events=(_event_revision(),))
+    revision = _revision(additional_source_bindings=_event_coverage_bindings(historical))
+    reader = _ChangedLatestEventSnapshotReader(
+        (historical,),
+        latest_snapshot=historical,
+    )
+
+    result = AssessTransitionPlanEventReview(
+        reader=reader,
+        lease_policy=_event_lease_policy(),
+    ).assess(revision, as_of=action_at)
+
+    assert result.state is TransitionPlanEventReviewState.REVIEW_REQUIRED
+    assert result.reason_code == "EVENT_REVISION_CHANGED"
+
+
+def test_current_proof_lease_is_checked_independently_from_plan_lease() -> None:
+    """An expired latest proof blocks even while the immutable plan lease is still live."""
+
+    action_at = _NOW + timedelta(seconds=30)
+    expired_proof_at = _NOW - timedelta(seconds=30)
+    event = _event_revision()
+    historical = _event_snapshot(as_of=_NOW, events=(event,))
+    current = _event_snapshot(
+        as_of=expired_proof_at,
+        events=(event,),
+        proof_recorded_at=expired_proof_at,
+    )
+    revision = _revision(additional_source_bindings=_event_coverage_bindings(historical))
+    reader = _ActionTimeEventSnapshotReader(
+        snapshots_by_request_time={_NOW: historical, action_at: current}
+    )
+
+    result = AssessTransitionPlanEventReview(
+        reader=reader,
+        lease_policy=_event_lease_policy(),
+    ).assess(revision, as_of=action_at)
+
+    assert result.state is TransitionPlanEventReviewState.BLOCKED
+    assert result.reason_code == "EVENT_CURRENT_PROOF_LEASE_INVALID_OR_EXPIRED"
+
+
+def test_later_scope_lease_failure_blocks_after_earlier_scope_event_change() -> None:
+    """A confirmed change cannot short-circuit validation of another scope's lease."""
+
+    action_at = _NOW + timedelta(seconds=30)
+    first_history = _event_snapshot(as_of=_NOW)
+    second_history = _event_snapshot(
+        as_of=_NOW,
+        asset_code="000001.SZ",
+        security_id="SZ.TEST.000001",
+    )
+    first_current = _event_snapshot(as_of=_NOW)
+    second_current = _event_snapshot(
+        as_of=_NOW - timedelta(seconds=30),
+        asset_code="000001.SZ",
+        security_id="SZ.TEST.000001",
+    )
+    coverage_pins = (
+        *_event_coverage_bindings(first_history),
+        *_event_coverage_bindings(second_history),
+    )
+    revision = _revision(additional_source_bindings=coverage_pins)
+    reader = _MultiScopeEventSnapshotReader(
+        historical_snapshots=(first_history, second_history),
+        current_snapshots={
+            first_current.asset_code: first_current,
+            second_current.asset_code: second_current,
+        },
+        changed_assets={first_current.asset_code},
+    )
+
+    result = AssessTransitionPlanEventReview(
+        reader=reader,
+        lease_policy=_event_lease_policy(),
+    ).assess(revision, as_of=action_at)
+
+    assert result.state is TransitionPlanEventReviewState.BLOCKED
+    assert result.reason_code == "EVENT_CURRENT_PROOF_LEASE_INVALID_OR_EXPIRED"
+    assert [item.asset_code for item in reader.latest_requests] == [
+        first_history.asset_code,
+        second_history.asset_code,
+    ]
 
 
 def test_new_or_corrected_event_requires_successor_review() -> None:

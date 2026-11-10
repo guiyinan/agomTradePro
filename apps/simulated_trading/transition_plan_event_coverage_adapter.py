@@ -2,15 +2,17 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from typing import Protocol
 
 from apps.data_center.application.security_disclosure_event import (
+    QuerySecurityDisclosureEventsUseCase,
     QuerySecurityDisclosureListingCoverageUseCase,
 )
 from apps.data_center.domain.security_disclosure_event import (
     PersistedSecurityDisclosureEvent,
     PersistedSecurityDisclosureListingCoverage,
+    SecurityDisclosureEventReadScope,
     SecurityDisclosureEventType,
     SecurityDisclosureExchange,
     SecurityDisclosureListingCoverageReadScope,
@@ -22,6 +24,7 @@ from apps.portfolio.application.transition_plan_event_review import (
     TransitionPlanEventSnapshotReader,
     TransitionPlanEventSnapshotReadError,
     TransitionPlanEventSnapshotReadRequest,
+    TransitionPlanEventSourceRevisionChanged,
 )
 from apps.portfolio.domain.transition_plan_event_review import (
     TransitionPlanEventAssetSnapshot,
@@ -32,6 +35,7 @@ from apps.portfolio.domain.transition_plan_event_review import (
 from apps.simulated_trading.application.rebalance_journey_event_coverage import (
     RebalanceJourneyEventCoverageScope,
 )
+from core.exceptions import DataValidationError
 
 
 class _ListingCoverageQuery(Protocol):
@@ -45,19 +49,110 @@ class _ListingCoverageQuery(Protocol):
         ...
 
 
+class _ListingEventQuery(Protocol):
+    """Read every persisted source-event revision available at one action cutoff."""
+
+    def execute(
+        self,
+        scope: SecurityDisclosureEventReadScope,
+    ) -> tuple[PersistedSecurityDisclosureEvent, ...]:
+        """Return all typed source revisions selected by the public Data Center query."""
+        ...
+
+
 class DataCenterTransitionPlanEventSnapshotReader(TransitionPlanEventSnapshotReader):
     """Adapt persisted official SZSE listing coverage to Portfolio's snapshot port."""
 
-    def __init__(self, *, query_use_case: QuerySecurityDisclosureListingCoverageUseCase) -> None:
-        """Inject the Data Center read use case; this adapter has no repository or write path."""
+    def __init__(
+        self,
+        *,
+        query_use_case: QuerySecurityDisclosureListingCoverageUseCase,
+        event_query_use_case: QuerySecurityDisclosureEventsUseCase | None = None,
+    ) -> None:
+        """Inject public Data Center reads; latest review requires the action-time event query."""
 
         self._query_use_case: _ListingCoverageQuery = query_use_case
+        self._event_query_use_case: _ListingEventQuery | None = event_query_use_case
 
     def read_snapshot(
         self,
         request: TransitionPlanEventSnapshotReadRequest,
     ) -> TransitionPlanEventAssetSnapshot | None:
-        """Map one exact proof and its as-of event revisions without deriving security identity."""
+        """Map coverage at the exact requested cutoff without promoting an earlier proof."""
+
+        self._validate_request(request)
+        result = self._read_result(_data_center_scope(request))
+        return self._map_result(request, result)
+
+    def read_latest_snapshot(
+        self,
+        request: TransitionPlanEventSnapshotReadRequest,
+    ) -> TransitionPlanEventAssetSnapshot | None:
+        """Select a proof at the action cutoff and reread it at its durable recorded clock."""
+
+        self._validate_request(request)
+        if self._event_query_use_case is None:
+            raise TransitionPlanEventSnapshotReadError(
+                "Action-time event revisions are unavailable for latest proof review."
+            )
+        latest_result = self._read_result(_data_center_scope(request))
+        persisted = latest_result.proof
+        if persisted is None:
+            if latest_result.coverage_status is SecurityDisclosureListingCoverageStatus.MISSING:
+                return None
+            raise TransitionPlanEventSnapshotReadError(
+                "Data Center returned a non-missing status without a persisted listing proof."
+            )
+        if latest_result.coverage_status is SecurityDisclosureListingCoverageStatus.MISSING:
+            raise TransitionPlanEventSnapshotReadError(
+                "Data Center marked a persisted listing proof as missing."
+            )
+        self._validate_persisted_proof(persisted, request)
+
+        exact_request = TransitionPlanEventSnapshotReadRequest(
+            asset_code=request.asset_code,
+            security_id=request.security_id,
+            source_id=request.source_id,
+            start_on=request.start_on,
+            end_on=request.end_on,
+            as_of=persisted.recorded_at,
+        )
+        exact_scope = SecurityDisclosureListingCoverageReadScope(
+            asset_code=exact_request.asset_code,
+            start_on=exact_request.start_on,
+            end_on=exact_request.end_on,
+            as_of=exact_request.as_of,
+        )
+        exact_result = self._read_result(exact_scope)
+        exact_persisted = exact_result.proof
+        if (
+            exact_persisted is None
+            or exact_result.coverage_status is SecurityDisclosureListingCoverageStatus.MISSING
+        ):
+            raise TransitionPlanEventSnapshotReadError(
+                "The latest listing proof disappeared during its exact durable reread."
+            )
+        self._validate_persisted_proof(exact_persisted, exact_request)
+        if exact_persisted != persisted or exact_persisted.recorded_at != exact_request.as_of:
+            raise TransitionPlanEventSnapshotReadError(
+                "The latest listing proof changed during its exact durable reread."
+            )
+
+        snapshot = self._map_result(exact_request, exact_result)
+        if (
+            snapshot is not None
+            and snapshot.coverage_status is TransitionPlanEventCoverageStatus.COMPLETE
+        ):
+            self._validate_action_time_events(
+                request=request,
+                snapshot=snapshot,
+                proof=exact_persisted,
+            )
+        return snapshot
+
+    @staticmethod
+    def _validate_request(request: TransitionPlanEventSnapshotReadRequest) -> None:
+        """Reject unsupported source or untyped requests before querying Data Center."""
 
         if type(request) is not TransitionPlanEventSnapshotReadRequest:
             raise TransitionPlanEventSnapshotReadError(
@@ -68,21 +163,12 @@ class DataCenterTransitionPlanEventSnapshotReader(TransitionPlanEventSnapshotRea
                 "Only the official SZSE disclosure source is supported."
             )
 
-        data_center_scope = SecurityDisclosureListingCoverageReadScope(
-            asset_code=request.asset_code,
-            start_on=request.start_on,
-            end_on=request.end_on,
-            as_of=request.as_of,
-        )
-        result = self._query_use_case.execute(data_center_scope)
-        if type(result) is not SecurityDisclosureListingCoverageSnapshot:
-            raise TransitionPlanEventSnapshotReadError(
-                "Data Center returned an untyped listing-coverage result."
-            )
-        if result.scope != data_center_scope:
-            raise TransitionPlanEventSnapshotReadError(
-                "Data Center returned coverage outside the requested exact window."
-            )
+    def _map_result(
+        self,
+        request: TransitionPlanEventSnapshotReadRequest,
+        result: SecurityDisclosureListingCoverageSnapshot,
+    ) -> TransitionPlanEventAssetSnapshot | None:
+        """Map one exact Data Center result without changing its cutoff semantics."""
 
         persisted = result.proof
         if persisted is None:
@@ -95,8 +181,8 @@ class DataCenterTransitionPlanEventSnapshotReader(TransitionPlanEventSnapshotRea
             raise TransitionPlanEventSnapshotReadError(
                 "Data Center marked a persisted listing proof as missing."
             )
+        DataCenterTransitionPlanEventSnapshotReader._validate_persisted_proof(persisted, request)
 
-        self._validate_persisted_proof(persisted, request)
         revisions = tuple(
             self._map_event_revision(item, request=request, proof=persisted)
             for item in result.events
@@ -111,9 +197,12 @@ class DataCenterTransitionPlanEventSnapshotReader(TransitionPlanEventSnapshotRea
         if persisted.recorded_at != request.as_of:
             coverage_status = TransitionPlanEventCoverageStatus.UNKNOWN
         if result.coverage_status is SecurityDisclosureListingCoverageStatus.COMPLETE:
-            self._validate_complete_listing(result, persisted, revisions, request)
-            if persisted.recorded_at != request.as_of:
-                coverage_status = TransitionPlanEventCoverageStatus.UNKNOWN
+            self._validate_complete_listing(
+                result,
+                persisted,
+                revisions,
+                request,
+            )
 
         try:
             return TransitionPlanEventAssetSnapshot(
@@ -134,6 +223,128 @@ class DataCenterTransitionPlanEventSnapshotReader(TransitionPlanEventSnapshotRea
             raise TransitionPlanEventSnapshotReadError(
                 "Persisted Data Center coverage cannot form a valid Portfolio snapshot."
             ) from error
+
+    def _read_result(
+        self,
+        scope: SecurityDisclosureListingCoverageReadScope,
+    ) -> SecurityDisclosureListingCoverageSnapshot:
+        """Return one public Data Center query result bound to its exact requested cutoff."""
+
+        result = self._query_use_case.execute(scope)
+        if type(result) is not SecurityDisclosureListingCoverageSnapshot:
+            raise TransitionPlanEventSnapshotReadError(
+                "Data Center returned an untyped listing-coverage result."
+            )
+        if result.scope != scope:
+            raise TransitionPlanEventSnapshotReadError(
+                "Data Center returned coverage outside the requested exact window."
+            )
+        return result
+
+    def _validate_action_time_events(
+        self,
+        *,
+        request: TransitionPlanEventSnapshotReadRequest,
+        snapshot: TransitionPlanEventAssetSnapshot,
+        proof: PersistedSecurityDisclosureListingCoverage,
+    ) -> None:
+        """Reject incomplete action-time reads and signal only proven in-window revisions."""
+
+        query = self._event_query_use_case
+        if query is None:
+            raise TransitionPlanEventSnapshotReadError(
+                "Action-time event revisions are unavailable for latest proof review."
+            )
+        scope = SecurityDisclosureEventReadScope(
+            as_of=request.as_of,
+            exchange=SecurityDisclosureExchange.SZSE,
+            asset_code=request.asset_code,
+        )
+        try:
+            records = query.execute(scope)
+        except DataValidationError as error:
+            raise TransitionPlanEventSnapshotReadError(
+                "Data Center rejected the action-time event read scope."
+            ) from error
+        if type(records) is not tuple or any(
+            type(item) is not PersistedSecurityDisclosureEvent for item in records
+        ):
+            raise TransitionPlanEventSnapshotReadError(
+                "Data Center returned an untyped action-time event revision set."
+            )
+
+        expected_by_event_id = {item.source_event_id: item for item in snapshot.events}
+        observed_event_ids: set[str] = set()
+        observed_revisions: set[tuple[str, str]] = set()
+        changed = False
+        for record in records:
+            event = record.event
+            if (
+                event.source is not SecurityDisclosureSource.SZSE_OFFICIAL
+                or event.exchange is not SecurityDisclosureExchange.SZSE
+                or event.asset_code != request.asset_code
+                or event.source_security_code != request.asset_code[:6]
+                or record.recorded_at > request.as_of
+                or event.available_at > request.as_of
+            ):
+                raise TransitionPlanEventSnapshotReadError(
+                    "Action-time event revision falls outside the exact official security scope."
+                )
+            existing = expected_by_event_id.get(event.source_event_id)
+            in_window = _event_window_membership(
+                event.announced_at,
+                start_on=request.start_on,
+                end_on=request.end_on,
+            )
+            if in_window is None:
+                raise TransitionPlanEventSnapshotReadError(
+                    "Action-time event date cannot be bound to the exact coverage window."
+                )
+            if existing is not None:
+                if event.event_type is SecurityDisclosureEventType.UNKNOWN:
+                    raise TransitionPlanEventSnapshotReadError(
+                        "Action-time event classification is UNKNOWN."
+                    )
+                revision_key = (event.source_event_id, event.source_revision_id)
+                if revision_key in observed_revisions:
+                    raise TransitionPlanEventSnapshotReadError(
+                        "Data Center returned a duplicate action-time event revision."
+                    )
+                observed_revisions.add(revision_key)
+                revision = self._map_event_revision(record, request=request, proof=proof)
+                if revision.source_revision_id != existing.source_revision_id:
+                    changed = True
+                    continue
+                if revision != existing:
+                    raise TransitionPlanEventSnapshotReadError(
+                        "An event identity changed without a new immutable source revision."
+                    )
+                observed_event_ids.add(event.source_event_id)
+                continue
+
+            if not in_window:
+                continue
+            if event.event_type is SecurityDisclosureEventType.UNKNOWN:
+                raise TransitionPlanEventSnapshotReadError(
+                    "Action-time event classification is UNKNOWN."
+                )
+            revision_key = (event.source_event_id, event.source_revision_id)
+            if revision_key in observed_revisions:
+                raise TransitionPlanEventSnapshotReadError(
+                    "Data Center returned a duplicate action-time event revision."
+                )
+            observed_revisions.add(revision_key)
+            changed = True
+
+        if observed_event_ids != set(expected_by_event_id):
+            raise TransitionPlanEventSnapshotReadError(
+                "An exact proof event is missing from the action-time revision read."
+            )
+        if changed:
+            raise TransitionPlanEventSourceRevisionChanged(
+                snapshot,
+                "A new or corrected event revision became available inside the coverage window.",
+            )
 
     @staticmethod
     def _validate_persisted_proof(
@@ -346,6 +557,39 @@ def _portfolio_coverage_status(
     if status is SecurityDisclosureListingCoverageStatus.UNKNOWN:
         return TransitionPlanEventCoverageStatus.UNKNOWN
     return TransitionPlanEventCoverageStatus.MISSING
+
+
+def _data_center_scope(
+    request: TransitionPlanEventSnapshotReadRequest,
+) -> SecurityDisclosureListingCoverageReadScope:
+    """Translate a trusted Portfolio request to the Data Center's exact asset window."""
+
+    return SecurityDisclosureListingCoverageReadScope(
+        asset_code=request.asset_code,
+        start_on=request.start_on,
+        end_on=request.end_on,
+        as_of=request.as_of,
+    )
+
+
+def _event_window_membership(
+    announced_at: date | datetime | None,
+    *,
+    start_on: date,
+    end_on: date,
+) -> bool | None:
+    """Classify date-precise events; return None when source time cannot prove the window."""
+
+    if type(announced_at) is date:
+        return start_on <= announced_at <= end_on
+    if type(announced_at) is not datetime:
+        return None
+    utc_date = announced_at.astimezone(UTC).date()
+    earliest_ambiguous_date = start_on - timedelta(days=1) if start_on > date.min else date.min
+    latest_ambiguous_date = end_on + timedelta(days=1) if end_on < date.max else date.max
+    if earliest_ambiguous_date <= utc_date <= latest_ambiguous_date:
+        return None
+    return False
 
 
 def _events_match_listed_entries(

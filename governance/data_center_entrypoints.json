@@ -6121,7 +6121,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=7",
+      "evidence": "governed current-data contract; source_files=9",
       "id": "current_data_surface:governance/current_data_contracts.json:simulated_trading.trusted_rebalance_journey:Owned finite-simulation immutable rebalance plan preparation and exact-version history. Captured preview and separately read financial resources are value-checked. A historical/latest family row is never an execution or freshness claim; a bound manual order additionally needs current policy/source constraints and the ordinary explicit preview/confirmation gates.",
       "locator": "Owned finite-simulation immutable rebalance plan preparation and exact-version history. Captured preview and separately read financial resources are value-checked. A historical/latest family row is never an execution or freshness claim; a bound manual order additionally needs current policy/source constraints and the ordinary explicit preview/confirmation gates.",
       "path": "governance/current_data_contracts.json",

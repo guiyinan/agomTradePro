@@ -309,6 +309,10 @@ Infrastructure 原子写入、Audit 完整性、路由和模拟消费者须分�
 
 受管范围应随新的决策数据面增加，只能扩展，不能静默删除。
 
+### ASH-05 逐证券公告 proof 的当前复核
+
+调仓计划封存的公告窗口只证明其原始 `recorded_at` 截止点。普通精确读取在较晚时刻仍返回 `UNKNOWN`，不得因读到最新 proof 就宣称当前完整。显式复核先在动作时刻定位同证券、同来源、同窗口的最新持久 proof，再按其 `recorded_at` 精确二读 `COMPLETE`，并读取动作时刻已入库的窗口内事件修订。计划绑定 lease 和当前 proof 的内部 lease 均按版本化政策在动作时刻检查，60 秒为半开上限；到期、缺失、身份不一致、UNKNOWN 或无法核实的更正均阻断。能确认的新事件或修订要求后继计划复核；正常的 proof 记录时钟更新且内容不变不构成事件变化。此内部容忍时效不代表交易所保证公告不变，历史窗口也不证明当前日期覆盖。合同沿用 `simulated_trading.trusted_rebalance_journey`。
+
 ### 评分消费者保留上下文阻断
 
 Decision Rhythm 的技术和基本面评分读取 Equity 已发布上下文时，必须保留上下文已经明确给出的 `must_not_use_for_decision=True`。发布 gate 为 fresh 不代表所选成员查询返回了可用数据；不能忽略 `canonical_publication_members_missing` 再把该证券标为可决策。已有 gate 阻断的原因、源观测时间和新鲜度保持优先；gate 尚未阻断时补入上下文的原阻断原因，缺原因使用稳定的 `canonical_stock_context_blocked`，不编造新时钟。
