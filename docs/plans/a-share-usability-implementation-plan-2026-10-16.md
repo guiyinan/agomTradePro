@@ -2988,6 +2988,8 @@ registry v346 登记唯一隔离准备 `.tmp/ash05-ownership-20261110`：Luna ma
 
 权属源补查后，registry v347 将上述隔离准备扩至 `simulated_account_ownership_anchor_models.py`、对应 0044 迁移、模型注册、`account_gateway.py` 和 `account_repository.py` 两个正式新建模拟账户入口：新账户行与不可变账户级零持仓锚同事务提交；历史导入、旧账户和其他未获锚的入口不得补造零起点。只有锚早于登记日、V4 成交及已生效公司行为历史完整、该日无同日成交歧义时才可核算登记日数量；不能证明任一条件时维持受阻。该扩展仍不授予后扣税、历史回填或入账放行，Root 继续负责投影、REF-01 解释和正式整合。
 
+独立复核发现 `/api` 的认证 canonical 账户创建实际走 `CreateAccountView` → `create_authenticated_canonical_account` → `DjangoCanonicalAccountCreationRowWriter.execute`，模拟账户直接 `save(force_insert=True)`，未经过前述两入口。registry v349 将该 row writer 与直接测试纳入同一隔离准备；必须在同一事务只对新模拟账户写零起点锚，真实账户不加模拟锚，旧账户不补造。修正后需重验 API 创建、重复请求、创建失败回滚与权属回放，旧的 25 项通过不能覆盖这条入口。
+
 ### 19.171 ASH-05 深交所公告列表覆盖证明（2026-11-10）
 
 Data Center 将同一证券及日期窗口的深交所公告全页列表、两个完整分页轮次的原始响应哈希、首次观察及末次复核时刻存为只增证明；原 v1 列表 manifest 保留，新 v2 证明 hash 绑定双轮和观察时钟。只在选中 PDF 已捕获且最终列表重验一致后落库。证明身份还包含本次 `verified_at`：同一次重试幂等，内容未变的后续复核也能留下新时点。精确窗口读取要求证明在查询截止前已实际落库；未落库、漏 PDF、未知事件分类、列表外事件或来源身份/日期不符均不能报完整。时间戳公告只在可能落入窗口的 UTC 日期保守缓冲带内阻断，不让明显异期公告污染所有窗口。当前 COMPLETE 只适用于证明的精确落库时刻；之后必须重新抓取并落库新证明，不能把旧证明延伸为持续覆盖，也不提供 current/latest 决策资格。

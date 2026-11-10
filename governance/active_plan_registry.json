@@ -1,5 +1,5 @@
 {
-  "version": "2026-11-10.v348",
+  "version": "2026-11-10.v349",
   "updated_at": "2026-11-10",
   "execution_focus": {
     "unit_id": "ASH-05",
@@ -12,7 +12,7 @@
     "parallel_preparation": [
       {
         "unit_id": "ASH-05",
-        "scope": "Bounded prospective simulated-account ownership replay: apps/simulated_trading/domain/corporate_action_ownership_history.py; infrastructure/corporate_action_ownership_history_repository.py, simulated_account_ownership_anchor_models.py, models.py, account_gateway.py, account_repository.py, focused ownership composition, migration 0044 and directly corresponding tests. Create immutable zero-origin anchor atomically in both active new simulated-account creation paths only; legacy/imported accounts and incomplete history block. No tax-basis qualification, posting write, Data Center, Portfolio, TUI, Audit, shared projections or Git integration.",
+        "scope": "Bounded prospective simulated-account ownership replay: apps/simulated_trading/domain/corporate_action_ownership_history.py; infrastructure/corporate_action_ownership_history_repository.py, simulated_account_ownership_anchor_models.py, models.py, account_gateway.py, account_repository.py, canonical_account_creation_row_writer.py, focused ownership and canonical account creation composition, migration 0044 and directly corresponding tests. Create immutable zero-origin anchor atomically in every verified active new simulated-account insertion path, including authenticated canonical creation; legacy/imported accounts and incomplete history block. Real-account creation must not acquire a simulated anchor. No tax-basis qualification, posting write, Data Center, Portfolio, TUI, Audit, shared projections or Git integration.",
         "owner": "Luna max ownership_tax under Root integration",
         "isolated_workspace": true,
         "shared_git_serialized": true,
