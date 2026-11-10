@@ -3087,3 +3087,9 @@ registry v360 登记下一单个隔离准备 `.tmp/ash05-event-refresh-20261111`
 正式分支候选 `30bdf2c6f` 整合刷新协议与准备流程：刷新仅确认精确资产/证券对已处理，实际证明仍由 pinner 按持久 proof 的 `recorded_at` 读取；长抓取后重读 preview/risk，核对账户、持仓与资产身份及新账户读取时钟，再取最终计划时钟，全部 lease 必须在该时钟有效。默认 M1 保持原路径，旧计划可用 successor 升级。正式树 47 项聚焦测试、Black/isort/Ruff、两文件增量 mypy、全库债务上限、模块图与 Data Center 治理投影均通过，原件在 Git 忽略目录 `artifacts/ash05-event-refresh-20261111/`；该候选远端精确 CI 待核，不以此前候选的回执代替。`refresh` 返回值不是已提交 proof；尚无官方捕获实现与生产组合。
 
 registry v362 登记下一个单独隔离准备：复核及锁内消费所需的数据库只读最新 proof → 精确 `recorded_at` 二次读取契约。Data Center 在动作时刻查询会把较早 proof 标为 `UNKNOWN` 并携带原 proof；不能把它直接当 `COMPLETE`。二次读取须核对两次 proof 身份、精确窗口与来源，比较稳定的 manifest/事件修订，不把正常重抓的 `recorded_at` 变化误报为事件变更；当前 proof 和计划绑定 lease 均须在动作时刻有效。Root 负责实际复核/锁内组合、配置窗口策略、等待锁期间的到期重检和正式整合。历史窗口不得冒充当前决策覆盖。账户阶段账本、后扣税、Audit 恢复、复权收益及 §9 金样本仍未完成，ASH-05 保持 active，不开启 ASH-06/09/12 或生产执行。
+
+### 19.181 ASH-05 复核 proof 整合与窗口策略下一块（2026-11-11）
+
+刷新候选 `30bdf2c6f` 的 Fast Feedback 增量质量 job 因生产文件非空行数 `902 → 1096` 超过 1000 上限失败，失败原件保留；`5da7faae2` 把身份与租期校验抽到同层 support 模块，正式树聚焦、格式、增量 mypy、债务、模块图和文件大小门禁通过，且同 SHA 六项适用 CI（含 Fast Feedback 3.11/3.13、Publication PostgreSQL）均成功。隔离复核补丁按四文件哈希整合为 `1289488dd`：精确读取在较晚 cutoff 仍为 `UNKNOWN`；专用 latest 路径先取动作时刻 proof，再按原 `recorded_at` 精确二读，并核对动作时刻已入库的窗口内事件修订。正常 proof 时钟更新不误报事件变化；确证的新事件/修订要求重审，缺失、UNKNOWN、身份冲突、计划或当前 proof 到期均阻断，跨证券先查完所有阻断。正式树 60 项定向测试、Black/isort/Ruff、两文件增量 mypy、债务、`current_data_contracts`、模块图、Data Center 生成投影及治理一致性通过；该候选精确 CI 待核，不能借用 `5da7faae2` 的回执。
+
+registry v363 登记下一单个隔离准备：读取 Config Center 已激活的版本化公告 coverage 政策，明确深交所官方来源、决策日窗口末端、账户可证明零起点前的窗口起点、最多 60 秒半开 lease 和原件存储位置；缺配置、来源不符、窗口不足、时钟或 profile/snapshot 证据不完整均失败关闭。Root 负责把策略与官方 Audit/Outbox 原子重抓、计划生成、复核及账户锁内校验接起来，并补真实 PostgreSQL 和用户金样本。历史 002727/301237 窗口仍不代表 2026-11 当前覆盖；本批不激活生产执行或 deferred 单元，ASH-05 保持 active。
