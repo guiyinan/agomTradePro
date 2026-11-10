@@ -3112,6 +3112,8 @@ Root 的事务末端小块把事件复核 validator 经 `RebalanceJourneyApplica
 
 ### 19.184 ASH-05 正式事件门接线与现金权益下一块（2026-11-11）
 
-正式候选 `e926c29e5268896fb1395fbbfb959584a41e55bd` 把官方重抓、配置指纹、精确持久 proof 的最终时钟 pin 接入计划生成，并把同一当前配置和 Data Center 二次读取接入复核与账户锁内预留。初始/继任计划写入和 hold 插入后、提交前均重新读时钟及事件门；过期、变更或范围漂移使事务回滚。上一候选触发的架构清单漂移已重生成，预约仓库从 1016 行压回 999 行，未抬高文件大小基线。正式树 **151 项**定向测试、Black/isort/Ruff、十文件增量 mypy 零回归、全库债务上限、架构、运行配置、当前数据合同、模块图、治理一致性、Data Center 投影及精确文件大小门禁通过。该候选精确 CI 尚在运行，原生 PostgreSQL hold 回滚以新增 workflow 用例执行且未跳过为验收条件；不得沿用本地 SQLite skip 或旧候选回执。
+正式候选 `e926c29e5268896fb1395fbbfb959584a41e55bd` 把官方重抓、配置指纹、精确持久 proof 的最终时钟 pin 接入计划生成，并把同一当前配置和 Data Center 二次读取接入复核与账户锁内预留。初始/继任计划写入和 hold 插入后、提交前均重新读时钟及事件门；过期、变更或范围漂移使事务回滚。上一候选触发的架构清单漂移已重生成，预约仓库从 1016 行压回 999 行，未抬高文件大小基线。正式树 **151 项**定向测试、Black/isort/Ruff、十文件增量 mypy 零回归、全库债务上限、架构、运行配置、当前数据合同、模块图、治理一致性、Data Center 投影及精确文件大小门禁通过。六项适用精确 CI（Fast Feedback 双 Python、Publication PostgreSQL、Security、Architecture、Consistency、Engineering）均成功；新增原生 PostgreSQL hold 到期回滚用例实际执行成功，工作流 JUnit 检查确认没有跳过。忽略目录原件索引 `artifacts/ash05-event-policy-20261111/e926-evidence-index.json` 的 SHA-256 为 `37fa87fc88dade1fbe4b2e5267b47243cd4bef3ff2676506e5dbe5551ace0b52`。结果仅验收此候选的事件门与事务回滚，不构成 §9 整单元关闭。
 
 registry v366 登记单个隔离准备：Luna max 只建立「登记日可信权属 proof → 现金分红权益入账」的生产组合和 Application 校验，并为原生 PostgreSQL 幂等、账户隔离与行锁补聚焦测试。必须重读不可变零起点及完整历史，精确比较账户/所有者/证券、登记日、证据截止点、快照身份与哈希、可享数量及观察时钟；缺失或变化先阻断。仅允许 `CASH_ENTITLEMENT`，公司公告 ID/PDF 哈希不能冒充法定税规则，`TAX_WITHHOLDING` 保持阻断。Root 负责正式整合、PG workflow、Audit/Outbox 原子账户写入、逐笔后扣税、送转/配股、复权收益和 §9 全部金样本。两个已证明的历史公告窗口不能充当当前计划日期覆盖；ASH-05 仍 active，不开启生产执行或 deferred ASH-06/09/12。
+
+隔离准备在写入前发现现有 Domain 对现金权益也强制非空税规则 ID/哈希，而官方限定器要求把公告 ID/PDF 哈希放进这两个字段；这会把来源证据误称为法定规则。registry v367 将范围精确扩到 Domain 请求与官方来源限定器及其直接测试：非扣税阶段允许税规则字段为空，官方条款仍由独立来源与资格哈希核验；扣税阶段继续要求独立真实税规则和税基证据，未实现前不开放。无需更改当前可空的数据库列或伪造 sentinel。
