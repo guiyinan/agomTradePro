@@ -59,6 +59,7 @@ class SecurityDisclosureEventType(StrEnum):
     RESUMPTION = "resumption"
     CASH_DIVIDEND = "cash_dividend"
     STOCK_DIVIDEND = "stock_dividend"
+    CORRECTION_NOTICE = "correction_notice"
     RIGHTS_ISSUE = "rights_issue"
     SHARE_UNLOCK = "share_unlock"
     REDUCTION = "reduction"

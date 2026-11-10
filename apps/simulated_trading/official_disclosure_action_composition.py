@@ -8,6 +8,7 @@ from decimal import Decimal
 from pathlib import Path
 
 from django.db import DatabaseError
+from django.utils import timezone
 
 from apps.data_center.domain.security_disclosure_event import (
     SecurityDisclosureEvent,
@@ -75,9 +76,10 @@ class VerifiedSzseActionSourceQualifier(CorporateActionSourceQualificationVerifi
         ):
             return False
         try:
+            verification_at = timezone.now()
             facts = self._reader.execute(
                 SecurityDisclosureEventReadScope(
-                    as_of=request.qualified_at,
+                    as_of=verification_at,
                     exchange=SecurityDisclosureExchange.SZSE,
                     asset_code=request.asset_code,
                 )
@@ -92,6 +94,13 @@ class VerifiedSzseActionSourceQualifier(CorporateActionSourceQualificationVerifi
             if len(matched) != 1:
                 return False
             event = matched[0]
+            if any(
+                item.event.supersedes_source_event_id == event.source_event_id
+                and item.event.supersedes_source_revision_id == event.source_revision_id
+                for item in facts
+                if item.recorded_at <= verification_at
+            ):
+                return False
             if (
                 event.source is not SecurityDisclosureSource.SZSE_OFFICIAL
                 or event.source_body_sha256 != request.source_payload_sha256

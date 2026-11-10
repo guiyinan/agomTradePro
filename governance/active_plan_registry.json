@@ -1,5 +1,5 @@
 {
-  "version": "2026-11-10.v344",
+  "version": "2026-11-10.v345",
   "updated_at": "2026-11-10",
   "execution_focus": {
     "unit_id": "ASH-05",
@@ -8,7 +8,7 @@
       "external",
       "governance"
     ],
-    "policy": "ASH-05 remains the sole active repository focus. Official disclosure storage, account-stage ledger and opt-in plan re-review are integrated; exact retained SZSE cash/share terms have a bounded source qualifier behind the Data Center public composition boundary. Account ownership and tax-basis verification, certified exchange coverage, generation-time pins, Audit/Outbox recovery, account/UI gold journeys and native PostgreSQL remain required before section 9 closure. Continue this registered ASH-05 work block; do not open a successor unit or production execution. See A-share plan section 19.169.",
+    "policy": "ASH-05 remains the sole active repository focus. Exact retained SZSE cash/share terms and bounded two-pass official listing windows now identify a 002727 correction with an explicit successor; observed source knowledge begins at actual capture time. These windows do not certify other dates, exchanges or event categories. Historical account ownership and tax-basis verification, generation-time pins, Audit/Outbox recovery, account/UI gold journeys and native PostgreSQL remain required before section 9 closure. Continue this ASH-05 work block; do not open a successor unit or production execution. See A-share plan section 19.169.",
     "parallel_preparation": []
   },
   "workstreams": [
@@ -395,7 +395,7 @@
       "priority": "P0/P1",
       "owner": "portfolio+risk_center+data_center+simulated_trading+backtest+broker_execution+terminal",
       "status": "active",
-      "next_gate": "ASH-05 is active. Exact retained SZSE distribution terms have bounded source qualification through a Data Center public entry, but are not yet wired with historical account ownership or verified tax basis. Next registered block: prove exchange listing completeness, record-date ownership and tax-basis eligibility; then wire generation-time event pins, account effects, Audit/Outbox recovery and price-return/user-journey gold cases. Native PostgreSQL and one exact-head CI must pass before unit closure. ASH-06/09/12 stay deferred and production execution stays disabled.",
+      "next_gate": "ASH-05 is active. Two-pass SZSE listing windows for 002727 and 301237 and the 002727 corrected dividend are source-bound; broader coverage remains explicit and first observation is not backdated. Next registered block: prove record-date account ownership and tax-basis eligibility; wire generation-time event pins and account effects, Audit/Outbox recovery, price-return and user-journey gold cases, then native PostgreSQL and exact-head CI. ASH-06/09/12 stay deferred and production execution stays disabled.",
       "documents": [
         {
           "path": "docs/plans/a-share-usability-implementation-plan-2026-10-16.md",

@@ -124,3 +124,29 @@ def test_exact_source_revision_and_gross_terms_are_qualified(
     assert not verifier.verify_source(replace(request, cash_amount=Decimal("201.00")))
     assert not verifier.verify_source(replace(request, source_revision_id="wrong-revision"))
     assert not verifier.verify_source(replace(request, asset_code="301237.SZ"))
+
+    corrected_body = b"%PDF-1.4\ncorrected terms\n%%EOF"
+    successor = SecurityDisclosureEvent.from_source_document(
+        source=SecurityDisclosureSource.SZSE_OFFICIAL,
+        exchange=SecurityDisclosureExchange.SZSE,
+        asset_code="002727.SZ",
+        source_security_code="002727",
+        source_event_id="78dc6344-f740-4c50-b4a0-7e9d5159f02e",
+        source_revision_id=f"sha256:{hashlib.sha256(corrected_body).hexdigest()}",
+        raw_event_type="权益分派实施公告（更正后）",
+        event_type=SecurityDisclosureEventType.CASH_DIVIDEND,
+        source_url=(
+            "https://disc.static.szse.cn/disc/disk03/finalpage/2026-09-19/"
+            "78dc6344-f740-4c50-b4a0-7e9d5159f02e.PDF"
+        ),
+        source_document_body=corrected_body,
+        first_seen_at=timezone.now(),
+        effective_at=date(2026, 9, 24),
+        supersedes_source_event_id=event.source_event_id,
+        supersedes_source_revision_id=event.source_revision_id,
+    )
+    AppendSecurityDisclosureEventUseCase(DjangoSecurityDisclosureEventRepository()).execute(
+        successor, corrected_body
+    )
+
+    assert not verifier.verify_source(request)

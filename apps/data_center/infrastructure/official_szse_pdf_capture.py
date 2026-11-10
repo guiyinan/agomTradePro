@@ -173,12 +173,14 @@ def classify_szse_pdf_disclosure(
         (
             line.strip()
             for line in pages[0].splitlines()
-            if line.strip().endswith("公告") and "公告编号" not in line
+            if (line.strip().endswith(("公告", "公告（更正后）")) and "公告编号" not in line)
         ),
         "",
     )
     if not title or len(title) > 120:
         raise OfficialDisclosureCaptureError("SZSE PDF announcement title is unavailable")
+    if "权益分派实施的更正公告" in title:
+        return title, SecurityDisclosureEventType.CORRECTION_NOTICE
     if "权益分派实施公告" not in title:
         return title, SecurityDisclosureEventType.UNKNOWN
     cash = bool(re.search(r"每\s*10\s*股\s*派发现金(?:红利|股利)\s*[0-9]", text))

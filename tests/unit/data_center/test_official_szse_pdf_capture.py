@@ -140,6 +140,40 @@ def test_ambiguous_corporate_action_stays_unknown(
     assert event_type is expected
 
 
+@pytest.mark.parametrize(
+    ("title", "expected"),
+    [
+        ("2026 年中期权益分派实施公告（更正后）", SecurityDisclosureEventType.CASH_DIVIDEND),
+        (
+            "2026 年中期权益分派实施的更正公告",
+            SecurityDisclosureEventType.CORRECTION_NOTICE,
+        ),
+    ],
+)
+def test_corrected_distribution_and_correction_notice_have_distinct_types(
+    monkeypatch: pytest.MonkeyPatch, title: str, expected: SecurityDisclosureEventType
+) -> None:
+    monkeypatch.setattr(requests, "get", lambda *args, **kwargs: _response(_BODY))
+    capture = capture_official_szse_pdf(_URL)
+    monkeypatch.setattr(
+        capture_module,
+        "verify_szse_pdf_security_code",
+        lambda value, security_code: security_code,
+    )
+    monkeypatch.setattr(
+        capture_module,
+        "PdfReader",
+        lambda *args, **kwargs: SimpleNamespace(
+            pages=(SimpleNamespace(extract_text=lambda: f"{title}\n每10股派发现金红利2元"),)
+        ),
+    )
+
+    observed_title, event_type = classify_szse_pdf_disclosure(capture, "002727")
+
+    assert observed_title == title
+    assert event_type is expected
+
+
 def test_distribution_dates_preserve_source_date_precision(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
