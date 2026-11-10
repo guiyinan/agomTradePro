@@ -1,5 +1,5 @@
 {
-  "version": "2026-11-10.v352",
+  "version": "2026-11-10.v353",
   "updated_at": "2026-11-10",
   "execution_focus": {
     "unit_id": "ASH-05",
@@ -8,8 +8,17 @@
       "external",
       "governance"
     ],
-    "policy": "ASH-05 remains the sole active repository focus. Exact retained SZSE cash/share terms, the 002727 correction successor and append-only bounded two-pass listing proofs are source-bound; observed knowledge begins at actual capture and durable persistence. The isolated public-exchange replay for 002727 and 301237 returns PARTIAL because only selected distribution PDFs are represented; it certifies neither other dates/exchanges/categories nor current completeness. Prospective new-account zero-origin anchors, read-only record-date ownership replay and a pure deferred-dividend-tax allocator are integrated; legacy/imported accounts remain unanchored, and tax rules, assessments and posting are not persisted. Event coverage and generation-time pins, Audit/Outbox recovery, account/UI gold journeys and native PostgreSQL remain required before section 9 closure. No successor unit or production execution. See A-share plan sections 19.169-19.174.",
-    "parallel_preparation": []
+    "policy": "ASH-05 remains the sole active repository focus. Exact retained SZSE cash/share terms, the 002727 correction successor and append-only bounded two-pass listing proofs are source-bound; observed knowledge begins at actual capture and durable persistence. The isolated public-exchange replay for 002727 and 301237 returns PARTIAL because only selected distribution PDFs are represented; it certifies neither other dates/exchanges/categories nor current completeness. Prospective new-account zero-origin anchors, read-only record-date ownership replay and a pure deferred-dividend-tax allocator are integrated; legacy/imported accounts remain unanchored, and tax rules, assessments and posting are not persisted. One bounded isolated ASH-05 preparation covers transactional disclosure fact/coverage plus Audit/Outbox; production trigger, full event coverage, generation-time pins, account/UI gold journeys and native PostgreSQL remain required before section 9 closure. No successor unit or production execution. See A-share plan sections 19.169-19.175.",
+    "parallel_preparation": [
+      {
+        "unit_id": "ASH-05",
+        "scope": "One bounded isolated ASH-05 preparation in .tmp/ash05-disclosure-audit-20261110. Permitted production paths: apps/data_center/application/security_disclosure_event.py, apps/data_center/infrastructure/security_disclosure_event_repository.py, apps/data_center/security_disclosure_capture_composition.py, new apps/audit/application/security_disclosure_audit.py, apps/audit/infrastructure/system_audit_outbox_runtime.py. Direct tests: tests/component/data_center/test_szse_distribution_window_ingestion.py and new tests/unit/audit/test_security_disclosure_audit.py, plus focused existing test files only if necessary and explicitly reported. Capture and final listing recheck precede one same-alias SQL UOW for all new facts, exact coverage and a source-qualified Audit/Outbox event; authority required/outbox preflight before external capture; failures roll back all database writes; replay must not silently treat legacy unaudited facts as audited. No models, migrations, scheduler/task/route, Portfolio, simulated account, tax, TUI, shared projections, heavy QA or Git integration; Root owns those. If implementation needs another path, update this scope before editing it.",
+        "owner": "Luna max ownership_tax under Root integration",
+        "isolated_workspace": true,
+        "shared_git_serialized": true,
+        "isolated_test_resources": true
+      }
+    ]
   },
   "workstreams": [
     {
