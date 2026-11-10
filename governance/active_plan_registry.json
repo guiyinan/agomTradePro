@@ -1,5 +1,5 @@
 {
-  "version": "2026-11-10.v339",
+  "version": "2026-11-10.v340",
   "updated_at": "2026-11-10",
   "execution_focus": {
     "unit_id": "ASH-05",
@@ -9,7 +9,16 @@
       "governance"
     ],
     "policy": "ASH-05 remains the sole repository integration focus after the 2026-11-10 unit-exit audit; its completed holding-disclosure batch does not meet the full section 9 exit gate. The root integrator owns shared Source/index, projections, adoption and commits. Bounded isolated preparation requires registered non-overlapping paths and resources. Reuse sealed ASH-08/REF-05 acceptance without rerunning it; preserve all deferred and production boundaries. Scope and next block: A-share plan sections 19.168-19.169.",
-    "parallel_preparation": []
+    "parallel_preparation": [
+      {
+        "unit_id": "ASH-05",
+        "scope": "Detached .tmp/ash05-exchange-events-20261110: Data Center security-disclosure event domain/application/infrastructure model, repository and direct tests only; root retains shared Source, governance, projections, Git and CI; exact paths and isolated resources in A-share plan section 19.169.",
+        "owner": "Luna event-source agent under root integration",
+        "isolated_workspace": true,
+        "shared_git_serialized": true,
+        "isolated_test_resources": true
+      }
+    ]
   },
   "workstreams": [
     {
