@@ -3065,3 +3065,11 @@ registry v356 登记唯一隔离副本 `.tmp/ash05-event-pins-20261110`：Luna m
 registry v357 仅把上述来源批次的精确 CI 和隔离持久化回执写回动态状态；v356 的唯一 event pin 准备范围、ASH-05 active、deferred 集合及生产禁用状态均不变。
 
 registry v358 在同一隔离准备中只增加 `apps/portfolio/infrastructure/transition_plan_revision_codec.py`：精确窗口与 lease 使用 `TransitionPlanSourceBinding` 的显式可选字段并通过现有 JSON codec 往返；旧字段全空时保留原 payload 和 revision hash，旧无窗口 marker 在事件门禁中 fail-closed。此范围扩充不授权模型、迁移、网络或生产运行接线。
+
+### 19.178 ASH-05 事件 pin 整合与官方读取适配下一块（2026-11-11）
+
+Luna max 的隔离候选已按登记的 9 个源码/测试路径整合为正式提交 `3a512d28b947c39721a0c74c58ebe5569038e03b`，模块图作为生成投影一并提交。Portfolio 来源绑定显式保留证券、来源、公告窗口、proof 时钟与版本化 lease；marker 使用官方列表末次核对时间，逐篇事件保留各自首次观察和持久化知识时间。初始及 successor 计划可在形成来源哈希和 basis 前注入精确证明并阻断缺失、过期、错窗口、未知事件；旧 M1 默认路径未启用该门禁，旧无 pin 计划可用新完整 proof 升级为 successor。正式树 72 项定向测试、Black/isort/Ruff、模块图、六文件增量 mypy 零回归及全库债务上限通过。两组原生 PostgreSQL 组件测试在本地 SQLite 环境共 8 项跳过，不计通过。
+
+候选 `3a512d28b` 的 Consistency Check 因新增模块对应的生成式 Data Center 架构清单未更新而失败；失败回执保留在忽略目录 `artifacts/ash05-event-pins-20261110/consistency-ci-failed.log`。Root 用 `scripts/data_center_architecture_inventory.py --write` 重建投影，`check_data_center_governance_projections.py` 通过，修复提交为 `8eaa05906cd69c8b17d579ffeeb7f7ced45848bb`；该精确候选的适用远端 CI 与单独触发的 Publication PostgreSQL 仍需核验，不沿用失败候选的结果。两次提交均未动用户的 CAL 计划。
+
+registry v359 登记下一有界隔离准备 `.tmp/ash05-event-adapter-20261111`：Luna max 仅实现 Data Center 精确持久 proof/事件事实到 Portfolio 只读快照的类型适配及聚焦测试；Root 独占配置、官方重抓生产组合、复核与锁内校验、共享投影及 Git。适配器必须使用真实 `(asset_code, security_id)` 配对、`szse_official` 来源、原窗口和 proof `recorded_at`；不得把公告日期、首次观察、末次核对或计划时间相互冒充。此块不激活生产计划；60 秒内部 lease 由获批政策和新持久 proof 推导并随 revision 固化，到期、来源或范围变化即阻断。ASH-05 的账户阶段账本、税后扣、Audit 恢复、复权收益和 §9 金样本仍待完成，单元保持 active。
