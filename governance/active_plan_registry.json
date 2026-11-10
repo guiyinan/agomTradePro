@@ -1,5 +1,5 @@
 {
-  "version": "2026-11-10.v341",
+  "version": "2026-11-10.v342",
   "updated_at": "2026-11-10",
   "execution_focus": {
     "unit_id": "ASH-05",
@@ -12,8 +12,8 @@
     "parallel_preparation": [
       {
         "unit_id": "ASH-05",
-        "scope": "Two detached non-overlapping preparations: .tmp/ash05-exchange-events-20261110 owns Data Center security-disclosure event fact paths and direct tests; .tmp/ash05-account-actions-20261110 owns simulated-trading corporate-action posting paths and direct tests. Root retains shared Source, governance, projections, Git and CI; exact paths and isolated resources in A-share plan section 19.169.",
-        "owner": "Luna event-source and account-posting agents under root integration",
+        "scope": "Three detached non-overlapping preparations: .tmp/ash05-exchange-events-20261110 owns Data Center security-disclosure event fact paths and direct tests; .tmp/ash05-account-actions-20261110 owns simulated-trading corporate-action posting paths and direct tests; .tmp/ash05-plan-event-review-20261110 owns Portfolio transition-plan event review gate paths and direct tests. Root retains shared Source, governance, projections, Git and CI; exact paths and isolated resources in A-share plan section 19.169.",
+        "owner": "Luna event-source, account-posting and plan-review agents under root integration",
         "isolated_workspace": true,
         "shared_git_serialized": true,
         "isolated_test_resources": true
