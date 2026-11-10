@@ -21,6 +21,9 @@ from apps.simulated_trading.infrastructure.position_repository import (
     DjangoPositionRepository,
     PositionMapper,
 )
+from apps.simulated_trading.infrastructure.simulated_account_ownership_anchor_models import (
+    SimulatedAccountOwnershipAnchorModel,
+)
 from core.exceptions import BusinessLogicError
 from tests.support.isolated_schema import isolated_schema
 
@@ -44,6 +47,7 @@ def simulated_account() -> Iterator[SimulatedAccountModel]:
             user_model,
             AccountProfileModel,
             SimulatedAccountModel,
+            SimulatedAccountOwnershipAnchorModel,
             PositionModel,
             SimulatedTradeModel,
         )

@@ -42,6 +42,9 @@ from apps.simulated_trading.infrastructure.position_repository import (
     DjangoPositionRepository,
     PositionMapper,
 )
+from apps.simulated_trading.infrastructure.simulated_account_ownership_anchor_models import (
+    SimulatedAccountOwnershipAnchorModel,
+)
 from apps.simulated_trading.interface.admin import (
     SimulatedAccountAdmin,
     SimulatedOrderReservationAdmin,
@@ -111,6 +114,7 @@ def guard_ledger() -> Iterator[tuple[SimulatedAccountModel, PositionModel]]:
             user_model,
             AccountProfileModel,
             SimulatedAccountModel,
+            SimulatedAccountOwnershipAnchorModel,
             PositionModel,
             SimulatedTradeModel,
             SimulatedOrderReservationModel,

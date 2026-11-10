@@ -34,6 +34,9 @@ from apps.simulated_trading.infrastructure.order_fill_receipt_models import (
 from apps.simulated_trading.infrastructure.order_reservation_models import (
     SimulatedOrderReservationModel,
 )
+from apps.simulated_trading.infrastructure.simulated_account_ownership_anchor_models import (
+    SimulatedAccountOwnershipAnchorModel,
+)
 from tests.component.simulated_trading.test_execution_settlement_uow import AS_OF as AS_OF
 from tests.component.simulated_trading.test_execution_settlement_uow import _calendar as _calendar
 from tests.component.simulated_trading.test_execution_settlement_uow import (
@@ -156,6 +159,7 @@ def fee_ledger(
         user_model,
         AccountProfileModel,
         SimulatedAccountModel,
+        SimulatedAccountOwnershipAnchorModel,
         PositionModel,
         SimulatedTradeModel,
         SimulatedOrderReservationModel,

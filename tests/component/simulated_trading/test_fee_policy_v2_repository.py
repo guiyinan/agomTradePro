@@ -31,6 +31,9 @@ from apps.simulated_trading.infrastructure.fee_policy_v2_repository import (
     DjangoFeePolicyV2Repository,
 )
 from apps.simulated_trading.infrastructure.models import FeeConfigModel, SimulatedAccountModel
+from apps.simulated_trading.infrastructure.simulated_account_ownership_anchor_models import (
+    SimulatedAccountOwnershipAnchorModel,
+)
 from tests.support.isolated_schema import isolated_schema
 
 pytestmark = pytest.mark.django_db(
@@ -102,7 +105,15 @@ def account_scope() -> object:
     """Create only the authentication/profile/account tables this repository reads."""
 
     user_model = get_user_model()
-    with isolated_schema((user_model, AccountProfileModel, SimulatedAccountModel, FeeConfigModel)):
+    with isolated_schema(
+        (
+            user_model,
+            AccountProfileModel,
+            SimulatedAccountModel,
+            SimulatedAccountOwnershipAnchorModel,
+            FeeConfigModel,
+        )
+    ):
         user = user_model.objects.create_user(username="fee-policy-owner", password="unused")
         account = SimulatedAccountModel.objects.create(
             user=user,
