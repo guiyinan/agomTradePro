@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from enum import StrEnum
 
 from apps.portfolio.domain.transition_plan_revision_basis import TransitionPlanSourceBinding
@@ -21,6 +21,28 @@ class TransitionPlanEventCoverageStatus(StrEnum):
     PARTIAL = "partial"
     UNKNOWN = "unknown"
     MISSING = "missing"
+
+
+@dataclass(frozen=True, slots=True)
+class TransitionPlanEventCoverageLeasePolicy:
+    """Injected versioned lease values and their explicitly approved upper bound."""
+
+    policy_version: str
+    ttl: timedelta
+    maximum_ttl: timedelta
+
+    def __post_init__(self) -> None:
+        """Require explicit positive TTLs within the injected, versioned policy bound."""
+
+        _require_token(self.policy_version, "policy_version")
+        if type(self.ttl) is not timedelta or type(self.maximum_ttl) is not timedelta:
+            raise ValueError("event coverage lease values must be exact timedeltas")
+        if (
+            self.maximum_ttl <= timedelta(0)
+            or self.ttl <= timedelta(0)
+            or self.ttl > self.maximum_ttl
+        ):
+            raise ValueError("event coverage lease TTL is outside the explicit policy bound")
 
 
 class TransitionPlanEventReviewState(StrEnum):
@@ -39,6 +61,7 @@ class TransitionPlanEventRevision:
     security_id: str
     source_id: str
     source_event_id: str
+    source_revision_id: str
     event_type: str
     announced_at: date | datetime | None
     available_at: datetime
@@ -50,10 +73,21 @@ class TransitionPlanEventRevision:
     def __post_init__(self) -> None:
         """Validate stable identity, explicit clocks, and source revision hashes."""
 
-        for name in ("asset_code", "security_id", "source_id", "source_event_id", "event_type"):
+        for name in (
+            "asset_code",
+            "security_id",
+            "source_id",
+            "source_event_id",
+            "source_revision_id",
+            "event_type",
+        ):
             _require_token(getattr(self, name), name)
+        if self.source_event_id.startswith(SECURITY_DISCLOSURE_EVENT_COVERAGE_RECORD_ID):
+            raise ValueError("source_event_id uses the reserved coverage marker namespace")
         for name in ("available_at", "known_at"):
             _require_aware(getattr(self, name), name)
+        if self.available_at > self.known_at:
+            raise ValueError("event first observation must not follow its durable known_at clock")
         for name in ("announced_at", "effective_at"):
             _require_date_or_aware_datetime(getattr(self, name), name)
         _require_digest(self.body_sha256, "body_sha256")
@@ -67,6 +101,7 @@ class TransitionPlanEventRevision:
             "security_id": self.security_id,
             "source_id": self.source_id,
             "source_event_id": self.source_event_id,
+            "source_revision_id": self.source_revision_id,
             "event_type": self.event_type,
             "announced_at": _date_or_datetime_text(self.announced_at),
             "available_at": self.available_at.isoformat(),
@@ -84,7 +119,12 @@ class TransitionPlanEventAssetSnapshot:
     asset_code: str
     security_id: str
     source_id: str
+    start_on: date
+    end_on: date
     as_of: datetime
+    first_observed_at: datetime
+    source_observed_at: datetime
+    proof_recorded_at: datetime
     coverage_status: TransitionPlanEventCoverageStatus
     source_scope_sha256: str | None
     events: tuple[TransitionPlanEventRevision, ...]
@@ -94,7 +134,20 @@ class TransitionPlanEventAssetSnapshot:
 
         for name in ("asset_code", "security_id", "source_id"):
             _require_token(getattr(self, name), name)
-        _require_aware(self.as_of, "as_of")
+        for name in ("start_on", "end_on"):
+            value = getattr(self, name)
+            if type(value) is not date or type(value) is datetime:
+                raise ValueError(f"{name} must be a pure calendar date")
+        if self.start_on > self.end_on:
+            raise ValueError("event coverage window start_on must not follow end_on")
+        for name in ("as_of", "first_observed_at", "source_observed_at", "proof_recorded_at"):
+            _require_aware(getattr(self, name), name)
+        if (
+            self.first_observed_at > self.source_observed_at
+            or self.source_observed_at > self.proof_recorded_at
+            or self.proof_recorded_at > self.as_of
+        ):
+            raise ValueError("event source/proof clock follows its knowledge cutoff")
         if type(self.coverage_status) is not TransitionPlanEventCoverageStatus:
             raise ValueError("coverage_status must be a recognized event coverage status")
         if self.source_scope_sha256 is not None:
@@ -102,6 +155,10 @@ class TransitionPlanEventAssetSnapshot:
         if self.coverage_status is TransitionPlanEventCoverageStatus.COMPLETE:
             if self.source_scope_sha256 is None:
                 raise ValueError("complete event coverage requires a certified source-scope hash")
+            if self.proof_recorded_at != self.as_of:
+                raise ValueError(
+                    "complete event coverage must use its exact proof recorded_at cutoff"
+                )
         event_ids = tuple(item.source_event_id for item in self.events)
         if len(event_ids) != len(set(event_ids)):
             raise ValueError("an event snapshot cannot contain duplicate source event identities")
@@ -144,13 +201,13 @@ def has_transition_plan_event_bindings(
 def transition_plan_event_coverage_bindings(
     source_bindings: tuple[TransitionPlanSourceBinding, ...],
 ) -> tuple[TransitionPlanSourceBinding, ...]:
-    """Return per-security coverage pins for an event-sensitive plan revision."""
+    """Return exact and legacy marker bindings for fail-closed validation."""
 
     return tuple(
         item
         for item in source_bindings
         if item.kind == SECURITY_DISCLOSURE_EVENT_SOURCE_KIND
-        and item.source_record_id == SECURITY_DISCLOSURE_EVENT_COVERAGE_RECORD_ID
+        and item.source_record_id.startswith(SECURITY_DISCLOSURE_EVENT_COVERAGE_RECORD_ID)
     )
 
 
@@ -167,6 +224,8 @@ def transition_plan_event_snapshot_sha256(
         "asset_code": snapshot.asset_code,
         "security_id": snapshot.security_id,
         "source_id": snapshot.source_id,
+        "start_on": snapshot.start_on.isoformat(),
+        "end_on": snapshot.end_on.isoformat(),
         "source_scope_sha256": snapshot.source_scope_sha256,
         "events": [
             event.to_digest_payload()
@@ -175,6 +234,21 @@ def transition_plan_event_snapshot_sha256(
     }
     encoded = json.dumps(
         payload,
+        allow_nan=False,
+        ensure_ascii=False,
+        separators=(",", ":"),
+        sort_keys=True,
+    ).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def transition_plan_event_revision_sha256(event: TransitionPlanEventRevision) -> str:
+    """Hash one exact event revision, including its correction/revision identity."""
+
+    if type(event) is not TransitionPlanEventRevision:
+        raise TypeError("event must be an exact TransitionPlanEventRevision")
+    encoded = json.dumps(
+        event.to_digest_payload(),
         allow_nan=False,
         ensure_ascii=False,
         separators=(",", ":"),
@@ -231,6 +305,7 @@ __all__ = [
     "SECURITY_DISCLOSURE_EVENT_COVERAGE_RECORD_ID",
     "SECURITY_DISCLOSURE_EVENT_SOURCE_KIND",
     "TransitionPlanEventAssetSnapshot",
+    "TransitionPlanEventCoverageLeasePolicy",
     "TransitionPlanEventCoverageStatus",
     "TransitionPlanEventRevision",
     "TransitionPlanEventReviewAssessment",
@@ -238,4 +313,5 @@ __all__ = [
     "has_transition_plan_event_bindings",
     "transition_plan_event_coverage_bindings",
     "transition_plan_event_snapshot_sha256",
+    "transition_plan_event_revision_sha256",
 ]

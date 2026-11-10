@@ -5,14 +5,22 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import replace
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from typing import Literal, cast
 from zoneinfo import ZoneInfo
 
 import pytest
 
+from apps.portfolio.application.transition_plan_event_review import (
+    TransitionPlanEventSnapshotReadRequest,
+)
 from apps.portfolio.application.transition_plan_lifecycle import TransitionPlanRevisionRequest
+from apps.portfolio.domain.transition_plan_event_review import (
+    TransitionPlanEventAssetSnapshot,
+    TransitionPlanEventCoverageLeasePolicy,
+    TransitionPlanEventCoverageStatus,
+)
 from apps.portfolio.domain.transition_plan_revision import build_transition_plan_revision
 from apps.risk_center.application.execution_settlement_v3 import ExecutionSettlementV3ReadRecord
 from apps.risk_center.application.portfolio_risk_serialization import portfolio_risk_content_hash
@@ -40,6 +48,10 @@ from apps.simulated_trading.application.portfolio_risk_calendar import (
 from apps.simulated_trading.application.portfolio_risk_context import PreparedPortfolioRisk
 from apps.simulated_trading.application.rebalance_journey_current_pins import (
     JourneyCurrentPolicyPinsValidator,
+)
+from apps.simulated_trading.application.rebalance_journey_event_coverage import (
+    PinRebalanceJourneyEventCoverage,
+    RebalanceJourneyEventCoverageScope,
 )
 from apps.simulated_trading.application.rebalance_journey_preparation import (
     PortfolioJourneyPreparationProvider,
@@ -148,6 +160,38 @@ class _RuleReader:
 class _PreparationClock:
     def now(self) -> datetime:
         return _PREPARED_AT
+
+
+class _EventCoverageScopes:
+    """Return one pre-recorded exact scope and its independently issued short lease."""
+
+    def __init__(self, scope: RebalanceJourneyEventCoverageScope) -> None:
+        self.scope = scope
+
+    def read_scopes(
+        self,
+        *,
+        asset_identities: tuple[tuple[str, str], ...],
+        as_of: datetime,
+    ) -> tuple[RebalanceJourneyEventCoverageScope, ...]:
+        assert (_ASSET_CODE, _SECURITY_ID) in asset_identities
+        assert as_of == _PREPARED_AT
+        return (self.scope,)
+
+
+class _EventCoverageSnapshots:
+    """Return one exact historical persisted proof at its recorded cutoff."""
+
+    def __init__(self, snapshot: TransitionPlanEventAssetSnapshot) -> None:
+        self.snapshot = snapshot
+
+    def read_snapshot(
+        self, request: TransitionPlanEventSnapshotReadRequest
+    ) -> TransitionPlanEventAssetSnapshot | None:
+        assert request.as_of == _AS_OF
+        assert request.start_on == self.snapshot.start_on
+        assert request.end_on == self.snapshot.end_on
+        return self.snapshot
 
 
 class _Reads(ServerRebalanceJourneyReads):
@@ -603,6 +647,51 @@ def _request(target_weights: str = _TARGET_TEXT) -> TransitionPlanRevisionReques
     )
 
 
+def _event_pinner() -> PinRebalanceJourneyEventCoverage:
+    """Compose only synthetic exact proof and lease inputs for this unit contract."""
+
+    first_observed_at = _AS_OF - timedelta(minutes=3)
+    source_observed_at = _AS_OF - timedelta(seconds=40)
+    proof_recorded_at = _AS_OF
+    scope = RebalanceJourneyEventCoverageScope(
+        asset_code=_ASSET_CODE,
+        security_id=_SECURITY_ID,
+        source_id="official-exchange-disclosure",
+        start_on=date(2026, 10, 1),
+        end_on=date(2026, 11, 3),
+        first_observed_at=first_observed_at,
+        source_observed_at=source_observed_at,
+        proof_recorded_at=proof_recorded_at,
+        lease_policy_version="event-pin-test-r1",
+        lease_issued_at=_AS_OF,
+        lease_ttl_microseconds=30_000_000,
+        lease_expires_at=_AS_OF + timedelta(seconds=30),
+    )
+    snapshot = TransitionPlanEventAssetSnapshot(
+        asset_code=_ASSET_CODE,
+        security_id=_SECURITY_ID,
+        source_id=scope.source_id,
+        start_on=scope.start_on,
+        end_on=scope.end_on,
+        as_of=proof_recorded_at,
+        first_observed_at=first_observed_at,
+        source_observed_at=source_observed_at,
+        proof_recorded_at=proof_recorded_at,
+        coverage_status=TransitionPlanEventCoverageStatus.COMPLETE,
+        source_scope_sha256="c" * 64,
+        events=(),
+    )
+    return PinRebalanceJourneyEventCoverage(
+        scope_reader=_EventCoverageScopes(scope),
+        snapshot_reader=_EventCoverageSnapshots(snapshot),
+        lease_policy=TransitionPlanEventCoverageLeasePolicy(
+            policy_version="event-pin-test-r1",
+            ttl=timedelta(seconds=30),
+            maximum_ttl=timedelta(seconds=60),
+        ),
+    )
+
+
 def _provider(
     monkeypatch: pytest.MonkeyPatch,
     *,
@@ -619,6 +708,8 @@ def _provider(
     classification_outer_flags: bool | None = None,
     classification_purpose: str | None = None,
     preview_as_of: datetime = _AS_OF,
+    event_pins: bool = False,
+    event_coverage_required: bool = False,
 ) -> tuple[PortfolioJourneyPreparationProvider, RebalancePlanPreview]:
     """Compose the real risk application over explicit synthetic typed inputs."""
 
@@ -663,6 +754,8 @@ def _provider(
             reference_price_basis="market",
             business_timezone=ZoneInfo("Asia/Shanghai"),
             clock=_PreparationClock(),
+            event_coverage_pinner=_event_pinner() if event_pins else None,
+            event_coverage_required=event_coverage_required,
         ),
         preview,
     )
@@ -690,6 +783,77 @@ def test_prepare_maps_one_typed_preview_and_qualified_risk_result_to_immutable_d
     assert result.basis.risk.must_not_use_for_decision is False
     assert result.basis.planning_policy.status == "not_applicable"
     assert result.basis.execution_calendar.status == "qualified"
+
+
+def test_event_gate_blocks_required_generation_when_scope_lease_provider_is_missing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An explicitly event-enabled producer blocks before reading or hashing plan context."""
+
+    provider, _preview = _provider(
+        monkeypatch,
+        event_pins=False,
+        event_coverage_required=True,
+    )
+    monkeypatch.setattr(
+        provider._reads,
+        "read_preview",
+        lambda **_kwargs: pytest.fail("required event gate must run before preview reads"),
+    )
+
+    with pytest.raises(RebalanceJourneyUnavailable):
+        provider.prepare(_request(), prepared_at=_PREPARED_AT, parent=None)
+
+
+def test_prepare_pins_exact_window_and_keeps_event_proof_clocks_separate(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An injected pinner seals exact proof, last verification and lease clocks."""
+
+    provider, _preview = _provider(monkeypatch, event_pins=True)
+
+    result = provider.prepare(_request(), prepared_at=_PREPARED_AT, parent=None)
+
+    pins = [
+        item for item in result.basis.source_bindings if item.kind == "security_disclosure_event"
+    ]
+    assert len(pins) == 1
+    pin = pins[0]
+    assert (pin.coverage_start_on, pin.coverage_end_on) == (
+        date(2026, 10, 1),
+        date(2026, 11, 3),
+    )
+    assert pin.observed_at == _AS_OF - timedelta(seconds=40)
+    assert pin.known_at == _AS_OF
+    assert pin.coverage_lease_issued_at == _AS_OF
+    assert pin.decision_cutoff == _PREPARED_AT
+    assert pin.admission_until == _AS_OF + timedelta(seconds=30)
+    assert result.basis.valid_until == pin.admission_until
+
+
+def test_event_gate_blocks_missing_security_identity_before_plan_hashing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An unresolvable asset/security pair blocks before the event reader or plan hashes."""
+
+    provider, _preview = _provider(monkeypatch, event_pins=True)
+    reads = cast(_Reads, provider._reads)
+    incomplete_assets = replace(
+        reads._prepared.assets,
+        assets=tuple(
+            replace(item, security_id=None, capacity_observation=None)
+            for item in reads._prepared.assets.assets
+        ),
+    )
+    incomplete = replace(reads._prepared, assets=incomplete_assets)
+    monkeypatch.setattr(reads, "read_risk", lambda **_kwargs: incomplete)
+    monkeypatch.setattr(
+        "apps.simulated_trading.application.rebalance_journey_preparation.portfolio_risk_content_hash",
+        lambda *_args, **_kwargs: pytest.fail("identity failure must precede plan hashing"),
+    )
+
+    with pytest.raises(RebalanceJourneyUnavailable):
+        provider.prepare(_request(), prepared_at=_PREPARED_AT, parent=None)
 
 
 def test_fractional_buy_suggestion_is_floored_and_exact_remainder_is_sealed(

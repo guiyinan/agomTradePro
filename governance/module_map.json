@@ -7833,7 +7833,7 @@
           "imports": 50
         },
         "simulated_trading": {
-          "imports": 23
+          "imports": 27
         },
         "strategy": {
           "imports": 1
@@ -10974,7 +10974,7 @@
           ]
         },
         "portfolio": {
-          "imports": 23,
+          "imports": 27,
           "target_layers": [
             "application",
             "domain",
@@ -11612,6 +11612,12 @@
         "application/rebalance_journey_current_pins.py": [
           "JourneyCurrentPolicyPinsValidator"
         ],
+        "application/rebalance_journey_event_coverage.py": [
+          "PinRebalanceJourneyEventCoverage",
+          "RebalanceJourneyEventCoveragePinner",
+          "RebalanceJourneyEventCoverageScope",
+          "RebalanceJourneyEventCoverageScopeReader"
+        ],
         "application/rebalance_journey_order_adapters.py": [
           "JourneyPlanOrderPreviewer",
           "JourneyPlanProgressReader"
@@ -11933,7 +11939,7 @@
         ]
       },
       "layers": {
-        "application": 119,
+        "application": 120,
         "domain": 40,
         "infrastructure": 134,
         "interface": 34,

@@ -292,6 +292,23 @@ def _source_binding(value: Mapping[str, object]) -> TransitionPlanSourceBinding:
         coverage_status=_text(value.get("coverage_status"), "source.coverage_status"),
         qualified=_boolean(value.get("qualified"), "source.qualified"),
         reason_codes=_text_tuple(value.get("reason_codes"), "source.reason_codes"),
+        coverage_start_on=_optional_date(
+            value.get("coverage_start_on"), "source.coverage_start_on"
+        ),
+        coverage_end_on=_optional_date(value.get("coverage_end_on"), "source.coverage_end_on"),
+        coverage_policy_version=_optional_text(
+            value.get("coverage_policy_version"), "source.coverage_policy_version"
+        ),
+        coverage_lease_issued_at=_optional_datetime(
+            value.get("coverage_lease_issued_at"), "source.coverage_lease_issued_at"
+        ),
+        coverage_lease_ttl_microseconds=_optional_integer(
+            value.get("coverage_lease_ttl_microseconds"),
+            "source.coverage_lease_ttl_microseconds",
+        ),
+        source_first_observed_at=_optional_datetime(
+            value.get("source_first_observed_at"), "source.source_first_observed_at"
+        ),
     )
 
 

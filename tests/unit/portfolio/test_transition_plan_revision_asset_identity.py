@@ -36,10 +36,12 @@ from apps.portfolio.domain.transition_plan_event_review import (
     SECURITY_DISCLOSURE_EVENT_COVERAGE_RECORD_ID,
     SECURITY_DISCLOSURE_EVENT_SOURCE_KIND,
     TransitionPlanEventAssetSnapshot,
+    TransitionPlanEventCoverageLeasePolicy,
     TransitionPlanEventCoverageStatus,
     TransitionPlanEventReviewAssessment,
     TransitionPlanEventReviewState,
     TransitionPlanEventRevision,
+    transition_plan_event_revision_sha256,
     transition_plan_event_snapshot_sha256,
 )
 from apps.portfolio.domain.transition_plan_revision import (
@@ -158,23 +160,47 @@ def _event_snapshot(
     events: tuple[TransitionPlanEventRevision, ...] = (),
     coverage_status: TransitionPlanEventCoverageStatus = TransitionPlanEventCoverageStatus.COMPLETE,
     source_scope_sha256: str | None = _HASH_A,
+    asset_code: str = "600000.SH",
+    security_id: str = "SH.TEST.600000",
+    source_id: str = "official-exchange-disclosure",
+    start_on: date = date(2026, 10, 1),
+    end_on: date = date(2026, 11, 5),
+    first_observed_at: datetime | None = None,
+    source_observed_at: datetime | None = None,
+    proof_recorded_at: datetime | None = None,
 ) -> TransitionPlanEventAssetSnapshot:
     """Build a certified disclosure snapshot for the exact fixture security and source."""
 
     return TransitionPlanEventAssetSnapshot(
-        asset_code="600000.SH",
-        security_id="SH.TEST.600000",
-        source_id="official-exchange-disclosure",
+        asset_code=asset_code,
+        security_id=security_id,
+        source_id=source_id,
+        start_on=start_on,
+        end_on=end_on,
         as_of=as_of,
+        first_observed_at=first_observed_at or min(as_of, _NOW - timedelta(minutes=3)),
+        source_observed_at=source_observed_at or min(as_of, _NOW - timedelta(minutes=2)),
+        proof_recorded_at=proof_recorded_at or as_of,
         coverage_status=coverage_status,
         source_scope_sha256=source_scope_sha256,
         events=events,
     )
 
 
+def _event_lease_policy() -> TransitionPlanEventCoverageLeasePolicy:
+    """Supply the explicitly injected versioned test lease and maximum policy value."""
+
+    return TransitionPlanEventCoverageLeasePolicy(
+        policy_version="event-pin-r1",
+        ttl=timedelta(seconds=60),
+        maximum_ttl=timedelta(seconds=60),
+    )
+
+
 def _event_revision(
     *,
     source_event_id: str = "sse-event-1",
+    source_revision_id: str = "revision-1",
     event_type: str = "cash_dividend",
     body_sha256: str = _HASH_B,
     manifest_sha256: str = _HASH_A,
@@ -188,6 +214,7 @@ def _event_revision(
         security_id="SH.TEST.600000",
         source_id="official-exchange-disclosure",
         source_event_id=source_event_id,
+        source_revision_id=source_revision_id,
         event_type=event_type,
         announced_at=_NOW.date(),
         available_at=available_at,
@@ -198,7 +225,9 @@ def _event_revision(
     )
 
 
-def _event_coverage_pin(snapshot: TransitionPlanEventAssetSnapshot) -> TransitionPlanSourceBinding:
+def _event_coverage_pin(
+    snapshot: TransitionPlanEventAssetSnapshot,
+) -> TransitionPlanSourceBinding:
     """Bind a complete per-security snapshot, including the explicit empty-event case."""
 
     return TransitionPlanSourceBinding(
@@ -210,22 +239,55 @@ def _event_coverage_pin(snapshot: TransitionPlanEventAssetSnapshot) -> Transitio
         manifest_sha256=snapshot.source_scope_sha256 or _HASH_A,
         body_sha256=transition_plan_event_snapshot_sha256(snapshot),
         observation_precision="timestamp",
-        observed_at=snapshot.as_of,
+        observed_at=snapshot.source_observed_at,
         observed_on=None,
-        available_at=snapshot.as_of,
-        known_at=snapshot.as_of,
+        available_at=snapshot.proof_recorded_at,
+        known_at=snapshot.proof_recorded_at,
         decision_cutoff=snapshot.as_of,
         decision_date_cutoff=None,
-        source_valid_until=_NOW + timedelta(hours=1),
-        admission_until=_NOW + timedelta(minutes=20),
-        qualification_proof_hash=None,
+        source_valid_until=None,
+        admission_until=snapshot.as_of + timedelta(seconds=60),
+        qualification_proof_hash=_HASH_C,
         source_purpose="official_disclosure_event_coverage",
         requested_purpose="transition_plan",
         allowed_purposes=("transition_plan",),
         restrictions=(),
         coverage_status="complete",
         qualified=True,
+        coverage_start_on=snapshot.start_on,
+        coverage_end_on=snapshot.end_on,
+        coverage_policy_version="event-pin-r1",
+        coverage_lease_issued_at=snapshot.proof_recorded_at,
+        coverage_lease_ttl_microseconds=60_000_000,
+        source_first_observed_at=snapshot.first_observed_at,
     )
+
+
+def _event_coverage_bindings(
+    snapshot: TransitionPlanEventAssetSnapshot,
+) -> tuple[TransitionPlanSourceBinding, ...]:
+    """Bind exact scope and event rows with their own clocks and revision identities."""
+
+    marker = _event_coverage_pin(snapshot)
+    event_bindings = tuple(
+        replace(
+            marker,
+            source_record_id=event.source_event_id,
+            manifest_sha256=event.manifest_sha256,
+            body_sha256=event.body_sha256,
+            observed_at=event.available_at,
+            available_at=event.available_at,
+            known_at=event.known_at,
+            qualification_proof_hash=transition_plan_event_revision_sha256(event),
+            source_purpose="official_exchange_disclosure",
+            coverage_policy_version=None,
+            coverage_lease_issued_at=None,
+            coverage_lease_ttl_microseconds=None,
+            source_first_observed_at=None,
+        )
+        for event in snapshot.events
+    )
+    return (marker, *event_bindings)
 
 
 def _evidence_document(
@@ -322,7 +384,10 @@ def _revision(
 ) -> TransitionPlanRevision:
     """Build one exact plan revision whose only varying facts are classification pins."""
 
-    expiry = _NOW + timedelta(minutes=20)
+    expiry = min(
+        (_NOW + timedelta(minutes=20),)
+        + tuple(item.admission_until for item in additional_source_bindings)
+    )
     source = TransitionPlanSourceBinding(
         kind="valuation",
         asset_code="600000.SH",
@@ -1040,13 +1105,122 @@ def test_event_snapshot_digest_binds_certified_scope_and_visible_revisions_not_q
     ) != transition_plan_event_snapshot_sha256(later_new_scope)
 
 
+def test_event_snapshot_hash_tracks_corrected_source_revision_identity() -> None:
+    """A correction with unchanged body bytes still creates a distinct event revision."""
+
+    original = _event_snapshot(as_of=_NOW, events=(_event_revision(source_revision_id="r1"),))
+    corrected = _event_snapshot(as_of=_NOW, events=(_event_revision(source_revision_id="r2"),))
+
+    assert transition_plan_event_snapshot_sha256(original) != (
+        transition_plan_event_snapshot_sha256(corrected)
+    )
+
+
+def test_event_first_observation_cannot_follow_its_durable_knowledge_clock() -> None:
+    """An event row cannot label a later first observation as earlier local knowledge."""
+
+    with pytest.raises(ValueError):
+        _event_revision(
+            available_at=_NOW,
+            known_at=_NOW - timedelta(seconds=1),
+        )
+
+
+def test_event_coverage_lease_policy_requires_injected_versioned_bounded_ttl() -> None:
+    """Lease duration has no implicit default and cannot exceed the approved ceiling."""
+
+    assert TransitionPlanEventCoverageLeasePolicy(
+        policy_version="event-pin-r1",
+        ttl=timedelta(seconds=30),
+        maximum_ttl=timedelta(seconds=60),
+    ).ttl == timedelta(seconds=30)
+    for version, ttl in (
+        ("event-pin-r1", timedelta(0)),
+        ("event-pin-r1", timedelta(seconds=61)),
+        ("", timedelta(seconds=30)),
+    ):
+        with pytest.raises(ValueError):
+            TransitionPlanEventCoverageLeasePolicy(
+                policy_version=version,
+                ttl=ttl,
+                maximum_ttl=timedelta(seconds=60),
+            )
+
+
+def test_event_source_identity_keeps_source_and_window_in_deduplication_and_codec() -> None:
+    """Independent exchange sources/windows survive basis validation and revision roundtrip."""
+
+    first = _event_snapshot(as_of=_NOW, source_id="source-one")
+    second = _event_snapshot(
+        as_of=_NOW,
+        source_id="source-two",
+        start_on=date(2026, 9, 1),
+    )
+    extra = (*_event_coverage_bindings(first), *_event_coverage_bindings(second))
+    revision = _revision(additional_source_bindings=extra)
+
+    decoded = decode_transition_plan_revision(
+        encode_transition_plan_revision(revision, idempotency_key=revision.plan.idempotency_key),
+        current_status=revision.plan.status,
+        idempotency_key=revision.plan.idempotency_key,
+    )
+
+    assert decoded.basis.source_bindings == revision.basis.source_bindings
+    assert {
+        (item.source_id, item.coverage_start_on, item.coverage_end_on)
+        for item in decoded.basis.source_bindings
+        if item.source_record_id == SECURITY_DISCLOSURE_EVENT_COVERAGE_RECORD_ID
+    } == {
+        ("source-one", date(2026, 10, 1), date(2026, 11, 5)),
+        ("source-two", date(2026, 9, 1), date(2026, 11, 5)),
+    }
+
+
+def test_legacy_marker_window_mismatch_and_expired_lease_fail_closed() -> None:
+    """Old unversioned markers and exact scope or lease mismatches cannot pass review."""
+
+    baseline = _event_snapshot(as_of=_NOW)
+    marker = _event_coverage_pin(baseline)
+    legacy = replace(
+        marker,
+        coverage_start_on=None,
+        coverage_end_on=None,
+        coverage_policy_version=None,
+        coverage_lease_issued_at=None,
+        coverage_lease_ttl_microseconds=None,
+        source_first_observed_at=None,
+    )
+    legacy_revision = _revision(additional_source_bindings=(legacy,))
+    validator = AssessTransitionPlanEventReview(
+        reader=_EventSnapshotReader((baseline,)),
+        lease_policy=_event_lease_policy(),
+    )
+    assert validator.assess(legacy_revision, as_of=_NOW + timedelta(seconds=10)).state is (
+        TransitionPlanEventReviewState.BLOCKED
+    )
+
+    revision = _revision(additional_source_bindings=(marker,))
+    wrong_window = _event_snapshot(as_of=_NOW, start_on=date(2026, 9, 30))
+    wrong_window_result = AssessTransitionPlanEventReview(
+        reader=_EventSnapshotReader((wrong_window,)),
+        lease_policy=_event_lease_policy(),
+    ).assess(revision, as_of=_NOW + timedelta(seconds=10))
+    assert wrong_window_result.state is TransitionPlanEventReviewState.BLOCKED
+
+    expired = AssessTransitionPlanEventReview(
+        reader=_EventSnapshotReader((baseline,)),
+        lease_policy=_event_lease_policy(),
+    ).assess(revision, as_of=_NOW + timedelta(seconds=60))
+    assert expired.state is TransitionPlanEventReviewState.BLOCKED
+
+
 def test_event_gate_skips_unrelated_plan_and_requires_reader_for_explicit_event_pin() -> None:
     """Legacy plans retain their path; event-scoped coverage without a reader blocks."""
 
     unrelated = _revision()
     event_pin = _event_coverage_pin(_event_snapshot(as_of=_NOW))
     event_revision = _revision(additional_source_bindings=(event_pin,))
-    validator = AssessTransitionPlanEventReview(reader=None)
+    validator = AssessTransitionPlanEventReview(reader=None, lease_policy=_event_lease_policy())
 
     assert validator.assess(unrelated, as_of=_NOW + timedelta(minutes=1)).state is (
         TransitionPlanEventReviewState.UNCHANGED
@@ -1061,7 +1235,7 @@ def test_event_gate_requires_complete_historical_and_current_coverage() -> None:
 
     current_at = _NOW + timedelta(minutes=1)
     baseline = _event_snapshot(as_of=_NOW)
-    revision = _revision(additional_source_bindings=(_event_coverage_pin(baseline),))
+    revision = _revision(additional_source_bindings=_event_coverage_bindings(baseline))
     for status in (
         TransitionPlanEventCoverageStatus.PARTIAL,
         TransitionPlanEventCoverageStatus.UNKNOWN,
@@ -1073,7 +1247,8 @@ def test_event_gate_requires_complete_historical_and_current_coverage() -> None:
             source_scope_sha256=None,
         )
         validator = AssessTransitionPlanEventReview(
-            reader=_EventSnapshotReader((baseline, incomplete_current))
+            reader=_EventSnapshotReader((baseline, incomplete_current)),
+            lease_policy=_event_lease_policy(),
         )
         assert validator.assess(revision, as_of=current_at).state is (
             TransitionPlanEventReviewState.BLOCKED
@@ -1089,7 +1264,8 @@ def test_event_gate_requires_complete_historical_and_current_coverage() -> None:
                 ),
                 _event_snapshot(as_of=current_at),
             )
-        )
+        ),
+        lease_policy=_event_lease_policy(),
     )
     assert (
         no_history.assess(revision, as_of=current_at).state
@@ -1100,26 +1276,29 @@ def test_event_gate_requires_complete_historical_and_current_coverage() -> None:
 def test_new_or_corrected_event_requires_successor_review() -> None:
     """Newly available events and changed hashes cannot reuse the old immutable plan."""
 
-    current_at = _NOW + timedelta(minutes=2)
+    current_at = _NOW + timedelta(seconds=30)
     baseline_event = _event_revision()
     baseline = _event_snapshot(as_of=_NOW, events=(baseline_event,))
-    revision = _revision(additional_source_bindings=(_event_coverage_pin(baseline),))
+    revision = _revision(additional_source_bindings=_event_coverage_bindings(baseline))
     new_event = _event_revision(
         source_event_id="new-event",
-        available_at=_NOW + timedelta(minutes=1),
-        known_at=_NOW + timedelta(minutes=1),
+        available_at=_NOW + timedelta(seconds=10),
+        known_at=_NOW + timedelta(seconds=10),
     )
     corrected_event = _event_revision(
         body_sha256=_HASH_C,
         manifest_sha256=_HASH_C,
     )
+    corrected_revision = _event_revision(source_revision_id="revision-2")
 
     for current in (
         _event_snapshot(as_of=current_at, events=(baseline_event, new_event)),
         _event_snapshot(as_of=current_at, events=(corrected_event,)),
+        _event_snapshot(as_of=current_at, events=(corrected_revision,)),
     ):
         result = AssessTransitionPlanEventReview(
-            reader=_EventSnapshotReader((baseline, current))
+            reader=_EventSnapshotReader((baseline, current)),
+            lease_policy=_event_lease_policy(),
         ).assess(revision, as_of=current_at)
         assert result.state is TransitionPlanEventReviewState.REVIEW_REQUIRED
         assert result.reason_code == "EVENT_REVISION_CHANGED"
@@ -1128,17 +1307,18 @@ def test_new_or_corrected_event_requires_successor_review() -> None:
 def test_missing_current_event_proof_or_unknown_event_type_blocks() -> None:
     """A vanished source record or UNKNOWN classification is blocked for explicit event plans."""
 
-    current_at = _NOW + timedelta(minutes=2)
+    current_at = _NOW + timedelta(seconds=30)
     event = _event_revision()
     baseline = _event_snapshot(as_of=_NOW, events=(event,))
-    revision = _revision(additional_source_bindings=(_event_coverage_pin(baseline),))
+    revision = _revision(additional_source_bindings=_event_coverage_bindings(baseline))
     missing_current = _event_snapshot(as_of=current_at)
     unknown = _event_revision(event_type="UNKNOWN")
     unknown_current = _event_snapshot(as_of=current_at, events=(unknown,))
 
     for current in (missing_current, unknown_current):
         result = AssessTransitionPlanEventReview(
-            reader=_EventSnapshotReader((baseline, current))
+            reader=_EventSnapshotReader((baseline, current)),
+            lease_policy=_event_lease_policy(),
         ).assess(revision, as_of=current_at)
         assert result.state is TransitionPlanEventReviewState.BLOCKED
 
@@ -1146,13 +1326,13 @@ def test_missing_current_event_proof_or_unknown_event_type_blocks() -> None:
 def test_event_change_is_rejected_before_owner_review_status_write() -> None:
     """Changed event evidence blocks the Owner review write and keeps the old plan immutable."""
 
-    current_at = _NOW + timedelta(minutes=2)
+    current_at = _NOW + timedelta(seconds=30)
     baseline = _event_snapshot(as_of=_NOW)
-    revision = _revision(additional_source_bindings=(_event_coverage_pin(baseline),))
+    revision = _revision(additional_source_bindings=_event_coverage_bindings(baseline))
     newly_available = _event_revision(
         source_event_id="new-event",
-        available_at=_NOW + timedelta(minutes=1),
-        known_at=_NOW + timedelta(minutes=1),
+        available_at=_NOW + timedelta(seconds=10),
+        known_at=_NOW + timedelta(seconds=10),
     )
     current = _event_snapshot(as_of=current_at, events=(newly_available,))
     repository = _LifecycleRepository()
@@ -1162,7 +1342,8 @@ def test_event_change_is_rejected_before_owner_review_status_write() -> None:
         authorizer=_LifecycleAuthorizer(),
         clock=_LifecycleClock(current_at),
         event_review_validator=AssessTransitionPlanEventReview(
-            reader=_EventSnapshotReader((baseline, current))
+            reader=_EventSnapshotReader((baseline, current)),
+            lease_policy=_event_lease_policy(),
         ),
     )
 
@@ -1301,7 +1482,7 @@ def test_event_change_blocks_manual_reservation_inside_locked_account_guard(
     """The event recheck runs while the action guard still owns the account transaction."""
 
     revision = _revision(
-        additional_source_bindings=(_event_coverage_pin(_event_snapshot(as_of=_NOW)),)
+        additional_source_bindings=_event_coverage_bindings(_event_snapshot(as_of=_NOW))
     )
     lock_state = {"active": False}
     assessment = TransitionPlanEventReviewAssessment(
@@ -1342,7 +1523,7 @@ def test_event_change_blocks_manual_reservation_inside_locked_account_guard(
             binding=binding,
             account_id=17,
             owner_user_id=23,
-            as_of=_NOW + timedelta(minutes=1),
+            as_of=_NOW + timedelta(seconds=30),
         )
 
     assert lock_state["active"] is False

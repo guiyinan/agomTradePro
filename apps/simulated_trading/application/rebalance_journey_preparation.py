@@ -21,6 +21,7 @@ from apps.portfolio.domain.transition_plan_revision_basis import (
     TransitionPlanBasis,
     TransitionPlanPolicyBinding,
     TransitionPlanPositionBinding,
+    TransitionPlanSourceBinding,
 )
 from apps.portfolio.domain.transition_plan_revision_support import _canonical_hash
 from apps.risk_center.application.execution_settlement_v3 import (
@@ -36,6 +37,9 @@ from apps.risk_center.domain.portfolio_risk_snapshot import (
     exact_decimal_product,
 )
 from apps.simulated_trading.application.portfolio_risk_context import PreparedPortfolioRisk
+from apps.simulated_trading.application.rebalance_journey_event_coverage import (
+    RebalanceJourneyEventCoveragePinner,
+)
 from apps.simulated_trading.application.rebalance_journey_preparation_support import (
     _asset_map,
     _asset_rows,
@@ -99,6 +103,8 @@ class PortfolioJourneyPreparationProvider:
         reference_price_basis: ReferencePriceBasis,
         business_timezone: tzinfo,
         clock: TransitionPlanRevisionClock,
+        event_coverage_pinner: RebalanceJourneyEventCoveragePinner | None = None,
+        event_coverage_required: bool = False,
     ) -> None:
         """Inject one server reader and retain only the explicitly chosen target."""
 
@@ -113,6 +119,8 @@ class PortfolioJourneyPreparationProvider:
         self._reference_price_basis = reference_price_basis
         self._business_timezone = business_timezone
         self._clock = clock
+        self._event_coverage_pinner = event_coverage_pinner
+        self._event_coverage_required = event_coverage_required
 
     def prepare(
         self,
@@ -125,6 +133,8 @@ class PortfolioJourneyPreparationProvider:
 
         if type(request) is not TransitionPlanRevisionRequest:
             raise TypeError("request must be a TransitionPlanRevisionRequest")
+        if self._event_coverage_required and self._event_coverage_pinner is None:
+            raise RebalanceJourneyUnavailable(code="REBALANCE_PLAN_EVENT_PROVIDER_UNAVAILABLE")
         _require_aware(prepared_at, "prepared_at")
         preview = self._reads.read_preview(
             user_id=request.actor_user_id,
@@ -146,6 +156,29 @@ class PortfolioJourneyPreparationProvider:
         if assembled_at < prepared_at:
             raise RebalanceJourneyUnavailable(code="REBALANCE_PLAN_READ_CLOCK_INVALID")
         prepared_at = assembled_at
+        event_sources: tuple[TransitionPlanSourceBinding, ...] = ()
+        if self._event_coverage_pinner is not None:
+            asset_identity_rows: list[tuple[str, str]] = []
+            for asset in prepared.assets.assets:
+                if type(asset.security_id) is not str or not asset.security_id:
+                    raise RebalanceJourneyUnavailable(
+                        code="REBALANCE_PLAN_EVENT_ASSET_IDENTITY_UNAVAILABLE"
+                    )
+                asset_identity_rows.append((asset.asset_code, asset.security_id))
+            asset_identities = tuple(asset_identity_rows)
+            event_sources = self._event_coverage_pinner.pin(
+                asset_identities=asset_identities,
+                as_of=prepared_at,
+                parent=parent,
+            )
+            if (
+                type(event_sources) is not tuple
+                or not event_sources
+                or any(type(source) is not TransitionPlanSourceBinding for source in event_sources)
+            ):
+                raise RebalanceJourneyUnavailable(
+                    code="REBALANCE_PLAN_EVENT_PROVIDER_CONTRACT_INVALID"
+                )
         self._validate_context(
             request=request,
             preview=preview,
@@ -183,10 +216,11 @@ class PortfolioJourneyPreparationProvider:
         ):
             raise RebalanceJourneyUnavailable(code="REBALANCE_PLAN_TARGET_SELECTION_MISMATCH")
 
-        sources = bind_prepared_plan_sources(
+        risk_sources = bind_prepared_plan_sources(
             prepared,
             business_timezone=self._business_timezone,
         )
+        sources = (*risk_sources, *event_sources)
         source_payloads = [source.to_payload() for source in sources]
         source_evidence_hash = _canonical_hash({"source_bindings": source_payloads})
         portfolio_resources = _portfolio_resources(preview, prepared)

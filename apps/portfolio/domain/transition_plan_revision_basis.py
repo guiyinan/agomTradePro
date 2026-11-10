@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from typing import Literal, cast
 
@@ -113,6 +113,12 @@ class TransitionPlanSourceBinding:
     coverage_status: str
     qualified: bool
     reason_codes: tuple[str, ...] = ()
+    coverage_start_on: date | None = None
+    coverage_end_on: date | None = None
+    coverage_policy_version: str | None = None
+    coverage_lease_issued_at: datetime | None = None
+    coverage_lease_ttl_microseconds: int | None = None
+    source_first_observed_at: datetime | None = None
 
     def __post_init__(self) -> None:
         """Require an exact successful source admission with untouched clocks."""
@@ -151,6 +157,10 @@ class TransitionPlanSourceBinding:
             _require_aware(self.observed_at, "observed_at")
             if self.observed_at > self.decision_cutoff:
                 raise ValueError("source observation follows its decision cutoff")
+        if self.source_first_observed_at is not None:
+            _require_aware(self.source_first_observed_at, "source_first_observed_at")
+            if self.observed_at is None or self.source_first_observed_at > self.observed_at:
+                raise ValueError("first source observation must not follow the latest observation")
         if self.observed_on is not None and self.decision_date_cutoff is not None:
             if self.observed_on > self.decision_date_cutoff:
                 raise ValueError("source observation date follows its date cutoff")
@@ -176,11 +186,86 @@ class TransitionPlanSourceBinding:
             _require_token(purpose, "allowed_purpose")
         for restriction in self.restrictions:
             _require_token(restriction, "restriction")
+        window_values = (self.coverage_start_on, self.coverage_end_on)
+        lease_values = (
+            self.coverage_policy_version,
+            self.coverage_lease_issued_at,
+            self.coverage_lease_ttl_microseconds,
+            self.source_first_observed_at,
+        )
+        if any(value is not None for value in window_values):
+            if any(value is None for value in window_values):
+                raise ValueError("event coverage window dates must be supplied together")
+            if (
+                type(self.coverage_start_on) is not date
+                or type(self.coverage_start_on) is datetime
+                or type(self.coverage_end_on) is not date
+                or type(self.coverage_end_on) is datetime
+                or self.coverage_start_on > self.coverage_end_on
+            ):
+                raise ValueError("event coverage dates must be an ordered exact calendar window")
+            if self.kind != "security_disclosure_event":
+                raise ValueError("coverage windows belong only to disclosure event bindings")
+        has_lease_values = any(value is not None for value in lease_values)
+        if has_lease_values:
+            if any(value is None for value in lease_values) or any(
+                value is None for value in window_values
+            ):
+                raise ValueError("event coverage window and lease fields must be complete")
+            coverage_policy_version = self.coverage_policy_version
+            coverage_lease_issued_at = self.coverage_lease_issued_at
+            coverage_lease_ttl_microseconds = self.coverage_lease_ttl_microseconds
+            source_first_observed_at = self.source_first_observed_at
+            observed_at = self.observed_at
+            known_at = self.known_at
+            if (
+                coverage_policy_version is None
+                or coverage_lease_issued_at is None
+                or coverage_lease_ttl_microseconds is None
+                or source_first_observed_at is None
+                or observed_at is None
+                or known_at is None
+            ):
+                raise ValueError("event coverage proof and lease fields must be complete")
+            _require_token(coverage_policy_version, "coverage_policy_version")
+            _require_aware(coverage_lease_issued_at, "coverage_lease_issued_at")
+            if (
+                type(coverage_lease_ttl_microseconds) is not int
+                or coverage_lease_ttl_microseconds <= 0
+                or coverage_lease_ttl_microseconds > timedelta.max // timedelta(microseconds=1)
+            ):
+                raise ValueError("event coverage lease TTL must be a positive exact duration")
+            try:
+                expected_expiry = coverage_lease_issued_at + timedelta(
+                    microseconds=coverage_lease_ttl_microseconds
+                )
+            except OverflowError as error:
+                raise ValueError(
+                    "event coverage lease expiry exceeds the datetime range"
+                ) from error
+            if self.admission_until != expected_expiry:
+                raise ValueError("event coverage admission must equal its issued lease expiry")
+            if (
+                coverage_lease_issued_at < known_at
+                or known_at < observed_at
+                or source_first_observed_at > observed_at
+                or coverage_lease_issued_at > self.decision_cutoff
+            ):
+                raise ValueError(
+                    "event coverage clocks must be ordered observation, proof, lease, plan"
+                )
+        if (
+            self.source_record_id.startswith("__coverage__")
+            and self.source_record_id != "__coverage__"
+        ):
+            raise ValueError("source record uses the reserved coverage marker namespace")
+        if has_lease_values and self.source_record_id != "__coverage__":
+            raise ValueError("lease metadata belongs only to the event coverage marker")
 
     def to_payload(self) -> dict[str, object]:
         """Return a JSON-safe view without replacing vendor or decision clocks."""
 
-        return {
+        payload: dict[str, object] = {
             "kind": self.kind,
             "asset_code": self.asset_code,
             "security_id": self.security_id,
@@ -206,6 +291,23 @@ class TransitionPlanSourceBinding:
             "qualified": self.qualified,
             "reason_codes": list(self.reason_codes),
         }
+        if self.coverage_start_on is not None:
+            payload.update(
+                {
+                    "coverage_start_on": _date_text(self.coverage_start_on),
+                    "coverage_end_on": _date_text(self.coverage_end_on),
+                }
+            )
+            if self.coverage_lease_issued_at is not None:
+                payload.update(
+                    {
+                        "coverage_policy_version": self.coverage_policy_version,
+                        "coverage_lease_issued_at": _datetime_text(self.coverage_lease_issued_at),
+                        "coverage_lease_ttl_microseconds": self.coverage_lease_ttl_microseconds,
+                        "source_first_observed_at": _datetime_text(self.source_first_observed_at),
+                    }
+                )
+        return payload
 
 
 @dataclass(frozen=True, slots=True)
@@ -371,7 +473,15 @@ class TransitionPlanBasis:
         if not self.source_bindings:
             raise ValueError("a trusted plan requires explicit source bindings")
         source_keys = tuple(
-            (item.kind, item.asset_code, item.security_id, item.source_record_id)
+            (
+                item.kind,
+                item.asset_code,
+                item.security_id,
+                item.source_id,
+                item.source_record_id,
+                item.coverage_start_on,
+                item.coverage_end_on,
+            )
             for item in self.source_bindings
         )
         if len(source_keys) != len(set(source_keys)):
