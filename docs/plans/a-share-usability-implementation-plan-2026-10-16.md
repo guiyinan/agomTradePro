@@ -3005,3 +3005,11 @@ Data Center 将同一证券及日期窗口的深交所公告全页列表、两�
 同一源码在隔离 SQLite 的公开交易所复核中，002727.SZ 的 2026-09-01 至 09-30 窗口列 11 篇、选入 3 篇，原 v1 manifest 仍为 `d5e9f840e47f836e42a80848d2f65e385f8793e421a50336030118361b88f42b`，新覆盖证明为 `ef3503e40f16d5e73c3009cd1537d1a53770500c1a3653fa6a464b65bfc72b61`；301237.SZ 的 2026-08-01 至 09-15 窗口列 6 篇、选入 1 篇，原 v1 manifest 仍为 `6fcf46ea8347118cecf0c1d1a278925ac419bf77ac98c16627b09e3298aa7226`，新覆盖证明为 `d976483f6757efa85836c83e901281daa0a86214a7f59b7d97efc1f489309d76`。两者均在证明落库时返回 `partial/LISTED_EVENT_NOT_REPRESENTED`。原件为 `artifacts/ash05-coverage-20261110/live-official-verify.log`、脚本及原始响应；此运行未接生产数据库或生产入账。
 
 `a55061f0c` 的 Fast Feedback 在 5,161 项通过后有 1 项历史迁移测试因预设 `ContentType` 行存在而失败；这项测试依赖共享测试顺序，未验证其自身准备。修复为测试内对历史 ContentType `get_or_create`，保留删除/重建权限和迁移正反例；本地完整迁移单项重跑 **1 passed**，日志为 `artifacts/ash05-coverage-20261110/price-limit-migration-repro-fixed.log`。该单项不替代新候选的完整 CI。
+
+### 19.172 ASH-05 后扣税规则与逐笔批次准备（2026-11-10）
+
+税基只读盘点确认：现有 `CorporateActionStageRequest` 的税规则和税基仅为非空 ID/哈希，SZSE 来源限定器把公告事件 ID/PDF 哈希放进税规则字段，尚未引用法定规则；Posting 仓储只有可注入的布尔税校验器，现有组件用测试假件，正式生产无 Posting 组合入口。固定的 `entry_kind:stage` 唯一键亦不能承载同一股息对应多次部分卖出扣税。上述代码不能作为后扣税金样本通过。
+
+[财税〔2012〕85 号](https://fgk.chinatax.gov.cn/zcfgk/c102416/c5204415/content.html)要求按证券账户、取得先后与自然月/年持股期限处理；[财税〔2015〕101 号](https://fgk.chinatax.gov.cn/zcfgk/c102416/c5203902/content.html)对适用登记日规定一年以上暂免，短期持股先派后于转让时按期限扣收。规则版本、适用登记日、比例和法定来源必须独立于公司公告配置并留存；2015 年政策前日期如未实现对应历史版本则阻断。真实税基需保存 V4 卖出/交割时点、每个取得批次、登记日应享股息、FIFO 分配、期限档位、已扣与本次应扣；多次部分卖出必须各有独立、幂等的税评估与账本身份。
+
+registry v350 在同一 ASH-05 `parallel_preparation` 条目中登记第二个隔离副本 `.tmp/ash05-tax-20261110`，由 Luna max 对注入的版本化规则和可信批次输入实现自然日历、FIFO、部分卖出及未知起点阻断的纯 Domain 计算与单元测试；不得在此准备中修改数据库、Posting、配置或对外入口。Root 负责后续法定规则持久化、来源限定器拆分、税评估账本、Audit/Outbox、原生 PostgreSQL 和真实金样本整合；ASH-05 仍 active，不开放后继单元。
