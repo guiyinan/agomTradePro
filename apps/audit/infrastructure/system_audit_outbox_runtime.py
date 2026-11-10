@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from contextlib import AbstractContextManager
 from dataclasses import dataclass
 from datetime import datetime
 from typing import TYPE_CHECKING, cast
@@ -52,6 +53,10 @@ from apps.audit.application.data_validation_audit import (
     AppendDataValidationRejectedObservationUseCase,
     DataValidationAuditEventOutboxWriter,
 )
+from apps.audit.application.security_disclosure_audit import (
+    AppendSecurityDisclosureAuditObservationUseCase,
+    SecurityDisclosureAuditEventOutboxWriter,
+)
 from apps.audit.application.system_audit_authority_provider import (
     ExactScopedSystemAuditAuthorityProvider,
     SystemAuditAuthorityBundleSelector,
@@ -60,6 +65,7 @@ from apps.audit.application.system_audit_authority_renewal_guard import (
     SystemAuditAuthorityLease,
 )
 from apps.audit.application.system_audit_composition import SystemAuditCompositionUnavailable
+from apps.audit.application.system_audit_event_outbox import SystemAuditEventOutboxCommit
 from apps.audit.application.system_audit_outbox_dispatcher import DispatchSystemAuditOutboxUseCase
 from apps.audit.application.system_audit_query import SystemAuditReaderContext
 from apps.audit.application.system_audit_runtime_composition import (
@@ -68,7 +74,7 @@ from apps.audit.application.system_audit_runtime_composition import (
     inspect_system_audit_runtime_composition,
     preflight_system_audit_runtime_authority,
 )
-from apps.audit.domain.system_audit_event import AuditScopeRef
+from apps.audit.domain.system_audit_event import AuditScopeRef, SystemAuditEvent
 from core.integration.system_audit_authority import (
     SystemAuditAuthorityReaders,
     build_system_audit_authority_readers,
@@ -83,6 +89,7 @@ from .system_audit_delivery_receipt import DjangoSystemAuditDeliveryReceiptPubli
 from .system_audit_event_outbox_coordinator import DjangoSystemAuditEventOutboxCoordinator
 from .system_audit_outbox_repository import DjangoSystemAuditOutboxRepository
 from .system_audit_outbox_unit_of_work import DjangoSystemAuditOutboxUnitOfWork
+from .system_audit_repository import DjangoSystemAuditEventRepository
 
 if TYPE_CHECKING:
     from .publication_activation_audit_writer import (
@@ -113,6 +120,92 @@ class _RuntimeAuthorityScopeProvider:
         """Return the exact current scope at the event persistence cutoff."""
 
         return preflight_system_audit_runtime_authority(self.bundle, as_of=as_of).scope
+
+
+class _SecurityDisclosureAuditRuntimeWriter:
+    """Expose bounded Audit history reads beside the canonical event/outbox writer."""
+
+    __slots__ = ("_coordinator", "_event_repository")
+
+    def __init__(
+        self,
+        *,
+        coordinator: DjangoSystemAuditEventOutboxCoordinator,
+        event_repository: DjangoSystemAuditEventRepository,
+    ) -> None:
+        self._coordinator = coordinator
+        self._event_repository = event_repository
+
+    @property
+    def database_alias(self) -> str:
+        """Return the alias shared by all disclosure/Audit transaction participants."""
+
+        return self._coordinator.database_alias
+
+    def atomic(self) -> AbstractContextManager[None]:
+        """Open the canonical transaction and bind Audit/outbox insert claims."""
+
+        return self._coordinator.atomic()
+
+    def append_and_enqueue(
+        self,
+        event: SystemAuditEvent,
+        *,
+        expected_predecessor_hash: str | None,
+        recorded_at: datetime,
+    ) -> SystemAuditEventOutboxCommit:
+        """Append the exact canonical event/outbox pair."""
+
+        return self._coordinator.append_and_enqueue(
+            event,
+            expected_predecessor_hash=expected_predecessor_hash,
+            recorded_at=recorded_at,
+        )
+
+    def get_winner(
+        self,
+        *,
+        event_id: str,
+        event_version: str,
+        as_of: datetime,
+    ) -> SystemAuditEvent | None:
+        """Read one exact event identity through the canonical alias."""
+
+        return self._coordinator.get_winner(
+            event_id=event_id,
+            event_version=event_version,
+            as_of=as_of,
+        )
+
+    def get_current_head(
+        self,
+        *,
+        stream_id: str,
+        as_of: datetime,
+        scope: AuditScopeRef,
+    ) -> SystemAuditEvent | None:
+        """Read the exact scoped stream head through the canonical alias."""
+
+        return self._coordinator.get_current_head(
+            stream_id=stream_id,
+            as_of=as_of,
+            scope=scope,
+        )
+
+    def list_events(
+        self,
+        *,
+        stream_id: str,
+        as_of: datetime,
+        scope: AuditScopeRef,
+    ) -> tuple[SystemAuditEvent, ...]:
+        """Read the scoped event prefix used to prove previously audited facts."""
+
+        return self._event_repository.list_events(
+            stream_id=stream_id,
+            as_of=as_of,
+            scope=scope,
+        )
 
 
 def _validated_alias(value: object) -> str:
@@ -421,6 +514,62 @@ def build_data_publication_audit_writer(
         environment=environment,
         using=using,
     )[1]
+
+
+def build_security_disclosure_audit_writer(
+    *, environment: str = "production", using: str = "default"
+) -> AppendSecurityDisclosureAuditObservationUseCase:
+    """Build the scoped caller-owned writer for source disclosure batches."""
+
+    alias = _validated_alias(using)
+    composition = _build_system_audit_runtime_composition(
+        environment=environment,
+        using=alias,
+    )
+    try:
+        composition_alias = composition.database_alias
+        coordinator = composition.event_outbox_coordinator
+    except (AttributeError, TypeError):
+        raise SystemAuditCompositionUnavailable(
+            "disclosure Audit composition is unavailable",
+            reason_code="composition_not_wired",
+        ) from None
+    if composition_alias != alias:
+        raise SystemAuditCompositionUnavailable(
+            "disclosure Audit composition uses a different database alias",
+            reason_code="composition_alias_mismatch",
+        )
+    if not isinstance(coordinator, DjangoSystemAuditEventOutboxCoordinator):
+        raise SystemAuditCompositionUnavailable(
+            "disclosure Audit coordinator is unavailable",
+            reason_code="composition_not_wired",
+        )
+    if coordinator.database_alias != alias:
+        raise SystemAuditCompositionUnavailable(
+            "disclosure Audit coordinator uses a different database alias",
+            reason_code="composition_alias_mismatch",
+        )
+    if not all(
+        callable(getattr(coordinator, method_name, None))
+        for method_name in (
+            "atomic",
+            "get_winner",
+            "get_current_head",
+            "append_and_enqueue",
+        )
+    ):
+        raise SystemAuditCompositionUnavailable(
+            "disclosure Audit history or atomic writes are unavailable",
+            reason_code="composition_not_wired",
+        )
+    writer = _SecurityDisclosureAuditRuntimeWriter(
+        coordinator=coordinator,
+        event_repository=DjangoSystemAuditEventRepository(using=alias),
+    )
+    return AppendSecurityDisclosureAuditObservationUseCase(
+        cast(SecurityDisclosureAuditEventOutboxWriter, writer),
+        _RuntimeAuthorityScopeProvider(composition.authority_bundle),
+    )
 
 
 def build_publication_activation_audit_writer(

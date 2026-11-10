@@ -1,10 +1,10 @@
-"""Compose official PDF capture with Data Center disclosure fact persistence."""
+"""Capture and normalize official SZSE disclosure source evidence."""
 
 from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 
 from apps.data_center.application.security_disclosure_event import (
@@ -18,7 +18,6 @@ from apps.data_center.domain.security_disclosure_event import (
     SecurityDisclosureEventAppendResult,
     SecurityDisclosureEventType,
     SecurityDisclosureExchange,
-    SecurityDisclosureListingCoverageAppendResult,
     SecurityDisclosureListingCoverageProof,
     SecurityDisclosureSource,
     SzseDistributionTerms,
@@ -116,12 +115,58 @@ def read_verified_szse_distribution(
 
 
 @dataclass(frozen=True, slots=True)
-class SzseDistributionWindowIngestion:
-    """Retained listing, selected distribution notices, and persisted exact coverage proof."""
+class SecurityDisclosureEventAppendUseCases:
+    """Data Center-owned append use cases bound to one database alias."""
+
+    database_alias: str
+    events: AppendSecurityDisclosureEventUseCase
+    coverage: AppendSecurityDisclosureListingCoverageUseCase
+
+
+def make_security_disclosure_event_append_use_cases(
+    *, using: str, recorded_at: datetime
+) -> SecurityDisclosureEventAppendUseCases:
+    """Bind both append repositories to the caller's exact batch persistence instant."""
+
+    if type(using) is not str or not using:
+        raise ValueError("using must be a non-empty database alias")
+    if (
+        type(recorded_at) is not datetime
+        or recorded_at.tzinfo is None
+        or recorded_at.utcoffset() is None
+    ):
+        raise ValueError("recorded_at must be an aware batch timestamp")
+    clock = _FixedSecurityDisclosureEventClock(recorded_at)
+    return SecurityDisclosureEventAppendUseCases(
+        database_alias=using,
+        events=AppendSecurityDisclosureEventUseCase(
+            DjangoSecurityDisclosureEventRepository(using=using, clock=clock)
+        ),
+        coverage=AppendSecurityDisclosureListingCoverageUseCase(
+            DjangoSecurityDisclosureListingCoverageRepository(using=using, clock=clock)
+        ),
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class _FixedSecurityDisclosureEventClock:
+    """Return one trusted server timestamp for both batch append repositories."""
+
+    instant: datetime
+
+    def now(self) -> datetime:
+        """Return the caller-supplied, timezone-aware batch instant."""
+
+        return self.instant
+
+
+@dataclass(frozen=True, slots=True)
+class CapturedSzseDistributionCandidate:
+    """Fully captured source documents and exact listing proof, not yet persisted."""
 
     listing: CapturedOfficialSzseListingWindow
-    events: tuple[SecurityDisclosureEventAppendResult, ...]
-    coverage: SecurityDisclosureListingCoverageAppendResult
+    events: tuple[tuple[SecurityDisclosureEvent, bytes], ...]
+    proof: SecurityDisclosureListingCoverageProof
 
 
 def _distribution_title_key(title: str) -> str:
@@ -131,27 +176,26 @@ def _distribution_title_key(title: str) -> str:
     return re.sub(r"\s+", "", body).removesuffix("（更正后）")
 
 
-def capture_and_append_szse_distribution_window(
+def capture_szse_distribution_window(
     *,
     asset_code: str,
     start_on: date,
     end_on: date,
     body_store_root: Path,
-    using: str = "default",
-) -> SzseDistributionWindowIngestion:
-    """Append distribution PDFs from a twice-stable official list with correction links."""
+) -> CapturedSzseDistributionCandidate:
+    """Capture all selected official PDFs, recheck both lists, and return typed evidence."""
 
+    if type(asset_code) is not str or re.fullmatch(r"[0-9]{6}\.SZ", asset_code) is None:
+        raise ValueError("asset_code must be a canonical SZSE security code")
     listing = capture_official_szse_announcement_window(
         asset_code=asset_code,
         start_on=start_on,
         end_on=end_on,
         body_store_root=body_store_root / "listing",
     )
-    repository = DjangoSecurityDisclosureEventRepository(using=using)
-    use_case = AppendSecurityDisclosureEventUseCase(repository)
     body_store = OfficialSzsePdfBodyStore(body_store_root / "pdf")
     latest_by_title: dict[str, SecurityDisclosureEvent] = {}
-    results: list[SecurityDisclosureEventAppendResult] = []
+    captured_events: list[tuple[SecurityDisclosureEvent, bytes]] = []
     selected = sorted(
         (item for item in listing.entries if "权益分派" in item.title),
         key=lambda item: (item.published_on, item.announcement_id),
@@ -212,7 +256,7 @@ def capture_and_append_szse_distribution_window(
                 prior.source_revision_id if corrected and prior else None
             ),
         )
-        results.append(use_case.execute(event, captured.body))
+        captured_events.append((event, captured.body))
         if event_type in (
             SecurityDisclosureEventType.CASH_DIVIDEND,
             SecurityDisclosureEventType.STOCK_DIVIDEND,
@@ -229,7 +273,7 @@ def capture_and_append_szse_distribution_window(
         or final_listing.coverage_manifest_sha256 != listing.coverage_manifest_sha256
     ):
         raise OfficialSzseListingError("SZSE listing changed during PDF capture")
-    if any(item.record.event.first_seen_at > final_listing.observed_at for item in results):
+    if any(event.first_seen_at > final_listing.observed_at for event, _ in captured_events):
         raise OfficialSzseListingError("SZSE PDF knowledge follows final listing verification")
     proof = SecurityDisclosureListingCoverageProof(
         source=SecurityDisclosureSource.SZSE_OFFICIAL,
@@ -244,11 +288,8 @@ def capture_and_append_szse_distribution_window(
         first_pass_page_body_sha256=final_listing.first_pass_page_body_sha256,
         second_pass_page_body_sha256=final_listing.page_body_sha256,
     )
-    coverage = AppendSecurityDisclosureListingCoverageUseCase(
-        DjangoSecurityDisclosureListingCoverageRepository(using=using)
-    ).execute(proof)
-    return SzseDistributionWindowIngestion(
+    return CapturedSzseDistributionCandidate(
         listing=final_listing,
-        events=tuple(results),
-        coverage=coverage,
+        events=tuple(captured_events),
+        proof=proof,
     )

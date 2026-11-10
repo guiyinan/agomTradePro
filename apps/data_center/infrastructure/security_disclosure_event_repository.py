@@ -471,7 +471,8 @@ class DjangoSecurityDisclosureEventRepository(SecurityDisclosureEventRepositoryP
                 code="SECURITY_DISCLOSURE_EVENT_CUTOFF_INVALID",
             )
         queryset = SecurityDisclosureEventModel._default_manager.using(self._using).filter(
-            available_at__lte=as_of
+            available_at__lte=as_of,
+            recorded_at__lte=as_of,
         )
         if scope.exchange is not None:
             queryset = queryset.filter(exchange=scope.exchange.value)
@@ -612,6 +613,49 @@ class DjangoSecurityDisclosureListingCoverageRepository(
         if model is None:
             return None
         return _to_persisted_listing_coverage(model)
+
+    def get_by_episode(
+        self,
+        proof: SecurityDisclosureListingCoverageProof,
+    ) -> PersistedSecurityDisclosureListingCoverage | None:
+        """Return the exact retained proof with matching verification episode clocks."""
+
+        if type(proof) is not SecurityDisclosureListingCoverageProof:
+            raise DataValidationError(
+                "Security disclosure listing proof is invalid.",
+                code="SECURITY_DISCLOSURE_LISTING_PROOF_INVALID",
+            )
+        model = (
+            SecurityDisclosureListingCoverageModel._default_manager.using(self._using)
+            .filter(
+                source=proof.source.value,
+                exchange=proof.exchange.value,
+                asset_code=proof.asset_code,
+                start_on=proof.start_on,
+                end_on=proof.end_on,
+                coverage_manifest_sha256=proof.coverage_manifest_sha256,
+                first_observed_at=_aware_utc(
+                    proof.first_observed_at,
+                    field_name="first_observed_at",
+                ),
+                verified_at=_aware_utc(proof.verified_at, field_name="verified_at"),
+            )
+            .order_by("recorded_at", "pk")
+            .first()
+        )
+        if model is None:
+            return None
+        persisted = _to_persisted_listing_coverage(model)
+        if (
+            persisted.proof.coverage_manifest_sha256 != proof.coverage_manifest_sha256
+            or persisted.proof.first_observed_at != proof.first_observed_at
+            or persisted.proof.verified_at != proof.verified_at
+        ):
+            raise DataValidationError(
+                "Stored listing proof does not match its exact source manifest.",
+                code="SECURITY_DISCLOSURE_LISTING_STORAGE_INVALID",
+            )
+        return persisted
 
     @staticmethod
     def _identity_filter(

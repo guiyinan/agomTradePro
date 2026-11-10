@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 6686,
+    "current_surface_references": 6693,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -6289,6 +6289,34 @@
     {
       "path": "apps/audit/application/repository_provider.py",
       "text": "\"\"\"Validate the canonical runtime and exact current authority without writes.\"\"\""
+    },
+    {
+      "path": "apps/audit/application/security_disclosure_audit.py",
+      "text": "\"\"\"Immutable, source-bound summary of one fully captured SZSE window.\"\"\""
+    },
+    {
+      "path": "apps/audit/application/security_disclosure_audit.py",
+      "text": "\"\"\"Resolve current server-issued scope before external source capture.\"\"\""
+    },
+    {
+      "path": "apps/audit/application/security_disclosure_audit.py",
+      "text": "\"\"\"Resolve the current server-issued owner/tenant scope for a source event.\"\"\""
+    },
+    {
+      "path": "apps/audit/application/security_disclosure_audit.py",
+      "text": "raise SecurityDisclosureAuditUnavailable(\"A current Audit scope is required.\")"
+    },
+    {
+      "path": "apps/audit/application/security_disclosure_audit.py",
+      "text": "raise SecurityDisclosureAuditUnavailable(\"A current Audit scope is required.\")"
+    },
+    {
+      "path": "apps/audit/application/security_disclosure_audit.py",
+      "text": "raise SecurityDisclosureAuditUnavailable(\"A current Audit scope is required.\")"
+    },
+    {
+      "path": "apps/audit/application/security_disclosure_audit.py",
+      "text": "raise SecurityDisclosureAuditUnavailable(\"A current Audit scope is required.\")"
     },
     {
       "path": "apps/audit/application/system_audit_archive.py",

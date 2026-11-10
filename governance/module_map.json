@@ -2393,10 +2393,11 @@
           ]
         },
         "data_center": {
-          "imports": 6,
+          "imports": 8,
           "target_layers": [
             "application",
-            "domain"
+            "domain",
+            "security_disclosure_capture_composition"
           ]
         },
         "regime": {
@@ -2674,6 +2675,18 @@
           "record_audit_write_failure",
           "record_audit_write_success"
         ],
+        "application/security_disclosure_audit.py": [
+          "AppendSecurityDisclosureAuditObservationUseCase",
+          "SecurityDisclosureAuditAppendResult",
+          "SecurityDisclosureAuditConflict",
+          "SecurityDisclosureAuditDisposition",
+          "SecurityDisclosureAuditEventOutboxWriter",
+          "SecurityDisclosureAuditObservation",
+          "SecurityDisclosureAuditScopeProvider",
+          "SecurityDisclosureAuditUnavailable",
+          "SecurityDisclosureFactEvidence",
+          "build_security_disclosure_fact_audit_event"
+        ],
         "application/system_audit_archive.py": [
           "BuildSystemAuditArchiveCommand",
           "BuildSystemAuditArchiveUseCase",
@@ -2838,12 +2851,12 @@
         ]
       },
       "layers": {
-        "application": 40,
+        "application": 41,
         "domain": 12,
         "infrastructure": 28,
         "interface": 14,
         "management": 8,
-        "root": 6,
+        "root": 7,
         "templatetags": 2
       },
       "orm_models": {
@@ -4054,7 +4067,7 @@
           "imports": 1
         },
         "audit": {
-          "imports": 6
+          "imports": 8
         },
         "backtest": {
           "imports": 5

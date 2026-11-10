@@ -1,4 +1,4 @@
-"""Coverage proof publication follows stable listing and downstream ingestion."""
+"""Capture-only SZSE distribution candidates retain final listing provenance."""
 
 from __future__ import annotations
 
@@ -9,10 +9,7 @@ import pytest
 
 import apps.data_center.security_disclosure_capture_composition as composition
 from apps.data_center.domain.security_disclosure_event import (
-    PersistedSecurityDisclosureListingCoverage,
-    SecurityDisclosureEventAppendDisposition,
     SecurityDisclosureExchange,
-    SecurityDisclosureListingCoverageAppendResult,
     SecurityDisclosureListingCoverageProof,
     SecurityDisclosureSource,
 )
@@ -23,7 +20,6 @@ from apps.data_center.infrastructure.official_szse_announcement_listing import (
 
 _FIRST_OBSERVED_AT = datetime(2026, 10, 1, 2, 0, tzinfo=UTC)
 _VERIFIED_AT = datetime(2026, 10, 1, 2, 5, tzinfo=UTC)
-_RECORDED_AT = datetime(2026, 10, 1, 2, 5, 1, tzinfo=UTC)
 
 
 def _captured_window(
@@ -65,30 +61,19 @@ def test_distribution_window_persists_proof_only_after_final_recheck(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    """A persisted proof retains first observation and final verification clocks."""
+    """The capture-only candidate retains both observation clocks without writing."""
 
     first = _captured_window(_FIRST_OBSERVED_AT)
     final = _captured_window(_VERIFIED_AT)
     captures = iter((first, final))
-    persisted_proofs: list[SecurityDisclosureListingCoverageProof] = []
+    append_factory_called = False
 
-    class _CoverageUseCase:
-        """Capture the proof submitted by the composition after final recheck."""
-
-        def __init__(self, repository: object) -> None:
-            del repository
-
-        def execute(
-            self, proof: SecurityDisclosureListingCoverageProof
-        ) -> SecurityDisclosureListingCoverageAppendResult:
-            persisted_proofs.append(proof)
-            return SecurityDisclosureListingCoverageAppendResult(
-                disposition=SecurityDisclosureEventAppendDisposition.STORED,
-                record=PersistedSecurityDisclosureListingCoverage(
-                    proof=proof,
-                    recorded_at=_RECORDED_AT,
-                ),
-            )
+    def forbidden_append_factory(
+        *, using: str
+    ) -> composition.SecurityDisclosureEventAppendUseCases:
+        nonlocal append_factory_called
+        append_factory_called = True
+        pytest.fail(f"capture-only composition must not create appenders for {using}")
 
     monkeypatch.setattr(
         composition,
@@ -96,10 +81,12 @@ def test_distribution_window_persists_proof_only_after_final_recheck(
         lambda **kwargs: next(captures),
     )
     monkeypatch.setattr(
-        composition, "AppendSecurityDisclosureListingCoverageUseCase", _CoverageUseCase
+        composition,
+        "make_security_disclosure_event_append_use_cases",
+        forbidden_append_factory,
     )
 
-    result = composition.capture_and_append_szse_distribution_window(
+    result = composition.capture_szse_distribution_window(
         asset_code="002727.SZ",
         start_on=date(2026, 9, 1),
         end_on=date(2026, 9, 30),
@@ -107,17 +94,17 @@ def test_distribution_window_persists_proof_only_after_final_recheck(
     )
 
     assert result.listing is final
-    assert len(persisted_proofs) == 1
-    assert persisted_proofs[0].first_observed_at == _FIRST_OBSERVED_AT
-    assert persisted_proofs[0].verified_at == _VERIFIED_AT
-    assert result.coverage.record.proof == persisted_proofs[0]
+    assert result.proof.first_observed_at == _FIRST_OBSERVED_AT
+    assert result.proof.verified_at == _VERIFIED_AT
+    assert result.events == ()
+    assert append_factory_called is False
 
 
-def test_distribution_window_does_not_persist_proof_after_changed_final_listing(
+def test_distribution_window_returns_no_candidate_after_changed_final_listing(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    """Changed exact window content leaves appended event facts without coverage proof."""
+    """Changed exact window content yields no typed candidate or appender access."""
 
     first = _captured_window(_FIRST_OBSERVED_AT)
     changed_final = _captured_window(
@@ -126,21 +113,14 @@ def test_distribution_window_does_not_persist_proof_after_changed_final_listing(
         second_page_hash="d" * 64,
     )
     captures = iter((first, changed_final))
-    append_called = False
+    append_factory_called = False
 
-    class _CoverageUseCase:
-        """Fail if a changed list reaches the proof repository boundary."""
-
-        def __init__(self, repository: object) -> None:
-            del repository
-
-        def execute(
-            self, proof: SecurityDisclosureListingCoverageProof
-        ) -> SecurityDisclosureListingCoverageAppendResult:
-            del proof
-            nonlocal append_called
-            append_called = True
-            raise AssertionError("changed listing cannot persist coverage")
+    def forbidden_append_factory(
+        *, using: str
+    ) -> composition.SecurityDisclosureEventAppendUseCases:
+        nonlocal append_factory_called
+        append_factory_called = True
+        pytest.fail(f"changed listing must not create appenders for {using}")
 
     monkeypatch.setattr(
         composition,
@@ -148,15 +128,17 @@ def test_distribution_window_does_not_persist_proof_after_changed_final_listing(
         lambda **kwargs: next(captures),
     )
     monkeypatch.setattr(
-        composition, "AppendSecurityDisclosureListingCoverageUseCase", _CoverageUseCase
+        composition,
+        "make_security_disclosure_event_append_use_cases",
+        forbidden_append_factory,
     )
 
     with pytest.raises(OfficialSzseListingError, match="listing changed"):
-        composition.capture_and_append_szse_distribution_window(
+        composition.capture_szse_distribution_window(
             asset_code="002727.SZ",
             start_on=date(2026, 9, 1),
             end_on=date(2026, 9, 30),
             body_store_root=tmp_path,
         )
 
-    assert append_called is False
+    assert append_factory_called is False

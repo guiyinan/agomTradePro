@@ -523,6 +523,29 @@
       "test_contract": "tests/component/data_center/test_execution_quote_pointer_rollback.py::test_execution_pointer_rollback_restores_exact_snapshot_and_audit"
     },
     {
+      "event_type": "data.disclosure_fact.appended",
+      "category": "data.reliability",
+      "owner": "data_center",
+      "status": "active",
+      "implementation_status": "wired",
+      "write_policy": "transactional_outbox",
+      "severity": "info",
+      "outcomes": [
+        "success"
+      ],
+      "required_correlations": [
+        "dataset_key",
+        "provider_key",
+        "capability",
+        "evidence_ref"
+      ],
+      "detail_schema": "data.disclosure_fact.appended.v1",
+      "reason_codes": [
+        "disclosure_fact_batch_appended"
+      ],
+      "test_contract": "tests/unit/audit/test_security_disclosure_audit.py::test_observation_identity_and_event_bind_complete_source_hashes"
+    },
+    {
       "event_type": "data.decision_read.blocked",
       "category": "data.reliability",
       "owner": "data_center",

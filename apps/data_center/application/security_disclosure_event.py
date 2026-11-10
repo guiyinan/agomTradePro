@@ -59,6 +59,12 @@ class SecurityDisclosureListingCoverageRepositoryPort(Protocol):
     ) -> PersistedSecurityDisclosureListingCoverage | None:
         """Return the newest exact-window proof durably recorded by the cutoff."""
 
+    def get_by_episode(
+        self,
+        proof: SecurityDisclosureListingCoverageProof,
+    ) -> PersistedSecurityDisclosureListingCoverage | None:
+        """Return the exact already-retained proof episode and observation clocks."""
+
 
 class AppendSecurityDisclosureEventUseCase:
     """Validate a typed source document and append its exact event revision."""
@@ -139,6 +145,19 @@ class AppendSecurityDisclosureListingCoverageUseCase:
                 code="SECURITY_DISCLOSURE_LISTING_PROOF_INVALID",
             )
         return self._repository.append(proof)
+
+    def get_by_episode(
+        self,
+        proof: SecurityDisclosureListingCoverageProof,
+    ) -> PersistedSecurityDisclosureListingCoverage | None:
+        """Return the exact previously retained proof episode, if present."""
+
+        if type(proof) is not SecurityDisclosureListingCoverageProof:
+            raise DataValidationError(
+                "Security disclosure listing proof is invalid.",
+                code="SECURITY_DISCLOSURE_LISTING_PROOF_INVALID",
+            )
+        return self._repository.get_by_episode(proof)
 
 
 class QuerySecurityDisclosureListingCoverageUseCase:
