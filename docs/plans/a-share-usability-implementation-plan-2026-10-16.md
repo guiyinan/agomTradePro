@@ -2977,3 +2977,11 @@ ASH-05 仍为 active，不将这些基础契约写成整单元关闭。下一个
 `0109_security_disclosure_correction_notice` 只扩充 ORM `event_type` choices，既有 Data Center 事件读写口和模拟账户来源资格校验共用该枚举；存量值不改。回滚前先停写 `correction_notice`，保留原件与已写事实，再逆向 choices 迁移。数据字典 AST 投影中的字段声明仍引用同一 `EVENT_TYPE_CHOICES` 符号，因此本次无 REF-01 可登记的模型语义差值；迁移与运行时 choices 另行核验。
 
 本工作块验收索引：候选 `869040ed00982c077ff2c65f034ea45e52a126f2` 的 7 项适用 CI（Architecture、Consistency、Fast Feedback、Security、Engineering dashboard、Publication PostgreSQL、Quote Metric PostgreSQL）均为 success；本地 Black、isort、Ruff、增量 mypy、债务上限、数据字典、模块图、Data Center 投影、迁移漂移和 20 项定向测试均通过。`0109` 在隔离 SQLite 实际应用；官网实时复验两窗口 manifest 不变，隔离库实际保留 4 条公告事实，002727 三条重复重抓均返回 duplicate、总行数仍为 4。原件集中在 Git 忽略的 `artifacts/ash05-completion-20261110/`；`final-tests.log`、`correction-isolated-migrate-final.log`、`official-listing-live-recheck.log`、`live-ingestion.log`、`live-ingestion-replay-final.log` 的 SHA-256 依次为 `9d8bb2f293f2b95434d216616ea69289166d89304a867329c7f2a9496916ed69`、`d99632c54cc6ac155c403dc2ff49ca1afb9a48570fd38f3263f621b5c07d42e6`、`9e275a996c31dfc4174f1e77431aeb069a4b675b28bd0dc3195a62de35940097`、`74e7d684884793615b5fd2f905f8397b75169b801c69c0d6fc0ec2280131a9b7`、`af3c8b24980b210fb69c2db446aa57e8bc00ef7ed6ec377d477077da62737376`。上述通过只关闭官方有界列表和修订来源链的这一批开发门禁；§9 账户、计划、Audit/Outbox、收益和其余金样本未完成，ASH-05 与 registry v345 保持 active。
+
+### 19.170 ASH-05 下一闭环工作块与隔离准备（2026-11-10）
+
+Owner 要求 Root 带 Luna max 继续完成 ASH-05。三个只读盘点明确：现有深交所列表仅在内存中证明有界分页并只落「权益分派」PDF，尚无持久覆盖证明；计划事件复核有纯契约和伪读者，但正式生成/复核/预留缺完整来源接线；账户阶段账本的登记日权属及后扣税只有注入协议和测试假件，现有持仓快照可变，初始估值凭证不含开仓数量；两个新写入点尚未接统一 Audit/Outbox。不得把历史公告日期代替实际 first_seen，不得把可变估值、测试假件或平均成本代替权属/逐笔税基。
+
+当前共享正式树只由 Root 串行整合。Data Center 第一小事项为持久化精确证券、日期范围、全页身份及原始哈希、观察时间的只增公告列表证明；读取覆盖时，未落库或未分类的列表行、范围以外日期/证券、晚于 cutoff 才观察到的证明都返回不完整。Portfolio 后续只在每个计划证券的 coverage 与事件事实均完整时于生成时 pin，并在复核及账户锁内预留重验；旧 BuildTransitionPlan 路径不得冒充已绑定计划。Audit 后续按真实 actor/owner/tenant 权威和同 DB alias 的事务 outbox，先接 Data Center 事实，再接模拟账本；失败回滚事实/账户变化，派发在提交后重试，不重入账。
+
+registry v346 登记唯一隔离准备 `.tmp/ash05-ownership-20261110`：Luna max 仅在 simulated_trading 的登记日权属纯回放、具体只读校验器和对应测试内开发；需先定义交易日截止点与可信开仓锚，只接受完整保留的 V4 成交与公司行为历史，缺锚、旧交易、身份冲突或同日歧义均阻断。Root 在该副本外继续 Data Center 覆盖小事项；共享 Source/index/Git、投影与重 QA 由 Root 串行执行。该隔离准备不包含税基推断、写账、自动交易或生产激活。后扣税必须等待版本化税规则、逐笔持有期和卖出批次分配证据，§9 整单元及后继单元状态不变。

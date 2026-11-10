@@ -1,5 +1,5 @@
 {
-  "version": "2026-11-10.v345",
+  "version": "2026-11-10.v346",
   "updated_at": "2026-11-10",
   "execution_focus": {
     "unit_id": "ASH-05",
@@ -8,8 +8,17 @@
       "external",
       "governance"
     ],
-    "policy": "ASH-05 remains the sole active repository focus. Exact retained SZSE cash/share terms and bounded two-pass official listing windows now identify a 002727 correction with an explicit successor; observed source knowledge begins at actual capture time. These windows do not certify other dates, exchanges or event categories. Historical account ownership and tax-basis verification, generation-time pins, Audit/Outbox recovery, account/UI gold journeys and native PostgreSQL remain required before section 9 closure. Continue this ASH-05 work block; do not open a successor unit or production execution. See A-share plan section 19.169.",
-    "parallel_preparation": []
+    "policy": "ASH-05 remains the sole active repository focus. Exact retained SZSE cash/share terms and bounded two-pass official listing windows now identify a 002727 correction with an explicit successor; observed source knowledge begins at actual capture time. These windows do not certify other dates, exchanges or event categories. Historical account ownership and tax-basis verification, generation-time pins, Audit/Outbox recovery, account/UI gold journeys and native PostgreSQL remain required before section 9 closure. One isolated ASH-05 ownership-history preparation is registered; shared integration, projections and Git remain with Root. No successor unit or production execution. See A-share plan sections 19.169-19.170.",
+    "parallel_preparation": [
+      {
+        "unit_id": "ASH-05",
+        "scope": "Bounded historical simulated-account ownership replay only: apps/simulated_trading/domain/corporate_action_ownership_history.py, infrastructure/corporate_action_ownership_history_repository.py, focused ownership composition and directly corresponding tests. Explicit trusted opening anchor and record-date cutoff required; legacy or incomplete history blocks. No tax-basis qualification, posting write, Data Center, Portfolio, TUI, Audit, shared projections or Git integration.",
+        "owner": "Luna max ownership_tax under Root integration",
+        "isolated_workspace": true,
+        "shared_git_serialized": true,
+        "isolated_test_resources": true
+      }
+    ]
   },
   "workstreams": [
     {
