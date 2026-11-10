@@ -3073,3 +3073,11 @@ Luna max 的隔离候选已按登记的 9 个源码/测试路径整合为正式�
 候选 `3a512d28b` 的 Consistency Check 因新增模块对应的生成式 Data Center 架构清单未更新而失败；失败回执保留在忽略目录 `artifacts/ash05-event-pins-20261110/consistency-ci-failed.log`。Root 用 `scripts/data_center_architecture_inventory.py --write` 重建投影，`check_data_center_governance_projections.py` 通过，修复提交为 `8eaa05906cd69c8b17d579ffeeb7f7ced45848bb`；该精确候选的适用远端 CI 与单独触发的 Publication PostgreSQL 仍需核验，不沿用失败候选的结果。两次提交均未动用户的 CAL 计划。
 
 registry v359 登记下一有界隔离准备 `.tmp/ash05-event-adapter-20261111`：Luna max 仅实现 Data Center 精确持久 proof/事件事实到 Portfolio 只读快照的类型适配及聚焦测试；Root 独占配置、官方重抓生产组合、复核与锁内校验、共享投影及 Git。适配器必须使用真实 `(asset_code, security_id)` 配对、`szse_official` 来源、原窗口和 proof `recorded_at`；不得把公告日期、首次观察、末次核对或计划时间相互冒充。此块不激活生产计划；60 秒内部 lease 由获批政策和新持久 proof 推导并随 revision 固化，到期、来源或范围变化即阻断。ASH-05 的账户阶段账本、税后扣、Audit 恢复、复权收益和 §9 金样本仍待完成，单元保持 active。
+
+### 19.179 ASH-05 精确 proof 适配与刷新时序准备（2026-11-11）
+
+事件 pin 批次在生成投影修复后的精确候选 `211e50d04076db92a5bc0dd270d562795f49acdd` 已取得六项适用 CI success：Fast Feedback、Publication PostgreSQL、Architecture、Security、Consistency、Engineering。其 72 项正式树聚焦测试、格式、模块图、增量 mypy 零回归和全库债务上限原件及回执索引位于 Git 忽略目录 `artifacts/ash05-event-pins-20261110/evidence-index.json`，索引 SHA-256 为 `7915d4a1aa42b329d8a4f3f81be0d515322bd647a66058826054730d42b3a3a6`。本地原生 PostgreSQL 的 8 项组件用例因环境条件跳过；远端 Publication PostgreSQL 回执属于上述精确候选，不能把本地跳过计为通过。
+
+Luna max 的只读适配器已在正式分支提交 `0092f588ffae435c5bc170a6bd5669bf4e38a0fd`，并包含先前独立提交的可选、未播种、未激活的 Config Center 定义 `config_center.market.simulated_disclosure_coverage_policy`。适配器只按官方 `szse_official` 来源、证券身份、公告窗口及 proof 精确 `recorded_at` 映射 Data Center COMPLETE；保留事件修订、PDF 正文哈希、来源 `first_seen_at`、末次核对 `verified_at` 和持久化 `recorded_at`。更晚的读取保持 UNKNOWN，不靠 lease 伪造 COMPLETE；lease issue 固定在原 proof 入库时刻。正式树适配器与配置定义合测 32 项通过，Black/isort/Ruff、两文件增量 mypy 零回归、全库债务、运行配置覆盖、模块图、Data Center 架构及入口生成投影、治理一致性均通过；第一次统一投影检查发现入口清单过期，生成后复查通过，原失败日志保留。该精确候选远端 CI 仍待完整结果，生产组合未启用。
+
+registry v360 登记下一单个隔离准备 `.tmp/ash05-event-refresh-20261111`：在计划生成 Application 中，`read_preview`/`read_risk` 后先通过注入协议完成官方列表/PDF 的有界重抓及持久 proof，再取最终 `assembled_at`，最后由现有 pinner 在精确 proof 截止点读取并形成 basis/hash。原因是重抓可能耗时数分钟，若先取计划时钟，proof 的真实 `recorded_at` 会晚于计划时钟。此准备只实现协议、调用顺序和负例；Root 后续接 Audit/Outbox 原子捕获、版本化配置消费、复核和账户锁内数据库只读校验。历史 002727/301237 窗口不能充当当前月份覆盖；实际计划必须有覆盖决策所需期间的精确窗口。未完成 §9 账户、税费、收益及用户金样本前，ASH-05 保持 active。
