@@ -23,8 +23,15 @@ from apps.simulated_trading.application.canonical_account_creation_row import (
 from apps.simulated_trading.application.simulated_account_raw_observation import (
     SimulatedAccountPhysicalRowMutation,
 )
+from apps.simulated_trading.domain.entities import AccountType
 from apps.simulated_trading.infrastructure.account_repository import SimulatedAccountMapper
+from apps.simulated_trading.infrastructure.corporate_action_ownership_history_repository import (
+    _activate_new_account_creation_uow,
+    _claim_new_account_for_anchor,
+    _create_zero_origin_anchor_for_inserted_account,
+)
 from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
+from core.exceptions import BusinessLogicError
 
 
 class DjangoCanonicalAccountCreationRowClock:
@@ -123,7 +130,24 @@ class DjangoCanonicalAccountCreationRowWriter:
         model.pk = None
         model.user_id = command.requester_user_id
         try:
-            model.save(force_insert=True, using=self._using)
+            if command.account.account_type is AccountType.SIMULATED:
+                with _activate_new_account_creation_uow(using=self._using) as token:
+                    model.save(force_insert=True, using=self._using)
+                    with _claim_new_account_for_anchor(
+                        token=token,
+                        account=model,
+                        using=self._using,
+                    ):
+                        _create_zero_origin_anchor_for_inserted_account(
+                            account=model,
+                            using=self._using,
+                        )
+            else:
+                model.save(force_insert=True, using=self._using)
+        except BusinessLogicError as error:
+            raise CanonicalAccountCreationRowCorruption(
+                "new simulated account ownership anchor cannot be established"
+            ) from error
         except IntegrityError as error:
             raise CanonicalAccountCreationRowConflict(
                 "account creation row insert conflicted"

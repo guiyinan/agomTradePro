@@ -1,5 +1,5 @@
 {
-  "version": "2026-11-10.v350",
+  "version": "2026-11-10.v351",
   "updated_at": "2026-11-10",
   "execution_focus": {
     "unit_id": "ASH-05",
@@ -8,12 +8,12 @@
       "external",
       "governance"
     ],
-    "policy": "ASH-05 remains the sole active repository focus. Exact retained SZSE cash/share terms, the 002727 correction successor and append-only bounded two-pass listing proofs are source-bound; observed knowledge begins at actual capture and durable persistence. The isolated public-exchange replay for 002727 and 301237 returns PARTIAL because only selected distribution PDFs are represented; it certifies neither other dates/exchanges/categories nor current completeness. Historical account ownership and tax-basis verification, generation-time pins, Audit/Outbox recovery, account/UI gold journeys and native PostgreSQL remain required before section 9 closure. Two bounded ASH-05 isolated preparations cover prospective ownership and pure deferred-tax allocation; shared integration, projections, heavy QA and Git remain with Root. No successor unit or production execution. See A-share plan sections 19.169-19.172.",
+    "policy": "ASH-05 remains the sole active repository focus. Exact retained SZSE cash/share terms, the 002727 correction successor and append-only bounded two-pass listing proofs are source-bound; observed knowledge begins at actual capture and durable persistence. The isolated public-exchange replay for 002727 and 301237 returns PARTIAL because only selected distribution PDFs are represented; it certifies neither other dates/exchanges/categories nor current completeness. Prospective new-account zero-origin anchors and read-only record-date ownership replay are integrated, but legacy/imported accounts remain unanchored. Tax-basis verification, generation-time pins, Audit/Outbox recovery, account/UI gold journeys and native PostgreSQL remain required before section 9 closure. One bounded ASH-05 isolated preparation covers pure deferred-tax allocation; shared integration, projections, heavy QA and Git remain with Root. No successor unit or production execution. See A-share plan sections 19.169-19.173.",
     "parallel_preparation": [
       {
         "unit_id": "ASH-05",
-        "scope": "Two bounded isolated ASH-05 preparations. Ownership workspace .tmp/ash05-ownership-20261110: apps/simulated_trading/domain/corporate_action_ownership_history.py; infrastructure/corporate_action_ownership_history_repository.py, simulated_account_ownership_anchor_models.py, models.py, account_gateway.py, account_repository.py, canonical_account_creation_row_writer.py, focused ownership/canonical composition, migration 0044 and direct tests. Create immutable zero-origin anchor atomically in every verified active new simulated-account insertion path; legacy/imported accounts and incomplete history block, real accounts get no simulated anchor. Tax workspace .tmp/ash05-tax-20261110: only apps/simulated_trading/domain/corporate_action_deferred_tax.py and tests/unit/simulated_trading/test_corporate_action_deferred_tax.py, using typed injected versioned statutory rule and retained acquisition/record-date dividend/sale-lot evidence for natural-calendar FIFO, partial-sale idempotency and unknown-origin blocking. Rates/effective windows are injected, never hardcoded in production. No tax ORM/migration/config write/posting ledger/source qualifier, Audit, Data Center, Portfolio, TUI, shared projections, heavy QA or Git integration; Root handles all shared integration.",
-        "owner": "Luna max ownership_tax and audit_outbox under Root integration",
+        "scope": "One bounded isolated ASH-05 preparation. Tax workspace .tmp/ash05-tax-20261110: only apps/simulated_trading/domain/corporate_action_deferred_tax.py and tests/unit/simulated_trading/test_corporate_action_deferred_tax.py, using typed injected versioned statutory rule and retained acquisition/record-date dividend/sale-lot evidence for natural-calendar FIFO, partial-sale idempotency and unknown-origin blocking. Rates/effective windows are injected, never hardcoded in production. No tax ORM/migration/config write/posting ledger/source qualifier, Audit, Data Center, Portfolio, TUI, shared projections, heavy QA or Git integration; Root handles all shared integration.",
+        "owner": "Luna max audit_outbox under Root integration",
         "isolated_workspace": true,
         "shared_git_serialized": true,
         "isolated_test_resources": true

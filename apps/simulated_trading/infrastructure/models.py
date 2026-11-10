@@ -25,6 +25,7 @@ from django.db.models.functions import Length
 from django.db.models.lookups import Exact
 from django.utils import timezone
 
+from . import simulated_account_ownership_anchor_models  # noqa: F401
 from .automatic_trading_invocation_models import (  # noqa: F401
     AutomaticTradingInvocationModel as AutomaticTradingInvocationModel,
 )

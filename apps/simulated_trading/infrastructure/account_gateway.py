@@ -5,7 +5,7 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any, cast
 
-from django.db import transaction
+from django.db import DEFAULT_DB_ALIAS, transaction
 
 from apps.account.application.market_price_contracts import MarketPriceProvider
 from apps.account.application.portfolio_api_contracts import (
@@ -61,9 +61,12 @@ def _build_price_provider(cache_ttl_minutes: int) -> MarketPriceProvider:
 
 
 def _provision_default_accounts(user: Any, initial_capital: Decimal) -> None:
+    from apps.simulated_trading.infrastructure.corporate_action_ownership_history_repository import (
+        create_simulated_account_with_zero_origin_anchor,
+    )
     from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
 
-    with transaction.atomic():
+    with transaction.atomic(using=DEFAULT_DB_ALIAS):
         if not SimulatedAccountModel._default_manager.filter(
             user=user, account_type="real"
         ).exists():
@@ -83,17 +86,15 @@ def _provision_default_accounts(user: Any, initial_capital: Decimal) -> None:
         if not SimulatedAccountModel._default_manager.filter(
             user=user, account_type="simulated"
         ).exists():
-            SimulatedAccountModel._default_manager.create(
+            create_simulated_account_with_zero_origin_anchor(
                 user=user,
                 account_name=f"{user.username}_模拟仓",
-                account_type="simulated",
                 initial_capital=initial_capital,
                 current_cash=initial_capital,
-                cash_known=True,
-                cash_reconciliation_status="simulated_ledger",
                 current_market_value=Decimal("0"),
                 total_value=initial_capital,
                 auto_trading_enabled=True,
+                using=DEFAULT_DB_ALIAS,
             )
 
 

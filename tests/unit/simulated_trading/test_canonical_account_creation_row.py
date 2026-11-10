@@ -7,6 +7,7 @@ propagation, transaction ordering, input rejection, and savepoint behavior.
 
 from __future__ import annotations
 
+from contextlib import contextmanager
 from dataclasses import replace
 from datetime import UTC, date, datetime
 from types import TracebackType
@@ -232,6 +233,38 @@ def _install(
     monkeypatch.setattr(writer_module, "get_user_model", lambda: _FakeUserModel(manager))
     _FakeMapper.database = database
     monkeypatch.setattr(writer_module, "SimulatedAccountMapper", _FakeMapper)
+
+    @contextmanager
+    def fake_account_creation_uow(*, using: str):
+        assert using == "owner"
+        yield object()
+
+    @contextmanager
+    def fake_anchor_claim(*, token: object, account: object, using: str):
+        del token
+        assert isinstance(account, _FakeModel)
+        assert using == "owner"
+        yield
+
+    def fake_create_anchor(*, account: object, using: str) -> None:
+        assert isinstance(account, _FakeModel)
+        assert using == "owner"
+
+    monkeypatch.setattr(
+        writer_module,
+        "_activate_new_account_creation_uow",
+        fake_account_creation_uow,
+    )
+    monkeypatch.setattr(
+        writer_module,
+        "_claim_new_account_for_anchor",
+        fake_anchor_claim,
+    )
+    monkeypatch.setattr(
+        writer_module,
+        "_create_zero_origin_anchor_for_inserted_account",
+        fake_create_anchor,
+    )
     selected_clock = clock if clock is not None else _FakeClock(database)
     return (
         writer_module.DjangoCanonicalAccountCreationRowWriter(

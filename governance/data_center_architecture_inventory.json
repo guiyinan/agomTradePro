@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 6685,
+    "current_surface_references": 6686,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -22717,6 +22717,10 @@
     {
       "path": "apps/simulated_trading/domain/close_snapshot_execution_market_audit_validation.py",
       "text": "or latest != quote.last_price"
+    },
+    {
+      "path": "apps/simulated_trading/domain/corporate_action_ownership_history.py",
+      "text": "that boundary. Because the current source contract cannot prove the legal"
     },
     {
       "path": "apps/simulated_trading/domain/corporate_action_posting.py",

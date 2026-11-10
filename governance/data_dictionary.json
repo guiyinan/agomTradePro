@@ -89521,6 +89521,90 @@
           "bases": [
             "models.Model"
           ],
+          "class_name": "SimulatedAccountOwnershipAnchorModel",
+          "docstring": "One account-wide zero-position fact written with a fresh simulated account.",
+          "fields": [
+            {
+              "field_type": "OneToOneField",
+              "kwargs": {
+                "on_delete": "models.PROTECT",
+                "related_name": "ownership_anchor"
+              },
+              "name": "account",
+              "positional_args": [
+                "SimulatedAccountModel"
+              ]
+            },
+            {
+              "field_type": "PositiveBigIntegerField",
+              "name": "owner_user_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 192,
+                "unique": true
+              },
+              "name": "anchor_id",
+              "positional_args": [],
+              "unique": true
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "choices": "((_ZERO_ORIGIN, 'Zero origin'),)",
+                "max_length": 24
+              },
+              "name": "anchor_kind",
+              "positional_args": []
+            },
+            {
+              "field_type": "DecimalField",
+              "kwargs": {
+                "decimal_places": 6,
+                "default": "_ZERO_SHARES",
+                "max_digits": 20
+              },
+              "name": "quantity",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "name": "account_created_at",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "evidence_sha256",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "kwargs": {
+                "default": "timezone.now"
+              },
+              "name": "created_at",
+              "positional_args": []
+            }
+          ],
+          "meta": {
+            "base_manager_name": "objects",
+            "constraints": "[models.CheckConstraint(condition=Q(owner_user_id__gt=0) & Q(anchor_kind=_ZERO_ORIGIN), name='sim_own_anchor_identity_ck'), models.CheckConstraint(condition=Q(quantity=_ZERO_SHARES), name='sim_own_anchor_zero_ck'), models.CheckConstraint(condition=Q(evidence_sha256__regex='^[0-9a-f]{64}$'), name='sim_own_anchor_hash_ck')]",
+            "db_table": "simulated_account_ownership_anchor",
+            "ordering": [
+              "account_id"
+            ]
+          },
+          "source_file": "infrastructure/simulated_account_ownership_anchor_models.py"
+        },
+        {
+          "bases": [
+            "models.Model"
+          ],
           "class_name": "SimulatedAccountRawObservationModel",
           "docstring": "One immutable owner-observed physical SimulatedAccount row record.",
           "fields": [

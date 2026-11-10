@@ -7,8 +7,8 @@
 ## 概览
 
 - App 数：42
-- 模型数：602
-- 字段数：9430
+- 模型数：603
+- 字段数：9438
 
 口径说明：仅覆盖 `apps/*/infrastructure/` 下的 `models.py`、`models/` 包与 `*_models.py`；字段为类体内显式赋值的 Django 字段，继承字段不展开，动态字段与隐式自增主键不在投影内。
 
@@ -14138,6 +14138,23 @@
 | `cancelled_at` | `DateTimeField` | 是 |  |  |  |  |
 | `created_at` | `DateTimeField` |  |  |  |  |  |
 | `updated_at` | `DateTimeField` |  |  |  |  |  |
+
+### SimulatedAccountOwnershipAnchorModel
+
+- 来源文件：`apps/simulated_trading/infrastructure/simulated_account_ownership_anchor_models.py`
+- 数据表：`simulated_account_ownership_anchor`
+- 说明：One account-wide zero-position fact written with a fresh simulated account.
+
+| 字段 | 类型 | null | unique | 默认值 | 说明 | 关系目标 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `account` | `OneToOneField` |  |  |  |  | SimulatedAccountModel |
+| `owner_user_id` | `PositiveBigIntegerField` |  |  |  |  |  |
+| `anchor_id` | `CharField` |  | 是 |  |  |  |
+| `anchor_kind` | `CharField` |  |  |  |  |  |
+| `quantity` | `DecimalField` |  |  | _ZERO_SHARES |  |  |
+| `account_created_at` | `DateTimeField` |  |  |  |  |  |
+| `evidence_sha256` | `CharField` |  |  |  |  |  |
+| `created_at` | `DateTimeField` |  |  | timezone.now |  |  |
 
 ### SimulatedAccountRawObservationModel
 

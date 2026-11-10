@@ -29,6 +29,9 @@ from apps.simulated_trading.infrastructure.models import (
     SimulatedAccountModel,
     SimulatedTradeModel,
 )
+from apps.simulated_trading.infrastructure.simulated_account_ownership_anchor_models import (
+    SimulatedAccountOwnershipAnchorModel,
+)
 from core.exceptions import BusinessLogicError
 
 from .account_mapper import SimulatedAccountMapper as SimulatedAccountMapper
@@ -220,6 +223,19 @@ class DjangoSimulatedAccountRepository(_SimulatedAccountQueryRepositoryMixin):
             if cash_known
             else AccountCashReconciliationStatus.UNVERIFIED.value
         )
+        if account_type == AccountType.SIMULATED.value:
+            from .corporate_action_ownership_history_repository import (
+                create_simulated_account_with_zero_origin_anchor,
+            )
+
+            return create_simulated_account_with_zero_origin_anchor(
+                user=user,
+                account_name=account_name,
+                initial_capital=initial_capital,
+                current_cash=initial_capital,
+                total_value=initial_capital,
+                using=DEFAULT_DB_ALIAS,
+            )
         return SimulatedAccountModel._default_manager.create(
             user=user,
             account_name=account_name,
@@ -242,6 +258,7 @@ class DjangoSimulatedAccountRepository(_SimulatedAccountQueryRepositoryMixin):
             )
             if model is None:
                 return False
+            _require_no_immutable_ownership_anchor(account_id=account_id)
             require_no_active_order_reservations(
                 account_id=account_id,
                 using=DEFAULT_DB_ALIAS,
@@ -271,6 +288,7 @@ class DjangoSimulatedAccountRepository(_SimulatedAccountQueryRepositoryMixin):
             )
             if account is None:
                 return None
+            _require_no_immutable_ownership_anchor(account_id=account_id)
             require_no_active_order_reservations(
                 account_id=account_id,
                 using=DEFAULT_DB_ALIAS,
@@ -310,6 +328,7 @@ class DjangoSimulatedAccountRepository(_SimulatedAccountQueryRepositoryMixin):
             )
             if account is None:
                 return None
+            _require_no_immutable_ownership_anchor(account_id=account_id)
             require_no_active_order_reservations(
                 account_id=account_id,
                 using=DEFAULT_DB_ALIAS,
@@ -392,3 +411,17 @@ class DjangoSimulatedAccountRepository(_SimulatedAccountQueryRepositoryMixin):
             "deleted_inspections": deleted_inspections,
             "deleted_proposals": deleted_proposals,
         }
+
+
+def _require_no_immutable_ownership_anchor(*, account_id: int) -> None:
+    """Block destructive account lifecycle operations after anchoring history."""
+
+    if (
+        SimulatedAccountOwnershipAnchorModel._base_manager.using(DEFAULT_DB_ALIAS)
+        .filter(account_id=account_id)
+        .exists()
+    ):
+        raise BusinessLogicError(
+            "存在不可变权属历史的账户不能删除或重置",
+            code="SIMULATED_ACCOUNT_OWNERSHIP_HISTORY_RETAINED",
+        )
