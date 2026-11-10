@@ -7833,7 +7833,7 @@
           "imports": 50
         },
         "simulated_trading": {
-          "imports": 30
+          "imports": 31
         },
         "strategy": {
           "imports": 1
@@ -9617,7 +9617,7 @@
           "imports": 2
         },
         "simulated_trading": {
-          "imports": 140
+          "imports": 141
         }
       },
       "depends_on": {
@@ -10974,7 +10974,7 @@
           ]
         },
         "portfolio": {
-          "imports": 30,
+          "imports": 31,
           "target_layers": [
             "application",
             "domain",
@@ -11000,7 +11000,7 @@
           ]
         },
         "risk_center": {
-          "imports": 140,
+          "imports": 141,
           "target_layers": [
             "application",
             "domain",
@@ -11942,7 +11942,7 @@
         ]
       },
       "layers": {
-        "application": 121,
+        "application": 122,
         "domain": 40,
         "infrastructure": 134,
         "interface": 34,
