@@ -195,6 +195,16 @@ def test_verified_zero_origin_date_requires_exact_owner_and_known_anchor(
         )
         == account.created_at.astimezone(ZoneInfo("Asia/Shanghai")).date()
     )
+    calendar = repository.read_verified_zero_origin_calendar(
+        account_id=account.pk,
+        owner_user_id=isolated_ownership_ledger.pk,
+        exchange="SZSE",
+        as_of=known_at,
+    )
+    assert calendar.origin_on == account.created_at.astimezone(ZoneInfo("Asia/Shanghai")).date()
+    assert calendar.decision_on == known_at.astimezone(ZoneInfo("Asia/Shanghai")).date()
+    assert calendar.timezone_policy.exchange == "SZSE"
+    assert calendar.as_of == known_at
 
     for owner_user_id, cutoff in (
         (isolated_ownership_ledger.pk + 1, known_at),

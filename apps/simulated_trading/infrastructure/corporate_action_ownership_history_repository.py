@@ -136,6 +136,16 @@ class ExchangeTimezonePolicyReader(Protocol):
         """Return qualified timezone provenance or raise a typed block."""
 
 
+@dataclass(frozen=True, slots=True)
+class VerifiedSimulatedAccountOriginCalendar:
+    """Bind the account origin and decision date to one exchange timezone policy."""
+
+    origin_on: date
+    decision_on: date
+    timezone_policy: QualifiedExchangeTimezone
+    as_of: datetime
+
+
 def _ownership_block(code: str, message: str) -> SimulatedTradeExecutionBlocked:
     """Create a stable failure for an incomplete ownership evidence set."""
 
@@ -254,6 +264,23 @@ class DjangoCorporateActionOwnershipHistoryRepository:
     ) -> date:
         """Return the sealed account origin in a qualified exchange-local calendar."""
 
+        return self.read_verified_zero_origin_calendar(
+            account_id=account_id,
+            owner_user_id=owner_user_id,
+            exchange=exchange,
+            as_of=as_of,
+        ).origin_on
+
+    def read_verified_zero_origin_calendar(
+        self,
+        *,
+        account_id: int,
+        owner_user_id: int,
+        exchange: str,
+        as_of: datetime,
+    ) -> VerifiedSimulatedAccountOriginCalendar:
+        """Read one account origin and action date under the same qualified timezone."""
+
         cutoff = _require_aware_datetime(as_of, "as_of")
         if (
             type(account_id) is not int
@@ -304,7 +331,13 @@ class DjangoCorporateActionOwnershipHistoryRepository:
                 "CORPORATE_ACTION_OWNERSHIP_POLICY_UNAVAILABLE",
                 "exchange timezone policy does not match the account origin scope",
             )
-        return origin_at.astimezone(ZoneInfo(policy.timezone_name)).date()
+        exchange_timezone = ZoneInfo(policy.timezone_name)
+        return VerifiedSimulatedAccountOriginCalendar(
+            origin_on=origin_at.astimezone(exchange_timezone).date(),
+            decision_on=cutoff.astimezone(exchange_timezone).date(),
+            timezone_policy=policy,
+            as_of=cutoff,
+        )
 
     def read_record_date_ownership_proof(
         self,
@@ -986,5 +1019,6 @@ __all__: tuple[str, ...] = (
     "DjangoCorporateActionOwnershipHistoryRepository",
     "ExchangeTimezonePolicyReader",
     "QualifiedExchangeTimezone",
+    "VerifiedSimulatedAccountOriginCalendar",
     "create_simulated_account_with_zero_origin_anchor",
 )
