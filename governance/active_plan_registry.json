@@ -1,5 +1,5 @@
 {
-  "version": "2026-11-10.v353",
+  "version": "2026-11-10.v354",
   "updated_at": "2026-11-10",
   "execution_focus": {
     "unit_id": "ASH-05",
@@ -12,7 +12,7 @@
     "parallel_preparation": [
       {
         "unit_id": "ASH-05",
-        "scope": "One bounded isolated ASH-05 preparation in .tmp/ash05-disclosure-audit-20261110. Permitted production paths: apps/data_center/application/security_disclosure_event.py, apps/data_center/infrastructure/security_disclosure_event_repository.py, apps/data_center/security_disclosure_capture_composition.py, new apps/audit/application/security_disclosure_audit.py, apps/audit/infrastructure/system_audit_outbox_runtime.py. Direct tests: tests/component/data_center/test_szse_distribution_window_ingestion.py and new tests/unit/audit/test_security_disclosure_audit.py, plus focused existing test files only if necessary and explicitly reported. Capture and final listing recheck precede one same-alias SQL UOW for all new facts, exact coverage and a source-qualified Audit/Outbox event; authority required/outbox preflight before external capture; failures roll back all database writes; replay must not silently treat legacy unaudited facts as audited. No models, migrations, scheduler/task/route, Portfolio, simulated account, tax, TUI, shared projections, heavy QA or Git integration; Root owns those. If implementation needs another path, update this scope before editing it.",
+        "scope": "One bounded isolated ASH-05 preparation in .tmp/ash05-disclosure-audit-20261110. Permitted production paths: apps/data_center/application/security_disclosure_event.py, apps/data_center/infrastructure/security_disclosure_event_repository.py, apps/data_center/security_disclosure_capture_composition.py, new apps/audit/application/security_disclosure_audit.py, apps/audit/infrastructure/system_audit_outbox_runtime.py, new apps/audit/security_disclosure_capture_composition.py. Direct tests: tests/component/data_center/test_szse_distribution_window_ingestion.py, tests/unit/data_center/test_security_disclosure_capture_composition.py, and new tests/unit/audit/test_security_disclosure_audit.py, plus focused existing test files only if necessary and explicitly reported. Data Center only captures and normalizes the official source; Audit composition owns required/outbox authority preflight, final listing recheck and one same-alias SQL UOW for all new facts, exact coverage and source-qualified Audit/Outbox. This avoids a new data_center to audit dependency and app cycle. Failures roll back all database writes; replay must not silently treat legacy unaudited facts as audited. No models, migrations, scheduler/task/route, Portfolio, simulated account, tax, TUI, shared projections, heavy QA or Git integration; Root owns those. If implementation needs another path, update this scope before editing it.",
         "owner": "Luna max ownership_tax under Root integration",
         "isolated_workspace": true,
         "shared_git_serialized": true,

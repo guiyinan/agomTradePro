@@ -3034,8 +3034,10 @@ registry v350 在同一 ASH-05 `parallel_preparation` 条目中登记第二个�
 
 ### 19.175 ASH-05 公告事实与 Audit/Outbox 原子写入工作块（2026-11-10）
 
-当前深交所窗口捕获逐 PDF 调用事实写入，每条事实各自提交；最终列表复核及覆盖证明在其后，故中途 PDF 或最终列表失败会留下已提交前缀事实。当前事实写入亦未接统一 Audit/Outbox。下一隔离工作块先在数据库事务外完成两次官方列表及 PDF 的网络捕获、内容寻址文件留存与最终一致性复核，再以同一数据库 alias 的单个 caller-owned 事务提交该窗口的全部新事实、覆盖证明和一条来源可核的 Audit/Outbox observation；任何 SQL/Audit 失败都不能留下本批事实或覆盖。保留可重用的外部原件，不用数据库回滚伪称文件回滚。重复全批重放不重复事实或 Audit，发现旧批已提交但未审计的事实时须明确阻断或显式修复，不把它们静默标成原子审计完成。
+当前深交所窗口捕获逐 PDF 调用事实写入，每条事实各自提交；最终列表复核及覆盖证明在其后，故中途 PDF 或最终列表失败会留下已提交前缀事实。当前事实写入亦未接统一 Audit/Outbox。下一隔离工作块先在数据库事务外完成两次官方列表及 PDF 的网络捕获、内容寻址文件留存与最终一致性复核，再以同一数据库 alias 的单个 Audit 协调器事务提交该窗口的全部新事实、覆盖证明和一条来源可核的 Audit/Outbox observation；任何 SQL/Audit 失败都不能留下本批事实或覆盖。保留可重用的外部原件，不用数据库回滚伪称文件回滚。重复全批重放不重复事实或 Audit，发现旧批已提交但未审计的事实时须明确阻断或显式修复，不把它们静默标成原子审计完成。
 
 Audit authority 必须在捕获前以 required/outbox 权限及有效 lease 通过预检，使用现有同 alias 协调器；不得借 `DataFetchAuditObservation` 伪造不存在的 run、RawAudit 或 ingested-run 身份。审计事件拟使用独立 `data.disclosure_fact.appended` 契约，记录实际来源、证券/窗口、原件与证明摘要及稳定批次身份。先验收中途 PDF、末次列表、Audit 追加失败全回滚，重复重放、alias 不符和 authority 不可用阻断。当前捕获组合仅发现组件测试调用者，本块不宣称已接生产调度或对用户开放；生产触发及其 Celery 契约需后续独立接线。实际两个公开交易所窗口仍为 PARTIAL，§9 退出门不变。
 
 registry v353 登记唯一隔离副本 `.tmp/ash05-disclosure-audit-20261110`，Luna max 仅修改 Data Center 公告 Application 契约/仓储/捕获组合、Audit 的专用 Application observation 与 runtime builder，以及上述直接测试；Root 独占正式分支整合、生成投影、重 QA 和 Git。若实现证明需要新增模型、迁移、任务、路由或其它共享文件，先在现有计划和 registry 收窄登记后再改。
+
+隔离初版定向 13 项通过，增量 mypy、Black/isort/Ruff 和完整架构扫描通过；模块循环门禁明确拒绝 Data Center 捕获组合直接导入 Audit：这会新增 `data_center → audit`，与既有 `audit → data_center` 形成环且超出出边预算。registry v354 把同一隔离块范围扩到新的 Audit 披露捕获组合及现有 Data Center 捕获单测。Data Center 只负责外部列表/PDF 捕获、末次复核和 typed 源候选；Audit 组合层先预检 authority，再调用捕获，最后以同 alias 协调器事务提交事实、证明、Audit 与 Outbox。现有模拟交易生产路径只读取 Data Center 事实，不调用窗口捕获，无需新增反向依赖。不得以提高循环/出边预算代替改造。
