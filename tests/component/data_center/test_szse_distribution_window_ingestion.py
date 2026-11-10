@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import hashlib
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -17,10 +17,12 @@ from apps.data_center.domain.security_disclosure_event import (
     SecurityDisclosureEventReadScope,
     SecurityDisclosureEventType,
     SecurityDisclosureExchange,
+    SecurityDisclosureListingCoverageProof,
+    SecurityDisclosureListingEntry,
+    SecurityDisclosureSource,
 )
 from apps.data_center.infrastructure.official_szse_announcement_listing import (
     CapturedOfficialSzseListingWindow,
-    OfficialSzseListingEntry,
 )
 from apps.data_center.infrastructure.official_szse_pdf_capture import CapturedOfficialSzsePdf
 from apps.data_center.infrastructure.security_disclosure_event_repository import (
@@ -41,7 +43,7 @@ def test_window_ingestion_links_corrected_pdf_and_replays_without_duplicate_rows
         (corrected_id, 1225572158, date(2026, 9, 19), "权益分派实施公告（更正后）"),
     )
     entries = tuple(
-        OfficialSzseListingEntry(
+        SecurityDisclosureListingEntry(
             listing_id=f"00000000-0000-4000-8000-{index:012d}",
             announcement_id=announcement_id,
             title=f"一心堂：2026年中期{title}",
@@ -57,17 +59,39 @@ def test_window_ingestion_links_corrected_pdf_and_replays_without_duplicate_rows
             documents, start=1
         )
     )
-    listing_observed_at = timezone.now() - timedelta(seconds=2)
-    listing = CapturedOfficialSzseListingWindow(
+    listing_observed_at = timezone.now() - timedelta(seconds=20)
+    verified_at = listing_observed_at + timedelta(seconds=5)
+    retained_entries = tuple(reversed(entries))
+    proof = SecurityDisclosureListingCoverageProof(
+        source=SecurityDisclosureSource.SZSE_OFFICIAL,
+        exchange=SecurityDisclosureExchange.SZSE,
         asset_code="002727.SZ",
         start_on=date(2026, 9, 1),
         end_on=date(2026, 9, 30),
-        observed_at=listing_observed_at,
-        announcement_count=3,
-        entries=tuple(reversed(entries)),
-        page_body_sha256=("a" * 64,),
-        manifest_sha256="b" * 64,
+        first_observed_at=listing_observed_at,
+        verified_at=verified_at,
+        announcement_count=len(retained_entries),
+        entries=retained_entries,
+        first_pass_page_body_sha256=("a" * 64,),
+        second_pass_page_body_sha256=("a" * 64,),
     )
+
+    def make_listing(observed_at: datetime) -> CapturedOfficialSzseListingWindow:
+        return CapturedOfficialSzseListingWindow(
+            asset_code="002727.SZ",
+            start_on=date(2026, 9, 1),
+            end_on=date(2026, 9, 30),
+            observed_at=observed_at,
+            announcement_count=len(retained_entries),
+            entries=retained_entries,
+            first_pass_page_body_sha256=("a" * 64,),
+            page_body_sha256=("a" * 64,),
+            manifest_sha256=proof.source_manifest_sha256,
+            coverage_manifest_sha256=proof.coverage_manifest_sha256,
+        )
+
+    listing = make_listing(listing_observed_at)
+    final_listing = make_listing(verified_at)
     first_seen_at = listing_observed_at + timedelta(seconds=1)
     bodies = {
         document_id: f"%PDF-1.4\n{document_id}\n%%EOF".encode() for document_id, *_ in documents
@@ -98,8 +122,11 @@ def test_window_ingestion_links_corrected_pdf_and_replays_without_duplicate_rows
             ),
         )
 
+    listings = iter((listing, final_listing, listing, final_listing))
     monkeypatch.setattr(
-        composition, "capture_official_szse_announcement_window", lambda **kwargs: listing
+        composition,
+        "capture_official_szse_announcement_window",
+        lambda **kwargs: next(listings),
     )
     monkeypatch.setattr(composition, "capture_official_szse_pdf", fake_capture)
     monkeypatch.setattr(composition, "classify_szse_pdf_disclosure", fake_classify)

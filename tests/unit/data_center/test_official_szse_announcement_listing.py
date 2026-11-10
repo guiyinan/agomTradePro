@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 from datetime import date
 from pathlib import Path
@@ -24,10 +25,17 @@ def _response(payload: dict[str, Any] | None = None) -> requests.Response:
     return response
 
 
-def _row(*, listing_id: str, document_id: str, title: str, published: str) -> dict[str, Any]:
+def _row(
+    *,
+    listing_id: str,
+    document_id: str,
+    title: str,
+    published: str,
+    announcement_id: int = 1225572157,
+) -> dict[str, Any]:
     return {
         "id": listing_id,
-        "annId": 1225572157,
+        "annId": announcement_id,
         "title": title,
         "publishTime": published,
         "attachPath": f"/disc/disk03/finalpage/{published[:10]}/{document_id}.PDF",
@@ -62,12 +70,14 @@ def _official_rows() -> list[dict[str, Any]]:
             document_id="37e23922-f64d-4203-9d27-9ed981a8f799",
             title="一心堂：2026年中期权益分派实施公告",
             published="2026-09-17 00:00:00",
+            announcement_id=1225572157,
         ),
         _row(
             listing_id="290e0f62-0344-42a4-96ef-1414340c764a",
             document_id="78dc6344-f740-4c50-b4a0-7e9d5159f02e",
             title="一心堂：2026年中期权益分派实施公告（更正后）",
             published="2026-09-19 00:00:00",
+            announcement_id=1225572158,
         ),
     ]
 
@@ -99,9 +109,64 @@ def test_complete_listing_keeps_original_and_correction_with_exact_page_bodies(
     assert result.entries[1].source_document_id == "78dc6344-f740-4c50-b4a0-7e9d5159f02e"
     assert result.entries[1].published_on == date(2026, 9, 19)
     assert len(result.page_body_sha256) == 2
+    assert len(result.first_pass_page_body_sha256) == len(result.page_body_sha256)
+    assert result.first_pass_page_body_sha256 == result.page_body_sha256
     assert all((tmp_path / f"{digest}.json").is_file() for digest in result.page_body_sha256)
+    assert all(
+        (tmp_path / f"{digest}.json").is_file() for digest in result.first_pass_page_body_sha256
+    )
     assert [call["pageNum"] for call in session.calls] == [1, 2, 1, 2]
     assert all(call["stock"] == ["002727"] for call in session.calls)
+
+
+def test_listing_manifest_replay_is_deterministic_and_versions_both_passes(
+    tmp_path: Path,
+) -> None:
+    row = _official_rows()[0]
+    pages = [
+        {"announceCount": 1, "data": [row]},
+        {"announceCount": 1, "data": [row]},
+        {"announceCount": 1, "data": [row]},
+        {"announceCount": 1, "data": [row]},
+    ]
+    first = capture_official_szse_announcement_window(
+        asset_code="002727.SZ",
+        start_on=date(2026, 9, 1),
+        end_on=date(2026, 9, 30),
+        body_store_root=tmp_path,
+        session=_ListingSession(pages.copy()),
+    )
+    replay = capture_official_szse_announcement_window(
+        asset_code="002727.SZ",
+        start_on=date(2026, 9, 1),
+        end_on=date(2026, 9, 30),
+        body_store_root=tmp_path,
+        session=_ListingSession(pages.copy()),
+    )
+
+    assert first.manifest_sha256 == replay.manifest_sha256
+    assert first.coverage_manifest_sha256 == replay.coverage_manifest_sha256
+    assert first.manifest_sha256 != first.coverage_manifest_sha256
+    assert first.first_pass_page_body_sha256 == replay.first_pass_page_body_sha256
+    assert first.page_body_sha256 == replay.page_body_sha256
+    legacy_manifest = {
+        "schema": "szse.announcement-window.v1",
+        "asset_code": first.asset_code,
+        "start_on": first.start_on.isoformat(),
+        "end_on": first.end_on.isoformat(),
+        "announcement_count": first.announcement_count,
+        "entries": [item.to_manifest_payload() for item in first.entries],
+        "page_body_sha256": first.page_body_sha256,
+    }
+    expected_v1 = hashlib.sha256(
+        json.dumps(
+            legacy_manifest,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+    ).hexdigest()
+    assert first.manifest_sha256 == expected_v1
 
 
 @pytest.mark.parametrize(

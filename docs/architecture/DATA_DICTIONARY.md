@@ -7,8 +7,8 @@
 ## 概览
 
 - App 数：42
-- 模型数：601
-- 字段数：9416
+- 模型数：602
+- 字段数：9430
 
 口径说明：仅覆盖 `apps/*/infrastructure/` 下的 `models.py`、`models/` 包与 `*_models.py`；字段为类体内显式赋值的 Django 字段，继承字段不展开，动态字段与隐式自增主键不在投影内。
 
@@ -6195,6 +6195,29 @@
 | `effective_on` | `DateField` | 是 |  |  |  |  |
 | `supersedes_source_event_id` | `CharField` |  |  |  |  |  |
 | `supersedes_source_revision_id` | `CharField` |  |  |  |  |  |
+| `recorded_at` | `DateTimeField` |  |  |  |  |  |
+
+### SecurityDisclosureListingCoverageModel
+
+- 来源文件：`apps/data_center/infrastructure/security_disclosure_event_models.py`
+- 数据表：`data_center_security_disclosure_listing_coverage`
+- 说明：Append-only proof of one stable, fully paged official SZSE date window.
+
+| 字段 | 类型 | null | unique | 默认值 | 说明 | 关系目标 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `source` | `CharField` |  |  | SecurityDisclosureSource.SZSE_OFFICIAL.value |  |  |
+| `exchange` | `CharField` |  |  | SecurityDisclosureExchange.SZSE.value |  |  |
+| `asset_code` | `CharField` |  |  |  |  |  |
+| `start_on` | `DateField` |  |  |  |  |  |
+| `end_on` | `DateField` |  |  |  |  |  |
+| `first_observed_at` | `DateTimeField` |  |  |  |  |  |
+| `verified_at` | `DateTimeField` |  |  |  |  |  |
+| `announcement_count` | `PositiveIntegerField` |  |  |  |  |  |
+| `listing_entries` | `JSONField` |  |  |  |  |  |
+| `first_pass_page_body_sha256` | `JSONField` |  |  |  |  |  |
+| `second_pass_page_body_sha256` | `JSONField` |  |  |  |  |  |
+| `manifest_sha256` | `CharField` |  |  |  |  |  |
+| `coverage_manifest_sha256` | `CharField` |  |  |  |  |  |
 | `recorded_at` | `DateTimeField` |  |  |  |  |  |
 
 ### SyncItemAttemptModel

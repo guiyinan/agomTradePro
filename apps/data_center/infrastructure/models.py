@@ -46,6 +46,9 @@ from .research_data_foundation_models import (
 from .security_disclosure_event_models import (  # noqa: F401
     SecurityDisclosureEventModel as SecurityDisclosureEventModel,
 )
+from .security_disclosure_event_models import (  # noqa: F401
+    SecurityDisclosureListingCoverageModel as SecurityDisclosureListingCoverageModel,
+)
 
 
 def _optional_json_float(value: object, field_name: str) -> float | None:

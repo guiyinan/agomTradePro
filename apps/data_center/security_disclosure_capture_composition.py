@@ -9,13 +9,17 @@ from pathlib import Path
 
 from apps.data_center.application.security_disclosure_event import (
     AppendSecurityDisclosureEventUseCase,
+    AppendSecurityDisclosureListingCoverageUseCase,
     QuerySecurityDisclosureEventsUseCase,
+    QuerySecurityDisclosureListingCoverageUseCase,
 )
 from apps.data_center.domain.security_disclosure_event import (
     SecurityDisclosureEvent,
     SecurityDisclosureEventAppendResult,
     SecurityDisclosureEventType,
     SecurityDisclosureExchange,
+    SecurityDisclosureListingCoverageAppendResult,
+    SecurityDisclosureListingCoverageProof,
     SecurityDisclosureSource,
     SzseDistributionTerms,
 )
@@ -34,6 +38,7 @@ from apps.data_center.infrastructure.official_szse_pdf_capture import (
 )
 from apps.data_center.infrastructure.security_disclosure_event_repository import (
     DjangoSecurityDisclosureEventRepository,
+    DjangoSecurityDisclosureListingCoverageRepository,
 )
 
 
@@ -83,6 +88,17 @@ def make_security_disclosure_event_reader(
     )
 
 
+def make_security_disclosure_listing_coverage_reader(
+    *, using: str = "default"
+) -> QuerySecurityDisclosureListingCoverageUseCase:
+    """Compose the non-current exact-window proof reader with Data Center repositories."""
+
+    return QuerySecurityDisclosureListingCoverageUseCase(
+        coverage_repository=DjangoSecurityDisclosureListingCoverageRepository(using=using),
+        event_repository=DjangoSecurityDisclosureEventRepository(using=using),
+    )
+
+
 def read_verified_szse_distribution(
     event: SecurityDisclosureEvent, *, body_store_root: Path
 ) -> SzseDistributionTerms | None:
@@ -101,10 +117,11 @@ def read_verified_szse_distribution(
 
 @dataclass(frozen=True, slots=True)
 class SzseDistributionWindowIngestion:
-    """Retained complete list and only its explicitly selected distribution notices."""
+    """Retained listing, selected distribution notices, and persisted exact coverage proof."""
 
     listing: CapturedOfficialSzseListingWindow
     events: tuple[SecurityDisclosureEventAppendResult, ...]
+    coverage: SecurityDisclosureListingCoverageAppendResult
 
 
 def _distribution_title_key(title: str) -> str:
@@ -207,6 +224,31 @@ def capture_and_append_szse_distribution_window(
         end_on=end_on,
         body_store_root=body_store_root / "listing",
     )
-    if final_listing.manifest_sha256 != listing.manifest_sha256:
+    if (
+        final_listing.manifest_sha256 != listing.manifest_sha256
+        or final_listing.coverage_manifest_sha256 != listing.coverage_manifest_sha256
+    ):
         raise OfficialSzseListingError("SZSE listing changed during PDF capture")
-    return SzseDistributionWindowIngestion(listing=final_listing, events=tuple(results))
+    if any(item.record.event.first_seen_at > final_listing.observed_at for item in results):
+        raise OfficialSzseListingError("SZSE PDF knowledge follows final listing verification")
+    proof = SecurityDisclosureListingCoverageProof(
+        source=SecurityDisclosureSource.SZSE_OFFICIAL,
+        exchange=SecurityDisclosureExchange.SZSE,
+        asset_code=final_listing.asset_code,
+        start_on=final_listing.start_on,
+        end_on=final_listing.end_on,
+        first_observed_at=listing.observed_at,
+        verified_at=final_listing.observed_at,
+        announcement_count=final_listing.announcement_count,
+        entries=final_listing.entries,
+        first_pass_page_body_sha256=final_listing.first_pass_page_body_sha256,
+        second_pass_page_body_sha256=final_listing.page_body_sha256,
+    )
+    coverage = AppendSecurityDisclosureListingCoverageUseCase(
+        DjangoSecurityDisclosureListingCoverageRepository(using=using)
+    ).execute(proof)
+    return SzseDistributionWindowIngestion(
+        listing=final_listing,
+        events=tuple(results),
+        coverage=coverage,
+    )

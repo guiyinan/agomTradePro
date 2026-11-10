@@ -5479,8 +5479,11 @@
         ],
         "application/security_disclosure_event.py": [
           "AppendSecurityDisclosureEventUseCase",
+          "AppendSecurityDisclosureListingCoverageUseCase",
           "QuerySecurityDisclosureEventsUseCase",
-          "SecurityDisclosureEventRepositoryPort"
+          "QuerySecurityDisclosureListingCoverageUseCase",
+          "SecurityDisclosureEventRepositoryPort",
+          "SecurityDisclosureListingCoverageRepositoryPort"
         ],
         "application/sina_quote_capture.py": [
           "CaptureSinaQuoteUseCase",

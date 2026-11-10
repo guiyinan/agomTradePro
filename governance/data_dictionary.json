@@ -39575,6 +39575,124 @@
           "bases": [
             "models.Model"
           ],
+          "class_name": "SecurityDisclosureListingCoverageModel",
+          "docstring": "Append-only proof of one stable, fully paged official SZSE date window.",
+          "fields": [
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "choices": "SOURCE_CHOICES",
+                "default": "SecurityDisclosureSource.SZSE_OFFICIAL.value",
+                "max_length": 32
+              },
+              "name": "source",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "choices": "EXCHANGE_CHOICES",
+                "default": "SecurityDisclosureExchange.SZSE.value",
+                "max_length": 8
+              },
+              "name": "exchange",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 20
+              },
+              "name": "asset_code",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateField",
+              "name": "start_on",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateField",
+              "name": "end_on",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "name": "first_observed_at",
+              "positional_args": []
+            },
+            {
+              "db_index": true,
+              "field_type": "DateTimeField",
+              "kwargs": {
+                "db_index": true
+              },
+              "name": "verified_at",
+              "positional_args": []
+            },
+            {
+              "field_type": "PositiveIntegerField",
+              "name": "announcement_count",
+              "positional_args": []
+            },
+            {
+              "field_type": "JSONField",
+              "name": "listing_entries",
+              "positional_args": []
+            },
+            {
+              "field_type": "JSONField",
+              "name": "first_pass_page_body_sha256",
+              "positional_args": []
+            },
+            {
+              "field_type": "JSONField",
+              "name": "second_pass_page_body_sha256",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "manifest_sha256",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "coverage_manifest_sha256",
+              "positional_args": []
+            },
+            {
+              "db_index": true,
+              "field_type": "DateTimeField",
+              "kwargs": {
+                "db_index": true
+              },
+              "name": "recorded_at",
+              "positional_args": []
+            }
+          ],
+          "meta": {
+            "base_manager_name": "objects",
+            "constraints": "[models.UniqueConstraint(fields=('source', 'exchange', 'asset_code', 'start_on', 'end_on', 'coverage_manifest_sha256', 'verified_at'), name='dc_sec_list_cov_identity_uq'), models.CheckConstraint(condition=models.Q(start_on__lte=models.F('end_on')), name='dc_sec_list_cov_window_ck'), models.CheckConstraint(condition=models.Q(first_observed_at__lte=models.F('verified_at')) & models.Q(verified_at__lte=models.F('recorded_at')), name='dc_sec_list_cov_clock_ck')]",
+            "db_table": "data_center_security_disclosure_listing_coverage",
+            "default_manager_name": "objects",
+            "indexes": "[models.Index(fields=('asset_code', 'start_on', 'end_on', 'verified_at'), name='dc_sec_list_cov_scope_ix')]",
+            "ordering": [
+              "verified_at",
+              "coverage_manifest_sha256"
+            ]
+          },
+          "source_file": "infrastructure/security_disclosure_event_models.py"
+        },
+        {
+          "bases": [
+            "models.Model"
+          ],
           "class_name": "SyncItemAttemptModel",
           "docstring": "One durable, single-transition asset attempt in a sync batch.",
           "fields": [

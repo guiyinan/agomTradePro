@@ -379,8 +379,133 @@ class SecurityDisclosureEventModel(models.Model):
         )
 
 
+class SecurityDisclosureListingCoverageModel(models.Model):
+    """Append-only proof of one stable, fully paged official SZSE date window."""
+
+    SOURCE_CHOICES = ((SecurityDisclosureSource.SZSE_OFFICIAL.value, "SZSE_OFFICIAL"),)
+    EXCHANGE_CHOICES = ((SecurityDisclosureExchange.SZSE.value, "SZSE"),)
+
+    source = models.CharField(
+        max_length=32,
+        choices=SOURCE_CHOICES,
+        default=SecurityDisclosureSource.SZSE_OFFICIAL.value,
+    )
+    exchange = models.CharField(
+        max_length=8,
+        choices=EXCHANGE_CHOICES,
+        default=SecurityDisclosureExchange.SZSE.value,
+    )
+    asset_code = models.CharField(max_length=20)
+    start_on = models.DateField()
+    end_on = models.DateField()
+    first_observed_at = models.DateTimeField()
+    verified_at = models.DateTimeField(db_index=True)
+    announcement_count = models.PositiveIntegerField()
+    listing_entries = models.JSONField()
+    first_pass_page_body_sha256 = models.JSONField()
+    second_pass_page_body_sha256 = models.JSONField()
+    manifest_sha256 = models.CharField(max_length=64)
+    coverage_manifest_sha256 = models.CharField(max_length=64)
+    recorded_at = models.DateTimeField(db_index=True)
+
+    objects: _SecurityDisclosureEventManager[Self] = _SecurityDisclosureEventManager()
+
+    class Meta:
+        db_table = "data_center_security_disclosure_listing_coverage"
+        base_manager_name = "objects"
+        default_manager_name = "objects"
+        ordering = ["verified_at", "coverage_manifest_sha256"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=(
+                    "source",
+                    "exchange",
+                    "asset_code",
+                    "start_on",
+                    "end_on",
+                    "coverage_manifest_sha256",
+                    "verified_at",
+                ),
+                name="dc_sec_list_cov_identity_uq",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(start_on__lte=models.F("end_on")),
+                name="dc_sec_list_cov_window_ck",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(first_observed_at__lte=models.F("verified_at"))
+                    & models.Q(verified_at__lte=models.F("recorded_at"))
+                ),
+                name="dc_sec_list_cov_clock_ck",
+            ),
+        ]
+        indexes = [
+            models.Index(
+                fields=("asset_code", "start_on", "end_on", "verified_at"),
+                name="dc_sec_list_cov_scope_ix",
+            ),
+        ]
+
+    def save(
+        self,
+        force_insert: bool | tuple[ModelBase, ...] = False,
+        force_update: bool = False,
+        using: str | None = None,
+        update_fields: Iterable[str] | None = None,
+    ) -> None:
+        """Allow only one exact repository-claimed proof insert."""
+
+        del force_insert
+        if force_update or update_fields is not None or not self._state.adding:
+            raise ValidationError("Security disclosure listing coverage is append-only.")
+        _require_insert_claim(self)
+        super().save(force_insert=True, using=using)
+
+    def save_base(
+        self,
+        raw: bool = False,
+        force_insert: bool | tuple[ModelBase, ...] = False,
+        force_update: bool = False,
+        using: str | None = None,
+        update_fields: Iterable[str] | None = None,
+    ) -> None:
+        """Guard Django's lower-level persistence path against unclaimed writes."""
+
+        del force_insert
+        if raw or force_update or update_fields is not None or not self._state.adding:
+            raise ValidationError("Security disclosure listing coverage is append-only.")
+        _require_insert_claim(self)
+        super().save_base(
+            raw=False,
+            force_insert=True,
+            force_update=False,
+            using=using,
+            update_fields=None,
+        )
+
+    def delete(
+        self,
+        using: object | None = None,
+        keep_parents: bool = False,
+    ) -> tuple[int, dict[str, int]]:
+        """Preserve every captured official listing proof."""
+
+        del using, keep_parents
+        raise ValidationError("Security disclosure listing coverage is append-only.")
+
+    def __str__(self) -> str:
+        """Expose exact source and window identity for diagnostics."""
+
+        return (
+            f"SecurityDisclosureListingCoverage({self.source}:{self.asset_code}:"
+            f"{self.start_on}:{self.end_on}:{self.coverage_manifest_sha256})"
+        )
+
+
 __all__ = [
     "SecurityDisclosureEventModel",
+    "SecurityDisclosureListingCoverageModel",
     "_activate_security_disclosure_event_uow",
     "_claim_security_disclosure_event_insert",
 ]

@@ -3,27 +3,34 @@
 from __future__ import annotations
 
 from datetime import UTC, date, datetime
-from typing import Protocol
+from typing import Protocol, cast
 
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from apps.data_center.application.security_disclosure_event import (
     SecurityDisclosureEventRepositoryPort,
+    SecurityDisclosureListingCoverageRepositoryPort,
 )
 from apps.data_center.domain.security_disclosure_event import (
     PersistedSecurityDisclosureEvent,
+    PersistedSecurityDisclosureListingCoverage,
     SecurityDisclosureEvent,
     SecurityDisclosureEventAppendDisposition,
     SecurityDisclosureEventAppendResult,
     SecurityDisclosureEventReadScope,
     SecurityDisclosureEventType,
     SecurityDisclosureExchange,
+    SecurityDisclosureListingCoverageAppendResult,
+    SecurityDisclosureListingCoverageProof,
+    SecurityDisclosureListingCoverageReadScope,
+    SecurityDisclosureListingEntry,
     SecurityDisclosureSource,
     SourceEventClock,
 )
 from apps.data_center.infrastructure.security_disclosure_event_models import (
     SecurityDisclosureEventModel,
+    SecurityDisclosureListingCoverageModel,
     _activate_security_disclosure_event_uow,
     _claim_security_disclosure_event_insert,
 )
@@ -212,6 +219,170 @@ def _to_persisted_event(
         ) from error
 
 
+def _coverage_values(
+    proof: SecurityDisclosureListingCoverageProof,
+    *,
+    recorded_at: datetime,
+) -> dict[str, object]:
+    """Build exact ORM values while retaining every source row and both page passes."""
+
+    return {
+        "source": proof.source.value,
+        "exchange": proof.exchange.value,
+        "asset_code": proof.asset_code,
+        "start_on": proof.start_on,
+        "end_on": proof.end_on,
+        "first_observed_at": _aware_utc(proof.first_observed_at, field_name="first_observed_at"),
+        "verified_at": _aware_utc(proof.verified_at, field_name="verified_at"),
+        "announcement_count": proof.announcement_count,
+        "listing_entries": [item.to_manifest_payload() for item in proof.entries],
+        "first_pass_page_body_sha256": list(proof.first_pass_page_body_sha256),
+        "second_pass_page_body_sha256": list(proof.second_pass_page_body_sha256),
+        "manifest_sha256": proof.source_manifest_sha256,
+        "coverage_manifest_sha256": proof.coverage_manifest_sha256,
+        "recorded_at": recorded_at,
+    }
+
+
+def _json_list(value: object, *, field_name: str) -> list[object]:
+    """Narrow one persisted JSON array before decoding its typed members."""
+
+    if type(value) is not list:
+        raise DataValidationError(
+            f"Stored {field_name} is not an array.",
+            code="SECURITY_DISCLOSURE_LISTING_STORAGE_INVALID",
+        )
+    return cast(list[object], value)
+
+
+def _json_object(value: object, *, field_name: str) -> dict[str, object]:
+    """Narrow one persisted JSON object at the ORM boundary."""
+
+    if type(value) is not dict or any(type(key) is not str for key in value):
+        raise DataValidationError(
+            f"Stored {field_name} is not an object.",
+            code="SECURITY_DISCLOSURE_LISTING_STORAGE_INVALID",
+        )
+    return cast(dict[str, object], value)
+
+
+def _json_text(value: object, *, field_name: str) -> str:
+    """Require one source text value from a stored JSON entry."""
+
+    if type(value) is not str:
+        raise DataValidationError(
+            f"Stored {field_name} is not text.",
+            code="SECURITY_DISCLOSURE_LISTING_STORAGE_INVALID",
+        )
+    return value
+
+
+def _json_int(value: object, *, field_name: str) -> int:
+    """Require one non-boolean integer from a stored JSON entry."""
+
+    if type(value) is not int:
+        raise DataValidationError(
+            f"Stored {field_name} is not an integer.",
+            code="SECURITY_DISCLOSURE_LISTING_STORAGE_INVALID",
+        )
+    return value
+
+
+def _json_date(value: object, *, field_name: str) -> date:
+    """Restore a pure date string from a stored JSON listing row."""
+
+    text = _json_text(value, field_name=field_name)
+    try:
+        return date.fromisoformat(text)
+    except ValueError as error:
+        raise DataValidationError(
+            f"Stored {field_name} is not a valid date.",
+            code="SECURITY_DISCLOSURE_LISTING_STORAGE_INVALID",
+        ) from error
+
+
+def _listing_entry_from_json(value: object) -> SecurityDisclosureListingEntry:
+    """Restore one typed source row and preserve malformed JSON as a storage error."""
+
+    raw = _json_object(value, field_name="listing entry")
+    try:
+        return SecurityDisclosureListingEntry(
+            listing_id=_json_text(raw.get("listing_id"), field_name="listing_id"),
+            announcement_id=_json_int(raw.get("announcement_id"), field_name="announcement_id"),
+            title=_json_text(raw.get("title"), field_name="title"),
+            published_on=_json_date(raw.get("published_on"), field_name="published_on"),
+            raw_publish_time=_json_text(raw.get("raw_publish_time"), field_name="raw_publish_time"),
+            source_document_id=_json_text(
+                raw.get("source_document_id"), field_name="source_document_id"
+            ),
+            source_url=_json_text(raw.get("source_url"), field_name="source_url"),
+        )
+    except ValueError as error:
+        raise DataValidationError(
+            "Stored SZSE listing row is invalid.",
+            code="SECURITY_DISCLOSURE_LISTING_STORAGE_INVALID",
+        ) from error
+
+
+def _to_persisted_listing_coverage(
+    model: SecurityDisclosureListingCoverageModel,
+) -> PersistedSecurityDisclosureListingCoverage:
+    """Rebuild and authenticate one ORM proof before exposing historical coverage."""
+
+    try:
+        proof = SecurityDisclosureListingCoverageProof(
+            source=SecurityDisclosureSource(model.source),
+            exchange=SecurityDisclosureExchange(model.exchange),
+            asset_code=model.asset_code,
+            start_on=model.start_on,
+            end_on=model.end_on,
+            first_observed_at=_aware_utc(model.first_observed_at, field_name="first_observed_at"),
+            verified_at=_aware_utc(model.verified_at, field_name="verified_at"),
+            announcement_count=model.announcement_count,
+            entries=tuple(
+                _listing_entry_from_json(item)
+                for item in _json_list(model.listing_entries, field_name="listing_entries")
+            ),
+            first_pass_page_body_sha256=tuple(
+                _json_text(item, field_name="first_pass_page_body_sha256")
+                for item in _json_list(
+                    model.first_pass_page_body_sha256,
+                    field_name="first_pass_page_body_sha256",
+                )
+            ),
+            second_pass_page_body_sha256=tuple(
+                _json_text(item, field_name="second_pass_page_body_sha256")
+                for item in _json_list(
+                    model.second_pass_page_body_sha256,
+                    field_name="second_pass_page_body_sha256",
+                )
+            ),
+        )
+    except (TypeError, ValueError) as error:
+        raise DataValidationError(
+            "Stored security disclosure listing proof is invalid.",
+            code="SECURITY_DISCLOSURE_LISTING_STORAGE_INVALID",
+        ) from error
+    if (
+        proof.source_manifest_sha256 != model.manifest_sha256
+        or proof.coverage_manifest_sha256 != model.coverage_manifest_sha256
+    ):
+        raise DataValidationError(
+            "Stored security disclosure listing manifest does not match its exact rows.",
+            code="SECURITY_DISCLOSURE_LISTING_STORAGE_INVALID",
+        )
+    try:
+        return PersistedSecurityDisclosureListingCoverage(
+            proof=proof,
+            recorded_at=_aware_utc(model.recorded_at, field_name="recorded_at"),
+        )
+    except ValueError as error:
+        raise DataValidationError(
+            "Stored security disclosure listing record time is invalid.",
+            code="SECURITY_DISCLOSURE_LISTING_STORAGE_INVALID",
+        ) from error
+
+
 class DjangoSecurityDisclosureEventRepository(SecurityDisclosureEventRepositoryPort):
     """Append and query official event facts using a conservative first-seen PIT bound."""
 
@@ -340,4 +511,161 @@ class DjangoSecurityDisclosureEventRepository(SecurityDisclosureEventRepositoryP
         )
 
 
-__all__ = ["DjangoSecurityDisclosureEventRepository"]
+class DjangoSecurityDisclosureListingCoverageRepository(
+    SecurityDisclosureListingCoverageRepositoryPort
+):
+    """Append exact SZSE listing proofs and read only proofs known by a cutoff."""
+
+    def __init__(
+        self,
+        *,
+        clock: _SecurityDisclosureEventClock | None = None,
+        using: str = "default",
+    ) -> None:
+        """Bind the database alias and trusted source-knowledge clock."""
+
+        self._clock = clock or _DjangoSecurityDisclosureEventClock()
+        self._using = using
+
+    def append(
+        self,
+        proof: SecurityDisclosureListingCoverageProof,
+    ) -> SecurityDisclosureListingCoverageAppendResult:
+        """Append one completed proof or preserve the original idempotent winner."""
+
+        if type(proof) is not SecurityDisclosureListingCoverageProof:
+            raise DataValidationError(
+                "Security disclosure listing proof is invalid.",
+                code="SECURITY_DISCLOSURE_LISTING_PROOF_INVALID",
+            )
+        now = _aware_utc(self._clock.now(), field_name="repository clock")
+        verified_at = _aware_utc(proof.verified_at, field_name="verified_at")
+        if verified_at > now:
+            raise DataValidationError(
+                "Listing proof verification cannot be later than its persistence clock.",
+                code="SECURITY_DISCLOSURE_LISTING_CLOCK_INVALID",
+            )
+        values = _coverage_values(proof, recorded_at=now)
+        identity = self._identity_filter(proof)
+
+        with transaction.atomic(using=self._using):
+            existing = self._locked_identity_row(identity)
+            if existing is not None:
+                return self._resolve_existing(existing, proof)
+            try:
+                with transaction.atomic(using=self._using):
+                    with _activate_security_disclosure_event_uow() as token:
+                        with _claim_security_disclosure_event_insert(
+                            token=token,
+                            model_type=SecurityDisclosureListingCoverageModel,
+                            expected_values=values,
+                        ):
+                            created = SecurityDisclosureListingCoverageModel._default_manager.using(
+                                self._using
+                            ).create(**values)
+            except IntegrityError as error:
+                concurrent = self._locked_identity_row(identity)
+                if concurrent is None:
+                    raise DataValidationError(
+                        "Listing proof append violated a storage constraint.",
+                        code="SECURITY_DISCLOSURE_LISTING_WRITE_CONFLICT",
+                    ) from error
+                return self._resolve_existing(concurrent, proof)
+            return SecurityDisclosureListingCoverageAppendResult(
+                disposition=SecurityDisclosureEventAppendDisposition.STORED,
+                record=_to_persisted_listing_coverage(created),
+            )
+
+    def get_known_at(
+        self,
+        scope: SecurityDisclosureListingCoverageReadScope,
+    ) -> PersistedSecurityDisclosureListingCoverage | None:
+        """Return the latest exact-window proof durably recorded by ``as_of``."""
+
+        if type(scope) is not SecurityDisclosureListingCoverageReadScope:
+            raise DataValidationError(
+                "Security disclosure listing scope is invalid.",
+                code="SECURITY_DISCLOSURE_LISTING_SCOPE_INVALID",
+            )
+        as_of = _aware_utc(scope.as_of, field_name="as_of")
+        now = _aware_utc(self._clock.now(), field_name="repository clock")
+        if as_of > now:
+            raise DataValidationError(
+                "Security disclosure listing cutoff cannot exceed the repository clock.",
+                code="SECURITY_DISCLOSURE_LISTING_CUTOFF_INVALID",
+            )
+        model = (
+            SecurityDisclosureListingCoverageModel._default_manager.using(self._using)
+            .filter(
+                source=SecurityDisclosureSource.SZSE_OFFICIAL.value,
+                exchange=SecurityDisclosureExchange.SZSE.value,
+                asset_code=scope.asset_code,
+                start_on=scope.start_on,
+                end_on=scope.end_on,
+                first_observed_at__lte=as_of,
+                verified_at__lte=as_of,
+                recorded_at__lte=as_of,
+            )
+            .order_by("-recorded_at", "-verified_at", "-pk")
+            .first()
+        )
+        if model is None:
+            return None
+        return _to_persisted_listing_coverage(model)
+
+    @staticmethod
+    def _identity_filter(
+        proof: SecurityDisclosureListingCoverageProof,
+    ) -> dict[str, str | date | datetime]:
+        """Return the exact append identity for this verification episode."""
+
+        return {
+            "source": proof.source.value,
+            "exchange": proof.exchange.value,
+            "asset_code": proof.asset_code,
+            "start_on": proof.start_on,
+            "end_on": proof.end_on,
+            "coverage_manifest_sha256": proof.coverage_manifest_sha256,
+            "verified_at": _aware_utc(proof.verified_at, field_name="verified_at"),
+        }
+
+    def _locked_identity_row(
+        self,
+        identity: dict[str, str | date | datetime],
+    ) -> SecurityDisclosureListingCoverageModel | None:
+        """Lock one exact prior proof inside the append transaction."""
+
+        return (
+            SecurityDisclosureListingCoverageModel._default_manager.using(self._using)
+            .select_for_update()
+            .filter(**identity)
+            .first()
+        )
+
+    @staticmethod
+    def _resolve_existing(
+        model: SecurityDisclosureListingCoverageModel,
+        proof: SecurityDisclosureListingCoverageProof,
+    ) -> SecurityDisclosureListingCoverageAppendResult:
+        """Return an exact same-content winner or reject conflicting stored evidence."""
+
+        persisted = _to_persisted_listing_coverage(model)
+        if (
+            persisted.proof.source_manifest_sha256 != proof.source_manifest_sha256
+            or persisted.proof.coverage_manifest_sha256 != proof.coverage_manifest_sha256
+            or persisted.proof.verified_at != proof.verified_at
+        ):
+            raise DataValidationError(
+                "Listing proof identity already has different source content.",
+                code="SECURITY_DISCLOSURE_LISTING_IDENTITY_CONFLICT",
+            )
+        return SecurityDisclosureListingCoverageAppendResult(
+            disposition=SecurityDisclosureEventAppendDisposition.DUPLICATE,
+            record=persisted,
+        )
+
+
+__all__ = [
+    "DjangoSecurityDisclosureEventRepository",
+    "DjangoSecurityDisclosureListingCoverageRepository",
+]

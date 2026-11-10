@@ -11,6 +11,7 @@ from decimal import Decimal
 from enum import StrEnum
 from typing import TypeAlias
 from urllib.parse import urlsplit
+from uuid import UUID
 
 SourceEventClock: TypeAlias = date | datetime
 
@@ -66,6 +67,15 @@ class SecurityDisclosureEventType(StrEnum):
     REPURCHASE = "repurchase"
     OTHER = "other"
     UNKNOWN = "unknown"
+
+
+class SecurityDisclosureListingCoverageStatus(StrEnum):
+    """Result of checking one exact official listing window at a knowledge cutoff."""
+
+    COMPLETE = "complete"
+    PARTIAL = "partial"
+    UNKNOWN = "unknown"
+    MISSING = "missing"
 
 
 _CANONICAL_SECURITY_CODE = re.compile(r"^[0-9]{6}\.(SH|SZ)$")
@@ -136,6 +146,218 @@ def _validate_source_url(value: str, *, source: SecurityDisclosureSource) -> Non
         or parsed.fragment
     ):
         raise ValueError("source_url must use the selected exchange's official HTTPS domain")
+
+
+@dataclass(frozen=True, slots=True)
+class SecurityDisclosureListingEntry:
+    """One exact official SZSE list row with date-precision publication evidence."""
+
+    listing_id: str
+    announcement_id: int
+    title: str
+    published_on: date
+    raw_publish_time: str
+    source_document_id: str
+    source_url: str
+
+    def __post_init__(self) -> None:
+        """Validate source-native identities and preserve the published date precision."""
+
+        for field_name in ("listing_id", "source_document_id"):
+            value = getattr(self, field_name)
+            if type(value) is not str:
+                raise ValueError(f"{field_name} must be a canonical UUID")
+            try:
+                parsed = UUID(value)
+            except ValueError as error:
+                raise ValueError(f"{field_name} must be a canonical UUID") from error
+            if str(parsed) != value.lower():
+                raise ValueError(f"{field_name} must be a canonical UUID")
+        if type(self.announcement_id) is not int or self.announcement_id <= 0:
+            raise ValueError("announcement_id must be positive")
+        _required_text(self.title, field_name="title", maximum=320)
+        if type(self.published_on) is not date or type(self.published_on) is datetime:
+            raise ValueError("published_on must preserve date precision")
+        if (
+            type(self.raw_publish_time) is not str
+            or re.fullmatch(r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}", self.raw_publish_time) is None
+            or date.fromisoformat(self.raw_publish_time[:10]) != self.published_on
+        ):
+            raise ValueError("raw_publish_time must retain its source date and precision")
+        _required_text(self.source_url, field_name="source_url", maximum=2048)
+        _validate_source_url(self.source_url, source=SecurityDisclosureSource.SZSE_OFFICIAL)
+        parsed_url = urlsplit(self.source_url)
+        if not parsed_url.path.lower().endswith(f"/{self.source_document_id}.pdf"):
+            raise ValueError("source_document_id does not match the official PDF URL")
+
+    def to_manifest_payload(self) -> dict[str, object]:
+        """Return the exact canonical listing row stored in its coverage manifest."""
+
+        return {
+            "listing_id": self.listing_id,
+            "announcement_id": self.announcement_id,
+            "title": self.title,
+            "published_on": self.published_on.isoformat(),
+            "raw_publish_time": self.raw_publish_time,
+            "source_document_id": self.source_document_id,
+            "source_url": self.source_url,
+        }
+
+
+def _require_listing_digest(value: object, *, field_name: str) -> None:
+    """Require one lowercase SHA-256 used by the official listing proof."""
+
+    if type(value) is not str or not _SHA256.fullmatch(value):
+        raise ValueError(f"{field_name} must be lowercase SHA-256")
+
+
+@dataclass(frozen=True, slots=True)
+class SecurityDisclosureListingCoverageProof:
+    """Exact two-pass SZSE listing proof and the time its downstream ingestion completed."""
+
+    source: SecurityDisclosureSource
+    exchange: SecurityDisclosureExchange
+    asset_code: str
+    start_on: date
+    end_on: date
+    first_observed_at: datetime
+    verified_at: datetime
+    announcement_count: int
+    entries: tuple[SecurityDisclosureListingEntry, ...]
+    first_pass_page_body_sha256: tuple[str, ...]
+    second_pass_page_body_sha256: tuple[str, ...]
+
+    def __post_init__(self) -> None:
+        """Reject a mismatched, unstable, or incomplete listing proof."""
+
+        if self.source is not SecurityDisclosureSource.SZSE_OFFICIAL:
+            raise ValueError("listing coverage requires the official SZSE source")
+        if self.exchange is not SecurityDisclosureExchange.SZSE:
+            raise ValueError("listing coverage requires the SZSE exchange")
+        if (
+            type(self.asset_code) is not str
+            or re.fullmatch(r"[0-9]{6}\.SZ", self.asset_code) is None
+        ):
+            raise ValueError("asset_code must be a canonical SZSE security code")
+        for field_name in ("start_on", "end_on"):
+            value = getattr(self, field_name)
+            if type(value) is not date or type(value) is datetime:
+                raise ValueError(f"{field_name} must be a date")
+        if self.start_on > self.end_on:
+            raise ValueError("listing coverage date window is reversed")
+        for field_name in ("first_observed_at", "verified_at"):
+            value = getattr(self, field_name)
+            if type(value) is not datetime or value.tzinfo is None or value.utcoffset() is None:
+                raise ValueError(f"{field_name} must be timezone-aware")
+        if self.first_observed_at > self.verified_at:
+            raise ValueError("listing verification cannot precede its first observation")
+        if type(self.announcement_count) is not int or self.announcement_count < 0:
+            raise ValueError("announcement_count must be non-negative")
+        if type(self.entries) is not tuple or len(self.entries) != self.announcement_count:
+            raise ValueError("listing entries must match the exact source count")
+        if any(type(item) is not SecurityDisclosureListingEntry for item in self.entries):
+            raise ValueError("listing entries must use the typed source row")
+        listing_ids = tuple(item.listing_id for item in self.entries)
+        announcement_ids = tuple(item.announcement_id for item in self.entries)
+        document_ids = tuple(item.source_document_id for item in self.entries)
+        if (
+            len(listing_ids) != len(set(listing_ids))
+            or len(announcement_ids) != len(set(announcement_ids))
+            or len(document_ids) != len(set(document_ids))
+        ):
+            raise ValueError("listing rows must have unique listing, announcement, and PDF IDs")
+        if any(not self.start_on <= item.published_on <= self.end_on for item in self.entries):
+            raise ValueError("listing entry falls outside the exact requested date window")
+        for field_name in ("first_pass_page_body_sha256", "second_pass_page_body_sha256"):
+            hashes = getattr(self, field_name)
+            if type(hashes) is not tuple or not hashes:
+                raise ValueError(f"{field_name} must preserve every response page hash")
+            for digest in hashes:
+                _require_listing_digest(digest, field_name=field_name)
+        if len(self.first_pass_page_body_sha256) != len(self.second_pass_page_body_sha256):
+            raise ValueError("both complete listing passes must contain the same page count")
+
+    @property
+    def source_manifest_sha256(self) -> str:
+        """Rebuild the original v1 SZSE manifest identity for historical compatibility."""
+
+        payload = {
+            "schema": "szse.announcement-window.v1",
+            "asset_code": self.asset_code,
+            "start_on": self.start_on.isoformat(),
+            "end_on": self.end_on.isoformat(),
+            "announcement_count": self.announcement_count,
+            "entries": [item.to_manifest_payload() for item in self.entries],
+            "page_body_sha256": self.second_pass_page_body_sha256,
+        }
+        encoded = json.dumps(
+            payload,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+            allow_nan=False,
+        ).encode("utf-8")
+        return hashlib.sha256(encoded).hexdigest()
+
+    @property
+    def coverage_manifest_sha256(self) -> str:
+        """Hash the v2 proof schema, including both complete page-hash passes."""
+
+        payload = {
+            "schema": "szse.announcement-window-coverage.v2",
+            "source": self.source.value,
+            "exchange": self.exchange.value,
+            "asset_code": self.asset_code,
+            "start_on": self.start_on.isoformat(),
+            "end_on": self.end_on.isoformat(),
+            "announcement_count": self.announcement_count,
+            "entries": [item.to_manifest_payload() for item in self.entries],
+            "first_pass_page_body_sha256": self.first_pass_page_body_sha256,
+            "second_pass_page_body_sha256": self.second_pass_page_body_sha256,
+        }
+        encoded = json.dumps(
+            payload,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+            allow_nan=False,
+        ).encode("utf-8")
+        return hashlib.sha256(encoded).hexdigest()
+
+    @property
+    def source_document_ids(self) -> tuple[str, ...]:
+        """Return the ordered PDF identities declared by the source listing."""
+
+        return tuple(item.source_document_id for item in self.entries)
+
+
+@dataclass(frozen=True, slots=True)
+class SecurityDisclosureListingCoverageReadScope:
+    """Read one exact captured SZSE date window at a historical knowledge cutoff."""
+
+    asset_code: str
+    start_on: date
+    end_on: date
+    as_of: datetime
+
+    def __post_init__(self) -> None:
+        """Require an exact security/window and an aware, bounded candidate cutoff."""
+
+        if (
+            type(self.asset_code) is not str
+            or re.fullmatch(r"[0-9]{6}\.SZ", self.asset_code) is None
+        ):
+            raise ValueError("asset_code must be a canonical SZSE security code")
+        for field_name in ("start_on", "end_on"):
+            value = getattr(self, field_name)
+            if type(value) is not date or type(value) is datetime:
+                raise ValueError(f"{field_name} must be a date")
+        if self.start_on > self.end_on:
+            raise ValueError("coverage read date window is reversed")
+        if type(self.as_of) is not datetime or self.as_of.tzinfo is None:
+            raise ValueError("as_of must be timezone-aware")
+        if self.as_of.utcoffset() is None:
+            raise ValueError("as_of must be timezone-aware")
 
 
 @dataclass(frozen=True, slots=True)
@@ -384,6 +606,119 @@ class PersistedSecurityDisclosureEvent:
             raise ValueError("recorded_at cannot precede source availability")
 
 
+@dataclass(frozen=True, slots=True)
+class PersistedSecurityDisclosureListingCoverage:
+    """One append-only listing proof and the Data Center's first persistence time."""
+
+    proof: SecurityDisclosureListingCoverageProof
+    recorded_at: datetime
+
+    def __post_init__(self) -> None:
+        """Ensure storage did not predate the completed source verification."""
+
+        if type(self.proof) is not SecurityDisclosureListingCoverageProof:
+            raise ValueError("proof must be an exact security disclosure listing proof")
+        if type(self.recorded_at) is not datetime:
+            raise ValueError("recorded_at must be a timezone-aware datetime")
+        if self.recorded_at.tzinfo is None or self.recorded_at.utcoffset() is None:
+            raise ValueError("recorded_at must be a timezone-aware datetime")
+        if self.proof.verified_at > self.recorded_at:
+            raise ValueError("recorded_at cannot precede listing verification")
+
+
+@dataclass(frozen=True, slots=True)
+class SecurityDisclosureListingCoverageSnapshot:
+    """Historical listing proof and event revisions at its exact durable cutoff."""
+
+    scope: SecurityDisclosureListingCoverageReadScope
+    proof: PersistedSecurityDisclosureListingCoverage | None
+    events: tuple[PersistedSecurityDisclosureEvent, ...]
+    coverage_status: SecurityDisclosureListingCoverageStatus
+    reason_code: str
+
+    def __post_init__(self) -> None:
+        """Prevent a missing or incomplete proof from presenting itself as complete."""
+
+        if type(self.scope) is not SecurityDisclosureListingCoverageReadScope:
+            raise ValueError("scope must be an exact listing coverage read request")
+        if (
+            self.proof is not None
+            and type(self.proof) is not PersistedSecurityDisclosureListingCoverage
+        ):
+            raise ValueError("proof must be a persisted official listing proof")
+        if type(self.events) is not tuple or any(
+            type(item) is not PersistedSecurityDisclosureEvent for item in self.events
+        ):
+            raise ValueError("events must contain persisted official disclosure facts")
+        if type(self.coverage_status) is not SecurityDisclosureListingCoverageStatus:
+            raise ValueError("coverage_status must be a recognized status")
+        _required_text(self.reason_code, field_name="reason_code", maximum=120)
+        if self.coverage_status is SecurityDisclosureListingCoverageStatus.COMPLETE:
+            if self.proof is None:
+                raise ValueError("complete listing coverage requires a persisted proof")
+            if (
+                self.proof.proof.asset_code != self.scope.asset_code
+                or self.proof.proof.start_on != self.scope.start_on
+                or self.proof.proof.end_on != self.scope.end_on
+                or self.proof.proof.verified_at > self.scope.as_of
+                or self.proof.recorded_at != self.scope.as_of
+            ):
+                raise ValueError(
+                    "complete listing coverage must match its exact persisted knowledge cutoff"
+                )
+            expected_entries = {item.source_document_id: item for item in self.proof.proof.entries}
+            represented = tuple(item.event.source_event_id for item in self.events)
+            if len(represented) != len(set(represented)) or set(represented) != set(
+                expected_entries
+            ):
+                raise ValueError(
+                    "complete listing coverage must represent each listed PDF exactly once"
+                )
+            for persisted in self.events:
+                event = persisted.event
+                entry = expected_entries[event.source_event_id]
+                if (
+                    event.source is not self.proof.proof.source
+                    or event.exchange is not self.proof.proof.exchange
+                    or event.asset_code != self.scope.asset_code
+                    or event.source_security_code != self.scope.asset_code[:6]
+                    or event.source_url != entry.source_url
+                    or type(event.announced_at) is not date
+                    or event.announced_at != entry.published_on
+                ):
+                    raise ValueError(
+                        "complete listing coverage requires exact listed event identity"
+                    )
+            if any(
+                item.event.event_type is SecurityDisclosureEventType.UNKNOWN for item in self.events
+            ):
+                raise ValueError("unknown event classification cannot be complete coverage")
+
+    @property
+    def source_scope_sha256(self) -> str | None:
+        """Return the exact listing manifest hash when proof exists at this cutoff."""
+
+        if self.proof is None:
+            return None
+        return self.proof.proof.coverage_manifest_sha256
+
+
+@dataclass(frozen=True, slots=True)
+class SecurityDisclosureListingCoverageAppendResult:
+    """Idempotent listing-proof append outcome with its persisted first winner."""
+
+    disposition: SecurityDisclosureEventAppendDisposition
+    record: PersistedSecurityDisclosureListingCoverage
+
+    def __post_init__(self) -> None:
+        """Require a typed persistence disposition and exact proof record."""
+
+        if type(self.disposition) is not SecurityDisclosureEventAppendDisposition:
+            raise ValueError("disposition must be an exact append outcome")
+        if type(self.record) is not PersistedSecurityDisclosureListingCoverage:
+            raise ValueError("record must be a persisted security disclosure listing proof")
+
+
 class SecurityDisclosureEventAppendDisposition(StrEnum):
     """Whether an append inserted a first winner or returned an exact duplicate."""
 
@@ -409,6 +744,13 @@ class SecurityDisclosureEventAppendResult:
 
 __all__ = [
     "PersistedSecurityDisclosureEvent",
+    "PersistedSecurityDisclosureListingCoverage",
+    "SecurityDisclosureListingCoverageAppendResult",
+    "SecurityDisclosureListingCoverageProof",
+    "SecurityDisclosureListingCoverageReadScope",
+    "SecurityDisclosureListingCoverageSnapshot",
+    "SecurityDisclosureListingCoverageStatus",
+    "SecurityDisclosureListingEntry",
     "SecurityDisclosureEvent",
     "SecurityDisclosureEventAppendDisposition",
     "SecurityDisclosureEventAppendResult",

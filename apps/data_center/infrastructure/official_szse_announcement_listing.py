@@ -14,6 +14,12 @@ from uuid import UUID, uuid4
 import requests
 from django.utils import timezone
 
+from apps.data_center.domain.security_disclosure_event import (
+    SecurityDisclosureExchange,
+    SecurityDisclosureListingCoverageProof,
+    SecurityDisclosureListingEntry,
+    SecurityDisclosureSource,
+)
 from core.exceptions import DataFetchError
 
 _LISTING_URL = "https://www.szse.cn/api/disc/announcement/annList"
@@ -36,19 +42,6 @@ class OfficialSzseListingError(DataFetchError):
 
 
 @dataclass(frozen=True, slots=True)
-class OfficialSzseListingEntry:
-    """One exact official-list row, retaining its date-only publication claim."""
-
-    listing_id: str
-    announcement_id: int
-    title: str
-    published_on: date
-    raw_publish_time: str
-    source_document_id: str
-    source_url: str
-
-
-@dataclass(frozen=True, slots=True)
 class CapturedOfficialSzseListingWindow:
     """Two matching complete page passes for one security and date window."""
 
@@ -57,9 +50,11 @@ class CapturedOfficialSzseListingWindow:
     end_on: date
     observed_at: datetime
     announcement_count: int
-    entries: tuple[OfficialSzseListingEntry, ...]
+    entries: tuple[SecurityDisclosureListingEntry, ...]
+    first_pass_page_body_sha256: tuple[str, ...]
     page_body_sha256: tuple[str, ...]
     manifest_sha256: str
+    coverage_manifest_sha256: str
 
 
 def _required_uuid(value: object, *, field_name: str) -> str:
@@ -78,7 +73,7 @@ def _required_uuid(value: object, *, field_name: str) -> str:
 
 def _entry_from_json(
     raw: object, *, security_code: str, start_on: date, end_on: date
-) -> OfficialSzseListingEntry:
+) -> SecurityDisclosureListingEntry:
     """Validate one listing row before it enters a coverage snapshot."""
 
     if not isinstance(raw, dict):
@@ -111,7 +106,7 @@ def _entry_from_json(
     if pdf_match is None:
         raise OfficialSzseListingError("announcement PDF path is not source-native")
     document_id = _required_uuid(pdf_match.group("document_id"), field_name="PDF document id")
-    return OfficialSzseListingEntry(
+    return SecurityDisclosureListingEntry(
         listing_id=listing_id,
         announcement_id=announcement_id,
         title=title.strip(),
@@ -145,7 +140,7 @@ def _read_page(
     end_on: date,
     page_number: int,
     page_size: int,
-) -> tuple[int, tuple[OfficialSzseListingEntry, ...], bytes]:
+) -> tuple[int, tuple[SecurityDisclosureListingEntry, ...], bytes]:
     """Read and narrow one exact POST JSON page from the official listing API."""
 
     payload = {
@@ -198,7 +193,7 @@ def _read_complete_pass(
     start_on: date,
     end_on: date,
     page_size: int,
-) -> tuple[int, tuple[OfficialSzseListingEntry, ...], tuple[bytes, ...]]:
+) -> tuple[int, tuple[SecurityDisclosureListingEntry, ...], tuple[bytes, ...]]:
     """Collect every page and reject count changes or duplicate source identities."""
 
     total, first_entries, first_body = _read_page(
@@ -303,39 +298,31 @@ def capture_official_szse_announcement_window(
             http.close()
     if first[0] != second[0] or first[1] != second[1]:
         raise OfficialSzseListingError("SZSE listing changed between complete passes")
-    page_hashes = tuple(_retain_page(body_store_root, body) for body in second[2])
-    manifest = {
-        "schema": "szse.announcement-window.v1",
-        "asset_code": asset_code,
-        "start_on": start_on.isoformat(),
-        "end_on": end_on.isoformat(),
-        "announcement_count": second[0],
-        "entries": [
-            {
-                "listing_id": item.listing_id,
-                "announcement_id": item.announcement_id,
-                "title": item.title,
-                "published_on": item.published_on.isoformat(),
-                "raw_publish_time": item.raw_publish_time,
-                "source_document_id": item.source_document_id,
-                "source_url": item.source_url,
-            }
-            for item in second[1]
-        ],
-        "page_body_sha256": page_hashes,
-    }
-    manifest_sha256 = hashlib.sha256(
-        json.dumps(manifest, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode(
-            "utf-8"
-        )
-    ).hexdigest()
+    first_page_hashes = tuple(_retain_page(body_store_root, body) for body in first[2])
+    second_page_hashes = tuple(_retain_page(body_store_root, body) for body in second[2])
+    observed_at = timezone.now()
+    proof = SecurityDisclosureListingCoverageProof(
+        source=SecurityDisclosureSource.SZSE_OFFICIAL,
+        exchange=SecurityDisclosureExchange.SZSE,
+        asset_code=asset_code,
+        start_on=start_on,
+        end_on=end_on,
+        first_observed_at=observed_at,
+        verified_at=observed_at,
+        announcement_count=second[0],
+        entries=second[1],
+        first_pass_page_body_sha256=first_page_hashes,
+        second_pass_page_body_sha256=second_page_hashes,
+    )
     return CapturedOfficialSzseListingWindow(
         asset_code=asset_code,
         start_on=start_on,
         end_on=end_on,
-        observed_at=timezone.now(),
+        observed_at=observed_at,
         announcement_count=second[0],
         entries=second[1],
-        page_body_sha256=page_hashes,
-        manifest_sha256=manifest_sha256,
+        first_pass_page_body_sha256=first_page_hashes,
+        page_body_sha256=second_page_hashes,
+        manifest_sha256=proof.source_manifest_sha256,
+        coverage_manifest_sha256=proof.coverage_manifest_sha256,
     )
