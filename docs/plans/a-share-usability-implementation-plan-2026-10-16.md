@@ -2997,3 +2997,7 @@ Data Center 将同一证券及日期窗口的深交所公告全页列表、两�
 | base_sha | identity | change_kind | rationale | consumer_audit | compatibility_or_rollback |
 | --- | --- | --- | --- | --- | --- |
 | 90740889289bf6650528bdb67114a5e303bec648 | data_center.SecurityDisclosureListingCoverageModel | added_concrete | 保留官方全页列表与双轮哈希以便精确时点核对覆盖，单篇公告事实不能证明未遗漏 | 仅 Data Center 精确窗口读取与捕获组合消费；既有公告事实、公开 API、Portfolio 及旧数据写入者未改读此表 | 旧候选可忽略新表；回滚代码前保留证明原件和新表数据，必要时先停止新捕获写入再按迁移计划处理表 |
+
+`a55061f0cbf064ad87b7fa4ead614a1bafe7744f` 的本地模型差值门通过；首次远端 Consistency Check 在 Data Center 架构清单过期处失败，失败原件为 `artifacts/ash05-coverage-20261110/ci-consistency-a550-failed.txt`。按生成器补齐 `governance/data_center_architecture_inventory.json` 后需以新提交重跑精确 CI，不能拼接旧候选结果。
+
+同一源码在隔离 SQLite 的公开交易所复核中，002727.SZ 的 2026-09-01 至 09-30 窗口列 11 篇、选入 3 篇，原 v1 manifest 仍为 `d5e9f840e47f836e42a80848d2f65e385f8793e421a50336030118361b88f42b`，新覆盖证明为 `ef3503e40f16d5e73c3009cd1537d1a53770500c1a3653fa6a464b65bfc72b61`；301237.SZ 的 2026-08-01 至 09-15 窗口列 6 篇、选入 1 篇，原 v1 manifest 仍为 `6fcf46ea8347118cecf0c1d1a278925ac419bf77ac98c16627b09e3298aa7226`，新覆盖证明为 `d976483f6757efa85836c83e901281daa0a86214a7f59b7d97efc1f489309d76`。两者均在证明落库时返回 `partial/LISTED_EVENT_NOT_REPRESENTED`。原件为 `artifacts/ash05-coverage-20261110/live-official-verify.log`、脚本及原始响应；此运行未接生产数据库或生产入账。

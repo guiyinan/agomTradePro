@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 6682,
+    "current_surface_references": 6685,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -10623,6 +10623,10 @@
       "text": "summary = summaries[dataset_key]"
     },
     {
+      "path": "apps/data_center/application/security_disclosure_event.py",
+      "text": "\"\"\"Read one exact historical listing window without claiming current coverage.\"\"\""
+    },
+    {
       "path": "apps/data_center/application/sync_market_use_cases.py",
       "text": "current = self._facts.get_bars_for_assets("
     },
@@ -12887,6 +12891,10 @@
       "text": "\"\"\"Return the current aware application time.\"\"\""
     },
     {
+      "path": "apps/data_center/infrastructure/security_disclosure_event_repository.py",
+      "text": "\"\"\"Return the latest exact-window proof durably recorded by ``as_of``.\"\"\""
+    },
+    {
       "path": "apps/data_center/infrastructure/sse_investor_accounts.py",
       "text": "\"\"\"Return SSE MDATE query months, allowing current-year publication lag.\"\"\""
     },
@@ -13581,6 +13589,10 @@
     {
       "path": "apps/data_center/published_price_source_composition.py",
       "text": "\"\"\"Keep current policy, publication members and sealed source inputs in one read boundary.\"\"\""
+    },
+    {
+      "path": "apps/data_center/security_disclosure_capture_composition.py",
+      "text": "\"\"\"Compose the non-current exact-window proof reader with Data Center repositories.\"\"\""
     },
     {
       "path": "apps/decision_rhythm/application/advisor_contracts.py",
