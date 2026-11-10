@@ -3109,3 +3109,9 @@ registry v365 登记唯一隔离准备：将 Config Center profile/snapshot、�
 Root 的事务末端小块把事件复核 validator 经 `RebalanceJourneyApplication` 注入现有 Portfolio 用例；真实复核 repository 在取得行锁后重新读当前时钟、重验事件和计划有效期，预留 repository 在插入 hold 后、事务提交前再次运行锁内计划绑定检查，失败回滚整笔 hold。事件变化和锁等待后到期反例所在单测文件 **40 passed**；Black/isort/Ruff、三文件增量 mypy 零回归、全库债务、架构规则、current-data、无环及重建模块图通过。原生 PostgreSQL 预留回滚反例在本机因没有 PostgreSQL 而 **1 skipped**（准备耗时 273 秒）；未取得真实数据库通过证据前不得把事务回滚门记为完成。
 
 `2660d4c0b` 的 Security、Architecture、Engineering 精确 CI 成功；Consistency Check 发现 Data Center 架构生成投影过期而失败，原件保留并由下一候选重生成后复检。Fast Feedback 与 Publication PostgreSQL 在检查时仍运行，不能借其结果验收新候选。下一候选继续把同一写入末端门加到初始/继任计划：只有显式事件 pin 的计划才在持久插入前复查当前 lease 与事件状态，旧 M1 不受可选事件能力牵连。过期写入单测及相关单测文件 **41 passed**；本机 PostgreSQL 缺口仍需独立真实执行证据。
+
+### 19.184 ASH-05 正式事件门接线与现金权益下一块（2026-11-11）
+
+正式候选 `e926c29e5268896fb1395fbbfb959584a41e55bd` 把官方重抓、配置指纹、精确持久 proof 的最终时钟 pin 接入计划生成，并把同一当前配置和 Data Center 二次读取接入复核与账户锁内预留。初始/继任计划写入和 hold 插入后、提交前均重新读时钟及事件门；过期、变更或范围漂移使事务回滚。上一候选触发的架构清单漂移已重生成，预约仓库从 1016 行压回 999 行，未抬高文件大小基线。正式树 **151 项**定向测试、Black/isort/Ruff、十文件增量 mypy 零回归、全库债务上限、架构、运行配置、当前数据合同、模块图、治理一致性、Data Center 投影及精确文件大小门禁通过。该候选精确 CI 尚在运行，原生 PostgreSQL hold 回滚以新增 workflow 用例执行且未跳过为验收条件；不得沿用本地 SQLite skip 或旧候选回执。
+
+registry v366 登记单个隔离准备：Luna max 只建立「登记日可信权属 proof → 现金分红权益入账」的生产组合和 Application 校验，并为原生 PostgreSQL 幂等、账户隔离与行锁补聚焦测试。必须重读不可变零起点及完整历史，精确比较账户/所有者/证券、登记日、证据截止点、快照身份与哈希、可享数量及观察时钟；缺失或变化先阻断。仅允许 `CASH_ENTITLEMENT`，公司公告 ID/PDF 哈希不能冒充法定税规则，`TAX_WITHHOLDING` 保持阻断。Root 负责正式整合、PG workflow、Audit/Outbox 原子账户写入、逐笔后扣税、送转/配股、复权收益和 §9 全部金样本。两个已证明的历史公告窗口不能充当当前计划日期覆盖；ASH-05 仍 active，不开启生产执行或 deferred ASH-06/09/12。
