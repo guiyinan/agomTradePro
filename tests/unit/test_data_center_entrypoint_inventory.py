@@ -189,6 +189,7 @@ def test_data_center_script_imports_remain_candidate_review_after_registration(
         "scripts/build_release_rehearsal_manifest.py",
         "scripts/prepare_s6_candidate_source_snapshot.py",
         "scripts/refresh_s6_isolated_market_graph.py",
+        "scripts/replay_ref05_public_evidence.py",
         "scripts/s6_isolated_market_graph_receipt.py",
         "scripts/validate_release_rehearsal.py",
     ]
@@ -292,12 +293,24 @@ def test_management_command_discovery_ignores_generated_and_agent_temp_trees(
         / "commands"
         / "agent_copy.py"
     )
+    evidence_copy = (
+        tmp_path
+        / "artifacts"
+        / "projection-checkout"
+        / "apps"
+        / "data_center"
+        / "management"
+        / "commands"
+        / "evidence_copy.py"
+    )
     real_command.parent.mkdir(parents=True)
     copied_command.parent.mkdir(parents=True)
     agent_copy.parent.mkdir(parents=True)
+    evidence_copy.parent.mkdir(parents=True)
     real_command.write_text("from apps.data_center.application import public\n", encoding="utf-8")
     copied_command.write_text("from apps.data_center.application import public\n", encoding="utf-8")
     agent_copy.write_text("from apps.data_center.application import public\n", encoding="utf-8")
+    evidence_copy.write_text("from apps.data_center.application import public\n", encoding="utf-8")
     monkeypatch.setattr(inventory, "ROOT", tmp_path)
 
     commands = inventory._discover_management_commands()

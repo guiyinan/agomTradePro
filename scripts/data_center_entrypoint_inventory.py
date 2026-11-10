@@ -13,6 +13,7 @@ import argparse
 import ast
 import fnmatch
 import json
+import os
 import re
 from collections import Counter
 from collections.abc import Iterable
@@ -236,6 +237,7 @@ IGNORED_PATH_PARTS = frozenset(
         ".ruff_cache",
         ".tmp",
         ".venv",
+        "artifacts",
         "__pycache__",
         "node_modules",
         "output",
@@ -255,6 +257,19 @@ def _is_ignored_path(path: Path) -> bool:
         part in IGNORED_PATH_PARTS or part.startswith((".codex-", ".codex_"))
         for part in path.relative_to(ROOT).parts
     )
+
+
+def _repository_python_files(*, name: str | None = None) -> Iterable[Path]:
+    """Walk source files without descending into ignored evidence or local copies."""
+
+    for directory, child_directories, filenames in os.walk(ROOT):
+        parent = Path(directory)
+        child_directories[:] = sorted(
+            child for child in child_directories if not _is_ignored_path(parent / child)
+        )
+        for filename in sorted(filenames):
+            if filename.endswith(".py") and (name is None or filename == name):
+                yield parent / filename
 
 
 def _load_json(path: Path) -> dict[str, Any]:
@@ -839,7 +854,7 @@ def _discover_scripts(legacy: dict[str, Any]) -> list[dict[str, object]]:
 
 def _discover_management_commands() -> list[dict[str, object]]:
     results: list[dict[str, object]] = []
-    for path in sorted(ROOT.rglob("*.py")):
+    for path in _repository_python_files():
         path_parts = path.relative_to(ROOT).parts
         if "management" not in path_parts or "commands" not in path_parts:
             continue
@@ -2120,7 +2135,7 @@ def _discover_rest_urls() -> list[dict[str, object]]:
                     evidence="Data Center-owned URLconf",
                 )
             )
-    for path in sorted(ROOT.glob("**/urls.py")):
+    for path in _repository_python_files(name="urls.py"):
         if path in owned_paths or _is_ignored_path(path):
             continue
         text = path.read_text(encoding="utf-8", errors="ignore")
