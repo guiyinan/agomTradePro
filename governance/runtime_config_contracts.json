@@ -630,6 +630,26 @@
       "notes": "Optional NORMAL metadata with no default, seed or activation. Absence must not block unrelated profile validation or updates, but always blocks this mark reader. The explicit initial-position purpose, price source/key, asset scope and observation-based TTL are verified together with the active profile/snapshot identity at the exact read cutoff. This does not wire a default ledger reader or authorize execution."
     },
     {
+      "config_key": "config_center.market.simulated_disclosure_coverage_policy",
+      "namespace": "config_center",
+      "owner": "config_center",
+      "type": "typed_json",
+      "criticality": "normal",
+      "current_source": "config_center_runtime_profile",
+      "fallback": "blocked",
+      "migration_status": "canonical_only_fail_closed",
+      "materialization_required": false,
+      "consumers": [
+        "apps/config_center/application/runtime_public.py::get_active_runtime_value"
+      ],
+      "definition_source": "apps/config_center/application/runtime_definition_reconcile.py::DEFAULT_RUNTIME_DEFINITIONS",
+      "bootstrap_command": "python manage.py initialize_runtime_definitions",
+      "tests": [
+        "tests/unit/config_center/test_runtime_definition_reconcile.py::test_disclosure_coverage_policy_is_optional_and_unseeded"
+      ],
+      "notes": "Optional NORMAL metadata only; no default, seed, activation or broad production capture. The future feature consumer must narrow exact asset/security/source/window scope and a versioned lease from the active profile/snapshot evidence, cap TTL at the Owner-approved 60 seconds, and block missing, changed or stale proof. This setting does not guarantee exchange freshness or authorize trading."
+    },
+    {
       "config_key": "task_monitor.retention_days",
       "namespace": "task_monitor",
       "owner": "task_monitor",

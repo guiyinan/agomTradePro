@@ -499,6 +499,16 @@ DEFAULT_RUNTIME_DEFINITIONS: tuple[RuntimeConfigDefinition, ...] = (
         user_impact="Binds source, purpose and observation-based expiry; absence blocks initial position marks.",
     ),
     RuntimeConfigDefinition(
+        key="config_center.market.simulated_disclosure_coverage_policy",
+        namespace="config_center",
+        owner_app="config_center",
+        value_type=RuntimeValueType.TYPED_JSON,
+        criticality=RuntimeConfigCriticality.NORMAL,
+        reload_mode=RuntimeConfigReloadMode.NEXT_TASK,
+        description="Optional exact official disclosure windows and versioned plan coverage lease policy.",
+        user_impact="Enables source-bound event checks for explicitly scoped simulated plans; absence leaves the optional event gate unavailable.",
+    ),
+    RuntimeConfigDefinition(
         key="config_center.market.simulated_local_daily_simulation_policy",
         namespace="config_center",
         owner_app="config_center",
