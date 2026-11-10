@@ -57,6 +57,9 @@ from apps.simulated_trading.application.rebalance_journey_event_coverage import 
 from apps.simulated_trading.application.rebalance_journey_event_refresh import (
     RebalanceJourneyOfficialEventRefresher,
 )
+from apps.simulated_trading.application.rebalance_journey_event_request_scope import (
+    RebalanceJourneyEventRequestScope,
+)
 from apps.simulated_trading.application.rebalance_journey_preparation import (
     PortfolioJourneyPreparationProvider,
 )
@@ -182,10 +185,16 @@ class _EventCoverageScopes:
         self,
         *,
         asset_identities: tuple[tuple[str, str], ...],
+        request_scope: object,
         as_of: datetime,
     ) -> tuple[RebalanceJourneyEventCoverageScope, ...]:
         assert (_ASSET_CODE, _SECURITY_ID) in asset_identities
         assert as_of == _PREPARED_AT
+        assert _request_scope_values(request_scope) == (
+            risk_fixtures._OWNER_ID,
+            risk_fixtures._ACCOUNT_ID,
+            risk_fixtures._OWNER_ID,
+        )
         return (self.scope,)
 
 
@@ -218,16 +227,19 @@ class _RefreshingEventScopes:
         self.proof_after_final_clock = proof_after_final_clock
         self.lease_ttl = lease_ttl
         self.plan_clocks: list[datetime] = []
+        self.request_scopes: list[object] = []
         self.scopes: dict[tuple[str, str], RebalanceJourneyEventCoverageScope] = {}
 
     def read_scopes(
         self,
         *,
         asset_identities: tuple[tuple[str, str], ...],
+        request_scope: object,
         as_of: datetime,
     ) -> tuple[RebalanceJourneyEventCoverageScope, ...]:
         """Return only the exact refreshed identity at the final decision cutoff."""
 
+        self.request_scopes.append(request_scope)
         self.plan_clocks.append(as_of)
         proof_at = self.refresher.proof_recorded_at
         if proof_at is None:
@@ -299,15 +311,21 @@ class _AdvancingOfficialEventRefresher:
         self.refresh_context = refresh_context
         self.proof_recorded_at: datetime | None = None
         self.calls: list[tuple[PortfolioRiskAssetIdentity, ...]] = []
+        self.request_scopes: list[object] = []
+        self.refresh_clocks: list[datetime] = []
 
     def refresh(
         self,
         *,
         asset_identities: tuple[PortfolioRiskAssetIdentity, ...],
+        request_scope: object,
+        as_of: datetime,
     ) -> tuple[PortfolioRiskAssetIdentity, ...]:
         """Return the exact refreshed pairs after a multi-minute fake capture."""
 
         self.calls.append(asset_identities)
+        self.request_scopes.append(request_scope)
+        self.refresh_clocks.append(as_of)
         self.clock.advance(timedelta(minutes=5))
         self.proof_recorded_at = self.clock.current
         self.clock.advance(timedelta(seconds=2))
@@ -323,10 +341,16 @@ class _IdentityChangingEventRefresher(_AdvancingOfficialEventRefresher):
         self,
         *,
         asset_identities: tuple[PortfolioRiskAssetIdentity, ...],
+        request_scope: object,
+        as_of: datetime,
     ) -> tuple[PortfolioRiskAssetIdentity, ...]:
         """Return the captured initial pair while the final risk read changes it."""
 
-        refreshed = super().refresh(asset_identities=asset_identities)
+        refreshed = super().refresh(
+            asset_identities=asset_identities,
+            request_scope=request_scope,
+            as_of=as_of,
+        )
         assets = self.reads._prepared.assets
         changed_assets = tuple(
             replace(asset, security_id="SSE:600037", capacity_observation=None)
@@ -346,10 +370,14 @@ class _RefreshError:
         self,
         *,
         asset_identities: tuple[PortfolioRiskAssetIdentity, ...],
+        request_scope: object,
+        as_of: datetime,
     ) -> tuple[PortfolioRiskAssetIdentity, ...]:
         """Raise the transport error that the preparation provider must block."""
 
         del asset_identities
+        del request_scope
+        del as_of
         raise RuntimeError("synthetic official capture failure")
 
 
@@ -360,10 +388,14 @@ class _IncompleteRefresh:
         self,
         *,
         asset_identities: tuple[PortfolioRiskAssetIdentity, ...],
+        request_scope: object,
+        as_of: datetime,
     ) -> tuple[PortfolioRiskAssetIdentity, ...]:
         """Claim no assets were captured even though the request was nonempty."""
 
         del asset_identities
+        del request_scope
+        del as_of
         return ()
 
 
@@ -879,6 +911,17 @@ def _request(target_weights: str = _TARGET_TEXT) -> TransitionPlanRevisionReques
     )
 
 
+def _request_scope_values(request_scope: object) -> tuple[int, int, int]:
+    """Project exact actor/account/owner identity fields from a typed scope value."""
+
+    scope = cast(RebalanceJourneyEventRequestScope, request_scope)
+    return (
+        scope.actor_user_id,
+        scope.account_id,
+        scope.owner_user_id,
+    )
+
+
 def _event_pinner() -> PinRebalanceJourneyEventCoverage:
     """Compose only synthetic exact proof and lease inputs for this unit contract."""
 
@@ -1139,6 +1182,14 @@ def test_official_refresh_finishes_before_final_plan_clock_and_durable_pinning(
     result = provider.prepare(_request(), prepared_at=_PREPARED_AT, parent=None)
 
     assert refresher.calls == [(PortfolioRiskAssetIdentity(_ASSET_CODE, _SECURITY_ID),)]
+    expected_scope = (
+        risk_fixtures._OWNER_ID,
+        risk_fixtures._ACCOUNT_ID,
+        risk_fixtures._OWNER_ID,
+    )
+    assert [_request_scope_values(item) for item in refresher.request_scopes] == [expected_scope]
+    assert [_request_scope_values(item) for item in scopes.request_scopes] == [expected_scope]
+    assert refresher.refresh_clocks == [_PREPARED_AT]
     assert reads.preview_reads == 2
     assert reads.risk_reads == 2
     assert scopes.plan_clocks == [clock.current]
@@ -1154,6 +1205,40 @@ def test_official_refresh_finishes_before_final_plan_clock_and_durable_pinning(
     assert pin.known_at == refresher.proof_recorded_at
     assert pin.observed_at == _AS_OF - timedelta(seconds=40)
     assert pin.observed_at != pin.known_at
+
+
+@pytest.mark.parametrize("changed_identity", ("actor", "account", "owner"))
+def test_request_scope_mismatch_blocks_before_official_refresh_or_hashing(
+    monkeypatch: pytest.MonkeyPatch,
+    changed_identity: str,
+) -> None:
+    """Unverified actor/account/owner context must never reach the capture adapter."""
+
+    provider, _clock, refresher, reads, _scopes = _advancing_refresh_case(monkeypatch)
+    if changed_identity == "actor":
+        reads._prepared = replace(
+            reads._prepared,
+            actor_user_id=risk_fixtures._OWNER_ID + 1,
+        )
+    elif changed_identity == "account":
+        reads._prepared = replace(
+            reads._prepared,
+            snapshot=replace(reads._prepared.snapshot, account_id=risk_fixtures._ACCOUNT_ID + 1),
+        )
+    else:
+        reads._prepared = replace(
+            reads._prepared,
+            snapshot=replace(reads._prepared.snapshot, owner_user_id=risk_fixtures._OWNER_ID + 1),
+        )
+    monkeypatch.setattr(
+        "apps.simulated_trading.application.rebalance_journey_preparation.portfolio_risk_content_hash",
+        lambda *_args, **_kwargs: pytest.fail("invalid request scope must precede hashing"),
+    )
+
+    with pytest.raises(RebalanceJourneyUnavailable):
+        provider.prepare(_request(), prepared_at=_PREPARED_AT, parent=None)
+
+    assert refresher.calls == []
 
 
 def test_event_refresh_upgrades_legacy_parent_as_a_successor(

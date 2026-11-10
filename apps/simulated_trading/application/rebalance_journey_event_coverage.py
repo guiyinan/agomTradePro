@@ -25,6 +25,9 @@ from apps.portfolio.domain.transition_plan_event_review import (
 )
 from apps.portfolio.domain.transition_plan_revision import TransitionPlanRevision
 from apps.portfolio.domain.transition_plan_revision_basis import TransitionPlanSourceBinding
+from apps.simulated_trading.application.rebalance_journey_event_request_scope import (
+    RebalanceJourneyEventRequestScope,
+)
 from apps.simulated_trading.application.rebalance_journey_public import RebalanceJourneyUnavailable
 
 
@@ -98,6 +101,7 @@ class RebalanceJourneyEventCoverageScopeReader(Protocol):
         self,
         *,
         asset_identities: tuple[tuple[str, str], ...],
+        request_scope: RebalanceJourneyEventRequestScope,
         as_of: datetime,
     ) -> tuple[RebalanceJourneyEventCoverageScope, ...] | None:
         """Return every exact source window or None when closed-world scope is unavailable."""
@@ -111,6 +115,7 @@ class RebalanceJourneyEventCoveragePinner(Protocol):
         self,
         *,
         asset_identities: tuple[tuple[str, str], ...],
+        request_scope: RebalanceJourneyEventRequestScope,
         as_of: datetime,
         parent: TransitionPlanRevision | None,
     ) -> tuple[TransitionPlanSourceBinding, ...]:
@@ -138,6 +143,7 @@ class PinRebalanceJourneyEventCoverage:
         self,
         *,
         asset_identities: tuple[tuple[str, str], ...],
+        request_scope: RebalanceJourneyEventRequestScope,
         as_of: datetime,
         parent: TransitionPlanRevision | None,
     ) -> tuple[TransitionPlanSourceBinding, ...]:
@@ -145,12 +151,18 @@ class PinRebalanceJourneyEventCoverage:
 
         if type(as_of) is not datetime or as_of.tzinfo is None or as_of.utcoffset() is None:
             raise RebalanceJourneyUnavailable(code="REBALANCE_PLAN_EVENT_CUTOFF_INVALID")
+        if type(request_scope) is not RebalanceJourneyEventRequestScope:
+            raise RebalanceJourneyUnavailable(code="REBALANCE_PLAN_EVENT_REQUEST_SCOPE_INVALID")
         if self._scope_reader is None or self._snapshot_reader is None:
             raise RebalanceJourneyUnavailable(code="REBALANCE_PLAN_EVENT_PROVIDER_UNAVAILABLE")
         if self._lease_policy is None:
             raise RebalanceJourneyUnavailable(code="REBALANCE_PLAN_EVENT_LEASE_POLICY_UNAVAILABLE")
         identities = _validated_identities(asset_identities)
-        scopes = self._scope_reader.read_scopes(asset_identities=identities, as_of=as_of)
+        scopes = self._scope_reader.read_scopes(
+            asset_identities=identities,
+            request_scope=request_scope,
+            as_of=as_of,
+        )
         if type(scopes) is not tuple or not scopes:
             raise RebalanceJourneyUnavailable(code="REBALANCE_PLAN_EVENT_SCOPE_UNAVAILABLE")
         if any(type(scope) is not RebalanceJourneyEventCoverageScope for scope in scopes):

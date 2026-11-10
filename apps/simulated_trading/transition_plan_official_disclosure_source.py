@@ -1,0 +1,275 @@
+"""Compose request-scoped official SZSE capture before a plan's final proof pin."""
+
+from __future__ import annotations
+
+import re
+from datetime import date, datetime, timedelta
+from pathlib import Path
+from typing import Protocol
+
+from apps.audit.application.security_disclosure_audit import SecurityDisclosureAuditAppendResult
+from apps.audit.security_disclosure_capture_composition import (
+    SzseDistributionWindowIngestion,
+    capture_and_append_szse_distribution_window,
+)
+from apps.data_center.domain.security_disclosure_event import (
+    SecurityDisclosureExchange,
+    SecurityDisclosureListingCoverageAppendResult,
+    SecurityDisclosureSource,
+)
+from apps.risk_center.application.portfolio_risk_assets import PortfolioRiskAssetIdentity
+from apps.simulated_trading.application.rebalance_journey_event_request_scope import (
+    RebalanceJourneyEventRequestScope,
+)
+from apps.simulated_trading.application.rebalance_journey_public import RebalanceJourneyUnavailable
+from apps.simulated_trading.infrastructure.corporate_action_ownership_history_repository import (
+    VerifiedSimulatedAccountOriginCalendar,
+)
+from apps.simulated_trading.transition_plan_disclosure_runtime_policy import (
+    ConfiguredTransitionPlanDisclosureRuntimePolicyReader,
+    TransitionPlanDisclosureRuntimePolicy,
+)
+from core.exceptions import AgomTradeProException
+
+_SZSE_ASSET_CODE = re.compile(r"[0-9]{6}\.SZ")
+_MAXIMUM_LEASE = timedelta(seconds=60)
+
+
+class VerifiedOriginCalendarReader(Protocol):
+    """Read the account origin and decision date under one exchange timezone policy."""
+
+    def read_verified_zero_origin_calendar(
+        self,
+        *,
+        account_id: int,
+        owner_user_id: int,
+        exchange: str,
+        as_of: datetime,
+    ) -> VerifiedSimulatedAccountOriginCalendar:
+        """Return a sealed account origin and exchange-local decision calendar."""
+        ...
+
+
+class OfficialDisclosurePolicyReader(Protocol):
+    """Read one active, versioned official coverage policy for a known account."""
+
+    def read_policy(
+        self,
+        *,
+        decision_on: date,
+        earliest_required_on: date,
+        as_of: datetime,
+    ) -> TransitionPlanDisclosureRuntimePolicy | None:
+        """Return the exact configured window or None if not decision-usable."""
+        ...
+
+
+class OfficialSzseWindowCapture(Protocol):
+    """Persist an official window with Audit/Outbox outside the account lock."""
+
+    def capture_window(
+        self,
+        *,
+        asset_code: str,
+        start_on: date,
+        end_on: date,
+        body_store_root: Path,
+        using: str,
+        audit_environment: str,
+    ) -> datetime:
+        """Return the durable proof clock after atomic fact and Audit commit."""
+        ...
+
+
+class AuditBackedSzseWindowCapture:
+    """Call the existing source and Audit composition and inspect its committed receipt."""
+
+    def capture_window(
+        self,
+        *,
+        asset_code: str,
+        start_on: date,
+        end_on: date,
+        body_store_root: Path,
+        using: str,
+        audit_environment: str,
+    ) -> datetime:
+        """Return the exact persisted proof clock only for a matching Audit batch."""
+
+        result = capture_and_append_szse_distribution_window(
+            asset_code=asset_code,
+            start_on=start_on,
+            end_on=end_on,
+            body_store_root=body_store_root,
+            using=using,
+            audit_environment=audit_environment,
+        )
+        if (
+            type(result) is not SzseDistributionWindowIngestion
+            or type(result.coverage) is not SecurityDisclosureListingCoverageAppendResult
+            or type(result.audit) is not SecurityDisclosureAuditAppendResult
+        ):
+            raise RebalanceJourneyUnavailable(code="REBALANCE_PLAN_EVENT_CAPTURE_INVALID")
+        record = result.coverage.record
+        proof = record.proof
+        if (
+            proof.source is not SecurityDisclosureSource.SZSE_OFFICIAL
+            or proof.exchange is not SecurityDisclosureExchange.SZSE
+            or proof.asset_code != asset_code
+            or proof.start_on != start_on
+            or proof.end_on != end_on
+            or result.candidate.proof != proof
+        ):
+            raise RebalanceJourneyUnavailable(code="REBALANCE_PLAN_EVENT_CAPTURE_MISMATCH")
+        return record.recorded_at
+
+
+class OfficialSzseDistributionRefresher:
+    """Capture every requested SZSE security under one account-bound policy window."""
+
+    def __init__(
+        self,
+        *,
+        origin_reader: VerifiedOriginCalendarReader,
+        policy_reader: OfficialDisclosurePolicyReader,
+        capture: OfficialSzseWindowCapture,
+        using: str,
+        audit_environment: str,
+    ) -> None:
+        """Bind explicit evidence providers without retaining mutable request state."""
+
+        if (
+            not callable(getattr(origin_reader, "read_verified_zero_origin_calendar", None))
+            or not callable(getattr(policy_reader, "read_policy", None))
+            or not callable(getattr(capture, "capture_window", None))
+            or type(using) is not str
+            or not using
+            or type(audit_environment) is not str
+            or not audit_environment
+        ):
+            raise ValueError("official disclosure refresher dependencies are invalid")
+        self._origin_reader = origin_reader
+        self._policy_reader = policy_reader
+        self._capture = capture
+        self._using = using
+        self._audit_environment = audit_environment
+
+    def refresh(
+        self,
+        *,
+        asset_identities: tuple[PortfolioRiskAssetIdentity, ...],
+        request_scope: RebalanceJourneyEventRequestScope,
+        as_of: datetime,
+    ) -> tuple[PortfolioRiskAssetIdentity, ...]:
+        """Return all exact pairs only after each Audit-backed capture completes."""
+
+        if (
+            type(request_scope) is not RebalanceJourneyEventRequestScope
+            or type(as_of) is not datetime
+            or as_of.tzinfo is None
+            or as_of.utcoffset() is None
+            or type(asset_identities) is not tuple
+            or not asset_identities
+            or any(type(item) is not PortfolioRiskAssetIdentity for item in asset_identities)
+        ):
+            raise RebalanceJourneyUnavailable(code="REBALANCE_PLAN_EVENT_REFRESH_SCOPE_INVALID")
+        asset_codes: set[str] = set()
+        for identity in asset_identities:
+            if (
+                _SZSE_ASSET_CODE.fullmatch(identity.asset_code) is None
+                or type(identity.security_id) is not str
+                or not identity.security_id
+                or identity.asset_code in asset_codes
+            ):
+                raise RebalanceJourneyUnavailable(code="REBALANCE_PLAN_EVENT_SOURCE_UNSUPPORTED")
+            asset_codes.add(identity.asset_code)
+
+        calendar = self._origin_reader.read_verified_zero_origin_calendar(
+            account_id=request_scope.account_id,
+            owner_user_id=request_scope.owner_user_id,
+            exchange="SZSE",
+            as_of=as_of,
+        )
+        if (
+            type(calendar) is not VerifiedSimulatedAccountOriginCalendar
+            or calendar.as_of != as_of
+            or calendar.timezone_policy.exchange != "SZSE"
+            or calendar.origin_on > calendar.decision_on
+        ):
+            raise RebalanceJourneyUnavailable(code="REBALANCE_PLAN_EVENT_ORIGIN_UNAVAILABLE")
+        policy = self._policy_reader.read_policy(
+            decision_on=calendar.decision_on,
+            earliest_required_on=calendar.origin_on,
+            as_of=as_of,
+        )
+        if (
+            type(policy) is not TransitionPlanDisclosureRuntimePolicy
+            or policy.source_id != "szse_official"
+            or policy.start_on > calendar.origin_on
+            or policy.end_on != calendar.decision_on
+            or policy.read_at != as_of
+            or policy.lease_policy.ttl <= timedelta(0)
+            or policy.lease_policy.ttl > _MAXIMUM_LEASE
+            or policy.lease_policy.maximum_ttl > _MAXIMUM_LEASE
+        ):
+            raise RebalanceJourneyUnavailable(code="REBALANCE_PLAN_EVENT_POLICY_UNAVAILABLE")
+
+        for identity in asset_identities:
+            try:
+                recorded_at = self._capture.capture_window(
+                    asset_code=identity.asset_code,
+                    start_on=policy.start_on,
+                    end_on=policy.end_on,
+                    body_store_root=policy.body_store_root,
+                    using=self._using,
+                    audit_environment=self._audit_environment,
+                )
+            except (
+                AgomTradeProException,
+                ArithmeticError,
+                AttributeError,
+                OSError,
+                RuntimeError,
+                TypeError,
+                ValueError,
+            ) as error:
+                raise RebalanceJourneyUnavailable(
+                    code="REBALANCE_PLAN_EVENT_REFRESH_FAILED"
+                ) from error
+            if (
+                type(recorded_at) is not datetime
+                or recorded_at.tzinfo is None
+                or recorded_at.utcoffset() is None
+                or recorded_at < as_of
+            ):
+                raise RebalanceJourneyUnavailable(code="REBALANCE_PLAN_EVENT_CAPTURE_INVALID")
+        return asset_identities
+
+
+def build_official_szse_distribution_refresher(
+    *, runtime_environment: str, using: str = "default"
+) -> OfficialSzseDistributionRefresher:
+    """Compose the real account, Config Center, and Audit source adapters lazily."""
+
+    from apps.simulated_trading.corporate_action_ownership_history_composition import (
+        build_corporate_action_ownership_history_repository,
+    )
+
+    return OfficialSzseDistributionRefresher(
+        origin_reader=build_corporate_action_ownership_history_repository(
+            runtime_environment=runtime_environment, using=using
+        ),
+        policy_reader=ConfiguredTransitionPlanDisclosureRuntimePolicyReader(
+            runtime_environment=runtime_environment
+        ),
+        capture=AuditBackedSzseWindowCapture(),
+        using=using,
+        audit_environment=runtime_environment,
+    )
+
+
+__all__ = (
+    "AuditBackedSzseWindowCapture",
+    "OfficialSzseDistributionRefresher",
+    "build_official_szse_distribution_refresher",
+)

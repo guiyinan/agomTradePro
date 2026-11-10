@@ -13777,7 +13777,9 @@
         "apps/risk_center/application/execution_settlement_v3.py",
         "apps/portfolio/application/transition_plan_event_review.py",
         "apps/simulated_trading/transition_plan_event_coverage_adapter.py",
-        "apps/simulated_trading/transition_plan_disclosure_runtime_policy.py"
+        "apps/simulated_trading/transition_plan_disclosure_runtime_policy.py",
+        "apps/simulated_trading/application/rebalance_journey_event_request_scope.py",
+        "apps/simulated_trading/transition_plan_official_disclosure_source.py"
       ],
       "required_markers": {
         "apps/portfolio/domain/transition_plan_revision_basis.py": [
@@ -13819,6 +13821,15 @@
           "earliest_required_on",
           "_OWNER_MAXIMUM_LEASE_TTL = timedelta(seconds=60)",
           "snapshot.snapshot_hash"
+        ],
+        "apps/simulated_trading/application/rebalance_journey_event_request_scope.py": [
+          "account_scope.owner_user_id != prepared.snapshot.owner_user_id",
+          "resource_snapshot.read_at != prepared.snapshot.read_at"
+        ],
+        "apps/simulated_trading/transition_plan_official_disclosure_source.py": [
+          "policy.end_on != calendar.decision_on",
+          "recorded_at < as_of",
+          "capture_and_append_szse_distribution_window"
         ]
       },
       "required_tests": [
@@ -13881,6 +13892,21 @@
           "case": "missing or invalid coverage policy fails closed",
           "test_file": "tests/unit/simulated_trading/test_transition_plan_disclosure_runtime_policy.py",
           "test_function": "test_reader_fails_closed_for_missing_or_invalid_policy"
+        },
+        {
+          "case": "official capture uses the sealed account origin and exact request identity",
+          "test_file": "tests/unit/simulated_trading/test_transition_plan_official_disclosure_source.py",
+          "test_function": "test_official_capture_uses_verified_account_window_and_exact_identities"
+        },
+        {
+          "case": "missing coverage policy never reaches the external exchange source",
+          "test_file": "tests/unit/simulated_trading/test_transition_plan_official_disclosure_source.py",
+          "test_function": "test_missing_or_incomplete_policy_blocks_before_network"
+        },
+        {
+          "case": "replayed old proof cannot authorize a fresh official capture",
+          "test_file": "tests/unit/simulated_trading/test_transition_plan_official_disclosure_source.py",
+          "test_function": "test_replayed_old_proof_cannot_be_reported_as_fresh_capture"
         }
       ],
       "notes": "Controlled-port and Native component tests do not establish current external-source or ordinary-browser acceptance. Vendor availability/expiry unknown remain null; local source admission_until is separate. Full original evidence stays embedded and hashed. Current risk/profile, native limits, fees, rule records, published-calendar members and classifier/source/mapping pins are rechecked without using the naturally changing account cash/full report hash as an immutable policy identity. Inactive staff approval remains must_not_execute; a manual binding grants no formal Evidence, live, automated or broker authority. Opt-in official disclosure review keeps the exact later-cutoff read UNKNOWN, selects current proof by a separate latest-to-exact DB-only reread, checks action-time event revisions and both half-open 60-second leases, and blocks on missing or contradictory evidence. It does not claim exchange-guaranteed freshness or production execution authority."

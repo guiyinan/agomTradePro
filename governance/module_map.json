@@ -2367,6 +2367,9 @@
         "dashboard": {
           "imports": 1
         },
+        "simulated_trading": {
+          "imports": 2
+        },
         "terminal": {
           "imports": 2
         }
@@ -4133,7 +4136,7 @@
           "imports": 3
         },
         "simulated_trading": {
-          "imports": 73
+          "imports": 74
         },
         "strategy": {
           "imports": 1
@@ -7833,7 +7836,7 @@
           "imports": 50
         },
         "simulated_trading": {
-          "imports": 32
+          "imports": 33
         },
         "strategy": {
           "imports": 1
@@ -9618,7 +9621,7 @@
           "imports": 2
         },
         "simulated_trading": {
-          "imports": 141
+          "imports": 143
         }
       },
       "depends_on": {
@@ -10954,8 +10957,15 @@
             "domain"
           ]
         },
+        "audit": {
+          "imports": 2,
+          "target_layers": [
+            "application",
+            "security_disclosure_capture_composition"
+          ]
+        },
         "data_center": {
-          "imports": 73,
+          "imports": 74,
           "target_layers": [
             "application",
             "calendar_publication_operations_composition",
@@ -10975,7 +10985,7 @@
           ]
         },
         "portfolio": {
-          "imports": 32,
+          "imports": 33,
           "target_layers": [
             "application",
             "domain",
@@ -11001,7 +11011,7 @@
           ]
         },
         "risk_center": {
-          "imports": 141,
+          "imports": 143,
           "target_layers": [
             "application",
             "domain",
@@ -11620,7 +11630,12 @@
           "RebalanceJourneyEventCoverageScopeReader"
         ],
         "application/rebalance_journey_event_refresh.py": [
-          "RebalanceJourneyOfficialEventRefresher"
+          "RebalanceJourneyOfficialEventRefresher",
+          "refresh_official_event_identities"
+        ],
+        "application/rebalance_journey_event_request_scope.py": [
+          "RebalanceJourneyEventRequestScope",
+          "build_rebalance_journey_event_request_scope"
         ],
         "application/rebalance_journey_order_adapters.py": [
           "JourneyPlanOrderPreviewer",
@@ -11943,12 +11958,12 @@
         ]
       },
       "layers": {
-        "application": 122,
+        "application": 123,
         "domain": 40,
         "infrastructure": 134,
         "interface": 34,
         "management": 7,
-        "root": 35
+        "root": 36
       },
       "orm_models": {
         "infrastructure/models.py": [

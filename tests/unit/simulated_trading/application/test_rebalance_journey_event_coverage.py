@@ -24,6 +24,9 @@ from apps.simulated_trading.application.rebalance_journey_event_coverage import 
     PinRebalanceJourneyEventCoverage,
     RebalanceJourneyEventCoverageScope,
 )
+from apps.simulated_trading.application.rebalance_journey_event_request_scope import (
+    RebalanceJourneyEventRequestScope,
+)
 from apps.simulated_trading.application.rebalance_journey_public import RebalanceJourneyUnavailable
 
 _AS_OF = datetime(2026, 11, 5, 9, 30, tzinfo=UTC)
@@ -120,15 +123,19 @@ class _Scopes:
 
     def __init__(self, scopes: tuple[RebalanceJourneyEventCoverageScope, ...] | None) -> None:
         self.scopes = scopes
+        self.request_scopes: list[RebalanceJourneyEventRequestScope] = []
 
     def read_scopes(
         self,
         *,
         asset_identities: tuple[tuple[str, str], ...],
+        request_scope: RebalanceJourneyEventRequestScope,
         as_of: datetime,
     ) -> tuple[RebalanceJourneyEventCoverageScope, ...] | None:
         assert asset_identities == ((_ASSET, _SECURITY),)
         assert as_of >= _AS_OF
+        assert type(request_scope) is RebalanceJourneyEventRequestScope
+        self.request_scopes.append(request_scope)
         return self.scopes
 
 
@@ -159,6 +166,16 @@ def _policy(
         policy_version=version,
         ttl=ttl,
         maximum_ttl=timedelta(seconds=60),
+    )
+
+
+def _request_scope() -> RebalanceJourneyEventRequestScope:
+    """Supply one exact authenticated actor/account/owner scope for the tests."""
+
+    return RebalanceJourneyEventRequestScope(
+        actor_user_id=41,
+        account_id=52,
+        owner_user_id=63,
     )
 
 
@@ -193,7 +210,12 @@ def test_pin_uses_exact_proof_cutoff_and_keeps_refresh_lease_and_plan_clocks_dis
     snapshot = _snapshot(scope, event=event)
     pinner, reader = _pinner((scope,), (snapshot,))
 
-    bindings = pinner.pin(asset_identities=((_ASSET, _SECURITY),), as_of=_AS_OF, parent=None)
+    bindings = pinner.pin(
+        asset_identities=((_ASSET, _SECURITY),),
+        request_scope=_request_scope(),
+        as_of=_AS_OF,
+        parent=None,
+    )
 
     coverage = next(item for item in bindings if item.source_record_id == "__coverage__")
     event_binding = next(
@@ -225,6 +247,42 @@ def test_pin_uses_exact_proof_cutoff_and_keeps_refresh_lease_and_plan_clocks_dis
     assert event_binding.qualification_proof_hash == transition_plan_event_revision_sha256(event)
 
 
+def test_pin_passes_request_account_and_owner_context_to_scope_reader() -> None:
+    """The scope lookup must receive request identity rather than shared adapter state."""
+
+    scope = _scope()
+    captured_scopes: list[object] = []
+
+    class RequestScopedReader:
+        def read_scopes(
+            self,
+            *,
+            asset_identities: tuple[tuple[str, str], ...],
+            request_scope: object,
+            as_of: datetime,
+        ) -> tuple[RebalanceJourneyEventCoverageScope, ...]:
+            assert asset_identities == ((_ASSET, _SECURITY),)
+            assert as_of == _AS_OF
+            captured_scopes.append(request_scope)
+            return (scope,)
+
+    pinner = PinRebalanceJourneyEventCoverage(
+        scope_reader=RequestScopedReader(),
+        snapshot_reader=_Snapshots((_snapshot(scope),)),
+        lease_policy=_policy(),
+    )
+    request_scope = _request_scope()
+
+    pinner.pin(
+        asset_identities=((_ASSET, _SECURITY),),
+        request_scope=request_scope,
+        as_of=_AS_OF,
+        parent=None,
+    )
+
+    assert captured_scopes == [request_scope]
+
+
 @pytest.mark.parametrize(
     "snapshot_change",
     ("wrong_window", "wrong_proof_time", "unknown_event"),
@@ -242,7 +300,12 @@ def test_pin_blocks_incomplete_or_mismatched_exact_proof(snapshot_change: str) -
     pinner, _reader = _pinner((scope,), (snapshot,))
 
     with pytest.raises(RebalanceJourneyUnavailable):
-        pinner.pin(asset_identities=((_ASSET, _SECURITY),), as_of=_AS_OF, parent=None)
+        pinner.pin(
+            asset_identities=((_ASSET, _SECURITY),),
+            request_scope=_request_scope(),
+            as_of=_AS_OF,
+            parent=None,
+        )
 
 
 def test_pin_blocks_expired_persisted_lease_and_missing_versioned_policy() -> None:
@@ -258,7 +321,12 @@ def test_pin_blocks_expired_persisted_lease_and_missing_versioned_policy() -> No
         (expired_scope,), (expired_snapshot,), policy=_policy(ttl=timedelta(seconds=3))
     )
     with pytest.raises(RebalanceJourneyUnavailable):
-        pinner.pin(asset_identities=((_ASSET, _SECURITY),), as_of=_AS_OF, parent=None)
+        pinner.pin(
+            asset_identities=((_ASSET, _SECURITY),),
+            request_scope=_request_scope(),
+            as_of=_AS_OF,
+            parent=None,
+        )
 
     scope = _scope()
     no_policy = PinRebalanceJourneyEventCoverage(
@@ -267,7 +335,12 @@ def test_pin_blocks_expired_persisted_lease_and_missing_versioned_policy() -> No
         lease_policy=None,
     )
     with pytest.raises(RebalanceJourneyUnavailable):
-        no_policy.pin(asset_identities=((_ASSET, _SECURITY),), as_of=_AS_OF, parent=None)
+        no_policy.pin(
+            asset_identities=((_ASSET, _SECURITY),),
+            request_scope=_request_scope(),
+            as_of=_AS_OF,
+            parent=None,
+        )
 
 
 def test_pin_allows_multiple_sources_for_one_asset_without_aliasing_scope_identity() -> None:
@@ -281,7 +354,12 @@ def test_pin_allows_multiple_sources_for_one_asset_without_aliasing_scope_identi
     )
     pinner, _reader = _pinner((first, second), snapshots)
 
-    bindings = pinner.pin(asset_identities=((_ASSET, _SECURITY),), as_of=_AS_OF, parent=None)
+    bindings = pinner.pin(
+        asset_identities=((_ASSET, _SECURITY),),
+        request_scope=_request_scope(),
+        as_of=_AS_OF,
+        parent=None,
+    )
 
     coverage = [item for item in bindings if item.source_record_id == "__coverage__"]
     assert {
@@ -299,7 +377,10 @@ def test_successor_uses_new_proof_even_when_parent_lease_expired_and_event_was_c
     old_snapshot = _snapshot(old_scope, event=_event(source_revision_id="r1"))
     first_pinner, _reader = _pinner((old_scope,), (old_snapshot,))
     old_bindings = first_pinner.pin(
-        asset_identities=((_ASSET, _SECURITY),), as_of=_AS_OF, parent=None
+        asset_identities=((_ASSET, _SECURITY),),
+        request_scope=_request_scope(),
+        as_of=_AS_OF,
+        parent=None,
     )
     parent = cast(
         TransitionPlanRevision,
@@ -317,7 +398,10 @@ def test_successor_uses_new_proof_even_when_parent_lease_expired_and_event_was_c
     next_pinner, _reader = _pinner((next_scope,), (next_snapshot,))
 
     successor_bindings = next_pinner.pin(
-        asset_identities=((_ASSET, _SECURITY),), as_of=next_at, parent=parent
+        asset_identities=((_ASSET, _SECURITY),),
+        request_scope=_request_scope(),
+        as_of=next_at,
+        parent=parent,
     )
 
     assert (
@@ -341,7 +425,10 @@ def test_successor_can_upgrade_legacy_parent_but_rejects_legacy_event_marker() -
     )
 
     upgraded = pinner.pin(
-        asset_identities=((_ASSET, _SECURITY),), as_of=_AS_OF, parent=legacy_parent
+        asset_identities=((_ASSET, _SECURITY),),
+        request_scope=_request_scope(),
+        as_of=_AS_OF,
+        parent=legacy_parent,
     )
     assert any(item.source_record_id == "__coverage__" for item in upgraded)
 
@@ -360,4 +447,9 @@ def test_successor_can_upgrade_legacy_parent_but_rejects_legacy_event_marker() -
         SimpleNamespace(basis=SimpleNamespace(source_bindings=(bad_marker,))),
     )
     with pytest.raises(RebalanceJourneyUnavailable):
-        pinner.pin(asset_identities=((_ASSET, _SECURITY),), as_of=_AS_OF, parent=malformed_parent)
+        pinner.pin(
+            asset_identities=((_ASSET, _SECURITY),),
+            request_scope=_request_scope(),
+            as_of=_AS_OF,
+            parent=malformed_parent,
+        )
