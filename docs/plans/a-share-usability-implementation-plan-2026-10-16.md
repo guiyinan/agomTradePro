@@ -2985,3 +2985,5 @@ Owner 要求 Root 带 Luna max 继续完成 ASH-05。三个只读盘点明确：
 当前共享正式树只由 Root 串行整合。Data Center 第一小事项为持久化精确证券、日期范围、全页身份及原始哈希、观察时间的只增公告列表证明；读取覆盖时，未落库或未分类的列表行、范围以外日期/证券、晚于 cutoff 才观察到的证明都返回不完整。Portfolio 后续只在每个计划证券的 coverage 与事件事实均完整时于生成时 pin，并在复核及账户锁内预留重验；旧 BuildTransitionPlan 路径不得冒充已绑定计划。Audit 后续按真实 actor/owner/tenant 权威和同 DB alias 的事务 outbox，先接 Data Center 事实，再接模拟账本；失败回滚事实/账户变化，派发在提交后重试，不重入账。
 
 registry v346 登记唯一隔离准备 `.tmp/ash05-ownership-20261110`：Luna max 仅在 simulated_trading 的登记日权属纯回放、具体只读校验器和对应测试内开发；需先定义交易日截止点与可信开仓锚，只接受完整保留的 V4 成交与公司行为历史，缺锚、旧交易、身份冲突或同日歧义均阻断。Root 在该副本外继续 Data Center 覆盖小事项；共享 Source/index/Git、投影与重 QA 由 Root 串行执行。该隔离准备不包含税基推断、写账、自动交易或生产激活。后扣税必须等待版本化税规则、逐笔持有期和卖出批次分配证据，§9 整单元及后继单元状态不变。
+
+权属源补查后，registry v347 将上述隔离准备扩至 `simulated_account_ownership_anchor_models.py`、对应 0044 迁移、模型注册、`account_gateway.py` 和 `account_repository.py` 两个正式新建模拟账户入口：新账户行与不可变账户级零持仓锚同事务提交；历史导入、旧账户和其他未获锚的入口不得补造零起点。只有锚早于登记日、V4 成交及已生效公司行为历史完整、该日无同日成交歧义时才可核算登记日数量；不能证明任一条件时维持受阻。该扩展仍不授予后扣税、历史回填或入账放行，Root 继续负责投影、REF-01 解释和正式整合。

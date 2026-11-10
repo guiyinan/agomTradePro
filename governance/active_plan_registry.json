@@ -1,5 +1,5 @@
 {
-  "version": "2026-11-10.v346",
+  "version": "2026-11-10.v347",
   "updated_at": "2026-11-10",
   "execution_focus": {
     "unit_id": "ASH-05",
@@ -12,7 +12,7 @@
     "parallel_preparation": [
       {
         "unit_id": "ASH-05",
-        "scope": "Bounded historical simulated-account ownership replay only: apps/simulated_trading/domain/corporate_action_ownership_history.py, infrastructure/corporate_action_ownership_history_repository.py, focused ownership composition and directly corresponding tests. Explicit trusted opening anchor and record-date cutoff required; legacy or incomplete history blocks. No tax-basis qualification, posting write, Data Center, Portfolio, TUI, Audit, shared projections or Git integration.",
+        "scope": "Bounded prospective simulated-account ownership replay: apps/simulated_trading/domain/corporate_action_ownership_history.py; infrastructure/corporate_action_ownership_history_repository.py, simulated_account_ownership_anchor_models.py, models.py, account_gateway.py, account_repository.py, focused ownership composition, migration 0044 and directly corresponding tests. Create immutable zero-origin anchor atomically in both active new simulated-account creation paths only; legacy/imported accounts and incomplete history block. No tax-basis qualification, posting write, Data Center, Portfolio, TUI, Audit, shared projections or Git integration.",
         "owner": "Luna max ownership_tax under Root integration",
         "isolated_workspace": true,
         "shared_git_serialized": true,
