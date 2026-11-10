@@ -1,5 +1,5 @@
 {
-  "version": "2026-11-10.v356",
+  "version": "2026-11-10.v357",
   "updated_at": "2026-11-10",
   "execution_focus": {
     "unit_id": "ASH-05",
@@ -8,7 +8,7 @@
       "external",
       "governance"
     ],
-    "policy": "ASH-05 remains the sole active repository focus. Exact official SZSE source replay for 002727 September and 301237 August-September now captures every listed PDF (11/11 and 6/6) with source identity and conservative classification at those observed cutoffs; the candidates have not been persisted as COMPLETE, imply no other source/window coverage, and have no production caller. Transactional disclosure fact/proof/Audit/Outbox source passed exact-candidate Fast Feedback and Publication PostgreSQL at b582f56d6; the full-list source candidate 4f8da6864 has local gates passed and exact CI pending. Prospective account anchors and pure deferred-tax arithmetic remain preparatory; generation-time event pins, persistent 60-second versioned internal lease, posting/tax/account effects, Audit recovery, price-return and user gold journeys remain before section 9 closure. One bounded isolated ASH-05 preparation now targets exact-window generation-time event pins and lease contracts. The Owner-approved 60-second lease follows fresh official recheck, expires or blocks on source/scope change or incomplete coverage, and grants no exchange freshness guarantee. No successor unit or production execution. See A-share plan sections 19.169-19.177.",
+    "policy": "ASH-05 remains the sole active repository focus. Exact official SZSE windows for 002727 September and 301237 August-September now have all listed PDFs represented and conservatively classified (11/11 and 6/6), with matching official listing recheck and source body identity. The full-list source candidate 4f8da6864 passed all seven applicable CI workflows, including Fast Feedback on Python 3.11/3.13, Publication PostgreSQL and Quote Metric PostgreSQL. A separate isolated SQLite diagnostic on the identical source at governance base 26189ad73 atomically persisted each real window with Audit/Outbox and read COMPLETE at each exact recorded_at; no production database was written and no other source/window coverage is certified. The disclosure capture still has no production caller. Prospective account anchors and pure deferred-tax arithmetic remain preparatory; generation-time event pins, persistent 60-second versioned internal lease, posting/tax/account effects, Audit recovery, price-return and user gold journeys remain before section 9 closure. One bounded isolated ASH-05 preparation targets exact-window generation-time event pins and lease contracts. The Owner-approved 60-second lease follows fresh official recheck, expires or blocks on source/scope change or incomplete coverage, and grants no exchange freshness guarantee. No successor unit or production execution. See A-share plan sections 19.169-19.177.",
     "parallel_preparation": [
       {
         "unit_id": "ASH-05",
@@ -404,7 +404,7 @@
       "priority": "P0/P1",
       "owner": "portfolio+risk_center+data_center+simulated_trading+backtest+broker_execution+terminal",
       "status": "active",
-      "next_gate": "ASH-05 stays active. The b582f56d6 exact candidate passed all six applicable CI workflows including Fast Feedback on Python 3.11/3.13 and Publication PostgreSQL. Official SZSE live source candidate 4f8da6864 locally passed 39 focused tests and captures all 11/11 and 6/6 listed PDFs with no UNKNOWN, but exact CI and persisted COMPLETE snapshot remain unverified. One isolated event-pin/60-second lease preparation is registered; production capture, generation wiring, review and locked reservation are not open. Persistent tax and account effects, Audit recovery, price-return and section 9 user gold cases still precede closure. ASH-06/09/12 remain deferred and production execution stays disabled.",
+      "next_gate": "ASH-05 stays active. The disclosure Audit source candidate b582f56d6 passed its six applicable CI workflows; the full SZSE source candidate 4f8da6864 passed all seven applicable CI workflows. Official live source candidates cover 002727 11/11 and 301237 6/6 listed PDFs; separate isolated SQLite Audit/Outbox atomic batches read COMPLETE at their exact recorded_at, without production writes or coverage beyond these windows. One isolated event-pin/60-second lease preparation remains registered; production capture, generation wiring, review and locked reservation are not open. Persistent tax and account effects, Audit recovery, price-return and section 9 user gold cases still precede closure. ASH-06/09/12 remain deferred and production execution stays disabled.",
       "documents": [
         {
           "path": "docs/plans/a-share-usability-implementation-plan-2026-10-16.md",
