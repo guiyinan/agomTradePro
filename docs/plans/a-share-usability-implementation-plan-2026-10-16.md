@@ -3093,3 +3093,9 @@ registry v362 登记下一个单独隔离准备：复核及锁内消费所需的
 刷新候选 `30bdf2c6f` 的 Fast Feedback 增量质量 job 因生产文件非空行数 `902 → 1096` 超过 1000 上限失败，失败原件保留；`5da7faae2` 把身份与租期校验抽到同层 support 模块，正式树聚焦、格式、增量 mypy、债务、模块图和文件大小门禁通过，且同 SHA 六项适用 CI（含 Fast Feedback 3.11/3.13、Publication PostgreSQL）均成功。隔离复核补丁按四文件哈希整合为 `1289488dd`：精确读取在较晚 cutoff 仍为 `UNKNOWN`；专用 latest 路径先取动作时刻 proof，再按原 `recorded_at` 精确二读，并核对动作时刻已入库的窗口内事件修订。正常 proof 时钟更新不误报事件变化；确证的新事件/修订要求重审，缺失、UNKNOWN、身份冲突、计划或当前 proof 到期均阻断，跨证券先查完所有阻断。正式树 60 项定向测试、Black/isort/Ruff、两文件增量 mypy、债务、`current_data_contracts`、模块图、Data Center 生成投影及治理一致性通过；该候选精确 CI 待核，不能借用 `5da7faae2` 的回执。
 
 registry v363 登记下一单个隔离准备：读取 Config Center 已激活的版本化公告 coverage 政策，明确深交所官方来源、决策日窗口末端、账户可证明零起点前的窗口起点、最多 60 秒半开 lease 和原件存储位置；缺配置、来源不符、窗口不足、时钟或 profile/snapshot 证据不完整均失败关闭。Root 负责把策略与官方 Audit/Outbox 原子重抓、计划生成、复核及账户锁内校验接起来，并补真实 PostgreSQL 和用户金样本。历史 002727/301237 窗口仍不代表 2026-11 当前覆盖；本批不激活生产执行或 deferred 单元，ASH-05 保持 active。
+
+### 19.182 ASH-05 账户起点与窗口策略整合、请求上下文下一块（2026-11-11）
+
+复核候选 `1289488dd` 的六项适用精确 CI（含 Fast Feedback 双 Python、Publication PostgreSQL）已成功。`681c392f529d3ff3894880009644491f3c31d162` 把账户不可变零起点换算为版本化交易所本地日期，并整合严格的 Config Center 官方公告窗口策略读取器：要求已激活的同一 profile/snapshot、完整哈希与有意识的时钟、明确 SZSE 官方来源、账户零起点前的起始日和覆盖决策日的终点；内部 lease 为正且最多 60 秒。缺失、未启用、来源/身份/窗口/版本矛盾均阻断，不产生默认策略。正式树零起点组件反例 **1 passed**、策略单测 **36 passed**；Black/isort/Ruff、两文件增量 mypy 零回归、全库债务上限、运行配置覆盖、`current_data_contracts`、模块图、治理一致性和重生成后的 Data Center 投影均通过。入口投影首次检查发现清单过期，失败原件保留，生成后完整复查通过。该提交精确 CI 尚在运行，不能借用隔离副本或此前候选的回执。
+
+registry v364 登记一个隔离的请求上下文准备：Luna max 只扩展 Application refresh/pin 协议与计划 preparation，使账户/所有者信息随每次请求传递，不在共享服务保存可变账户状态；继续保证抓取后重读 preview/risk、最终时钟 pin、证券身份与全部 lease 检查，并保留默认 M1。Root 负责生产官方采集、当前策略和 scope 读取、review/锁内组合及事务末端有效期重检。当前两个历史窗口不证明决策日覆盖；账户股息入账、后扣税、Audit 恢复、复权收益与 §9 金样本仍未完成，ASH-05 保持 active，生产执行与 ASH-06/09/12 不开放。
