@@ -41,6 +41,8 @@ from apps.terminal.application.tui_workbench_regime_result_models import (
     TuiWorkbenchRegimeResultMixin,
 )
 
+from .tui_holding_disclosure_result import project_tui_holding_disclosure_result
+
 
 class TuiWorkbenchSpecializedResultMixin(
     TuiWorkbenchRegimeResultMixin, TuiWorkbenchCalendarResultMixin, TuiDashboardResultMixin
@@ -104,6 +106,10 @@ class TuiWorkbenchSpecializedResultMixin(
                     requested_params=request_params,
                     http_status=status_code,
                 )
+            )
+        if action_key == "simulated-trading.holding-disclosures":
+            return project_tui_holding_disclosure_result(
+                action_key, payload, http_status=status_code, requested_params=request_params
             )
         if action_key in {
             "simulated-trading.portfolio-risk-report",

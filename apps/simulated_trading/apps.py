@@ -28,6 +28,9 @@ class SimulatedTradingConfig(AppConfig):
         from apps.simulated_trading.application.daily_inspection_selection import (
             configure_daily_inspection_strategy_selection_reader,
         )
+        from apps.simulated_trading.application.holding_disclosures import (
+            configure_holding_disclosure_use_case,
+        )
         from apps.simulated_trading.application.portfolio_risk_public import (
             configure_portfolio_risk_service,
         )
@@ -36,6 +39,9 @@ class SimulatedTradingConfig(AppConfig):
         )
         from apps.simulated_trading.execution_current_reference_composition import (
             build_automatic_trade_execution_bridge,
+        )
+        from apps.simulated_trading.holding_disclosure_composition import (
+            build_holding_disclosure_use_case,
         )
         from apps.simulated_trading.infrastructure.account_gateway import (
             register_account_gateway,
@@ -68,3 +74,4 @@ class SimulatedTradingConfig(AppConfig):
         register_portfolio_account_access_checker(get_account_access)
         configure_portfolio_risk_service(build_portfolio_risk_service)
         configure_rebalance_journey_service(build_rebalance_journey_service)
+        configure_holding_disclosure_use_case(build_holding_disclosure_use_case)

@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from apps.terminal.infrastructure.tui_metadata_runtime_injection_simulated_trading_owner_actions import (
+    build_holding_reference_actions,
     build_owner_risk_actions,
 )
 from apps.terminal.infrastructure.tui_metadata_runtime_injection_simulated_trading_owner_actions import (
@@ -417,38 +418,7 @@ RUNTIME_SIMULATED_TRADING_ACTIONS: tuple[dict[str, Any], ...] = (
         ],
         "view_model": {"kind": "detail", "title_path": "message"},
     },
-    {
-        "key": "simulated-trading.positions",
-        "label": "查看账户持仓",
-        "endpoint": "/api/simulated-trading/accounts/<int:account_id>/positions/",
-        "method": "GET",
-        "intent": "read_owned_account_positions",
-        "risk": "read",
-        "audience": "authenticated",
-        "screen_key": _SCREEN,
-        "module_key": _MODULE,
-        "view_type": "datagrid",
-        "description": "查看本人账户的持仓、可用数量、成本、市值和未实现盈亏。",
-        "source": _SOURCE,
-        "task_group": "06 模拟交易记录",
-        "sequence": 720,
-        "task_tier": "operation",
-        "fields": [_account_id()],
-        "view_model": {
-            "kind": "datagrid",
-            "rows_path": "positions",
-            "columns": [
-                {"key": "asset_code", "label": "资产代码"},
-                {"key": "asset_name", "label": "资产名称"},
-                {"key": "quantity", "label": "数量"},
-                {"key": "avg_cost", "label": "成本价"},
-                {"key": "current_price", "label": "现价"},
-                {"key": "market_value", "label": "市值"},
-                {"key": "unrealized_pnl", "label": "未实现盈亏"},
-                {"key": "unrealized_pnl_pct", "label": "盈亏率"},
-            ],
-        },
-    },
+    *build_holding_reference_actions(_account_id()),
     {
         "key": "simulated-trading.trades",
         "label": "查看账户交易记录",

@@ -1,4 +1,4 @@
-"""Owner-confirmed action metadata for simulated-trading tasks."""
+"""Account action metadata for simulated-trading tasks."""
 
 from __future__ import annotations
 
@@ -211,3 +211,90 @@ def build_account_stop_loss_check_action() -> dict[str, Any]:
         ],
         "view_model": {"kind": "detail"},
     }
+
+
+def build_holding_reference_actions(
+    account_id_field: dict[str, Any],
+) -> tuple[dict[str, Any], ...]:
+    """Build the positions action and its scoped disclosure support action."""
+
+    return (
+        {
+            "key": "simulated-trading.positions",
+            "label": "查看账户持仓",
+            "endpoint": "/api/simulated-trading/accounts/<int:account_id>/positions/",
+            "method": "GET",
+            "intent": "read_owned_account_positions",
+            "risk": "read",
+            "audience": "authenticated",
+            "screen_key": "execution.accounts",
+            "module_key": "daily-decisions",
+            "view_type": "datagrid",
+            "description": "查看本人账户的持仓、可用数量、成本、市值和未实现盈亏。",
+            "source": "approved:runtime-simulated-trading",
+            "task_group": "06 模拟交易记录",
+            "sequence": 720,
+            "task_tier": "operation",
+            "fields": [account_id_field],
+            "view_model": {
+                "kind": "datagrid",
+                "rows_path": "positions",
+                "columns": [
+                    {"key": "asset_code", "label": "资产代码"},
+                    {"key": "asset_name", "label": "资产名称"},
+                    {"key": "quantity", "label": "数量"},
+                    {"key": "avg_cost", "label": "成本价"},
+                    {"key": "current_price", "label": "现价"},
+                    {"key": "market_value", "label": "市值"},
+                    {"key": "unrealized_pnl", "label": "未实现盈亏"},
+                    {"key": "unrealized_pnl_pct", "label": "盈亏率"},
+                ],
+            },
+        },
+        {
+            "key": "simulated-trading.holding-disclosures",
+            "label": "查看持仓证券财报披露资料",
+            "endpoint": ("/api/simulated-trading/accounts/<int:account_id>/holding-disclosures/"),
+            "method": "GET",
+            "intent": "read_owned_holding_financial_disclosures",
+            "risk": "read",
+            "audience": "authenticated",
+            "effect": "read",
+            "screen_key": "execution.accounts",
+            "module_key": "daily-decisions",
+            "view_type": "detail",
+            "description": (
+                "只读查看本人有权查看的模拟账户及其持仓证券已发布的财务指标、数据来源与各自来源时点。"
+                "资料范围不完整，仅供查阅，不用于投资决策或交易执行；不会推断公司行为生效或到账日，"
+                "不会计算、分配或入账现金、股份及税费。"
+            ),
+            "source": "approved:runtime-simulated-trading",
+            "task_group": "06 模拟交易记录",
+            "sequence": 725,
+            "task_tier": "support",
+            "raw_debug": False,
+            "session_auth_required": True,
+            "fields": [
+                {
+                    "key": "account_id",
+                    "label": "模拟账户 ID",
+                    "binding": "path",
+                    "input_type": "number",
+                    "value_type": "integer",
+                    "required": True,
+                    "presentation_semantic": "primary_selector",
+                    "min": 1,
+                },
+                {
+                    "key": "asset_code",
+                    "label": "持仓证券代码",
+                    "binding": "query",
+                    "input_type": "text",
+                    "value_type": "string",
+                    "required": True,
+                    "placeholder": "请输入该账户当前持仓中的证券代码，例如 600000.SH",
+                },
+            ],
+            "view_model": {"kind": "detail"},
+        },
+    )

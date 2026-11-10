@@ -15,7 +15,7 @@
 
 当前围绕“判断数据是否可用 → 筛选标的 → 管理持仓 → 形成受限的人工调仓建议 → Owner 在券商端手工下单 → 导入真实成交 → 对账复盘”，补齐 A 股实际使用中的交易语义和用户闭环。另允许默认关闭、用户在系统中主动开启的真实自动下单能力后续开发/验收；相关延期单元不自动恢复，不作为当前 M1/M2 开发或发布门槛。
 
-当前里程碑沿用 Owner M1（一模拟账户可读调仓计划）、M2（真实手工成交导入后持仓和 T+1 可卖量正确，未知写入不得自动重放）、M3（同一生产候选实际跑通 M1 与 M2）。2026-10-22 Owner 批准 M1 最小闭环先行，按 §19.96 及 ASH-08.early_delivery 的范围依赖和真实证据验收，不等待 ASH-03/04/07 整单元关闭；整单元状态与原退出门仍分别保留。当前整单元实施与并行范围按 §19.158 和 registry.execution_focus 执行：ASH-08 为唯一共享整合焦点，已登记隔离工作可并行，后续仍按原依赖推进 ASH-05、ASH-11、ASH-10。ASH-11 的整单元依赖及延期处置本轮不调整。非阻塞重构归 GOV-05。正式发布仍需同候选完整证据，M1 先行不是生产或部署验收。
+当前里程碑沿用 Owner M1（一模拟账户可读调仓计划）、M2（真实手工成交导入后持仓和 T+1 可卖量正确，未知写入不得自动重放）、M3（同一生产候选实际跑通 M1 与 M2）。2026-10-22 Owner 批准 M1 最小闭环先行，按 §19.96 及 ASH-08.early_delivery 的范围依赖和真实证据验收，不等待 ASH-03/04/07 整单元关闭；整单元状态与原退出门仍分别保留。当前实施与并行范围以 registry.execution_focus 为准，后续授权交接见 §19.168。ASH-11 的整单元依赖及延期处置本轮不调整。非阻塞重构归 GOV-05。正式发布仍需同候选完整证据，M1 先行不是生产或部署验收。
 
 优先解决已经核实的错误与不一致，再补组合约束、事件和效果反馈。复用现有 Data Center、Evidence、Risk、Portfolio、Broker 和 TUI 能力；不以新增模型数、治理报告数或研究算法数作为完成标准。
 
@@ -2922,3 +2922,23 @@ Owner 授权收口 REF-05 和 ASH-08。REF-05 按其原退出门以「在已核�
 ASH-08 已按同口径有效变更链完成 11 月 9 日的分类准入，收盘行情、容量／会话、M1 和日历也进入同一隔离候选。唯一仓库焦点随后交给 ASH-08。当天真实 V8 跑到后继买单预留，最终回读投影校验失败，当轮未关闭。具体证据和失败位置见[真实 V8 执行结果](../testing/a-share-ash08-rebalance-journey-2026-11-05.md#11-月-9-日真实-v8-执行结果)。
 
 11 月 10 日开盘前，Owner 授权以 11 月 9 日已完成交易日的归档真实原件验收。固定候选 `2e83e3ba4` 通过三角色、完整订单生命周期与最终账本对账，ASH-08 随即结项并释放唯一仓库焦点。后续整合按新的授权交接。证据见[11 月 9 日真实原件复验](../testing/a-share-ash08-rebalance-journey-2026-11-05.md#11-月-9-日真实原件复验与结项)。
+
+### 19.168 ASH-05 后续开发授权与有界交付（2026-11-10）
+
+Owner 在新会话明确授权以 `dev/next-development` 当前头承接后续开发，交接 SHA `74c185eee17201f5bf0d3c81477aacfe0fa06c32`，由主代理负责共享 Source/index、投影、整合提交及 CI，使用 `gpt-6-luna` / `reasoning_effort=max` 子代理开展有界并行。ASH-02/03/04 依赖已完成；ASH-08、REF-05 沿用封存验收，不重跑 ASH-08。状态只写 registry。
+
+先核对 §9 退出门与现有实现，选择下一条可独立验收的事件用户路径。已有 `events` 是通用事件总线，`NewsFact` 是新闻事实，Portfolio corporate-action 是基准方法定义；它们不等于逐证券公司行为至账户入账闭环。复用现有 owner、来源事实和权限入口，先明确契约后实施。准备路径、隔离资源与最近一个可提交事项在本节登记后才能交给子代理写入隔离副本。DATA-18 只读核查是否存在依赖满足且不重叠的轻量准备切片，未登记前不实施。
+
+本次不恢复 deferred 单元、不做生产激活，不新增长期分支；§9 完整退出门保持，开发批次通过不等于 ASH-05 整单元关闭或生产资格。
+
+DATA-18 只读核查的候选是 Alpha GET 缓存未命中零写入路径；现有 `test_alpha_api_edges.py::test_alpha_score_get_is_read_only_on_qlib_cache_miss`、dashboard 读纯度测试及原计划 10 月 8 日 UAT 已覆盖，未定位新缺口，因此本轮不登记重复准备范围，不改变 DATA-18 原退出门。
+
+本轮最近可提交事项为「持仓证券财报披露资料核对」：从既有账户工作台选择本人有权读取账户的一项实际持仓，读取 Data Center `get_published_financial_facts` 的正式发布成员，展示来源、报告日期、源公告时间和可用时间以及指标/单位。该来源只有当前发布的财务指标，不是完整公告、事件修订链或公司行为历史；不得推断生效/到账日，不计算现金、股份或税费，不改变计划/订单。空资料、缺覆盖、来源受阻和越权必须明确呈现；读操作不得刷新、发布、派发或写账。
+
+隔离分工：后端副本 `.tmp/ash05-backend-20261110` 仅写 `apps/simulated_trading` 内 `holding_disclosure*` 模块、对应测试及必要 API/composition 接线；界面副本 `.tmp/ash05-ui-20261110` 仅写 `apps/terminal` 披露资料 action/presenter、对应测试。主代理统一整合、投影、文档、提交和 CI。两个副本源自上述交接 SHA，不含本机数据库/秘密；SQLite 使用进程独立测试库，缓存为 locmem，测试临时目录分别归副本；不启动 worker/provider，重 QA 串行。
+
+共同只读契约：`GET /api/simulated-trading/accounts/<int:account_id>/holding-disclosures/?asset_code=...`，仅选择已持有的精确证券；根字段 `account_id/asset_code/as_of/outcome/scope/read_only/must_not_use_for_decision/must_not_execute/coverage_note/blocked_reason/rows`，`scope=simulation_only`，资料齐全时仍 `outcome=partial` 且两个禁止标记为 true。`as_of` 只是读取时间。每行保留 `asset_code/metric_code/value/unit/period_end/period_type/report_date/announced_at/available_at/fetched_at/source/source_record_id/raw_payload_hash`；缺失来源时钟为 null，日期不扩成时间；证据标识留在传输契约，普通界面展示人可读资料与限制。范围、权限、源时间、空/受阻、重复读取零写入及实际用户路径是本批开发门禁；完整 §9 金样本留待后续批次。
+
+首批实现进入正式 Source：本人或有效观察者可从账户工作台核对一项实际持仓的当前发布财报资料；直接读取与 TUI 通用调用均要求真实登录会话。独立复核补齐空证据标识归一为 null、带空白证券代码的错误契约，并验证失败清除旧资料。为满足既有文件增长门，账户结果范围条件提取到 `tui_account_action_scope`，持仓与披露 action 一起移入既有账户 action 构建文件；完整运行期 action 内容和顺序逐项一致。开发验收、候选身份及正式提交/CI 回执统一见[本批唯一验收索引](../testing/a-share-ash05-disclosure-review-2026-11-10.md)。
+
+剩余边界：当前源只提供财务指标参考，完整公告/修订关系、公司行为阶段与账户现金/股份/税费幂等账本、晚到/更正和除权连续性仍按 §9 退出门继续，不登记整单元完成。浏览器源端使用显式合成资料，不能替代真实 Provider 覆盖或生产资格。回滚按本批开发提交撤销代码并重建 TUI runtime；没有模型迁移或资金/持仓写入需要反向数据修复。隔离准备已采用至正式树，后续独立事项从本索引承接，不以 `.tmp` 副本代替交付。

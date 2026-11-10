@@ -705,6 +705,7 @@ Celery 正常发布自动生成一次业务键；直接 `.run()` 或绕过任务
 | `/api/simulated-trading/accounts/{id}/portfolio-risk/` | GET | 只读读取当前账户组合风险报告（浏览器会话、账户读取权限） |
 | `/api/simulated-trading/accounts/{id}/portfolio-risk/scenarios/` | GET | 读取可选的已审批压力情景（只读） |
 | `/api/simulated-trading/accounts/{id}/portfolio-risk/pressure-run/` | POST | 明确确认后运行一次模拟压力核对（Owner、浏览器会话） |
+| `/api/simulated-trading/accounts/{id}/holding-disclosures/` | GET | 按精确 `asset_code` 读取有权查看账户的实际持仓财报资料（浏览器会话、只读） |
 
 创建账户的 `initial_capital` 最多 15 位数字（含 2 位小数），与持久化金额字段一致。
 `fee_config_id` 尚未接入创建用例，只接受省略或 `null`；非空值返回字段校验错误，
@@ -731,6 +732,8 @@ Owner 授权后重试会重放原回执；同键改体返回 `409`。发布/撤�
 组合风险报告 GET 与已审批压力情景目录 GET 都是只读。只有专用 `/pressure-run/` POST 可运行压力核对；该操作必须由账户 Owner 使用登录会话提交明确确认和稳定的 `Idempotency-Key`；响应固定为 `scope: "simulation_only"`、`must_not_execute: true`，不下单、不改变现金或持仓。当前 MCP 仅使用 API Token；SDK 的 Token 模式也不适用，但已有 `username/password` 会话模式会登录并处理 CSRF，可通过现有通用 `get/post` 调用这些路由，目前没有风险专用 SDK 方法。任何调用仍必须通过服务端会话和 Owner 权限检查。
 
 风险报告中的 `unknown` 表示所需信息无法确认，`expired` 表示来源或规则的有效期不覆盖本次核对时点，`partial` 表示覆盖不完整；它们都不能按零或完整覆盖处理。来源限制或 `must_not_use_for_decision: true` 表示该来源不得用于决策。`allowed` 只描述本次模拟风险检查结果，不代表交易许可。可选的 `sources[].clock_evidence_proof` 说明受策略约束的时钟证明；它不会改写来源原始时钟，供应方未提供的 `available_at` 或 `valid_until` 仍可为 `null`。收盘快照证明中的 `policy_acceptance_deadline` 是单独的策略截止时间；`reported_trading_state: "TRADING"` 只表示报价时点报告状态，`full_session_state: "unknown"` 不能解释成全天或交易所状态。
+
+持仓披露资料接口只读取 Data Center 当前正式发布的最多 20 条财务指标，始终为 `partial` 或 `blocked`，且禁止决策和执行。公告、可用、采集时钟分别保留；缺失证据不会用本次读取时间补齐。来源受阻或空列表不代表没有公告或公司行为。SDK 会话模式可使用通用 `get`，无专用 SDK 方法或 MCP capability；TUI 对应 action 也要求真实登录会话。完整字段及错误契约见 [API 参考 §9.6](../testing/api/API_REFERENCE.md#96-持仓证券财报披露资料核对)。
 
 ### Setup Wizard API
 

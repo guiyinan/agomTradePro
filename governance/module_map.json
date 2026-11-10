@@ -4120,7 +4120,7 @@
           "imports": 3
         },
         "simulated_trading": {
-          "imports": 68
+          "imports": 69
         },
         "strategy": {
           "imports": 1
@@ -10924,7 +10924,7 @@
           ]
         },
         "data_center": {
-          "imports": 68,
+          "imports": 69,
           "target_layers": [
             "application",
             "calendar_publication_operations_composition",
@@ -11261,6 +11261,16 @@
           "HistoricalSellableRepairRepository",
           "HistoricalSellableRepairResult",
           "HistoricalSellableRepairService"
+        ],
+        "application/holding_disclosures.py": [
+          "GetHoldingDisclosuresUseCase",
+          "HoldingDisclosureResult",
+          "HoldingDisclosureRow",
+          "HoldingDisclosureScopeReaderProtocol",
+          "HoldingDisclosureUnavailable",
+          "PublishedFinancialFactsReaderProtocol",
+          "configure_holding_disclosure_use_case",
+          "read_owned_holding_disclosures"
         ],
         "application/initial_position_mark.py": [
           "InitialPositionMarkReader"
@@ -11821,6 +11831,7 @@
       },
       "http_routes": {
         "interface/api_urls.py": [
+          "accounts/<int:account_id>/holding-disclosures/",
           "accounts/<int:account_id>/rebalance-plans/",
           "accounts/<int:account_id>/rebalance-plans/<str:plan_id>/",
           "accounts/<int:account_id>/rebalance-plans/<str:plan_id>/review/",
@@ -11881,12 +11892,12 @@
         ]
       },
       "layers": {
-        "application": 117,
+        "application": 118,
         "domain": 36,
-        "infrastructure": 129,
-        "interface": 33,
+        "infrastructure": 130,
+        "interface": 34,
         "management": 7,
-        "root": 30
+        "root": 31
       },
       "orm_models": {
         "infrastructure/models.py": [
@@ -12537,6 +12548,9 @@
           "CommandExecutionService",
           "TerminalSettingsUser"
         ],
+        "application/tui_account_action_scope.py": [
+          "requires_account_result_scope"
+        ],
         "application/tui_account_inspection_dependency_result.py": [
           "project_account_inspection_dependency_fields"
         ],
@@ -12593,6 +12607,9 @@
         ],
         "application/tui_fee_correction_result.py": [
           "project_fee_correction_result"
+        ],
+        "application/tui_holding_disclosure_result.py": [
+          "project_tui_holding_disclosure_result"
         ],
         "application/tui_m1_risk_policy_result.py": [
           "project_m1_risk_policy_mutation_result"
@@ -12771,7 +12788,7 @@
         ]
       },
       "layers": {
-        "application": 57,
+        "application": 59,
         "domain": 5,
         "infrastructure": 98,
         "interface": 9,

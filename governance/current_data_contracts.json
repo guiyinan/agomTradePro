@@ -13829,6 +13829,62 @@
         }
       ],
       "notes": "Controlled-port and Native component tests do not establish current external-source or ordinary-browser acceptance. Vendor availability/expiry unknown remain null; local source admission_until is separate. Full original evidence stays embedded and hashed. Current risk/profile, native limits, fees, rule records, published-calendar members and classifier/source/mapping pins are rechecked without using the naturally changing account cash/full report hash as an immutable policy identity. Inactive staff approval remains must_not_execute; a manual binding grants no formal Evidence, live, automated or broker authority."
+    },
+    {
+      "id": "simulated_trading.holding_disclosure_reference",
+      "surface": "Read-only owned/delegated simulated-account held-security financial disclosure reference; current published metrics only, incomplete announcement/corporate-action coverage, no ledger or dispatch authority",
+      "source_files": [
+        "apps/simulated_trading/application/holding_disclosures.py",
+        "apps/simulated_trading/infrastructure/holding_disclosure_reader.py",
+        "apps/simulated_trading/interface/holding_disclosure_views.py",
+        "apps/terminal/application/tui_holding_disclosure_result.py"
+      ],
+      "required_markers": {
+        "apps/simulated_trading/application/holding_disclosures.py": [
+          "class GetHoldingDisclosuresUseCase",
+          "announced_at",
+          "available_at",
+          "\"must_not_use_for_decision\": True",
+          "\"must_not_execute\": True",
+          "\"read_only\": True",
+          "outcome=\"partial\"",
+          "published_financial_row_future_time"
+        ],
+        "apps/simulated_trading/infrastructure/holding_disclosure_reader.py": [
+          "data_center_public.get_published_financial_facts(",
+          "has_readable_active_holding"
+        ],
+        "apps/simulated_trading/interface/holding_disclosure_views.py": [
+          "authentication_classes = (SessionAuthentication,)"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "source_clocks_and_partial_restrictions",
+          "test_file": "tests/unit/simulated_trading/test_holding_disclosures.py",
+          "test_function": "test_usable_rows_remain_partial_and_carry_original_clocks"
+        },
+        {
+          "case": "source_block_cannot_turn_into_positive_reference",
+          "test_file": "tests/unit/simulated_trading/test_holding_disclosures.py",
+          "test_function": "test_explicit_data_center_block_is_returned_as_blocked_business_payload"
+        },
+        {
+          "case": "unknown_clocks_stay_unknown",
+          "test_file": "tests/unit/simulated_trading/test_holding_disclosures.py",
+          "test_function": "test_missing_source_clocks_stay_null_without_fallback_or_precision_change"
+        },
+        {
+          "case": "malformed_future_or_other_security_evidence_blocks",
+          "test_file": "tests/unit/simulated_trading/test_holding_disclosures.py",
+          "test_function": "test_future_cross_asset_and_malformed_evidence_fail_closed"
+        },
+        {
+          "case": "actual_user_transport_scope_and_repeated_read_purity",
+          "test_file": "tests/integration/simulated_trading/test_holding_disclosure_browser.py",
+          "test_function": "test_owner_reads_holding_disclosure_and_failed_scope_clears_previous_facts"
+        }
+      ]
     }
   ]
 }

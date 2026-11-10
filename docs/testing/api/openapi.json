@@ -33790,6 +33790,91 @@
                 }
             }
         },
+        "/api/simulated-trading/accounts/{account_id}/holding-disclosures/": {
+            "get": {
+                "operationId": "api_simulated_trading_accounts_by_account_id_holding_disclosures_get",
+                "description": "仅读取当前发布的财务指标，不代表完整公告或公司行为覆盖；结果禁止用于决策和执行。",
+                "summary": "读取有权查看账户的持仓证券已发布财报指标",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "account_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "query",
+                        "name": "asset_code",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "simulated-trading"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HoldingDisclosureResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HoldingDisclosureErrorResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HoldingDisclosureErrorResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HoldingDisclosureResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "503": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HoldingDisclosureErrorResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
         "/api/simulated-trading/accounts/{account_id}/inspection-notification/": {
             "get": {
                 "operationId": "api_simulated_trading_accounts_by_account_id_inspection_notification_get",
@@ -52100,6 +52185,156 @@
                         "readOnly": true
                     }
                 }
+            },
+            "HoldingDisclosureErrorResponse": {
+                "type": "object",
+                "description": "Return a bounded interface error without account or provider internals.",
+                "properties": {
+                    "detail": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "detail"
+                ]
+            },
+            "HoldingDisclosureResponse": {
+                "type": "object",
+                "description": "Serialize the read-only account and coverage contract.",
+                "properties": {
+                    "account_id": {
+                        "type": "integer"
+                    },
+                    "asset_code": {
+                        "type": "string"
+                    },
+                    "as_of": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "outcome": {
+                        "$ref": "#/components/schemas/HoldingDisclosureResponseOutcomeEnum"
+                    },
+                    "scope": {
+                        "$ref": "#/components/schemas/Scope818Enum"
+                    },
+                    "must_not_use_for_decision": {
+                        "type": "boolean"
+                    },
+                    "must_not_execute": {
+                        "type": "boolean"
+                    },
+                    "coverage_note": {
+                        "type": "string"
+                    },
+                    "blocked_reason": {
+                        "type": "string"
+                    },
+                    "freshness": {
+                        "type": "string"
+                    },
+                    "reliability": {
+                        "type": "string"
+                    },
+                    "rows": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/HoldingDisclosureRowResponse"
+                        }
+                    },
+                    "read_only": {
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "account_id",
+                    "as_of",
+                    "asset_code",
+                    "blocked_reason",
+                    "coverage_note",
+                    "freshness",
+                    "must_not_execute",
+                    "must_not_use_for_decision",
+                    "outcome",
+                    "read_only",
+                    "reliability",
+                    "rows",
+                    "scope"
+                ]
+            },
+            "HoldingDisclosureResponseOutcomeEnum": {
+                "enum": [
+                    "partial",
+                    "blocked"
+                ],
+                "type": "string",
+                "description": "* `partial` - partial\n* `blocked` - blocked"
+            },
+            "HoldingDisclosureRowResponse": {
+                "type": "object",
+                "description": "Serialize one source-bound financial metric and its original timestamps.",
+                "properties": {
+                    "asset_code": {
+                        "type": "string"
+                    },
+                    "metric_code": {
+                        "type": "string"
+                    },
+                    "value": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "unit": {
+                        "type": "string"
+                    },
+                    "period_end": {
+                        "type": "string"
+                    },
+                    "period_type": {
+                        "type": "string"
+                    },
+                    "report_date": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "announced_at": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "available_at": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "fetched_at": {
+                        "type": "string"
+                    },
+                    "source_record_id": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "raw_payload_hash": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "source": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "announced_at",
+                    "asset_code",
+                    "available_at",
+                    "fetched_at",
+                    "metric_code",
+                    "period_end",
+                    "period_type",
+                    "raw_payload_hash",
+                    "report_date",
+                    "source",
+                    "source_record_id",
+                    "unit",
+                    "value"
+                ]
             },
             "IngestionConfig": {
                 "type": "object",

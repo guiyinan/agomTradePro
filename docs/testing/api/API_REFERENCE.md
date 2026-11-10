@@ -681,6 +681,16 @@ result = client.post(
 
 Python SDK 的 `username/password` 会话模式可用通用 `get`/`post` 调用受支持端点并附带 CSRF；它没有计划专用方法。API Token 模式不能调用这些接口。MCP 没有计划管理、计划订单预览或计划执行 capability，也不能用普通 `trading.submit.simulated_order` 冒充计划绑定订单。OpenAPI 由 Root 正式整合时生成并核对 `schema.yml`、`docs/testing/api/openapi.yaml` 与 `docs/testing/api/openapi.json`。
 
+### 9.6 持仓证券财报披露资料核对
+
+`GET /api/simulated-trading/accounts/{account_id}/holding-disclosures/?asset_code=600000.SH` 要求真实 Django 登录会话，以及对活动模拟账户的读取权限和该证券的正持仓。Owner 与有效观察者均可读取；账户不可读、失活、不存在或未持有该精确证券统一返回 `404`。只接受一个不带首尾空白、最多 20 字符的 `asset_code`，不自动推断或补全证券代码；重复、额外、缺失或无效参数返回 `400` 和 `detail`。
+
+正常完成读取返回 JSON `200`，业务结果仍须看 `outcome`（`partial` / `blocked`），不能仅凭状态码认定资料完整。根字段包括 `account_id`、`asset_code`、`as_of`（本次读取时间）、`scope: "simulation_only"`、`read_only: true`、`must_not_use_for_decision: true`、`must_not_execute: true`、`freshness`、`reliability`、`coverage_note`、`blocked_reason` 和 `rows`。来源自身禁止使用时返回 `blocked` 与稳定原因、空行；无资料时保持 `partial`，不能解释为没有公告。未登录或仅 API Token 认证返回 `403`；服务未组装返回 `503/detail`；不支持的写方法返回 `405`。
+
+每行是当前发布成员中的一个财务指标，最多 20 条，并非 20 份公告。字段为 `asset_code/metric_code/value/unit/period_end/period_type/report_date/announced_at/available_at/fetched_at/source/source_record_id/raw_payload_hash`。报告日期保留日期精度，各源时间保留原始带时区值，缺失时间保持 `null`；空的可选证据标识统一为 `null`，非空坏哈希及未来或无时区时钟受阻。证据标识在传输契约中保留，普通 TUI 隐藏技术标识，首屏说明覆盖不完整和用途限制。
+
+该读取不刷新 Provider、不启动任务、不发布事实、不写入资金/持仓/交易；不提供完整公告修订、公司行为历史、生效或到账日，也不计算现金、股份、税费。SDK 的 `username/password` 会话模式可通过通用 `get` 调用此路径，没有披露资料专用方法；API Token 模式及当前 MCP 不能调用。TUI 的 `simulated-trading.holding-disclosures` 也发布 `session_auth_required: true`，通用 action-run 在 executor 之前拒绝非会话认证，失败后清除上次资料。
+
 ## 10. 审计分析 (Audit)
 
 ### 10.1 审计 API

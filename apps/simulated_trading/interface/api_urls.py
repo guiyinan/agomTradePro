@@ -13,6 +13,7 @@ from .fee_correction_views import (
     FeeCorrectionRecoveryAPIView,
     FeeCorrectionRecoveryHeadAPIView,
 )
+from .holding_disclosure_views import HoldingDisclosureAPIView
 from .order_history_views import (
     SimulatedOrderDecisionHistoryAPIView,
     SimulatedOrderFillHistoryAPIView,
@@ -69,6 +70,11 @@ app_name = "simulated_trading_api"
 
 
 urlpatterns = [
+    path(
+        "accounts/<int:account_id>/holding-disclosures/",
+        HoldingDisclosureAPIView.as_view(),
+        name="holding-disclosure-list",
+    ),
     path(
         "accounts/<int:account_id>/rebalance-plans/",
         RebalancePlanListCreateAPIView.as_view(),

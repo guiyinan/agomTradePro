@@ -6,6 +6,19 @@ This standard defines the user-facing contract for AgomTradePro `/tui/`. It exis
 
 ## Core Rule
 
+The existing account workspace offers a read-only holding disclosure reference
+for an explicitly selected account and held security. Direct reads and the TUI
+action-run entry require a real signed-in session, including for authorized
+read-only observers. The result leads with its
+limited coverage and decision/execution prohibition. Current published financial
+metrics do not establish a complete announcement list, revision chain, corporate
+action effectiveness or payment. Report dates retain day precision; source
+announcement, availability, fetch and read times stay separate, with missing
+values shown as unknown. Source hashes and internal publication locators are
+kept out of ordinary copy. A denied account, invalid security scope or failed
+read clears preceding facts. Repeated reads never post cash/shares or dispatch
+events.
+
 The account inspection preview offers an explicit reference-price choice. Its
 default market mode keeps the existing behavior. Published-close mode displays
 the verified daily-close basis, market date and source observation time alongside

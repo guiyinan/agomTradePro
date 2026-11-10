@@ -10,6 +10,7 @@ from uuid import UUID
 
 from django.utils import timezone
 
+from apps.terminal.application.tui_account_action_scope import requires_account_result_scope
 from apps.terminal.application.tui_audit import verified_reauth_evidence
 from apps.terminal.application.tui_order_history_result import order_operation_confirmation_message
 from apps.terminal.application.tui_portfolio_risk_result import portfolio_pressure_task_outcome
@@ -240,20 +241,7 @@ class TuiWorkbenchExecutionMixin:
             verified_reauth_evidence(reauth) if self._requires_password(action) else reauth
         )
         method = str(action["method"]).upper()
-        order_history_action = action_key in {
-            "simulated-trading.orders",
-            "simulated-trading.order-fills",
-            "simulated-trading.order-decisions",
-            "simulated-trading.order-decision-apply",
-            "simulated-trading.order-cancel",
-            "simulated-trading.order-match",
-            "simulated-trading.order-preview",
-            "simulated-trading.order-confirm",
-            "simulated-trading.order-by-key",
-            "simulated-trading.order-entry-orders",
-            "rebalance-plan.order-confirm",
-            "rebalance-plan.order-by-key",
-        }
+        account_scoped_action = requires_account_result_scope(action_key)
         try:
             endpoint, request_params = self._bind_endpoint_params(
                 endpoint=str(action["endpoint"]),
@@ -277,7 +265,7 @@ class TuiWorkbenchExecutionMixin:
             if (
                 task_scope is not None
                 or action_key.startswith("simulated-trading.fee-correction-")
-                or order_history_action
+                or account_scoped_action
             ) and (
                 not isinstance(result, Mapping)
                 or type(result.get("status_code")) is not int
@@ -349,7 +337,7 @@ class TuiWorkbenchExecutionMixin:
                     if task_scope is not None
                     or action_key == "account-inspection.m1-risk-policy.revoke"
                     or action_key.startswith("simulated-trading.fee-correction-")
-                    or order_history_action
+                    or account_scoped_action
                     else request_params
                 ),
             )
@@ -361,7 +349,7 @@ class TuiWorkbenchExecutionMixin:
                 "account-inspection.m1-risk-policy.revoke",
             }
             if (
-                task_scope is not None or m1_risk_mutation or fee_action or order_history_action
+                task_scope is not None or m1_risk_mutation or fee_action or account_scoped_action
             ) and outcome not in {
                 "blocked",
                 "failed",

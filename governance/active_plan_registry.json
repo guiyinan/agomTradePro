@@ -1,20 +1,15 @@
 {
-  "version": "2026-11-10.v337",
+  "version": "2026-11-10.v338",
   "updated_at": "2026-11-10",
   "execution_focus": {
-    "unit_id": null,
+    "unit_id": "ASH-05",
     "allowed_parallel_execution_modes": [
       "production",
       "external",
       "governance"
     ],
-    "policy": "ASH-08 is completed under the Owner-authorized section 19.167 exit. Candidate 2e83e3ba483716ab2d694e1d952b0622db53cc9d passed the complete isolated published_close V8 on the retained 2026-11-09 market originals at an explicit historical cutoff. The same candidate passed three-actor transport and permissions, exact original-order readback, fill and cancellation, successor BUY reservation, and final ledger reconciliation. REF-05 is completed under its insufficient-PIT exit. Hold repository focus for the next authorized handoff.",
-    "parallel_preparation": [],
-    "handoff_pending": {
-      "completed_unit_id": "ASH-08",
-      "owner_decision_ref": "docs/plans/a-share-usability-implementation-plan-2026-10-16.md#19.167",
-      "reason": "The Owner-authorized ASH-08 and REF-05 exits are registered. Await the next repository focus decision."
-    }
+    "policy": "Owner authorized the new 2026-11-10 session to receive the ASH-08 handoff at 74c185eee17201f5bf0d3c81477aacfe0fa06c32. ASH-05 is the sole repository integration focus; ASH-02/03/04 dependencies are completed. The root integrator owns shared Source/index, projections, adoption and commits. Luna max agents may perform bounded read-only contract discovery, followed only by registered non-overlapping isolated preparation. Reuse sealed ASH-08/REF-05 acceptance without rerunning it; preserve section 9 full ASH-05 exit gates and all deferred/production boundaries. Scope and handoff: A-share plan section 19.168.",
+    "parallel_preparation": []
   },
   "workstreams": [
     {
@@ -400,7 +395,7 @@
       "priority": "P0/P1",
       "owner": "portfolio+risk_center+data_center+simulated_trading+backtest+broker_execution+terminal",
       "status": "active",
-      "next_gate": "ASH-03/04/07 and ASH-08 are completed within their recorded acceptance scopes. ASH-08 passed the ordinary Owner/observer/foreign published_close V8 and final ledger reconciliation using retained 2026-11-09 public-source originals at the authorized historical cutoff. See section 19.167 for closure evidence and await the next repository focus decision. ASH-06/09/12 are deferred.",
+      "next_gate": "ASH-05 remains the sole active repository focus. The first bounded read-only holding financial-disclosure path is integrated; section 19.168 and its single evidence index record validation and formal delivery. Next scope must preserve the full section 9 announcement/revision, company-action stages, cash/share/tax ledger, duplicate/late events, account isolation and adjusted-price exit gates. This batch does not close ASH-05 or establish real-provider/production qualification. Reuse sealed ASH-08/REF-05 evidence; ASH-06/09/12 remain deferred, with no production activation.",
       "documents": [
         {
           "path": "docs/plans/a-share-usability-implementation-plan-2026-10-16.md",
@@ -1709,7 +1704,7 @@
         "wave": 3,
         "priority": "P1",
         "execution_mode": "repository",
-        "status": "planned",
+        "status": "active",
         "title": "Connect announcements and corporate actions to positions and plan validity",
         "depends_on": [
           "ASH-02",
