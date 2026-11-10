@@ -3063,3 +3063,5 @@ Owner 于 2026-11-10 批准后续事件覆盖 pin 的 **60 秒内部 lease**：�
 registry v356 登记唯一隔离副本 `.tmp/ash05-event-pins-20261110`：Luna max 只修改 Portfolio 事件 pin 的 Domain/Application 契约、模拟交易计划生成的注入式读取/绑定及对应聚焦单测；Root 独占正式 Git、跨 App 运行组合、投影与重 QA。此准备不得写模型或迁移、网络捕获、复核/预留生产接线；若实际实现需要扩大路径，先更新本计划和 registry 的有界范围。
 
 registry v357 仅把上述来源批次的精确 CI 和隔离持久化回执写回动态状态；v356 的唯一 event pin 准备范围、ASH-05 active、deferred 集合及生产禁用状态均不变。
+
+registry v358 在同一隔离准备中只增加 `apps/portfolio/infrastructure/transition_plan_revision_codec.py`：精确窗口与 lease 使用 `TransitionPlanSourceBinding` 的显式可选字段并通过现有 JSON codec 往返；旧字段全空时保留原 payload 和 revision hash，旧无窗口 marker 在事件门禁中 fail-closed。此范围扩充不授权模型、迁移、网络或生产运行接线。
