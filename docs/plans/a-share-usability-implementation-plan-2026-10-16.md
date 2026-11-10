@@ -3026,6 +3026,8 @@ registry v350 在同一 ASH-05 `parallel_preparation` 条目中登记第二个�
 
 正式候选 `bbdd6d5f4d749bcc9386cb38ef717066862c9899` 的模型差值解释、55 项定向测试、格式/静态门禁、迁移漂移、全库 mypy 债务及生成投影通过；Publication PostgreSQL 因手工夹具未建新锚表和公司行为表失败，已由 `983e04394` 补齐。候选 `cb5b95cee7bff2de9306184062bb622b449a5d58` 的 Publication PostgreSQL、Consistency、Architecture、Security 均通过；Fast Feedback 失败暴露模型注册顺序预期未纳入公司行为表和新锚，以及手工 SQLite 夹具切换默认连接后影响 xdist 后续测试。修复将保持旧模型注册顺序、更新完整注册名单，并改为 pytest 管理的迁移后临时库；须在新候选上重跑，不拼接历史绿灯。远端失败原件与本地诊断记录在 Git 忽略的 `artifacts/ash05-ownership-integration-20261110/`。
 
+候选 `8ee1a4fbdd59f6bc55be2e9231b7aa458abc0c05` 的 Publication PostgreSQL、Consistency、Architecture、Security 与增量质量门通过；Fast Feedback 双 Python 业务断言均通过，但 54 个错误均出自四组旧 `isolated_schema` 夹具删除账户时未先清新锚外键。`098a28161` 将锚点模型按依赖顺序纳入这四组夹具；本地单例与三组代表性用例合计 5 passed。包含修复和治理扩围的正式候选 `784447541b3aa3f09a5c24c45e942ee50d633cb7` 五项适用 CI 全部成功，Fast Feedback 双 Python 均通过；此候选无 Publication PostgreSQL 工作流触发，不沿用 8ee 的 PostgreSQL 结果为其同候选证据。完整日志在同一忽略目录。
+
 ### 19.174 ASH-05 后扣税纯计算准备整合（2026-11-10）
 
 注入法定规则来源、版本、登记日适用窗、持有期档位、税基比例和舍入后，纯 Domain 按证券账户的可信取得批次与日终净转让批次作 FIFO 分配。登记日持仓数量与应享分红数量分别保留；登记日后取得的股份只在其取得之后可用；同日买卖顺序无法证明、未来批次补先前卖出、超卖、未知取得来源、转入继承链及不完整历史均阻断。持有期以转让交割日前一日为末日，月/年档位按税务机关的自然月/年周年示例判定，并留存恰好周年及次日的反例。结果绑定事件、账户、卖出批次、规则及完整证据前缀的哈希，但当前没有持久税规则、税评估账本或真实扣缴写口。
@@ -3041,3 +3043,13 @@ Audit authority 必须在捕获前以 required/outbox 权限及有效 lease 通�
 registry v353 登记唯一隔离副本 `.tmp/ash05-disclosure-audit-20261110`，Luna max 仅修改 Data Center 公告 Application 契约/仓储/捕获组合、Audit 的专用 Application observation 与 runtime builder，以及上述直接测试；Root 独占正式分支整合、生成投影、重 QA 和 Git。若实现证明需要新增模型、迁移、任务、路由或其它共享文件，先在现有计划和 registry 收窄登记后再改。
 
 隔离初版定向 13 项通过，增量 mypy、Black/isort/Ruff 和完整架构扫描通过；模块循环门禁明确拒绝 Data Center 捕获组合直接导入 Audit：这会新增 `data_center → audit`，与既有 `audit → data_center` 形成环且超出出边预算。registry v354 把同一隔离块范围扩到新的 Audit 披露捕获组合及现有 Data Center 捕获单测。Data Center 只负责外部列表/PDF 捕获、末次复核和 typed 源候选；Audit 组合层先预检 authority，再调用捕获，最后以同 alias 协调器事务提交事实、证明、Audit 与 Outbox。现有模拟交易生产路径只读取 Data Center 事实，不调用窗口捕获，无需新增反向依赖。不得以提高循环/出边预算代替改造。
+
+独立复核另发现批次 Audit 时钟早于事实及 coverage 各自落库时钟，可能在 Audit 的精确 `recorded_at` 看不到它宣称的证明；事实 PIT 读取也漏了 `recorded_at <= as_of`，会使后写但来源首次观察较早的事实倒改旧窗口状态。修复于二次 authority 检查后取一次可信批时钟，仅注入本批两个 Data Center append 仓储和 Audit observation，并要求严格早于 lease 到期、不得早于验证及事实可用时刻；读取同时约束来源可用与实际落库时间。固定时钟、到期边界和旧 PARTIAL 不可倒填三项反例纳入聚焦包。正式树最终 **30 passed**，Black/isort/Ruff、增量 mypy 六文件零回归、全库债务上限、Audit 事件契约、模块图与 Data Center 投影、模块循环和治理一致性通过；同候选远端 CI 与 PostgreSQL 仍待验。`data.disclosure_fact.appended` 已登记统一 Audit 事件契约。此块没有生产调度入口，单 PDF 旧入口亦未纳入原子窗口捕获；来源窗口仍是 PARTIAL。
+
+### 19.176 ASH-05 交易所完整列表事实覆盖工作块（2026-11-10）
+
+用户已选择交易所公开来源。保留的深交所精确列表显示 002727.SZ 的 2026-09 窗口有 11 篇公告、仅 3 篇权益分派相关事实；301237.SZ 的 2026-08-01 至 09-15 窗口有 6 篇、仅 1 篇事实。下一有界隔离块逐篇捕获列表中的官方 PDF，验证证券身份、来源事件 ID、原件哈希、标题与正文，并保留实际首次观察时间。只把有明确源文本证据的非公司行为公告归入 `OTHER` 或已定义类别；含义不明保持 `UNKNOWN` 并记录日志，不能用 `OTHER` 批量掩盖未知。更正公告及其后继实施公告的修订关系、现金/送转原始经济条款继续保持。完整列表与每篇事实在同一批次候选中交给现有 Audit/Outbox 原子写入；精确 proof 仅在全部列出原件被表示且类别可识别时为 COMPLETE，其他情况保留 PARTIAL/UNKNOWN 与稳定原因。现场重抓只证明本次窗口及本次观察时点，不外推其他证券、窗口或沪/北交易所。
+
+registry v355 登记单个隔离副本 `.tmp/ash05-exchange-coverage-20261110`：Luna max 仅可改 Data Center 官方 PDF 分类与窗口捕获组合，以及对应单元/组件测试；Root 独占正式 Git、投影、交易所现场核对及重 QA。先补分类与“逐篇不漏”反例，再用保留列表和现场官方来源核对 11/11、6/6 的身份与状态；即使本块达到两个精确窗口 COMPLETE，ASH-05 的计划 pin、税后扣、账户/收益和 §9 金样本仍须另验，不据此关闭单元或开放生产入口。
+
+Owner 于 2026-11-10 批准后续事件覆盖 pin 的 **60 秒内部 lease**：计划复核或预留前须重抓官方列表并核对精确 proof、事实版本和来源范围，再以版本化政策签发最多 60 秒的有效期；到期、来源变化、PARTIAL/UNKNOWN 或权限失效均阻断。lease 只表示系统可容忍的陈旧时长，不代表交易所在此期间保证无新增或更正。账户锁内仅核对已持久化的 lease，不发网络请求；旧 proof 不因 lease 获得新的交易所观察时刻。本决策进入后续 Portfolio event pin 工作块，当前完整列表捕获块不因此宣称已可生成或执行计划。
