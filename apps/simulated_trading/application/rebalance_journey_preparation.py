@@ -11,6 +11,10 @@ from apps.portfolio.application.transition_plan_lifecycle import (
     TransitionPlanRevisionRequest,
 )
 from apps.portfolio.domain.entities import ConstraintDecision, OrderDraft, TransitionPlan
+from apps.portfolio.domain.transition_plan_event_review import (
+    SECURITY_DISCLOSURE_EVENT_COVERAGE_RECORD_ID,
+    SECURITY_DISCLOSURE_EVENT_SOURCE_KIND,
+)
 from apps.portfolio.domain.transition_plan_revision import (
     TransitionPlanOrderSpecification,
     TransitionPlanRevision,
@@ -27,7 +31,10 @@ from apps.portfolio.domain.transition_plan_revision_support import _canonical_ha
 from apps.risk_center.application.execution_settlement_v3 import (
     ExecutionSettlementV3ReadRecord,
 )
-from apps.risk_center.application.portfolio_risk_assets import PortfolioRiskAssetInputs
+from apps.risk_center.application.portfolio_risk_assets import (
+    PortfolioRiskAssetIdentity,
+    PortfolioRiskAssetInputs,
+)
 from apps.risk_center.application.portfolio_risk_serialization import (
     canonical_portfolio_risk_json,
     portfolio_risk_content_hash,
@@ -39,6 +46,9 @@ from apps.risk_center.domain.portfolio_risk_snapshot import (
 from apps.simulated_trading.application.portfolio_risk_context import PreparedPortfolioRisk
 from apps.simulated_trading.application.rebalance_journey_event_coverage import (
     RebalanceJourneyEventCoveragePinner,
+)
+from apps.simulated_trading.application.rebalance_journey_event_refresh import (
+    RebalanceJourneyOfficialEventRefresher,
 )
 from apps.simulated_trading.application.rebalance_journey_preparation_support import (
     _asset_map,
@@ -104,6 +114,7 @@ class PortfolioJourneyPreparationProvider:
         business_timezone: tzinfo,
         clock: TransitionPlanRevisionClock,
         event_coverage_pinner: RebalanceJourneyEventCoveragePinner | None = None,
+        event_refresher: RebalanceJourneyOfficialEventRefresher | None = None,
         event_coverage_required: bool = False,
     ) -> None:
         """Inject one server reader and retain only the explicitly chosen target."""
@@ -120,7 +131,33 @@ class PortfolioJourneyPreparationProvider:
         self._business_timezone = business_timezone
         self._clock = clock
         self._event_coverage_pinner = event_coverage_pinner
+        self._event_refresher = event_refresher
         self._event_coverage_required = event_coverage_required
+
+    def _refresh_official_events(
+        self,
+        asset_identities: tuple[PortfolioRiskAssetIdentity, ...],
+    ) -> None:
+        """Require the official capture adapter to complete for every exact identity."""
+
+        refresher = self._event_refresher
+        if refresher is None:
+            raise RebalanceJourneyUnavailable(code="REBALANCE_PLAN_EVENT_PROVIDER_UNAVAILABLE")
+        try:
+            refreshed_identities = refresher.refresh(asset_identities=asset_identities)
+        except RebalanceJourneyUnavailable:
+            raise
+        except Exception as error:
+            raise RebalanceJourneyUnavailable(code="REBALANCE_PLAN_EVENT_REFRESH_FAILED") from error
+        if (
+            type(refreshed_identities) is not tuple
+            or any(
+                type(identity) is not PortfolioRiskAssetIdentity
+                for identity in refreshed_identities
+            )
+            or refreshed_identities != asset_identities
+        ):
+            raise RebalanceJourneyUnavailable(code="REBALANCE_PLAN_EVENT_REFRESH_INCOMPLETE")
 
     def prepare(
         self,
@@ -133,7 +170,11 @@ class PortfolioJourneyPreparationProvider:
 
         if type(request) is not TransitionPlanRevisionRequest:
             raise TypeError("request must be a TransitionPlanRevisionRequest")
-        if self._event_coverage_required and self._event_coverage_pinner is None:
+        if self._event_coverage_required and (
+            self._event_coverage_pinner is None or self._event_refresher is None
+        ):
+            raise RebalanceJourneyUnavailable(code="REBALANCE_PLAN_EVENT_PROVIDER_UNAVAILABLE")
+        if self._event_refresher is not None and self._event_coverage_pinner is None:
             raise RebalanceJourneyUnavailable(code="REBALANCE_PLAN_EVENT_PROVIDER_UNAVAILABLE")
         _require_aware(prepared_at, "prepared_at")
         preview = self._reads.read_preview(
@@ -151,6 +192,48 @@ class PortfolioJourneyPreparationProvider:
         )
         if type(prepared) is not PreparedPortfolioRisk:
             raise RebalanceJourneyUnavailable(code="REBALANCE_PLAN_RISK_CONTEXT_INVALID")
+        event_asset_identities: tuple[PortfolioRiskAssetIdentity, ...] = ()
+        if self._event_coverage_pinner is not None:
+            event_asset_identities = _event_asset_identities(prepared)
+            if self._event_refresher is not None:
+                self._refresh_official_events(event_asset_identities)
+                refresh_completed_at = self._clock.now()
+                _require_aware(refresh_completed_at, "event_refresh_completed_at")
+                refreshed_preview = self._reads.read_preview(
+                    user_id=request.actor_user_id,
+                    account_id=request.account_id,
+                    target_weights=self._target_weights,
+                    reference_price_basis=self._reference_price_basis,
+                )
+                if type(refreshed_preview) is not RebalancePlanPreview:
+                    raise RebalanceJourneyUnavailable(
+                        code="REBALANCE_PLAN_PREVIEW_CONTRACT_INVALID"
+                    )
+                refreshed_prepared = self._reads.read_risk(
+                    user_id=request.actor_user_id,
+                    account_id=request.account_id,
+                    preview=refreshed_preview,
+                )
+                if type(refreshed_prepared) is not PreparedPortfolioRisk:
+                    raise RebalanceJourneyUnavailable(code="REBALANCE_PLAN_RISK_CONTEXT_INVALID")
+                refreshed_identities = _event_asset_identities(refreshed_prepared)
+                _require_refresh_context_stable(
+                    initial=prepared,
+                    refreshed=refreshed_prepared,
+                    expected_identities=event_asset_identities,
+                    refreshed_identities=refreshed_identities,
+                )
+                if (
+                    refreshed_preview.financial_snapshot_read_at is None
+                    or refreshed_preview.financial_snapshot_read_at < refresh_completed_at
+                    or refreshed_prepared.snapshot.read_at < refresh_completed_at
+                ):
+                    raise RebalanceJourneyUnavailable(
+                        code="REBALANCE_PLAN_EVENT_REFRESH_CONTEXT_STALE"
+                    )
+                preview = refreshed_preview
+                prepared = refreshed_prepared
+                event_asset_identities = refreshed_identities
         assembled_at = self._clock.now()
         _require_aware(assembled_at, "assembled_at")
         if assembled_at < prepared_at:
@@ -158,27 +241,21 @@ class PortfolioJourneyPreparationProvider:
         prepared_at = assembled_at
         event_sources: tuple[TransitionPlanSourceBinding, ...] = ()
         if self._event_coverage_pinner is not None:
-            asset_identity_rows: list[tuple[str, str]] = []
-            for asset in prepared.assets.assets:
-                if type(asset.security_id) is not str or not asset.security_id:
-                    raise RebalanceJourneyUnavailable(
-                        code="REBALANCE_PLAN_EVENT_ASSET_IDENTITY_UNAVAILABLE"
-                    )
-                asset_identity_rows.append((asset.asset_code, asset.security_id))
-            asset_identities = tuple(asset_identity_rows)
+            asset_identities = tuple(
+                (identity.asset_code, identity.security_id)
+                for identity in event_asset_identities
+                if identity.security_id is not None
+            )
             event_sources = self._event_coverage_pinner.pin(
                 asset_identities=asset_identities,
                 as_of=prepared_at,
                 parent=parent,
             )
-            if (
-                type(event_sources) is not tuple
-                or not event_sources
-                or any(type(source) is not TransitionPlanSourceBinding for source in event_sources)
-            ):
-                raise RebalanceJourneyUnavailable(
-                    code="REBALANCE_PLAN_EVENT_PROVIDER_CONTRACT_INVALID"
-                )
+            _validate_event_sources(
+                event_sources,
+                expected_identities=asset_identities,
+                plan_clock=prepared_at,
+            )
         self._validate_context(
             request=request,
             preview=preview,
@@ -920,6 +997,137 @@ class PortfolioJourneyPreparationProvider:
             ),
         }
         return policy_groups, tuple(orders), tuple(specifications), order_policy_members
+
+
+def _event_asset_identities(
+    prepared: PreparedPortfolioRisk,
+) -> tuple[PortfolioRiskAssetIdentity, ...]:
+    """Return every unique exact risk asset/security pair in canonical order."""
+
+    identities: list[PortfolioRiskAssetIdentity] = []
+    for asset in prepared.assets.assets:
+        if type(asset) is not PortfolioRiskAssetInputs or type(asset.security_id) is not str:
+            raise RebalanceJourneyUnavailable(
+                code="REBALANCE_PLAN_EVENT_ASSET_IDENTITY_UNAVAILABLE"
+            )
+        try:
+            identities.append(
+                PortfolioRiskAssetIdentity(
+                    asset_code=asset.asset_code,
+                    security_id=asset.security_id,
+                )
+            )
+        except (TypeError, ValueError) as error:
+            raise RebalanceJourneyUnavailable(
+                code="REBALANCE_PLAN_EVENT_ASSET_IDENTITY_UNAVAILABLE"
+            ) from error
+    if not identities or len(identities) != len(
+        {(identity.asset_code, identity.security_id) for identity in identities}
+    ):
+        raise RebalanceJourneyUnavailable(code="REBALANCE_PLAN_EVENT_ASSET_IDENTITY_AMBIGUOUS")
+    return tuple(
+        sorted(identities, key=lambda identity: (identity.asset_code, identity.security_id or ""))
+    )
+
+
+def _require_refresh_context_stable(
+    *,
+    initial: PreparedPortfolioRisk,
+    refreshed: PreparedPortfolioRisk,
+    expected_identities: tuple[PortfolioRiskAssetIdentity, ...],
+    refreshed_identities: tuple[PortfolioRiskAssetIdentity, ...],
+) -> None:
+    """Reject a changed owner, account or event identity across official capture."""
+
+    initial_account_identity = (
+        initial.actor_user_id,
+        initial.snapshot.account_id,
+        initial.snapshot.owner_user_id,
+    )
+    refreshed_account_identity = (
+        refreshed.actor_user_id,
+        refreshed.snapshot.account_id,
+        refreshed.snapshot.owner_user_id,
+    )
+    initial_holding_identities = _holding_identities(initial)
+    refreshed_holding_identities = _holding_identities(refreshed)
+    if (
+        initial_account_identity != refreshed_account_identity
+        or initial_holding_identities != refreshed_holding_identities
+        or expected_identities != refreshed_identities
+    ):
+        raise RebalanceJourneyUnavailable(code="REBALANCE_PLAN_EVENT_REFRESH_CONTEXT_CHANGED")
+
+
+def _holding_identities(
+    prepared: PreparedPortfolioRisk,
+) -> tuple[tuple[str, str | None], ...]:
+    """Retain account-held identity pairs, including unresolved security IDs."""
+
+    identities = tuple(
+        (holding.asset_code, holding.security_id) for holding in prepared.snapshot.holdings
+    )
+    return tuple(
+        sorted(
+            identities,
+            key=lambda identity: (
+                identity[0],
+                identity[1] or "",
+                identity[1] is None,
+            ),
+        )
+    )
+
+
+def _validate_event_sources(
+    event_sources: tuple[TransitionPlanSourceBinding, ...],
+    *,
+    expected_identities: tuple[tuple[str, str], ...],
+    plan_clock: datetime,
+) -> None:
+    """Require complete exact proof pins and leases valid at the final plan clock."""
+
+    if (
+        type(event_sources) is not tuple
+        or not event_sources
+        or any(type(source) is not TransitionPlanSourceBinding for source in event_sources)
+        or any(source.kind != SECURITY_DISCLOSURE_EVENT_SOURCE_KIND for source in event_sources)
+    ):
+        raise RebalanceJourneyUnavailable(code="REBALANCE_PLAN_EVENT_PROVIDER_CONTRACT_INVALID")
+    expected = set(expected_identities)
+    coverage_sources = tuple(
+        source
+        for source in event_sources
+        if source.source_record_id == SECURITY_DISCLOSURE_EVENT_COVERAGE_RECORD_ID
+    )
+    coverage_identities = tuple(
+        (source.asset_code, source.security_id) for source in coverage_sources
+    )
+    if (
+        len(coverage_identities) != len(expected)
+        or len(set(coverage_identities)) != len(coverage_identities)
+        or set(coverage_identities) != expected
+    ):
+        raise RebalanceJourneyUnavailable(code="REBALANCE_PLAN_EVENT_SCOPE_INCOMPLETE")
+    for source in event_sources:
+        if (
+            (source.asset_code, source.security_id) not in expected
+            or source.decision_cutoff != plan_clock
+            or source.known_at is not None
+            and source.known_at > plan_clock
+            or source.admission_until <= plan_clock
+        ):
+            raise RebalanceJourneyUnavailable(code="REBALANCE_PLAN_EVENT_SCOPE_MISMATCH")
+    for source in coverage_sources:
+        if (
+            source.known_at is None
+            or source.available_at != source.known_at
+            or source.coverage_lease_issued_at is None
+            or source.coverage_lease_issued_at > plan_clock
+            or source.coverage_lease_ttl_microseconds is None
+            or source.coverage_lease_ttl_microseconds <= 0
+        ):
+            raise RebalanceJourneyUnavailable(code="REBALANCE_PLAN_EVENT_PROOF_INCOMPLETE")
 
 
 __all__ = ("PortfolioJourneyPreparationProvider", "ReferencePriceBasis")

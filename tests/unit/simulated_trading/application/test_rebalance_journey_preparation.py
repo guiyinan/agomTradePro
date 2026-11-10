@@ -23,6 +23,7 @@ from apps.portfolio.domain.transition_plan_event_review import (
 )
 from apps.portfolio.domain.transition_plan_revision import build_transition_plan_revision
 from apps.risk_center.application.execution_settlement_v3 import ExecutionSettlementV3ReadRecord
+from apps.risk_center.application.portfolio_risk_assets import PortfolioRiskAssetIdentity
 from apps.risk_center.application.portfolio_risk_serialization import portfolio_risk_content_hash
 from apps.risk_center.domain.execution_settlement_v3 import (
     ExecutionSettlementBundleV3,
@@ -52,6 +53,9 @@ from apps.simulated_trading.application.rebalance_journey_current_pins import (
 from apps.simulated_trading.application.rebalance_journey_event_coverage import (
     PinRebalanceJourneyEventCoverage,
     RebalanceJourneyEventCoverageScope,
+)
+from apps.simulated_trading.application.rebalance_journey_event_refresh import (
+    RebalanceJourneyOfficialEventRefresher,
 )
 from apps.simulated_trading.application.rebalance_journey_preparation import (
     PortfolioJourneyPreparationProvider,
@@ -136,7 +140,7 @@ class _FeeReader:
             "SSE",
             "MAIN",
             self.expected_side,
-        ) or as_of != _AS_OF:
+        ) or as_of < _AS_OF:
             return None
         return self.policy
 
@@ -152,14 +156,20 @@ class _RuleReader:
     ) -> ExecutionSettlementV3ReadRecord:
         """Return only the requested exact identity at the supplied cutoff."""
 
-        if security_id != _SECURITY_ID or as_of != _AS_OF:
+        if security_id != _SECURITY_ID or as_of < _AS_OF:
             raise RebalanceJourneyUnavailable(code="TEST_RULE_SCOPE_MISMATCH")
         return self.record
 
 
 class _PreparationClock:
+    def __init__(self, current: datetime = _PREPARED_AT) -> None:
+        self.current = current
+
     def now(self) -> datetime:
-        return _PREPARED_AT
+        return self.current
+
+    def advance(self, duration: timedelta) -> None:
+        self.current += duration
 
 
 class _EventCoverageScopes:
@@ -194,6 +204,196 @@ class _EventCoverageSnapshots:
         return self.snapshot
 
 
+class _RefreshingEventScopes:
+    """Issue one short exact lease from the durable proof recorded by a fake capture."""
+
+    def __init__(
+        self,
+        refresher: _AdvancingOfficialEventRefresher,
+        *,
+        proof_after_final_clock: bool = False,
+        lease_ttl: timedelta = timedelta(seconds=60),
+    ) -> None:
+        self.refresher = refresher
+        self.proof_after_final_clock = proof_after_final_clock
+        self.lease_ttl = lease_ttl
+        self.plan_clocks: list[datetime] = []
+        self.scopes: dict[tuple[str, str], RebalanceJourneyEventCoverageScope] = {}
+
+    def read_scopes(
+        self,
+        *,
+        asset_identities: tuple[tuple[str, str], ...],
+        as_of: datetime,
+    ) -> tuple[RebalanceJourneyEventCoverageScope, ...]:
+        """Return only the exact refreshed identity at the final decision cutoff."""
+
+        self.plan_clocks.append(as_of)
+        proof_at = self.refresher.proof_recorded_at
+        if proof_at is None:
+            raise AssertionError("the fake official capture did not record durable proof")
+        if self.proof_after_final_clock:
+            proof_at = as_of + timedelta(seconds=1)
+        self.scopes = {}
+        for asset_code, security_id in asset_identities:
+            scope = RebalanceJourneyEventCoverageScope(
+                asset_code=asset_code,
+                security_id=security_id,
+                source_id="official-exchange-disclosure",
+                start_on=date(2026, 10, 1),
+                end_on=date(2026, 11, 3),
+                first_observed_at=_AS_OF - timedelta(minutes=3),
+                source_observed_at=_AS_OF - timedelta(seconds=40),
+                proof_recorded_at=proof_at,
+                lease_policy_version="event-refresh-test-r1",
+                lease_issued_at=proof_at,
+                lease_ttl_microseconds=int(self.lease_ttl.total_seconds() * 1_000_000),
+                lease_expires_at=proof_at + self.lease_ttl,
+            )
+            self.scopes[(asset_code, security_id)] = scope
+        return tuple(self.scopes.values())
+
+
+class _RefreshingEventSnapshots:
+    """Read the durable synthetic proof only at the timestamp chosen by its scope."""
+
+    def __init__(self, scopes: _RefreshingEventScopes) -> None:
+        self.scopes = scopes
+
+    def read_snapshot(
+        self, request: TransitionPlanEventSnapshotReadRequest
+    ) -> TransitionPlanEventAssetSnapshot | None:
+        """Return the exact scope proof without replacing source observation time."""
+
+        scope = self.scopes.scopes.get((request.asset_code, request.security_id))
+        if scope is None or request.as_of != scope.proof_recorded_at:
+            return None
+        return TransitionPlanEventAssetSnapshot(
+            asset_code=scope.asset_code,
+            security_id=scope.security_id,
+            source_id=scope.source_id,
+            start_on=scope.start_on,
+            end_on=scope.end_on,
+            as_of=scope.proof_recorded_at,
+            first_observed_at=scope.first_observed_at,
+            source_observed_at=scope.source_observed_at,
+            proof_recorded_at=scope.proof_recorded_at,
+            coverage_status=TransitionPlanEventCoverageStatus.COMPLETE,
+            source_scope_sha256="c" * 64,
+            events=(),
+        )
+
+
+class _AdvancingOfficialEventRefresher:
+    """Advance minutes, record proof, and make the fake account read post-capture."""
+
+    def __init__(
+        self,
+        clock: _PreparationClock,
+        reads: _Reads,
+        *,
+        refresh_context: bool = True,
+    ) -> None:
+        self.clock = clock
+        self.reads = reads
+        self.refresh_context = refresh_context
+        self.proof_recorded_at: datetime | None = None
+        self.calls: list[tuple[PortfolioRiskAssetIdentity, ...]] = []
+
+    def refresh(
+        self,
+        *,
+        asset_identities: tuple[PortfolioRiskAssetIdentity, ...],
+    ) -> tuple[PortfolioRiskAssetIdentity, ...]:
+        """Return the exact refreshed pairs after a multi-minute fake capture."""
+
+        self.calls.append(asset_identities)
+        self.clock.advance(timedelta(minutes=5))
+        self.proof_recorded_at = self.clock.current
+        self.clock.advance(timedelta(seconds=2))
+        if self.refresh_context:
+            self.reads.refresh_context_after_capture(self.clock.current)
+        return asset_identities
+
+
+class _IdentityChangingEventRefresher(_AdvancingOfficialEventRefresher):
+    """Change the final risk identity after completing the first exact capture."""
+
+    def refresh(
+        self,
+        *,
+        asset_identities: tuple[PortfolioRiskAssetIdentity, ...],
+    ) -> tuple[PortfolioRiskAssetIdentity, ...]:
+        """Return the captured initial pair while the final risk read changes it."""
+
+        refreshed = super().refresh(asset_identities=asset_identities)
+        assets = self.reads._prepared.assets
+        changed_assets = tuple(
+            replace(asset, security_id="SSE:600037", capacity_observation=None)
+            for asset in assets.assets
+        )
+        self.reads._prepared = replace(
+            self.reads._prepared,
+            assets=replace(assets, assets=changed_assets),
+        )
+        return refreshed
+
+
+class _RefreshError:
+    """Represent a source-capture transport failure at the injected boundary."""
+
+    def refresh(
+        self,
+        *,
+        asset_identities: tuple[PortfolioRiskAssetIdentity, ...],
+    ) -> tuple[PortfolioRiskAssetIdentity, ...]:
+        """Raise the transport error that the preparation provider must block."""
+
+        del asset_identities
+        raise RuntimeError("synthetic official capture failure")
+
+
+class _IncompleteRefresh:
+    """Return an empty successful result to verify exact refresh completeness."""
+
+    def refresh(
+        self,
+        *,
+        asset_identities: tuple[PortfolioRiskAssetIdentity, ...],
+    ) -> tuple[PortfolioRiskAssetIdentity, ...]:
+        """Claim no assets were captured even though the request was nonempty."""
+
+        del asset_identities
+        return ()
+
+
+def _refreshing_event_pinner(
+    refresher: _AdvancingOfficialEventRefresher,
+    *,
+    proof_after_final_clock: bool = False,
+    lease_ttl: timedelta = timedelta(seconds=60),
+) -> tuple[PinRebalanceJourneyEventCoverage, _RefreshingEventScopes]:
+    """Build a real pinner over one dynamic proof scope and its exact durable read."""
+
+    scopes = _RefreshingEventScopes(
+        refresher,
+        proof_after_final_clock=proof_after_final_clock,
+        lease_ttl=lease_ttl,
+    )
+    return (
+        PinRebalanceJourneyEventCoverage(
+            scope_reader=scopes,
+            snapshot_reader=_RefreshingEventSnapshots(scopes),
+            lease_policy=TransitionPlanEventCoverageLeasePolicy(
+                policy_version="event-refresh-test-r1",
+                ttl=lease_ttl,
+                maximum_ttl=timedelta(seconds=60),
+            ),
+        ),
+        scopes,
+    )
+
+
 class _Reads(ServerRebalanceJourneyReads):
     """Use the real typed read contract while supplying one captured synthetic result."""
 
@@ -205,6 +405,7 @@ class _Reads(ServerRebalanceJourneyReads):
         fee: SimulatedFeePolicyV2,
         rule_record: ExecutionSettlementV3ReadRecord,
         target_weights: str,
+        harness: risk_fixtures._Harness,
     ) -> None:
         super().__init__(
             preview_builder_factory=_UnusedPreviewBuilderFactory(),
@@ -222,6 +423,9 @@ class _Reads(ServerRebalanceJourneyReads):
         self._preview = preview
         self._prepared = prepared
         self._target_weights = target_weights
+        self._harness = harness
+        self.preview_reads = 0
+        self.risk_reads = 0
 
     def read_preview(
         self,
@@ -237,6 +441,7 @@ class _Reads(ServerRebalanceJourneyReads):
         assert account_id == risk_fixtures._ACCOUNT_ID
         assert target_weights == self._target_weights
         assert reference_price_basis == "market"
+        self.preview_reads += 1
         return self._preview
 
     def read_risk(
@@ -247,7 +452,34 @@ class _Reads(ServerRebalanceJourneyReads):
         assert user_id == risk_fixtures._OWNER_ID
         assert account_id == risk_fixtures._ACCOUNT_ID
         assert preview is self._preview
+        self.risk_reads += 1
         return self._prepared
+
+    def refresh_context_after_capture(self, read_at: datetime) -> None:
+        """Re-run the actual synthetic risk service using a post-refresh account read."""
+
+        snapshot = self._harness.resources.snapshot
+        if snapshot is None:
+            raise AssertionError("the synthetic account snapshot is unavailable")
+        self._harness.resources.snapshot = replace(
+            snapshot,
+            snapshot_id="synthetic-account-snapshot-after-event-refresh",
+            read_at=read_at,
+        )
+        business_date = read_at.astimezone(ZoneInfo("Asia/Shanghai")).date()
+        self._harness.policy_reader.policy = replace(
+            self._harness.policy_reader.policy,
+            as_of=read_at,
+            business_date=business_date,
+        )
+        self._harness.service._clock = _PreparationClock(read_at)
+        self._harness.service._contexts._clock = _PreparationClock(read_at)
+        self._preview = replace(self._preview, financial_snapshot_read_at=read_at)
+        self._prepared = self._harness.service.prepare_plan_context(
+            user_id=risk_fixtures._OWNER_ID,
+            account_id=risk_fixtures._ACCOUNT_ID,
+            preview=self._preview,
+        )
 
 
 def _calendar_result(
@@ -746,6 +978,7 @@ def _provider(
         fee=selected_fee,
         rule_record=record,
         target_weights=target_weights,
+        harness=harness,
     )
     return (
         PortfolioJourneyPreparationProvider(
@@ -759,6 +992,78 @@ def _provider(
         ),
         preview,
     )
+
+
+def _refresh_provider(
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    clock: _PreparationClock,
+    refresher: RebalanceJourneyOfficialEventRefresher,
+    pinner: PinRebalanceJourneyEventCoverage,
+) -> tuple[PortfolioJourneyPreparationProvider, _Reads]:
+    """Bind required refresh and pin providers to the regular typed test reader."""
+
+    base, _preview = _provider(monkeypatch)
+    reads = cast(_Reads, base._reads)
+    return (
+        PortfolioJourneyPreparationProvider(
+            reads,
+            target_weights=_TARGET_TEXT,
+            reference_price_basis="market",
+            business_timezone=ZoneInfo("Asia/Shanghai"),
+            clock=clock,
+            event_coverage_pinner=pinner,
+            event_refresher=refresher,
+            event_coverage_required=True,
+        ),
+        reads,
+    )
+
+
+def _advancing_refresh_case(
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    identity_change: bool = False,
+    proof_after_final_clock: bool = False,
+    lease_ttl: timedelta = timedelta(seconds=60),
+    refresh_context: bool = True,
+) -> tuple[
+    PortfolioJourneyPreparationProvider,
+    _PreparationClock,
+    _AdvancingOfficialEventRefresher,
+    _Reads,
+    _RefreshingEventScopes,
+]:
+    """Compose a multi-minute typed capture with the real event proof pinner."""
+
+    base, _preview = _provider(monkeypatch)
+    reads = cast(_Reads, base._reads)
+    clock = _PreparationClock(_PREPARED_AT)
+    refresher: _AdvancingOfficialEventRefresher
+    if identity_change:
+        refresher = _IdentityChangingEventRefresher(clock, reads)
+    else:
+        refresher = _AdvancingOfficialEventRefresher(
+            clock,
+            reads,
+            refresh_context=refresh_context,
+        )
+    pinner, scopes = _refreshing_event_pinner(
+        refresher,
+        proof_after_final_clock=proof_after_final_clock,
+        lease_ttl=lease_ttl,
+    )
+    provider = PortfolioJourneyPreparationProvider(
+        reads,
+        target_weights=_TARGET_TEXT,
+        reference_price_basis="market",
+        business_timezone=ZoneInfo("Asia/Shanghai"),
+        clock=clock,
+        event_coverage_pinner=pinner,
+        event_refresher=refresher,
+        event_coverage_required=True,
+    )
+    return provider, clock, refresher, reads, scopes
 
 
 def test_prepare_maps_one_typed_preview_and_qualified_risk_result_to_immutable_draft(
@@ -803,6 +1108,176 @@ def test_event_gate_blocks_required_generation_when_scope_lease_provider_is_miss
 
     with pytest.raises(RebalanceJourneyUnavailable):
         provider.prepare(_request(), prepared_at=_PREPARED_AT, parent=None)
+
+
+def test_required_event_gate_blocks_missing_official_refresher_before_preview(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Required event generation needs both refresh and proof providers before reads."""
+
+    provider, _preview = _provider(
+        monkeypatch,
+        event_pins=True,
+        event_coverage_required=True,
+    )
+    monkeypatch.setattr(
+        provider._reads,
+        "read_preview",
+        lambda **_kwargs: pytest.fail("required event refresh must be checked before reads"),
+    )
+
+    with pytest.raises(RebalanceJourneyUnavailable):
+        provider.prepare(_request(), prepared_at=_PREPARED_AT, parent=None)
+
+
+def test_official_refresh_finishes_before_final_plan_clock_and_durable_pinning(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Multi-minute capture keeps source observation, durable proof and plan clocks distinct."""
+
+    provider, clock, refresher, reads, scopes = _advancing_refresh_case(monkeypatch)
+    result = provider.prepare(_request(), prepared_at=_PREPARED_AT, parent=None)
+
+    assert refresher.calls == [(PortfolioRiskAssetIdentity(_ASSET_CODE, _SECURITY_ID),)]
+    assert reads.preview_reads == 2
+    assert reads.risk_reads == 2
+    assert scopes.plan_clocks == [clock.current]
+    pin = next(
+        source
+        for source in result.basis.source_bindings
+        if source.kind == "security_disclosure_event" and source.source_record_id == "__coverage__"
+    )
+    assert refresher.proof_recorded_at is not None
+    assert result.basis.prepared_at == clock.current
+    assert result.basis.prepared_at > refresher.proof_recorded_at
+    assert pin.decision_cutoff == result.basis.prepared_at
+    assert pin.known_at == refresher.proof_recorded_at
+    assert pin.observed_at == _AS_OF - timedelta(seconds=40)
+    assert pin.observed_at != pin.known_at
+
+
+def test_event_refresh_upgrades_legacy_parent_as_a_successor(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A pre-event legacy revision remains a valid parent for its first pinned successor."""
+
+    legacy_provider, _preview = _provider(monkeypatch)
+    legacy_parent = build_transition_plan_revision(
+        legacy_provider.prepare(_request(), prepared_at=_PREPARED_AT, parent=None)
+    )
+    provider, _clock, _refresher, _reads, _scopes = _advancing_refresh_case(monkeypatch)
+
+    successor_preparation = provider.prepare(
+        _request(),
+        prepared_at=_PREPARED_AT,
+        parent=legacy_parent,
+    )
+    successor = build_transition_plan_revision(successor_preparation)
+
+    assert successor.identity.version == legacy_parent.identity.version + 1
+    assert successor.identity.parent_plan_id == legacy_parent.identity.plan_id
+    assert any(
+        source.kind == "security_disclosure_event" for source in successor.basis.source_bindings
+    )
+
+
+@pytest.mark.parametrize(
+    "refresher",
+    (_RefreshError(), _IncompleteRefresh()),
+    ids=("refresh-error", "incomplete-identities"),
+)
+def test_refresh_error_or_incomplete_identity_blocks_before_hashing(
+    monkeypatch: pytest.MonkeyPatch,
+    refresher: RebalanceJourneyOfficialEventRefresher,
+) -> None:
+    """Capture failures and partial acknowledgements cannot reach plan content hashing."""
+
+    clock = _PreparationClock(_PREPARED_AT)
+    provider, _reads = _refresh_provider(
+        monkeypatch,
+        clock=clock,
+        refresher=refresher,
+        pinner=_event_pinner(),
+    )
+    request = _request()
+    monkeypatch.setattr(
+        "apps.simulated_trading.application.rebalance_journey_preparation.portfolio_risk_content_hash",
+        lambda *_args, **_kwargs: pytest.fail("refresh failures must precede hashing"),
+    )
+
+    with pytest.raises(RebalanceJourneyUnavailable):
+        provider.prepare(request, prepared_at=_PREPARED_AT, parent=None)
+
+
+def test_identity_change_during_official_refresh_blocks_before_hashing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A changed final risk asset/security identity cannot be sealed into the plan."""
+
+    provider, _clock, _refresher, reads, _scopes = _advancing_refresh_case(
+        monkeypatch,
+        identity_change=True,
+    )
+    request = _request()
+    monkeypatch.setattr(
+        "apps.simulated_trading.application.rebalance_journey_preparation.portfolio_risk_content_hash",
+        lambda *_args, **_kwargs: pytest.fail("changed refresh identities must precede hashing"),
+    )
+
+    with pytest.raises(RebalanceJourneyUnavailable):
+        provider.prepare(request, prepared_at=_PREPARED_AT, parent=None)
+    assert reads.risk_reads == 2
+
+
+@pytest.mark.parametrize(
+    ("proof_after_final_clock", "lease_ttl"),
+    (
+        (True, timedelta(seconds=60)),
+        (False, timedelta(seconds=1)),
+    ),
+    ids=("proof-after-plan-clock", "expired-lease"),
+)
+def test_event_proof_after_plan_clock_or_expired_lease_blocks_before_hashing(
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    proof_after_final_clock: bool,
+    lease_ttl: timedelta,
+) -> None:
+    """The final decision cutoff must follow proof and remain inside every short lease."""
+
+    provider, _clock, _refresher, _reads, _scopes = _advancing_refresh_case(
+        monkeypatch,
+        proof_after_final_clock=proof_after_final_clock,
+        lease_ttl=lease_ttl,
+    )
+    request = _request()
+    monkeypatch.setattr(
+        "apps.simulated_trading.application.rebalance_journey_preparation.portfolio_risk_content_hash",
+        lambda *_args, **_kwargs: pytest.fail("invalid event clocks must precede hashing"),
+    )
+
+    with pytest.raises(RebalanceJourneyUnavailable):
+        provider.prepare(request, prepared_at=_PREPARED_AT, parent=None)
+
+
+def test_post_refresh_account_read_clock_must_follow_capture_completion(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A cached pre-capture risk read cannot be treated as the final account context."""
+
+    provider, _clock, _refresher, reads, _scopes = _advancing_refresh_case(
+        monkeypatch,
+        refresh_context=False,
+    )
+    request = _request()
+    monkeypatch.setattr(
+        "apps.simulated_trading.application.rebalance_journey_preparation.portfolio_risk_content_hash",
+        lambda *_args, **_kwargs: pytest.fail("stale account read must precede hashing"),
+    )
+
+    with pytest.raises(RebalanceJourneyUnavailable):
+        provider.prepare(request, prepared_at=_PREPARED_AT, parent=None)
+    assert reads.risk_reads == 2
 
 
 def test_prepare_pins_exact_window_and_keeps_event_proof_clocks_separate(
