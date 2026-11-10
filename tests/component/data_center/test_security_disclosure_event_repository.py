@@ -242,7 +242,7 @@ def test_same_native_revision_with_different_document_conflicts() -> None:
     assert SecurityDisclosureEventModel.objects.count() == 1
 
 
-def test_pit_cutoff_uses_first_seen_only_and_includes_future_effective_event() -> None:
+def test_pit_cutoff_requires_durable_recording_and_includes_future_effective_event() -> None:
     repository = _repository()
     event = _event(effective_at=date(2028, 1, 5))
     AppendSecurityDisclosureEventUseCase(repository).execute(event, BODY_V1)
@@ -254,22 +254,30 @@ def test_pit_cutoff_uses_first_seen_only_and_includes_future_effective_event() -
             asset_code="301237.SZ",
         )
     )
-    after_observation = query.execute(
+    after_observation_before_recording = query.execute(
         SecurityDisclosureEventReadScope(
             as_of=FIRST_SEEN_V1,
             exchange=SecurityDisclosureExchange.SZSE,
             asset_code="301237.SZ",
         )
     )
+    after_recording = query.execute(
+        SecurityDisclosureEventReadScope(
+            as_of=REPOSITORY_NOW,
+            exchange=SecurityDisclosureExchange.SZSE,
+            asset_code="301237.SZ",
+        )
+    )
 
     assert before_observation == ()
-    assert len(after_observation) == 1
-    assert after_observation[0].event.effective_at == date(2028, 1, 5)
+    assert after_observation_before_recording == ()
+    assert len(after_recording) == 1
+    assert after_recording[0].event.effective_at == date(2028, 1, 5)
 
 
-def test_correction_is_available_only_after_its_first_seen_cutoff() -> None:
-    repository = _repository()
-    append = AppendSecurityDisclosureEventUseCase(repository)
+def test_correction_is_available_only_after_source_and_recorded_cutoffs() -> None:
+    original_repository = _repository(now=FIRST_SEEN_V1 + timedelta(hours=1))
+    correction_repository = _repository()
     original = _event()
     correction = _event(
         body=BODY_V2,
@@ -279,16 +287,22 @@ def test_correction_is_available_only_after_its_first_seen_cutoff() -> None:
         supersedes_source_event_id="disclose-301237-001",
         supersedes_source_revision_id="rev-1",
     )
-    append.execute(original, BODY_V1)
-    append.execute(correction, BODY_V2)
-    query = QuerySecurityDisclosureEventsUseCase(repository)
+    AppendSecurityDisclosureEventUseCase(original_repository).execute(original, BODY_V1)
+    AppendSecurityDisclosureEventUseCase(correction_repository).execute(correction, BODY_V2)
+    query = QuerySecurityDisclosureEventsUseCase(correction_repository)
 
     earlier = query.execute(
         SecurityDisclosureEventReadScope(as_of=datetime(2026, 11, 4, 23, tzinfo=UTC))
     )
-    later = query.execute(SecurityDisclosureEventReadScope(as_of=FIRST_SEEN_V2))
+    after_source_before_recording = query.execute(
+        SecurityDisclosureEventReadScope(as_of=FIRST_SEEN_V2)
+    )
+    later = query.execute(SecurityDisclosureEventReadScope(as_of=REPOSITORY_NOW))
 
     assert [record.event.source_revision_id for record in earlier] == ["rev-1"]
+    assert [record.event.source_revision_id for record in after_source_before_recording] == [
+        "rev-1"
+    ]
     assert [record.event.source_revision_id for record in later] == ["rev-1", "rev-2"]
     assert later[1].event.supersedes_source_revision_id == "rev-1"
 
