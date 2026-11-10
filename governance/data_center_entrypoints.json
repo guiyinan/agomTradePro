@@ -9,7 +9,7 @@
       "celery_dispatch_edge": 18,
       "celery_task": 130,
       "compatibility_facade": 95,
-      "current_data_surface": 105,
+      "current_data_surface": 106,
       "dynamic_import_edge": 15,
       "management_command": 50,
       "management_command_edge": 65,
@@ -30,13 +30,13 @@
       "workflow_step": 11
     },
     "by_status": {
-      "active_public": 906,
+      "active_public": 907,
       "adjacent_operational": 346,
       "candidate-review": 45,
       "compatibility": 139,
       "retired_blocked": 0
     },
-    "total": 1436
+    "total": 1437
   },
   "entries": [
     {
@@ -6057,6 +6057,16 @@
       "path": "governance/current_data_contracts.json",
       "status": "active_public",
       "symbol": "simulated_trading.historical_sellable_ledger_repair",
+      "target": ""
+    },
+    {
+      "category": "current_data_surface",
+      "evidence": "governed current-data contract; source_files=4",
+      "id": "current_data_surface:governance/current_data_contracts.json:simulated_trading.holding_disclosure_reference:Read-only owned/delegated simulated-account held-security financial disclosure reference; current published metrics only, incomplete announcement/corporate-action coverage, no ledger or dispatch authority",
+      "locator": "Read-only owned/delegated simulated-account held-security financial disclosure reference; current published metrics only, incomplete announcement/corporate-action coverage, no ledger or dispatch authority",
+      "path": "governance/current_data_contracts.json",
+      "status": "active_public",
+      "symbol": "simulated_trading.holding_disclosure_reference",
       "target": ""
     },
     {
@@ -14411,7 +14421,7 @@
   },
   "source_contract_counts": {
     "celery_tasks": 95,
-    "current_data_contracts": 105,
+    "current_data_contracts": 106,
     "legacy_entrypoints_and_wrappers": 0,
     "operational_governance_rules": 45,
     "runtime_config_keys": 48

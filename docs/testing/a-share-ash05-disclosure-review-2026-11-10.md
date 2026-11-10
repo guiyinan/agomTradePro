@@ -28,8 +28,16 @@
 
 三个 OpenAPI 产物重新生成且解析结果一致，新操作只发布 cookie 会话认证，关联 schema 均可解析。生成报告为 15 项枚举命名提示、0 错误，原件保留。
 
+### CI 投影修正
+
+实现提交 `4ca75b12b6af1753a790570df010c322e8b08f64` 的双版本测试、无数据库 TDD、PostgreSQL 契约、架构、安全与看板通过；Consistency 和 Fast Feedback 增量质量因遗漏更新两份 Data Center 生成投影而失败。该轮实际回执保留于 `implementation-ci.json`，不作为最终提交 CI 全绿证据。
+
+使用上述提交的 Git archive 在仓库外生成并通过 `check_data_center_governance_projections.py` 统一校验，再采用两份生成文件：架构新增 5 条引用，入口新增 1 条持仓披露读取面，共 1,437 条。仓库本地扫描会纳入旧 REF-05 归档源码的 51 条记录，其输出仅留作诊断，未采用；旧归档原件未改动。没有修改生成器或业务源码。
+
+27 个冻结源码、测试、依赖及治理输入均与最终 627 项回归逐项匹配，复用其开发验证。生成命令、退出码、精确输入提交、归档和产物哈希见本机 `clean-projections.json`；采用及输入一致性证明见 `projection-correction-proof.json`，SHA-256：`03ad072ef7c3ef9b04c368b5d231e5e87a0166f4bcb35767660962bd227b7c7f`。原冻结证据不覆盖；最终提交另跟踪推送 CI、相对本批基线的累计 Fast Feedback 与 PostgreSQL 契约回执。
+
 ## 未覆盖与后续
 
 浏览器使用显式合成的源端资料；真实登录、ORM、HTTP、Application 与 TUI 保留在路径内。没有调用真实 Provider，没有验证生产来源覆盖或部署资格。完整 §9 的重复、晚到、修订、公司行为阶段、现金/股份/税费和除权连续性金样本尚未完成；本批不关闭 ASH-05，不重跑封存 ASH-08，不开启 deferred 范围。
 
-回滚按本批开发提交撤销代码并重建 TUI runtime；无模型迁移或账本写入需要反向修复。精确提交与五项 CI 的推送后结果记录到本机 `delivery-ci.json`，只认该回执的实际 head SHA，不提前写为通过。
+回滚按本批开发提交撤销代码并重建 TUI runtime；无模型迁移或账本写入需要反向修复。精确提交与相关 CI 的推送后结果记录到本机 `delivery-ci.json`，只认该回执的实际 head SHA，不提前写为通过。
