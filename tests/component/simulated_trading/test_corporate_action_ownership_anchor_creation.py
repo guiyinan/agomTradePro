@@ -7,16 +7,14 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
-from pathlib import Path
 from typing import Any
 
 import pytest
 from django.contrib.auth import get_user_model
 from django.contrib.auth.base_user import AbstractBaseUser
 from django.core.exceptions import ValidationError
-from django.db import connection, models, transaction
+from django.db import transaction
 
-from apps.account.infrastructure.identity_models import AccountProfileModel
 from apps.simulated_trading.application.canonical_account_creation_row import (
     CanonicalAccountCreationRowCommand,
     CanonicalAccountCreationRowCorruption,
@@ -42,18 +40,9 @@ from apps.simulated_trading.infrastructure.corporate_action_ownership_history_re
     _create_zero_origin_anchor_for_inserted_account,
     create_simulated_account_with_zero_origin_anchor,
 )
-from apps.simulated_trading.infrastructure.corporate_action_posting_models import (
-    CorporateActionPostingModel,
-)
 from apps.simulated_trading.infrastructure.models import FeeConfigModel
-from apps.simulated_trading.infrastructure.order_fill_receipt_models import (
-    SimulatedOrderFillReceiptModel,
-)
 from apps.simulated_trading.infrastructure.order_reservation_fill_repository import (
     DjangoSimulatedOrderFillRepository,
-)
-from apps.simulated_trading.infrastructure.order_reservation_models import (
-    SimulatedOrderReservationModel,
 )
 from apps.simulated_trading.infrastructure.order_reservation_repository import (
     DjangoSimulatedOrderReservationRepository,
@@ -63,7 +52,6 @@ from apps.simulated_trading.infrastructure.simulated_account_ownership_anchor_mo
     simulated_account_ownership_anchor_sha256,
 )
 from apps.simulated_trading.infrastructure.simulated_account_trade_models import (
-    PositionModel,
     SimulatedAccountModel,
     SimulatedTradeModel,
 )
@@ -86,20 +74,6 @@ from tests.component.simulated_trading.test_order_reservation_fill_row_reader im
     _reader_rows,
 )
 from tests.component.simulated_trading.test_order_reservation_repository import _Harness
-from tests.support.isolated_schema import isolated_schema
-
-_SCHEMA_MODELS: tuple[type[models.Model], ...] = (
-    get_user_model(),
-    AccountProfileModel,
-    SimulatedAccountModel,
-    PositionModel,
-    SimulatedTradeModel,
-    SimulatedOrderReservationModel,
-    SimulatedOrderFillReceiptModel,
-    FeeConfigModel,
-    CorporateActionPostingModel,
-    SimulatedAccountOwnershipAnchorModel,
-)
 
 
 @dataclass(frozen=True, slots=True)
@@ -144,34 +118,18 @@ class _FixedTimezonePolicyReader:
 
 @pytest.fixture
 def isolated_ownership_ledger(
-    request: pytest.FixtureRequest,
+    transactional_db: None,
     monkeypatch: pytest.MonkeyPatch,
 ) -> Iterator[AbstractBaseUser]:
-    """Create only user and simulated ownership tables in isolated SQLite memory."""
+    """Use pytest's migrated disposable database for account-creation checks."""
 
-    database_blocker = request.getfixturevalue("django_db_blocker")
+    del transactional_db
     monkeypatch.setenv("AGOMTRADEPRO_DISABLE_USER_PROVISIONING_SIGNALS", "1")
-    with database_blocker.unblock():
-        original_database_name = connection.settings_dict["NAME"]
-        database_path = (
-            Path(__file__).resolve().parents[3]
-            / "artifacts"
-            / "ash05-ownership-20261110"
-            / "ownership-component.sqlite3"
-        )
-        database_path.parent.mkdir(parents=True, exist_ok=True)
-        connection.close()
-        connection.settings_dict["NAME"] = str(database_path)
-        try:
-            with isolated_schema(_SCHEMA_MODELS):
-                user = get_user_model().objects.create_user(
-                    username="ownership-anchor-owner",
-                    password="unused",
-                )
-                yield user
-        finally:
-            connection.close()
-            connection.settings_dict["NAME"] = original_database_name
+    user = get_user_model().objects.create_user(
+        username="ownership-anchor-owner",
+        password="unused",
+    )
+    yield user
 
 
 def test_default_account_gateway_creates_one_anchor_and_replays_duplicate_call(

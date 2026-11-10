@@ -10,9 +10,7 @@ from decimal import Decimal
 import pytest
 from django.contrib.auth import get_user_model
 from django.contrib.auth.base_user import AbstractBaseUser
-from django.db import connection, models
 
-from apps.account.infrastructure.identity_models import AccountProfileModel
 from apps.simulated_trading.application.corporate_action_posting import (
     CorporateActionPostingBlockedError,
     CorporateActionPostingConflictError,
@@ -30,15 +28,11 @@ from apps.simulated_trading.infrastructure.corporate_action_posting_models impor
 from apps.simulated_trading.infrastructure.corporate_action_posting_repository import (
     DjangoCorporateActionPostingRepository,
 )
-from apps.simulated_trading.infrastructure.order_reservation_models import (
-    SimulatedOrderReservationModel,
-)
 from apps.simulated_trading.infrastructure.simulated_account_trade_models import (
     PositionModel,
     SimulatedAccountModel,
     SimulatedTradeModel,
 )
-from tests.support.isolated_schema import isolated_schema
 
 _RECORD_DATE = date(2026, 9, 23)
 _EFFECTIVE_DATE = date(2026, 9, 24)
@@ -181,45 +175,26 @@ def _request(
 
 @pytest.fixture
 def action_ledger(
-    request: pytest.FixtureRequest,
+    transactional_db: None,
 ) -> Iterator[tuple[AbstractBaseUser, SimulatedAccountModel]]:
-    """Create only the account, position, trade, reservation, and action tables used here."""
+    """Use pytest's migrated disposable database for the actual account signal."""
 
-    database_blocker = request.getfixturevalue("django_db_blocker")
-    with database_blocker.unblock():
-        user_model = get_user_model()
-        model_types: tuple[type[models.Model], ...] = (
-            user_model,
-            AccountProfileModel,
-            SimulatedAccountModel,
-            PositionModel,
-            SimulatedTradeModel,
-            SimulatedOrderReservationModel,
-            CorporateActionPostingModel,
-        )
-        original_database_name = connection.settings_dict["NAME"]
-        connection.close()
-        connection.settings_dict["NAME"] = ":memory:"
-        try:
-            with isolated_schema(model_types):
-                user = user_model.objects.create_user(
-                    username="corporate-action-ledger-test",
-                    password="unused",
-                )
-                account = SimulatedAccountModel.objects.create(
-                    user=user,
-                    account_name="corporate-action-ledger-test",
-                    account_type="simulated",
-                    initial_capital=Decimal("10000.00"),
-                    current_cash=Decimal("10000.00"),
-                    current_market_value=Decimal("0.00"),
-                    total_value=Decimal("10000.00"),
-                    is_active=True,
-                )
-                yield user, account
-        finally:
-            connection.close()
-            connection.settings_dict["NAME"] = original_database_name
+    del transactional_db
+    user = get_user_model().objects.create_user(
+        username="corporate-action-ledger-test",
+        password="unused",
+    )
+    account = SimulatedAccountModel.objects.create(
+        user=user,
+        account_name="corporate-action-ledger-test",
+        account_type="simulated",
+        initial_capital=Decimal("10000.00"),
+        current_cash=Decimal("10000.00"),
+        current_market_value=Decimal("0.00"),
+        total_value=Decimal("10000.00"),
+        is_active=True,
+    )
+    yield user, account
 
 
 def test_late_cash_entitlement_payment_and_tax_are_idempotent_and_separate(

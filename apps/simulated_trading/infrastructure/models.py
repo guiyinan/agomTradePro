@@ -25,7 +25,6 @@ from django.db.models.functions import Length
 from django.db.models.lookups import Exact
 from django.utils import timezone
 
-from . import simulated_account_ownership_anchor_models  # noqa: F401
 from .automatic_trading_invocation_models import (  # noqa: F401
     AutomaticTradingInvocationModel as AutomaticTradingInvocationModel,
 )
@@ -76,6 +75,9 @@ from .local_daily_match_models import LocalDailyMatchModel as LocalDailyMatchMod
 from .order_fill_receipt_models import (  # noqa: F401
     SimulatedOrderFillReceiptModel as SimulatedOrderFillReceiptModel,
 )
+
+# isort: split
+from . import simulated_account_ownership_anchor_models  # noqa: F401
 
 _SHA256_PATTERN = r"^[0-9a-f]{64}$"
 
