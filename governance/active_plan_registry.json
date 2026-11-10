@@ -1,5 +1,5 @@
 {
-  "version": "2026-11-10.v342",
+  "version": "2026-11-10.v343",
   "updated_at": "2026-11-10",
   "execution_focus": {
     "unit_id": "ASH-05",
@@ -8,17 +8,8 @@
       "external",
       "governance"
     ],
-    "policy": "ASH-05 remains the sole repository integration focus after the 2026-11-10 unit-exit audit; its completed holding-disclosure batch does not meet the full section 9 exit gate. The root integrator owns shared Source/index, projections, adoption and commits. Bounded isolated preparation requires registered non-overlapping paths and resources. Reuse sealed ASH-08/REF-05 acceptance without rerunning it; preserve all deferred and production boundaries. Scope and next block: A-share plan sections 19.168-19.169.",
-    "parallel_preparation": [
-      {
-        "unit_id": "ASH-05",
-        "scope": "Three detached non-overlapping preparations: .tmp/ash05-exchange-events-20261110 owns Data Center security-disclosure event fact paths and direct tests; .tmp/ash05-account-actions-20261110 owns simulated-trading corporate-action posting paths and direct tests; .tmp/ash05-plan-event-review-20261110 owns Portfolio transition-plan event review gate paths and direct tests. Root retains shared Source, governance, projections, Git and CI; exact paths and isolated resources in A-share plan section 19.169.",
-        "owner": "Luna event-source, account-posting and plan-review agents under root integration",
-        "isolated_workspace": true,
-        "shared_git_serialized": true,
-        "isolated_test_resources": true
-      }
-    ]
+    "policy": "ASH-05 remains the sole active repository focus. The official-disclosure fact store, simulated corporate-action stage ledger and opt-in plan re-review gate are integrated as a bounded development candidate; full section 9 closure and production qualification remain gated. The next work block is certified exchange coverage, source/ownership/tax qualification, generation-time plan pins, Audit/Outbox recovery and account/UI gold journeys; see A-share plan section 19.169.",
+    "parallel_preparation": []
   },
   "workstreams": [
     {
@@ -404,7 +395,7 @@
       "priority": "P0/P1",
       "owner": "portfolio+risk_center+data_center+simulated_trading+backtest+broker_execution+terminal",
       "status": "active",
-      "next_gate": "ASH-05 remains the sole active repository focus after the 2026-11-10 full-unit exit audit. The completed holding-disclosure batch has 627 local passes and seven exact-head CI successes, but does not meet section 9. Next bounded block: establish source-bound per-security announcement and corporate-action event identity, revision and time contracts with fail-closed PIT reads and duplicate/late/future/unknown negative cases (plan section 19.169). Subsequent blocks still owe plan validity, cash/share/tax replay, Audit/Outbox recovery and adjusted-price golden cases before ASH-05 completion. ASH-06/09/12 remain deferred; no production activation.",
+      "next_gate": "ASH-05 is active. Bounded official SZSE PDF identity, PIT event facts, account-stage ledger and opt-in plan review primitives passed local targeted checks; this is not the section 9 exit gate. Next registered block: certify exchange listing completeness and exact source/record-date ownership/tax terms, wire event pins and account effects to the user journey, make Audit/Outbox recovery and price-return gold cases pass, then run native PostgreSQL and exact-head CI. ASH-06/09/12 stay deferred and production execution stays disabled.",
       "documents": [
         {
           "path": "docs/plans/a-share-usability-implementation-plan-2026-10-16.md",

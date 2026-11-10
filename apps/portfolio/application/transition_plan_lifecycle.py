@@ -8,6 +8,14 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Protocol
 
+from apps.portfolio.application.transition_plan_event_review import (
+    TransitionPlanEventReviewValidator,
+)
+from apps.portfolio.domain.transition_plan_event_review import (
+    TransitionPlanEventReviewAssessment,
+    TransitionPlanEventReviewState,
+    has_transition_plan_event_bindings,
+)
 from apps.portfolio.domain.transition_plan_revision import (
     ObservationPrecision,
     PlanOutcome,
@@ -46,6 +54,13 @@ class TransitionPlanRevisionBlocked(BusinessLogicError):
 
     default_message = "当前账户或来源依据不足，无法保存可信计划"
     default_code = "TRANSITION_PLAN_REVISION_BLOCKED"
+
+
+class TransitionPlanEventReviewRequired(TransitionPlanRevisionBlocked):
+    """A newly available or materially corrected event requires a successor revision."""
+
+    default_message = "公司行为或公告事实已变化，请重新生成后继计划并提交复核"
+    default_code = "TRANSITION_PLAN_EVENT_REVIEW_REQUIRED"
 
 
 class TransitionPlanRevisionCorruption(BusinessLogicError):
@@ -493,12 +508,14 @@ class RequestTransitionPlanRevisionReviewUseCase:
         repository: TransitionPlanRevisionRepository,
         authorizer: TransitionPlanRevisionAuthorizer,
         clock: TransitionPlanRevisionClock,
+        event_review_validator: TransitionPlanEventReviewValidator | None = None,
     ) -> None:
         """Inject Portfolio persistence, Owner scope and the authoritative clock."""
 
         self._repository = repository
         self._authorizer = authorizer
         self._clock = clock
+        self._event_review_validator = event_review_validator
 
     def execute(
         self, request: RequestTransitionPlanRevisionReview
@@ -533,6 +550,11 @@ class RequestTransitionPlanRevisionReviewUseCase:
             raise TransitionPlanRevisionConflict(
                 "only the current family revision can enter review"
             )
+        require_transition_plan_event_review_clear(
+            revision,
+            as_of=now,
+            validator=self._event_review_validator,
+        )
         artifact_identity = derive_transition_plan_review_artifact_identity(revision)
         persisted = self._repository.submit_for_review(
             revision=revision,
@@ -544,6 +566,38 @@ class RequestTransitionPlanRevisionReviewUseCase:
             revision=persisted,
             artifact_identity=artifact_identity,
         )
+
+
+def require_transition_plan_event_review_clear(
+    revision: TransitionPlanRevision,
+    *,
+    as_of: datetime,
+    validator: TransitionPlanEventReviewValidator | None,
+) -> None:
+    """Fail closed for explicitly event-bound plans before review or reservation proceeds."""
+
+    if not has_transition_plan_event_bindings(revision.basis.source_bindings):
+        return
+    if validator is None:
+        raise TransitionPlanRevisionBlocked(
+            "event-sensitive plan cannot be revalidated because its source reader is unavailable",
+            code="TRANSITION_PLAN_EVENT_REVIEW_UNAVAILABLE",
+        )
+    assessment = validator.assess(revision, as_of=as_of)
+    if type(assessment) is not TransitionPlanEventReviewAssessment:
+        raise TransitionPlanRevisionCorruption("event review validator returned an invalid result")
+    if assessment.state is TransitionPlanEventReviewState.REVIEW_REQUIRED:
+        raise TransitionPlanEventReviewRequired(
+            f"event facts changed ({assessment.reason_code}); create a successor revision"
+        )
+    if assessment.state is TransitionPlanEventReviewState.BLOCKED:
+        raise TransitionPlanRevisionBlocked(
+            f"event source coverage is unavailable ({assessment.reason_code})",
+            code="TRANSITION_PLAN_EVENT_REVIEW_BLOCKED",
+            details={"reason_code": assessment.reason_code},
+        )
+    if assessment.state is not TransitionPlanEventReviewState.UNCHANGED:
+        raise TransitionPlanRevisionBlocked("event review outcome is not decision-usable")
 
 
 def derive_transition_plan_review_artifact_identity(
@@ -714,6 +768,8 @@ __all__ = [
     "TransitionPlanRevisionUnavailable",
     "RequestTransitionPlanRevisionReview",
     "RequestTransitionPlanRevisionReviewUseCase",
+    "TransitionPlanEventReviewRequired",
+    "require_transition_plan_event_review_clear",
     "TransitionPlanReviewArtifactIdentity",
     "TransitionPlanRevisionReviewSubmission",
     "derive_transition_plan_review_artifact_identity",

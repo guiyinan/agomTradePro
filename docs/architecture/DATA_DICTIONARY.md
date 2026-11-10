@@ -7,8 +7,8 @@
 ## 概览
 
 - App 数：42
-- 模型数：599
-- 字段数：9344
+- 模型数：601
+- 字段数：9416
 
 口径说明：仅覆盖 `apps/*/infrastructure/` 下的 `models.py`、`models/` 包与 `*_models.py`；字段为类体内显式赋值的 Django 字段，继承字段不展开，动态字段与隐式自增主键不在投影内。
 
@@ -6165,6 +6165,37 @@
 | `started_at` | `DateTimeField` |  |  |  |  |  |
 | `finished_at` | `DateTimeField` |  |  |  |  |  |
 | `reason` | `TextField` |  |  |  |  |  |
+
+### SecurityDisclosureEventModel
+
+- 来源文件：`apps/data_center/infrastructure/security_disclosure_event_models.py`
+- 数据表：`data_center_security_disclosure_event`
+- 说明：One source disclosure revision, retained independently from event dispatch.
+
+| 字段 | 类型 | null | unique | 默认值 | 说明 | 关系目标 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `source` | `CharField` |  |  |  |  |  |
+| `exchange` | `CharField` |  |  |  |  |  |
+| `asset_code` | `CharField` |  |  |  |  |  |
+| `source_security_code` | `CharField` |  |  |  |  |  |
+| `source_event_id` | `CharField` |  |  |  |  |  |
+| `source_revision_id` | `CharField` |  |  |  |  |  |
+| `raw_event_type` | `CharField` |  |  |  |  |  |
+| `event_type` | `CharField` |  |  |  |  |  |
+| `source_url` | `URLField` |  |  |  |  |  |
+| `source_body_sha256` | `CharField` |  |  |  |  |  |
+| `content_hash` | `CharField` |  |  |  |  |  |
+| `announced_at` | `DateTimeField` | 是 |  |  |  |  |
+| `announced_on` | `DateField` | 是 |  |  |  |  |
+| `source_available_at` | `DateTimeField` | 是 |  |  |  |  |
+| `source_available_on` | `DateField` | 是 |  |  |  |  |
+| `available_at` | `DateTimeField` |  |  |  |  |  |
+| `first_seen_at` | `DateTimeField` |  |  |  |  |  |
+| `effective_at` | `DateTimeField` | 是 |  |  |  |  |
+| `effective_on` | `DateField` | 是 |  |  |  |  |
+| `supersedes_source_event_id` | `CharField` |  |  |  |  |  |
+| `supersedes_source_revision_id` | `CharField` |  |  |  |  |  |
+| `recorded_at` | `DateTimeField` |  |  |  |  |  |
 
 ### SyncItemAttemptModel
 
@@ -13548,6 +13579,65 @@
 | `updated_at` | `DateTimeField` |  |  |  |  |  |
 | `started_at` | `DateTimeField` | 是 |  |  |  |  |
 | `finished_at` | `DateTimeField` | 是 |  |  |  |  |
+
+### CorporateActionPostingModel
+
+- 来源文件：`apps/simulated_trading/infrastructure/corporate_action_posting_models.py`
+- 数据表：`simulated_corporate_action_posting`
+- 说明：One source-qualified corporate-action stage or correction ledger entry.
+
+| 字段 | 类型 | null | unique | 默认值 | 说明 | 关系目标 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `account` | `ForeignKey` |  |  |  |  | SimulatedAccountModel |
+| `account_revision` | `PositiveBigIntegerField` |  |  |  |  |  |
+| `source_namespace` | `CharField` |  |  |  |  |  |
+| `source_record_id` | `CharField` |  |  |  |  |  |
+| `source_event_id` | `CharField` |  |  |  |  |  |
+| `source_revision_id` | `CharField` |  |  |  |  |  |
+| `asset_code` | `CharField` |  |  |  |  |  |
+| `security_id` | `CharField` |  |  |  |  |  |
+| `asset_name` | `CharField` |  |  |  |  |  |
+| `action_kind` | `CharField` |  |  |  |  |  |
+| `stage` | `CharField` |  |  |  |  |  |
+| `entry_kind` | `CharField` |  |  |  |  |  |
+| `stage_key` | `CharField` |  |  |  |  |  |
+| `request_payload_sha256` | `CharField` |  |  |  |  |  |
+| `source_payload_sha256` | `CharField` |  |  |  |  |  |
+| `qualification_sha256` | `CharField` |  |  |  |  |  |
+| `qualifier_identity` | `CharField` |  |  |  |  |  |
+| `source_observed_at` | `DateTimeField` |  |  |  |  |  |
+| `qualified_at` | `DateTimeField` |  |  |  |  |  |
+| `posted_at` | `DateTimeField` |  |  |  |  |  |
+| `record_date` | `DateField` |  |  |  |  |  |
+| `effective_date` | `DateField` |  |  |  |  |  |
+| `stage_date` | `DateField` |  |  |  |  |  |
+| `payment_date` | `DateField` | 是 |  |  |  |  |
+| `sellable_date` | `DateField` | 是 |  |  |  |  |
+| `cash_amount` | `DecimalField` | 是 |  |  |  |  |
+| `share_amount` | `DecimalField` | 是 |  |  |  |  |
+| `tax_treatment` | `CharField` | 是 |  |  |  |  |
+| `tax_rule_id` | `CharField` | 是 |  |  |  |  |
+| `tax_rule_sha256` | `CharField` | 是 |  |  |  |  |
+| `tax_basis_record_id` | `CharField` | 是 |  |  |  |  |
+| `tax_basis_sha256` | `CharField` | 是 |  |  |  |  |
+| `ownership_snapshot_id` | `CharField` | 是 |  |  |  |  |
+| `ownership_snapshot_sha256` | `CharField` | 是 |  |  |  |  |
+| `ownership_snapshot_as_of_date` | `DateField` | 是 |  |  |  |  |
+| `ownership_snapshot_observed_at` | `DateTimeField` | 是 |  |  |  |  |
+| `eligible_quantity` | `DecimalField` | 是 |  |  |  |  |
+| `entitlement_calculation_sha256` | `CharField` | 是 |  |  |  |  |
+| `rights_terms_sha256` | `CharField` | 是 |  |  |  |  |
+| `rights_election` | `CharField` | 是 |  |  |  |  |
+| `odd_lot_policy` | `CharField` | 是 |  |  |  |  |
+| `odd_lot_confirmation_sha256` | `CharField` | 是 |  |  |  |  |
+| `supersedes_revision_id` | `CharField` | 是 |  |  |  |  |
+| `reversal_of` | `ForeignKey` | 是 |  |  | self | self |
+| `cash_delta` | `DecimalField` |  |  | 0 |  |  |
+| `cash_receivable_delta` | `DecimalField` |  |  | 0 |  |  |
+| `share_delta` | `DecimalField` |  |  | 0 |  |  |
+| `share_receivable_delta` | `DecimalField` |  |  | 0 |  |  |
+| `available_share_delta` | `DecimalField` |  |  | 0 |  |  |
+| `created_at` | `DateTimeField` |  |  |  |  |  |
 
 ### SimulatedFeeCorrectionEventModel
 

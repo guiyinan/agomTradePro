@@ -5477,6 +5477,11 @@
           "project_market_graph_task_result",
           "validate_market_graph_task_result"
         ],
+        "application/security_disclosure_event.py": [
+          "AppendSecurityDisclosureEventUseCase",
+          "QuerySecurityDisclosureEventsUseCase",
+          "SecurityDisclosureEventRepositoryPort"
+        ],
         "application/sina_quote_capture.py": [
           "CaptureSinaQuoteUseCase",
           "SinaQuoteTransportProtocol"
@@ -5640,12 +5645,12 @@
         ]
       },
       "layers": {
-        "application": 181,
-        "domain": 52,
-        "infrastructure": 236,
+        "application": 182,
+        "domain": 53,
+        "infrastructure": 239,
         "interface": 32,
         "management": 42,
-        "root": 41
+        "root": 42
       },
       "orm_models": {
         "infrastructure/models.py": [
@@ -8029,6 +8034,13 @@
           "RegisterPortfolioR8MonitoringFeedback",
           "RegisterPortfolioR8MonitoringFeedbackCommand"
         ],
+        "application/transition_plan_event_review.py": [
+          "AssessTransitionPlanEventReview",
+          "TransitionPlanEventReviewValidator",
+          "TransitionPlanEventSnapshotReadError",
+          "TransitionPlanEventSnapshotReadRequest",
+          "TransitionPlanEventSnapshotReader"
+        ],
         "application/transition_plan_inactive_approval.py": [
           "ApproveTransitionPlanInactive",
           "ApproveTransitionPlanInactiveCommand",
@@ -8063,6 +8075,7 @@
           "RequestTransitionPlanRevisionReview",
           "RequestTransitionPlanRevisionReviewUseCase",
           "TransitionPlanCurrentPolicyPinsValidator",
+          "TransitionPlanEventReviewRequired",
           "TransitionPlanReviewArtifactIdentity",
           "TransitionPlanRevisionAuthorizer",
           "TransitionPlanRevisionBlocked",
@@ -8074,7 +8087,8 @@
           "TransitionPlanRevisionRequest",
           "TransitionPlanRevisionReviewSubmission",
           "TransitionPlanRevisionUnavailable",
-          "derive_transition_plan_review_artifact_identity"
+          "derive_transition_plan_review_artifact_identity",
+          "require_transition_plan_event_review_clear"
         ],
         "application/transition_plan_order_reader.py": [
           "ExactActiveTransitionPlanDefinitionProvider",
@@ -8101,8 +8115,8 @@
         ]
       },
       "layers": {
-        "application": 26,
-        "domain": 51,
+        "application": 27,
+        "domain": 52,
         "infrastructure": 75,
         "interface": 4,
         "root": 13
@@ -11098,6 +11112,16 @@
         "application/consumer_gateways.py": [
           "register_simulated_trading_consumer_gateways"
         ],
+        "application/corporate_action_posting.py": [
+          "CorporateActionPostingBlockedError",
+          "CorporateActionPostingConflictError",
+          "CorporateActionPostingReceipt",
+          "CorporateActionPostingRepositoryProtocol",
+          "CorporateActionSourceQualificationVerifierProtocol",
+          "CorporateActionTaxBasisVerifierProtocol",
+          "HistoricalAccountOwnershipVerifierProtocol",
+          "PostCorporateActionStageUseCase"
+        ],
         "application/current_account_ownership.py": [
           "CurrentAccountOwnership",
           "CurrentAccountOwnershipReader",
@@ -11892,9 +11916,9 @@
         ]
       },
       "layers": {
-        "application": 118,
-        "domain": 36,
-        "infrastructure": 130,
+        "application": 119,
+        "domain": 38,
+        "infrastructure": 132,
         "interface": 34,
         "management": 7,
         "root": 31

@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import json
-from contextlib import AbstractContextManager, nullcontext
+from collections.abc import Iterator
+from contextlib import AbstractContextManager, contextmanager, nullcontext
 from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
@@ -12,6 +13,10 @@ from typing import cast
 
 import pytest
 
+from apps.portfolio.application.transition_plan_event_review import (
+    AssessTransitionPlanEventReview,
+    TransitionPlanEventSnapshotReadRequest,
+)
 from apps.portfolio.application.transition_plan_lifecycle import (
     CreateInitialTransitionPlanRevisionUseCase,
     CreateTransitionPlanSuccessorCommand,
@@ -20,12 +25,23 @@ from apps.portfolio.application.transition_plan_lifecycle import (
     GetExactTransitionPlanRevisionUseCase,
     RequestTransitionPlanRevisionReview,
     RequestTransitionPlanRevisionReviewUseCase,
+    TransitionPlanEventReviewRequired,
     TransitionPlanRevisionBlocked,
     TransitionPlanRevisionConflict,
     TransitionPlanRevisionCorruption,
     TransitionPlanRevisionRequest,
 )
 from apps.portfolio.domain.entities import OrderDraft, TransitionPlan
+from apps.portfolio.domain.transition_plan_event_review import (
+    SECURITY_DISCLOSURE_EVENT_COVERAGE_RECORD_ID,
+    SECURITY_DISCLOSURE_EVENT_SOURCE_KIND,
+    TransitionPlanEventAssetSnapshot,
+    TransitionPlanEventCoverageStatus,
+    TransitionPlanEventReviewAssessment,
+    TransitionPlanEventReviewState,
+    TransitionPlanEventRevision,
+    transition_plan_event_snapshot_sha256,
+)
 from apps.portfolio.domain.transition_plan_revision import (
     TransitionPlanOrderSpecification,
     TransitionPlanRevision,
@@ -57,6 +73,33 @@ from core.integration.transition_plan_contracts import (
 _NOW = datetime(2026, 11, 5, 9, 30, tzinfo=UTC)
 _HASH_A = "a" * 64
 _HASH_B = "b" * 64
+_HASH_C = "c" * 64
+
+
+class _EventSnapshotReader:
+    """Serve exact immutable source snapshots at controlled point-in-time cutoffs."""
+
+    def __init__(self, snapshots: tuple[TransitionPlanEventAssetSnapshot, ...] = ()) -> None:
+        self.snapshots = {item.as_of: item for item in snapshots}
+        self.requests: list[TransitionPlanEventSnapshotReadRequest] = []
+
+    def read_snapshot(
+        self, request: TransitionPlanEventSnapshotReadRequest
+    ) -> TransitionPlanEventAssetSnapshot | None:
+        self.requests.append(request)
+        return self.snapshots.get(request.as_of)
+
+
+class _LockCheckingEventValidator:
+    """Assert the final event check runs inside the caller's account transaction."""
+
+    def __init__(self, lock_state: dict[str, bool], assessment: object) -> None:
+        self.lock_state = lock_state
+        self.assessment = assessment
+
+    def assess(self, revision: TransitionPlanRevision, *, as_of: datetime) -> object:
+        assert self.lock_state["active"] is True
+        return self.assessment
 
 
 class _NoReviewArtifacts:
@@ -109,9 +152,86 @@ def _policy(kind: str, *, valid_until: datetime) -> TransitionPlanPolicyBinding:
     )
 
 
+def _event_snapshot(
+    *,
+    as_of: datetime,
+    events: tuple[TransitionPlanEventRevision, ...] = (),
+    coverage_status: TransitionPlanEventCoverageStatus = TransitionPlanEventCoverageStatus.COMPLETE,
+    source_scope_sha256: str | None = _HASH_A,
+) -> TransitionPlanEventAssetSnapshot:
+    """Build a certified disclosure snapshot for the exact fixture security and source."""
+
+    return TransitionPlanEventAssetSnapshot(
+        asset_code="600000.SH",
+        security_id="SH.TEST.600000",
+        source_id="official-exchange-disclosure",
+        as_of=as_of,
+        coverage_status=coverage_status,
+        source_scope_sha256=source_scope_sha256,
+        events=events,
+    )
+
+
+def _event_revision(
+    *,
+    source_event_id: str = "sse-event-1",
+    event_type: str = "cash_dividend",
+    body_sha256: str = _HASH_B,
+    manifest_sha256: str = _HASH_A,
+    available_at: datetime = _NOW - timedelta(minutes=1),
+    known_at: datetime = _NOW - timedelta(minutes=1),
+) -> TransitionPlanEventRevision:
+    """Build one source revision without deriving clocks from the test request time."""
+
+    return TransitionPlanEventRevision(
+        asset_code="600000.SH",
+        security_id="SH.TEST.600000",
+        source_id="official-exchange-disclosure",
+        source_event_id=source_event_id,
+        event_type=event_type,
+        announced_at=_NOW.date(),
+        available_at=available_at,
+        known_at=known_at,
+        effective_at=None,
+        body_sha256=body_sha256,
+        manifest_sha256=manifest_sha256,
+    )
+
+
+def _event_coverage_pin(snapshot: TransitionPlanEventAssetSnapshot) -> TransitionPlanSourceBinding:
+    """Bind a complete per-security snapshot, including the explicit empty-event case."""
+
+    return TransitionPlanSourceBinding(
+        kind=SECURITY_DISCLOSURE_EVENT_SOURCE_KIND,
+        asset_code=snapshot.asset_code,
+        security_id=snapshot.security_id,
+        source_id=snapshot.source_id,
+        source_record_id=SECURITY_DISCLOSURE_EVENT_COVERAGE_RECORD_ID,
+        manifest_sha256=snapshot.source_scope_sha256 or _HASH_A,
+        body_sha256=transition_plan_event_snapshot_sha256(snapshot),
+        observation_precision="timestamp",
+        observed_at=snapshot.as_of,
+        observed_on=None,
+        available_at=snapshot.as_of,
+        known_at=snapshot.as_of,
+        decision_cutoff=snapshot.as_of,
+        decision_date_cutoff=None,
+        source_valid_until=_NOW + timedelta(hours=1),
+        admission_until=_NOW + timedelta(minutes=20),
+        qualification_proof_hash=None,
+        source_purpose="official_disclosure_event_coverage",
+        requested_purpose="transition_plan",
+        allowed_purposes=("transition_plan",),
+        restrictions=(),
+        coverage_status="complete",
+        qualified=True,
+    )
+
+
 def _evidence_document(
     *,
     source: TransitionPlanSourceBinding,
+    additional_source_bindings: tuple[TransitionPlanSourceBinding, ...],
     planning_policy: TransitionPlanPolicyBinding,
     risk: TransitionPlanRiskBinding,
     fee_policy: TransitionPlanPolicyBinding,
@@ -141,7 +261,7 @@ def _evidence_document(
     target_content = _canonical_hash(target_payload)
     target_portfolio_id = target_content
     target_content_hash = target_content
-    source_rows = [source.to_payload()]
+    source_rows = [item.to_payload() for item in (source, *additional_source_bindings)]
     source_hash = _canonical_hash({"source_bindings": source_rows})
     policy_rows = {
         "planning_policy": planning_policy.to_payload(),
@@ -194,7 +314,12 @@ def _evidence_document(
     return encoded, portfolio_id, portfolio_hash, source_hash, decision_hash, target_content_hash
 
 
-def _revision(*, asset_type: str = "equity", classification_hash: str = _HASH_A):
+def _revision(
+    *,
+    asset_type: str = "equity",
+    classification_hash: str = _HASH_A,
+    additional_source_bindings: tuple[TransitionPlanSourceBinding, ...] = (),
+) -> TransitionPlanRevision:
     """Build one exact plan revision whose only varying facts are classification pins."""
 
     expiry = _NOW + timedelta(minutes=20)
@@ -255,6 +380,7 @@ def _revision(*, asset_type: str = "equity", classification_hash: str = _HASH_A)
         target_content_hash,
     ) = _evidence_document(
         source=source,
+        additional_source_bindings=additional_source_bindings,
         planning_policy=planning_policy,
         risk=risk,
         fee_policy=fee_policy,
@@ -287,7 +413,7 @@ def _revision(*, asset_type: str = "equity", classification_hash: str = _HASH_A)
         quantity_rule=quantity_rule,
         settlement_rule=settlement_rule,
         execution_calendar=execution_calendar,
-        source_bindings=(source,),
+        source_bindings=(source, *additional_source_bindings),
         current_positions=(),
         target_positions=(),
         business_date=date(2026, 11, 5),
@@ -884,6 +1010,205 @@ def test_owner_review_request_only_enters_pending_state_and_never_issues_authori
     assert not hasattr(submission, "execution_permission")
 
 
+def test_event_snapshot_digest_binds_certified_scope_and_visible_revisions_not_query_time() -> None:
+    """Empty and populated snapshots are stable across cutoffs but change with source facts."""
+
+    historical = _event_snapshot(as_of=_NOW)
+    later_same = _event_snapshot(as_of=_NOW + timedelta(minutes=1))
+    event = _event_revision(
+        source_event_id="late-event",
+        available_at=_NOW + timedelta(seconds=30),
+        known_at=_NOW + timedelta(seconds=30),
+    )
+    later_with_event = _event_snapshot(
+        as_of=_NOW + timedelta(minutes=1),
+        events=(event,),
+    )
+    later_new_scope = _event_snapshot(
+        as_of=_NOW + timedelta(minutes=1),
+        source_scope_sha256=_HASH_C,
+    )
+
+    assert transition_plan_event_snapshot_sha256(
+        historical
+    ) == transition_plan_event_snapshot_sha256(later_same)
+    assert transition_plan_event_snapshot_sha256(
+        historical
+    ) != transition_plan_event_snapshot_sha256(later_with_event)
+    assert transition_plan_event_snapshot_sha256(
+        historical
+    ) != transition_plan_event_snapshot_sha256(later_new_scope)
+
+
+def test_event_gate_skips_unrelated_plan_and_requires_reader_for_explicit_event_pin() -> None:
+    """Legacy plans retain their path; event-scoped coverage without a reader blocks."""
+
+    unrelated = _revision()
+    event_pin = _event_coverage_pin(_event_snapshot(as_of=_NOW))
+    event_revision = _revision(additional_source_bindings=(event_pin,))
+    validator = AssessTransitionPlanEventReview(reader=None)
+
+    assert validator.assess(unrelated, as_of=_NOW + timedelta(minutes=1)).state is (
+        TransitionPlanEventReviewState.UNCHANGED
+    )
+    missing = validator.assess(event_revision, as_of=_NOW + timedelta(minutes=1))
+    assert missing.state is TransitionPlanEventReviewState.BLOCKED
+    assert missing.reason_code == "EVENT_SOURCE_READER_UNAVAILABLE"
+
+
+def test_event_gate_requires_complete_historical_and_current_coverage() -> None:
+    """Missing, partial, or unknown event coverage cannot be treated as an empty event set."""
+
+    current_at = _NOW + timedelta(minutes=1)
+    baseline = _event_snapshot(as_of=_NOW)
+    revision = _revision(additional_source_bindings=(_event_coverage_pin(baseline),))
+    for status in (
+        TransitionPlanEventCoverageStatus.PARTIAL,
+        TransitionPlanEventCoverageStatus.UNKNOWN,
+        TransitionPlanEventCoverageStatus.MISSING,
+    ):
+        incomplete_current = _event_snapshot(
+            as_of=current_at,
+            coverage_status=status,
+            source_scope_sha256=None,
+        )
+        validator = AssessTransitionPlanEventReview(
+            reader=_EventSnapshotReader((baseline, incomplete_current))
+        )
+        assert validator.assess(revision, as_of=current_at).state is (
+            TransitionPlanEventReviewState.BLOCKED
+        )
+
+    no_history = AssessTransitionPlanEventReview(
+        reader=_EventSnapshotReader(
+            (
+                _event_snapshot(
+                    as_of=_NOW,
+                    coverage_status=TransitionPlanEventCoverageStatus.UNKNOWN,
+                    source_scope_sha256=None,
+                ),
+                _event_snapshot(as_of=current_at),
+            )
+        )
+    )
+    assert (
+        no_history.assess(revision, as_of=current_at).state
+        is TransitionPlanEventReviewState.BLOCKED
+    )
+
+
+def test_new_or_corrected_event_requires_successor_review() -> None:
+    """Newly available events and changed hashes cannot reuse the old immutable plan."""
+
+    current_at = _NOW + timedelta(minutes=2)
+    baseline_event = _event_revision()
+    baseline = _event_snapshot(as_of=_NOW, events=(baseline_event,))
+    revision = _revision(additional_source_bindings=(_event_coverage_pin(baseline),))
+    new_event = _event_revision(
+        source_event_id="new-event",
+        available_at=_NOW + timedelta(minutes=1),
+        known_at=_NOW + timedelta(minutes=1),
+    )
+    corrected_event = _event_revision(
+        body_sha256=_HASH_C,
+        manifest_sha256=_HASH_C,
+    )
+
+    for current in (
+        _event_snapshot(as_of=current_at, events=(baseline_event, new_event)),
+        _event_snapshot(as_of=current_at, events=(corrected_event,)),
+    ):
+        result = AssessTransitionPlanEventReview(
+            reader=_EventSnapshotReader((baseline, current))
+        ).assess(revision, as_of=current_at)
+        assert result.state is TransitionPlanEventReviewState.REVIEW_REQUIRED
+        assert result.reason_code == "EVENT_REVISION_CHANGED"
+
+
+def test_missing_current_event_proof_or_unknown_event_type_blocks() -> None:
+    """A vanished source record or UNKNOWN classification is blocked for explicit event plans."""
+
+    current_at = _NOW + timedelta(minutes=2)
+    event = _event_revision()
+    baseline = _event_snapshot(as_of=_NOW, events=(event,))
+    revision = _revision(additional_source_bindings=(_event_coverage_pin(baseline),))
+    missing_current = _event_snapshot(as_of=current_at)
+    unknown = _event_revision(event_type="UNKNOWN")
+    unknown_current = _event_snapshot(as_of=current_at, events=(unknown,))
+
+    for current in (missing_current, unknown_current):
+        result = AssessTransitionPlanEventReview(
+            reader=_EventSnapshotReader((baseline, current))
+        ).assess(revision, as_of=current_at)
+        assert result.state is TransitionPlanEventReviewState.BLOCKED
+
+
+def test_event_change_is_rejected_before_owner_review_status_write() -> None:
+    """Changed event evidence blocks the Owner review write and keeps the old plan immutable."""
+
+    current_at = _NOW + timedelta(minutes=2)
+    baseline = _event_snapshot(as_of=_NOW)
+    revision = _revision(additional_source_bindings=(_event_coverage_pin(baseline),))
+    newly_available = _event_revision(
+        source_event_id="new-event",
+        available_at=_NOW + timedelta(minutes=1),
+        known_at=_NOW + timedelta(minutes=1),
+    )
+    current = _event_snapshot(as_of=current_at, events=(newly_available,))
+    repository = _LifecycleRepository()
+    repository._store(revision, revision.plan.idempotency_key)
+    use_case = RequestTransitionPlanRevisionReviewUseCase(
+        repository=repository,
+        authorizer=_LifecycleAuthorizer(),
+        clock=_LifecycleClock(current_at),
+        event_review_validator=AssessTransitionPlanEventReview(
+            reader=_EventSnapshotReader((baseline, current))
+        ),
+    )
+
+    with pytest.raises(TransitionPlanEventReviewRequired):
+        use_case.execute(
+            RequestTransitionPlanRevisionReview(
+                actor_user_id=23,
+                account_id=17,
+                plan_id=revision.identity.plan_id,
+                version=revision.identity.version,
+                expected_revision_hash=revision.identity.revision_hash,
+            )
+        )
+
+    assert repository.review_calls == 0
+    assert (
+        repository.revisions[(revision.identity.plan_id, revision.identity.version)].plan.status
+        == "DRAFT"
+    )
+
+
+def test_unrelated_owner_review_still_works_without_event_reader() -> None:
+    """An unrelated source-bound revision remains reviewable without event infrastructure."""
+
+    revision = _revision()
+    repository = _LifecycleRepository()
+    repository._store(revision, revision.plan.idempotency_key)
+    use_case = RequestTransitionPlanRevisionReviewUseCase(
+        repository=repository,
+        authorizer=_LifecycleAuthorizer(),
+        clock=_LifecycleClock(),
+    )
+
+    use_case.execute(
+        RequestTransitionPlanRevisionReview(
+            actor_user_id=23,
+            account_id=17,
+            plan_id=revision.identity.plan_id,
+            version=revision.identity.version,
+            expected_revision_hash=revision.identity.revision_hash,
+        )
+    )
+
+    assert repository.review_calls == 1
+
+
 def test_expired_revision_remains_exactly_readable_but_cannot_enter_review() -> None:
     """Expiry blocks new approval workflow without hiding the original immutable evidence."""
 
@@ -968,6 +1293,59 @@ def test_owner_manual_guard_accepts_exact_unapproved_revision_without_staff_rece
 
     assert accepted.identity.revision_hash == revision.identity.revision_hash
     assert policy_reader.checked_revision_hashes == [revision.identity.revision_hash]
+
+
+def test_event_change_blocks_manual_reservation_inside_locked_account_guard(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The event recheck runs while the action guard still owns the account transaction."""
+
+    revision = _revision(
+        additional_source_bindings=(_event_coverage_pin(_event_snapshot(as_of=_NOW)),)
+    )
+    lock_state = {"active": False}
+    assessment = TransitionPlanEventReviewAssessment(
+        state=TransitionPlanEventReviewState.REVIEW_REQUIRED,
+        reason_code="EVENT_REVISION_CHANGED",
+    )
+    validator = _LockCheckingEventValidator(lock_state, assessment)
+    guard = DjangoTransitionPlanLockedActionGuard(
+        current_policy_pins_validator=_PolicyPinReader(),
+        event_review_validator=validator,
+    )
+    monkeypatch.setattr(
+        guard._repository, "_locked_account_revisions", lambda account_id: (revision,)
+    )
+    monkeypatch.setattr(guard._repository, "_manager", lambda: _RowQuery())
+    monkeypatch.setattr(guard, "_approval_repository", _NoReviewArtifacts())
+
+    @contextmanager
+    def _atomic(*, using: str) -> Iterator[None]:
+        lock_state["active"] = True
+        try:
+            yield
+        finally:
+            lock_state["active"] = False
+
+    monkeypatch.setattr(
+        "apps.portfolio.infrastructure.transition_plan_revision_repository.transaction.atomic",
+        _atomic,
+    )
+    binding = revision.orders[0].to_execution_binding(
+        revision.identity,
+        owner_user_id=23,
+        action_attempt_key="event-review-manual-attempt",
+    )
+
+    with pytest.raises(TransitionPlanEventReviewRequired):
+        guard.validate_locked_action(
+            binding=binding,
+            account_id=17,
+            owner_user_id=23,
+            as_of=_NOW + timedelta(minutes=1),
+        )
+
+    assert lock_state["active"] is False
 
 
 def test_owner_manual_guard_rejects_wrong_classification_and_nonactive_plan_states(

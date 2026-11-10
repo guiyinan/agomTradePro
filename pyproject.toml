@@ -41,6 +41,7 @@ dependencies = [
     "feedparser",
     "drf-spectacular",
     "requests>=2.33.0",
+    "pypdf>=6,<7",
     "urllib3>=2.6.3",
     "prometheus-client>=0.19.0",
     "django-prometheus>=2.3.1",

@@ -12,6 +12,9 @@ from django.conf import settings
 from django.db import IntegrityError, connections, transaction
 from django.utils import timezone
 
+from apps.portfolio.application.transition_plan_event_review import (
+    TransitionPlanEventReviewValidator,
+)
 from apps.portfolio.application.transition_plan_inactive_approval import (
     ExactTransitionPlanDefinitionProvider,
     TransitionPlanDefinition,
@@ -23,6 +26,7 @@ from apps.portfolio.application.transition_plan_lifecycle import (
     TransitionPlanRevisionConflict,
     TransitionPlanRevisionCorruption,
     derive_transition_plan_review_artifact_identity,
+    require_transition_plan_event_review_clear,
 )
 from apps.portfolio.domain.transition_plan_integrity import (
     canonical_transition_plan_payload_v1,
@@ -546,6 +550,7 @@ class DjangoTransitionPlanLockedActionGuard:
         *,
         using: str = "default",
         current_policy_pins_validator: TransitionPlanCurrentPolicyPinsValidator | None = None,
+        event_review_validator: TransitionPlanEventReviewValidator | None = None,
     ) -> None:
         """Require current policy pins; the ordinary Owner order chain checks cash and live risk."""
 
@@ -553,6 +558,7 @@ class DjangoTransitionPlanLockedActionGuard:
         self._repository = DjangoTransitionPlanRevisionRepository(using=using)
         self._approval_repository = DjangoTransitionPlanInactiveApprovalRepository(using=using)
         self._current_policy_pins_validator = current_policy_pins_validator
+        self._event_review_validator = event_review_validator
 
     def validate_locked_action(
         self,
@@ -617,6 +623,11 @@ class DjangoTransitionPlanLockedActionGuard:
                 revision, account_id=account_id, as_of=as_of
             )
             self._current_policy_pins_validator.validate_current_policy_pins(revision, as_of=as_of)
+            require_transition_plan_event_review_clear(
+                revision,
+                as_of=as_of,
+                validator=self._event_review_validator,
+            )
             return revision
 
     def _verify_action_binding(

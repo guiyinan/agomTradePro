@@ -56,6 +56,9 @@ from .order_reservation_models import (  # noqa: F401
 # isort: split
 # Correction events are a separate append-only overlay and never rewrite
 # SimulatedTrade or its immutable V4 fill receipt.
+from .corporate_action_posting_models import (  # noqa: F401
+    CorporateActionPostingModel as CorporateActionPostingModel,
+)
 from .fee_correction_event_models import (  # noqa: F401
     SimulatedFeeCorrectionEventModel as SimulatedFeeCorrectionEventModel,
 )

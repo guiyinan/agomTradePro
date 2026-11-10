@@ -39355,6 +39355,226 @@
           "bases": [
             "models.Model"
           ],
+          "class_name": "SecurityDisclosureEventModel",
+          "docstring": "One source disclosure revision, retained independently from event dispatch.",
+          "fields": [
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "choices": "SOURCE_CHOICES",
+                "max_length": 32
+              },
+              "name": "source",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "choices": "EXCHANGE_CHOICES",
+                "max_length": 8
+              },
+              "name": "exchange",
+              "positional_args": []
+            },
+            {
+              "db_index": true,
+              "field_type": "CharField",
+              "kwargs": {
+                "db_index": true,
+                "max_length": 20
+              },
+              "name": "asset_code",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 40
+              },
+              "name": "source_security_code",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 200
+              },
+              "name": "source_event_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 200
+              },
+              "name": "source_revision_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 120
+              },
+              "name": "raw_event_type",
+              "positional_args": []
+            },
+            {
+              "db_index": true,
+              "field_type": "CharField",
+              "kwargs": {
+                "choices": "EVENT_TYPE_CHOICES",
+                "db_index": true,
+                "max_length": 32
+              },
+              "name": "event_type",
+              "positional_args": []
+            },
+            {
+              "field_type": "URLField",
+              "kwargs": {
+                "max_length": 2048
+              },
+              "name": "source_url",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "source_body_sha256",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "content_hash",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "kwargs": {
+                "blank": true,
+                "null": true
+              },
+              "name": "announced_at",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "DateField",
+              "kwargs": {
+                "blank": true,
+                "null": true
+              },
+              "name": "announced_on",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "kwargs": {
+                "blank": true,
+                "null": true
+              },
+              "name": "source_available_at",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "DateField",
+              "kwargs": {
+                "blank": true,
+                "null": true
+              },
+              "name": "source_available_on",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "db_index": true,
+              "field_type": "DateTimeField",
+              "kwargs": {
+                "db_index": true
+              },
+              "name": "available_at",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "name": "first_seen_at",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "kwargs": {
+                "blank": true,
+                "null": true
+              },
+              "name": "effective_at",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "DateField",
+              "kwargs": {
+                "blank": true,
+                "null": true
+              },
+              "name": "effective_on",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 200
+              },
+              "name": "supersedes_source_event_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 200
+              },
+              "name": "supersedes_source_revision_id",
+              "positional_args": []
+            },
+            {
+              "db_index": true,
+              "field_type": "DateTimeField",
+              "kwargs": {
+                "db_index": true
+              },
+              "name": "recorded_at",
+              "positional_args": []
+            }
+          ],
+          "meta": {
+            "base_manager_name": "objects",
+            "constraints": "[models.UniqueConstraint(fields=('source', 'exchange', 'asset_code', 'source_event_id', 'source_revision_id'), name='dc_sec_disc_native_rev_uniq'), models.CheckConstraint(condition=models.Q(announced_at__isnull=True, announced_on__isnull=True) | models.Q(announced_at__isnull=False, announced_on__isnull=True) | models.Q(announced_at__isnull=True, announced_on__isnull=False), name='dc_sec_disc_announce_clock_ck'), models.CheckConstraint(condition=models.Q(source_available_at__isnull=True, source_available_on__isnull=True) | models.Q(source_available_at__isnull=False, source_available_on__isnull=True) | models.Q(source_available_at__isnull=True, source_available_on__isnull=False), name='dc_sec_disc_source_clock_ck'), models.CheckConstraint(condition=models.Q(effective_at__isnull=True, effective_on__isnull=True) | models.Q(effective_at__isnull=False, effective_on__isnull=True) | models.Q(effective_at__isnull=True, effective_on__isnull=False), name='dc_sec_disc_effect_clock_ck'), models.CheckConstraint(condition=models.Q(supersedes_source_event_id='', supersedes_source_revision_id='') | ~models.Q(supersedes_source_event_id='') & ~models.Q(supersedes_source_revision_id=''), name='dc_sec_disc_supersedes_ck'), models.CheckConstraint(condition=models.Q(recorded_at__gte=models.F('first_seen_at')) & models.Q(available_at=models.F('first_seen_at')), name='dc_sec_disc_recorded_clock_ck')]",
+            "db_table": "data_center_security_disclosure_event",
+            "default_manager_name": "objects",
+            "indexes": "[models.Index(fields=('exchange', 'asset_code', 'available_at'), name='dc_sec_disc_security_avail_ix'), models.Index(fields=('source_event_id', 'source_revision_id'), name='dc_sec_disc_revision_ix')]",
+            "ordering": [
+              "available_at",
+              "exchange",
+              "asset_code",
+              "source_event_id",
+              "source_revision_id"
+            ]
+          },
+          "source_file": "infrastructure/security_disclosure_event_models.py"
+        },
+        {
+          "bases": [
+            "models.Model"
+          ],
           "class_name": "SyncItemAttemptModel",
           "docstring": "One durable, single-transition asset attempt in a sync batch.",
           "fields": [
@@ -85169,6 +85389,545 @@
             "indexes": "[models.Index(fields=('state', 'created_at'), name='simautoinv_state_ct_idx')]"
           },
           "source_file": "infrastructure/automatic_trading_invocation_models.py"
+        },
+        {
+          "bases": [
+            "models.Model"
+          ],
+          "class_name": "CorporateActionPostingModel",
+          "docstring": "One source-qualified corporate-action stage or correction ledger entry.",
+          "fields": [
+            {
+              "field_type": "ForeignKey",
+              "kwargs": {
+                "on_delete": "models.PROTECT",
+                "related_name": "corporate_action_postings"
+              },
+              "name": "account",
+              "positional_args": [
+                "SimulatedAccountModel"
+              ]
+            },
+            {
+              "field_type": "PositiveBigIntegerField",
+              "name": "account_revision",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 128
+              },
+              "name": "source_namespace",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 192
+              },
+              "name": "source_record_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 192
+              },
+              "name": "source_event_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 192
+              },
+              "name": "source_revision_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 32
+              },
+              "name": "asset_code",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 96
+              },
+              "name": "security_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 128
+              },
+              "name": "asset_name",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "choices": [
+                  [
+                    "cash_dividend",
+                    "Cash dividend"
+                  ],
+                  [
+                    "share_distribution",
+                    "Share distribution"
+                  ],
+                  [
+                    "rights_issue",
+                    "Rights issue"
+                  ]
+                ],
+                "max_length": 32
+              },
+              "name": "action_kind",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "choices": [
+                  [
+                    "cash_entitlement",
+                    "Cash entitlement"
+                  ],
+                  [
+                    "cash_payment",
+                    "Cash payment"
+                  ],
+                  [
+                    "tax_withholding",
+                    "Tax withholding"
+                  ],
+                  [
+                    "share_entitlement",
+                    "Share entitlement"
+                  ],
+                  [
+                    "share_delivery",
+                    "Share delivery"
+                  ],
+                  [
+                    "share_sellable_release",
+                    "Share sellable release"
+                  ],
+                  [
+                    "rights_not_exercised",
+                    "Rights not exercised"
+                  ]
+                ],
+                "max_length": 32
+              },
+              "name": "stage",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "choices": [
+                  [
+                    "posting",
+                    "Posting"
+                  ],
+                  [
+                    "reversal",
+                    "Reversal"
+                  ],
+                  [
+                    "successor",
+                    "Successor"
+                  ],
+                  [
+                    "no_effect",
+                    "No effect"
+                  ]
+                ],
+                "max_length": 16
+              },
+              "name": "entry_kind",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "stage_key",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "request_payload_sha256",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "source_payload_sha256",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "qualification_sha256",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 128
+              },
+              "name": "qualifier_identity",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "name": "source_observed_at",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "name": "qualified_at",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "name": "posted_at",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateField",
+              "name": "record_date",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateField",
+              "name": "effective_date",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateField",
+              "name": "stage_date",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateField",
+              "kwargs": {
+                "blank": true,
+                "null": true
+              },
+              "name": "payment_date",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "DateField",
+              "kwargs": {
+                "blank": true,
+                "null": true
+              },
+              "name": "sellable_date",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "DecimalField",
+              "kwargs": {
+                "blank": true,
+                "decimal_places": 2,
+                "max_digits": 15,
+                "null": true
+              },
+              "name": "cash_amount",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "DecimalField",
+              "kwargs": {
+                "blank": true,
+                "decimal_places": 6,
+                "max_digits": 20,
+                "null": true
+              },
+              "name": "share_amount",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 32,
+                "null": true
+              },
+              "name": "tax_treatment",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 128,
+                "null": true
+              },
+              "name": "tax_rule_id",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 64,
+                "null": true
+              },
+              "name": "tax_rule_sha256",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 192,
+                "null": true
+              },
+              "name": "tax_basis_record_id",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 64,
+                "null": true
+              },
+              "name": "tax_basis_sha256",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 192,
+                "null": true
+              },
+              "name": "ownership_snapshot_id",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 64,
+                "null": true
+              },
+              "name": "ownership_snapshot_sha256",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "DateField",
+              "kwargs": {
+                "blank": true,
+                "null": true
+              },
+              "name": "ownership_snapshot_as_of_date",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "kwargs": {
+                "blank": true,
+                "null": true
+              },
+              "name": "ownership_snapshot_observed_at",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "DecimalField",
+              "kwargs": {
+                "blank": true,
+                "decimal_places": 6,
+                "max_digits": 20,
+                "null": true
+              },
+              "name": "eligible_quantity",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 64,
+                "null": true
+              },
+              "name": "entitlement_calculation_sha256",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 64,
+                "null": true
+              },
+              "name": "rights_terms_sha256",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 24,
+                "null": true
+              },
+              "name": "rights_election",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 40,
+                "null": true
+              },
+              "name": "odd_lot_policy",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 64,
+                "null": true
+              },
+              "name": "odd_lot_confirmation_sha256",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 192,
+                "null": true
+              },
+              "name": "supersedes_revision_id",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "ForeignKey",
+              "kwargs": {
+                "blank": true,
+                "null": true,
+                "on_delete": "models.PROTECT",
+                "related_name": "reversal_entries"
+              },
+              "name": "reversal_of",
+              "null": true,
+              "positional_args": [
+                "'self'"
+              ]
+            },
+            {
+              "field_type": "DecimalField",
+              "kwargs": {
+                "decimal_places": 2,
+                "default": 0,
+                "max_digits": 15
+              },
+              "name": "cash_delta",
+              "positional_args": []
+            },
+            {
+              "field_type": "DecimalField",
+              "kwargs": {
+                "decimal_places": 2,
+                "default": 0,
+                "max_digits": 15
+              },
+              "name": "cash_receivable_delta",
+              "positional_args": []
+            },
+            {
+              "field_type": "DecimalField",
+              "kwargs": {
+                "decimal_places": 6,
+                "default": 0,
+                "max_digits": 20
+              },
+              "name": "share_delta",
+              "positional_args": []
+            },
+            {
+              "field_type": "DecimalField",
+              "kwargs": {
+                "decimal_places": 6,
+                "default": 0,
+                "max_digits": 20
+              },
+              "name": "share_receivable_delta",
+              "positional_args": []
+            },
+            {
+              "field_type": "DecimalField",
+              "kwargs": {
+                "decimal_places": 6,
+                "default": 0,
+                "max_digits": 20
+              },
+              "name": "available_share_delta",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "kwargs": {
+                "auto_now_add": true
+              },
+              "name": "created_at",
+              "positional_args": []
+            }
+          ],
+          "meta": {
+            "base_manager_name": "objects",
+            "constraints": "[models.UniqueConstraint(fields=('account', 'account_revision'), name='sim_ca_account_revision_uq'), models.UniqueConstraint(fields=('account', 'source_event_id', 'source_revision_id', 'stage_key'), name='sim_ca_event_stage_uq'), models.CheckConstraint(condition=Q(account_revision__gt=0) & Q(source_revision_id__gt=''), name='sim_ca_revision_positive_ck'), models.CheckConstraint(condition=Q(stage_key__gt='') & Q(source_namespace__gt='') & Q(source_record_id__gt='') & Q(source_event_id__gt='') & Q(asset_code__gt='') & Q(security_id__gt=''), name='sim_ca_identity_nonempty_ck')]",
+            "db_table": "simulated_corporate_action_posting",
+            "indexes": "[models.Index(fields=('account', 'source_event_id', 'source_revision_id'), name='sim_ca_event_rev_idx'), models.Index(fields=('account', 'stage_date'), name='sim_ca_acct_date_idx')]",
+            "ordering": [
+              "account_id",
+              "account_revision"
+            ]
+          },
+          "source_file": "infrastructure/corporate_action_posting_models.py"
         },
         {
           "bases": [
