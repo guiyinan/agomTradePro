@@ -1,5 +1,5 @@
 {
-  "version": "2026-11-10.v338",
+  "version": "2026-11-10.v339",
   "updated_at": "2026-11-10",
   "execution_focus": {
     "unit_id": "ASH-05",
@@ -8,7 +8,7 @@
       "external",
       "governance"
     ],
-    "policy": "Owner authorized the new 2026-11-10 session to receive the ASH-08 handoff at 74c185eee17201f5bf0d3c81477aacfe0fa06c32. ASH-05 is the sole repository integration focus; ASH-02/03/04 dependencies are completed. The root integrator owns shared Source/index, projections, adoption and commits. Luna max agents may perform bounded read-only contract discovery, followed only by registered non-overlapping isolated preparation. Reuse sealed ASH-08/REF-05 acceptance without rerunning it; preserve section 9 full ASH-05 exit gates and all deferred/production boundaries. Scope and handoff: A-share plan section 19.168.",
+    "policy": "ASH-05 remains the sole repository integration focus after the 2026-11-10 unit-exit audit; its completed holding-disclosure batch does not meet the full section 9 exit gate. The root integrator owns shared Source/index, projections, adoption and commits. Bounded isolated preparation requires registered non-overlapping paths and resources. Reuse sealed ASH-08/REF-05 acceptance without rerunning it; preserve all deferred and production boundaries. Scope and next block: A-share plan sections 19.168-19.169.",
     "parallel_preparation": []
   },
   "workstreams": [
@@ -395,7 +395,7 @@
       "priority": "P0/P1",
       "owner": "portfolio+risk_center+data_center+simulated_trading+backtest+broker_execution+terminal",
       "status": "active",
-      "next_gate": "ASH-05 remains the sole active repository focus. The first bounded read-only holding financial-disclosure path is integrated; section 19.168 and its single evidence index record validation and formal delivery. Next scope must preserve the full section 9 announcement/revision, company-action stages, cash/share/tax ledger, duplicate/late events, account isolation and adjusted-price exit gates. This batch does not close ASH-05 or establish real-provider/production qualification. Reuse sealed ASH-08/REF-05 evidence; ASH-06/09/12 remain deferred, with no production activation.",
+      "next_gate": "ASH-05 remains the sole active repository focus after the 2026-11-10 full-unit exit audit. The completed holding-disclosure batch has 627 local passes and seven exact-head CI successes, but does not meet section 9. Next bounded block: establish source-bound per-security announcement and corporate-action event identity, revision and time contracts with fail-closed PIT reads and duplicate/late/future/unknown negative cases (plan section 19.169). Subsequent blocks still owe plan validity, cash/share/tax replay, Audit/Outbox recovery and adjusted-price golden cases before ASH-05 completion. ASH-06/09/12 remain deferred; no production activation.",
       "documents": [
         {
           "path": "docs/plans/a-share-usability-implementation-plan-2026-10-16.md",
