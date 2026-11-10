@@ -1,7 +1,7 @@
 {
-  "version": "2026-11-05.v28",
-  "description": "Exact cycle-free dependency graph including the reviewed Terminal-to-Simulated Trading public temporary-target parser and the ASH-08 Simulated Trading-to-Portfolio public Application/Domain transition-plan lifecycle. Only the exact edge total and two affected per-app counts are synchronized; no cycle, bidirectional, ORM boundary exceptions or unused capacity are added.",
-  "max_app_import_edges": 207,
+  "version": "2026-11-11.v29",
+  "description": "Exact cycle-free dependency graph including the ASH-05 Simulated Trading-to-Audit public official SZSE capture composition. Only the exact edge total and two affected per-app counts are synchronized; no cycle, bidirectional, ORM boundary exceptions or unused capacity are added.",
+  "max_app_import_edges": 208,
   "max_outbound_modules_per_app": 25,
   "max_inbound_modules_per_app": 30,
   "max_outbound_modules_by_app": {
@@ -42,7 +42,7 @@
     "setup_wizard": 2,
     "share": 0,
     "signal": 7,
-    "simulated_trading": 12,
+    "simulated_trading": 13,
     "strategy": 7,
     "portfolio": 1,
     "research": 6,
@@ -58,7 +58,7 @@
     "alpha": 3,
     "alpha_trigger": 3,
     "asset_analysis": 12,
-    "audit": 3,
+    "audit": 4,
     "backtest": 1,
     "beta_gate": 4,
     "broker_execution": 0,
