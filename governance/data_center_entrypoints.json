@@ -11,7 +11,7 @@
       "compatibility_facade": 95,
       "current_data_surface": 106,
       "dynamic_import_edge": 15,
-      "management_command": 50,
+      "management_command": 99,
       "management_command_edge": 65,
       "mcp_tool": 40,
       "migration_evidence": 14,
@@ -19,7 +19,7 @@
       "operational_script": 40,
       "orchestration_entry": 18,
       "public_port": 97,
-      "rest_url": 90,
+      "rest_url": 92,
       "runbook": 7,
       "runtime_config_key": 48,
       "scheduler_writer": 18,
@@ -30,13 +30,13 @@
       "workflow_step": 11
     },
     "by_status": {
-      "active_public": 907,
-      "adjacent_operational": 346,
-      "candidate-review": 45,
-      "compatibility": 139,
+      "active_public": 909,
+      "adjacent_operational": 357,
+      "candidate-review": 71,
+      "compatibility": 151,
       "retired_blocked": 0
     },
-    "total": 1437
+    "total": 1488
   },
   "entries": [
     {
@@ -6822,6 +6822,496 @@
     {
       "category": "management_command",
       "evidence": "cross-app command uses the canonical Data Center public port",
+      "id": "management_command:artifacts/ref05-public-20261108/delivery/projection-checkout/apps/account/management/commands/bootstrap_cold_start.py:bootstrap_cold_start:",
+      "locator": "",
+      "path": "artifacts/ref05-public-20261108/delivery/projection-checkout/apps/account/management/commands/bootstrap_cold_start.py",
+      "status": "adjacent_operational",
+      "symbol": "bootstrap_cold_start",
+      "target": ""
+    },
+    {
+      "category": "management_command",
+      "evidence": "cross-app command uses the canonical Data Center public port",
+      "id": "management_command:artifacts/ref05-public-20261108/delivery/projection-checkout/apps/account/management/commands/bootstrap_mcp_cold_start.py:bootstrap_mcp_cold_start:",
+      "locator": "",
+      "path": "artifacts/ref05-public-20261108/delivery/projection-checkout/apps/account/management/commands/bootstrap_mcp_cold_start.py",
+      "status": "adjacent_operational",
+      "symbol": "bootstrap_mcp_cold_start",
+      "target": ""
+    },
+    {
+      "category": "management_command",
+      "evidence": "cross-app command uses the canonical Data Center public port",
+      "id": "management_command:artifacts/ref05-public-20261108/delivery/projection-checkout/apps/alpha/management/commands/sync_alpha_price_coverage.py:sync_alpha_price_coverage:",
+      "locator": "",
+      "path": "artifacts/ref05-public-20261108/delivery/projection-checkout/apps/alpha/management/commands/sync_alpha_price_coverage.py",
+      "status": "adjacent_operational",
+      "symbol": "sync_alpha_price_coverage",
+      "target": ""
+    },
+    {
+      "category": "management_command",
+      "evidence": "cross-app command uses the canonical Data Center public port",
+      "id": "management_command:artifacts/ref05-public-20261108/delivery/projection-checkout/apps/audit/management/commands/validate_high_frequency_indicators.py:validate_high_frequency_indicators:",
+      "locator": "",
+      "path": "artifacts/ref05-public-20261108/delivery/projection-checkout/apps/audit/management/commands/validate_high_frequency_indicators.py",
+      "status": "adjacent_operational",
+      "symbol": "validate_high_frequency_indicators",
+      "target": ""
+    },
+    {
+      "category": "management_command",
+      "evidence": "cross-app command uses the canonical Data Center public port",
+      "id": "management_command:artifacts/ref05-public-20261108/delivery/projection-checkout/apps/data_center/management/commands/activate_publication_policies.py:activate_publication_policies:",
+      "locator": "",
+      "path": "artifacts/ref05-public-20261108/delivery/projection-checkout/apps/data_center/management/commands/activate_publication_policies.py",
+      "status": "adjacent_operational",
+      "symbol": "activate_publication_policies",
+      "target": ""
+    },
+    {
+      "category": "management_command",
+      "evidence": "cross-app command consumer of Data Center",
+      "id": "management_command:artifacts/ref05-public-20261108/delivery/projection-checkout/apps/data_center/management/commands/approve_financial_capacity_governance.py:approve_financial_capacity_governance:",
+      "locator": "",
+      "path": "artifacts/ref05-public-20261108/delivery/projection-checkout/apps/data_center/management/commands/approve_financial_capacity_governance.py",
+      "status": "candidate-review",
+      "symbol": "approve_financial_capacity_governance",
+      "target": ""
+    },
+    {
+      "category": "management_command",
+      "evidence": "cross-app command consumer of Data Center",
+      "id": "management_command:artifacts/ref05-public-20261108/delivery/projection-checkout/apps/data_center/management/commands/audit_macro_fact_consistency.py:audit_macro_fact_consistency:",
+      "locator": "",
+      "path": "artifacts/ref05-public-20261108/delivery/projection-checkout/apps/data_center/management/commands/audit_macro_fact_consistency.py",
+      "status": "candidate-review",
+      "symbol": "audit_macro_fact_consistency",
+      "target": ""
+    },
+    {
+      "category": "management_command",
+      "evidence": "cross-app command uses the canonical Data Center public port",
+      "id": "management_command:artifacts/ref05-public-20261108/delivery/projection-checkout/apps/data_center/management/commands/audit_on_demand_coverage.py:audit_on_demand_coverage:",
+      "locator": "",
+      "path": "artifacts/ref05-public-20261108/delivery/projection-checkout/apps/data_center/management/commands/audit_on_demand_coverage.py",
+      "status": "candidate-review",
+      "symbol": "audit_on_demand_coverage",
+      "target": ""
+    },
+    {
+      "category": "management_command",
+      "evidence": "cross-app command consumer of Data Center",
+      "id": "management_command:artifacts/ref05-public-20261108/delivery/projection-checkout/apps/data_center/management/commands/authorize_s6_financial_scope_discovery.py:authorize_s6_financial_scope_discovery:",
+      "locator": "",
+      "path": "artifacts/ref05-public-20261108/delivery/projection-checkout/apps/data_center/management/commands/authorize_s6_financial_scope_discovery.py",
+      "status": "candidate-review",
+      "symbol": "authorize_s6_financial_scope_discovery",
+      "target": ""
+    },
+    {
+      "category": "management_command",
+      "evidence": "cross-app command consumer of Data Center",
+      "id": "management_command:artifacts/ref05-public-20261108/delivery/projection-checkout/apps/data_center/management/commands/backfill_active_a_share_core_data.py:backfill_active_a_share_core_data:",
+      "locator": "",
+      "path": "artifacts/ref05-public-20261108/delivery/projection-checkout/apps/data_center/management/commands/backfill_active_a_share_core_data.py",
+      "status": "compatibility",
+      "symbol": "backfill_active_a_share_core_data",
+      "target": ""
+    },
+    {
+      "category": "management_command",
+      "evidence": "cross-app command consumer of Data Center",
+      "id": "management_command:artifacts/ref05-public-20261108/delivery/projection-checkout/apps/data_center/management/commands/backfill_asset_master.py:backfill_asset_master:",
+      "locator": "",
+      "path": "artifacts/ref05-public-20261108/delivery/projection-checkout/apps/data_center/management/commands/backfill_asset_master.py",
+      "status": "candidate-review",
+      "symbol": "backfill_asset_master",
+      "target": ""
+    },
+    {
+      "category": "management_command",
+      "evidence": "cross-app command consumer of Data Center",
+      "id": "management_command:artifacts/ref05-public-20261108/delivery/projection-checkout/apps/data_center/management/commands/backfill_historical_a_share_market_facts.py:backfill_historical_a_share_market_facts:",
+      "locator": "",
+      "path": "artifacts/ref05-public-20261108/delivery/projection-checkout/apps/data_center/management/commands/backfill_historical_a_share_market_facts.py",
+      "status": "candidate-review",
+      "symbol": "backfill_historical_a_share_market_facts",
+      "target": ""
+    },
+    {
+      "category": "management_command",
+      "evidence": "cross-app command uses the canonical Data Center public port",
+      "id": "management_command:artifacts/ref05-public-20261108/delivery/projection-checkout/apps/data_center/management/commands/calculate_market_thermometer.py:calculate_market_thermometer:",
+      "locator": "",
+      "path": "artifacts/ref05-public-20261108/delivery/projection-checkout/apps/data_center/management/commands/calculate_market_thermometer.py",
+      "status": "adjacent_operational",
+      "symbol": "calculate_market_thermometer",
+      "target": ""
+    },
+    {
+      "category": "management_command",
+      "evidence": "cross-app command consumer of Data Center",
+      "id": "management_command:artifacts/ref05-public-20261108/delivery/projection-checkout/apps/data_center/management/commands/configure_tencent_history_units.py:configure_tencent_history_units:",
+      "locator": "",
+      "path": "artifacts/ref05-public-20261108/delivery/projection-checkout/apps/data_center/management/commands/configure_tencent_history_units.py",
+      "status": "candidate-review",
+      "symbol": "configure_tencent_history_units",
+      "target": ""
+    },
+    {
+      "category": "management_command",
+      "evidence": "cross-app command consumer of Data Center",
+      "id": "management_command:artifacts/ref05-public-20261108/delivery/projection-checkout/apps/data_center/management/commands/export_provider_settings_snapshot.py:export_provider_settings_snapshot:",
+      "locator": "",
+      "path": "artifacts/ref05-public-20261108/delivery/projection-checkout/apps/data_center/management/commands/export_provider_settings_snapshot.py",
+      "status": "compatibility",
+      "symbol": "export_provider_settings_snapshot",
+      "target": ""
+    },
+    {
+      "category": "management_command",
+      "evidence": "cross-app command consumer of Data Center",
+      "id": "management_command:artifacts/ref05-public-20261108/delivery/projection-checkout/apps/data_center/management/commands/export_rehearsal_provider_identities.py:export_rehearsal_provider_identities:",
+      "locator": "",
+      "path": "artifacts/ref05-public-20261108/delivery/projection-checkout/apps/data_center/management/commands/export_rehearsal_provider_identities.py",
+      "status": "candidate-review",
+      "symbol": "export_rehearsal_provider_identities",
+      "target": ""
+    },
+    {
+      "category": "management_command",
+      "evidence": "cross-app command consumer of Data Center",
+      "id": "management_command:artifacts/ref05-public-20261108/delivery/projection-checkout/apps/data_center/management/commands/import_financial_scope_capacity_receipt.py:import_financial_scope_capacity_receipt:",
+      "locator": "",
+      "path": "artifacts/ref05-public-20261108/delivery/projection-checkout/apps/data_center/management/commands/import_financial_scope_capacity_receipt.py",
+      "status": "candidate-review",
+      "symbol": "import_financial_scope_capacity_receipt",
+      "target": ""
+    },
+    {
+      "category": "management_command",
+      "evidence": "cross-app command consumer of Data Center",
+      "id": "management_command:artifacts/ref05-public-20261108/delivery/projection-checkout/apps/data_center/management/commands/import_investor_accounts.py:import_investor_accounts:",
+      "locator": "",
+      "path": "artifacts/ref05-public-20261108/delivery/projection-checkout/apps/data_center/management/commands/import_investor_accounts.py",
+      "status": "compatibility",
+      "symbol": "import_investor_accounts",
+      "target": ""
+    },
+    {
+      "category": "management_command",
+      "evidence": "cross-app command consumer of Data Center",
+      "id": "management_command:artifacts/ref05-public-20261108/delivery/projection-checkout/apps/data_center/management/commands/init_macro_indicator_governance.py:init_macro_indicator_governance:",
+      "locator": "",
+      "path": "artifacts/ref05-public-20261108/delivery/projection-checkout/apps/data_center/management/commands/init_macro_indicator_governance.py",
+      "status": "candidate-review",
+      "symbol": "init_macro_indicator_governance",
+      "target": ""
+    },
+    {
+      "category": "management_command",
+      "evidence": "cross-app command consumer of Data Center",
+      "id": "management_command:artifacts/ref05-public-20261108/delivery/projection-checkout/apps/data_center/management/commands/initialize_data_center_catalog.py:initialize_data_center_catalog:",
+      "locator": "",
+      "path": "artifacts/ref05-public-20261108/delivery/projection-checkout/apps/data_center/management/commands/initialize_data_center_catalog.py",
+      "status": "compatibility",
+      "symbol": "initialize_data_center_catalog",
+      "target": ""
+    },
+    {
+      "category": "management_command",
+      "evidence": "cross-app command consumer of Data Center",
+      "id": "management_command:artifacts/ref05-public-20261108/delivery/projection-checkout/apps/data_center/management/commands/initialize_financial_response_artifact.py:initialize_financial_response_artifact:",
+      "locator": "",
+      "path": "artifacts/ref05-public-20261108/delivery/projection-checkout/apps/data_center/management/commands/initialize_financial_response_artifact.py",
+      "status": "candidate-review",
+      "symbol": "initialize_financial_response_artifact",
+      "target": ""
+    },
+    {
+      "category": "management_command",
+      "evidence": "cross-app command consumer of Data Center",
+      "id": "management_command:artifacts/ref05-public-20261108/delivery/projection-checkout/apps/data_center/management/commands/normalize_macro_fact_units.py:normalize_macro_fact_units:",
+      "locator": "",
+      "path": "artifacts/ref05-public-20261108/delivery/projection-checkout/apps/data_center/management/commands/normalize_macro_fact_units.py",
+      "status": "candidate-review",
+      "symbol": "normalize_macro_fact_units",
+      "target": ""
+    },
+    {
+      "category": "management_command",
+      "evidence": "cross-app command consumer of Data Center",
+      "id": "management_command:artifacts/ref05-public-20261108/delivery/projection-checkout/apps/data_center/management/commands/preflight_full_market_publication.py:preflight_full_market_publication:",
+      "locator": "",
+      "path": "artifacts/ref05-public-20261108/delivery/projection-checkout/apps/data_center/management/commands/preflight_full_market_publication.py",
+      "status": "compatibility",
+      "symbol": "preflight_full_market_publication",
+      "target": ""
+    },
+    {
+      "category": "management_command",
+      "evidence": "cross-app command consumer of Data Center",
+      "id": "management_command:artifacts/ref05-public-20261108/delivery/projection-checkout/apps/data_center/management/commands/preflight_s6_stage_environment.py:preflight_s6_stage_environment:",
+      "locator": "",
+      "path": "artifacts/ref05-public-20261108/delivery/projection-checkout/apps/data_center/management/commands/preflight_s6_stage_environment.py",
+      "status": "candidate-review",
+      "symbol": "preflight_s6_stage_environment",
+      "target": ""
+    },
+    {
+      "category": "management_command",
+      "evidence": "cross-app command consumer of Data Center",
+      "id": "management_command:artifacts/ref05-public-20261108/delivery/projection-checkout/apps/data_center/management/commands/rebuild_active_a_share_core_publications.py:rebuild_active_a_share_core_publications:",
+      "locator": "",
+      "path": "artifacts/ref05-public-20261108/delivery/projection-checkout/apps/data_center/management/commands/rebuild_active_a_share_core_publications.py",
+      "status": "compatibility",
+      "symbol": "rebuild_active_a_share_core_publications",
+      "target": ""
+    },
+    {
+      "category": "management_command",
+      "evidence": "cross-app command uses the canonical Data Center public port",
+      "id": "management_command:artifacts/ref05-public-20261108/delivery/projection-checkout/apps/data_center/management/commands/record_data_center_reconciliation.py:record_data_center_reconciliation:",
+      "locator": "",
+      "path": "artifacts/ref05-public-20261108/delivery/projection-checkout/apps/data_center/management/commands/record_data_center_reconciliation.py",
+      "status": "adjacent_operational",
+      "symbol": "record_data_center_reconciliation",
+      "target": ""
+    },
+    {
+      "category": "management_command",
+      "evidence": "cross-app command consumer of Data Center",
+      "id": "management_command:artifacts/ref05-public-20261108/delivery/projection-checkout/apps/data_center/management/commands/record_financial_capacity_governance.py:record_financial_capacity_governance:",
+      "locator": "",
+      "path": "artifacts/ref05-public-20261108/delivery/projection-checkout/apps/data_center/management/commands/record_financial_capacity_governance.py",
+      "status": "candidate-review",
+      "symbol": "record_financial_capacity_governance",
+      "target": ""
+    },
+    {
+      "category": "management_command",
+      "evidence": "cross-app command consumer of Data Center",
+      "id": "management_command:artifacts/ref05-public-20261108/delivery/projection-checkout/apps/data_center/management/commands/record_financial_scope_manifest_pointer.py:record_financial_scope_manifest_pointer:",
+      "locator": "",
+      "path": "artifacts/ref05-public-20261108/delivery/projection-checkout/apps/data_center/management/commands/record_financial_scope_manifest_pointer.py",
+      "status": "candidate-review",
+      "symbol": "record_financial_scope_manifest_pointer",
+      "target": ""
+    },
+    {
+      "category": "management_command",
+      "evidence": "cross-app command consumer of Data Center",
+      "id": "management_command:artifacts/ref05-public-20261108/delivery/projection-checkout/apps/data_center/management/commands/rehearse_akshare_financial_slice.py:rehearse_akshare_financial_slice:",
+      "locator": "",
+      "path": "artifacts/ref05-public-20261108/delivery/projection-checkout/apps/data_center/management/commands/rehearse_akshare_financial_slice.py",
+      "status": "candidate-review",
+      "symbol": "rehearse_akshare_financial_slice",
+      "target": ""
+    },
+    {
+      "category": "management_command",
+      "evidence": "cross-app command consumer of Data Center",
+      "id": "management_command:artifacts/ref05-public-20261108/delivery/projection-checkout/apps/data_center/management/commands/rehearse_financial_scope_discovery.py:rehearse_financial_scope_discovery:",
+      "locator": "",
+      "path": "artifacts/ref05-public-20261108/delivery/projection-checkout/apps/data_center/management/commands/rehearse_financial_scope_discovery.py",
+      "status": "candidate-review",
+      "symbol": "rehearse_financial_scope_discovery",
+      "target": ""
+    },
+    {
+      "category": "management_command",
+      "evidence": "cross-app command consumer of Data Center",
+      "id": "management_command:artifacts/ref05-public-20261108/delivery/projection-checkout/apps/data_center/management/commands/rehearse_full_universe_capacity.py:rehearse_full_universe_capacity:",
+      "locator": "",
+      "path": "artifacts/ref05-public-20261108/delivery/projection-checkout/apps/data_center/management/commands/rehearse_full_universe_capacity.py",
+      "status": "candidate-review",
+      "symbol": "rehearse_full_universe_capacity",
+      "target": ""
+    },
+    {
+      "category": "management_command",
+      "evidence": "cross-app command consumer of Data Center",
+      "id": "management_command:artifacts/ref05-public-20261108/delivery/projection-checkout/apps/data_center/management/commands/rehearse_isolated_publication_write.py:rehearse_isolated_publication_write:",
+      "locator": "",
+      "path": "artifacts/ref05-public-20261108/delivery/projection-checkout/apps/data_center/management/commands/rehearse_isolated_publication_write.py",
+      "status": "candidate-review",
+      "symbol": "rehearse_isolated_publication_write",
+      "target": ""
+    },
+    {
+      "category": "management_command",
+      "evidence": "cross-app command consumer of Data Center",
+      "id": "management_command:artifacts/ref05-public-20261108/delivery/projection-checkout/apps/data_center/management/commands/rehearse_market_providers.py:rehearse_market_providers:",
+      "locator": "",
+      "path": "artifacts/ref05-public-20261108/delivery/projection-checkout/apps/data_center/management/commands/rehearse_market_providers.py",
+      "status": "candidate-review",
+      "symbol": "rehearse_market_providers",
+      "target": ""
+    },
+    {
+      "category": "management_command",
+      "evidence": "cross-app command consumer of Data Center",
+      "id": "management_command:artifacts/ref05-public-20261108/delivery/projection-checkout/apps/data_center/management/commands/rehearse_production_policy_parity.py:rehearse_production_policy_parity:",
+      "locator": "",
+      "path": "artifacts/ref05-public-20261108/delivery/projection-checkout/apps/data_center/management/commands/rehearse_production_policy_parity.py",
+      "status": "candidate-review",
+      "symbol": "rehearse_production_policy_parity",
+      "target": ""
+    },
+    {
+      "category": "management_command",
+      "evidence": "cross-app command consumer of Data Center",
+      "id": "management_command:artifacts/ref05-public-20261108/delivery/projection-checkout/apps/data_center/management/commands/repair_active_a_share_current_facts.py:repair_active_a_share_current_facts:",
+      "locator": "",
+      "path": "artifacts/ref05-public-20261108/delivery/projection-checkout/apps/data_center/management/commands/repair_active_a_share_current_facts.py",
+      "status": "compatibility",
+      "symbol": "repair_active_a_share_current_facts",
+      "target": ""
+    },
+    {
+      "category": "management_command",
+      "evidence": "cross-app command consumer of Data Center",
+      "id": "management_command:artifacts/ref05-public-20261108/delivery/projection-checkout/apps/data_center/management/commands/repair_decision_data_reliability.py:repair_decision_data_reliability:",
+      "locator": "",
+      "path": "artifacts/ref05-public-20261108/delivery/projection-checkout/apps/data_center/management/commands/repair_decision_data_reliability.py",
+      "status": "candidate-review",
+      "symbol": "repair_decision_data_reliability",
+      "target": ""
+    },
+    {
+      "category": "management_command",
+      "evidence": "cross-app command consumer of Data Center",
+      "id": "management_command:artifacts/ref05-public-20261108/delivery/projection-checkout/apps/data_center/management/commands/repair_legacy_price_units.py:repair_legacy_price_units:",
+      "locator": "",
+      "path": "artifacts/ref05-public-20261108/delivery/projection-checkout/apps/data_center/management/commands/repair_legacy_price_units.py",
+      "status": "candidate-review",
+      "symbol": "repair_legacy_price_units",
+      "target": ""
+    },
+    {
+      "category": "management_command",
+      "evidence": "cross-app command consumer of Data Center",
+      "id": "management_command:artifacts/ref05-public-20261108/delivery/projection-checkout/apps/data_center/management/commands/replay_market_provider_responses.py:replay_market_provider_responses:",
+      "locator": "",
+      "path": "artifacts/ref05-public-20261108/delivery/projection-checkout/apps/data_center/management/commands/replay_market_provider_responses.py",
+      "status": "candidate-review",
+      "symbol": "replay_market_provider_responses",
+      "target": ""
+    },
+    {
+      "category": "management_command",
+      "evidence": "cross-app command consumer of Data Center",
+      "id": "management_command:artifacts/ref05-public-20261108/delivery/projection-checkout/apps/data_center/management/commands/setup_decision_quote_refresh.py:setup_decision_quote_refresh:",
+      "locator": "",
+      "path": "artifacts/ref05-public-20261108/delivery/projection-checkout/apps/data_center/management/commands/setup_decision_quote_refresh.py",
+      "status": "compatibility",
+      "symbol": "setup_decision_quote_refresh",
+      "target": ""
+    },
+    {
+      "category": "management_command",
+      "evidence": "cross-app command consumer of Data Center",
+      "id": "management_command:artifacts/ref05-public-20261108/delivery/projection-checkout/apps/data_center/management/commands/setup_full_market_publications.py:setup_full_market_publications:",
+      "locator": "",
+      "path": "artifacts/ref05-public-20261108/delivery/projection-checkout/apps/data_center/management/commands/setup_full_market_publications.py",
+      "status": "compatibility",
+      "symbol": "setup_full_market_publications",
+      "target": ""
+    },
+    {
+      "category": "management_command",
+      "evidence": "cross-app command consumer of Data Center",
+      "id": "management_command:artifacts/ref05-public-20261108/delivery/projection-checkout/apps/data_center/management/commands/sync_a_share_universe.py:sync_a_share_universe:",
+      "locator": "",
+      "path": "artifacts/ref05-public-20261108/delivery/projection-checkout/apps/data_center/management/commands/sync_a_share_universe.py",
+      "status": "candidate-review",
+      "symbol": "sync_a_share_universe",
+      "target": ""
+    },
+    {
+      "category": "management_command",
+      "evidence": "cross-app command consumer of Data Center",
+      "id": "management_command:artifacts/ref05-public-20261108/delivery/projection-checkout/apps/data_center/management/commands/sync_market_thermometer_inputs.py:sync_market_thermometer_inputs:",
+      "locator": "",
+      "path": "artifacts/ref05-public-20261108/delivery/projection-checkout/apps/data_center/management/commands/sync_market_thermometer_inputs.py",
+      "status": "compatibility",
+      "symbol": "sync_market_thermometer_inputs",
+      "target": ""
+    },
+    {
+      "category": "management_command",
+      "evidence": "cross-app command consumer of Data Center",
+      "id": "management_command:artifacts/ref05-public-20261108/delivery/projection-checkout/apps/data_center/management/commands/verify_canonical_schema.py:verify_canonical_schema:",
+      "locator": "",
+      "path": "artifacts/ref05-public-20261108/delivery/projection-checkout/apps/data_center/management/commands/verify_canonical_schema.py",
+      "status": "candidate-review",
+      "symbol": "verify_canonical_schema",
+      "target": ""
+    },
+    {
+      "category": "management_command",
+      "evidence": "cross-app command uses the canonical Data Center public port",
+      "id": "management_command:artifacts/ref05-public-20261108/delivery/projection-checkout/apps/macro/management/commands/migrate_usd_data.py:migrate_usd_data:",
+      "locator": "",
+      "path": "artifacts/ref05-public-20261108/delivery/projection-checkout/apps/macro/management/commands/migrate_usd_data.py",
+      "status": "adjacent_operational",
+      "symbol": "migrate_usd_data",
+      "target": ""
+    },
+    {
+      "category": "management_command",
+      "evidence": "cross-app command uses the canonical Data Center public port",
+      "id": "management_command:artifacts/ref05-public-20261108/delivery/projection-checkout/apps/macro/management/commands/sync_macro_data.py:sync_macro_data:",
+      "locator": "",
+      "path": "artifacts/ref05-public-20261108/delivery/projection-checkout/apps/macro/management/commands/sync_macro_data.py",
+      "status": "adjacent_operational",
+      "symbol": "sync_macro_data",
+      "target": ""
+    },
+    {
+      "category": "management_command",
+      "evidence": "cross-app command consumer of Data Center",
+      "id": "management_command:artifacts/ref05-public-20261108/delivery/projection-checkout/apps/operational_readiness/management/commands/inspect_personal_readiness_evidence.py:inspect_personal_readiness_evidence:",
+      "locator": "",
+      "path": "artifacts/ref05-public-20261108/delivery/projection-checkout/apps/operational_readiness/management/commands/inspect_personal_readiness_evidence.py",
+      "status": "compatibility",
+      "symbol": "inspect_personal_readiness_evidence",
+      "target": ""
+    },
+    {
+      "category": "management_command",
+      "evidence": "cross-app command consumer of Data Center",
+      "id": "management_command:artifacts/ref05-public-20261108/delivery/projection-checkout/apps/risk_center/management/commands/admit_portfolio_risk_source.py:admit_portfolio_risk_source:",
+      "locator": "",
+      "path": "artifacts/ref05-public-20261108/delivery/projection-checkout/apps/risk_center/management/commands/admit_portfolio_risk_source.py",
+      "status": "compatibility",
+      "symbol": "admit_portfolio_risk_source",
+      "target": ""
+    },
+    {
+      "category": "management_command",
+      "evidence": "cross-app command uses the canonical Data Center public port",
+      "id": "management_command:artifacts/ref05-public-20261108/delivery/projection-checkout/core/management/commands/test_data_connections.py:test_data_connections:",
+      "locator": "",
+      "path": "artifacts/ref05-public-20261108/delivery/projection-checkout/core/management/commands/test_data_connections.py",
+      "status": "adjacent_operational",
+      "symbol": "test_data_connections",
+      "target": ""
+    },
+    {
+      "category": "management_command",
+      "evidence": "cross-app command uses the canonical Data Center public port",
+      "id": "management_command:artifacts/ref05-public-20261108/delivery/projection-checkout/core/management/commands/warmup_cache.py:warmup_cache:",
+      "locator": "",
+      "path": "artifacts/ref05-public-20261108/delivery/projection-checkout/core/management/commands/warmup_cache.py",
+      "status": "adjacent_operational",
+      "symbol": "warmup_cache",
+      "target": ""
+    },
+    {
+      "category": "management_command",
+      "evidence": "cross-app command uses the canonical Data Center public port",
       "id": "management_command:core/management/commands/test_data_connections.py:test_data_connections:",
       "locator": "",
       "path": "core/management/commands/test_data_connections.py",
@@ -11198,6 +11688,26 @@
       "status": "adjacent_operational",
       "symbol": "UnifiedSignalViewSet.summary",
       "target": "apps/signal/interface/views.py::UnifiedSignalViewSet.summary"
+    },
+    {
+      "category": "rest_url",
+      "evidence": "project URL mount for Data Center",
+      "id": "rest_url:artifacts/ref05-public-20261108/delivery/projection-checkout/core/urls.py:mount@564:data-center/",
+      "locator": "data-center/",
+      "path": "artifacts/ref05-public-20261108/delivery/projection-checkout/core/urls.py",
+      "status": "active_public",
+      "symbol": "mount@564",
+      "target": "include(('apps.data_center.interface.urls', 'data_center'), namespace='data_center')"
+    },
+    {
+      "category": "rest_url",
+      "evidence": "project URL mount for Data Center",
+      "id": "rest_url:artifacts/ref05-public-20261108/delivery/projection-checkout/core/urls.py:mount@571:api/data-center/",
+      "locator": "api/data-center/",
+      "path": "artifacts/ref05-public-20261108/delivery/projection-checkout/core/urls.py",
+      "status": "active_public",
+      "symbol": "mount@571",
+      "target": "include(('apps.data_center.interface.api_urls', 'api_data_center'), namespace='api_data_center')"
     },
     {
       "category": "rest_url",

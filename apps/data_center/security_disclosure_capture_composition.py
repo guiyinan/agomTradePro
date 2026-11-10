@@ -7,6 +7,7 @@ from pathlib import Path
 
 from apps.data_center.application.security_disclosure_event import (
     AppendSecurityDisclosureEventUseCase,
+    QuerySecurityDisclosureEventsUseCase,
 )
 from apps.data_center.domain.security_disclosure_event import (
     SecurityDisclosureEvent,
@@ -14,12 +15,15 @@ from apps.data_center.domain.security_disclosure_event import (
     SecurityDisclosureEventType,
     SecurityDisclosureExchange,
     SecurityDisclosureSource,
+    SzseDistributionTerms,
 )
 from apps.data_center.infrastructure.official_szse_pdf_capture import (
+    CapturedOfficialSzsePdf,
     OfficialSzsePdfBodyStore,
     capture_official_szse_pdf,
     classify_szse_pdf_disclosure,
     extract_szse_distribution_dates,
+    extract_szse_distribution_terms,
 )
 from apps.data_center.infrastructure.security_disclosure_event_repository import (
     DjangoSecurityDisclosureEventRepository,
@@ -60,3 +64,29 @@ def capture_and_append_szse_disclosure(
     )
     repository = DjangoSecurityDisclosureEventRepository(using=using)
     return AppendSecurityDisclosureEventUseCase(repository).execute(event, captured.body)
+
+
+def make_security_disclosure_event_reader(
+    *, using: str = "default"
+) -> QuerySecurityDisclosureEventsUseCase:
+    """Compose the public PIT reader with its owning Data Center repository."""
+
+    return QuerySecurityDisclosureEventsUseCase(
+        DjangoSecurityDisclosureEventRepository(using=using)
+    )
+
+
+def read_verified_szse_distribution(
+    event: SecurityDisclosureEvent, *, body_store_root: Path
+) -> SzseDistributionTerms | None:
+    """Reopen the retained body and parse exact distribution terms in Data Center."""
+
+    body = OfficialSzsePdfBodyStore(body_store_root).read(event.source_body_sha256)
+    capture = CapturedOfficialSzsePdf(
+        source_url=event.source_url,
+        source_document_id=event.source_event_id,
+        first_seen_at=event.first_seen_at,
+        body_sha256=event.source_body_sha256,
+        body=body,
+    )
+    return extract_szse_distribution_terms(capture, event.source_security_code)

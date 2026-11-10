@@ -7,11 +7,24 @@ import json
 import re
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
+from decimal import Decimal
 from enum import StrEnum
 from typing import TypeAlias
 from urllib.parse import urlsplit
 
 SourceEventClock: TypeAlias = date | datetime
+
+
+@dataclass(frozen=True, slots=True)
+class SzseDistributionTerms:
+    """Source-exact distribution terms; absence blocks economic posting."""
+
+    record_date: date
+    ex_date: date
+    payment_date: date | None
+    cash_per_ten: Decimal | None
+    shares_per_ten: Decimal | None
+    tax_treatment: str | None
 
 
 class SecurityDisclosureExchange(StrEnum):

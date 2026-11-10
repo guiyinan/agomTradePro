@@ -2959,4 +2959,13 @@ Owner 随后要求继续完成 §9，选择交易所公开披露为事件来源�
 
 整合候选进展（2026-11-10）：正式树已采用三个隔离准备，建立交易所公告原件哈希与保守 first_seen_at 知识截止、逐证券事件版本事实、模拟账户分阶段现金/股份/税费与冲正账本，以及仅对显式绑定计划生效的事件复核门。深交所 002727 现金分红与 301237 转增的官方 PDF 已核验证券代码、原文 SHA-256、登记日和除息日；公告日期精度不扩成时间，来源未给发布时间时不回填抓取时间。价格收益核对要求未复权价格与已确认现金/股份，混合或无法分类公告保留 UNKNOWN。当前合批定向测试 77 项通过，Data Center 0108 与模拟账户 0043 迁移均在隔离 SQLite 应用成功，15 个生产 Python 文件的增量 mypy 零新增错误，模块图与数据字典投影检查通过。
 
+本批新增具体模型的 REF-01 差值解释（基准为 `fddf328130d86ec99a706dc8d343bdbb39be784d`）：
+
+| base_sha | identity | change_kind | rationale | consumer_audit | compatibility_or_rollback |
+| --- | --- | --- | --- | --- | --- |
+| fddf328130d86ec99a706dc8d343bdbb39be784d | data_center.SecurityDisclosureEventModel | added_concrete | 保存交易所公告的原件身份、版本、保守可知时间与修订关系，支持逐时点查询 | 新写口为 SecurityDisclosureEventRepository；新读口为 QuerySecurityDisclosureEventsUseCase 与交易所公告资格校验；旧财报只读路径未改 | 仅新增表 0108，回滚代码前先停止新读写；保留已捕获的原件和事件，不能把删表当作修订回滚 |
+| fddf328130d86ec99a706dc8d343bdbb39be784d | simulated_trading.CorporateActionPostingModel | added_concrete | 保存模拟账户公司行为阶段条目与冲正，支持幂等和来源绑定 | 新写读口为 CorporateActionPostingRepository；既有 BUY/SELL 订单流水及持仓读口保持原契约；真实账户来源与税费资格仍受阻 | 仅新增表 0043，回滚代码前先停止新阶段写入；保留历史条目及来源，不把删除账本当作冲正 |
+
+CI 首轮精确提交 `fa5ccc13b7a66b653210034ee9633c0d8267dddd` 暴露两处漏项：新增具体模型没有上述 REF-01 解释，Data Center 架构生成清单未更新。本轮修复两项并将业务侧对 Data Center Infrastructure 的两处直接导入收敛到公开 composition，清单计数恢复为零。新增资格校验会按原件哈希重新打开深交所 PDF，核对事件版本、登记/除权/派息日期、每十股现金或股份比例及公告中明确的税费处理；若原件、历史权属或税基缺失，入账仍阻断。此处只核验来源条款，不声明全市场公告覆盖，也不推断零股最终数量。
+
 ASH-05 仍为 active，不将这些基础契约写成整单元关闭。下一个工作块为交易所列表完整性/权限证明、原件条款与登记日历史权属及后扣税资格核验、计划生成时的事件 coverage pin、账户与用户任务接线、统一 Audit/Outbox 失败恢复，以及原生 PostgreSQL 并发和完整 §9 金样本。当前深交所官方公告列表接口返回 500，已核验两份 PDF 不构成全量覆盖证明；缺证据时计划与入账保持阻断。未开启生产执行或 deferred 单元。

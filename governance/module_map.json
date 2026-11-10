@@ -4120,7 +4120,7 @@
           "imports": 3
         },
         "simulated_trading": {
-          "imports": 69
+          "imports": 71
         },
         "strategy": {
           "imports": 1
@@ -10938,7 +10938,7 @@
           ]
         },
         "data_center": {
-          "imports": 69,
+          "imports": 71,
           "target_layers": [
             "application",
             "calendar_publication_operations_composition",
@@ -10947,7 +10947,8 @@
             "domain",
             "instrument_reference_snapshot_composition",
             "price_limit_publication_operations_composition",
-            "qmt_bridge_composition"
+            "qmt_bridge_composition",
+            "security_disclosure_capture_composition"
           ]
         },
         "policy": {
@@ -11921,7 +11922,7 @@
         "infrastructure": 132,
         "interface": 34,
         "management": 7,
-        "root": 31
+        "root": 32
       },
       "orm_models": {
         "infrastructure/models.py": [

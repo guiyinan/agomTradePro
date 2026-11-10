@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 6663,
+    "current_surface_references": 6682,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -12879,6 +12879,14 @@
       "text": "summary=description,"
     },
     {
+      "path": "apps/data_center/infrastructure/security_disclosure_event_repository.py",
+      "text": "\"\"\"Return an aware current time.\"\"\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/security_disclosure_event_repository.py",
+      "text": "\"\"\"Return the current aware application time.\"\"\""
+    },
+    {
       "path": "apps/data_center/infrastructure/sse_investor_accounts.py",
       "text": "\"\"\"Return SSE MDATE query months, allowing current-year publication lag.\"\"\""
     },
@@ -16407,6 +16415,34 @@
       "text": "if tuple(id(item) for item in current) != self._participant_ids:"
     },
     {
+      "path": "apps/portfolio/application/transition_plan_event_review.py",
+      "text": "\"\"\"Application gate for comparing immutable plan event pins with current source facts.\"\"\""
+    },
+    {
+      "path": "apps/portfolio/application/transition_plan_event_review.py",
+      "text": "\"\"\"Compare exact plan coverage pins against complete historical and current snapshots.\"\"\""
+    },
+    {
+      "path": "apps/portfolio/application/transition_plan_event_review.py",
+      "text": "current = self._read_complete_snapshot("
+    },
+    {
+      "path": "apps/portfolio/application/transition_plan_event_review.py",
+      "text": "current_events = {item.source_event_id: item for item in current.events}"
+    },
+    {
+      "path": "apps/portfolio/application/transition_plan_event_review.py",
+      "text": "if any(_is_unknown_event(item.event_type) for item in current.events):"
+    },
+    {
+      "path": "apps/portfolio/application/transition_plan_event_review.py",
+      "text": "if current is None:"
+    },
+    {
+      "path": "apps/portfolio/application/transition_plan_event_review.py",
+      "text": "if transition_plan_event_snapshot_sha256(current) != historical_hash:"
+    },
+    {
       "path": "apps/portfolio/application/transition_plan_inactive_approval.py",
       "text": "\"\"\"An exact current plan, subject, or receipt is unavailable.\"\"\""
     },
@@ -16709,6 +16745,10 @@
     {
       "path": "apps/portfolio/domain/services.py",
       "text": "total_value = current.cash + sum("
+    },
+    {
+      "path": "apps/portfolio/domain/transition_plan_event_review.py",
+      "text": "\"\"\"Outcome of comparing the pinned event snapshot with current source facts.\"\"\""
     },
     {
       "path": "apps/portfolio/domain/transition_plan_revision_basis.py",
@@ -22667,6 +22707,26 @@
       "text": "or latest != quote.last_price"
     },
     {
+      "path": "apps/simulated_trading/domain/corporate_action_posting.py",
+      "text": "\"\"\"Reject a current or unrelated ownership snapshot on later settlement stages.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/domain/corporate_action_posting.py",
+      "text": "\"a record-date account ownership snapshot is required; current holdings cannot substitute\","
+    },
+    {
+      "path": "apps/simulated_trading/domain/corporate_action_posting.py",
+      "text": "\"a record-date account ownership snapshot is required; current holdings cannot substitute\","
+    },
+    {
+      "path": "apps/simulated_trading/domain/corporate_action_posting.py",
+      "text": "\"a record-date account ownership snapshot is required; current holdings cannot substitute\","
+    },
+    {
+      "path": "apps/simulated_trading/domain/corporate_action_posting.py",
+      "text": "\"settlement stages must reference their ledger entitlement, not current holdings\""
+    },
+    {
       "path": "apps/simulated_trading/domain/daily_net_value_metrics.py",
       "text": "def _drawdown(current: float, peak: float) -> float | None:"
     },
@@ -23141,6 +23201,22 @@
     {
       "path": "apps/simulated_trading/infrastructure/canonical_account_creation_reader.py",
       "text": "\"\"\"Read exact current owner rows while the caller holds the user's lock.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/corporate_action_posting_repository.py",
+      "text": ".aggregate(latest=Max(\"account_revision\"))[\"latest\"]"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/corporate_action_posting_repository.py",
+      "text": "\"correction must link a new stable source revision to the current head\","
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/corporate_action_posting_repository.py",
+      "text": "\"correction revision must reverse every current economic stage exactly once\","
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/corporate_action_posting_repository.py",
+      "text": "\"stages on the current source version cannot claim a correction predecessor\","
     },
     {
       "path": "apps/simulated_trading/infrastructure/daily_net_value_repository.py",

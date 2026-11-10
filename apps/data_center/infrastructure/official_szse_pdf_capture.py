@@ -7,6 +7,7 @@ import os
 import re
 from dataclasses import dataclass
 from datetime import date, datetime
+from decimal import Decimal
 from io import BytesIO
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -17,8 +18,12 @@ from django.utils import timezone
 from pypdf import PdfReader
 from pypdf.errors import PdfReadError
 
-from apps.data_center.domain.security_disclosure_event import SecurityDisclosureEventType
+from apps.data_center.domain.security_disclosure_event import (
+    SecurityDisclosureEventType,
+    SzseDistributionTerms,
+)
 from core.exceptions import DataFetchError
+from shared.numeric import safe_float
 
 _PATH = re.compile(
     r"^/(?:download/)?disc/disk[0-9]+/finalpage/[0-9]{4}-[0-9]{2}-[0-9]{2}/"
@@ -29,6 +34,9 @@ _HEADER_SECURITY_CODE = re.compile(r"(?:证券|股票)代码\s*[:：]\s*([0-9]{6
 _CHINESE_DATE = r"([0-9]{4})\s*年\s*([0-9]{1,2})\s*月\s*([0-9]{1,2})\s*日"
 _RECORD_DATE = re.compile(r"股权登记日为\s*[:：]\s*" + _CHINESE_DATE)
 _EX_DATE = re.compile(r"(?:除权日（除息日）|除权除息日)为\s*[:：]\s*" + _CHINESE_DATE)
+_PAYMENT_DATE = re.compile(r"现金红利将于\s*" + _CHINESE_DATE)
+_CASH_PER_TEN = re.compile(r"每\s*10\s*股\s*派发现金(?:红利|股利)\s*([0-9]+(?:\.[0-9]+)?)\s*元")
+_SHARES_PER_TEN = re.compile(r"每\s*10\s*股\s*转增\s*([0-9]+(?:\.[0-9]+)?)\s*股")
 
 
 class OfficialDisclosureCaptureError(DataFetchError):
@@ -208,6 +216,73 @@ def extract_szse_distribution_dates(
             return None
 
     return unique_date(_RECORD_DATE), unique_date(_EX_DATE)
+
+
+def extract_szse_distribution_terms(
+    capture: CapturedOfficialSzsePdf, expected_security_code: str
+) -> SzseDistributionTerms | None:
+    """Extract only exact, unambiguous terms from one verified implementation notice."""
+
+    _, event_type = classify_szse_pdf_disclosure(capture, expected_security_code)
+    record_date, ex_date = extract_szse_distribution_dates(capture, expected_security_code)
+    if (
+        event_type
+        not in (
+            SecurityDisclosureEventType.CASH_DIVIDEND,
+            SecurityDisclosureEventType.STOCK_DIVIDEND,
+        )
+        or record_date is None
+        or ex_date is None
+    ):
+        return None
+    try:
+        text = "\n".join(page.extract_text() for page in PdfReader(BytesIO(capture.body)).pages)
+    except (OSError, TypeError, ValueError, KeyError, PdfReadError) as exc:
+        raise OfficialDisclosureCaptureError("SZSE PDF economic terms cannot be read") from exc
+
+    def unique_amount(pattern: re.Pattern[str]) -> Decimal | None:
+        values = set(pattern.findall(text))
+        if len(values) != 1:
+            return None
+        raw = next(iter(values))
+        if safe_float(raw) is None:
+            return None
+        amount = Decimal(raw)
+        return amount if amount.is_finite() and amount > 0 else None
+
+    cash_per_ten = unique_amount(_CASH_PER_TEN)
+    shares_per_ten = unique_amount(_SHARES_PER_TEN)
+    if event_type is SecurityDisclosureEventType.CASH_DIVIDEND:
+        payment_matches = set(_PAYMENT_DATE.findall(text))
+        if cash_per_ten is None or shares_per_ten is not None or len(payment_matches) != 1:
+            return None
+        try:
+            payment_date = date(*(int(part) for part in next(iter(payment_matches))))
+        except ValueError:
+            return None
+        tax_treatment = (
+            "deferred_withholding"
+            if "暂不扣缴个人所得税" in text and "待个人转让股票时" in text
+            else None
+        )
+        return SzseDistributionTerms(
+            record_date=record_date,
+            ex_date=ex_date,
+            payment_date=payment_date,
+            cash_per_ten=cash_per_ten,
+            shares_per_ten=None,
+            tax_treatment=tax_treatment,
+        )
+    if shares_per_ten is None or cash_per_ten is not None:
+        return None
+    return SzseDistributionTerms(
+        record_date=record_date,
+        ex_date=ex_date,
+        payment_date=None,
+        cash_per_ten=None,
+        shares_per_ten=shares_per_ten,
+        tax_treatment="not_applicable" if "不涉及扣税情形" in text else None,
+    )
 
 
 class OfficialSzsePdfBodyStore:
