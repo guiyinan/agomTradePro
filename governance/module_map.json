@@ -4133,7 +4133,7 @@
           "imports": 3
         },
         "simulated_trading": {
-          "imports": 71
+          "imports": 73
         },
         "strategy": {
           "imports": 1
@@ -7833,7 +7833,7 @@
           "imports": 50
         },
         "simulated_trading": {
-          "imports": 27
+          "imports": 29
         },
         "strategy": {
           "imports": 1
@@ -10954,7 +10954,7 @@
           ]
         },
         "data_center": {
-          "imports": 71,
+          "imports": 73,
           "target_layers": [
             "application",
             "calendar_publication_operations_composition",
@@ -10974,7 +10974,7 @@
           ]
         },
         "portfolio": {
-          "imports": 27,
+          "imports": 29,
           "target_layers": [
             "application",
             "domain",
@@ -11944,7 +11944,7 @@
         "infrastructure": 134,
         "interface": 34,
         "management": 7,
-        "root": 33
+        "root": 34
       },
       "orm_models": {
         "infrastructure/models.py": [

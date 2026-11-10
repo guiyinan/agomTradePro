@@ -21,7 +21,7 @@
       "public_port": 97,
       "rest_url": 90,
       "runbook": 7,
-      "runtime_config_key": 48,
+      "runtime_config_key": 49,
       "scheduler_writer": 18,
       "script": 20,
       "sdk": 57,
@@ -30,13 +30,13 @@
       "workflow_step": 11
     },
     "by_status": {
-      "active_public": 907,
+      "active_public": 908,
       "adjacent_operational": 346,
       "candidate-review": 45,
       "compatibility": 139,
       "retired_blocked": 0
     },
-    "total": 1437
+    "total": 1438
   },
   "entries": [
     {
@@ -11671,6 +11671,16 @@
     },
     {
       "category": "runtime_config_key",
+      "evidence": "runtime owner=config_center; consumers=1; migration_status=canonical_only_fail_closed",
+      "id": "runtime_config_key:governance/runtime_config_contracts.json:config_center.market.simulated_disclosure_coverage_policy:canonical_only_fail_closed",
+      "locator": "canonical_only_fail_closed",
+      "path": "governance/runtime_config_contracts.json",
+      "status": "active_public",
+      "symbol": "config_center.market.simulated_disclosure_coverage_policy",
+      "target": ""
+    },
+    {
+      "category": "runtime_config_key",
       "evidence": "runtime owner=config_center; consumers=2; migration_status=canonical_only_fail_closed",
       "id": "runtime_config_key:governance/runtime_config_contracts.json:config_center.market.simulated_initial_position_mark_policy:canonical_only_fail_closed",
       "locator": "canonical_only_fail_closed",
@@ -14424,7 +14434,7 @@
     "current_data_contracts": 106,
     "legacy_entrypoints_and_wrappers": 0,
     "operational_governance_rules": 45,
-    "runtime_config_keys": 48
+    "runtime_config_keys": 49
   },
   "source_contracts": [
     "governance/celery_task_contracts.json",
