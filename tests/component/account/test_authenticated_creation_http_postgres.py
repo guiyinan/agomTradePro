@@ -12,12 +12,18 @@ from rest_framework.request import Request
 from apps.simulated_trading.application.canonical_account_creation_input import (
     CanonicalAccountCreationInput,
 )
+from apps.simulated_trading.infrastructure.corporate_action_posting_models import (
+    CorporateActionPostingModel,
+)
 from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
 from apps.simulated_trading.infrastructure.order_fill_receipt_models import (
     SimulatedOrderFillReceiptModel,
 )
 from apps.simulated_trading.infrastructure.order_reservation_models import (
     SimulatedOrderReservationModel,
+)
+from apps.simulated_trading.infrastructure.simulated_account_ownership_anchor_models import (
+    SimulatedAccountOwnershipAnchorModel,
 )
 from apps.simulated_trading.infrastructure.simulated_account_trade_models import (
     PositionModel,
@@ -65,6 +71,8 @@ def creation_http_alias(
         SimulatedTradeModel,
         SimulatedOrderReservationModel,
         SimulatedOrderFillReceiptModel,
+        CorporateActionPostingModel,
+        SimulatedAccountOwnershipAnchorModel,
     )
     alias_connection = connections[creation_chain_alias]
     with alias_connection.schema_editor() as editor:
