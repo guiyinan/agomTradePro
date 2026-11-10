@@ -7833,7 +7833,7 @@
           "imports": 50
         },
         "simulated_trading": {
-          "imports": 31
+          "imports": 32
         },
         "strategy": {
           "imports": 1
@@ -10975,7 +10975,7 @@
           ]
         },
         "portfolio": {
-          "imports": 31,
+          "imports": 32,
           "target_layers": [
             "application",
             "domain",
@@ -11948,7 +11948,7 @@
         "infrastructure": 134,
         "interface": 34,
         "management": 7,
-        "root": 34
+        "root": 35
       },
       "orm_models": {
         "infrastructure/models.py": [

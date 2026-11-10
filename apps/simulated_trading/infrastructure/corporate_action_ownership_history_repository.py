@@ -244,6 +244,68 @@ class DjangoCorporateActionOwnershipHistoryRepository:
         self._exchange_timezone_policy_reader = exchange_timezone_policy_reader
         self._using = using
 
+    def read_verified_zero_origin_date(
+        self,
+        *,
+        account_id: int,
+        owner_user_id: int,
+        exchange: str,
+        as_of: datetime,
+    ) -> date:
+        """Return the sealed account origin in a qualified exchange-local calendar."""
+
+        cutoff = _require_aware_datetime(as_of, "as_of")
+        if (
+            type(account_id) is not int
+            or account_id <= 0
+            or type(owner_user_id) is not int
+            or owner_user_id <= 0
+            or type(exchange) is not str
+            or not exchange
+        ):
+            raise _ownership_block(
+                "CORPORATE_ACTION_OWNERSHIP_INPUT_INVALID",
+                "zero-origin query scope is invalid",
+            )
+
+        with transaction.atomic(using=self._using):
+            account = (
+                SimulatedAccountModel._base_manager.using(self._using)
+                .filter(
+                    pk=account_id,
+                    user_id=owner_user_id,
+                    account_type="simulated",
+                    created_at__lte=cutoff,
+                )
+                .first()
+            )
+            if account is None:
+                raise _ownership_block(
+                    "CORPORATE_ACTION_OWNERSHIP_SCOPE_INVALID",
+                    "simulated account is missing, future, or belongs to another owner",
+                )
+            anchor = (
+                SimulatedAccountOwnershipAnchorModel._base_manager.using(self._using)
+                .filter(account_id=account_id, created_at__lte=cutoff)
+                .first()
+            )
+            if anchor is None or not _anchor_matches_account(existing=anchor, account=account):
+                raise _ownership_block(
+                    "CORPORATE_ACTION_OWNERSHIP_ANCHOR_UNAVAILABLE",
+                    "simulated account lacks a cutoff-known immutable zero-origin anchor",
+                )
+            origin_at = _require_aware_datetime(account.created_at, "account.created_at")
+
+        policy = self._exchange_timezone_policy_reader.read_exchange_timezone_policy(
+            exchange=exchange, as_of=cutoff
+        )
+        if type(policy) is not QualifiedExchangeTimezone or policy.exchange != exchange:
+            raise _ownership_block(
+                "CORPORATE_ACTION_OWNERSHIP_POLICY_UNAVAILABLE",
+                "exchange timezone policy does not match the account origin scope",
+            )
+        return origin_at.astimezone(ZoneInfo(policy.timezone_name)).date()
+
     def read_record_date_ownership_proof(
         self,
         *,

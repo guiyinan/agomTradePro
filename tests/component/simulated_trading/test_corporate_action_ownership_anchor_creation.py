@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import pytest
 from django.contrib.auth import get_user_model
@@ -168,6 +169,44 @@ def test_default_account_gateway_creates_one_anchor_and_replays_duplicate_call(
         anchor_kind=SimulatedAccountOwnershipAnchorModel.ZERO_ORIGIN,
         quantity=Decimal("0.000000"),
     )
+
+
+def test_verified_zero_origin_date_requires_exact_owner_and_known_anchor(
+    isolated_ownership_ledger: AbstractBaseUser,
+) -> None:
+    """Official coverage windows may start only from a known sealed account origin."""
+
+    _provision_default_accounts(isolated_ownership_ledger, Decimal("12000.00"))
+    account = SimulatedAccountModel._default_manager.get(
+        user_id=isolated_ownership_ledger.pk, account_type="simulated"
+    )
+    anchor = SimulatedAccountOwnershipAnchorModel._default_manager.get(account=account)
+    repository = DjangoCorporateActionOwnershipHistoryRepository(
+        exchange_timezone_policy_reader=_FixedTimezonePolicyReader(exchange="SZSE")
+    )
+    known_at = anchor.created_at + timedelta(seconds=1)
+
+    assert (
+        repository.read_verified_zero_origin_date(
+            account_id=account.pk,
+            owner_user_id=isolated_ownership_ledger.pk,
+            exchange="SZSE",
+            as_of=known_at,
+        )
+        == account.created_at.astimezone(ZoneInfo("Asia/Shanghai")).date()
+    )
+
+    for owner_user_id, cutoff in (
+        (isolated_ownership_ledger.pk + 1, known_at),
+        (isolated_ownership_ledger.pk, anchor.created_at - timedelta(microseconds=1)),
+    ):
+        with pytest.raises(SimulatedTradeExecutionBlocked):
+            repository.read_verified_zero_origin_date(
+                account_id=account.pk,
+                owner_user_id=owner_user_id,
+                exchange="SZSE",
+                as_of=cutoff,
+            )
 
 
 def test_account_repository_user_creation_anchors_only_simulated_accounts(

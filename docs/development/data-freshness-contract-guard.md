@@ -311,7 +311,7 @@ Infrastructure 原子写入、Audit 完整性、路由和模拟消费者须分�
 
 ### ASH-05 逐证券公告 proof 的当前复核
 
-调仓计划封存的公告窗口只证明其原始 `recorded_at` 截止点。普通精确读取在较晚时刻仍返回 `UNKNOWN`，不得因读到最新 proof 就宣称当前完整。显式复核先在动作时刻定位同证券、同来源、同窗口的最新持久 proof，再按其 `recorded_at` 精确二读 `COMPLETE`，并读取动作时刻已入库的窗口内事件修订。计划绑定 lease 和当前 proof 的内部 lease 均按版本化政策在动作时刻检查，60 秒为半开上限；到期、缺失、身份不一致、UNKNOWN 或无法核实的更正均阻断。能确认的新事件或修订要求后继计划复核；正常的 proof 记录时钟更新且内容不变不构成事件变化。此内部容忍时效不代表交易所保证公告不变，历史窗口也不证明当前日期覆盖。合同沿用 `simulated_trading.trusted_rebalance_journey`。
+调仓计划封存的公告窗口只证明其原始 `recorded_at` 截止点。普通精确读取在较晚时刻仍返回 `UNKNOWN`，不得因读到最新 proof 就宣称当前完整。显式复核先在动作时刻定位同证券、同来源、同窗口的最新持久 proof，再按其 `recorded_at` 精确二读 `COMPLETE`，并读取动作时刻已入库的窗口内事件修订。计划绑定 lease 和当前 proof 的内部 lease 均按版本化政策在动作时刻检查，60 秒为半开上限；到期、缺失、身份不一致、UNKNOWN 或无法核实的更正均阻断。能确认的新事件或修订要求后继计划复核；正常的 proof 记录时钟更新且内容不变不构成事件变化。此内部容忍时效不代表交易所保证公告不变，历史窗口也不证明当前日期覆盖。Config Center 的可选 `simulated_disclosure_coverage_policy` 必须启用、完整且版本可核；`start_on` 不得晚于账户已核实零起点，实际窗口终点取交易所本地决策日（包括非交易日），策略缺失或证据矛盾时阻断。该策略读取器目前只完成隔离能力，尚未接入生产计划生成、复核与预留。合同沿用 `simulated_trading.trusted_rebalance_journey`。
 
 ### 评分消费者保留上下文阻断
 
