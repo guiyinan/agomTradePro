@@ -28,6 +28,7 @@ from apps.portfolio.application.transition_plan_lifecycle import (
     derive_transition_plan_review_artifact_identity,
     require_transition_plan_event_review_clear,
 )
+from apps.portfolio.domain.transition_plan_event_review import has_transition_plan_event_bindings
 from apps.portfolio.domain.transition_plan_integrity import (
     canonical_transition_plan_payload_v1,
     transition_plan_content_hash_v1,
@@ -61,12 +62,18 @@ _REVISION_FAMILIES = (PORTFOLIO_PLAN_REVISION_FAMILY, CANONICAL_TRANSITION_PLAN_
 class DjangoTransitionPlanRevisionRepository:
     """Persist and verify immutable revisions without adding another ledger or table."""
 
-    def __init__(self, *, using: str = "default") -> None:
+    def __init__(
+        self,
+        *,
+        using: str = "default",
+        event_review_validator: TransitionPlanEventReviewValidator | None = None,
+    ) -> None:
         """Bind this repository to one explicitly configured database alias."""
 
         if type(using) is not str or not using.strip():
             raise ValueError("using must be a non-empty database alias")
         self._using = using
+        self._event_review_validator = event_review_validator
 
     def now(self) -> datetime:
         """Return Django's actual aware persistence time."""
@@ -299,7 +306,19 @@ class DjangoTransitionPlanRevisionRepository:
                 return current
             if row.status not in {"DRAFT", "READY_FOR_APPROVAL"}:
                 raise TransitionPlanRevisionConflict("plan status cannot enter staff review")
-            if row.expires_at is None or row.expires_at <= requested_at:
+            decision_at = requested_at
+            if has_transition_plan_event_bindings(current.basis.source_bindings):
+                decision_at = self.now()
+                if decision_at < requested_at:
+                    raise TransitionPlanRevisionBlocked(
+                        "review persistence clock preceded its validated request"
+                    )
+                require_transition_plan_event_review_clear(
+                    current,
+                    as_of=decision_at,
+                    validator=self._event_review_validator,
+                )
+            if row.expires_at is None or row.expires_at <= decision_at:
                 raise BusinessLogicError(
                     message="expired plan revisions cannot enter staff review",
                     code="TRANSITION_PLAN_REVISION_EXPIRED",

@@ -7836,7 +7836,7 @@
           "imports": 50
         },
         "simulated_trading": {
-          "imports": 33
+          "imports": 34
         },
         "strategy": {
           "imports": 1
@@ -10985,7 +10985,7 @@
           ]
         },
         "portfolio": {
-          "imports": 33,
+          "imports": 34,
           "target_layers": [
             "application",
             "domain",

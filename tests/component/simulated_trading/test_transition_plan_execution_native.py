@@ -84,6 +84,9 @@ from apps.simulated_trading.infrastructure.order_reservation_codec import (
 from apps.simulated_trading.infrastructure.order_reservation_fill_repository import (
     DjangoSimulatedOrderFillRepository,
 )
+from apps.simulated_trading.infrastructure.order_reservation_repository import (
+    DjangoSimulatedOrderReservationRepository,
+)
 from apps.simulated_trading.infrastructure.rebalance_resource_snapshot_repository import (
     DjangoRebalanceResourceSnapshotRepository,
 )
@@ -774,6 +777,54 @@ def test_native_owner_plan_order_reserves_fills_cancels_and_reconciles_exact_pro
         SimulatedTradeModel.objects.filter(account_id=context.account.pk).count(),
     )
     assert ledger_after_progress == ledger_before_progress
+
+
+def test_native_hold_rolls_back_when_plan_expires_after_insert_before_commit(
+    public_order_context: tuple[_QualifiedCallerContext, list[str]],
+    monkeypatch: pytest.MonkeyPatch,
+    django_db_use_migrations: bool,
+) -> None:
+    """A lease expiry at the final locked check rolls back the inserted hold."""
+
+    if not django_db_use_migrations or connection.vendor != "postgresql":
+        pytest.skip("final hold lease check requires isolated migrated PostgreSQL")
+    assert_native_postgres_test_database()
+    context, _ = public_order_context
+    revision = _persist_revision(context)
+    order_service, preview_service = _plan_services(revision)
+    preview = preview_service.execute(
+        _preview_command(revision, context, attempt="post-insert-expiry")
+    )
+    before = SimulatedOrderReservationModel.objects.filter(account_id=context.account.pk).count()
+    original_create = DjangoSimulatedOrderReservationRepository._create_model
+
+    def create_then_expire(
+        repository: DjangoSimulatedOrderReservationRepository, **kwargs: object
+    ) -> object:
+        row = original_create(repository, **kwargs)
+        monkeypatch.setattr(
+            type(repository._execution),
+            "_now",
+            lambda execution, clock: revision.identity.valid_until,
+        )
+        return row
+
+    monkeypatch.setattr(
+        DjangoSimulatedOrderReservationRepository, "_create_model", create_then_expire
+    )
+    with pytest.raises(TransitionPlanRevisionBlocked):
+        order_service.confirm(
+            account_id=context.account.pk,
+            user_id=context.owner_id,
+            token=preview.preview.token,
+            confirmed=True,
+            expected_key=preview.preview.result.reservation.identity.idempotency_key,
+            market_purpose="local_simulation_only",
+        )
+    assert (
+        SimulatedOrderReservationModel.objects.filter(account_id=context.account.pk).count()
+        == before
+    )
 
 
 def test_native_plan_context_rejects_foreign_account_expiry_and_policy_drift_without_write(

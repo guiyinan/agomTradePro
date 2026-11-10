@@ -10,6 +10,7 @@ from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from types import SimpleNamespace
 from typing import cast
+from unittest.mock import Mock
 
 import pytest
 
@@ -67,6 +68,11 @@ from apps.portfolio.infrastructure.transition_plan_revision_repository import (
     DjangoTransitionPlanLockedActionGuard,
     DjangoTransitionPlanRevisionRepository,
 )
+from apps.simulated_trading.application.rebalance_journey_public import RebalanceJourneyCommand
+from apps.simulated_trading.application.rebalance_journey_service import (
+    RebalanceJourneyApplication,
+)
+from core.exceptions import BusinessLogicError
 from core.integration.transition_plan_contracts import (
     CANONICAL_TRANSITION_PLAN_FAMILY,
     PORTFOLIO_PLAN_REVISION_FAMILY,
@@ -1572,6 +1578,96 @@ def test_event_change_is_rejected_before_owner_review_status_write() -> None:
         repository.revisions[(revision.identity.plan_id, revision.identity.version)].plan.status
         == "DRAFT"
     )
+
+
+def test_event_review_rechecks_lease_after_waiting_for_persistence_lock(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A lease that expires while the repository waits cannot enter review."""
+
+    snapshot = _event_snapshot(as_of=_NOW)
+    revision = _revision(additional_source_bindings=_event_coverage_bindings(snapshot))
+    row = Mock(
+        status="DRAFT",
+        expires_at=revision.identity.valid_until,
+        approval_request_id=None,
+    )
+    manager = Mock()
+    manager.select_for_update.return_value.get.return_value = row
+    validator = Mock()
+    validator.assess.return_value = TransitionPlanEventReviewAssessment(
+        state=TransitionPlanEventReviewState.UNCHANGED,
+        reason_code="EVENTS_UNCHANGED",
+    )
+    repository = DjangoTransitionPlanRevisionRepository(event_review_validator=validator)
+    monkeypatch.setattr(repository, "_manager", lambda: manager)
+    monkeypatch.setattr(repository, "_locked_account_revisions", lambda account_id: (revision,))
+    monkeypatch.setattr(repository, "now", lambda: revision.identity.valid_until)
+    monkeypatch.setattr(
+        "apps.portfolio.infrastructure.transition_plan_revision_repository.transaction.atomic",
+        lambda using: nullcontext(),
+    )
+
+    with pytest.raises(BusinessLogicError) as error:
+        repository.submit_for_review(
+            revision=revision,
+            owner_user_id=revision.identity.owner_user_id,
+            review_subject_id="review-1",
+            requested_at=_NOW + timedelta(seconds=30),
+        )
+
+    assert error.value.code == "TRANSITION_PLAN_REVISION_EXPIRED"
+    validator.assess.assert_called_once_with(
+        revision,
+        as_of=revision.identity.valid_until,
+    )
+    row.save.assert_not_called()
+
+
+def test_owner_journey_review_uses_current_event_validator() -> None:
+    """The registered journey path blocks review when an event arrives after pinning."""
+
+    current_at = _NOW + timedelta(seconds=30)
+    baseline = _event_snapshot(as_of=_NOW)
+    revision = _revision(additional_source_bindings=_event_coverage_bindings(baseline))
+    changed = _event_snapshot(
+        as_of=current_at,
+        events=(
+            _event_revision(
+                source_event_id="new-event",
+                available_at=_NOW + timedelta(seconds=10),
+                known_at=_NOW + timedelta(seconds=10),
+            ),
+        ),
+    )
+    repository = _LifecycleRepository()
+    repository._store(revision, revision.plan.idempotency_key)
+    journey = RebalanceJourneyApplication(
+        repository=repository,
+        authorizer=_LifecycleAuthorizer(),
+        clock=_LifecycleClock(current_at),
+        preparation_factory=Mock(),
+        progress_reader=Mock(),
+        order_previewer=Mock(),
+        event_review_validator=AssessTransitionPlanEventReview(
+            reader=_EventSnapshotReader((baseline, changed)),
+            lease_policy=_event_lease_policy(),
+        ),
+    )
+
+    with pytest.raises(TransitionPlanEventReviewRequired):
+        journey.execute(
+            RebalanceJourneyCommand(
+                action="review",
+                user_id=23,
+                account_id=17,
+                plan_id=revision.identity.plan_id,
+                plan_version=revision.identity.version,
+                revision_hash=revision.identity.revision_hash,
+                request_key="review-event-drift",
+            )
+        )
+    assert repository.review_calls == 0
 
 
 def test_unrelated_owner_review_still_works_without_event_reader() -> None:

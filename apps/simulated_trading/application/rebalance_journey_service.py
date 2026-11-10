@@ -5,6 +5,9 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Literal, Protocol
 
+from apps.portfolio.application.transition_plan_event_review import (
+    TransitionPlanEventReviewValidator,
+)
 from apps.portfolio.application.transition_plan_lifecycle import (
     CreateInitialTransitionPlanRevisionUseCase,
     CreateTransitionPlanSuccessorCommand,
@@ -79,6 +82,7 @@ class RebalanceJourneyApplication:
         preparation_factory: JourneyPreparationFactory,
         progress_reader: JourneyPlanProgressReader,
         order_previewer: JourneyPlanOrderPreviewer,
+        event_review_validator: TransitionPlanEventReviewValidator | None = None,
     ) -> None:
         """Inject persistence, account grants and the existing financial operation ports."""
 
@@ -88,6 +92,7 @@ class RebalanceJourneyApplication:
         self._preparation_factory = preparation_factory
         self._progress_reader = progress_reader
         self._order_previewer = order_previewer
+        self._event_review_validator = event_review_validator
 
     def execute(self, command: RebalanceJourneyCommand) -> dict[str, object]:
         """Recheck the exact caller scope for every read and explicitly requested action."""
@@ -123,7 +128,10 @@ class RebalanceJourneyApplication:
         revision = self._read(command)
         if command.action == "review":
             submission = RequestTransitionPlanRevisionReviewUseCase(
-                repository=self._repository, authorizer=self._authorizer, clock=self._clock
+                repository=self._repository,
+                authorizer=self._authorizer,
+                clock=self._clock,
+                event_review_validator=self._event_review_validator,
             ).execute(
                 RequestTransitionPlanRevisionReview(
                     command.user_id,
