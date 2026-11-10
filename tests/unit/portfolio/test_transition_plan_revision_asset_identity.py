@@ -8,6 +8,7 @@ from contextlib import AbstractContextManager, contextmanager, nullcontext
 from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
+from pathlib import Path
 from types import SimpleNamespace
 from typing import cast
 from unittest.mock import Mock
@@ -68,9 +69,25 @@ from apps.portfolio.infrastructure.transition_plan_revision_repository import (
     DjangoTransitionPlanLockedActionGuard,
     DjangoTransitionPlanRevisionRepository,
 )
+from apps.simulated_trading.application.rebalance_journey_event_request_scope import (
+    RebalanceJourneyEventRequestScope,
+)
 from apps.simulated_trading.application.rebalance_journey_public import RebalanceJourneyCommand
 from apps.simulated_trading.application.rebalance_journey_service import (
     RebalanceJourneyApplication,
+)
+from apps.simulated_trading.infrastructure.corporate_action_ownership_history_repository import (
+    QualifiedExchangeTimezone,
+    VerifiedSimulatedAccountOriginCalendar,
+)
+from apps.simulated_trading.transition_plan_disclosure_runtime_policy import (
+    TransitionPlanDisclosureRuntimePolicy,
+)
+from apps.simulated_trading.transition_plan_event_review_composition import (
+    ConfiguredTransitionPlanEventReviewValidator,
+)
+from apps.simulated_trading.transition_plan_official_disclosure_source import (
+    transition_plan_disclosure_fingerprint,
 )
 from core.exceptions import BusinessLogicError
 from core.integration.transition_plan_contracts import (
@@ -1624,6 +1641,33 @@ def test_event_review_rechecks_lease_after_waiting_for_persistence_lock(
     row.save.assert_not_called()
 
 
+def test_event_bound_plan_cannot_insert_after_lease_expires(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A slow account lock cannot persist a plan past its event lease boundary."""
+
+    revision = _revision(
+        additional_source_bindings=_event_coverage_bindings(_event_snapshot(as_of=_NOW))
+    )
+    manager = Mock()
+    repository = DjangoTransitionPlanRevisionRepository()
+    monkeypatch.setattr(repository, "_find_insert_winner", lambda revision, key: None)
+    monkeypatch.setattr(repository, "_verify_required_decision_snapshot", lambda revision: None)
+    monkeypatch.setattr(repository, "_manager", lambda: manager)
+    monkeypatch.setattr(repository, "now", lambda: revision.identity.valid_until)
+    monkeypatch.setattr(
+        "apps.portfolio.infrastructure.transition_plan_revision_repository.transaction.atomic",
+        lambda using: nullcontext(),
+    )
+
+    with pytest.raises(TransitionPlanRevisionBlocked, match="proof expired"):
+        repository.append_initial(
+            revision,
+            idempotency_key=revision.plan.idempotency_key,
+        )
+    manager.create.assert_not_called()
+
+
 def test_owner_journey_review_uses_current_event_validator() -> None:
     """The registered journey path blocks review when an event arrives after pinning."""
 
@@ -1668,6 +1712,78 @@ def test_owner_journey_review_uses_current_event_validator() -> None:
             )
         )
     assert repository.review_calls == 0
+
+
+def test_configured_event_review_blocks_changed_profile_before_latest_proof_read() -> None:
+    """A changed active snapshot invalidates the pin even when old proof still exists."""
+
+    review_at = _NOW + timedelta(seconds=30)
+    calendar = VerifiedSimulatedAccountOriginCalendar(
+        origin_on=date(2026, 10, 1),
+        decision_on=date(2026, 11, 5),
+        timezone_policy=QualifiedExchangeTimezone(
+            exchange="SZSE",
+            timezone_name="Asia/Shanghai",
+            policy_id="szse-timezone-v1",
+            policy_sha256=_HASH_A,
+        ),
+        as_of=review_at,
+    )
+    policy = TransitionPlanDisclosureRuntimePolicy(
+        source_id="szse_official",
+        start_on=calendar.origin_on,
+        end_on=calendar.decision_on,
+        body_store_root=Path("/official-disclosure"),
+        lease_policy=_event_lease_policy(),
+        policy_version="event-pin-r1",
+        runtime_environment="development",
+        profile_id="profile-1",
+        profile_key="market-1",
+        profile_version=1,
+        profile_content_hash=_HASH_A,
+        snapshot_id="snapshot-1",
+        snapshot_content_hash=_HASH_B,
+        known_at=_NOW - timedelta(hours=1),
+        effective_at=_NOW - timedelta(hours=1),
+        read_at=review_at,
+        policy_content_hash=_HASH_C,
+    )
+    request_scope = RebalanceJourneyEventRequestScope(23, 17, 23)
+    fingerprint = transition_plan_disclosure_fingerprint(
+        request_scope=request_scope,
+        calendar=calendar,
+        policy=policy,
+    )
+    baseline = _event_snapshot(
+        as_of=_NOW,
+        asset_code="002727.SZ",
+        security_id="SZ.TEST.002727",
+        source_id="szse_official",
+    )
+    marker = replace(_event_coverage_pin(baseline), coverage_policy_version=fingerprint)
+    revision = _revision(additional_source_bindings=(marker,))
+    origin_reader = Mock()
+    origin_reader.read_verified_zero_origin_calendar.return_value = calendar
+    policy_reader = Mock()
+    policy_reader.read_policy.return_value = policy
+    snapshot_reader = _ActionTimeEventSnapshotReader(
+        snapshots_by_request_time={_NOW: baseline, review_at: baseline}
+    )
+    validator = ConfiguredTransitionPlanEventReviewValidator(
+        origin_reader=origin_reader,
+        policy_reader=policy_reader,
+        snapshot_reader=snapshot_reader,
+        runtime_environment="development",
+    )
+
+    clear = validator.assess(revision, as_of=review_at)
+    assert clear.state is TransitionPlanEventReviewState.UNCHANGED
+    reads_before_change = len(snapshot_reader.requests)
+    policy_reader.read_policy.return_value = replace(policy, snapshot_id="snapshot-2")
+    changed = validator.assess(revision, as_of=review_at)
+    assert changed.state is TransitionPlanEventReviewState.BLOCKED
+    assert changed.reason_code == "EVENT_CURRENT_POLICY_CHANGED"
+    assert len(snapshot_reader.requests) == reads_before_change
 
 
 def test_unrelated_owner_review_still_works_without_event_reader() -> None:

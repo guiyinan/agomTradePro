@@ -12,6 +12,9 @@ from apps.portfolio.domain.transition_plan_event_review import (
     TransitionPlanEventCoverageLeasePolicy,
 )
 from apps.risk_center.application.portfolio_risk_assets import PortfolioRiskAssetIdentity
+from apps.simulated_trading.application.rebalance_journey_event_refresh import (
+    RebalanceJourneyOfficialEventRefreshReceipt,
+)
 from apps.simulated_trading.application.rebalance_journey_event_request_scope import (
     RebalanceJourneyEventRequestScope,
 )
@@ -37,6 +40,14 @@ IDENTITIES = (
 
 @dataclass(slots=True)
 class _OriginReader:
+    timezone_policy: QualifiedExchangeTimezone = field(
+        default_factory=lambda: QualifiedExchangeTimezone(
+            exchange="SZSE",
+            timezone_name="Asia/Shanghai",
+            policy_id="test-zone-v1",
+            policy_sha256="a" * 64,
+        )
+    )
     calls: list[tuple[int, int, str, datetime]] = field(default_factory=list)
 
     def read_verified_zero_origin_calendar(
@@ -46,12 +57,7 @@ class _OriginReader:
         return VerifiedSimulatedAccountOriginCalendar(
             origin_on=date(2026, 10, 1),
             decision_on=date(2026, 11, 11),
-            timezone_policy=QualifiedExchangeTimezone(
-                exchange="SZSE",
-                timezone_name="Asia/Shanghai",
-                policy_id="test-zone-v1",
-                policy_sha256="a" * 64,
-            ),
+            timezone_policy=self.timezone_policy,
             as_of=as_of,
         )
 
@@ -128,10 +134,17 @@ def test_official_capture_uses_verified_account_window_and_exact_identities() ->
         audit_environment="development",
     )
 
-    assert (
-        refresher.refresh(asset_identities=IDENTITIES, request_scope=SCOPE, as_of=AS_OF)
-        == IDENTITIES
+    receipt = refresher.refresh(asset_identities=IDENTITIES, request_scope=SCOPE, as_of=AS_OF)
+    assert type(receipt) is RebalanceJourneyOfficialEventRefreshReceipt
+    assert receipt.request_scope == SCOPE
+    assert receipt.asset_pairs == tuple(
+        (identity.asset_code, identity.security_id or "") for identity in IDENTITIES
     )
+    assert receipt.source_id == "szse_official"
+    assert receipt.start_on == date(2026, 10, 1)
+    assert receipt.end_on == date(2026, 11, 11)
+    assert receipt.lease_policy.policy_version == receipt.policy_fingerprint
+    assert not hasattr(receipt, "proof_recorded_at")
     assert origin.calls == [(12, 9, "SZSE", AS_OF)]
     assert policy.calls == [(date(2026, 11, 11), date(2026, 10, 1), AS_OF)]
     assert capture.calls == [
@@ -145,6 +158,41 @@ def test_official_capture_uses_verified_account_window_and_exact_identities() ->
         )
         for identity in IDENTITIES
     ]
+
+
+def test_refresh_receipt_fingerprint_binds_config_and_timezone_provenance() -> None:
+    original_policy = _policy()
+    original = OfficialSzseDistributionRefresher(
+        origin_reader=_OriginReader(),
+        policy_reader=_PolicyReader(original_policy),
+        capture=_Capture(),
+        using="default",
+        audit_environment="development",
+    ).refresh(asset_identities=IDENTITIES, request_scope=SCOPE, as_of=AS_OF)
+    changed_config = OfficialSzseDistributionRefresher(
+        origin_reader=_OriginReader(),
+        policy_reader=_PolicyReader(replace(original_policy, snapshot_id="snapshot-2")),
+        capture=_Capture(),
+        using="default",
+        audit_environment="development",
+    ).refresh(asset_identities=IDENTITIES, request_scope=SCOPE, as_of=AS_OF)
+    changed_timezone = OfficialSzseDistributionRefresher(
+        origin_reader=_OriginReader(
+            timezone_policy=QualifiedExchangeTimezone(
+                exchange="SZSE",
+                timezone_name="Asia/Shanghai",
+                policy_id="test-zone-v2",
+                policy_sha256="e" * 64,
+            )
+        ),
+        policy_reader=_PolicyReader(original_policy),
+        capture=_Capture(),
+        using="default",
+        audit_environment="development",
+    ).refresh(asset_identities=IDENTITIES, request_scope=SCOPE, as_of=AS_OF)
+
+    assert original.policy_fingerprint != changed_config.policy_fingerprint
+    assert original.policy_fingerprint != changed_timezone.policy_fingerprint
 
 
 @pytest.mark.parametrize(

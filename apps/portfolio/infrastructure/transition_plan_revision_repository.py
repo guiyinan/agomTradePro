@@ -188,6 +188,7 @@ class DjangoTransitionPlanRevisionRepository:
                 if existing is not None:
                     return existing
                 self._verify_required_decision_snapshot(revision)
+                self._require_event_lease_before_insert(revision)
                 self._manager().create(**self._model_values(revision, idempotency_key))
                 return revision
         except IntegrityError:
@@ -242,6 +243,7 @@ class DjangoTransitionPlanRevisionRepository:
                         "the exact parent already has a child revision"
                     )
                 self._verify_required_decision_snapshot(revision)
+                self._require_event_lease_before_insert(revision)
                 self._manager().create(**self._model_values(revision, idempotency_key))
                 return revision
         except IntegrityError:
@@ -330,6 +332,22 @@ class DjangoTransitionPlanRevisionRepository:
             if refreshed is None:
                 raise TransitionPlanRevisionCorruption("review update lost its revision payload")
             return refreshed
+
+    def _require_event_lease_before_insert(self, revision: TransitionPlanRevision) -> None:
+        """Reject an event-bound plan whose proof changes or expires before its insert."""
+
+        if not has_transition_plan_event_bindings(revision.basis.source_bindings):
+            return
+        write_at = self.now()
+        if write_at < revision.identity.recorded_at or write_at >= revision.identity.valid_until:
+            raise TransitionPlanRevisionBlocked(
+                "event-bound plan proof expired before revision persistence"
+            )
+        require_transition_plan_event_review_clear(
+            revision,
+            as_of=write_at,
+            validator=self._event_review_validator,
+        )
 
     def _find_insert_winner(
         self, revision: TransitionPlanRevision, idempotency_key: str

@@ -3107,3 +3107,5 @@ registry v364 登记一个隔离的请求上下文准备：Luna max 只扩展 Ap
 registry v365 登记唯一隔离准备：将 Config Center profile/snapshot、策略内容及交易所时区证据构成确定性指纹，随非 proof 的刷新回执传至最终计划时钟，并写入既有 coverage policy version pin；持久 coverage 和逐篇事件仍必须从 Data Center latest→exact 只读路径核对，不得用刷新回执冒充 COMPLETE。策略、窗口或本地日期在长抓取期间变化，以及多资产任一 proof 超过 60 秒半开租期，均阻断。Root 独占正式生成/review/locked 组合、事务末端 lease 重检、账户/税费、Audit 恢复、收益与 §9 金样本。ASH-05 保持 active，生产执行和 deferred ASH-06/09/12 不开放。
 
 Root 的事务末端小块把事件复核 validator 经 `RebalanceJourneyApplication` 注入现有 Portfolio 用例；真实复核 repository 在取得行锁后重新读当前时钟、重验事件和计划有效期，预留 repository 在插入 hold 后、事务提交前再次运行锁内计划绑定检查，失败回滚整笔 hold。事件变化和锁等待后到期反例所在单测文件 **40 passed**；Black/isort/Ruff、三文件增量 mypy 零回归、全库债务、架构规则、current-data、无环及重建模块图通过。原生 PostgreSQL 预留回滚反例在本机因没有 PostgreSQL 而 **1 skipped**（准备耗时 273 秒）；未取得真实数据库通过证据前不得把事务回滚门记为完成。
+
+`2660d4c0b` 的 Security、Architecture、Engineering 精确 CI 成功；Consistency Check 发现 Data Center 架构生成投影过期而失败，原件保留并由下一候选重生成后复检。Fast Feedback 与 Publication PostgreSQL 在检查时仍运行，不能借其结果验收新候选。下一候选继续把同一写入末端门加到初始/继任计划：只有显式事件 pin 的计划才在持久插入前复查当前 lease 与事件状态，旧 M1 不受可选事件能力牵连。过期写入单测及相关单测文件 **41 passed**；本机 PostgreSQL 缺口仍需独立真实执行证据。

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import datetime
 
 from apps.portfolio.application.transition_plan_lifecycle import (
@@ -11,6 +12,9 @@ from apps.portfolio.application.transition_plan_lifecycle import (
 from apps.simulated_trading.application.execution_settlement_uow import (
     SimulatedTradeExecutionBlocked,
     SimulatedTradeIdempotencyConflict,
+)
+from apps.simulated_trading.application.transition_plan_execution import (
+    TransitionPlanLockedActionGuard,
 )
 from apps.simulated_trading.domain.execution_settlement_uow import SimulatedTradeIntent
 from apps.simulated_trading.infrastructure.models import SimulatedOrderReservationModel
@@ -152,6 +156,46 @@ def validate_locked_transition_plan_binding(
             "locked plan, owner or order binding changed",
             code="TRANSITION_PLAN_ORDER_BINDING_MISMATCH",
         ) from error
+
+
+def require_final_transition_plan_lease(
+    *,
+    binding: TransitionPlanOrderExecutionBinding | None,
+    guard: TransitionPlanLockedActionGuard | None,
+    recorded_at: datetime | None,
+    intent: SimulatedTradeIntent,
+    initial_now: datetime,
+    read_clock: Callable[[], datetime],
+) -> None:
+    """Recheck the plan lease after inserting a hold, before its transaction commits."""
+
+    if binding is None:
+        return
+    if guard is None or recorded_at is None:
+        raise SimulatedTradeExecutionBlocked(
+            "plan execution guard disappeared before hold persistence",
+            code="TRANSITION_PLAN_GUARD_UNAVAILABLE",
+        )
+    final_now = read_clock()
+    if final_now < initial_now:
+        raise SimulatedTradeExecutionBlocked(
+            "reservation clock moved backwards before hold persistence",
+            code="ORDER_RESERVATION_PLAN_STALE",
+        )
+    final_revision = guard.validate_locked_action(
+        binding=binding,
+        account_id=intent.account_id,
+        owner_user_id=intent.user_id,
+        as_of=final_now,
+    )
+    validate_locked_transition_plan_binding(
+        revision=final_revision,
+        binding=binding,
+        intent=intent,
+        owner_user_id=intent.user_id,
+        as_of=final_now,
+        recorded_at=recorded_at,
+    )
 
 
 def require_no_conflicting_plan_reservation_history(

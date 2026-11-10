@@ -53,9 +53,11 @@ from apps.simulated_trading.application.rebalance_journey_current_pins import (
 from apps.simulated_trading.application.rebalance_journey_event_coverage import (
     PinRebalanceJourneyEventCoverage,
     RebalanceJourneyEventCoverageScope,
+    RebalanceJourneyEventCoverageScopeSelection,
 )
 from apps.simulated_trading.application.rebalance_journey_event_refresh import (
     RebalanceJourneyOfficialEventRefresher,
+    RebalanceJourneyOfficialEventRefreshReceipt,
 )
 from apps.simulated_trading.application.rebalance_journey_event_request_scope import (
     RebalanceJourneyEventRequestScope,
@@ -228,19 +230,24 @@ class _RefreshingEventScopes:
         self.lease_ttl = lease_ttl
         self.plan_clocks: list[datetime] = []
         self.request_scopes: list[object] = []
+        self.refresh_receipts: list[RebalanceJourneyOfficialEventRefreshReceipt | None] = []
         self.scopes: dict[tuple[str, str], RebalanceJourneyEventCoverageScope] = {}
 
     def read_scopes(
         self,
         *,
         asset_identities: tuple[tuple[str, str], ...],
-        request_scope: object,
+        request_scope: RebalanceJourneyEventRequestScope,
         as_of: datetime,
-    ) -> tuple[RebalanceJourneyEventCoverageScope, ...]:
+        refresh_receipt: RebalanceJourneyOfficialEventRefreshReceipt | None = None,
+    ) -> (
+        tuple[RebalanceJourneyEventCoverageScope, ...] | RebalanceJourneyEventCoverageScopeSelection
+    ):
         """Return only the exact refreshed identity at the final decision cutoff."""
 
         self.request_scopes.append(request_scope)
         self.plan_clocks.append(as_of)
+        self.refresh_receipts.append(refresh_receipt)
         proof_at = self.refresher.proof_recorded_at
         if proof_at is None:
             raise AssertionError("the fake official capture did not record durable proof")
@@ -251,19 +258,28 @@ class _RefreshingEventScopes:
             scope = RebalanceJourneyEventCoverageScope(
                 asset_code=asset_code,
                 security_id=security_id,
-                source_id="official-exchange-disclosure",
+                source_id="szse_official",
                 start_on=date(2026, 10, 1),
                 end_on=date(2026, 11, 3),
                 first_observed_at=_AS_OF - timedelta(minutes=3),
                 source_observed_at=_AS_OF - timedelta(seconds=40),
                 proof_recorded_at=proof_at,
-                lease_policy_version="event-refresh-test-r1",
+                lease_policy_version=(
+                    "f" * 64 if refresh_receipt is None else refresh_receipt.policy_fingerprint
+                ),
                 lease_issued_at=proof_at,
                 lease_ttl_microseconds=int(self.lease_ttl.total_seconds() * 1_000_000),
                 lease_expires_at=proof_at + self.lease_ttl,
             )
             self.scopes[(asset_code, security_id)] = scope
-        return tuple(self.scopes.values())
+        selected_scopes = tuple(self.scopes.values())
+        if refresh_receipt is None:
+            return selected_scopes
+        return RebalanceJourneyEventCoverageScopeSelection(
+            scopes=selected_scopes,
+            policy_fingerprint=refresh_receipt.policy_fingerprint,
+            lease_policy=refresh_receipt.lease_policy,
+        )
 
 
 class _RefreshingEventSnapshots:
@@ -310,6 +326,7 @@ class _AdvancingOfficialEventRefresher:
         self.reads = reads
         self.refresh_context = refresh_context
         self.proof_recorded_at: datetime | None = None
+        self.lease_ttl = timedelta(seconds=60)
         self.calls: list[tuple[PortfolioRiskAssetIdentity, ...]] = []
         self.request_scopes: list[object] = []
         self.refresh_clocks: list[datetime] = []
@@ -318,10 +335,10 @@ class _AdvancingOfficialEventRefresher:
         self,
         *,
         asset_identities: tuple[PortfolioRiskAssetIdentity, ...],
-        request_scope: object,
+        request_scope: RebalanceJourneyEventRequestScope,
         as_of: datetime,
-    ) -> tuple[PortfolioRiskAssetIdentity, ...]:
-        """Return the exact refreshed pairs after a multi-minute fake capture."""
+    ) -> RebalanceJourneyOfficialEventRefreshReceipt:
+        """Return a typed policy receipt after a multi-minute fake capture."""
 
         self.calls.append(asset_identities)
         self.request_scopes.append(request_scope)
@@ -331,7 +348,22 @@ class _AdvancingOfficialEventRefresher:
         self.clock.advance(timedelta(seconds=2))
         if self.refresh_context:
             self.reads.refresh_context_after_capture(self.clock.current)
-        return asset_identities
+        pairs = tuple(
+            (identity.asset_code, identity.security_id or "") for identity in asset_identities
+        )
+        return RebalanceJourneyOfficialEventRefreshReceipt(
+            request_scope=request_scope,
+            asset_pairs=pairs,
+            source_id="szse_official",
+            start_on=date(2026, 10, 1),
+            end_on=date(2026, 11, 3),
+            policy_fingerprint="f" * 64,
+            lease_policy=TransitionPlanEventCoverageLeasePolicy(
+                policy_version="f" * 64,
+                ttl=self.lease_ttl,
+                maximum_ttl=timedelta(seconds=60),
+            ),
+        )
 
 
 class _IdentityChangingEventRefresher(_AdvancingOfficialEventRefresher):
@@ -341,9 +373,9 @@ class _IdentityChangingEventRefresher(_AdvancingOfficialEventRefresher):
         self,
         *,
         asset_identities: tuple[PortfolioRiskAssetIdentity, ...],
-        request_scope: object,
+        request_scope: RebalanceJourneyEventRequestScope,
         as_of: datetime,
-    ) -> tuple[PortfolioRiskAssetIdentity, ...]:
+    ) -> RebalanceJourneyOfficialEventRefreshReceipt:
         """Return the captured initial pair while the final risk read changes it."""
 
         refreshed = super().refresh(
@@ -370,9 +402,9 @@ class _RefreshError:
         self,
         *,
         asset_identities: tuple[PortfolioRiskAssetIdentity, ...],
-        request_scope: object,
+        request_scope: RebalanceJourneyEventRequestScope,
         as_of: datetime,
-    ) -> tuple[PortfolioRiskAssetIdentity, ...]:
+    ) -> RebalanceJourneyOfficialEventRefreshReceipt:
         """Raise the transport error that the preparation provider must block."""
 
         del asset_identities
@@ -382,21 +414,32 @@ class _RefreshError:
 
 
 class _IncompleteRefresh:
-    """Return an empty successful result to verify exact refresh completeness."""
+    """Return a receipt for the wrong identity to verify exact refresh completeness."""
 
     def refresh(
         self,
         *,
         asset_identities: tuple[PortfolioRiskAssetIdentity, ...],
-        request_scope: object,
+        request_scope: RebalanceJourneyEventRequestScope,
         as_of: datetime,
-    ) -> tuple[PortfolioRiskAssetIdentity, ...]:
-        """Claim no assets were captured even though the request was nonempty."""
+    ) -> RebalanceJourneyOfficialEventRefreshReceipt:
+        """Claim a different pair even though the request was nonempty."""
 
         del asset_identities
-        del request_scope
         del as_of
-        return ()
+        return RebalanceJourneyOfficialEventRefreshReceipt(
+            request_scope=request_scope,
+            asset_pairs=(("000001.SZ", "SZSE:000001"),),
+            source_id="szse_official",
+            start_on=date(2026, 10, 1),
+            end_on=date(2026, 11, 3),
+            policy_fingerprint="f" * 64,
+            lease_policy=TransitionPlanEventCoverageLeasePolicy(
+                policy_version="f" * 64,
+                ttl=timedelta(seconds=60),
+                maximum_ttl=timedelta(seconds=60),
+            ),
+        )
 
 
 def _refreshing_event_pinner(
@@ -407,6 +450,7 @@ def _refreshing_event_pinner(
 ) -> tuple[PinRebalanceJourneyEventCoverage, _RefreshingEventScopes]:
     """Build a real pinner over one dynamic proof scope and its exact durable read."""
 
+    refresher.lease_ttl = lease_ttl
     scopes = _RefreshingEventScopes(
         refresher,
         proof_after_final_clock=proof_after_final_clock,
@@ -417,7 +461,7 @@ def _refreshing_event_pinner(
             scope_reader=scopes,
             snapshot_reader=_RefreshingEventSnapshots(scopes),
             lease_policy=TransitionPlanEventCoverageLeasePolicy(
-                policy_version="event-refresh-test-r1",
+                policy_version="f" * 64,
                 ttl=lease_ttl,
                 maximum_ttl=timedelta(seconds=60),
             ),
@@ -1189,6 +1233,12 @@ def test_official_refresh_finishes_before_final_plan_clock_and_durable_pinning(
     )
     assert [_request_scope_values(item) for item in refresher.request_scopes] == [expected_scope]
     assert [_request_scope_values(item) for item in scopes.request_scopes] == [expected_scope]
+    assert len(scopes.refresh_receipts) == 1
+    refresh_receipt = scopes.refresh_receipts[0]
+    assert type(refresh_receipt) is RebalanceJourneyOfficialEventRefreshReceipt
+    assert refresh_receipt.asset_pairs == ((_ASSET_CODE, _SECURITY_ID),)
+    assert refresh_receipt.lease_policy.policy_version == refresh_receipt.policy_fingerprint
+    assert not hasattr(refresh_receipt, "proof_recorded_at")
     assert refresher.refresh_clocks == [_PREPARED_AT]
     assert reads.preview_reads == 2
     assert reads.risk_reads == 2

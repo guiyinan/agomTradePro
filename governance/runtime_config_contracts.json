@@ -640,14 +640,18 @@
       "migration_status": "canonical_only_fail_closed",
       "materialization_required": false,
       "consumers": [
-        "apps/config_center/application/runtime_public.py::get_active_runtime_value"
+        "apps/config_center/application/runtime_public.py::get_active_runtime_value",
+        "apps/simulated_trading/transition_plan_disclosure_runtime_policy.py::ConfiguredTransitionPlanDisclosureRuntimePolicyReader",
+        "apps/simulated_trading/transition_plan_journey_composition.py::_official_event_gate_enabled"
       ],
       "definition_source": "apps/config_center/application/runtime_definition_reconcile.py::DEFAULT_RUNTIME_DEFINITIONS",
       "bootstrap_command": "python manage.py initialize_runtime_definitions",
       "tests": [
-        "tests/unit/config_center/test_runtime_definition_reconcile.py::test_disclosure_coverage_policy_is_optional_and_unseeded"
+        "tests/unit/config_center/test_runtime_definition_reconcile.py::test_disclosure_coverage_policy_is_optional_and_unseeded",
+        "tests/unit/simulated_trading/test_transition_plan_disclosure_runtime_policy.py::test_reader_returns_explicit_policy_and_exact_runtime_provenance",
+        "tests/unit/simulated_trading/test_transition_plan_journey_composition.py::test_official_event_gate_requires_explicit_active_toggle"
       ],
-      "notes": "Optional NORMAL metadata only; no default, seed, activation or broad production capture. The future feature consumer must narrow exact asset/security/source/window scope and a versioned lease from the active profile/snapshot evidence, cap TTL at the Owner-approved 60 seconds, and block missing, changed or stale proof. This setting does not guarantee exchange freshness or authorize trading."
+      "notes": "Optional NORMAL metadata with no default, seed or activation. Explicit enabled policy selects request-scoped official capture; the active profile/snapshot, account origin, exchange-local decision date, exact asset/source/window and versioned lease are rechecked before pinning. Lease is capped at the Owner-approved 60 seconds; missing, changed or stale proof blocks the opted-in plan. This setting does not guarantee exchange freshness or authorize trading."
     },
     {
       "config_key": "task_monitor.retention_days",

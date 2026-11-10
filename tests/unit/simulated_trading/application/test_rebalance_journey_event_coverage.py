@@ -23,6 +23,10 @@ from apps.portfolio.domain.transition_plan_revision import TransitionPlanRevisio
 from apps.simulated_trading.application.rebalance_journey_event_coverage import (
     PinRebalanceJourneyEventCoverage,
     RebalanceJourneyEventCoverageScope,
+    RebalanceJourneyEventCoverageScopeSelection,
+)
+from apps.simulated_trading.application.rebalance_journey_event_refresh import (
+    RebalanceJourneyOfficialEventRefreshReceipt,
 )
 from apps.simulated_trading.application.rebalance_journey_event_request_scope import (
     RebalanceJourneyEventRequestScope,
@@ -47,6 +51,7 @@ def _scope(
     ttl: timedelta = timedelta(seconds=30),
     start_on: date = _START,
     end_on: date = _END,
+    lease_policy_version: str = "lease-r1",
 ) -> RebalanceJourneyEventCoverageScope:
     """Create one explicit source scope and already-issued lease from retained evidence."""
 
@@ -59,7 +64,7 @@ def _scope(
         first_observed_at=proof_recorded_at - timedelta(minutes=3),
         source_observed_at=proof_recorded_at - timedelta(seconds=10),
         proof_recorded_at=proof_recorded_at,
-        lease_policy_version="lease-r1",
+        lease_policy_version=lease_policy_version,
         lease_issued_at=lease_issued_at,
         lease_ttl_microseconds=_duration_microseconds(ttl),
         lease_expires_at=lease_issued_at + ttl,
@@ -121,9 +126,17 @@ def _event(
 class _Scopes:
     """Return a fixed closed-world scope collection."""
 
-    def __init__(self, scopes: tuple[RebalanceJourneyEventCoverageScope, ...] | None) -> None:
+    def __init__(
+        self,
+        scopes: (
+            tuple[RebalanceJourneyEventCoverageScope, ...]
+            | RebalanceJourneyEventCoverageScopeSelection
+            | None
+        ),
+    ) -> None:
         self.scopes = scopes
         self.request_scopes: list[RebalanceJourneyEventRequestScope] = []
+        self.refresh_receipts: list[RebalanceJourneyOfficialEventRefreshReceipt | None] = []
 
     def read_scopes(
         self,
@@ -131,11 +144,17 @@ class _Scopes:
         asset_identities: tuple[tuple[str, str], ...],
         request_scope: RebalanceJourneyEventRequestScope,
         as_of: datetime,
-    ) -> tuple[RebalanceJourneyEventCoverageScope, ...] | None:
+        refresh_receipt: RebalanceJourneyOfficialEventRefreshReceipt | None = None,
+    ) -> (
+        tuple[RebalanceJourneyEventCoverageScope, ...]
+        | RebalanceJourneyEventCoverageScopeSelection
+        | None
+    ):
         assert asset_identities == ((_ASSET, _SECURITY),)
         assert as_of >= _AS_OF
         assert type(request_scope) is RebalanceJourneyEventRequestScope
         self.request_scopes.append(request_scope)
+        self.refresh_receipts.append(refresh_receipt)
         return self.scopes
 
 
@@ -281,6 +300,103 @@ def test_pin_passes_request_account_and_owner_context_to_scope_reader() -> None:
     )
 
     assert captured_scopes == [request_scope]
+
+
+def test_refresh_receipt_binds_fingerprint_but_pinner_still_reads_durable_proof() -> None:
+    fingerprint = _HASH_C
+    policy = _policy(version=fingerprint, ttl=timedelta(seconds=30))
+    receipt = RebalanceJourneyOfficialEventRefreshReceipt(
+        request_scope=_request_scope(),
+        asset_pairs=((_ASSET, _SECURITY),),
+        source_id="szse_official",
+        start_on=_START,
+        end_on=_END,
+        policy_fingerprint=fingerprint,
+        lease_policy=policy,
+    )
+    scope = _scope(
+        source_id="szse_official",
+        lease_policy_version=fingerprint,
+        ttl=policy.ttl,
+    )
+    snapshots = _Snapshots((_snapshot(scope),))
+    scopes = _Scopes(
+        RebalanceJourneyEventCoverageScopeSelection(
+            scopes=(scope,),
+            policy_fingerprint=fingerprint,
+            lease_policy=policy,
+        )
+    )
+    pinner = PinRebalanceJourneyEventCoverage(
+        scope_reader=scopes,
+        snapshot_reader=snapshots,
+        lease_policy=None,
+    )
+
+    bindings = pinner.pin(
+        asset_identities=((_ASSET, _SECURITY),),
+        request_scope=_request_scope(),
+        as_of=_AS_OF,
+        parent=None,
+        refresh_receipt=receipt,
+    )
+
+    coverage_binding = next(item for item in bindings if item.source_record_id == "__coverage__")
+    assert coverage_binding.coverage_policy_version == fingerprint
+    assert scopes.refresh_receipts == [receipt]
+    assert snapshots.requests == [
+        TransitionPlanEventSnapshotReadRequest(
+            asset_code=_ASSET,
+            security_id=_SECURITY,
+            source_id="szse_official",
+            start_on=_START,
+            end_on=_END,
+            as_of=scope.proof_recorded_at,
+        )
+    ]
+    assert not hasattr(receipt, "proof_recorded_at")
+
+
+def test_pinner_blocks_policy_fingerprint_change_before_durable_reread() -> None:
+    fingerprint = _HASH_C
+    policy = _policy(version=fingerprint, ttl=timedelta(seconds=30))
+    receipt = RebalanceJourneyOfficialEventRefreshReceipt(
+        request_scope=_request_scope(),
+        asset_pairs=((_ASSET, _SECURITY),),
+        source_id="szse_official",
+        start_on=_START,
+        end_on=_END,
+        policy_fingerprint=fingerprint,
+        lease_policy=policy,
+    )
+    scope = _scope(
+        source_id="szse_official",
+        lease_policy_version=_HASH_B,
+        ttl=policy.ttl,
+    )
+    snapshots = _Snapshots((_snapshot(scope),))
+    pinner = PinRebalanceJourneyEventCoverage(
+        scope_reader=_Scopes(
+            RebalanceJourneyEventCoverageScopeSelection(
+                scopes=(scope,),
+                policy_fingerprint=_HASH_B,
+                lease_policy=_policy(version=_HASH_B, ttl=policy.ttl),
+            )
+        ),
+        snapshot_reader=snapshots,
+        lease_policy=None,
+    )
+
+    with pytest.raises(RebalanceJourneyUnavailable):
+        pinner.pin(
+            asset_identities=((_ASSET, _SECURITY),),
+            request_scope=_request_scope(),
+            as_of=_AS_OF,
+            parent=None,
+            refresh_receipt=receipt,
+        )
+
+    assert snapshots.requests == []
 
 
 @pytest.mark.parametrize(

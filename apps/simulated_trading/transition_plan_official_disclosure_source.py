@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 import re
 from datetime import date, datetime, timedelta
 from pathlib import Path
@@ -17,12 +19,19 @@ from apps.data_center.domain.security_disclosure_event import (
     SecurityDisclosureListingCoverageAppendResult,
     SecurityDisclosureSource,
 )
+from apps.portfolio.domain.transition_plan_event_review import (
+    TransitionPlanEventCoverageLeasePolicy,
+)
 from apps.risk_center.application.portfolio_risk_assets import PortfolioRiskAssetIdentity
+from apps.simulated_trading.application.rebalance_journey_event_refresh import (
+    RebalanceJourneyOfficialEventRefreshReceipt,
+)
 from apps.simulated_trading.application.rebalance_journey_event_request_scope import (
     RebalanceJourneyEventRequestScope,
 )
 from apps.simulated_trading.application.rebalance_journey_public import RebalanceJourneyUnavailable
 from apps.simulated_trading.infrastructure.corporate_action_ownership_history_repository import (
+    QualifiedExchangeTimezone,
     VerifiedSimulatedAccountOriginCalendar,
 )
 from apps.simulated_trading.transition_plan_disclosure_runtime_policy import (
@@ -33,6 +42,74 @@ from core.exceptions import AgomTradeProException
 
 _SZSE_ASSET_CODE = re.compile(r"[0-9]{6}\.SZ")
 _MAXIMUM_LEASE = timedelta(seconds=60)
+
+
+def transition_plan_disclosure_fingerprint(
+    *,
+    request_scope: RebalanceJourneyEventRequestScope,
+    calendar: VerifiedSimulatedAccountOriginCalendar,
+    policy: TransitionPlanDisclosureRuntimePolicy,
+) -> str:
+    """Hash request scope, active Config Center evidence, window, and timezone policy."""
+
+    if (
+        type(request_scope) is not RebalanceJourneyEventRequestScope
+        or type(calendar) is not VerifiedSimulatedAccountOriginCalendar
+        or type(policy) is not TransitionPlanDisclosureRuntimePolicy
+    ):
+        raise RebalanceJourneyUnavailable(code="REBALANCE_PLAN_EVENT_POLICY_UNAVAILABLE")
+    timezone_policy = calendar.timezone_policy
+    payload: dict[str, object] = {
+        "request_scope": {
+            "actor_user_id": request_scope.actor_user_id,
+            "account_id": request_scope.account_id,
+            "owner_user_id": request_scope.owner_user_id,
+        },
+        "calendar": {
+            "origin_on": calendar.origin_on.isoformat(),
+            "decision_on": calendar.decision_on.isoformat(),
+            "exchange": timezone_policy.exchange,
+            "timezone_name": timezone_policy.timezone_name,
+            "policy_id": timezone_policy.policy_id,
+            "policy_sha256": timezone_policy.policy_sha256,
+        },
+        "policy": {
+            "runtime_environment": policy.runtime_environment,
+            "source_id": policy.source_id,
+            "start_on": policy.start_on.isoformat(),
+            "end_on": policy.end_on.isoformat(),
+            "body_store_root": str(policy.body_store_root),
+            "configured_version": policy.policy_version,
+            "content_sha256": policy.policy_content_hash,
+            "profile": {
+                "profile_id": policy.profile_id,
+                "profile_key": policy.profile_key,
+                "version": policy.profile_version,
+                "content_sha256": policy.profile_content_hash,
+                "known_at": policy.known_at.isoformat(),
+            },
+            "snapshot": {
+                "snapshot_id": policy.snapshot_id,
+                "content_sha256": policy.snapshot_content_hash,
+                "effective_at": policy.effective_at.isoformat(),
+            },
+            "lease": {
+                "configured_version": policy.lease_policy.policy_version,
+                "ttl_microseconds": _timedelta_microseconds(policy.lease_policy.ttl),
+                "maximum_ttl_microseconds": _timedelta_microseconds(
+                    policy.lease_policy.maximum_ttl
+                ),
+            },
+        },
+    }
+    encoded = json.dumps(
+        payload,
+        ensure_ascii=False,
+        allow_nan=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
 
 
 class VerifiedOriginCalendarReader(Protocol):
@@ -160,8 +237,8 @@ class OfficialSzseDistributionRefresher:
         asset_identities: tuple[PortfolioRiskAssetIdentity, ...],
         request_scope: RebalanceJourneyEventRequestScope,
         as_of: datetime,
-    ) -> tuple[PortfolioRiskAssetIdentity, ...]:
-        """Return all exact pairs only after each Audit-backed capture completes."""
+    ) -> RebalanceJourneyOfficialEventRefreshReceipt:
+        """Return a non-proof policy receipt only after all audited captures complete."""
 
         if (
             type(request_scope) is not RebalanceJourneyEventRequestScope
@@ -193,8 +270,13 @@ class OfficialSzseDistributionRefresher:
         if (
             type(calendar) is not VerifiedSimulatedAccountOriginCalendar
             or calendar.as_of != as_of
+            or type(calendar.timezone_policy) is not QualifiedExchangeTimezone
             or calendar.timezone_policy.exchange != "SZSE"
             or calendar.origin_on > calendar.decision_on
+            or type(calendar.timezone_policy.policy_id) is not str
+            or not calendar.timezone_policy.policy_id
+            or type(calendar.timezone_policy.policy_sha256) is not str
+            or not calendar.timezone_policy.policy_sha256
         ):
             raise RebalanceJourneyUnavailable(code="REBALANCE_PLAN_EVENT_ORIGIN_UNAVAILABLE")
         policy = self._policy_reader.read_policy(
@@ -204,15 +286,29 @@ class OfficialSzseDistributionRefresher:
         )
         if (
             type(policy) is not TransitionPlanDisclosureRuntimePolicy
+            or type(policy.lease_policy) is not TransitionPlanEventCoverageLeasePolicy
+            or policy.runtime_environment != self._audit_environment
             or policy.source_id != "szse_official"
             or policy.start_on > calendar.origin_on
             or policy.end_on != calendar.decision_on
             or policy.read_at != as_of
+            or policy.lease_policy.policy_version != policy.policy_version
             or policy.lease_policy.ttl <= timedelta(0)
             or policy.lease_policy.ttl > _MAXIMUM_LEASE
             or policy.lease_policy.maximum_ttl > _MAXIMUM_LEASE
         ):
             raise RebalanceJourneyUnavailable(code="REBALANCE_PLAN_EVENT_POLICY_UNAVAILABLE")
+
+        policy_fingerprint = transition_plan_disclosure_fingerprint(
+            request_scope=request_scope,
+            calendar=calendar,
+            policy=policy,
+        )
+        effective_lease_policy = TransitionPlanEventCoverageLeasePolicy(
+            policy_version=policy_fingerprint,
+            ttl=policy.lease_policy.ttl,
+            maximum_ttl=policy.lease_policy.maximum_ttl,
+        )
 
         for identity in asset_identities:
             try:
@@ -243,7 +339,20 @@ class OfficialSzseDistributionRefresher:
                 or recorded_at < as_of
             ):
                 raise RebalanceJourneyUnavailable(code="REBALANCE_PLAN_EVENT_CAPTURE_INVALID")
-        return asset_identities
+        return RebalanceJourneyOfficialEventRefreshReceipt(
+            request_scope=request_scope,
+            asset_pairs=tuple(
+                sorted(
+                    (identity.asset_code, identity.security_id or "")
+                    for identity in asset_identities
+                )
+            ),
+            source_id=policy.source_id,
+            start_on=policy.start_on,
+            end_on=policy.end_on,
+            policy_fingerprint=policy_fingerprint,
+            lease_policy=effective_lease_policy,
+        )
 
 
 def build_official_szse_distribution_refresher(
@@ -268,8 +377,15 @@ def build_official_szse_distribution_refresher(
     )
 
 
+def _timedelta_microseconds(value: timedelta) -> int:
+    """Convert an exact duration without a floating-point intermediate."""
+
+    return ((value.days * 86_400 + value.seconds) * 1_000_000) + value.microseconds
+
+
 __all__ = (
     "AuditBackedSzseWindowCapture",
     "OfficialSzseDistributionRefresher",
     "build_official_szse_distribution_refresher",
+    "transition_plan_disclosure_fingerprint",
 )

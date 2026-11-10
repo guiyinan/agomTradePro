@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from typing import Protocol
@@ -25,10 +26,16 @@ from apps.portfolio.domain.transition_plan_event_review import (
 )
 from apps.portfolio.domain.transition_plan_revision import TransitionPlanRevision
 from apps.portfolio.domain.transition_plan_revision_basis import TransitionPlanSourceBinding
+from apps.simulated_trading.application.rebalance_journey_event_refresh import (
+    RebalanceJourneyOfficialEventRefreshReceipt,
+)
 from apps.simulated_trading.application.rebalance_journey_event_request_scope import (
     RebalanceJourneyEventRequestScope,
 )
 from apps.simulated_trading.application.rebalance_journey_public import RebalanceJourneyUnavailable
+
+_POLICY_FINGERPRINT = re.compile(r"[0-9a-f]{64}")
+_MAXIMUM_OWNER_LEASE = timedelta(seconds=60)
 
 
 @dataclass(frozen=True, slots=True)
@@ -94,6 +101,33 @@ class RebalanceJourneyEventCoverageScope:
             raise ValueError("coverage lease must follow its proof and match its exact expiry")
 
 
+@dataclass(frozen=True, slots=True)
+class RebalanceJourneyEventCoverageScopeSelection:
+    """One atomic current policy selection and all matching latest durable proof scopes."""
+
+    scopes: tuple[RebalanceJourneyEventCoverageScope, ...]
+    policy_fingerprint: str
+    lease_policy: TransitionPlanEventCoverageLeasePolicy
+
+    def __post_init__(self) -> None:
+        """Require a closed-world typed scope set and the exact fingerprinted lease."""
+
+        if (
+            type(self.scopes) is not tuple
+            or not self.scopes
+            or any(type(scope) is not RebalanceJourneyEventCoverageScope for scope in self.scopes)
+        ):
+            raise ValueError("event scope selection must contain typed exact scopes")
+        if (
+            type(self.policy_fingerprint) is not str
+            or _POLICY_FINGERPRINT.fullmatch(self.policy_fingerprint) is None
+            or type(self.lease_policy) is not TransitionPlanEventCoverageLeasePolicy
+            or self.lease_policy.policy_version != self.policy_fingerprint
+            or self.lease_policy.maximum_ttl > _MAXIMUM_OWNER_LEASE
+        ):
+            raise ValueError("event scope selection policy provenance is invalid")
+
+
 class RebalanceJourneyEventCoverageScopeReader(Protocol):
     """Select exact retained source windows and their durable proof cutoffs."""
 
@@ -103,7 +137,12 @@ class RebalanceJourneyEventCoverageScopeReader(Protocol):
         asset_identities: tuple[tuple[str, str], ...],
         request_scope: RebalanceJourneyEventRequestScope,
         as_of: datetime,
-    ) -> tuple[RebalanceJourneyEventCoverageScope, ...] | None:
+        refresh_receipt: RebalanceJourneyOfficialEventRefreshReceipt | None = None,
+    ) -> (
+        tuple[RebalanceJourneyEventCoverageScope, ...]
+        | RebalanceJourneyEventCoverageScopeSelection
+        | None
+    ):
         """Return every exact source window or None when closed-world scope is unavailable."""
         ...
 
@@ -118,6 +157,7 @@ class RebalanceJourneyEventCoveragePinner(Protocol):
         request_scope: RebalanceJourneyEventRequestScope,
         as_of: datetime,
         parent: TransitionPlanRevision | None,
+        refresh_receipt: RebalanceJourneyOfficialEventRefreshReceipt | None = None,
     ) -> tuple[TransitionPlanSourceBinding, ...]:
         """Fail closed unless every required event scope has complete durable proof."""
         ...
@@ -146,6 +186,7 @@ class PinRebalanceJourneyEventCoverage:
         request_scope: RebalanceJourneyEventRequestScope,
         as_of: datetime,
         parent: TransitionPlanRevision | None,
+        refresh_receipt: RebalanceJourneyOfficialEventRefreshReceipt | None = None,
     ) -> tuple[TransitionPlanSourceBinding, ...]:
         """Pin all exact security/source/windows before downstream hashing or persistence."""
 
@@ -155,14 +196,41 @@ class PinRebalanceJourneyEventCoverage:
             raise RebalanceJourneyUnavailable(code="REBALANCE_PLAN_EVENT_REQUEST_SCOPE_INVALID")
         if self._scope_reader is None or self._snapshot_reader is None:
             raise RebalanceJourneyUnavailable(code="REBALANCE_PLAN_EVENT_PROVIDER_UNAVAILABLE")
-        if self._lease_policy is None:
+        if self._lease_policy is None and refresh_receipt is None:
             raise RebalanceJourneyUnavailable(code="REBALANCE_PLAN_EVENT_LEASE_POLICY_UNAVAILABLE")
         identities = _validated_identities(asset_identities)
-        scopes = self._scope_reader.read_scopes(
-            asset_identities=identities,
-            request_scope=request_scope,
-            as_of=as_of,
-        )
+        if refresh_receipt is not None and (
+            type(refresh_receipt) is not RebalanceJourneyOfficialEventRefreshReceipt
+            or refresh_receipt.request_scope != request_scope
+            or tuple(sorted(refresh_receipt.asset_pairs)) != identities
+            or refresh_receipt.source_id != "szse_official"
+        ):
+            raise RebalanceJourneyUnavailable(code="REBALANCE_PLAN_EVENT_REFRESH_SCOPE_MISMATCH")
+        if refresh_receipt is None:
+            scope_result = self._scope_reader.read_scopes(
+                asset_identities=identities,
+                request_scope=request_scope,
+                as_of=as_of,
+            )
+            if type(scope_result) is not tuple or not scope_result or self._lease_policy is None:
+                raise RebalanceJourneyUnavailable(code="REBALANCE_PLAN_EVENT_SCOPE_UNAVAILABLE")
+            scopes = scope_result
+            lease_policy = self._lease_policy
+        else:
+            scope_result = self._scope_reader.read_scopes(
+                asset_identities=identities,
+                request_scope=request_scope,
+                as_of=as_of,
+                refresh_receipt=refresh_receipt,
+            )
+            if (
+                type(scope_result) is not RebalanceJourneyEventCoverageScopeSelection
+                or scope_result.policy_fingerprint != refresh_receipt.policy_fingerprint
+                or scope_result.lease_policy != refresh_receipt.lease_policy
+            ):
+                raise RebalanceJourneyUnavailable(code="REBALANCE_PLAN_EVENT_POLICY_CHANGED")
+            scopes = scope_result.scopes
+            lease_policy = scope_result.lease_policy
         if type(scopes) is not tuple or not scopes:
             raise RebalanceJourneyUnavailable(code="REBALANCE_PLAN_EVENT_SCOPE_UNAVAILABLE")
         if any(type(scope) is not RebalanceJourneyEventCoverageScope for scope in scopes):
@@ -174,10 +242,18 @@ class PinRebalanceJourneyEventCoverage:
         expected_identities = set(identities)
         if any(
             (scope.asset_code, scope.security_id) not in expected_identities
+            or (
+                refresh_receipt is not None
+                and (
+                    scope.source_id != refresh_receipt.source_id
+                    or scope.start_on != refresh_receipt.start_on
+                    or scope.end_on != refresh_receipt.end_on
+                )
+            )
             or scope.proof_recorded_at > as_of
-            or scope.lease_policy_version != self._lease_policy.policy_version
-            or scope.lease_ttl_microseconds != _timedelta_microseconds(self._lease_policy.ttl)
-            or timedelta(microseconds=scope.lease_ttl_microseconds) > self._lease_policy.maximum_ttl
+            or scope.lease_policy_version != lease_policy.policy_version
+            or scope.lease_ttl_microseconds != _timedelta_microseconds(lease_policy.ttl)
+            or timedelta(microseconds=scope.lease_ttl_microseconds) > lease_policy.maximum_ttl
             or scope.lease_issued_at < scope.proof_recorded_at
             or scope.lease_issued_at > as_of
             or scope.lease_expires_at <= as_of
@@ -198,7 +274,7 @@ class PinRebalanceJourneyEventCoverage:
                 _bindings_for_scope(
                     scope=scope,
                     snapshot=snapshot,
-                    policy=self._lease_policy,
+                    policy=lease_policy,
                     decision_cutoff=as_of,
                 )
             )
@@ -409,5 +485,6 @@ __all__ = [
     "PinRebalanceJourneyEventCoverage",
     "RebalanceJourneyEventCoveragePinner",
     "RebalanceJourneyEventCoverageScope",
+    "RebalanceJourneyEventCoverageScopeSelection",
     "RebalanceJourneyEventCoverageScopeReader",
 ]

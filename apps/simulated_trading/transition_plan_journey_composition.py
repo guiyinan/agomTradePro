@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from django.db import DEFAULT_DB_ALIAS
+from django.db import DEFAULT_DB_ALIAS, DatabaseError
 from django.utils import timezone
 
 from apps.data_center.calendar_publication_operations_composition import (
@@ -13,10 +13,14 @@ from apps.data_center.calendar_publication_operations_composition import (
 from apps.data_center.calendar_workbench_scope_composition import (
     read_calendar_capture_configuration_reference_at,
 )
+from apps.portfolio.application.transition_plan_event_review import (
+    TransitionPlanEventReviewValidator,
+)
 from apps.portfolio.application.transition_plan_lifecycle import (
     GetExactTransitionPlanRevisionUseCase,
     TransitionPlanCurrentPolicyPinsValidator,
 )
+from apps.portfolio.domain.transition_plan_event_review import TransitionPlanEventReviewAssessment
 from apps.portfolio.domain.transition_plan_revision import TransitionPlanRevision
 from apps.portfolio.infrastructure.transition_plan_revision_repository import (
     DjangoTransitionPlanLockedActionGuard,
@@ -82,6 +86,20 @@ from apps.simulated_trading.infrastructure.transition_plan_execution_history_rep
 from apps.simulated_trading.rebalance_plan_preview_composition import (
     build_readonly_rebalance_plan_preview_builder,
 )
+from apps.simulated_trading.transition_plan_disclosure_runtime_policy import (
+    DISCLOSURE_COVERAGE_POLICY_KEY,
+)
+from apps.simulated_trading.transition_plan_event_coverage_composition import (
+    build_configured_rebalance_journey_event_coverage_pinner,
+)
+from apps.simulated_trading.transition_plan_event_review_composition import (
+    build_configured_transition_plan_event_review_validator,
+)
+from apps.simulated_trading.transition_plan_official_disclosure_source import (
+    build_official_szse_distribution_refresher,
+)
+from core.exceptions import AgomTradeProException
+from core.integration.config_center_runtime import get_active_runtime_value
 
 
 def build_transition_plan_exact_reader(
@@ -103,12 +121,15 @@ def build_transition_plan_exact_reader(
 def build_transition_plan_locked_guard(
     *,
     current_policy_pins_validator: TransitionPlanCurrentPolicyPinsValidator,
+    event_review_validator: TransitionPlanEventReviewValidator | None = None,
     using: str = DEFAULT_DB_ALIAS,
 ) -> DjangoTransitionPlanLockedActionGuard:
     """Require an explicit current-policy reader in addition to ordinary order guards."""
 
     return DjangoTransitionPlanLockedActionGuard(
-        using=using, current_policy_pins_validator=current_policy_pins_validator
+        using=using,
+        current_policy_pins_validator=current_policy_pins_validator,
+        event_review_validator=event_review_validator,
     )
 
 
@@ -127,13 +148,34 @@ class _LazyCurrentPolicyPinsValidator:
         validator.validate_current_policy_pins(revision, as_of=as_of)
 
 
+class _LazyConfiguredEventReviewValidator:
+    """Build read-only event ports only when an event-bound plan needs assessment."""
+
+    def __init__(self, *, using: str) -> None:
+        self._using = using
+
+    def assess(
+        self, revision: TransitionPlanRevision, *, as_of: datetime
+    ) -> TransitionPlanEventReviewAssessment:
+        """Use the same current Config Center and Data Center gate for review and holds."""
+
+        environment = get_simulated_execution_runtime_environment()
+        validator = build_configured_transition_plan_event_review_validator(
+            runtime_environment=environment,
+            using=self._using,
+        )
+        return validator.assess(revision, as_of=as_of)
+
+
 def build_configured_transition_plan_guard(
     *, using: str = DEFAULT_DB_ALIAS
 ) -> DjangoTransitionPlanLockedActionGuard:
     """Supply the same lazy plan constraints to preview and ordinary confirmation."""
 
     return build_transition_plan_locked_guard(
-        using=using, current_policy_pins_validator=_LazyCurrentPolicyPinsValidator(using=using)
+        using=using,
+        current_policy_pins_validator=_LazyCurrentPolicyPinsValidator(using=using),
+        event_review_validator=_LazyConfiguredEventReviewValidator(using=using),
     )
 
 
@@ -206,7 +248,10 @@ def build_rebalance_journey_service(using: str = DEFAULT_DB_ALIAS) -> RebalanceJ
 
     if using != DEFAULT_DB_ALIAS:
         raise RebalanceJourneyUnavailable(code="REBALANCE_JOURNEY_DATABASE_ALIAS_UNSUPPORTED")
-    repository = DjangoTransitionPlanRevisionRepository(using=using)
+    event_review_validator = _LazyConfiguredEventReviewValidator(using=using)
+    repository = DjangoTransitionPlanRevisionRepository(
+        using=using, event_review_validator=event_review_validator
+    )
     resources = DjangoPortfolioRiskResourceRepository(
         using=using, observer_grant_repository=build_observer_grant_repository(using=using)
     )
@@ -222,12 +267,32 @@ def build_rebalance_journey_service(using: str = DEFAULT_DB_ALIAS) -> RebalanceJ
     ) -> PortfolioJourneyPreparationProvider:
         """Capture one true preview/risk pair for each explicit create or successor."""
 
+        environment = get_simulated_execution_runtime_environment()
+        event_required = _official_event_gate_enabled(
+            runtime_environment=environment,
+            as_of=repository.now(),
+        )
         return PortfolioJourneyPreparationProvider(
             reads,
             target_weights=target_weights,
             reference_price_basis=reference_price_basis,
             business_timezone=timezone.get_default_timezone(),
             clock=repository,
+            event_coverage_pinner=(
+                build_configured_rebalance_journey_event_coverage_pinner(
+                    runtime_environment=environment, using=using
+                )
+                if event_required
+                else None
+            ),
+            event_refresher=(
+                build_official_szse_distribution_refresher(
+                    runtime_environment=environment, using=using
+                )
+                if event_required
+                else None
+            ),
+            event_coverage_required=event_required,
         )
 
     progress = GetTransitionPlanExecutionProgressUseCase(
@@ -244,4 +309,31 @@ def build_rebalance_journey_service(using: str = DEFAULT_DB_ALIAS) -> RebalanceJ
         preparation_factory=prepare,
         progress_reader=JourneyPlanProgressAdapter(progress),
         order_previewer=_PurposeBoundPlanOrderPreviewer(using=using),
+        event_review_validator=event_review_validator,
     )
+
+
+def _official_event_gate_enabled(*, runtime_environment: str, as_of: datetime) -> bool:
+    """Enable exact official capture only for an explicit active Config Center value."""
+
+    try:
+        value = get_active_runtime_value(
+            environment=runtime_environment,
+            definition_key=DISCLOSURE_COVERAGE_POLICY_KEY,
+            as_of=as_of,
+        )
+    except (
+        AgomTradeProException,
+        ArithmeticError,
+        AttributeError,
+        DatabaseError,
+        RuntimeError,
+        TypeError,
+        ValueError,
+    ) as error:
+        raise RebalanceJourneyUnavailable(code="REBALANCE_PLAN_EVENT_POLICY_UNAVAILABLE") from error
+    if value is None:
+        return False
+    if type(value) is not dict or type(value.get("enabled")) is not bool:
+        raise RebalanceJourneyUnavailable(code="REBALANCE_PLAN_EVENT_POLICY_INVALID")
+    return value["enabled"] is True

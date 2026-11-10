@@ -542,6 +542,29 @@ def test_ai_provider_plaintext_migration_step_is_a_required_postgres_gate() -> N
     assert AI_PROVIDER_MIGRATION_JUNIT in artifact_junit_files
 
 
+def test_ash05_hold_lease_rollback_runs_on_a_distinct_postgres_test_database() -> None:
+    """The post-insert expiry counterexample must execute and retain non-skipped SQL evidence."""
+
+    workflow = yaml.load(WORKFLOW_PATH.read_text(encoding="utf-8"), Loader=yaml.BaseLoader)
+    steps = workflow["jobs"]["publication-postgres"]["steps"]
+    step = next(
+        item for item in steps if item.get("name") == "Exercise ASH-05 native hold lease rollback"
+    )
+    assert _pytest_nodeids(step["run"]) == (
+        "tests/component/simulated_trading/test_transition_plan_execution_native.py::test_native_hold_rolls_back_when_plan_expires_after_insert_before_commit",
+    )
+    assert step["env"]["DATABASE_URL"].endswith("/agom_release_rehearsal_ci")
+    assert step["env"]["AGOM_CRITICAL_TEST_DB_NAME"] == "ash05_lease_test"
+    assert "--ds=core.settings.critical_postgres_test" in step["run"]
+    assert "--confcutdir=tests/component" in step["run"]
+    assert "--create-db" in step["run"]
+    assert "--no-migrations" not in step["run"]
+    assert "--junitxml=ash05-lease-postgres.xml" in step["run"]
+    evidence_source, artifact_files = _evidence_gate_source()
+    assert "'ash05-lease-postgres.xml'" in evidence_source
+    assert "ash05-lease-postgres.xml" in artifact_files
+
+
 def test_account_research_authority_step_checks_scope_and_exact_junit_identities() -> None:
     """The selected EVID-06 cases use the isolated DB and a strict independent XML check."""
 

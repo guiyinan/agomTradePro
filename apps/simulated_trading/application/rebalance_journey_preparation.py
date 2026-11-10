@@ -45,6 +45,7 @@ from apps.simulated_trading.application.rebalance_journey_event_coverage import 
 )
 from apps.simulated_trading.application.rebalance_journey_event_refresh import (
     RebalanceJourneyOfficialEventRefresher,
+    RebalanceJourneyOfficialEventRefreshReceipt,
     refresh_official_event_identities,
 )
 from apps.simulated_trading.application.rebalance_journey_event_refresh_support import (
@@ -175,11 +176,12 @@ class PortfolioJourneyPreparationProvider:
             raise RebalanceJourneyUnavailable(code="REBALANCE_PLAN_RISK_CONTEXT_INVALID")
         event_asset_identities: tuple[PortfolioRiskAssetIdentity, ...] = ()
         event_request_scope: RebalanceJourneyEventRequestScope | None = None
+        event_refresh_receipt: RebalanceJourneyOfficialEventRefreshReceipt | None = None
         if self._event_coverage_pinner is not None:
             event_request_scope = build_rebalance_journey_event_request_scope(request, prepared)
             event_asset_identities = _event_asset_identities(prepared)
             if self._event_refresher is not None:
-                refresh_official_event_identities(
+                event_refresh_receipt = refresh_official_event_identities(
                     self._event_refresher,
                     asset_identities=event_asset_identities,
                     request_scope=event_request_scope,
@@ -249,6 +251,7 @@ class PortfolioJourneyPreparationProvider:
                 request_scope=event_request_scope,
                 as_of=prepared_at,
                 parent=parent,
+                refresh_receipt=event_refresh_receipt,
             )
             _validate_event_sources(
                 event_sources,

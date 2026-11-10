@@ -4136,7 +4136,7 @@
           "imports": 3
         },
         "simulated_trading": {
-          "imports": 74
+          "imports": 76
         },
         "strategy": {
           "imports": 1
@@ -7836,7 +7836,7 @@
           "imports": 50
         },
         "simulated_trading": {
-          "imports": 34
+          "imports": 43
         },
         "strategy": {
           "imports": 1
@@ -10965,7 +10965,7 @@
           ]
         },
         "data_center": {
-          "imports": 74,
+          "imports": 76,
           "target_layers": [
             "application",
             "calendar_publication_operations_composition",
@@ -10985,7 +10985,7 @@
           ]
         },
         "portfolio": {
-          "imports": 34,
+          "imports": 43,
           "target_layers": [
             "application",
             "domain",
@@ -11627,9 +11627,11 @@
           "PinRebalanceJourneyEventCoverage",
           "RebalanceJourneyEventCoveragePinner",
           "RebalanceJourneyEventCoverageScope",
-          "RebalanceJourneyEventCoverageScopeReader"
+          "RebalanceJourneyEventCoverageScopeReader",
+          "RebalanceJourneyEventCoverageScopeSelection"
         ],
         "application/rebalance_journey_event_refresh.py": [
+          "RebalanceJourneyOfficialEventRefreshReceipt",
           "RebalanceJourneyOfficialEventRefresher",
           "refresh_official_event_identities"
         ],
@@ -11963,7 +11965,7 @@
         "infrastructure": 134,
         "interface": 34,
         "management": 7,
-        "root": 36
+        "root": 38
       },
       "orm_models": {
         "infrastructure/models.py": [

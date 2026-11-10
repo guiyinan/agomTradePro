@@ -11,6 +11,7 @@ on:
       - 'apps/account/**'
       - 'apps/audit/**'
       - 'apps/simulated_trading/**'
+      - 'tests/component/simulated_trading/test_transition_plan_execution_native.py'
       - 'tests/component/account/**'
       - 'tests/component/data_center/**'
       - 'tests/component/test_ai_provider_plaintext_removal_migration.py'
@@ -39,6 +40,7 @@ on:
       - 'apps/account/**'
       - 'apps/audit/**'
       - 'apps/simulated_trading/**'
+      - 'tests/component/simulated_trading/test_transition_plan_execution_native.py'
       - 'tests/component/account/**'
       - 'tests/component/data_center/**'
       - 'tests/component/test_ai_provider_plaintext_removal_migration.py'
@@ -121,6 +123,16 @@ jobs:
           psql -h 127.0.0.1 -U contract_test -d postgres
           -v ON_ERROR_STOP=1
           -c 'CREATE DATABASE evid06_authority_test'
+      - name: Exercise ASH-05 native hold lease rollback
+        env:
+          DATABASE_URL: postgresql://contract_test:disposable_ci_only@127.0.0.1:5432/agom_release_rehearsal_ci
+          AGOM_CRITICAL_TEST_DB_NAME: ash05_lease_test
+        run: >-
+          python -m pytest
+          tests/component/simulated_trading/test_transition_plan_execution_native.py::test_native_hold_rolls_back_when_plan_expires_after_insert_before_commit
+          --ds=core.settings.critical_postgres_test
+          --confcutdir=tests/component
+          --create-db -q -o addopts='' --junitxml=ash05-lease-postgres.xml
       - name: Exercise authority read-lock concurrency
         env:
           AGOM_EVID06_POSTGRES_TEST_DATABASE_URL: postgresql://contract_test:disposable_ci_only@127.0.0.1:5432/evid06_authority_test
@@ -569,6 +581,7 @@ jobs:
               'financial-capacity-postgres.xml',
               'financial-slice-sync-contracts.xml',
               'ai-provider-plaintext-removal-postgres.xml',
+              'ash05-lease-postgres.xml',
           )
           cases = []
           for filename in junit_files:
@@ -620,6 +633,7 @@ jobs:
             financial-capacity-postgres.xml
             financial-slice-sync-contracts.xml
             ai-provider-plaintext-removal-postgres.xml
+            ash05-lease-postgres.xml
             role-bootstrap-postgres.log
             statement-logging-guard.log
             statement-logging-window.log

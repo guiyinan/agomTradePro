@@ -101,6 +101,7 @@ from apps.simulated_trading.infrastructure.order_reservation_repository_support 
     validate_reservation_storage_text,
 )
 from apps.simulated_trading.infrastructure.transition_plan_reservation_history import (
+    require_final_transition_plan_lease,
     require_no_conflicting_plan_reservation_history,
     require_stored_transition_plan_binding,
     validate_locked_transition_plan_binding,
@@ -709,32 +710,14 @@ class DjangoSimulatedOrderReservationRepository:
                     source_snapshot_at=now,
                     plan=plan,
                 )
-                if transition_plan_binding is not None:
-                    if transition_plan_guard is None or transition_plan_recorded_at is None:
-                        raise SimulatedTradeExecutionBlocked(
-                            "plan execution guard disappeared before hold persistence",
-                            code="TRANSITION_PLAN_GUARD_UNAVAILABLE",
-                        )
-                    final_now = self._execution._now(clock)
-                    if final_now < now:
-                        raise SimulatedTradeExecutionBlocked(
-                            "reservation clock moved backwards before hold persistence",
-                            code="ORDER_RESERVATION_PLAN_STALE",
-                        )
-                    final_revision = transition_plan_guard.validate_locked_action(
-                        binding=transition_plan_binding,
-                        account_id=intent.account_id,
-                        owner_user_id=intent.user_id,
-                        as_of=final_now,
-                    )
-                    validate_locked_transition_plan_binding(
-                        revision=final_revision,
-                        binding=transition_plan_binding,
-                        intent=intent,
-                        owner_user_id=intent.user_id,
-                        as_of=final_now,
-                        recorded_at=transition_plan_recorded_at,
-                    )
+                require_final_transition_plan_lease(
+                    binding=transition_plan_binding,
+                    guard=transition_plan_guard,
+                    recorded_at=transition_plan_recorded_at,
+                    intent=intent,
+                    initial_now=now,
+                    read_clock=lambda: self._execution._now(clock),
+                )
                 persisted = self._decode_model(row)
                 persisted_book = self._current_book(
                     account=account,

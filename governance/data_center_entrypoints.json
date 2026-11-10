@@ -6121,7 +6121,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=12",
+      "evidence": "governed current-data contract; source_files=15",
       "id": "current_data_surface:governance/current_data_contracts.json:simulated_trading.trusted_rebalance_journey:Owned finite-simulation immutable rebalance plan preparation and exact-version history. Captured preview and separately read financial resources are value-checked. A historical/latest family row is never an execution or freshness claim; a bound manual order additionally needs current policy/source constraints and the ordinary explicit preview/confirmation gates.",
       "locator": "Owned finite-simulation immutable rebalance plan preparation and exact-version history. Captured preview and separately read financial resources are value-checked. A historical/latest family row is never an execution or freshness claim; a bound manual order additionally needs current policy/source constraints and the ordinary explicit preview/confirmation gates.",
       "path": "governance/current_data_contracts.json",
@@ -11671,7 +11671,7 @@
     },
     {
       "category": "runtime_config_key",
-      "evidence": "runtime owner=config_center; consumers=1; migration_status=canonical_only_fail_closed",
+      "evidence": "runtime owner=config_center; consumers=3; migration_status=canonical_only_fail_closed",
       "id": "runtime_config_key:governance/runtime_config_contracts.json:config_center.market.simulated_disclosure_coverage_policy:canonical_only_fail_closed",
       "locator": "canonical_only_fail_closed",
       "path": "governance/runtime_config_contracts.json",

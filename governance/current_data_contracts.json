@@ -13779,7 +13779,10 @@
         "apps/simulated_trading/transition_plan_event_coverage_adapter.py",
         "apps/simulated_trading/transition_plan_disclosure_runtime_policy.py",
         "apps/simulated_trading/application/rebalance_journey_event_request_scope.py",
-        "apps/simulated_trading/transition_plan_official_disclosure_source.py"
+        "apps/simulated_trading/transition_plan_official_disclosure_source.py",
+        "apps/simulated_trading/transition_plan_event_coverage_composition.py",
+        "apps/simulated_trading/transition_plan_event_review_composition.py",
+        "apps/simulated_trading/transition_plan_journey_composition.py"
       ],
       "required_markers": {
         "apps/portfolio/domain/transition_plan_revision_basis.py": [
@@ -13829,7 +13832,23 @@
         "apps/simulated_trading/transition_plan_official_disclosure_source.py": [
           "policy.end_on != calendar.decision_on",
           "recorded_at < as_of",
-          "capture_and_append_szse_distribution_window"
+          "capture_and_append_szse_distribution_window",
+          "transition_plan_disclosure_fingerprint"
+        ],
+        "apps/simulated_trading/transition_plan_event_coverage_composition.py": [
+          "read_latest_snapshot(request)",
+          "fingerprint != refresh_receipt.policy_fingerprint",
+          "proof_at <= as_of < expires_at"
+        ],
+        "apps/simulated_trading/transition_plan_event_review_composition.py": [
+          "transition_plan_disclosure_fingerprint",
+          "marker.coverage_policy_version != fingerprint",
+          "AssessTransitionPlanEventReview"
+        ],
+        "apps/simulated_trading/transition_plan_journey_composition.py": [
+          "_official_event_gate_enabled",
+          "event_coverage_required=event_required",
+          "_LazyConfiguredEventReviewValidator"
         ]
       },
       "required_tests": [
@@ -13907,9 +13926,39 @@
           "case": "replayed old proof cannot authorize a fresh official capture",
           "test_file": "tests/unit/simulated_trading/test_transition_plan_official_disclosure_source.py",
           "test_function": "test_replayed_old_proof_cannot_be_reported_as_fresh_capture"
+        },
+        {
+          "case": "refresh receipt fingerprint binds active config and exchange timezone provenance",
+          "test_file": "tests/unit/simulated_trading/test_transition_plan_official_disclosure_source.py",
+          "test_function": "test_refresh_receipt_fingerprint_binds_config_and_timezone_provenance"
+        },
+        {
+          "case": "final scope reads durable latest proof then exact clock",
+          "test_file": "tests/unit/simulated_trading/test_transition_plan_event_coverage_composition.py",
+          "test_function": "test_scope_reader_uses_latest_proof_then_pinner_rereads_exact_durable_clock"
+        },
+        {
+          "case": "changed config or timezone blocks before Data Center pin",
+          "test_file": "tests/unit/simulated_trading/test_transition_plan_event_coverage_composition.py",
+          "test_function": "test_scope_reader_blocks_config_or_timezone_fingerprint_change_before_data_center"
+        },
+        {
+          "case": "optional official event gate requires an explicit active toggle",
+          "test_file": "tests/unit/simulated_trading/test_transition_plan_journey_composition.py",
+          "test_function": "test_official_event_gate_requires_explicit_active_toggle"
+        },
+        {
+          "case": "production journey wires official capture and proof pin together",
+          "test_file": "tests/unit/simulated_trading/test_transition_plan_journey_composition.py",
+          "test_function": "test_production_journey_selects_capture_and_pin_as_one_opt_in_unit"
+        },
+        {
+          "case": "review blocks changed active profile before reading old proof",
+          "test_file": "tests/unit/portfolio/test_transition_plan_revision_asset_identity.py",
+          "test_function": "test_configured_event_review_blocks_changed_profile_before_latest_proof_read"
         }
       ],
-      "notes": "Controlled-port and Native component tests do not establish current external-source or ordinary-browser acceptance. Vendor availability/expiry unknown remain null; local source admission_until is separate. Full original evidence stays embedded and hashed. Current risk/profile, native limits, fees, rule records, published-calendar members and classifier/source/mapping pins are rechecked without using the naturally changing account cash/full report hash as an immutable policy identity. Inactive staff approval remains must_not_execute; a manual binding grants no formal Evidence, live, automated or broker authority. Opt-in official disclosure review keeps the exact later-cutoff read UNKNOWN, selects current proof by a separate latest-to-exact DB-only reread, checks action-time event revisions and both half-open 60-second leases, and blocks on missing or contradictory evidence. It does not claim exchange-guaranteed freshness or production execution authority."
+      "notes": "Controlled-port and Native component tests do not establish current external-source or ordinary-browser acceptance. Vendor availability/expiry unknown remain null; local source admission_until is separate. Full original evidence stays embedded and hashed. Current risk/profile, native limits, fees, rule records, published-calendar members and classifier/source/mapping pins are rechecked without using the naturally changing account cash/full report hash as an immutable policy identity. Inactive staff approval remains must_not_execute; a manual binding grants no formal Evidence, live, automated or broker authority. Explicit active Config Center selection enables official SZSE request capture; absent config keeps M1. The non-proof receipt binds account, exact asset pairs, window, profile/snapshot and exchange timezone fingerprint. Final pin rechecks current policy then uses Data Center latest-to-exact DB-only proof reads and retains original recorded_at. Review and locked checks compare the same policy fingerprint and both half-open 60-second leases, blocking missing, changed or contradictory evidence. It does not claim exchange-guaranteed freshness or production execution authority."
     },
     {
       "id": "simulated_trading.holding_disclosure_reference",
