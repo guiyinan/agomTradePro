@@ -183,7 +183,7 @@ def capture_szse_distribution_window(
     end_on: date,
     body_store_root: Path,
 ) -> CapturedSzseDistributionCandidate:
-    """Capture all selected official PDFs, recheck both lists, and return typed evidence."""
+    """Capture every listed official PDF, recheck both lists, and return typed evidence."""
 
     if type(asset_code) is not str or re.fullmatch(r"[0-9]{6}\.SZ", asset_code) is None:
         raise ValueError("asset_code must be a canonical SZSE security code")
@@ -196,11 +196,13 @@ def capture_szse_distribution_window(
     body_store = OfficialSzsePdfBodyStore(body_store_root / "pdf")
     latest_by_title: dict[str, SecurityDisclosureEvent] = {}
     captured_events: list[tuple[SecurityDisclosureEvent, bytes]] = []
-    selected = sorted(
-        (item for item in listing.entries if "权益分派" in item.title),
-        key=lambda item: (item.published_on, item.announcement_id),
+    listed_entries = sorted(
+        listing.entries, key=lambda item: (item.published_on, item.announcement_id)
     )
-    for item in selected:
+    for item in listed_entries:
+        issuer_name, separator, _ = item.title.partition("：")
+        if not separator or not issuer_name:
+            raise OfficialSzseListingError("listed PDF row does not identify its issuer")
         captured = capture_official_szse_pdf(item.source_url)
         if (
             captured.source_document_id != item.source_document_id
@@ -208,7 +210,12 @@ def capture_szse_distribution_window(
             or captured.first_seen_at < listing.observed_at
         ):
             raise OfficialSzseListingError("listed PDF identity or capture clock is invalid")
-        raw_event_type, event_type = classify_szse_pdf_disclosure(captured, asset_code[:6])
+        raw_event_type, event_type = classify_szse_pdf_disclosure(
+            captured,
+            asset_code[:6],
+            expected_issuer_name=issuer_name,
+            expected_listing_title=item.title,
+        )
         corrected = item.title.endswith("（更正后）")
         title_key = _distribution_title_key(item.title)
         prior = latest_by_title.get(title_key)

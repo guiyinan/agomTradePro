@@ -252,7 +252,7 @@ def test_window_ingestion_links_corrected_pdf_and_replays_without_duplicate_rows
         )
 
     def fake_classify(
-        capture: CapturedOfficialSzsePdf, security_code: str
+        capture: CapturedOfficialSzsePdf, security_code: str, **kwargs: object
     ) -> tuple[str, SecurityDisclosureEventType]:
         assert security_code == "002727"
         return (
@@ -404,7 +404,7 @@ def test_final_listing_change_leaves_no_disclosure_facts_or_coverage(
     monkeypatch.setattr(
         source_composition,
         "classify_szse_pdf_disclosure",
-        lambda capture, security_code: (
+        lambda capture, security_code, **kwargs: (
             "cash_dividend",
             SecurityDisclosureEventType.CASH_DIVIDEND,
         ),
@@ -506,7 +506,7 @@ def test_audit_append_failure_rolls_back_facts_coverage_event_and_outbox(
     monkeypatch.setattr(
         source_composition,
         "classify_szse_pdf_disclosure",
-        lambda capture, security_code: (
+        lambda capture, security_code, **kwargs: (
             "cash_dividend",
             SecurityDisclosureEventType.CASH_DIVIDEND,
         ),
@@ -643,7 +643,7 @@ def test_legacy_duplicate_fact_without_audit_is_blocked_and_not_backfilled(
     monkeypatch.setattr(
         source_composition,
         "classify_szse_pdf_disclosure",
-        lambda capture, security_code: (
+        lambda capture, security_code, **kwargs: (
             "cash_dividend",
             SecurityDisclosureEventType.CASH_DIVIDEND,
         ),
@@ -781,7 +781,7 @@ def test_second_pdf_capture_failure_leaves_database_empty_and_retains_first_pdf(
     monkeypatch.setattr(
         source_composition,
         "classify_szse_pdf_disclosure",
-        lambda capture, security_code: (
+        lambda capture, security_code, **kwargs: (
             "cash_dividend",
             SecurityDisclosureEventType.CASH_DIVIDEND,
         ),
@@ -857,8 +857,24 @@ def test_audit_alias_mismatch_blocks_before_external_capture(
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("classified_type", "expected_coverage_status"),
+    [
+        (
+            SecurityDisclosureEventType.CASH_DIVIDEND,
+            SecurityDisclosureListingCoverageStatus.COMPLETE,
+        ),
+        (
+            SecurityDisclosureEventType.UNKNOWN,
+            SecurityDisclosureListingCoverageStatus.UNKNOWN,
+        ),
+    ],
+)
 def test_batch_timestamp_is_shared_by_facts_coverage_and_audit_at_exact_cutoff(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    classified_type: SecurityDisclosureEventType,
+    expected_coverage_status: SecurityDisclosureListingCoverageStatus,
 ) -> None:
     """One frozen post-capture clock makes all three append-only records PIT-visible."""
 
@@ -929,9 +945,9 @@ def test_batch_timestamp_is_shared_by_facts_coverage_and_audit_at_exact_cutoff(
     monkeypatch.setattr(
         source_composition,
         "classify_szse_pdf_disclosure",
-        lambda capture, security_code: (
-            "cash_dividend",
-            SecurityDisclosureEventType.CASH_DIVIDEND,
+        lambda capture, security_code, **kwargs: (
+            classified_type.value,
+            classified_type,
         ),
     )
     monkeypatch.setattr(
@@ -988,7 +1004,9 @@ def test_batch_timestamp_is_shared_by_facts_coverage_and_audit_at_exact_cutoff(
             as_of=audit_event.recorded_at,
         )
     )
-    assert coverage_snapshot.coverage_status is SecurityDisclosureListingCoverageStatus.COMPLETE
+    assert coverage_snapshot.coverage_status is expected_coverage_status
+    if classified_type is SecurityDisclosureEventType.UNKNOWN:
+        assert coverage_snapshot.reason_code == "LISTED_EVENT_CLASSIFICATION_UNKNOWN"
     assert coverage_snapshot.proof is not None
     assert coverage_snapshot.proof.recorded_at == audit_event.recorded_at
 

@@ -43,7 +43,7 @@ def test_verified_szse_pdf_append_replays_without_duplicate_event(
     monkeypatch.setattr(
         composition,
         "classify_szse_pdf_disclosure",
-        lambda value, security_code: (
+        lambda value, security_code, **kwargs: (
             "2026 年中期权益分派实施公告",
             SecurityDisclosureEventType.CASH_DIVIDEND,
         ),

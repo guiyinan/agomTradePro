@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 import os
 import re
 from dataclasses import dataclass
@@ -37,6 +38,8 @@ _EX_DATE = re.compile(r"(?:除权日（除息日）|除权除息日)为\s*[:：]
 _PAYMENT_DATE = re.compile(r"现金红利将于\s*" + _CHINESE_DATE)
 _CASH_PER_TEN = re.compile(r"每\s*10\s*股\s*派发现金(?:红利|股利)\s*([0-9]+(?:\.[0-9]+)?)\s*元")
 _SHARES_PER_TEN = re.compile(r"每\s*10\s*股\s*转增\s*([0-9]+(?:\.[0-9]+)?)\s*股")
+_DISCLOSURE_TITLE_SUFFIXES = ("公告（更正后）", "更正公告", "公告", "法律意见书", "法律意见")
+_LOGGER = logging.getLogger(__name__)
 
 
 class OfficialDisclosureCaptureError(DataFetchError):
@@ -130,9 +133,12 @@ def capture_official_szse_pdf(source_url: str) -> CapturedOfficialSzsePdf:
 
 
 def verify_szse_pdf_security_code(
-    capture: CapturedOfficialSzsePdf, expected_security_code: str
+    capture: CapturedOfficialSzsePdf,
+    expected_security_code: str,
+    *,
+    expected_issuer_name: str | None = None,
 ) -> str:
-    """Confirm the exact security from the official PDF header before event mapping."""
+    """Confirm the exact security from a code or first-page issuer identity."""
 
     if type(expected_security_code) is not str or not re.fullmatch(
         r"[0-9]{6}", expected_security_code
@@ -144,23 +150,173 @@ def verify_szse_pdf_security_code(
         reader = PdfReader(BytesIO(capture.body), strict=True)
         if not reader.pages or len(reader.pages) > 100:
             raise OfficialDisclosureCaptureError("SZSE PDF page count is invalid")
-        header = reader.pages[0].extract_text()[:512]
+        header = reader.pages[0].extract_text()
     except OfficialDisclosureCaptureError:
         raise
     except (OSError, TypeError, ValueError, KeyError, PdfReadError) as exc:
         raise OfficialDisclosureCaptureError("SZSE PDF text cannot be verified") from exc
+    if type(header) is not str:
+        raise OfficialDisclosureCaptureError("SZSE PDF text cannot be verified")
     codes = set(_HEADER_SECURITY_CODE.findall(header))
-    if codes != {expected_security_code}:
+    if codes:
+        if codes != {expected_security_code}:
+            raise OfficialDisclosureCaptureError("SZSE PDF security code does not match")
+    elif (
+        type(expected_issuer_name) is not str
+        or not expected_issuer_name
+        or expected_issuer_name != expected_issuer_name.strip()
+        or expected_issuer_name not in header
+    ):
         raise OfficialDisclosureCaptureError("SZSE PDF security code does not match")
     return expected_security_code
 
 
-def classify_szse_pdf_disclosure(
-    capture: CapturedOfficialSzsePdf, expected_security_code: str
-) -> tuple[str, SecurityDisclosureEventType]:
-    """Classify only unambiguous cash or share distributions from verified PDF text."""
+def _normalized_title(value: str) -> str:
+    """Remove source-format punctuation while preserving title wording."""
 
-    verify_szse_pdf_security_code(capture, expected_security_code)
+    return re.sub(r"[\s:：，、；;（）()\[\]【】]", "", value)
+
+
+def _pdf_title_candidates(first_page: str) -> tuple[str, ...]:
+    """Return explicit first-page title lines and their wrapped-line combinations."""
+
+    lines = tuple(line.strip() for line in first_page.splitlines() if line.strip())
+    candidates: list[str] = []
+    for index, line in enumerate(lines[:40]):
+        if "公告编号" in line or not line.endswith(_DISCLOSURE_TITLE_SUFFIXES):
+            continue
+        candidates.append(line)
+        if index > 0:
+            preceding = lines[index - 1]
+            if (
+                len(preceding) <= 100
+                and not _HEADER_SECURITY_CODE.search(preceding)
+                and "公司名称" not in preceding
+            ):
+                candidates.append(f"{preceding}{line}")
+    return tuple(dict.fromkeys(candidates))
+
+
+def _title_matching_listing(candidates: tuple[str, ...], expected_listing_title: str) -> str | None:
+    """Select a readable PDF title only when it overlaps the exact listed title."""
+
+    listed_title = expected_listing_title.split("：", 1)[-1]
+    listed_normalized = _normalized_title(listed_title)
+    matches = tuple(
+        candidate
+        for candidate in candidates
+        if len(_normalized_title(candidate)) >= 8
+        and (
+            _normalized_title(candidate) in listed_normalized
+            or listed_normalized in _normalized_title(candidate)
+            or _legal_opinion_title_match(candidate, listed_title)
+            or _ownership_ratio_title_match(candidate, listed_title)
+        )
+    )
+    if not matches:
+        return None
+    shortest_length = min(len(_normalized_title(candidate)) for candidate in matches)
+    shortest = tuple(
+        candidate for candidate in matches if len(_normalized_title(candidate)) == shortest_length
+    )
+    return shortest[0] if len({_normalized_title(value) for value in shortest}) == 1 else None
+
+
+def _legal_opinion_title_match(candidate: str, listed_title: str) -> bool:
+    """Allow only the source's optional particle and final-book-word variation."""
+
+    if "法律意见" not in candidate or "法律意见" not in listed_title:
+        return False
+    candidate_meeting = (
+        _normalized_title(candidate).replace("法律意见书", "").replace("法律意见", "")
+    )
+    listed_meeting = (
+        _normalized_title(listed_title).replace("法律意见书", "").replace("法律意见", "")
+    )
+    return candidate_meeting.removesuffix("的") == listed_meeting.removesuffix("的")
+
+
+def _ownership_ratio_title_match(candidate: str, listed_title: str) -> bool:
+    """Match only the same explicitly reported passive 1%/5% ratio notice."""
+
+    candidate_normalized = _normalized_title(candidate)
+    listed_normalized = _normalized_title(listed_title)
+    if (
+        "持股比例" not in listed_normalized
+        or "被动触及" not in listed_normalized
+        or "被动触及" not in candidate_normalized
+    ):
+        return False
+    candidate_percentages = set(re.findall(r"[0-9]+(?:\.[0-9]+)?%", candidate_normalized))
+    listed_percentages = set(re.findall(r"[0-9]+(?:\.[0-9]+)?%", listed_normalized))
+    if not candidate_percentages or candidate_percentages != listed_percentages:
+        return False
+    candidate_start = candidate_normalized.index("被动触及")
+    listed_start = listed_normalized.index("被动触及")
+    candidate_core = candidate_normalized[candidate_start:].replace("提示性", "")
+    listed_core = listed_normalized[listed_start:]
+    return candidate_core == listed_core
+
+
+def _known_non_distribution_title(
+    title: str, body_text: str, expected_listing_title: str | None
+) -> SecurityDisclosureEventType | None:
+    """Classify only bounded source themes with matching body-level terms."""
+
+    if (
+        title.endswith(("法律意见书", "法律意见"))
+        and "法律意见" in body_text
+        and ("股东会" in title or "股东会" in body_text)
+    ):
+        return SecurityDisclosureEventType.OTHER
+    if title.endswith("股东会决议公告") and "股东会" in body_text and "决议" in body_text:
+        return SecurityDisclosureEventType.OTHER
+    if "现金管理" in title and "现金管理" in body_text and "理财产品" in body_text:
+        return SecurityDisclosureEventType.OTHER
+    if "担保" in title and "担保" in body_text and "进展公告" in title:
+        return SecurityDisclosureEventType.OTHER
+    if (
+        ("辞任" in title or "辞职" in title)
+        and ("董事会秘书" in title or "财务总监" in title)
+        and ("辞任" in body_text or "辞职" in body_text)
+        and "董事会秘书" in body_text
+    ):
+        return SecurityDisclosureEventType.OTHER
+    if (
+        expected_listing_title is not None
+        and "持股比例" in expected_listing_title
+        and _ownership_ratio_title_match(title, expected_listing_title.split("：", 1)[-1])
+        and "被动触及" in body_text
+        and all(
+            percentage in body_text
+            for percentage in set(re.findall(r"[0-9]+(?:\.[0-9]+)?%", expected_listing_title))
+        )
+        and "权益分派" in body_text
+        and "总股本" in body_text
+        and "不触及要约收购" in body_text
+        and "不会导致公司控制权发生变更" in body_text
+    ):
+        return SecurityDisclosureEventType.OTHER
+    return None
+
+
+def classify_szse_pdf_disclosure(
+    capture: CapturedOfficialSzsePdf,
+    expected_security_code: str,
+    *,
+    expected_issuer_name: str | None = None,
+    expected_listing_title: str | None = None,
+) -> tuple[str, SecurityDisclosureEventType]:
+    """Classify verified first-page titles; preserve readable ambiguity as UNKNOWN."""
+
+    if expected_issuer_name is None:
+        verify_szse_pdf_security_code(capture, expected_security_code)
+    else:
+        verify_szse_pdf_security_code(
+            capture,
+            expected_security_code,
+            expected_issuer_name=expected_issuer_name,
+        )
     try:
         reader = PdfReader(BytesIO(capture.body), strict=True)
         pages = tuple(page.extract_text() for page in reader.pages)
@@ -169,23 +325,41 @@ def classify_szse_pdf_disclosure(
     if any(type(page) is not str for page in pages):
         raise OfficialDisclosureCaptureError("SZSE PDF page text is unavailable")
     text = "\n".join(pages)
-    title = next(
-        (
-            line.strip()
-            for line in pages[0].splitlines()
-            if (line.strip().endswith(("公告", "公告（更正后）")) and "公告编号" not in line)
-        ),
-        "",
-    )
-    if not title or len(title) > 120:
-        raise OfficialDisclosureCaptureError("SZSE PDF announcement title is unavailable")
+    if not text.strip():
+        raise OfficialDisclosureCaptureError("SZSE PDF body text is unavailable")
+    candidates = _pdf_title_candidates(pages[0])
+    title = candidates[0] if candidates else "unclassified official SZSE document"
+    if expected_listing_title is not None:
+        if type(expected_listing_title) is not str or not expected_listing_title.strip():
+            raise OfficialDisclosureCaptureError("SZSE listing title is invalid")
+        matching_title = _title_matching_listing(candidates, expected_listing_title)
+        if matching_title is None:
+            raise OfficialDisclosureCaptureError("SZSE PDF title does not match its listing row")
+        title = matching_title
+    if len(title) > 120:
+        _LOGGER.warning(
+            "SZSE PDF disclosure title is ambiguous; source_document_id=%s",
+            capture.source_document_id,
+        )
+        return title[:120], SecurityDisclosureEventType.UNKNOWN
     if "权益分派实施的更正公告" in title:
         return title, SecurityDisclosureEventType.CORRECTION_NOTICE
     if "权益分派实施公告" not in title:
+        known_type = _known_non_distribution_title(title, text, expected_listing_title)
+        if known_type is not None:
+            return title, known_type
+        _LOGGER.warning(
+            "SZSE PDF disclosure classification is ambiguous; source_document_id=%s",
+            capture.source_document_id,
+        )
         return title, SecurityDisclosureEventType.UNKNOWN
     cash = bool(re.search(r"每\s*10\s*股\s*派发现金(?:红利|股利)\s*[0-9]", text))
     shares = bool(re.search(r"每\s*10\s*股\s*转增\s*[0-9]", text))
     if cash == shares:
+        _LOGGER.warning(
+            "SZSE PDF disclosure classification is ambiguous; source_document_id=%s",
+            capture.source_document_id,
+        )
         return title, SecurityDisclosureEventType.UNKNOWN
     return (
         title,

@@ -108,6 +108,72 @@ def test_pdf_header_must_match_exact_security(
         verify_szse_pdf_security_code(capture, "301237")
 
 
+def test_full_first_page_issuer_name_can_bind_pdf_without_a_code(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A listed issuer visible later on page one can bind a legal opinion PDF."""
+
+    monkeypatch.setattr(requests, "get", lambda *args, **kwargs: _response(_BODY))
+    capture = capture_official_szse_pdf(_URL)
+    first_page = "普通文本" * 180 + "杭州和顺科技股份有限公司法律意见书"
+    monkeypatch.setattr(
+        capture_module,
+        "PdfReader",
+        lambda *args, **kwargs: SimpleNamespace(
+            pages=(SimpleNamespace(extract_text=lambda: first_page),)
+        ),
+    )
+
+    assert (
+        verify_szse_pdf_security_code(
+            capture,
+            "301237",
+            expected_issuer_name="和顺科技",
+        )
+        == "301237"
+    )
+    monkeypatch.setattr(
+        capture_module,
+        "PdfReader",
+        lambda *args, **kwargs: SimpleNamespace(
+            pages=(SimpleNamespace(extract_text=lambda: "一份无关公司的法律文件"),)
+        ),
+    )
+    with pytest.raises(OfficialDisclosureCaptureError, match="does not match"):
+        verify_szse_pdf_security_code(
+            capture,
+            "301237",
+            expected_issuer_name="和顺科技",
+        )
+
+
+def test_conflicting_first_page_code_cannot_be_overridden_by_issuer_name(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A numeric source identity conflict blocks even when the issuer name matches."""
+
+    monkeypatch.setattr(requests, "get", lambda *args, **kwargs: _response(_BODY))
+    capture = capture_official_szse_pdf(_URL)
+    monkeypatch.setattr(
+        capture_module,
+        "PdfReader",
+        lambda *args, **kwargs: SimpleNamespace(
+            pages=(
+                SimpleNamespace(
+                    extract_text=lambda: "证券代码：002727 一心堂 和顺科技股份有限公司"
+                ),
+            )
+        ),
+    )
+
+    with pytest.raises(OfficialDisclosureCaptureError, match="does not match"):
+        verify_szse_pdf_security_code(
+            capture,
+            "301237",
+            expected_issuer_name="和顺科技",
+        )
+
+
 @pytest.mark.parametrize(
     ("terms", "expected"),
     [
@@ -117,7 +183,10 @@ def test_pdf_header_must_match_exact_security(
     ],
 )
 def test_ambiguous_corporate_action_stays_unknown(
-    monkeypatch: pytest.MonkeyPatch, terms: str, expected: SecurityDisclosureEventType
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+    terms: str,
+    expected: SecurityDisclosureEventType,
 ) -> None:
     monkeypatch.setattr(requests, "get", lambda *args, **kwargs: _response(_BODY))
     capture = capture_official_szse_pdf(_URL)
@@ -138,6 +207,155 @@ def test_ambiguous_corporate_action_stays_unknown(
 
     assert title == "2026 年中期权益分派实施公告"
     assert event_type is expected
+    if expected is SecurityDisclosureEventType.UNKNOWN:
+        assert "SZSE PDF disclosure classification is ambiguous" in caplog.text
+
+
+def test_verified_legal_opinion_title_is_other(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An explicit, security-bound legal opinion is a known non-action document."""
+
+    monkeypatch.setattr(requests, "get", lambda *args, **kwargs: _response(_BODY))
+    capture = capture_official_szse_pdf(_URL)
+    monkeypatch.setattr(
+        capture_module,
+        "verify_szse_pdf_security_code",
+        lambda value, security_code: security_code,
+    )
+    title = "2026 年第二次临时股东会法律意见书"
+    monkeypatch.setattr(
+        capture_module,
+        "PdfReader",
+        lambda *args, **kwargs: SimpleNamespace(
+            pages=(
+                SimpleNamespace(
+                    extract_text=lambda: (
+                        "证券代码：301237 股票简称：和顺科技\n" + title + "\n"
+                        "浙江律师事务所根据法律规定出具本法律意见书。"
+                    )
+                ),
+            )
+        ),
+    )
+
+    observed_title, event_type = classify_szse_pdf_disclosure(
+        capture,
+        "301237",
+        expected_listing_title="和顺科技：2026年第二次临时股东会法律意见书",
+    )
+
+    assert observed_title == title
+    assert event_type is SecurityDisclosureEventType.OTHER
+
+
+def test_same_security_pdf_with_unmatched_listing_title_is_blocked(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Matching stock code alone cannot establish a broken title identity chain."""
+
+    monkeypatch.setattr(requests, "get", lambda *args, **kwargs: _response(_BODY))
+    capture = capture_official_szse_pdf(_URL)
+    page_text = (
+        "证券代码：301237\n关于财务总监、董事会秘书辞任暨董事长代行董事会\n" "秘书职责的公告"
+    )
+    monkeypatch.setattr(
+        capture_module,
+        "PdfReader",
+        lambda *args, **kwargs: SimpleNamespace(
+            pages=(SimpleNamespace(extract_text=lambda: page_text),)
+        ),
+    )
+
+    with pytest.raises(OfficialDisclosureCaptureError, match="title does not match"):
+        classify_szse_pdf_disclosure(
+            capture,
+            "301237",
+            expected_issuer_name="和顺科技",
+            expected_listing_title="和顺科技：关于为控股子公司提供担保的进展公告",
+        )
+
+
+@pytest.mark.parametrize(
+    ("title", "body_evidence", "expected"),
+    [
+        (
+            "关于使用闲置自有资金进行现金管理的进展公告",
+            "公告称公司购买理财产品并进行现金管理，说明产品期限和金额。",
+            SecurityDisclosureEventType.OTHER,
+        ),
+        (
+            "关于为控股子公司提供担保的进展公告",
+            "公司就控股子公司担保事项披露进展情况。",
+            SecurityDisclosureEventType.OTHER,
+        ),
+        (
+            "2026年度第二次临时股东会决议公告",
+            "公司股东会审议通过相关议案并形成决议。",
+            SecurityDisclosureEventType.OTHER,
+        ),
+        (
+            "关于财务总监、董事会秘书辞任的公告",
+            "公司董事会秘书辞任，董事长代行董事会秘书职责。",
+            SecurityDisclosureEventType.OTHER,
+        ),
+        (
+            "关于控股股东、实际控制人及其一致行动人持股比例被动触及1%及5%整数倍的公告",
+            "权益分派及资本公积转增股本导致公司总股本变化，持股比例被动触及1%及5%整数倍；"
+            "不触及要约收购，不会导致公司控制权发生变更。",
+            SecurityDisclosureEventType.OTHER,
+        ),
+        (
+            "关于控股股东、实际控制人及其一致行动人持股比例被动触及1%及5%整数倍的公告",
+            "权益分派导致持股比例被动触及1%及5%整数倍。",
+            SecurityDisclosureEventType.UNKNOWN,
+        ),
+        (
+            "2026 年年度报告摘要公告",
+            "2026年度报告摘要，披露年度财务报告信息。",
+            SecurityDisclosureEventType.UNKNOWN,
+        ),
+    ],
+)
+def test_non_distribution_classification_requires_bounded_topic_evidence(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+    title: str,
+    body_evidence: str,
+    expected: SecurityDisclosureEventType,
+) -> None:
+    """Only explicit source topics with their full body evidence become OTHER."""
+
+    monkeypatch.setattr(requests, "get", lambda *args, **kwargs: _response(_BODY))
+    capture = capture_official_szse_pdf(_URL)
+    monkeypatch.setattr(
+        capture_module,
+        "verify_szse_pdf_security_code",
+        lambda value, security_code: security_code,
+    )
+    monkeypatch.setattr(
+        capture_module,
+        "PdfReader",
+        lambda *args, **kwargs: SimpleNamespace(
+            pages=(
+                SimpleNamespace(extract_text=lambda: f"证券代码：301237\n{title}\n{body_evidence}"),
+            )
+        ),
+    )
+    listed_title = (
+        "和顺科技：关于控股股东、实际控制人及其一致行动人持股比例" "被动触及1%及5%整数倍的公告"
+    )
+
+    observed_title, event_type = classify_szse_pdf_disclosure(
+        capture,
+        "301237",
+        expected_listing_title=listed_title if "持股比例" in title else None,
+    )
+
+    assert observed_title == title
+    assert event_type is expected
+    if expected is SecurityDisclosureEventType.UNKNOWN:
+        assert "SZSE PDF disclosure classification is ambiguous" in caplog.text
 
 
 @pytest.mark.parametrize(
