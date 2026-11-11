@@ -1,5 +1,5 @@
 {
-  "version": "2026-11-11.v373",
+  "version": "2026-11-11.v374",
   "updated_at": "2026-11-11",
   "execution_focus": {
     "unit_id": "ASH-05",
@@ -8,20 +8,12 @@
       "external",
       "governance"
     ],
-    "policy": "ASH-05 remains the sole active repository focus. Exact candidate d846b3aab passed all six applicable CI workflows, including native PostgreSQL contracts, after the failed 3f63ed917 projection candidate was corrected. Official proof windows remain historical. Root owns formal integration, production control-plane authority, cash payment, deferred tax, share/rights stages and all section 9 acceptance. One isolated Luna max settlement receivable preparation and the existing CAL-02 calendar preparation are registered below. Default M1 remains available; production execution and deferred ASH-06/09/12 stay disabled. See A-share plan 19.184.",
+    "policy": "ASH-05 remains the sole active repository focus. Exact candidate d846b3aab passed all six applicable CI workflows, including native PostgreSQL contracts, after the failed 3f63ed917 projection candidate was corrected. Official proof windows remain historical. Root owns formal integration, production control-plane authority, cash payment, deferred tax, share/rights stages and all section 9 acceptance. One isolated Luna max settlement receivable preparation is registered below. The completed CAL-02 contract and offline NBS parser preparation is formally integrated; CAL-02 remains planned pending persistence, public reads and real TUI acceptance. Default M1 remains available; production execution and deferred ASH-06/09/12 stay disabled. See A-share plan 19.184.",
     "parallel_preparation": [
       {
         "unit_id": "ASH-05",
         "scope": "One isolated ASH-05 settlement receivable preparation in .tmp/ash05-settlement-receivable-20261111 based on 3f63ed917. In the existing account-first locked UOW, keep nonzero net cash receivable from immutable corporate-action rows in total_value for current-reference trade settlement and local order fill, and update the local-fill account snapshot precondition to the same value formula. Use the same database alias and account identity; preserve cash plus positions plus receivable through buy/sell/fill, and prove cash-payment transfer never creates or loses NAV. Allowed production paths: apps/simulated_trading/infrastructure/execution_settlement_uow_repository.py, apps/simulated_trading/infrastructure/order_reservation_fill_repository.py and apps/simulated_trading/infrastructure/order_reservation_fill_ledger_storage.py. Allowed tests: tests/component/simulated_trading/test_execution_settlement_uow.py, tests/component/simulated_trading/test_order_reservation_fill_repository.py and one focused new component fixture under tests/component/simulated_trading/ if required. No fee correction, read facade, Audit/Outbox, tax, posting factory, model/migration, workflow, governance, heavy QA, shared Git/index or formal tree edits. Root owns integration, projections, native PostgreSQL and section 9 acceptance. Report extra path needs before editing.",
         "owner": "Luna max event_refresh under Root integration",
-        "isolated_workspace": true,
-        "shared_git_serialized": true,
-        "isolated_test_resources": true
-      },
-      {
-        "unit_id": "CAL-02",
-        "scope": "Continue the one isolated CAL-02 preparation in .tmp/cal02-calendar-contract-20261111. Preserve the completed six natural-day period, evidence/lifecycle and dual-clock contracts. Add only strict offline parsing of the retained real NBS 2026 schedule and 2026-11-09 CPI actual-release HTML, including metadata, rowspan tables, exact original hashes, explicit source timezone and caller-supplied event identity/type and real system clocks. Reject missing or ambiguous metadata, malformed tables, unsupported date/time precision and schedule/actual mismatches; never infer actual occurrence from the schedule. Additional allowed production path: apps/data_center/infrastructure/nbs_institutional_calendar_parser.py. Additional allowed test path: tests/unit/data_center/test_nbs_institutional_calendar_parser.py and minimal real-source HTML fixtures under tests/fixtures/data_center/institutional_calendar/. No model/migration, ORM, provider/network call, provider registration, TUI/runtime, current/latest endpoint, production tree edit, heavy QA or shared Git/index. Root owns later formal integration, module-map projection, persistence, public Application reads and real TUI acceptance.",
-        "owner": "Kimi CAL-02 isolated preparation under Root integration",
         "isolated_workspace": true,
         "shared_git_serialized": true,
         "isolated_test_resources": true
