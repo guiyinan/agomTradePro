@@ -7,8 +7,8 @@
 ## 概览
 
 - App 数：42
-- 模型数：603
-- 字段数：9438
+- 模型数：606
+- 字段数：9487
 
 口径说明：仅覆盖 `apps/*/infrastructure/` 下的 `models.py`、`models/` 包与 `*_models.py`；字段为类体内显式赋值的 Django 字段，继承字段不展开，动态字段与隐式自增主键不在投影内。
 
@@ -1947,6 +1947,82 @@
 | `broker_reconciliation_state` | `CharField` |  |  | BrokerReconciliationState.NOT_APPLICABLE.value | 券商成交核对状态 |  |
 | `broker_reconciliation_details` | `JSONField` |  |  | dict | 券商成交核对详情 |  |
 | `created_at` | `DateTimeField` |  |  |  | 创建时间 |  |
+
+### SimulatedCorporateActionWriteGrantModel
+
+- 来源文件：`apps/account/infrastructure/simulated_corporate_action_write_grant_models.py`
+- 数据表：`account_sim_corp_action_write_grant_ledger`
+- 说明：One immutable grant version, with a unique predecessor link per chain.
+
+| 字段 | 类型 | null | unique | 默认值 | 说明 | 关系目标 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `grant_id` | `CharField` |  |  |  |  |  |
+| `grant_version` | `CharField` |  |  |  |  |  |
+| `account_namespace` | `CharField` |  |  |  |  |  |
+| `account_id` | `CharField` |  |  |  |  |  |
+| `owner_user_id` | `PositiveBigIntegerField` |  |  |  |  |  |
+| `tenant_id` | `CharField` |  |  |  |  |  |
+| `owner_id` | `CharField` |  |  |  |  |  |
+| `account_source_id` | `CharField` |  |  |  |  |  |
+| `account_source_version` | `CharField` |  |  |  |  |  |
+| `account_source_content_hash` | `CharField` |  |  |  |  |  |
+| `policy_id` | `CharField` |  |  |  |  |  |
+| `policy_version` | `CharField` |  |  |  |  |  |
+| `policy_content_hash` | `CharField` |  |  |  |  |  |
+| `consent_evidence_id` | `CharField` |  |  |  |  |  |
+| `consent_evidence_version` | `CharField` |  |  |  |  |  |
+| `consent_evidence_hash` | `CharField` |  |  |  |  |  |
+| `issuer_evidence_id` | `CharField` |  |  |  |  |  |
+| `issuer_evidence_version` | `CharField` |  |  |  |  |  |
+| `issuer_evidence_hash` | `CharField` |  |  |  |  |  |
+| `consented_at` | `DateTimeField` |  |  |  |  |  |
+| `issued_at` | `DateTimeField` |  |  |  |  |  |
+| `recorded_at` | `DateTimeField` |  |  |  |  |  |
+| `valid_until` | `DateTimeField` |  |  |  |  |  |
+| `supersedes_content_hash` | `CharField` | 是 |  |  |  |  |
+| `predecessor` | `OneToOneField` | 是 |  |  | self | self |
+
+### SimulatedCorporateActionWriteGrantRevocationModel
+
+- 来源文件：`apps/account/infrastructure/simulated_corporate_action_write_grant_models.py`
+- 数据表：`account_sim_corp_action_write_grant_revocation_ledger`
+- 说明：One immutable revocation row for one exact grant version.
+
+| 字段 | 类型 | null | unique | 默认值 | 说明 | 关系目标 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `revocation_id` | `CharField` |  |  |  |  |  |
+| `revocation_version` | `CharField` |  |  |  |  |  |
+| `target_grant` | `OneToOneField` |  |  |  |  | SimulatedCorporateActionWriteGrantModel |
+| `grant_id` | `CharField` |  |  |  |  |  |
+| `grant_version` | `CharField` |  |  |  |  |  |
+| `grant_identity_hash` | `CharField` |  |  |  |  |  |
+| `grant_content_hash` | `CharField` |  | 是 |  |  |  |
+| `revocation_evidence_id` | `CharField` |  |  |  |  |  |
+| `revocation_evidence_version` | `CharField` |  |  |  |  |  |
+| `revocation_evidence_hash` | `CharField` |  |  |  |  |  |
+| `issuer_evidence_id` | `CharField` |  |  |  |  |  |
+| `issuer_evidence_version` | `CharField` |  |  |  |  |  |
+| `issuer_evidence_hash` | `CharField` |  |  |  |  |  |
+| `revoked_at` | `DateTimeField` |  |  |  |  |  |
+| `recorded_at` | `DateTimeField` |  |  |  |  |  |
+
+### _SimulatedCorporateActionWriteGrantModel
+
+- 来源文件：`apps/account/infrastructure/simulated_corporate_action_write_grant_models.py`
+- 抽象模型：是
+- 说明：Common immutable envelope and guarded insert behavior for both ledgers.
+
+| 字段 | 类型 | null | unique | 默认值 | 说明 | 关系目标 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `owner` | `CharField` |  |  |  |  |  |
+| `artifact_type` | `CharField` |  |  |  |  |  |
+| `schema` | `CharField` |  |  |  |  |  |
+| `permission` | `CharField` |  |  |  |  |  |
+| `service_actor_id` | `CharField` |  |  |  |  |  |
+| `status` | `CharField` |  |  |  |  |  |
+| `identity_hash` | `CharField` |  |  |  |  |  |
+| `content_hash` | `CharField` |  | 是 |  |  |  |
+| `canonical_payload` | `JSONField` |  |  |  |  |  |
 
 ### SingleOwnerAuthorityPolicyV1Model
 

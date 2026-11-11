@@ -3163,3 +3163,11 @@ v375 隔离的 Account 服务写入 lease 契约按三个 SHA-256 核验后整�
 v380 专门 registry 修复候选 `b3f9d9e13f24d45da6bc48c13cd46d64624e1178` 的五项适用 CI 全部成功。付款门隔离 RED 为 **4 failed**，证明提前日历边界和非全额未阻断；GREEN **6 passed**。两个修改文件按隔离 SHA-256 复核后整合，正式树同 6 项组件 **6 passed**、Black/isort/Ruff、增量 mypy、债务上限、架构、治理及 Data Center 投影通过。账本在账户及事件锁内按服务器时钟换算深交所本地日，未到官方付款日阻断；非撤销付款必须恰好结清同事件完整未结应收，失败整批回滚。Root 新增原生 PostgreSQL 付款日期/金额回归并纳入 Publication PG 工作流，精确 CI 尚待下一候选。该门只约束账本，不代表普通账户可信授权、Audit/Outbox 生产付款或实际银行到账。
 
 付款候选 `97b7ae4b200a7332d4ef3995fe7ee97a86ba301e` 的 Publication PostgreSQL 在进入原生测试前因 CI 节点精确清单未同步而失败；失败原件 `artifacts/ash05-event-policy-20261111/97b-publication-failed.log`，不能声称原生付款通过。Root 已在 `tests/unit/ci/test_publication_postgres_workflow.py` 补列该测试节点，定向契约 **1 passed**。下一候选需重新执行完整适用 CI 与 native PG；失败候选结果不得拼接。
+
+多证券公告来源只读复核确认生产组合已有按配置启用的官方刷新、pin、复核和锁内预留检查，刷新后会重读账户上下文；先前“未接线”诊断已过时。真实剩余缺口是每只证券顺序抓取并分别提交证明：前一证明可能在后续 PDF 抓取完成前耗尽 60 秒 lease，第二证券失败还会保留首只证券已提交事实。registry v383 在同一 ASH-05 并行记录内增加隔离 cohort 捕获准备，限定先收齐候选与末次列表复验、同一有限时钟下单事务写入全部事实/coverage/Audit/Outbox；Root 负责正式整合、原生 PG 与 HTTP 长耗时的后续处理。不得延长 lease 或将部分持久化结果视作计划已覆盖。
+
+付款修正候选 `90aaa49f56fa2b88d14b0b8a70b58599e1247da2` 的 Publication PostgreSQL **失败**：新增原生付款测试本体完成，但 `transaction=True` 的测试 teardown 全库 TRUNCATE 与 Account authority generation singleton 触发器冲突；原件 `artifacts/ash05-event-policy-20261111/90a-publication-failed.log`。`466ac6a4832bfec6686c080429b11a6df121046c` 将该无需跨连接并发的测试改为普通 `django_db` 事务回滚，保留原生 PostgreSQL 账本读写；其后同一 SHA 的六项适用 CI 全部通过，包含 Publication PostgreSQL，失败前驱仍保留。
+
+Account grant/revocation 存储隔离八文件按 SHA-256 核验后整合。正式树单测 **6 passed**、真实迁移组件 **7 passed**，Black/isort/Ruff、六文件增量 mypy、债务上限、`makemigrations --check --dry-run account`、Django 系统检查、架构、模块地图、数据字典与 Data Center 投影通过；PostgreSQL 原生存储门已加入 Publication 工作流，精确 CI 等下一提交。grant 绑定固定写权限与服务 actor、精确模拟账户和 owner/tenant、来源/政策及 consent/issuer 证据，append-only CAS successor、撤销及当前读取不回退旧版本；scope 查询保留并存 owner 冲突。只读审查未发现 P0/P1 存储缺陷，但当前 cutoff 前的未来撤销会保守拒绝旧 grant；生产接线必须使用服务端当前时钟、受认证主体与物理账户 owner 锁内事实，不能将存储自身当签发资格。registry v384 仅保留 cohort 隔离准备，ASH-05 仍 active。
+
+付款门精确候选 `466ac6a4832bfec6686c080429b11a6df121046c` 的六项适用 CI 全部成功，Publication PostgreSQL 真实执行到账日期、完整应收和既有现金权益/账户隔离用例；忽略目录索引 `artifacts/ash05-event-policy-20261111/466-payment-evidence-index.json` SHA-256 为 `2430e86562f5b1023bd646d6800d100bdd0d7a06107c7ca261ae19604ee01bf8`。索引保留两次失败候选的原件，不能用该通过替代 Account grant 的原生 PG 或生产授权接线。

@@ -565,20 +565,27 @@ def test_ash05_hold_lease_rollback_runs_on_a_distinct_postgres_test_database() -
     assert "ash05-lease-postgres.xml" in artifact_files
 
 
-def test_ash05_cash_entitlement_runs_on_an_isolated_migrated_postgres_database() -> None:
-    """Run the native replay and scope negatives and reject skipped JUnit evidence."""
+def test_ash05_corporate_action_ledger_runs_on_isolated_migrated_postgres() -> None:
+    """Run native cash and grant contracts and reject skipped JUnit evidence."""
 
     workflow = yaml.load(WORKFLOW_PATH.read_text(encoding="utf-8"), Loader=yaml.BaseLoader)
     steps = workflow["jobs"]["publication-postgres"]["steps"]
     step = next(
         item
         for item in steps
-        if item.get("name") == "Exercise ASH-05 native cash entitlement ledger"
+        if item.get("name") == "Exercise ASH-05 native corporate-action ledger"
     )
     assert _pytest_nodeids(step["run"]) == (
         "tests/component/simulated_trading/test_corporate_action_posting_postgres.py::test_postgres_concurrent_entitlement_replay_writes_one_receivable",
         "tests/component/simulated_trading/test_corporate_action_posting_postgres.py::test_postgres_payment_waits_for_szse_date_and_settles_exact_receivable",
         "tests/component/simulated_trading/test_corporate_action_posting_postgres.py::test_postgres_wrong_owner_account_or_security_scope_blocks_without_writes",
+        "tests/component/account/test_simulated_corporate_action_write_grant_repository.py::test_repository_appends_replays_and_reads_one_exact_root",
+        "tests/component/account/test_simulated_corporate_action_write_grant_repository.py::test_repository_successor_replaces_exact_head_without_old_version_fallback",
+        "tests/component/account/test_simulated_corporate_action_write_grant_repository.py::test_repository_rejects_wrong_predecessor_and_preserves_the_old_head",
+        "tests/component/account/test_simulated_corporate_action_write_grant_repository.py::test_repository_persists_a_separate_revocation_and_application_fails_closed",
+        "tests/component/account/test_simulated_corporate_action_write_grant_repository.py::test_exact_selector_absence_does_not_fallback_to_an_available_root",
+        "tests/component/account/test_simulated_corporate_action_write_grant_repository.py::test_scope_reader_preserves_owner_conflicts_and_never_falls_back_from_expired_head",
+        "tests/component/account/test_simulated_corporate_action_write_grant_repository.py::test_orm_paths_cannot_bypass_the_repository_append_claim",
     )
     assert step["env"]["DATABASE_URL"].endswith("/agom_release_rehearsal_ci")
     assert step["env"]["AGOM_CRITICAL_TEST_DB_NAME"] == "ash05_cash_posting_test"

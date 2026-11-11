@@ -30,6 +30,7 @@ from . import owner_tenant_authority_v3_models as _owner_tenant_authority_v3
 from . import physical_account_row_observation_models as _physical_row
 from . import physical_account_row_observation_v2_models as _physical_row_v2
 from . import portfolio_models as _portfolio
+from . import simulated_corporate_action_write_grant_models as _simulated_action_write_grant
 from . import single_owner_authority_policy_v1_models as _single_owner_policy
 from . import trading_config_models as _trading_config
 
@@ -60,6 +61,7 @@ _OWNER_MODULES: tuple[ModuleType, ...] = (
     _physical_row_v2,
     _portfolio,
     _single_owner_policy,
+    _simulated_action_write_grant,
     _owner_tenant_authority_v2,
     _owner_tenant_authority_v3,
     _trading_config,
@@ -93,6 +95,7 @@ if TYPE_CHECKING:
     from .physical_account_row_observation_models import *  # noqa: F403
     from .physical_account_row_observation_v2_models import *  # noqa: F403
     from .portfolio_models import *  # noqa: F403
+    from .simulated_corporate_action_write_grant_models import *  # noqa: F403
     from .single_owner_authority_policy_v1_models import *  # noqa: F403
     from .trading_config_models import *  # noqa: F403
 

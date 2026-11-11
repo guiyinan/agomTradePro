@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 6728,
+    "current_surface_references": 6749,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -2239,6 +2239,46 @@
       "text": "\"\"\"Return account summary metrics for operational diagnostics.\"\"\""
     },
     {
+      "path": "apps/account/application/simulated_corporate_action_write_grant.py",
+      "text": "\"\"\"Application contracts for reading exact current simulated action grants.\"\"\""
+    },
+    {
+      "path": "apps/account/application/simulated_corporate_action_write_grant.py",
+      "text": "\"\"\"Bind a required exact-current reader; a missing provider fails closed.\"\"\""
+    },
+    {
+      "path": "apps/account/application/simulated_corporate_action_write_grant.py",
+      "text": "\"\"\"The exact current grant cannot be proven from the Account ledger.\"\"\""
+    },
+    {
+      "path": "apps/account/application/simulated_corporate_action_write_grant.py",
+      "text": "\"provider did not return the exact current simulated write grant\""
+    },
+    {
+      "path": "apps/account/application/simulated_corporate_action_write_grant.py",
+      "text": "current = self._provider.get_current_grant(selector=selector, as_of=as_of)"
+    },
+    {
+      "path": "apps/account/application/simulated_corporate_action_write_grant.py",
+      "text": "current.__post_init__()"
+    },
+    {
+      "path": "apps/account/application/simulated_corporate_action_write_grant.py",
+      "text": "if current.selector != selector or not is_active:"
+    },
+    {
+      "path": "apps/account/application/simulated_corporate_action_write_grant.py",
+      "text": "if type(current) is not SimulatedCorporateActionWriteGrantCurrent:"
+    },
+    {
+      "path": "apps/account/application/simulated_corporate_action_write_grant.py",
+      "text": "is_active = current.is_active_at(as_of)"
+    },
+    {
+      "path": "apps/account/application/simulated_corporate_action_write_grant.py",
+      "text": "return current.grant"
+    },
+    {
       "path": "apps/account/application/simulated_corporate_action_write_lease.py",
       "text": "\"\"\"Read one exact provider-issued lease and its current revocation state.\"\"\""
     },
@@ -3045,6 +3085,22 @@
     {
       "path": "apps/account/domain/services.py",
       "text": "while current <= as_of_date:"
+    },
+    {
+      "path": "apps/account/domain/simulated_corporate_action_write_grant.py",
+      "text": "\"\"\"Return current grant authority only if it is unrevoked and within its finite interval.\"\"\""
+    },
+    {
+      "path": "apps/account/domain/simulated_corporate_action_write_grant.py",
+      "text": "\"\"\"Return the exact immutable selector expected by a current-grant reader.\"\"\""
+    },
+    {
+      "path": "apps/account/domain/simulated_corporate_action_write_grant.py",
+      "text": "\"\"\"Return the exact immutable selector represented by this current read.\"\"\""
+    },
+    {
+      "path": "apps/account/domain/simulated_corporate_action_write_grant.py",
+      "text": "\"\"\"Return whether this finite grant is current in its own half-open time interval.\"\"\""
     },
     {
       "path": "apps/account/domain/simulated_corporate_action_write_lease.py",
@@ -4045,6 +4101,34 @@
     {
       "path": "apps/account/infrastructure/repositories.py",
       "text": "payload[\"version\"] = (current.version + 1) if current is not None else 1"
+    },
+    {
+      "path": "apps/account/infrastructure/simulated_corporate_action_write_grant_repository.py",
+      "text": "\"\"\"Append immutable grant and revocation rows and read exact current heads.\"\"\""
+    },
+    {
+      "path": "apps/account/infrastructure/simulated_corporate_action_write_grant_repository.py",
+      "text": "\"\"\"Django persistence for exact-current simulated corporate-action write grants.\"\"\""
+    },
+    {
+      "path": "apps/account/infrastructure/simulated_corporate_action_write_grant_repository.py",
+      "text": "\"\"\"Return current server time as an aware timestamp.\"\"\""
+    },
+    {
+      "path": "apps/account/infrastructure/simulated_corporate_action_write_grant_repository.py",
+      "text": "current = SimulatedCorporateActionWriteGrantCurrent(grant=grant)"
+    },
+    {
+      "path": "apps/account/infrastructure/simulated_corporate_action_write_grant_repository.py",
+      "text": "current = tuple("
+    },
+    {
+      "path": "apps/account/infrastructure/simulated_corporate_action_write_grant_repository.py",
+      "text": "current,"
+    },
+    {
+      "path": "apps/account/infrastructure/simulated_corporate_action_write_grant_repository.py",
+      "text": "return current if current.is_active_at(as_of) else None"
     },
     {
       "path": "apps/account/infrastructure/single_owner_authority_policy_v1_repository.py",

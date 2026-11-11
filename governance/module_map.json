@@ -927,6 +927,14 @@
           "summarize_risk_results",
           "unknown_stage_snapshot"
         ],
+        "application/simulated_corporate_action_write_grant.py": [
+          "RequireSimulatedCorporateActionWriteGrant",
+          "SimulatedCorporateActionWriteGrantConflict",
+          "SimulatedCorporateActionWriteGrantCorruption",
+          "SimulatedCorporateActionWriteGrantProvider",
+          "SimulatedCorporateActionWriteGrantRepository",
+          "SimulatedCorporateActionWriteGrantUnavailable"
+        ],
         "application/simulated_corporate_action_write_lease.py": [
           "RequireSimulatedCorporateActionWriteLease",
           "SimulatedCorporateActionWriteLeaseProvider",
@@ -1116,9 +1124,9 @@
         ]
       },
       "layers": {
-        "application": 80,
-        "domain": 44,
-        "infrastructure": 150,
+        "application": 81,
+        "domain": 45,
+        "infrastructure": 152,
         "interface": 24,
         "management": 14,
         "root": 25
