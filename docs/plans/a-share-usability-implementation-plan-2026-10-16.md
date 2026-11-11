@@ -3145,3 +3145,5 @@ v373 隔离成交应收准备的五个文件已按 Luna max 的逐文件 SHA-256
 费用更正保护候选 `78445c9ad4616daf20bf33cf830f2b776535857d` 的五项适用 CI 已全部成功，包含原生 Publication PostgreSQL；本机保护用例 **1 passed**、增量 mypy 零回归、全库债务上限 0。忽略目录索引 `artifacts/ash05-event-policy-20261111/784-fee-guard-evidence-index.json` SHA-256 为 `c6409e135631bb85d8ea0710227e3033e035a6a638e96eb0fcf76a1cf9786ace`。该候选只证明已登记公司行动账户不会被费用更正错误改写，未证明两类账本可同时完成更正。
 
 成交应收候选 `ed5a38c448bcaaae978c20c5f9882e18945d7b4f` 的 Fast Feedback 增量质量门因两份既有大仓储继续增长而失败，原件 `artifacts/ash05-event-policy-20261111/ed5-fast-failed.log`；另外五项适用 CI 成功，不能跨候选拼成全通过。修复把买卖持仓持久化从 `execution_settlement_uow_repository.py` 抽到独立基础设施模块，前者非空行从基线 1070 降至 911；撮合仓储精简快照展开后为 999（基线 995），处于 1000 行门内。正式树买卖/到账组件重新执行 **3 passed**，增量 mypy、全库债务和架构零回归；模块地图及 Data Center 投影按生成器重建，下一精确候选仍需独立 CI 验收。
+
+下一有界准备登记在 registry v375：Luna max 只建立 Account 的模拟公司行动服务写入 lease 的纯契约与失效测试，明确与现有 staff-only Audit 读取和 `evidence_read` V3 区分。Root 后续负责可信签发、撤销、同别名账户锁内复验及写入事件证据；在这些门通过前普通账户入账保持 fail closed。现金付款目前仅有公告预定付款日，不能称作已核实银行到账；模拟付款日期门与金额对账需独立完成，当前窗口官方覆盖、后扣税、股份/配股和 §9 金样本仍未通过。ASH-05 保持 active。

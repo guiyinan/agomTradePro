@@ -1,5 +1,5 @@
 {
-  "version": "2026-11-11.v374",
+  "version": "2026-11-11.v375",
   "updated_at": "2026-11-11",
   "execution_focus": {
     "unit_id": "ASH-05",
@@ -8,11 +8,11 @@
       "external",
       "governance"
     ],
-    "policy": "ASH-05 remains the sole active repository focus. Exact candidate d846b3aab passed all six applicable CI workflows, including native PostgreSQL contracts, after the failed 3f63ed917 projection candidate was corrected. Official proof windows remain historical. Root owns formal integration, production control-plane authority, cash payment, deferred tax, share/rights stages and all section 9 acceptance. One isolated Luna max settlement receivable preparation is registered below. The completed CAL-02 contract and offline NBS parser preparation is formally integrated; CAL-02 remains planned pending persistence, public reads and real TUI acceptance. Default M1 remains available; production execution and deferred ASH-06/09/12 stay disabled. See A-share plan 19.184.",
+    "policy": "ASH-05 remains the sole active repository focus. Exact candidate d846b3aab passed all six applicable CI workflows; settlement-receivable and size-refactor candidate 2fa52dfa3 has local gates green with exact CI pending. Official proof windows remain historical. Root owns formal integration, service-write issuer and persistence, cash payment, deferred tax, share/rights stages and all section 9 acceptance. One isolated Luna max owner service-write lease contract preparation is registered below. CAL-02 remains planned after its offline contract integration. Default M1 remains available; production execution and deferred ASH-06/09/12 stay disabled. See A-share plan 19.184.",
     "parallel_preparation": [
       {
         "unit_id": "ASH-05",
-        "scope": "One isolated ASH-05 settlement receivable preparation in .tmp/ash05-settlement-receivable-20261111 based on 3f63ed917. In the existing account-first locked UOW, keep nonzero net cash receivable from immutable corporate-action rows in total_value for current-reference trade settlement and local order fill, and update the local-fill account snapshot precondition to the same value formula. Use the same database alias and account identity; preserve cash plus positions plus receivable through buy/sell/fill, and prove cash-payment transfer never creates or loses NAV. Allowed production paths: apps/simulated_trading/infrastructure/execution_settlement_uow_repository.py, apps/simulated_trading/infrastructure/order_reservation_fill_repository.py and apps/simulated_trading/infrastructure/order_reservation_fill_ledger_storage.py. Allowed tests: tests/component/simulated_trading/test_execution_settlement_uow.py, tests/component/simulated_trading/test_order_reservation_fill_repository.py and one focused new component fixture under tests/component/simulated_trading/ if required. No fee correction, read facade, Audit/Outbox, tax, posting factory, model/migration, workflow, governance, heavy QA, shared Git/index or formal tree edits. Root owns integration, projections, native PostgreSQL and section 9 acceptance. Report extra path needs before editing.",
+        "scope": "One isolated ASH-05 owner service-write lease contract preparation in .tmp/ash05-owner-write-lease-20261111 based on 2fa52dfa3. Define immutable typed Account Domain/Application contracts for a provider-issued simulated corporate-action service-write lease, separate from staff-only Audit reader authority and V3 evidence_read. Bind permission, service actor, account namespace/id, owner user id, tenant/owner scope, source identity/version/hash, recorded/valid clocks, revocation state and exact account/policy lineage. Validation must fail closed for forged, absent, expired, revoked, mismatched scope or changed source and cover the half-open expiry boundary. Allowed new production paths: apps/account/domain/simulated_corporate_action_write_lease.py and apps/account/application/simulated_corporate_action_write_lease.py. Allowed new tests: tests/unit/account/test_simulated_corporate_action_write_lease.py. No issuer, ORM/migration, Audit reader changes, simulated writer, tax, payment, workflow, governance, heavy QA, shared Git/index or formal tree edits. Root owns issuer, locked same-alias verification, canonical Audit evidence, native PostgreSQL and section 9 acceptance. Report extra path needs before editing.",
         "owner": "Luna max event_refresh under Root integration",
         "isolated_workspace": true,
         "shared_git_serialized": true,
@@ -404,7 +404,7 @@
       "priority": "P0/P1",
       "owner": "portfolio+risk_center+data_center+simulated_trading+backtest+broker_execution+terminal",
       "status": "active",
-      "next_gate": "ASH-05 stays active. Candidate d846b3aab passed all six exact CI workflows including native PostgreSQL contracts after generated Data Center projections were corrected. One isolated settlement receivable preparation includes its local-fill snapshot guard. Current-window official coverage, normal-account Audit authority, cash/share/tax posting, all account valuation writers and section 9 gold journeys precede closure. Default M1 remains available; production execution and deferred ASH-06/09/12 stay disabled.",
+      "next_gate": "ASH-05 stays active. Candidate d846b3aab passed all six exact CI workflows; settlement-receivable candidate 2fa52dfa3 awaits exact CI after a failed file-size predecessor. One isolated owner service-write lease contract preparation is registered. Current-window official coverage, normal-account Audit write authority, cash/share/tax posting and section 9 gold journeys precede closure. Default M1 remains available; production execution and deferred ASH-06/09/12 stay disabled.",
       "documents": [
         {
           "path": "docs/plans/a-share-usability-implementation-plan-2026-10-16.md",
