@@ -173,7 +173,7 @@ def test_postgres_concurrent_entitlement_replay_writes_one_receivable() -> None:
         ("asset", "CORPORATE_ACTION_SOURCE_UNQUALIFIED"),
     ),
 )
-@pytest.mark.django_db(transaction=True)
+@pytest.mark.django_db
 def test_postgres_wrong_owner_account_or_security_scope_blocks_without_writes(
     scope_error: str,
     expected_code: str,
