@@ -26,17 +26,17 @@
       "script": 20,
       "sdk": 57,
       "terminal_tui": 32,
-      "test_evidence": 129,
+      "test_evidence": 130,
       "workflow_step": 11
     },
     "by_status": {
       "active_public": 911,
       "adjacent_operational": 346,
-      "candidate-review": 48,
+      "candidate-review": 49,
       "compatibility": 139,
       "retired_blocked": 0
     },
-    "total": 1444
+    "total": 1445
   },
   "entries": [
     {
@@ -13857,6 +13857,16 @@
       "path": "tests/settings_owner_tenant_authority_v1_postgres.py",
       "status": "adjacent_operational",
       "symbol": "settings_owner_tenant_authority_v1_postgres",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/settings_statutory_source_postgres.py:settings_statutory_source_postgres:",
+      "locator": "",
+      "path": "tests/settings_statutory_source_postgres.py",
+      "status": "candidate-review",
+      "symbol": "settings_statutory_source_postgres",
       "target": ""
     },
     {

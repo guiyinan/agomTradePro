@@ -40135,6 +40135,310 @@
         },
         {
           "bases": [
+            "_StatutorySourceImmutableModel"
+          ],
+          "class_name": "StatutorySourceDocumentBundleMemberModel",
+          "docstring": "A protected ordered reference to one exact retained capture in a source set.",
+          "fields": [
+            {
+              "field_type": "ForeignKey",
+              "kwargs": {
+                "on_delete": "models.PROTECT",
+                "related_name": "members"
+              },
+              "name": "bundle",
+              "positional_args": [
+                "StatutorySourceDocumentBundleModel"
+              ]
+            },
+            {
+              "field_type": "ForeignKey",
+              "kwargs": {
+                "on_delete": "models.PROTECT",
+                "related_name": "bundle_members"
+              },
+              "name": "capture",
+              "positional_args": [
+                "StatutorySourceDocumentCaptureModel"
+              ]
+            },
+            {
+              "field_type": "PositiveIntegerField",
+              "name": "ordinal",
+              "positional_args": []
+            }
+          ],
+          "meta": {
+            "base_manager_name": "objects",
+            "constraints": "[models.UniqueConstraint(fields=('bundle', 'capture'), name='dc_stat_member_capture_uniq'), models.UniqueConstraint(fields=('bundle', 'ordinal'), name='dc_stat_member_order_uniq')]",
+            "db_table": "dc_statutory_source_bundle_member",
+            "default_manager_name": "objects"
+          },
+          "source_file": "infrastructure/statutory_source_models.py"
+        },
+        {
+          "bases": [
+            "_StatutorySourceImmutableModel"
+          ],
+          "class_name": "StatutorySourceDocumentBundleModel",
+          "docstring": "An immutable selected source set with separately bound capture provenance.",
+          "fields": [
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 240
+              },
+              "name": "bundle_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 120
+              },
+              "name": "version",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "source_bundle_sha256",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "capture_manifest_sha256",
+              "positional_args": []
+            }
+          ],
+          "meta": {
+            "base_manager_name": "objects",
+            "constraints": "[models.UniqueConstraint(fields=('bundle_id', 'version'), name='dc_stat_bundle_native_uniq'), models.CheckConstraint(condition=models.Q(source_bundle_sha256__regex='^[0-9a-f]{64}$', capture_manifest_sha256__regex='^[0-9a-f]{64}$'), name='dc_stat_bundle_hashes_ck')]",
+            "db_table": "dc_statutory_source_bundle",
+            "default_manager_name": "objects"
+          },
+          "source_file": "infrastructure/statutory_source_models.py"
+        },
+        {
+          "bases": [
+            "_StatutorySourceImmutableModel"
+          ],
+          "class_name": "StatutorySourceDocumentCaptureModel",
+          "docstring": "One server capture of an exact retained revision and body location.",
+          "fields": [
+            {
+              "field_type": "UUIDField",
+              "kwargs": {
+                "editable": false,
+                "primary_key": true
+              },
+              "name": "capture_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "ForeignKey",
+              "kwargs": {
+                "on_delete": "models.PROTECT",
+                "related_name": "captures"
+              },
+              "name": "revision",
+              "positional_args": [
+                "StatutorySourceDocumentRevisionModel"
+              ]
+            },
+            {
+              "field_type": "DateTimeField",
+              "name": "captured_at",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 200
+              },
+              "name": "content_type",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 1024
+              },
+              "name": "body_reference",
+              "positional_args": []
+            }
+          ],
+          "meta": {
+            "base_manager_name": "objects",
+            "constraints": "[models.CheckConstraint(condition=models.Q(recorded_at__gte=models.F('captured_at')), name='dc_stat_cap_record_clock_ck')]",
+            "db_table": "dc_statutory_source_capture",
+            "default_manager_name": "objects"
+          },
+          "source_file": "infrastructure/statutory_source_models.py"
+        },
+        {
+          "bases": [
+            "_StatutorySourceImmutableModel"
+          ],
+          "class_name": "StatutorySourceDocumentRevisionModel",
+          "docstring": "One immutable publisher-native revision; this is not source qualification.",
+          "fields": [
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 240
+              },
+              "name": "issuer",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 240
+              },
+              "name": "document_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 120
+              },
+              "name": "source_version",
+              "positional_args": []
+            },
+            {
+              "field_type": "URLField",
+              "kwargs": {
+                "max_length": 4096
+              },
+              "name": "canonical_url",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 1000
+              },
+              "name": "title",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 240
+              },
+              "name": "legal_number",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 8
+              },
+              "name": "publication_precision",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateField",
+              "kwargs": {
+                "null": true
+              },
+              "name": "publication_date",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "kwargs": {
+                "null": true
+              },
+              "name": "publication_instant",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 8
+              },
+              "name": "effective_precision",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateField",
+              "kwargs": {
+                "null": true
+              },
+              "name": "effective_date",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "kwargs": {
+                "null": true
+              },
+              "name": "effective_instant",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "body_sha256",
+              "positional_args": []
+            },
+            {
+              "field_type": "PositiveBigIntegerField",
+              "name": "body_size_bytes",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "source_revision_sha256",
+              "positional_args": []
+            }
+          ],
+          "meta": {
+            "base_manager_name": "objects",
+            "constraints": "[models.UniqueConstraint(fields=('issuer', 'document_id', 'source_version'), name='dc_stat_src_native_uniq'), models.CheckConstraint(condition=_date_shape('publication'), name='dc_stat_src_pub_clock_ck'), models.CheckConstraint(condition=_date_shape('effective'), name='dc_stat_src_eff_clock_ck'), models.CheckConstraint(condition=models.Q(body_size_bytes__gt=0), name='dc_stat_src_body_size_ck'), models.CheckConstraint(condition=models.Q(body_sha256__regex='^[0-9a-f]{64}$', source_revision_sha256__regex='^[0-9a-f]{64}$'), name='dc_stat_src_hashes_ck')]",
+            "db_table": "dc_statutory_source_revision",
+            "default_manager_name": "objects"
+          },
+          "source_file": "infrastructure/statutory_source_models.py"
+        },
+        {
+          "abstract": true,
+          "bases": [
+            "models.Model"
+          ],
+          "class_name": "_StatutorySourceImmutableModel",
+          "docstring": "Require an exact repository insert claim and reject all row mutation.",
+          "fields": [
+            {
+              "field_type": "DateTimeField",
+              "name": "recorded_at",
+              "positional_args": []
+            }
+          ],
+          "meta": {
+            "abstract": true
+          },
+          "source_file": "infrastructure/statutory_source_models.py"
+        },
+        {
+          "bases": [
             "models.Model"
           ],
           "class_name": "SyncItemAttemptModel",

@@ -606,6 +606,16 @@ def test_ash05_corporate_action_ledger_runs_on_isolated_migrated_postgres() -> N
         "tests/component/data_center/test_szse_distribution_window_ingestion.py::test_multi_asset_cohort_commits_all_proofs_and_audits_at_shared_clocks",
         "tests/component/data_center/test_szse_distribution_window_ingestion.py::test_second_asset_audit_failure_rolls_back_entire_cohort",
         "tests/component/data_center/test_szse_distribution_window_ingestion.py::test_cohort_source_proof_at_lease_expiry_blocks_all_writes",
+        "tests/component/data_center/test_statutory_source_repository.py::test_real_body_and_metadata_roundtrip_replays_exact_capture",
+        "tests/component/data_center/test_statutory_source_repository.py::test_same_revision_changed_bytes_and_capture_facts_are_rejected",
+        "tests/component/data_center/test_statutory_source_repository.py::test_metadata_append_requires_retained_matching_body_and_valid_clock",
+        "tests/component/data_center/test_statutory_source_repository.py::test_bundle_preserves_both_hashes_and_requires_exact_retained_members",
+        "tests/component/data_center/test_statutory_source_repository.py::test_bundle_member_failure_rolls_back_entire_metadata_batch",
+        "tests/component/data_center/test_statutory_source_repository.py::test_orm_write_shortcuts_cannot_modify_source_facts",
+        "tests/component/data_center/test_statutory_source_repository.py::test_postgres_native_mutation_guards_reject_even_raw_sql",
+        "tests/component/data_center/test_statutory_source_repository.py::test_postgres_concurrent_revision_conflict_has_one_immutable_winner",
+        "tests/component/data_center/test_statutory_source_repository.py::test_postgres_concurrent_capture_uuid_is_one_exact_replay",
+        "tests/component/data_center/test_statutory_source_repository.py::test_postgres_unsupported_isolation_blocks_before_metadata_write",
     )
     assert step["env"]["DATABASE_URL"].endswith("/agom_release_rehearsal_ci")
     assert step["env"]["AGOM_CRITICAL_TEST_DB_NAME"] == "ash05_cash_posting_test"

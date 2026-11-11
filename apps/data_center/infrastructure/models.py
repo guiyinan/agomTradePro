@@ -49,6 +49,18 @@ from .security_disclosure_event_models import (  # noqa: F401
 from .security_disclosure_event_models import (  # noqa: F401
     SecurityDisclosureListingCoverageModel as SecurityDisclosureListingCoverageModel,
 )
+from .statutory_source_models import (
+    StatutorySourceDocumentBundleMemberModel as StatutorySourceDocumentBundleMemberModel,
+)
+from .statutory_source_models import (
+    StatutorySourceDocumentBundleModel as StatutorySourceDocumentBundleModel,
+)
+from .statutory_source_models import (
+    StatutorySourceDocumentCaptureModel as StatutorySourceDocumentCaptureModel,
+)
+from .statutory_source_models import (
+    StatutorySourceDocumentRevisionModel as StatutorySourceDocumentRevisionModel,
+)
 
 
 def _optional_json_float(value: object, field_name: str) -> float | None:

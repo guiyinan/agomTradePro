@@ -7,8 +7,8 @@
 ## 概览
 
 - App 数：42
-- 模型数：606
-- 字段数：9487
+- 模型数：611
+- 字段数：9515
 
 口径说明：仅覆盖 `apps/*/infrastructure/` 下的 `models.py`、`models/` 包与 `*_models.py`；字段为类体内显式赋值的 Django 字段，继承字段不展开，动态字段与隐式自增主键不在投影内。
 
@@ -6294,6 +6294,79 @@
 | `second_pass_page_body_sha256` | `JSONField` |  |  |  |  |  |
 | `manifest_sha256` | `CharField` |  |  |  |  |  |
 | `coverage_manifest_sha256` | `CharField` |  |  |  |  |  |
+| `recorded_at` | `DateTimeField` |  |  |  |  |  |
+
+### StatutorySourceDocumentBundleMemberModel
+
+- 来源文件：`apps/data_center/infrastructure/statutory_source_models.py`
+- 数据表：`dc_statutory_source_bundle_member`
+- 说明：A protected ordered reference to one exact retained capture in a source set.
+
+| 字段 | 类型 | null | unique | 默认值 | 说明 | 关系目标 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `bundle` | `ForeignKey` |  |  |  |  | StatutorySourceDocumentBundleModel |
+| `capture` | `ForeignKey` |  |  |  |  | StatutorySourceDocumentCaptureModel |
+| `ordinal` | `PositiveIntegerField` |  |  |  |  |  |
+
+### StatutorySourceDocumentBundleModel
+
+- 来源文件：`apps/data_center/infrastructure/statutory_source_models.py`
+- 数据表：`dc_statutory_source_bundle`
+- 说明：An immutable selected source set with separately bound capture provenance.
+
+| 字段 | 类型 | null | unique | 默认值 | 说明 | 关系目标 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `bundle_id` | `CharField` |  |  |  |  |  |
+| `version` | `CharField` |  |  |  |  |  |
+| `source_bundle_sha256` | `CharField` |  |  |  |  |  |
+| `capture_manifest_sha256` | `CharField` |  |  |  |  |  |
+
+### StatutorySourceDocumentCaptureModel
+
+- 来源文件：`apps/data_center/infrastructure/statutory_source_models.py`
+- 数据表：`dc_statutory_source_capture`
+- 说明：One server capture of an exact retained revision and body location.
+
+| 字段 | 类型 | null | unique | 默认值 | 说明 | 关系目标 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `capture_id` | `UUIDField` |  |  |  |  |  |
+| `revision` | `ForeignKey` |  |  |  |  | StatutorySourceDocumentRevisionModel |
+| `captured_at` | `DateTimeField` |  |  |  |  |  |
+| `content_type` | `CharField` |  |  |  |  |  |
+| `body_reference` | `CharField` |  |  |  |  |  |
+
+### StatutorySourceDocumentRevisionModel
+
+- 来源文件：`apps/data_center/infrastructure/statutory_source_models.py`
+- 数据表：`dc_statutory_source_revision`
+- 说明：One immutable publisher-native revision; this is not source qualification.
+
+| 字段 | 类型 | null | unique | 默认值 | 说明 | 关系目标 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `issuer` | `CharField` |  |  |  |  |  |
+| `document_id` | `CharField` |  |  |  |  |  |
+| `source_version` | `CharField` |  |  |  |  |  |
+| `canonical_url` | `URLField` |  |  |  |  |  |
+| `title` | `CharField` |  |  |  |  |  |
+| `legal_number` | `CharField` |  |  |  |  |  |
+| `publication_precision` | `CharField` |  |  |  |  |  |
+| `publication_date` | `DateField` | 是 |  |  |  |  |
+| `publication_instant` | `DateTimeField` | 是 |  |  |  |  |
+| `effective_precision` | `CharField` |  |  |  |  |  |
+| `effective_date` | `DateField` | 是 |  |  |  |  |
+| `effective_instant` | `DateTimeField` | 是 |  |  |  |  |
+| `body_sha256` | `CharField` |  |  |  |  |  |
+| `body_size_bytes` | `PositiveBigIntegerField` |  |  |  |  |  |
+| `source_revision_sha256` | `CharField` |  |  |  |  |  |
+
+### _StatutorySourceImmutableModel
+
+- 来源文件：`apps/data_center/infrastructure/statutory_source_models.py`
+- 抽象模型：是
+- 说明：Require an exact repository insert claim and reject all row mutation.
+
+| 字段 | 类型 | null | unique | 默认值 | 说明 | 关系目标 |
+| --- | --- | --- | --- | --- | --- | --- |
 | `recorded_at` | `DateTimeField` |  |  |  |  |  |
 
 ### SyncItemAttemptModel
