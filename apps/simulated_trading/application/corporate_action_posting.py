@@ -233,6 +233,34 @@ class PostCashDividendEntitlementUseCase:
         return self._delegate.execute((request,))
 
 
+class PostCashDividendPaymentUseCase:
+    """Post only one official-date cash-dividend payment through an injected repository."""
+
+    def __init__(self, repository: CorporateActionPostingRepositoryProtocol) -> None:
+        """Bind the cash-payment-only posting boundary."""
+
+        self._delegate = PostCorporateActionStageUseCase(repository)
+
+    def execute(
+        self,
+        request: CorporateActionStageRequest,
+    ) -> tuple[CorporateActionPostingReceipt, ...]:
+        """Reject entitlement, tax, share, and correction-reversal stages before forwarding."""
+
+        if (
+            type(request) is not CorporateActionStageRequest
+            or request.action_kind is not CorporateActionKind.CASH_DIVIDEND
+            or request.stage is not CorporateActionStage.CASH_PAYMENT
+            or request.entry_kind
+            not in {CorporateActionEntryKind.POSTING, CorporateActionEntryKind.SUCCESSOR}
+        ):
+            raise CorporateActionPostingBlockedError(
+                "this production entry only accepts cash-dividend payment stages",
+                code="CORPORATE_ACTION_STAGE_UNSUPPORTED",
+            )
+        return self._delegate.execute((request,))
+
+
 __all__ = [
     "AuditedCorporateActionPostingRepositoryPort",
     "AuditedCorporateActionPostingRepositoryProtocol",
@@ -242,6 +270,7 @@ __all__ = [
     "CorporateActionPostingReceipt",
     "CorporateActionPostingRepositoryProtocol",
     "PostCashDividendEntitlementUseCase",
+    "PostCashDividendPaymentUseCase",
     "PostCorporateActionStageUseCase",
     "RecordDateOwnershipProofReaderProtocol",
 ]

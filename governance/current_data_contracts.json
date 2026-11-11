@@ -14122,6 +14122,108 @@
           "test_function": "test_legacy_numeric_refresh_blocks_account_with_corporate_action_history"
         }
       ]
+    },
+    {
+      "id": "account.simulated_corporate_action_owner_write_grant",
+      "surface": "Finite explicit non-staff owner consent and current service-write permission for one simulated account; not market-data freshness or staff Audit reading",
+      "source_files": [
+        "apps/account/simulated_corporate_action_write_issuance_composition.py",
+        "apps/account/simulated_corporate_action_policy_scope_composition.py",
+        "apps/account/simulated_corporate_action_current_grant_composition.py",
+        "apps/simulated_trading/corporate_action_owner_grant_gate.py",
+        "apps/simulated_trading/corporate_action_write_scope_composition.py",
+        "apps/account/simulated_corporate_action_consent_composition.py",
+        "apps/simulated_trading/corporate_action_consent_composition.py",
+        "apps/simulated_trading/infrastructure/simulated_account_row_source_v2_repository.py"
+      ],
+      "required_markers": {
+        "apps/account/simulated_corporate_action_write_issuance_composition.py": [
+          "before_commit=final_issuance_check",
+          "locked_simulated_action_trading_eligibility",
+          "seal.verify(existing)"
+        ],
+        "apps/account/simulated_corporate_action_policy_scope_composition.py": [
+          "read_current_simulated_action_write_policy",
+          "snapshot.resolved_values.get(SIMULATED_ACTION_WRITE_POLICY_KEY) != evidence.value",
+          "locked_runtime_environment"
+        ],
+        "apps/account/simulated_corporate_action_current_grant_composition.py": [
+          "locked_current_simulated_corporate_action_write_grant",
+          "IN SHARE MODE NOWAIT"
+        ],
+        "apps/simulated_trading/corporate_action_owner_grant_gate.py": [
+          "atomic_authority",
+          "locked_simulated_action_trading_eligibility"
+        ],
+        "apps/simulated_trading/corporate_action_write_scope_composition.py": [
+          "not source.is_current_at(now)",
+          "stale physical account timestamp lacks exact audited replay proof"
+        ],
+        "apps/account/simulated_corporate_action_consent_composition.py": [
+          "restore_simulated_action_consent_token",
+          "read_current_simulated_action_consent_metadata",
+          "read_latest_simulated_action_withdrawal_metadata",
+          "read_authenticated_withdrawal_session_deadline"
+        ],
+        "apps/simulated_trading/corporate_action_consent_composition.py": [
+          "source.observed_at.isoformat()",
+          "simulated_action_account_source_refresh_required",
+          "prepare_owner_simulated_action_withdrawal"
+        ],
+        "apps/simulated_trading/infrastructure/simulated_account_row_source_v2_repository.py": [
+          "def get_physical_account_heads(",
+          "_restore_full_chain(tuple(chain))",
+          "get_historical_exact_metadata"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "real_session_and_explicit_consent",
+          "test_file": "tests/component/account/test_simulated_corporate_action_write_issuance_postgres.py",
+          "test_function": "test_native_nonstaff_owner_consent_is_sealed_and_exact_retry_is_idempotent"
+        },
+        {
+          "case": "final_expiry_after_credential_revalidation",
+          "test_file": "tests/component/account/test_simulated_corporate_action_write_issuance_postgres.py",
+          "test_function": "test_native_final_grant_expiry_check_runs_after_credential_revalidation"
+        },
+        {
+          "case": "withdraw_after_role_and_policy_loss",
+          "test_file": "tests/component/account/test_simulated_corporate_action_write_issuance_postgres.py",
+          "test_function": "test_native_read_only_owner_can_withdraw_after_policy_is_disabled"
+        },
+        {
+          "case": "current_mac_and_scope_under_locks",
+          "test_file": "tests/unit/account/test_simulated_corporate_action_current_grant.py",
+          "test_function": "test_current_scope_grant_is_mac_verified_under_both_ledger_table_locks"
+        },
+        {
+          "case": "exact_financial_replay_keeps_current_permission",
+          "test_file": "tests/component/simulated_trading/test_owner_granted_corporate_action_postgres.py",
+          "test_function": "test_native_owner_withdrawal_blocks_stage_and_its_exact_replay"
+        },
+        {
+          "case": "real_http_consent_and_independent_withdrawal",
+          "test_file": "tests/component/account/test_simulated_corporate_action_write_issuance_postgres.py",
+          "test_function": "test_native_owner_consent_http_prepare_confirm_retry_and_readonly_withdraw"
+        },
+        {
+          "case": "discovery_does_not_hide_mapping_conflicts",
+          "test_file": "tests/unit/simulated_trading/test_corporate_action_source_discovery.py",
+          "test_function": "test_conflicting_canonical_mappings_are_not_filtered_away"
+        },
+        {
+          "case": "expired_authority_can_only_withdraw",
+          "test_file": "tests/component/account/test_simulated_corporate_action_write_issuance_postgres.py",
+          "test_function": "test_native_expired_grant_source_and_policy_can_still_prepare_exact_owner_withdrawal"
+        },
+        {
+          "case": "key_rotation_cannot_prevent_revocation",
+          "test_file": "tests/component/account/test_simulated_corporate_action_write_issuance_postgres.py",
+          "test_function": "test_native_rotated_issuer_key_does_not_prevent_owner_withdrawal_or_restore_permission"
+        }
+      ],
+      "notes": "Server clocks never replace source observed_at or policy lineage. A public content hash is not issuer proof. Real Session/CSRF, current trading RBAC, locked physical owner, exact canonical source and explicit runtime policy, signed exact current grant and immutable revocation are independent gates. Historical withdrawal metadata is never current authority. Scope discovery retains expired heads and conflicting mappings. A financial retry may waive only the initial physical updated_at comparison after exact ledger, same-grant Audit and Outbox proof; every current authorization gate remains required. Current official disclosure coverage and ordinary TUI end-to-end acceptance remain separate."
     }
   ]
 }

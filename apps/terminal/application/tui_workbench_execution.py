@@ -10,7 +10,10 @@ from uuid import UUID
 
 from django.utils import timezone
 
-from apps.terminal.application.tui_account_action_scope import requires_account_result_scope
+from apps.terminal.application.tui_account_action_scope import (
+    continuation_secret_values,
+    requires_account_result_scope,
+)
 from apps.terminal.application.tui_audit import verified_reauth_evidence
 from apps.terminal.application.tui_order_history_result import order_operation_confirmation_message
 from apps.terminal.application.tui_portfolio_risk_result import portfolio_pressure_task_outcome
@@ -660,11 +663,16 @@ class TuiWorkbenchExecutionMixin:
                 if readback.get("key") == readback_key:
                     readback_scope = {str(field["key"]) for field in readback.get("fields", [])}
                     break
-        token_values = {
-            value
-            for input_key, value in continuation_input.items()
-            if value and field_map[input_key] not in readback_scope
-        }
+        token_values = continuation_secret_values(
+            str(action.get("key") or ""),
+            payload,
+            continuation_input,
+            requested_params,
+            field_map,
+            readback_scope,
+        )
+        if token_values is None:
+            return payload, None, "tui_result_continuation_invalid"
         safe_payload = {key: value for key, value in payload.items() if key != "continuation"}
         if action.get("key") == "simulated-trading.order-preview":
             safe_payload["continuation_expires_at"] = expires_at_text

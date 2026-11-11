@@ -67,6 +67,9 @@ from .tui_metadata_runtime_injection_config_center import (
     RUNTIME_CONFIG_CENTER_ACTIONS,
     RUNTIME_CONFIG_CENTER_SCREEN,
 )
+from .tui_metadata_runtime_injection_corporate_action_consent import (
+    RUNTIME_CORPORATE_ACTION_CONSENT_ACTIONS,
+)
 from .tui_metadata_runtime_injection_dashboard_alpha import (
     RUNTIME_DASHBOARD_ALPHA_ACTIONS,
 )
@@ -414,7 +417,7 @@ _LEGACY_RUNTIME_METADATA_INJECTIONS: tuple[RuntimeMetadataInjectionBundle, ...] 
     ),
     RuntimeMetadataInjectionBundle(
         coverage_key="runtime_injected_simulated_trading_metadata",
-        actions=RUNTIME_SIMULATED_TRADING_ACTIONS,
+        actions=(*RUNTIME_SIMULATED_TRADING_ACTIONS, *RUNTIME_CORPORATE_ACTION_CONSENT_ACTIONS),
     ),
     RuntimeMetadataInjectionBundle(
         coverage_key="runtime_injected_owner_order_entry_metadata",

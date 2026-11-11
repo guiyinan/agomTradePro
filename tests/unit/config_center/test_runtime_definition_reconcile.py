@@ -517,6 +517,21 @@ def test_disclosure_coverage_policy_is_optional_and_unseeded() -> None:
         definition.validate(None)
 
 
+def test_simulated_action_service_write_policy_is_optional_but_has_no_implicit_consent() -> None:
+    """Existing M1 profiles stay valid without enabling new owner service grants."""
+    definition = next(
+        item
+        for item in DEFAULT_RUNTIME_DEFINITIONS
+        if item.key == "config_center.account.simulated_corporate_action_write_policies"
+    )
+    assert definition.owner_app == "config_center"
+    assert definition.value_type is RuntimeValueType.TYPED_JSON
+    assert definition.criticality is RuntimeConfigCriticality.NORMAL
+    assert not definition.secret and definition.constraints == {}
+    with pytest.raises(ValueError):
+        definition.validate(None)
+
+
 def test_local_daily_simulation_policy_is_optional_normal_typed_json() -> None:
     """Register no automatic simulation policy or decision authority by default."""
 

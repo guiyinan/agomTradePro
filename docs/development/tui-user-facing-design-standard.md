@@ -6,6 +6,19 @@ This standard defines the user-facing contract for AgomTradePro `/tui/`. It exis
 
 ## Core Rule
 
+The existing account workspace exposes simulated corporate-action consent through
+two read-only preparations and two separately confirmed mutations in the account
+row menu. Account detail remains the primary row task. Show the original source
+observation and expiry before consent; do not ask the owner to paste internal
+locators. Protected continuations retain credentials only for the current result.
+Only these two preparations may treat an account ID as public, after the submitted
+scope, continuation input and unique displayed account field match canonically.
+The consent and withdrawal tokens remain protected, even if a token happens to
+equal the public ID. Read-only owners may withdraw their exact historical consent
+after expiry or policy loss; a current session deadline never renews the old grant.
+Use ordinary status/recovery copy without transport details. Saving or withdrawing
+consent does not post financial entries or establish actual bank receipt.
+
 The existing account workspace offers a read-only holding disclosure reference
 for an explicitly selected account and held security. Direct reads and the TUI
 action-run entry require a real signed-in session, including for authorized

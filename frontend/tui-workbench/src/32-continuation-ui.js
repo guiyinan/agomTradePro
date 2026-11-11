@@ -173,15 +173,17 @@ function renderTargetedContinuationFailure({
     }
 }
 
-function acceptActionContinuationResult(action, actions, result, requestToken, idempotencyKey) {
-    const accepted = resultContinuations.acceptResult(
+function acceptActionContinuationResult(action, actions, result, requestToken, idempotencyKey, submittedScope) {
+    const acceptResultArgs = [
         action,
         actions,
         result,
         Date.now(),
         requestToken,
         idempotencyKey,
-    );
+    ];
+    if (submittedScope !== undefined) acceptResultArgs.push(submittedScope);
+    const accepted = resultContinuations.acceptResult(...acceptResultArgs);
     if (accepted.status === "stored") {
         delete result.continuation;
         return { result, receivedContinuation: accepted, invalid: false };

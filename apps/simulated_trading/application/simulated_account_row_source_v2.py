@@ -66,6 +66,23 @@ class SimulatedAccountRowSourceV2Corruption(ValueError):
 
 
 @dataclass(frozen=True, slots=True)
+class HistoricalSimulatedAccountRowSourceV2:
+    """Immutable historical metadata for consent withdrawal, never current source qualification."""
+
+    source: SimulatedAccountRowSourceV2
+    as_of: datetime
+
+    def __post_init__(self) -> None:
+        """Require a validated source already recorded at the metadata cutoff."""
+        if type(self.source) is not SimulatedAccountRowSourceV2:
+            raise TypeError("historical source metadata type is invalid")
+        self.source.__post_init__()
+        _require_aware(self.as_of, "historical source metadata cutoff")
+        if self.source.recorded_at > self.as_of:
+            raise ValueError("historical source metadata was not yet recorded")
+
+
+@dataclass(frozen=True, slots=True)
 class ExactRawSimulatedAccountObservationV2:
     """Consumer-owned exact projection of one logical-final raw observation."""
 

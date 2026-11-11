@@ -1,6 +1,6 @@
 {
-  "version": "2026-11-11.v387",
-  "updated_at": "2026-11-11",
+  "version": "2026-11-12.v399",
+  "updated_at": "2026-11-12",
   "execution_focus": {
     "unit_id": "ASH-05",
     "allowed_parallel_execution_modes": [
@@ -12,7 +12,7 @@
     "parallel_preparation": [
       {
         "unit_id": "ASH-05",
-        "scope": "One isolated audited cash-payment implementation in .tmp/ash05-audited-payment-20261111 based on this registration commit. Allowed production paths: apps/simulated_trading/application/corporate_action_posting.py, apps/simulated_trading/corporate_action_posting_composition.py, apps/simulated_trading/audited_corporate_action_posting_composition.py. Allowed tests: tests/unit/simulated_trading/test_corporate_action_posting.py, tests/component/simulated_trading/test_audited_corporate_action_posting_composition.py, tests/component/simulated_trading/test_official_disclosure_action_qualification.py, tests/component/simulated_trading/test_corporate_action_posting_postgres.py. Add a payment-only facade and audited builder; keep entitlement entry narrow, permit only exact cash entitlement/payment requests in audited adapter, preserve required authority, exact owner, same-alias atomic ledger/Audit/Outbox, replay and rollback. No issuer/grant/lease, tax/share/rights, source-policy, route/TUI, workflow/governance or projection edits. Root owns formal integration, later owner-grant gate changes, projections, native PostgreSQL and whole-unit acceptance. Isolated SQLite component tests may run one at a time while Root performs lightweight non-DB tests; no shared DB/cache/port or Git/index mutations by worker.",
+        "scope": "One isolated ASH-05 generic statutory document/bundle contract preparation by Luna max in .tmp/ash05-audited-payment-20261111. Raw-source reuse audit is complete; there is no generic exact HTML port. Only add apps/data_center/domain/statutory_source_documents.py, apps/data_center/application/statutory_source_documents.py and tests/unit/data_center/test_statutory_source_documents.py. Define frozen complete document metadata and canonical bundle hashing plus typed append/read/body ports; do not claim that shape/hash alone authenticates official origin or current validity. Preserve date precision and separate source publication/effectiveness from actual captured_at; do not infer UTC publication instants or compare dates to an unrelated timezone. No tax rates/defaults, hardcoded provider/business catalog, network/files/ORM/models/migrations/source activation or consumer changes. Only directly related no-DB unit/static checks; no full debt sweeps. Root holds formal Source/index/Git, current owner/browser acceptance and commits; preparation is not formal delivery and will be adopted only after current batch gates. ASH-05 remains sole active unit; ASH-06 remains deferred.",
         "owner": "Luna max audited payment under Root integration",
         "isolated_workspace": true,
         "shared_git_serialized": true,

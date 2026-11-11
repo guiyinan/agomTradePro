@@ -127,6 +127,22 @@ def test_exact_source_revision_and_gross_terms_are_qualified(
     assert not verifier.verify_source(replace(request, source_revision_id="wrong-revision"))
     assert not verifier.verify_source(replace(request, asset_code="301237.SZ"))
     assert not verifier.verify_source(replace(request, tax_treatment="not_applicable"))
+    payment = replace(
+        request,
+        stage=CorporateActionStage.CASH_PAYMENT,
+        stage_date=terms.payment_date,
+        payment_date=terms.payment_date,
+        ownership_snapshot_id=None,
+        ownership_snapshot_sha256=None,
+        ownership_snapshot_as_of_date=None,
+        ownership_snapshot_observed_at=None,
+        eligible_quantity=None,
+        entitlement_calculation_sha256=None,
+    )
+    assert verifier.verify_source(payment)
+    assert not verifier.verify_source(
+        replace(payment, payment_date=date(2026, 9, 24), stage_date=date(2026, 9, 24))
+    )
     withholding = replace(
         request,
         stage=CorporateActionStage.TAX_WITHHOLDING,

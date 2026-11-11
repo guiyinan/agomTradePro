@@ -5,6 +5,51 @@
     const isRecord = value => value !== null && typeof value === "object" && !Array.isArray(value);
     const sameKeys = (value, keys) => isRecord(value)
         && Object.keys(value).sort().join("\u0000") === [...keys].sort().join("\u0000");
+    const corporateActionConsentPrepareActions = new Set([
+        "simulated-trading.corporate-action-consent-prepare",
+        "simulated-trading.corporate-action-consent-withdraw-prepare",
+    ]);
+
+    function captureConsentAccountScope(action, params) {
+        if (!corporateActionConsentPrepareActions.has(action?.key)
+            || !isRecord(params) || !hasOwn(params, "account_id")) return undefined;
+        return { account_id: params.account_id };
+    }
+
+    function canonicalAccountId(value) {
+        if (typeof value === "number") {
+            return Number.isSafeInteger(value) && value > 0 ? String(value) : null;
+        }
+        return typeof value === "string" && /^[1-9][0-9]*$/.test(value)
+            ? value
+            : null;
+    }
+
+    function consentPreparePublicAccountId(action, descriptor, result, continuation, submittedScope) {
+        if (!corporateActionConsentPrepareActions.has(action?.key)) return { status: "not_applicable" };
+        if (descriptor.fieldMap.account_id !== "account_id"
+            || !hasOwn(continuation.input, "account_id")
+            || !isRecord(submittedScope)) {
+            return { status: "invalid" };
+        }
+        const submittedAccountId = canonicalAccountId(submittedScope.account_id);
+        const continuationAccountId = canonicalAccountId(continuation.input.account_id);
+        const fields = result?.view_model?.fields;
+        if (!Array.isArray(fields)) return { status: "invalid" };
+        const accountFields = fields.filter(field => isRecord(field) && field.key === "account_id");
+        if (accountFields.length !== 1 || typeof accountFields[0].value !== "string") {
+            return { status: "invalid" };
+        }
+        const displayedAccountId = canonicalAccountId(accountFields[0].value);
+        if (!submittedAccountId
+            || !continuationAccountId
+            || !displayedAccountId
+            || submittedAccountId !== continuationAccountId
+            || submittedAccountId !== displayedAccountId) {
+            return { status: "invalid" };
+        }
+        return { status: "matched", accountId: submittedAccountId };
+    }
 
     function descriptorFor(action, actions) {
         if (!isRecord(action) || !hasOwn(action, "result_continuation")) {
@@ -368,6 +413,7 @@
             nowMs = Date.now(),
             requestToken,
             sourceIdempotencyKey,
+            submittedScope,
         ) {
             const descriptor = descriptorFor(action, actions || []);
             const hasContinuation = isRecord(result) && hasOwn(result, "continuation");
@@ -428,8 +474,19 @@
                 if (typeof value !== "string" || !value) return { status: "invalid" };
                 params[fieldKey] = value;
             }
+            const consentAccountScope = consentPreparePublicAccountId(
+                action,
+                descriptor,
+                result,
+                continuation,
+                submittedScope,
+            );
+            if (consentAccountScope.status === "invalid") return { status: "invalid" };
             const protectedValues = new Set(Object.entries(continuation.input)
                 .filter(([inputKey]) => !descriptor.readbackPathFields.includes(descriptor.fieldMap[inputKey]))
+                .filter(([inputKey]) => !(consentAccountScope.status === "matched"
+                    && inputKey === "account_id"
+                    && continuation.input[inputKey] === consentAccountScope.accountId))
                 .map(([, value]) => value));
             if (containsValue(result.view_model, protectedValues)
                 || containsValue(result.debug, protectedValues)) {
@@ -782,6 +839,7 @@
 
         return Object.freeze({
             acceptResult,
+            captureConsentAccountScope,
             setActiveScope,
             offerFencedResolution,
             endFencedConfirmation,

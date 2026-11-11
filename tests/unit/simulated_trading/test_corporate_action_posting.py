@@ -19,12 +19,14 @@ from apps.simulated_trading.application.corporate_action_posting import (
     CorporateActionSourceQualificationVerifierProtocol,
     CorporateActionTaxBasisVerifierProtocol,
     HistoricalAccountOwnershipVerifierProtocol,
+    PostCashDividendPaymentUseCase,
     PostCorporateActionStageUseCase,
 )
 from apps.simulated_trading.application.execution_settlement_uow import (
     SimulatedTradeExecutionBlocked,
 )
 from apps.simulated_trading.corporate_action_posting_composition import (
+    build_corporate_action_payment_use_case,
     build_corporate_action_posting_use_case,
 )
 from apps.simulated_trading.domain.corporate_action_ownership_history import (
@@ -84,6 +86,23 @@ def _request(**overrides: object) -> CorporateActionStageRequest:
     }
     values.update(overrides)
     return cast(CorporateActionStageRequest, CorporateActionStageRequest(**values))
+
+
+def _payment_request(**overrides: object) -> CorporateActionStageRequest:
+    """Build a payment for the exact announced date without entitlement-only proof fields."""
+
+    return _request(
+        stage=CorporateActionStage.CASH_PAYMENT,
+        stage_date=_EFFECTIVE_DATE,
+        payment_date=_EFFECTIVE_DATE,
+        ownership_snapshot_id=None,
+        ownership_snapshot_sha256=None,
+        ownership_snapshot_as_of_date=None,
+        ownership_snapshot_observed_at=None,
+        eligible_quantity=None,
+        entitlement_calculation_sha256=None,
+        **overrides,
+    )
 
 
 def _ownership_proof(**overrides: object) -> RecordDateOwnershipProof:
@@ -429,6 +448,41 @@ def test_use_case_delegates_only_typed_explicit_stages() -> None:
     assert not result[0].replayed
 
 
+def test_cash_payment_use_case_accepts_only_one_cash_payment() -> None:
+    """The payment facade delegates one typed payment and keeps entitlement separate."""
+
+    class _Repository:
+        def __init__(self) -> None:
+            self.requests: tuple[CorporateActionStageRequest, ...] = ()
+
+        def post_revision(
+            self,
+            requests: tuple[CorporateActionStageRequest, ...],
+        ) -> tuple[CorporateActionPostingReceipt, ...]:
+            self.requests = requests
+            return (
+                CorporateActionPostingReceipt(
+                    entry_id=8,
+                    account_revision=4,
+                    stage_key=requests[0].stage_key,
+                    request_payload_sha256=requests[0].payload_sha256,
+                    replayed=False,
+                ),
+            )
+
+    repository = _Repository()
+    use_case = PostCashDividendPaymentUseCase(repository)
+    payment = _payment_request()
+
+    receipt = use_case.execute(payment)[0]
+
+    assert receipt.entry_id == 8
+    assert repository.requests == (payment,)
+    with pytest.raises(CorporateActionPostingBlockedError) as blocked:
+        use_case.execute(_request())
+    assert blocked.value.code == "CORPORATE_ACTION_STAGE_UNSUPPORTED"
+
+
 def test_production_composition_fails_closed_without_audited_repository() -> None:
     """A missing same-alias Audit/Outbox writer never exposes direct ledger posting."""
 
@@ -439,6 +493,13 @@ def test_production_composition_fails_closed_without_audited_repository() -> Non
             audited_repository=None,
         )
     assert blocked.value.code == "CORPORATE_ACTION_AUDIT_OUTBOX_UNAVAILABLE"
+    with pytest.raises(CorporateActionPostingBlockedError) as payment_blocked:
+        build_corporate_action_payment_use_case(
+            body_store_root=Path("official-bodies"),
+            runtime_environment="test",
+            audited_repository=None,
+        )
+    assert payment_blocked.value.code == "CORPORATE_ACTION_AUDIT_OUTBOX_UNAVAILABLE"
 
 
 def test_production_composition_binds_required_audit_factory_and_blocks_withholding() -> None:
@@ -500,6 +561,23 @@ def test_production_composition_binds_required_audit_factory_and_blocks_withhold
     assert isinstance(factory.ownership_verifier, CorporateActionOwnershipProofVerifier)
     assert factory.tax_basis_verifier is None
     assert factory.using == "corporate_action_test"
+
+    payment_use_case = build_corporate_action_payment_use_case(
+        body_store_root=Path("official-bodies"),
+        runtime_environment="test",
+        audited_repository=cast(AuditedCorporateActionPostingRepositoryProtocol, factory),
+        using="corporate_action_test",
+    )
+    payment_receipt = payment_use_case.execute(_payment_request())[0]
+    assert payment_receipt.entry_id == 9
+    assert factory.source_qualifier is not None
+    assert isinstance(factory.ownership_verifier, CorporateActionOwnershipProofVerifier)
+    assert factory.tax_basis_verifier is None
+    assert factory.using == "corporate_action_test"
+
+    with pytest.raises(CorporateActionPostingBlockedError) as payment_rejected:
+        use_case.execute(_payment_request())
+    assert payment_rejected.value.code == "CORPORATE_ACTION_STAGE_UNSUPPORTED"
 
     withholding = replace(
         _request(),

@@ -3,6 +3,12 @@
 from django.http import JsonResponse
 from django.urls import path
 
+from .corporate_action_consent_views import (
+    SimulatedActionConsentAPIView,
+    SimulatedActionConsentPreparationAPIView,
+    SimulatedActionConsentWithdrawalAPIView,
+    SimulatedActionWithdrawalPreparationAPIView,
+)
 from .fee_correction_policy_views import FeeCorrectionPolicyAPIView
 from .fee_correction_views import (
     FeeCorrectionAPIView,
@@ -70,6 +76,26 @@ app_name = "simulated_trading_api"
 
 
 urlpatterns = [
+    path(
+        "accounts/<int:account_id>/corporate-action-consent/prepare/",
+        SimulatedActionConsentPreparationAPIView.as_view(),
+        name="corporate-action-consent-prepare",
+    ),
+    path(
+        "accounts/<int:account_id>/corporate-action-consent/withdraw/prepare/",
+        SimulatedActionWithdrawalPreparationAPIView.as_view(),
+        name="corporate-action-consent-withdraw-prepare",
+    ),
+    path(
+        "accounts/<int:account_id>/corporate-action-consent/",
+        SimulatedActionConsentAPIView.as_view(),
+        name="corporate-action-consent",
+    ),
+    path(
+        "accounts/<int:account_id>/corporate-action-consent/withdraw/",
+        SimulatedActionConsentWithdrawalAPIView.as_view(),
+        name="corporate-action-consent-withdraw",
+    ),
     path(
         "accounts/<int:account_id>/holding-disclosures/",
         HoldingDisclosureAPIView.as_view(),

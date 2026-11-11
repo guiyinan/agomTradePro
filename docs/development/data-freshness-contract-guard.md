@@ -656,3 +656,11 @@ M1 内部编排只接受一个 Tushare provider、一个规范 A 股代码和明
 `simulated_trading.historical_sellable_ledger_repair` 对自建模拟持仓使用可核验零起点、全部 V4 已应用成交/释放及当前 SELL hold 的完整证明。cutoff/proof 与逐行 before 值绑定预览，未知链或映射不修；apply/rollback 在共享账户锁下重验、CAS 并追加专属 journal，真实写入时间独立于证据 cutoff。历史重建与修复不构成实仓快照、当前报价或新的全局数据资格。
 
 账户止损与公开新单共享上述受限模拟来源合同：实际源价参与触发和执行，锁内复核账户自动开关、阈值、成本、数量、hold、TTL 与规则/日历。追加的 V3 local market audit 必须绑定 Risk V2 外层 `market.content_hash`、实际执行价、原始捕获及策略/观测/本地接收时钟；它不能将全局 `must_not_use_for_decision` / `must_not_execute` 改成生产许可。`market_available_at_basis` 明确是本地响应完成时间，不是供应商发布时钟。源码与确定性合同覆盖不代替 opt-in 真实盘中正向来源验收；跳过不得记作通过。
+
+### 2026-11-11 模拟公司行为的当前 Owner 写授权
+
+`account.simulated_corporate_action_owner_write_grant` 约束有限、可撤销且绑定来源和政策的显式同意。真实 Session/CSRF、当前交易角色、物理账户归属、canonical source、显式配置政策、服务器 MAC、当前 grant 头和撤销分别复验；历史记录仅供撤销定位，不能成为当前权限。发现过期来源或相互冲突的映射时保留事实，不以旧版本回退或用户过滤消除冲突。
+
+财务成功会改变物理账户更新时间；丢失响应后的精确重复必须先在同别名事务中核对原账本请求、相同 grant 的完整 Audit 事件及 Outbox，才可豁免首次物理更新时间比较。角色、归属、来源头、政策、有限时钟和撤销仍须全部通过。该例外只支持原回执重放，不允许新的阶段或更改金额；写入与提交前复验失败一起回滚。此权限不刷新市场或公告来源，不代替当前官方覆盖和普通用户端到端验收。
+
+撤销准备独立读取本人不可变授权记录与原始来源元数据，包括已过期来源和授权；它们使用专用历史 DTO，不能通过 current 资格端口。旧签发密钥不再可验证时，当前本人 Session/CSRF 和精确持久 scope 仍可撤销权限；恢复旧密钥也不能移除已追加的撤销。页面保留原授权到期时间，撤销确认信封只使用当前真实会话期限，不能续期来源、政策或服务写权限。

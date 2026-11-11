@@ -1137,6 +1137,28 @@
         "apps/config_center/application/storage_budget.py::StoragePressureGuard",
         "apps/task_monitor/application/backup_capacity.py::require_backup_capacity"
       ]
+    },
+    {
+      "config_key": "config_center.account.simulated_corporate_action_write_policies",
+      "namespace": "config_center",
+      "owner": "config_center",
+      "type": "typed_json",
+      "criticality": "normal",
+      "current_source": "config_center_runtime_profile",
+      "fallback": "blocked",
+      "migration_status": "canonical_only_fail_closed",
+      "materialization_required": false,
+      "consumers": [
+        "apps/account/simulated_corporate_action_policy_scope_composition.py::locked_simulated_action_owner_policy"
+      ],
+      "definition_source": "apps/config_center/application/runtime_definition_reconcile.py::DEFAULT_RUNTIME_DEFINITIONS",
+      "bootstrap_command": "python manage.py initialize_runtime_definitions",
+      "tests": [
+        "tests/unit/config_center/test_runtime_definition_reconcile.py::test_simulated_action_service_write_policy_is_optional_but_has_no_implicit_consent",
+        "tests/unit/account/test_simulated_corporate_action_write_policy.py::test_second_owner_is_not_hidden_by_user_specific_filtering",
+        "tests/component/account/test_simulated_corporate_action_write_issuance_postgres.py::test_native_nonstaff_owner_consent_is_sealed_and_exact_retry_is_idempotent"
+      ],
+      "notes": "Optional unseeded dedicated service-write policy, separate from staff SingleOwner/evidence_read. Exact canonical account/user/tenant/owner, fixed service permission, finite max grant and active profile/snapshot lineage are required under owner activation fence. Missing/disabled/colliding policy blocks new grants and writes without blocking unrelated M1 or owner withdrawal. Policy alone never supplies consent, Session authentication or physical ownership."
     }
   ]
 }

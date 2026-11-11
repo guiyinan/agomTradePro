@@ -1,4 +1,4 @@
-"""Compose the cash-dividend entitlement boundary with official and account evidence."""
+"""Compose cash-dividend stage boundaries with official and account evidence."""
 
 from __future__ import annotations
 
@@ -16,6 +16,7 @@ from apps.simulated_trading.application.corporate_action_posting import (
     CorporateActionSourceQualificationVerifierProtocol,
     CorporateActionTaxBasisVerifierProtocol,
     PostCashDividendEntitlementUseCase,
+    PostCashDividendPaymentUseCase,
 )
 from apps.simulated_trading.corporate_action_ownership_history_composition import (
     build_corporate_action_ownership_history_repository,
@@ -57,6 +58,42 @@ def build_corporate_action_posting_use_case(
     posting repository. Its tax verifier is deliberately ``None`` so withholding remains
     blocked until statutory rules and per-sale assessments are persisted and verified.
     """
+
+    posting_repository = _build_audited_posting_repository(
+        body_store_root=body_store_root,
+        runtime_environment=runtime_environment,
+        audited_repository=audited_repository,
+        using=using,
+    )
+    return PostCashDividendEntitlementUseCase(posting_repository)
+
+
+def build_corporate_action_payment_use_case(
+    *,
+    body_store_root: Path,
+    runtime_environment: str,
+    audited_repository: AuditedCorporateActionPostingRepositoryProtocol | None = None,
+    using: str = DEFAULT_DB_ALIAS,
+) -> PostCashDividendPaymentUseCase:
+    """Build a payment-only entry with required same-alias Audit/Outbox posting."""
+
+    posting_repository = _build_audited_posting_repository(
+        body_store_root=body_store_root,
+        runtime_environment=runtime_environment,
+        audited_repository=audited_repository,
+        using=using,
+    )
+    return PostCashDividendPaymentUseCase(posting_repository)
+
+
+def _build_audited_posting_repository(
+    *,
+    body_store_root: Path,
+    runtime_environment: str,
+    audited_repository: AuditedCorporateActionPostingRepositoryProtocol | None,
+    using: str,
+) -> CorporateActionPostingRepositoryProtocol:
+    """Build the shared qualified source and account-proof ports behind Audit/Outbox."""
 
     if (
         not isinstance(body_store_root, Path)
@@ -101,7 +138,10 @@ def build_corporate_action_posting_use_case(
             "atomic Audit/Outbox factory returned an invalid or wrong-alias repository",
             code="CORPORATE_ACTION_AUDIT_OUTBOX_UNAVAILABLE",
         )
-    return PostCashDividendEntitlementUseCase(_AuditedPostingRepositoryAdapter(posting_repository))
+    return _AuditedPostingRepositoryAdapter(posting_repository)
 
 
-__all__ = ["build_corporate_action_posting_use_case"]
+__all__ = [
+    "build_corporate_action_payment_use_case",
+    "build_corporate_action_posting_use_case",
+]

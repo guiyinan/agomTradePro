@@ -1239,6 +1239,22 @@
               "result_panel_key": "simulated-account-workspace"
             },
             {
+              "action_key": "simulated-trading.corporate-action-consent-prepare",
+              "label_template": "核对 {account_name} 的模拟公司行为授权",
+              "param_map": {
+                "account_id": "account_id"
+              },
+              "result_panel_key": "simulated-account-workspace"
+            },
+            {
+              "action_key": "simulated-trading.corporate-action-consent-withdraw-prepare",
+              "label_template": "撤回 {account_name} 的模拟公司行为授权",
+              "param_map": {
+                "account_id": "account_id"
+              },
+              "result_panel_key": "simulated-account-workspace"
+            },
+            {
               "action_key": "simulated-trading.inspection-notification-update",
               "label_template": "编辑 {account_name} 的巡检通知",
               "param_map": {

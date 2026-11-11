@@ -9,7 +9,7 @@
       "celery_dispatch_edge": 18,
       "celery_task": 130,
       "compatibility_facade": 95,
-      "current_data_surface": 107,
+      "current_data_surface": 108,
       "dynamic_import_edge": 15,
       "management_command": 50,
       "management_command_edge": 65,
@@ -21,22 +21,22 @@
       "public_port": 97,
       "rest_url": 90,
       "runbook": 7,
-      "runtime_config_key": 49,
+      "runtime_config_key": 50,
       "scheduler_writer": 18,
       "script": 20,
       "sdk": 57,
       "terminal_tui": 32,
-      "test_evidence": 127,
+      "test_evidence": 129,
       "workflow_step": 11
     },
     "by_status": {
-      "active_public": 909,
+      "active_public": 911,
       "adjacent_operational": 346,
-      "candidate-review": 46,
+      "candidate-review": 48,
       "compatibility": 139,
       "retired_blocked": 0
     },
-    "total": 1440
+    "total": 1444
   },
   "entries": [
     {
@@ -5167,6 +5167,16 @@
       "path": "governance/current_data_contracts.json",
       "status": "active_public",
       "symbol": "account.owner_tenant_authority_v3_evidence_scope",
+      "target": ""
+    },
+    {
+      "category": "current_data_surface",
+      "evidence": "governed current-data contract; source_files=8",
+      "id": "current_data_surface:governance/current_data_contracts.json:account.simulated_corporate_action_owner_write_grant:Finite explicit non-staff owner consent and current service-write permission for one simulated account; not market-data freshness or staff Audit reading",
+      "locator": "Finite explicit non-staff owner consent and current service-write permission for one simulated account; not market-data freshness or staff Audit reading",
+      "path": "governance/current_data_contracts.json",
+      "status": "active_public",
+      "symbol": "account.simulated_corporate_action_owner_write_grant",
       "target": ""
     },
     {
@@ -11631,6 +11641,16 @@
     },
     {
       "category": "runtime_config_key",
+      "evidence": "runtime owner=config_center; consumers=1; migration_status=canonical_only_fail_closed",
+      "id": "runtime_config_key:governance/runtime_config_contracts.json:config_center.account.simulated_corporate_action_write_policies:canonical_only_fail_closed",
+      "locator": "canonical_only_fail_closed",
+      "path": "governance/runtime_config_contracts.json",
+      "status": "active_public",
+      "symbol": "config_center.account.simulated_corporate_action_write_policies",
+      "target": ""
+    },
+    {
+      "category": "runtime_config_key",
       "evidence": "runtime owner=config_center; consumers=3; migration_status=canonical_only_fail_closed",
       "id": "runtime_config_key:governance/runtime_config_contracts.json:config_center.market.asset_proxy_code_map:canonical_only_fail_closed",
       "locator": "canonical_only_fail_closed",
@@ -13301,6 +13321,16 @@
     },
     {
       "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/component/account/test_simulated_corporate_action_write_issuance_postgres.py:test_simulated_corporate_action_write_issuance_postgres:",
+      "locator": "",
+      "path": "tests/component/account/test_simulated_corporate_action_write_issuance_postgres.py",
+      "status": "candidate-review",
+      "symbol": "test_simulated_corporate_action_write_issuance_postgres",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
       "evidence": "reviewed Account-owned disposable PostgreSQL creation, authentication, policy publication and current ownership evidence; no production authority is issued",
       "id": "test_evidence:tests/component/account/test_single_owner_policy_authentication_postgres.py:test_single_owner_policy_authentication_postgres:",
       "locator": "",
@@ -13687,6 +13717,16 @@
       "path": "tests/component/simulated_trading/test_order_reservation_migration.py",
       "status": "candidate-review",
       "symbol": "test_order_reservation_migration",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/component/simulated_trading/test_owner_granted_corporate_action_postgres.py:test_owner_granted_corporate_action_postgres:",
+      "locator": "",
+      "path": "tests/component/simulated_trading/test_owner_granted_corporate_action_postgres.py",
+      "status": "candidate-review",
+      "symbol": "test_owner_granted_corporate_action_postgres",
       "target": ""
     },
     {
@@ -14451,10 +14491,10 @@
   },
   "source_contract_counts": {
     "celery_tasks": 95,
-    "current_data_contracts": 107,
+    "current_data_contracts": 108,
     "legacy_entrypoints_and_wrappers": 0,
     "operational_governance_rules": 45,
-    "runtime_config_keys": 49
+    "runtime_config_keys": 50
   },
   "source_contracts": [
     "governance/celery_task_contracts.json",

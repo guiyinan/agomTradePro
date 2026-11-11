@@ -14,6 +14,7 @@ from django.utils import timezone
 from django.utils.connection import ConnectionDoesNotExist
 
 from apps.simulated_trading.application.simulated_account_row_source_v2 import (
+    HistoricalSimulatedAccountRowSourceV2,
     PersistedSimulatedAccountRowSourceV2,
     SimulatedAccountRowSourceV2Conflict,
     SimulatedAccountRowSourceV2Corruption,
@@ -279,6 +280,20 @@ class DjangoSimulatedAccountRowSourceV2Repository:
         record = matches[0]
         return record if record.source.is_knowable_at(as_of) else None
 
+    def get_historical_exact_metadata(
+        self, *, source_id: str, source_version: str, expected_content_hash: str, as_of: datetime
+    ) -> HistoricalSimulatedAccountRowSourceV2 | None:
+        """Read one exact recorded origin after expiry solely for historical withdrawal metadata."""
+        _require_hash(expected_content_hash, "expected_content_hash")
+        record = self.get_winner(source_id=source_id, source_version=source_version, as_of=as_of)
+        if record is None:
+            return None
+        if record.source.content_hash != expected_content_hash:
+            raise DjangoSimulatedAccountRowSourceV2Corruption(
+                "historical source metadata hash differs"
+            )
+        return HistoricalSimulatedAccountRowSourceV2(source=record.source, as_of=as_of)
+
     def get_current_head(
         self,
         *,
@@ -314,6 +329,31 @@ class DjangoSimulatedAccountRowSourceV2Repository:
         records = self._visible_records(as_of=as_of, lock=False)
         chain = tuple(record for record in records if _logical_key(record.source) == key)
         return _restore_full_chain(chain) if chain else None
+
+    def get_physical_account_heads(
+        self,
+        *,
+        underlying_unified_account_id: int,
+        as_of: datetime,
+    ) -> tuple[PersistedSimulatedAccountRowSourceV2, ...]:
+        """Discover validated canonical heads without hiding expired or conflicting mappings.
+
+        This is source discovery only. A final head can be inactive or expired;
+        callers must check actual ownership and current source eligibility before
+        issuing permission. Each complete visible logical chain is validated.
+        """
+        _require_positive_integer(underlying_unified_account_id, "underlying_unified_account_id")
+        self._require_cutoff(as_of, authoritative_cutoff=None)
+        records = self._visible_records(as_of=as_of, lock=False)
+        groups: dict[tuple[object, ...], list[PersistedSimulatedAccountRowSourceV2]] = {}
+        for record in records:
+            source = record.source
+            if (
+                source.underlying_unified_account_namespace == "simulated-account-row"
+                and source.underlying_unified_account_id == underlying_unified_account_id
+            ):
+                groups.setdefault(_logical_key(source), []).append(record)
+        return tuple(_restore_full_chain(tuple(chain)) for chain in groups.values())
 
     def _current_head(
         self,

@@ -9,6 +9,7 @@ from typing import Protocol
 from apps.account.domain.simulated_corporate_action_write_grant import (
     SimulatedCorporateActionWriteGrant,
     SimulatedCorporateActionWriteGrantCurrent,
+    SimulatedCorporateActionWriteGrantRecord,
     SimulatedCorporateActionWriteGrantRevocation,
     SimulatedCorporateActionWriteGrantSelector,
 )
@@ -52,6 +53,21 @@ class SimulatedCorporateActionWriteGrantRepository(
     SimulatedCorporateActionWriteGrantProvider, Protocol
 ):
     """Define explicit append operations without authorizing an issuer."""
+
+    def get_scope_records(
+        self, account_namespace: str, account_id: str, *, as_of: datetime
+    ) -> tuple[SimulatedCorporateActionWriteGrantRecord, ...]:
+        """Read known historical consent metadata without granting current authority."""
+        ...
+
+    def get_exact_record(
+        self,
+        *,
+        selector: SimulatedCorporateActionWriteGrantSelector,
+        as_of: datetime,
+    ) -> SimulatedCorporateActionWriteGrantRecord | None:
+        """Read historical/revoked metadata for withdrawal, never as current authority."""
+        ...
 
     def get_current_for_scope(
         self,

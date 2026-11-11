@@ -62,11 +62,14 @@ def authenticated_creation_transaction(
     session: object,
     token: object,
     reauthenticate: Callable[[], tuple[object, object]],
+    before_commit: Callable[[], None] | None = None,
 ) -> Iterator[CanonicalAccountCreationRequester]:
     """Lock credential then User/Profile, rechecking authentication before commit.
 
-    These facts authorize only the current creation request. They do not publish
+    These facts prove only the current request identity. They do not publish
     Session-derived authority sources, owner assignments or human approvals.
+    An optional caller verifier runs after credential revalidation, inside the
+    same atomic transaction and held credential locks, immediately before exit.
     """
 
     if type(using) is not str or not using or using.strip() != using:
@@ -137,6 +140,8 @@ def authenticated_creation_transaction(
                 actor_id=f"django-user:{user_id}", user_id=user_id
             )
             verify()
+            if before_commit is not None:
+                before_commit()
     except AuthenticationError:
         raise
     except (

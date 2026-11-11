@@ -43,7 +43,7 @@
           "imports": 1
         },
         "simulated_trading": {
-          "imports": 31
+          "imports": 49
         },
         "terminal": {
           "imports": 3
@@ -51,10 +51,11 @@
       },
       "depends_on": {
         "config_center": {
-          "imports": 8,
+          "imports": 9,
           "target_layers": [
             "application",
-            "domain"
+            "domain",
+            "runtime_environment_lock_composition"
           ]
         },
         "data_center": {
@@ -935,6 +936,11 @@
           "SimulatedCorporateActionWriteGrantRepository",
           "SimulatedCorporateActionWriteGrantUnavailable"
         ],
+        "application/simulated_corporate_action_write_issuance.py": [
+          "LockedSimulatedCorporateActionWriteScope",
+          "SimulatedCorporateActionGrantConsent",
+          "SimulatedCorporateActionWriteScopeLocker"
+        ],
         "application/simulated_corporate_action_write_lease.py": [
           "RequireSimulatedCorporateActionWriteLease",
           "SimulatedCorporateActionWriteLeaseProvider",
@@ -1124,12 +1130,12 @@
         ]
       },
       "layers": {
-        "application": 81,
+        "application": 82,
         "domain": 45,
-        "infrastructure": 152,
+        "infrastructure": 153,
         "interface": 24,
         "management": 14,
-        "root": 25
+        "root": 29
       }
     },
     "agent_runtime": {
@@ -2872,7 +2878,7 @@
         "infrastructure": 28,
         "interface": 14,
         "management": 8,
-        "root": 7,
+        "root": 8,
         "templatetags": 2
       },
       "orm_models": {
@@ -3481,7 +3487,7 @@
       },
       "depended_by": {
         "account": {
-          "imports": 8
+          "imports": 9
         },
         "alpha": {
           "imports": 5
@@ -3700,7 +3706,7 @@
         "infrastructure": 15,
         "interface": 6,
         "management": 9,
-        "root": 4
+        "root": 5
       },
       "orm_models": {
         "infrastructure/models.py": [
@@ -10960,13 +10966,17 @@
       },
       "depends_on": {
         "account": {
-          "imports": 31,
+          "imports": 49,
           "target_layers": [
             "application",
             "domain",
             "historical_position_source_composition",
             "infrastructure",
-            "owner_profile_identity_composition"
+            "owner_profile_identity_composition",
+            "simulated_corporate_action_consent_composition",
+            "simulated_corporate_action_current_grant_composition",
+            "simulated_corporate_action_policy_scope_composition",
+            "simulated_corporate_action_write_issuance_composition"
           ]
         },
         "asset_analysis": {
@@ -10982,7 +10992,8 @@
             "application",
             "domain",
             "infrastructure",
-            "security_disclosure_capture_composition"
+            "security_disclosure_capture_composition",
+            "system_audit_runtime_readiness_composition"
           ]
         },
         "data_center": {
@@ -11173,6 +11184,7 @@
           "CorporateActionTaxBasisVerifierProtocol",
           "HistoricalAccountOwnershipVerifierProtocol",
           "PostCashDividendEntitlementUseCase",
+          "PostCashDividendPaymentUseCase",
           "PostCorporateActionStageUseCase",
           "RecordDateOwnershipProofReaderProtocol"
         ],
@@ -11832,6 +11844,7 @@
           "GetCurrentSimulatedAccountRowSourceV2Command",
           "GetExactSimulatedAccountRowSourceV2",
           "GetExactSimulatedAccountRowSourceV2Command",
+          "HistoricalSimulatedAccountRowSourceV2",
           "PersistedSimulatedAccountRowSourceV2",
           "SimulatedAccountRowSourceV2Conflict",
           "SimulatedAccountRowSourceV2Corruption",
@@ -11925,6 +11938,10 @@
       },
       "http_routes": {
         "interface/api_urls.py": [
+          "accounts/<int:account_id>/corporate-action-consent/prepare/",
+          "accounts/<int:account_id>/corporate-action-consent/withdraw/prepare/",
+          "accounts/<int:account_id>/corporate-action-consent/",
+          "accounts/<int:account_id>/corporate-action-consent/withdraw/",
           "accounts/<int:account_id>/holding-disclosures/",
           "accounts/<int:account_id>/rebalance-plans/",
           "accounts/<int:account_id>/rebalance-plans/<str:plan_id>/",
@@ -11989,9 +12006,9 @@
         "application": 123,
         "domain": 40,
         "infrastructure": 135,
-        "interface": 34,
+        "interface": 35,
         "management": 7,
-        "root": 40
+        "root": 43
       },
       "orm_models": {
         "infrastructure/models.py": [
@@ -12643,6 +12660,8 @@
           "TerminalSettingsUser"
         ],
         "application/tui_account_action_scope.py": [
+          "continuation_public_account_fields",
+          "continuation_secret_values",
           "requires_account_result_scope"
         ],
         "application/tui_account_inspection_dependency_result.py": [
@@ -12653,6 +12672,9 @@
         ],
         "application/tui_account_inspection_result.py": [
           "project_account_inspection_result"
+        ],
+        "application/tui_account_owner_result.py": [
+          "project_account_owner_result"
         ],
         "application/tui_audit.py": [
           "TuiTerminalAuditSink",
@@ -12771,6 +12793,9 @@
           "build_tui_research_snapshot_view",
           "project_tui_research_snapshot_result"
         ],
+        "application/tui_simulated_corporate_action_consent_result.py": [
+          "project_simulated_corporate_action_consent_result"
+        ],
         "application/tui_task_focus_result.py": [
           "project_portfolio_recorded_facts_payload",
           "project_today_focus_market_context_payload",
@@ -12882,9 +12907,9 @@
         ]
       },
       "layers": {
-        "application": 59,
+        "application": 61,
         "domain": 5,
-        "infrastructure": 98,
+        "infrastructure": 99,
         "interface": 9,
         "management": 7,
         "root": 4

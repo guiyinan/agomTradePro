@@ -14,6 +14,16 @@ from apps.config_center.domain.runtime_config import (
 
 DEFAULT_RUNTIME_DEFINITIONS: tuple[RuntimeConfigDefinition, ...] = (
     RuntimeConfigDefinition(
+        key="config_center.account.simulated_corporate_action_write_policies",
+        namespace="config_center",
+        owner_app="config_center",
+        value_type=RuntimeValueType.TYPED_JSON,
+        criticality=RuntimeConfigCriticality.NORMAL,
+        reload_mode=RuntimeConfigReloadMode.IMMEDIATE,
+        description="Explicit account/user scopes and finite owner-consent service-write policy for simulated corporate actions.",
+        user_impact="Missing, disabled or ambiguous scopes block grants and posting; configuration alone never supplies user consent.",
+    ),
+    RuntimeConfigDefinition(
         key="risk_center.simulated_portfolio_risk",
         namespace="risk_center",
         owner_app="risk_center",

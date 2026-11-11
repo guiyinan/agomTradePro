@@ -1030,6 +1030,7 @@
             if (isTargetedDashboardAction) {
                 targetPanelParams = dashboardTargetParams(action, params, actions);
             }
+            const submittedScope = resultContinuations.captureConsentAccountScope(action, params);
             const safeUiParams = resultContinuations.safeUiParams(action, params, actions);
             submittedParams = safeUiParams;
             if (orderMutationAction) rememberOwnerOrderMutationParams(requestId, safeUiParams);
@@ -1146,6 +1147,7 @@
                 result,
                 continuationRequestToken,
                 requestIdempotencyKey,
+                submittedScope,
             );
             result = continuationAcceptance.result;
             receivedContinuation = continuationAcceptance.receivedContinuation;

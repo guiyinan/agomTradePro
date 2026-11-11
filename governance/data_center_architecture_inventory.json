@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 6749,
+    "current_surface_references": 6854,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -2248,6 +2248,14 @@
     },
     {
       "path": "apps/account/application/simulated_corporate_action_write_grant.py",
+      "text": "\"\"\"Read historical/revoked metadata for withdrawal, never as current authority.\"\"\""
+    },
+    {
+      "path": "apps/account/application/simulated_corporate_action_write_grant.py",
+      "text": "\"\"\"Read known historical consent metadata without granting current authority.\"\"\""
+    },
+    {
+      "path": "apps/account/application/simulated_corporate_action_write_grant.py",
       "text": "\"\"\"The exact current grant cannot be proven from the Account ledger.\"\"\""
     },
     {
@@ -2277,6 +2285,10 @@
     {
       "path": "apps/account/application/simulated_corporate_action_write_grant.py",
       "text": "return current.grant"
+    },
+    {
+      "path": "apps/account/application/simulated_corporate_action_write_issuance.py",
+      "text": "\"\"\"Revalidate exact current physical/source/policy facts before and after yield.\"\"\""
     },
     {
       "path": "apps/account/application/simulated_corporate_action_write_lease.py",
@@ -3088,6 +3100,10 @@
     },
     {
       "path": "apps/account/domain/simulated_corporate_action_write_grant.py",
+      "text": "\"\"\"Exact historical withdrawal metadata with no current-authority semantics.\"\"\""
+    },
+    {
+      "path": "apps/account/domain/simulated_corporate_action_write_grant.py",
       "text": "\"\"\"Return current grant authority only if it is unrevoked and within its finite interval.\"\"\""
     },
     {
@@ -3101,6 +3117,10 @@
     {
       "path": "apps/account/domain/simulated_corporate_action_write_grant.py",
       "text": "\"\"\"Return whether this finite grant is current in its own half-open time interval.\"\"\""
+    },
+    {
+      "path": "apps/account/domain/simulated_corporate_action_write_grant.py",
+      "text": "\"\"\"Validate the immutable target without claiming that it is a current head.\"\"\""
     },
     {
       "path": "apps/account/domain/simulated_corporate_action_write_lease.py",
@@ -3924,7 +3944,7 @@
     },
     {
       "path": "apps/account/infrastructure/creation_authentication_transaction.py",
-      "text": "These facts authorize only the current creation request. They do not publish"
+      "text": "These facts prove only the current request identity. They do not publish"
     },
     {
       "path": "apps/account/infrastructure/diagnostic_queries.py",
@@ -4104,7 +4124,15 @@
     },
     {
       "path": "apps/account/infrastructure/simulated_corporate_action_write_grant_repository.py",
+      "text": "This method does not establish a current head or permission. Financial"
+    },
+    {
+      "path": "apps/account/infrastructure/simulated_corporate_action_write_grant_repository.py",
       "text": "\"\"\"Append immutable grant and revocation rows and read exact current heads.\"\"\""
+    },
+    {
+      "path": "apps/account/infrastructure/simulated_corporate_action_write_grant_repository.py",
+      "text": "\"\"\"Discover known historical records for withdrawal, preserving the current-write gate."
     },
     {
       "path": "apps/account/infrastructure/simulated_corporate_action_write_grant_repository.py",
@@ -4129,6 +4157,18 @@
     {
       "path": "apps/account/infrastructure/simulated_corporate_action_write_grant_repository.py",
       "text": "return current if current.is_active_at(as_of) else None"
+    },
+    {
+      "path": "apps/account/infrastructure/simulated_corporate_action_write_grant_repository.py",
+      "text": "superseded and revoked records remain metadata and never become Current."
+    },
+    {
+      "path": "apps/account/infrastructure/simulated_corporate_action_write_grant_seal.py",
+      "text": "\"\"\"Seal authenticated issuer facts and verify them against the current server key.\"\"\""
+    },
+    {
+      "path": "apps/account/infrastructure/simulated_corporate_action_write_grant_seal.py",
+      "text": "remove immutable revocation, finite expiry or current scope requirements."
     },
     {
       "path": "apps/account/infrastructure/single_owner_authority_policy_v1_repository.py",
@@ -4409,6 +4449,222 @@
     {
       "path": "apps/account/policy_publication_binding_composition.py",
       "text": "Permanent binding knowledge does not make the old physical observation current."
+    },
+    {
+      "path": "apps/account/simulated_corporate_action_consent_composition.py",
+      "text": "\"\"\"Discover one's canonical historical target without granting Current authority."
+    },
+    {
+      "path": "apps/account/simulated_corporate_action_consent_composition.py",
+      "text": "\"\"\"Owner consent preparation tokens and read-only current consent metadata.\"\"\""
+    },
+    {
+      "path": "apps/account/simulated_corporate_action_consent_composition.py",
+      "text": "\"owner consent preparation expired or differs from the current requester\""
+    },
+    {
+      "path": "apps/account/simulated_corporate_action_current_grant_composition.py",
+      "text": "\"\"\"Locked current-head reads for simulated corporate-action service grants.\"\"\""
+    },
+    {
+      "path": "apps/account/simulated_corporate_action_current_grant_composition.py",
+      "text": "\"\"\"Require the unique active scope head, exact selector, and current server MAC.\"\"\""
+    },
+    {
+      "path": "apps/account/simulated_corporate_action_current_grant_composition.py",
+      "text": "\"current simulated write grant requires READ COMMITTED\""
+    },
+    {
+      "path": "apps/account/simulated_corporate_action_current_grant_composition.py",
+      "text": "\"current simulated write grant requires an active PostgreSQL transaction\""
+    },
+    {
+      "path": "apps/account/simulated_corporate_action_current_grant_composition.py",
+      "text": "\"current simulated write grant transaction is unavailable\""
+    },
+    {
+      "path": "apps/account/simulated_corporate_action_current_grant_composition.py",
+      "text": "\"simulated write grant current record is invalid\""
+    },
+    {
+      "path": "apps/account/simulated_corporate_action_current_grant_composition.py",
+      "text": "\"simulated write grant is not the exact current head\""
+    },
+    {
+      "path": "apps/account/simulated_corporate_action_current_grant_composition.py",
+      "text": "current = _read_exact_current_grant("
+    },
+    {
+      "path": "apps/account/simulated_corporate_action_current_grant_composition.py",
+      "text": "current = repository.get_current_grant(selector=selector, as_of=as_of)"
+    },
+    {
+      "path": "apps/account/simulated_corporate_action_current_grant_composition.py",
+      "text": "current.__post_init__()"
+    },
+    {
+      "path": "apps/account/simulated_corporate_action_current_grant_composition.py",
+      "text": "current.revocation is not None"
+    },
+    {
+      "path": "apps/account/simulated_corporate_action_current_grant_composition.py",
+      "text": "grant ledgers before reading scope state, verifies the current server MAC and"
+    },
+    {
+      "path": "apps/account/simulated_corporate_action_current_grant_composition.py",
+      "text": "if current != grant:"
+    },
+    {
+      "path": "apps/account/simulated_corporate_action_current_grant_composition.py",
+      "text": "if type(current) is not SimulatedCorporateActionWriteGrantCurrent:"
+    },
+    {
+      "path": "apps/account/simulated_corporate_action_current_grant_composition.py",
+      "text": "is_active = current.is_active_at(as_of)"
+    },
+    {
+      "path": "apps/account/simulated_corporate_action_current_grant_composition.py",
+      "text": "or current.grant != grant"
+    },
+    {
+      "path": "apps/account/simulated_corporate_action_current_grant_composition.py",
+      "text": "or current.selector != selector"
+    },
+    {
+      "path": "apps/account/simulated_corporate_action_current_grant_composition.py",
+      "text": "rechecks the same finite current grant before yielding back to the caller."
+    },
+    {
+      "path": "apps/account/simulated_corporate_action_policy_scope_composition.py",
+      "text": "\"\"\"Discover one explicit current policy for an owner without issuing authority."
+    },
+    {
+      "path": "apps/account/simulated_corporate_action_policy_scope_composition.py",
+      "text": "\"\"\"Exact current configuration scope including immutable runtime lineage.\"\"\""
+    },
+    {
+      "path": "apps/account/simulated_corporate_action_write_issuance_composition.py",
+      "text": "Withdrawal needs a current real credential and stored owner identity. It"
+    },
+    {
+      "path": "apps/account/simulated_corporate_action_write_issuance_composition.py",
+      "text": "\"Current account role cannot authorize simulated service writes\""
+    },
+    {
+      "path": "apps/account/simulated_corporate_action_write_issuance_composition.py",
+      "text": "\"\"\"Authenticate current owner consent and seal one finite exact-source grant."
+    },
+    {
+      "path": "apps/account/simulated_corporate_action_write_issuance_composition.py",
+      "text": "\"\"\"Read locked current rows instead of a request's cached reverse relation.\"\"\""
+    },
+    {
+      "path": "apps/account/simulated_corporate_action_write_issuance_composition.py",
+      "text": "\"\"\"Recheck exact current issuance after credentials and before atomic commit.\"\"\""
+    },
+    {
+      "path": "apps/account/simulated_corporate_action_write_issuance_composition.py",
+      "text": "\"grant consent conflicts with the current account scope\""
+    },
+    {
+      "path": "apps/account/simulated_corporate_action_write_issuance_composition.py",
+      "text": "\"grant consent differs from current locked scope or finite validity\""
+    },
+    {
+      "path": "apps/account/simulated_corporate_action_write_issuance_composition.py",
+      "text": "\"grant_content_hash\": current.grant.content_hash,"
+    },
+    {
+      "path": "apps/account/simulated_corporate_action_write_issuance_composition.py",
+      "text": "current = DjangoSimulatedCorporateActionWriteGrantRepository(using=using).get_current_grant("
+    },
+    {
+      "path": "apps/account/simulated_corporate_action_write_issuance_composition.py",
+      "text": "current = DjangoSimulatedCorporateActionWriteGrantRepository(using=using).get_exact_record("
+    },
+    {
+      "path": "apps/account/simulated_corporate_action_write_issuance_composition.py",
+      "text": "current = repository.get_current_for_scope("
+    },
+    {
+      "path": "apps/account/simulated_corporate_action_write_issuance_composition.py",
+      "text": "current = repository.get_exact_record(selector=selector, as_of=now)"
+    },
+    {
+      "path": "apps/account/simulated_corporate_action_write_issuance_composition.py",
+      "text": "current is None"
+    },
+    {
+      "path": "apps/account/simulated_corporate_action_write_issuance_composition.py",
+      "text": "current is None"
+    },
+    {
+      "path": "apps/account/simulated_corporate_action_write_issuance_composition.py",
+      "text": "existing = current[0]"
+    },
+    {
+      "path": "apps/account/simulated_corporate_action_write_issuance_composition.py",
+      "text": "grant_content_hash=current.grant.content_hash,"
+    },
+    {
+      "path": "apps/account/simulated_corporate_action_write_issuance_composition.py",
+      "text": "grant_id=current.grant.grant_id,"
+    },
+    {
+      "path": "apps/account/simulated_corporate_action_write_issuance_composition.py",
+      "text": "grant_identity_hash=current.grant.identity_hash,"
+    },
+    {
+      "path": "apps/account/simulated_corporate_action_write_issuance_composition.py",
+      "text": "grant_version=current.grant.grant_version,"
+    },
+    {
+      "path": "apps/account/simulated_corporate_action_write_issuance_composition.py",
+      "text": "if current and ("
+    },
+    {
+      "path": "apps/account/simulated_corporate_action_write_issuance_composition.py",
+      "text": "if current is None or current.grant.binding.owner_user_id != requester.user_id:"
+    },
+    {
+      "path": "apps/account/simulated_corporate_action_write_issuance_composition.py",
+      "text": "if current.revocation is not None:"
+    },
+    {
+      "path": "apps/account/simulated_corporate_action_write_issuance_composition.py",
+      "text": "if len(current) == 1:"
+    },
+    {
+      "path": "apps/account/simulated_corporate_action_write_issuance_composition.py",
+      "text": "len(current) != 1"
+    },
+    {
+      "path": "apps/account/simulated_corporate_action_write_issuance_composition.py",
+      "text": "or current.grant != issued_result"
+    },
+    {
+      "path": "apps/account/simulated_corporate_action_write_issuance_composition.py",
+      "text": "or current.revocation != result"
+    },
+    {
+      "path": "apps/account/simulated_corporate_action_write_issuance_composition.py",
+      "text": "or current[0].binding.owner_user_id != requester.user_id"
+    },
+    {
+      "path": "apps/account/simulated_corporate_action_write_issuance_composition.py",
+      "text": "or current[0].content_hash != command.expected_predecessor_content_hash"
+    },
+    {
+      "path": "apps/account/simulated_corporate_action_write_issuance_composition.py",
+      "text": "or current[0].grant_id != command.grant_id"
+    },
+    {
+      "path": "apps/account/simulated_corporate_action_write_issuance_composition.py",
+      "text": "raise AuthorizationError(\"Current trading eligibility is unavailable\")"
+    },
+    {
+      "path": "apps/account/simulated_corporate_action_write_issuance_composition.py",
+      "text": "result = current.revocation"
     },
     {
       "path": "apps/account/single_owner_authority_policy_composition.py",
@@ -7157,6 +7413,10 @@
     {
       "path": "apps/audit/management/commands/validate_high_frequency_indicators.py",
       "text": "summary: ValidationResult = {"
+    },
+    {
+      "path": "apps/audit/system_audit_runtime_readiness_composition.py",
+      "text": "\"\"\"Read current operational readiness without granting any account or staff scope.\"\"\""
     },
     {
       "path": "apps/backtest/application/interface_services.py",
@@ -22700,6 +22960,10 @@
     },
     {
       "path": "apps/simulated_trading/application/simulated_account_row_source_v2.py",
+      "text": "\"\"\"Immutable historical metadata for consent withdrawal, never current source qualification.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/simulated_account_row_source_v2.py",
       "text": "\"\"\"Stabilize current source rows in the active persistence transaction.\"\"\""
     },
     {
@@ -22887,12 +23151,132 @@
       "text": "\"\"\"Recalculate time-series metrics only from a covered, current daily history.\"\"\""
     },
     {
+      "path": "apps/simulated_trading/audited_corporate_action_posting_composition.py",
+      "text": "\"\"\"Return a proof only for the exact immutable request under this current grant.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/audited_corporate_action_posting_composition.py",
+      "text": "current = self._owner_grant_gate.assert_live(as_of=timezone.now())"
+    },
+    {
+      "path": "apps/simulated_trading/audited_corporate_action_posting_composition.py",
+      "text": "if current != authority:"
+    },
+    {
+      "path": "apps/simulated_trading/audited_corporate_action_posting_composition.py",
+      "text": "return current"
+    },
+    {
       "path": "apps/simulated_trading/close_snapshot_submission_composition.py",
       "text": "\"\"\"Retain original source clocks while rechecking all current financial bindings.\"\"\""
     },
     {
       "path": "apps/simulated_trading/close_snapshot_submission_composition.py",
       "text": "\"\"\"Run the existing ASH-03 evaluation on exact current finance and capture evidence.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_consent_composition.py",
+      "text": "\"\"\"Read current owner terms without issuing a grant or altering financial ledgers.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_consent_composition.py",
+      "text": "\"summary\": \"已找到本人尚未撤销的原授权，请核对后明确撤销；准备不会延长原授权期限。\","
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_consent_composition.py",
+      "text": "\"summary\": \"已有有限期的现金分红模拟入账授权，可随时撤销。\","
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_consent_composition.py",
+      "text": "\"summary\": \"当前授权资料尚未核对完成。\","
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_consent_composition.py",
+      "text": "\"summary\": \"当前未发现本人尚未撤销的授权记录。\","
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_consent_composition.py",
+      "text": "\"summary\": \"现金分红模拟入账授权已保存；本次操作仅保存授权。\","
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_consent_composition.py",
+      "text": "\"summary\": \"确认后，服务可在有效期内为本账户核对并记录现金分红模拟权益和模拟到账。\","
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_consent_composition.py",
+      "text": "\"summary\": \"该次模拟入账授权已撤销。\","
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_consent_composition.py",
+      "text": "payload[\"summary\"] = \"当前角色不能新增模拟入账授权。\""
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_consent_composition.py",
+      "text": "payload[\"summary\"] = \"缺少当前有效且范围明确的模拟入账政策，请先完成配置核对。\""
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_consent_composition.py",
+      "text": "payload[\"summary\"] = \"该授权所依据的资料已更新，请撤销后重新核对并明确同意。\""
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_consent_composition.py",
+      "text": "payload[\"summary\"] = \"请先核对并刷新该模拟账户的归属资料。\""
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_consent_composition.py",
+      "text": "summary: str"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_grant_gate.py",
+      "text": "\"\"\"Exact current owner grant and Audit scope used by one write transaction.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_grant_gate.py",
+      "text": "\"\"\"Hold exact owner, current Account grant and Audit readiness in one UOW.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_grant_gate.py",
+      "text": "\"\"\"Recheck current grant, fixed cutoff, and Audit readiness after lock contexts exit.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_grant_gate.py",
+      "text": "\"\"\"Require current physical/source timestamps or an exact audited replay proof.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_grant_gate.py",
+      "text": "\"current Account grant differs from the locked source scope\","
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_grant_gate.py",
+      "text": "\"current Account grant type is invalid\","
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_grant_gate.py",
+      "text": "\"current owner grant failed its final commit check\","
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_grant_gate.py",
+      "text": "\"current owner, source, policy or grant cannot authorize this posting\","
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_write_scope_composition.py",
+      "text": "\"\"\"Join current physical ownership with Account policy evidence on one alias.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_write_scope_composition.py",
+      "text": "\"\"\"Require a request, current grant, exact Audit event and matching Outbox event.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_write_scope_composition.py",
+      "text": "\"corporate-action replay evidence differs from its request or current grant\""
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_write_scope_composition.py",
+      "text": "\"simulated action canonical physical source is not exact and current\""
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_write_scope_composition.py",
+      "text": "\"source timestamp replay requires the exact current Account grant\""
     },
     {
       "path": "apps/simulated_trading/domain/close_snapshot_execution_market_audit_validation.py",
@@ -24008,6 +24392,10 @@
     },
     {
       "path": "apps/simulated_trading/infrastructure/simulated_account_row_source_v2_repository.py",
+      "text": "callers must check actual ownership and current source eligibility before"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/simulated_account_row_source_v2_repository.py",
       "text": "current = roots[0]"
     },
     {
@@ -24141,6 +24529,14 @@
     {
       "path": "apps/simulated_trading/interface/admin.py",
       "text": "readonly_fields = [\"created_at\", \"updated_at\", \"summary\", \"checks\"]"
+    },
+    {
+      "path": "apps/simulated_trading/interface/corporate_action_consent_views.py",
+      "text": "\"\"\"Prepare one exact withdrawal independently of current trading eligibility.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/interface/corporate_action_consent_views.py",
+      "text": "summary = serializers.CharField()"
     },
     {
       "path": "apps/simulated_trading/interface/fee_correction_policy_views.py",
@@ -25309,6 +25705,30 @@
     {
       "path": "apps/terminal/application/tui_research_snapshot_result.py",
       "text": "summary = f\"{location}研究快照。\""
+    },
+    {
+      "path": "apps/terminal/application/tui_simulated_corporate_action_consent_result.py",
+      "text": "\"business_summary\": f\"{response['summary']} {_SIMULATION_NOTICE}\","
+    },
+    {
+      "path": "apps/terminal/application/tui_simulated_corporate_action_consent_result.py",
+      "text": "\"summary\","
+    },
+    {
+      "path": "apps/terminal/application/tui_simulated_corporate_action_consent_result.py",
+      "text": "_field(\"summary\", \"处理摘要\", response[\"summary\"]),"
+    },
+    {
+      "path": "apps/terminal/application/tui_simulated_corporate_action_consent_result.py",
+      "text": "or _bounded_text(summary, maximum=1000) is None"
+    },
+    {
+      "path": "apps/terminal/application/tui_simulated_corporate_action_consent_result.py",
+      "text": "summary = value[\"summary\"]"
+    },
+    {
+      "path": "apps/terminal/application/tui_simulated_corporate_action_consent_result.py",
+      "text": "summary: str"
     },
     {
       "path": "apps/terminal/application/tui_task_focus_result.py",

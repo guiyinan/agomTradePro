@@ -23,6 +23,7 @@ from apps.account.domain.simulated_corporate_action_write_grant import (
     SimulatedCorporateActionWriteGrant,
     SimulatedCorporateActionWriteGrantBinding,
     SimulatedCorporateActionWriteGrantCurrent,
+    SimulatedCorporateActionWriteGrantRecord,
     SimulatedCorporateActionWriteGrantRevocation,
     SimulatedCorporateActionWriteGrantSelector,
     validate_simulated_corporate_action_write_grant_revocation,
@@ -137,6 +138,90 @@ class DjangoSimulatedCorporateActionWriteGrantRepository(
         except (DatabaseError, ConnectionDoesNotExist) as error:
             raise SimulatedCorporateActionWriteGrantUnavailable(
                 "simulated corporate-action write grant revocation append is unavailable"
+            ) from error
+
+    def get_exact_record(
+        self,
+        *,
+        selector: SimulatedCorporateActionWriteGrantSelector,
+        as_of: datetime,
+    ) -> SimulatedCorporateActionWriteGrantRecord | None:
+        """Read an exact known record for owner withdrawal, including expired history.
+
+        This method does not establish a current head or permission. Financial
+        consumers must continue to call get_current_grant and verify issuance.
+        """
+        checked = _selector(selector)
+        cutoff = _cutoff(as_of)
+        try:
+            matches = tuple(
+                SimulatedCorporateActionWriteGrantModel._default_manager.using(self._using)
+                .filter(content_hash=checked.content_hash)
+                .order_by("pk")[:2]
+            )
+            if len(matches) > 1:
+                raise SimulatedCorporateActionWriteGrantCorruption(
+                    "exact grant selector is ambiguous"
+                )
+            if not matches:
+                return None
+            row = matches[0]
+            grant = _restore_grant(row)
+            if grant.selector != checked:
+                raise SimulatedCorporateActionWriteGrantCorruption("exact grant selector differs")
+            if grant.recorded_at > cutoff:
+                return None
+            rows = tuple(
+                SimulatedCorporateActionWriteGrantRevocationModel._default_manager.using(
+                    self._using
+                )
+                .filter(target_grant_id=row.pk)
+                .order_by("pk")[:2]
+            )
+            if len(rows) > 1:
+                raise SimulatedCorporateActionWriteGrantCorruption("grant has multiple revocations")
+            revocation = _restore_revocation(rows[0], grant, _pk(row)) if rows else None
+            return SimulatedCorporateActionWriteGrantRecord(grant=grant, revocation=revocation)
+        except (DatabaseError, ConnectionDoesNotExist) as error:
+            raise SimulatedCorporateActionWriteGrantUnavailable(
+                "exact grant metadata read is unavailable"
+            ) from error
+
+    def get_scope_records(
+        self, account_namespace: str, account_id: str, *, as_of: datetime
+    ) -> tuple[SimulatedCorporateActionWriteGrantRecord, ...]:
+        """Discover known historical records for withdrawal, preserving the current-write gate.
+
+        Scope chains are validated before reading exact historical DTOs. Expired,
+        superseded and revoked records remain metadata and never become Current.
+        """
+        cutoff = _cutoff(as_of)
+        self.get_current_for_scope(account_namespace, account_id, as_of=cutoff)
+        if account_namespace != "simulated":
+            return ()
+        try:
+            rows = tuple(
+                SimulatedCorporateActionWriteGrantModel._default_manager.using(self._using)
+                .filter(
+                    account_namespace=account_namespace,
+                    account_id=account_id,
+                    recorded_at__lte=cutoff,
+                )
+                .order_by("recorded_at", "pk")
+            )
+            records: list[SimulatedCorporateActionWriteGrantRecord] = []
+            for row in rows:
+                grant = _restore_grant(row)
+                record = self.get_exact_record(selector=grant.selector, as_of=cutoff)
+                if record is None:
+                    raise SimulatedCorporateActionWriteGrantCorruption(
+                        "known historical grant disappeared"
+                    )
+                records.append(record)
+            return tuple(records)
+        except (DatabaseError, ConnectionDoesNotExist) as error:
+            raise SimulatedCorporateActionWriteGrantUnavailable(
+                "historical consent read is unavailable"
             ) from error
 
     def get_current_grant(

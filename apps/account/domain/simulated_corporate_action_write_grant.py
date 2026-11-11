@@ -441,6 +441,24 @@ class SimulatedCorporateActionWriteGrantCurrent:
         )
 
 
+@dataclass(frozen=True, slots=True)
+class SimulatedCorporateActionWriteGrantRecord:
+    """Exact historical withdrawal metadata with no current-authority semantics."""
+
+    grant: SimulatedCorporateActionWriteGrant
+    revocation: SimulatedCorporateActionWriteGrantRevocation | None = None
+
+    def __post_init__(self) -> None:
+        """Validate the immutable target without claiming that it is a current head."""
+        if type(self.grant) is not SimulatedCorporateActionWriteGrant:
+            raise TypeError("grant record requires an exact grant")
+        self.grant.__post_init__()
+        if self.revocation is not None:
+            if type(self.revocation) is not SimulatedCorporateActionWriteGrantRevocation:
+                raise TypeError("grant record revocation is invalid")
+            validate_simulated_corporate_action_write_grant_revocation(self.grant, self.revocation)
+
+
 def validate_simulated_corporate_action_write_grant_successor(
     predecessor: SimulatedCorporateActionWriteGrant,
     successor: SimulatedCorporateActionWriteGrant,
@@ -506,6 +524,7 @@ __all__ = [
     "SimulatedCorporateActionWriteGrantBinding",
     "SimulatedCorporateActionWriteGrantCurrent",
     "SimulatedCorporateActionWriteGrantRevocation",
+    "SimulatedCorporateActionWriteGrantRecord",
     "SimulatedCorporateActionWriteGrantSelector",
     "validate_simulated_corporate_action_write_grant_revocation",
     "validate_simulated_corporate_action_write_grant_successor",

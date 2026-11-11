@@ -1403,6 +1403,237 @@ test("continuation values duplicated into render or debug data are rejected", ()
     assert.equal(controller.acceptResult(source, actions, successfulResult("safe"), 1).status, "stored");
 });
 
+function makeCorporateActionConsentActions(sourceKey) {
+    const withdrawal = sourceKey === "simulated-trading.corporate-action-consent-withdraw-prepare";
+    const tokenKey = withdrawal ? "withdrawal_token" : "consent_token";
+    const targetKey = withdrawal
+        ? "simulated-trading.corporate-action-consent-withdraw"
+        : "simulated-trading.corporate-action-consent";
+    const hiddenField = key => ({
+        key,
+        input_type: "hidden",
+        value_type: "string",
+        required: true,
+        binding: "body",
+        presentation_semantic: "api_token",
+        default: "",
+    });
+    return [
+        {
+            key: sourceKey,
+            screen_key: "execution.accounts",
+            method: "POST",
+            risk: "read",
+            effect: "read",
+            session_auth_required: true,
+            result_continuation: {
+                target_action_key: targetKey,
+                field_map: { account_id: "account_id", [tokenKey]: tokenKey },
+            },
+        },
+        {
+            key: targetKey,
+            screen_key: "execution.accounts",
+            method: "POST",
+            risk: "write",
+            session_auth_required: true,
+            confirmation_required: true,
+            fields: [hiddenField("account_id"), hiddenField(tokenKey)],
+        },
+    ];
+}
+
+function successfulConsentPrepareResult(sourceKey, actions, {
+    continuationAccountId = "1",
+    displayedAccountId = "1",
+    token = "opaque-consent-token",
+    fields,
+} = {}) {
+    const withdrawal = sourceKey === "simulated-trading.corporate-action-consent-withdraw-prepare";
+    const tokenKey = withdrawal ? "withdrawal_token" : "consent_token";
+    const result = successfulResult(token);
+    result.continuation.action_key = actions[1].key;
+    result.continuation.input = { account_id: continuationAccountId, [tokenKey]: token };
+    result.view_model = {
+        kind: "detail",
+        fields: fields || [
+            { key: "account_id", value: displayedAccountId },
+            { key: "grant_version", value: "1" },
+        ],
+    };
+    return result;
+}
+
+test("corporate-action consent prepare exposes only a three-way matching account scope", () => {
+    for (const sourceKey of [
+        "simulated-trading.corporate-action-consent-prepare",
+        "simulated-trading.corporate-action-consent-withdraw-prepare",
+    ]) {
+        for (const submittedAccountId of ["1", 1]) {
+            const actions = makeCorporateActionConsentActions(sourceKey);
+            const controller = loadController();
+            const request = controller.startSource(actions[0], actions);
+            const result = successfulConsentPrepareResult(sourceKey, actions);
+
+            assert.equal(controller.acceptResult(
+                actions[0],
+                actions,
+                result,
+                1,
+                request.requestToken,
+                "prepare-request",
+                { account_id: submittedAccountId },
+            ).status, "stored");
+            assert.equal(controller.targetParams(actions[1], actions, {}, 2).params.account_id, "1");
+        }
+    }
+});
+
+test("continuation UI forwards a single consent account scope only when present", () => {
+    const wrapper = sourceBetween(
+        continuationUiSource,
+        "function acceptActionContinuationResult(",
+        "function classifyContinuationActionResponse(",
+    );
+    const acceptCalls = [];
+    const context = {
+        resultContinuations: {
+            acceptResult(...args) {
+                acceptCalls.push(args);
+                return { status: "stored" };
+            },
+        },
+    };
+    runInNewContext(wrapper, context);
+
+    const consentAction = { key: "simulated-trading.corporate-action-consent-prepare" };
+    context.acceptActionContinuationResult(
+        consentAction, [], { continuation: {} }, 7, "request-key", { account_id: "1" },
+    );
+    assert.equal(acceptCalls[0].length, 7);
+    assert.deepEqual(JSON.parse(JSON.stringify(acceptCalls[0][6])), { account_id: "1" });
+
+    const unrelatedAction = { key: "calendar.prepare" };
+    context.acceptActionContinuationResult(
+        unrelatedAction, [], { continuation: {} }, 8, "request-key",
+    );
+    assert.equal(acceptCalls[1].length, 6);
+
+    const capturePosition = actionsSource.indexOf("const submittedScope = resultContinuations.captureConsentAccountScope");
+    const filteringPosition = actionsSource.indexOf("const safeUiParams = resultContinuations.safeUiParams");
+    assert.ok(capturePosition >= 0 && capturePosition < filteringPosition);
+    const wrapperCall = sourceBetween(
+        actionsSource,
+        "const continuationAcceptance = acceptActionContinuationResult(",
+        "            );",
+    );
+    assert.match(wrapperCall, /submittedScope/);
+});
+
+test("consent request scope capture retains only the public account identity", () => {
+    const controller = loadController();
+    const source = { key: "simulated-trading.corporate-action-consent-prepare" };
+    const params = { account_id: 1, consent_token: "private-token", password: "private-password" };
+    assert.equal(JSON.stringify(controller.captureConsentAccountScope(source, params)),
+        JSON.stringify({ account_id: 1 }));
+    assert.equal(controller.captureConsentAccountScope({ key: "calendar.prepare" }, params), undefined);
+    assert.equal(controller.captureConsentAccountScope(source, {}), undefined);
+    assert.equal(controller.captureConsentAccountScope(source, Object.create({ account_id: 1 })), undefined);
+    assert.equal(params.consent_token, "private-token");
+});
+
+test("corporate-action consent scope exemption rejects mismatches and noncanonical identifiers", () => {
+    for (const scenario of [
+        { submitted: "2", continuation: "1", display: "1" },
+        { submitted: "1", continuation: "2", display: "1" },
+        { submitted: "1", continuation: "1", display: "2" },
+        { submitted: "01", continuation: "1", display: "1" },
+        { submitted: "1\n", continuation: "1\n", display: "1\n" },
+        { submitted: "1\r\n", continuation: "1\r\n", display: "1\r\n" },
+        { submitted: "1\u2028", continuation: "1\u2028", display: "1\u2028" },
+        { submitted: true, continuation: "1", display: "1" },
+        { submitted: Number.MAX_SAFE_INTEGER + 1, continuation: "1", display: "1" },
+    ]) {
+        const sourceKey = "simulated-trading.corporate-action-consent-prepare";
+        const actions = makeCorporateActionConsentActions(sourceKey);
+        const result = successfulConsentPrepareResult(sourceKey, actions, {
+            continuationAccountId: scenario.continuation,
+            displayedAccountId: scenario.display,
+        });
+
+        assert.notEqual(loadController().acceptResult(
+            actions[0],
+            actions,
+            result,
+            1,
+            undefined,
+            "prepare-request",
+            { account_id: scenario.submitted },
+        ).status, "stored");
+    }
+
+    const sourceKey = "simulated-trading.corporate-action-consent-prepare";
+    const actions = makeCorporateActionConsentActions(sourceKey);
+    const duplicated = successfulConsentPrepareResult(sourceKey, actions, {
+        fields: [
+            { key: "account_id", value: "1" },
+            { key: "account_id", value: "1" },
+        ],
+    });
+    assert.notEqual(loadController().acceptResult(
+        actions[0], actions, duplicated, 1, undefined, "prepare-request", { account_id: "1" },
+    ).status, "stored");
+});
+
+test("consent prepare still blocks nested token leaks and unrelated account fields", () => {
+    const sourceKey = "simulated-trading.corporate-action-consent-prepare";
+    const actions = makeCorporateActionConsentActions(sourceKey);
+    const leaked = successfulConsentPrepareResult(sourceKey, actions, { token: "actual-secret" });
+    leaked.view_model.metadata = { nested: ["actual-secret"] };
+    assert.equal(loadController().acceptResult(
+        actions[0], actions, leaked, 1, undefined, "prepare-request", { account_id: "1" },
+    ).status, "leaked");
+
+    const tokenMatchesPublicId = successfulConsentPrepareResult(sourceKey, actions, { token: "1" });
+    assert.equal(loadController().acceptResult(
+        actions[0], actions, tokenMatchesPublicId, 1, undefined, "prepare-request", { account_id: "1" },
+    ).status, "leaked");
+
+    const mismapped = makeCorporateActionConsentActions(sourceKey);
+    mismapped[0].result_continuation.field_map.account_id = "account_scope_id";
+    mismapped[1].fields.push({
+        key: "account_scope_id",
+        input_type: "hidden",
+        value_type: "string",
+        required: true,
+        binding: "body",
+        presentation_semantic: "api_token",
+        default: "",
+    });
+    const mismappedResult = successfulConsentPrepareResult(sourceKey, mismapped);
+    assert.equal(loadController().acceptResult(
+        mismapped[0], mismapped, mismappedResult, 1, undefined, "prepare-request", { account_id: "1" },
+    ).status, "invalid");
+
+    const unrelated = makeActions();
+    unrelated[1].fields.unshift({
+        key: "account_id",
+        input_type: "hidden",
+        value_type: "string",
+        required: true,
+        binding: "body",
+        presentation_semantic: "api_token",
+        default: "",
+    });
+    unrelated[0].result_continuation.field_map.account_id = "account_id";
+    const unrelatedResult = successfulResult("calendar-token");
+    unrelatedResult.continuation.input = { account_id: "1", confirmation_token: "calendar-token" };
+    unrelatedResult.view_model.fields = [{ key: "account_id", value: "1" }];
+    assert.equal(loadController().acceptResult(
+        unrelated[0], unrelated, unrelatedResult, 1, undefined, undefined, { account_id: "1" },
+    ).status, "leaked");
+});
+
 test("readback scope may appear in view data but the confirmation token still may not", () => {
     const actions = makeReadbackActions();
     const [source, target] = actions;
