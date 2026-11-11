@@ -3157,3 +3157,5 @@ v375 隔离的 Account 服务写入 lease 契约按三个 SHA-256 核验后整�
 只读授权审计确认现有 Account RBAC 是 `attestation_only`，OwnerTenant V3 是 `evidence_read`，SingleOwnerAuthorityPolicyV1 只声明归属；均不能为普通非 staff 账户签发 `simulated_corporate_action_stage_write`。registry v378 因此并行登记一个隔离的 Account 专用显式 grant/revocation 存储准备，要求一个账户、一个 owner/tenant scope、确定来源与政策谱系、有限时效、不可变撤销和无旧版本回退；Root 后续用当前认证主体和物理模拟账户 owner 锁内事实签发及复验，System Audit required/outbox 门保持独立。存储准备不能代替认证或自动获得生产资格。
 
 服务写入 lease 契约精确候选 `8c500f9885c172b88531f81ce6fab1ecb405693b` 的七项适用 CI 全部成功，包含两个独立 PostgreSQL 工作流；正式树定向 **25 passed**、增量 mypy、债务上限、架构、治理与生成投影均通过。忽略目录索引 `artifacts/ash05-event-policy-20261111/8c500-owner-lease-evidence-index.json` SHA-256 为 `f254870c9f2add8210dfed73a07d79927136b5edea40b16166c4ff16b2a3d4fe`。该候选只验收有限、可撤销、精确 scope 的纯契约；无可信签发源及模拟账户物理锁内绑定，不能凭 CI 通过开启普通账户写入或关闭 ASH-05。
+
+治理候选 `e42f937e8` 的 Consistency Check 因 `parallel_preparation` 为同一 ASH-05 写了两条记录而失败，失败原件 `artifacts/ash05-event-policy-20261111/e42-consistency-failed.log`；普通治理一致性检查没有覆盖该专门规则。registry v380 将两个互不重叠的隔离范围合并为一条 ASH-05 并行准备记录，`check_active_plan_registry.py` 检查 **0 violation**。下一精确候选须重新通过适用 CI，失败候选不借用上一提交的通过结果。
