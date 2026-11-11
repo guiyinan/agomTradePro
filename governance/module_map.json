@@ -5530,6 +5530,19 @@
           "CaptureSinaQuoteUseCase",
           "SinaQuoteTransportProtocol"
         ],
+        "application/statutory_source_documents.py": [
+          "AppendStatutorySourceDocumentBundleUseCase",
+          "QueryStatutorySourceDocumentBundleUseCase",
+          "QueryStatutorySourceDocumentUseCase",
+          "ReadStatutorySourceDocumentBodyUseCase",
+          "RetainStatutorySourceDocumentUseCase",
+          "StatutorySourceBundleConflictError",
+          "StatutorySourceCaptureConflictError",
+          "StatutorySourceDocumentBodyStorePort",
+          "StatutorySourceDocumentBundleRepositoryPort",
+          "StatutorySourceDocumentRepositoryPort",
+          "StatutorySourceRevisionConflictError"
+        ],
         "application/sync_identity.py": [
           "IssueSyncExecutionIdentityCommand",
           "IssueSyncExecutionIdentityUseCase",
@@ -5689,9 +5702,9 @@
         ]
       },
       "layers": {
-        "application": 183,
-        "domain": 54,
-        "infrastructure": 241,
+        "application": 184,
+        "domain": 55,
+        "infrastructure": 242,
         "interface": 32,
         "management": 42,
         "root": 42

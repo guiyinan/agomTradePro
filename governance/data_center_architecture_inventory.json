@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 6854,
+    "current_surface_references": 6856,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -11023,6 +11023,10 @@
       "text": "\"\"\"Read one exact historical listing window without claiming current coverage.\"\"\""
     },
     {
+      "path": "apps/data_center/application/statutory_source_documents.py",
+      "text": "publisher origin or current tax-policy status."
+    },
+    {
       "path": "apps/data_center/application/sync_market_use_cases.py",
       "text": "current = self._facts.get_bars_for_assets("
     },
@@ -11505,6 +11509,10 @@
     {
       "path": "apps/data_center/domain/rules.py",
       "text": "if current is None:"
+    },
+    {
+      "path": "apps/data_center/domain/statutory_source_documents.py",
+      "text": "Neither hash proves official origin or current policy activation."
     },
     {
       "path": "apps/data_center/domain/target_date_universe.py",
