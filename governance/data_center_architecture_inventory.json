@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 6718,
+    "current_surface_references": 6719,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -9784,6 +9784,10 @@
     },
     {
       "path": "apps/data_center/application/price_service.py",
+      "text": "\"\"\"Return a published latest price with an explicit unadjusted basis.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/price_service.py",
       "text": "\"\"\"Return the latest decision-safe price with source observation metadata.\"\"\""
     },
     {
@@ -9792,7 +9796,7 @@
     },
     {
       "path": "apps/data_center/application/price_service.py",
-      "text": "if latest is None:"
+      "text": "if latest is None or latest.adjustment is not PriceAdjustment.NONE:"
     },
     {
       "path": "apps/data_center/application/price_service.py",
@@ -23772,7 +23776,7 @@
     },
     {
       "path": "apps/simulated_trading/infrastructure/position_repository.py",
-      "text": "or observation.freshness not in {\"realtime\", \"close_fallback\", \"cached\"}"
+      "text": "or observation.freshness not in {\"realtime\", \"close_fallback\", \"historical\"}"
     },
     {
       "path": "apps/simulated_trading/infrastructure/published_close_price_reader.py",

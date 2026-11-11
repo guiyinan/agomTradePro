@@ -9,7 +9,7 @@
       "celery_dispatch_edge": 18,
       "celery_task": 130,
       "compatibility_facade": 95,
-      "current_data_surface": 106,
+      "current_data_surface": 107,
       "dynamic_import_edge": 15,
       "management_command": 50,
       "management_command_edge": 65,
@@ -30,13 +30,13 @@
       "workflow_step": 11
     },
     "by_status": {
-      "active_public": 908,
+      "active_public": 909,
       "adjacent_operational": 346,
       "candidate-review": 46,
       "compatibility": 139,
       "retired_blocked": 0
     },
-    "total": 1439
+    "total": 1440
   },
   "entries": [
     {
@@ -5987,6 +5987,16 @@
       "path": "governance/current_data_contracts.json",
       "status": "active_public",
       "symbol": "simulated_trading.close_snapshot_simulation_market",
+      "target": ""
+    },
+    {
+      "category": "current_data_surface",
+      "evidence": "governed current-data contract; source_files=5",
+      "id": "current_data_surface:governance/current_data_contracts.json:simulated_trading.corporate_action_price_basis_and_nav:Account-scoped simulated position refresh and cash-dividend net value",
+      "locator": "Account-scoped simulated position refresh and cash-dividend net value",
+      "path": "governance/current_data_contracts.json",
+      "status": "active_public",
+      "symbol": "simulated_trading.corporate_action_price_basis_and_nav",
       "target": ""
     },
     {
@@ -14441,7 +14451,7 @@
   },
   "source_contract_counts": {
     "celery_tasks": 95,
-    "current_data_contracts": 106,
+    "current_data_contracts": 107,
     "legacy_entrypoints_and_wrappers": 0,
     "operational_governance_rules": 45,
     "runtime_config_keys": 49
