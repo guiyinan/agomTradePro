@@ -11141,6 +11141,9 @@
           "register_simulated_trading_consumer_gateways"
         ],
         "application/corporate_action_posting.py": [
+          "AuditedCorporateActionPostingRepositoryPort",
+          "AuditedCorporateActionPostingRepositoryProtocol",
+          "CorporateActionOwnershipProofVerifier",
           "CorporateActionPostingBlockedError",
           "CorporateActionPostingConflictError",
           "CorporateActionPostingReceipt",
@@ -11148,7 +11151,9 @@
           "CorporateActionSourceQualificationVerifierProtocol",
           "CorporateActionTaxBasisVerifierProtocol",
           "HistoricalAccountOwnershipVerifierProtocol",
-          "PostCorporateActionStageUseCase"
+          "PostCashDividendEntitlementUseCase",
+          "PostCorporateActionStageUseCase",
+          "RecordDateOwnershipProofReaderProtocol"
         ],
         "application/current_account_ownership.py": [
           "CurrentAccountOwnership",
@@ -11965,7 +11970,7 @@
         "infrastructure": 134,
         "interface": 34,
         "management": 7,
-        "root": 38
+        "root": 39
       },
       "orm_models": {
         "infrastructure/models.py": [

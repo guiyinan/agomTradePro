@@ -26,17 +26,17 @@
       "script": 20,
       "sdk": 57,
       "terminal_tui": 32,
-      "test_evidence": 126,
+      "test_evidence": 127,
       "workflow_step": 11
     },
     "by_status": {
       "active_public": 908,
       "adjacent_operational": 346,
-      "candidate-review": 45,
+      "candidate-review": 46,
       "compatibility": 139,
       "retired_blocked": 0
     },
-    "total": 1438
+    "total": 1439
   },
   "entries": [
     {
@@ -13587,6 +13587,16 @@
       "path": "tests/component/simulated_trading/test_cash_knowledge_migration.py",
       "status": "candidate-review",
       "symbol": "test_cash_knowledge_migration",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/component/simulated_trading/test_corporate_action_posting_postgres.py:test_corporate_action_posting_postgres:",
+      "locator": "",
+      "path": "tests/component/simulated_trading/test_corporate_action_posting_postgres.py",
+      "status": "candidate-review",
+      "symbol": "test_corporate_action_posting_postgres",
       "target": ""
     },
     {

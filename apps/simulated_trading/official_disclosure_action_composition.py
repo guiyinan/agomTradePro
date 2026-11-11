@@ -67,6 +67,8 @@ class VerifiedSzseActionSourceQualifier(CorporateActionSourceQualificationVerifi
     def verify_source(self, request: CorporateActionStageRequest) -> bool:
         """Verify official revision, dates, gross entitlement, and tax terms."""
 
+        if request.stage is CorporateActionStage.TAX_WITHHOLDING:
+            return False
         if (
             request.source_namespace != "exchange_official_disclosure"
             or request.qualifier_identity != _PARSER_ID
@@ -77,6 +79,8 @@ class VerifiedSzseActionSourceQualifier(CorporateActionSourceQualificationVerifi
             return False
         try:
             verification_at = timezone.now()
+            if request.qualified_at > verification_at:
+                return False
             facts = self._reader.execute(
                 SecurityDisclosureEventReadScope(
                     as_of=verification_at,
@@ -128,8 +132,6 @@ class VerifiedSzseActionSourceQualifier(CorporateActionSourceQualificationVerifi
             or request.effective_date != terms.ex_date
             or request.qualification_sha256 != szse_action_qualification_sha256(event, terms)
             or request.tax_treatment != terms.tax_treatment
-            or request.tax_rule_id != f"szse:{event.source_event_id}"
-            or request.tax_rule_sha256 != event.source_body_sha256
         ):
             return False
         if request.action_kind is CorporateActionKind.CASH_DIVIDEND:
@@ -145,7 +147,7 @@ class VerifiedSzseActionSourceQualifier(CorporateActionSourceQualificationVerifi
                 return gross == request.cash_amount
             if request.stage is CorporateActionStage.CASH_PAYMENT:
                 return request.payment_date == terms.payment_date
-            return request.stage is CorporateActionStage.TAX_WITHHOLDING
+            return False
         if request.action_kind is CorporateActionKind.SHARE_DISTRIBUTION:
             if (
                 event.event_type is not SecurityDisclosureEventType.STOCK_DIVIDEND

@@ -565,6 +565,32 @@ def test_ash05_hold_lease_rollback_runs_on_a_distinct_postgres_test_database() -
     assert "ash05-lease-postgres.xml" in artifact_files
 
 
+def test_ash05_cash_entitlement_runs_on_an_isolated_migrated_postgres_database() -> None:
+    """Run the native replay and scope negatives and reject skipped JUnit evidence."""
+
+    workflow = yaml.load(WORKFLOW_PATH.read_text(encoding="utf-8"), Loader=yaml.BaseLoader)
+    steps = workflow["jobs"]["publication-postgres"]["steps"]
+    step = next(
+        item
+        for item in steps
+        if item.get("name") == "Exercise ASH-05 native cash entitlement ledger"
+    )
+    assert _pytest_nodeids(step["run"]) == (
+        "tests/component/simulated_trading/test_corporate_action_posting_postgres.py::test_postgres_concurrent_entitlement_replay_writes_one_receivable",
+        "tests/component/simulated_trading/test_corporate_action_posting_postgres.py::test_postgres_wrong_owner_account_or_security_scope_blocks_without_writes",
+    )
+    assert step["env"]["DATABASE_URL"].endswith("/agom_release_rehearsal_ci")
+    assert step["env"]["AGOM_CRITICAL_TEST_DB_NAME"] == "ash05_cash_posting_test"
+    assert "--ds=core.settings.critical_postgres_test" in step["run"]
+    assert "--confcutdir=tests/component" in step["run"]
+    assert "--create-db" in step["run"]
+    assert "--no-migrations" not in step["run"]
+    assert "--junitxml=ash05-cash-posting-postgres.xml" in step["run"]
+    evidence_source, artifact_files = _evidence_gate_source()
+    assert "'ash05-cash-posting-postgres.xml'" in evidence_source
+    assert "ash05-cash-posting-postgres.xml" in artifact_files
+
+
 def test_account_research_authority_step_checks_scope_and_exact_junit_identities() -> None:
     """The selected EVID-06 cases use the isolated DB and a strict independent XML check."""
 

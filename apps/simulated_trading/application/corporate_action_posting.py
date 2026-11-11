@@ -3,10 +3,20 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Protocol
+from datetime import date, datetime
+from typing import Protocol, runtime_checkable
 
+from apps.simulated_trading.application.execution_settlement_uow import (
+    SimulatedTradeExecutionBlocked,
+)
+from apps.simulated_trading.domain.corporate_action_ownership_history import (
+    RecordDateOwnershipProof,
+)
 from apps.simulated_trading.domain.corporate_action_posting import (
+    CorporateActionEntryKind,
     CorporateActionInputValidationError,
+    CorporateActionKind,
+    CorporateActionStage,
     CorporateActionStageRequest,
 )
 from core.exceptions import BusinessLogicError
@@ -51,6 +61,74 @@ class HistoricalAccountOwnershipVerifierProtocol(Protocol):
         """Confirm the immutable snapshot belongs to this account and record date."""
 
 
+class RecordDateOwnershipProofReaderProtocol(Protocol):
+    """Read persisted account history and replay one exact record-date ownership proof."""
+
+    def read_record_date_ownership_proof(
+        self,
+        *,
+        account_id: int,
+        owner_user_id: int,
+        security_id: str,
+        asset_code: str,
+        record_date: date,
+        evidence_cutoff_at: datetime,
+    ) -> RecordDateOwnershipProof:
+        """Return the immutable ownership replay for the requested exact scope."""
+
+
+class CorporateActionOwnershipProofVerifier(HistoricalAccountOwnershipVerifierProtocol):
+    """Compare caller terms with a fresh persisted replay at the qualified cutoff."""
+
+    def __init__(self, reader: RecordDateOwnershipProofReaderProtocol) -> None:
+        """Bind the verifier to the read-only ownership history port."""
+
+        self._reader = reader
+
+    def verify_ownership(self, request: CorporateActionStageRequest) -> bool:
+        """Accept only a cash entitlement whose complete proof matches every identity."""
+
+        if (
+            type(request) is not CorporateActionStageRequest
+            or request.action_kind is not CorporateActionKind.CASH_DIVIDEND
+            or request.stage is not CorporateActionStage.CASH_ENTITLEMENT
+            or request.entry_kind
+            not in {
+                CorporateActionEntryKind.POSTING,
+                CorporateActionEntryKind.SUCCESSOR,
+            }
+            or request.ownership_snapshot_observed_at != request.qualified_at
+        ):
+            return False
+        try:
+            proof = self._reader.read_record_date_ownership_proof(
+                account_id=request.account_id,
+                owner_user_id=request.owner_user_id,
+                security_id=request.security_id,
+                asset_code=request.asset_code,
+                record_date=request.record_date,
+                evidence_cutoff_at=request.qualified_at,
+            )
+        except SimulatedTradeExecutionBlocked:
+            return False
+        if type(proof) is not RecordDateOwnershipProof:
+            return False
+        return (
+            proof.account_id == request.account_id
+            and proof.owner_user_id == request.owner_user_id
+            and proof.security_id == request.security_id
+            and proof.asset_code == request.asset_code
+            and proof.exchange == "SZSE"
+            and proof.record_date == request.record_date
+            and proof.ownership_snapshot_as_of_date == request.record_date
+            and proof.ownership_snapshot_id == request.ownership_snapshot_id
+            and proof.ownership_snapshot_sha256 == request.ownership_snapshot_sha256
+            and proof.eligible_quantity == request.eligible_quantity
+            and proof.ownership_snapshot_observed_at == request.ownership_snapshot_observed_at
+            and proof.ownership_snapshot_observed_at == request.qualified_at
+        )
+
+
 class CorporateActionTaxBasisVerifierProtocol(Protocol):
     """Verify the source-qualified tax basis for a deferred withholding stage."""
 
@@ -58,6 +136,7 @@ class CorporateActionTaxBasisVerifierProtocol(Protocol):
         """Confirm the tax amount and basis record match the retained tax evidence."""
 
 
+@runtime_checkable
 class CorporateActionPostingRepositoryProtocol(Protocol):
     """Persistence boundary for atomic account-scoped stage posting."""
 
@@ -66,6 +145,35 @@ class CorporateActionPostingRepositoryProtocol(Protocol):
         requests: tuple[CorporateActionStageRequest, ...],
     ) -> tuple[CorporateActionPostingReceipt, ...]:
         """Append one initial stage or one complete correction revision atomically."""
+
+
+@runtime_checkable
+class AuditedCorporateActionPostingRepositoryPort(Protocol):
+    """Same-alias posting port that atomically appends the ledger and required Audit/Outbox."""
+
+    def get_database_alias(self) -> str:
+        """Return the database alias used by the ledger, Audit, and Outbox transaction."""
+
+    def post_revision_with_audit(
+        self,
+        requests: tuple[CorporateActionStageRequest, ...],
+    ) -> tuple[CorporateActionPostingReceipt, ...]:
+        """Append stages and required Audit/Outbox observation in one database transaction."""
+
+
+@runtime_checkable
+class AuditedCorporateActionPostingRepositoryProtocol(Protocol):
+    """Factory for a same-alias repository that atomically posts Audit and Outbox evidence."""
+
+    def build_posting_repository(
+        self,
+        *,
+        source_qualifier: CorporateActionSourceQualificationVerifierProtocol,
+        ownership_verifier: HistoricalAccountOwnershipVerifierProtocol,
+        tax_basis_verifier: CorporateActionTaxBasisVerifierProtocol | None,
+        using: str,
+    ) -> AuditedCorporateActionPostingRepositoryPort:
+        """Build the atomic ledger/Audit/Outbox adapter on the requested database alias."""
 
 
 class PostCorporateActionStageUseCase:
@@ -97,10 +205,43 @@ class PostCorporateActionStageUseCase:
         return self._repository.post_revision(requests)
 
 
+class PostCashDividendEntitlementUseCase:
+    """Post only one verified cash-dividend entitlement through an injected repository."""
+
+    def __init__(self, repository: CorporateActionPostingRepositoryProtocol) -> None:
+        """Bind the cash-entitlement-only posting boundary."""
+
+        self._delegate = PostCorporateActionStageUseCase(repository)
+
+    def execute(
+        self,
+        request: CorporateActionStageRequest,
+    ) -> tuple[CorporateActionPostingReceipt, ...]:
+        """Reject all settlement or non-cash stages before forwarding one entitlement."""
+
+        if (
+            type(request) is not CorporateActionStageRequest
+            or request.action_kind is not CorporateActionKind.CASH_DIVIDEND
+            or request.stage is not CorporateActionStage.CASH_ENTITLEMENT
+            or request.entry_kind
+            not in {CorporateActionEntryKind.POSTING, CorporateActionEntryKind.SUCCESSOR}
+        ):
+            raise CorporateActionPostingBlockedError(
+                "this production entry only accepts cash-dividend entitlement stages",
+                code="CORPORATE_ACTION_STAGE_UNSUPPORTED",
+            )
+        return self._delegate.execute((request,))
+
+
 __all__ = [
+    "AuditedCorporateActionPostingRepositoryPort",
+    "AuditedCorporateActionPostingRepositoryProtocol",
+    "CorporateActionOwnershipProofVerifier",
     "CorporateActionPostingBlockedError",
     "CorporateActionPostingConflictError",
     "CorporateActionPostingReceipt",
     "CorporateActionPostingRepositoryProtocol",
+    "PostCashDividendEntitlementUseCase",
     "PostCorporateActionStageUseCase",
+    "RecordDateOwnershipProofReaderProtocol",
 ]

@@ -109,8 +109,8 @@ def test_exact_source_revision_and_gross_terms_are_qualified(
         stage_date=terms.record_date,
         cash_amount=Decimal("200.00"),
         tax_treatment="deferred_withholding",
-        tax_rule_id=f"szse:{event.source_event_id}",
-        tax_rule_sha256=event.source_body_sha256,
+        tax_rule_id=None,
+        tax_rule_sha256=None,
         ownership_snapshot_id="snapshot:11:2026-09-23",
         ownership_snapshot_sha256="d" * 64,
         ownership_snapshot_as_of_date=terms.record_date,
@@ -120,10 +120,38 @@ def test_exact_source_revision_and_gross_terms_are_qualified(
     )
     verifier = composition.VerifiedSzseActionSourceQualifier(body_store_root=tmp_path)
 
+    assert request.tax_rule_id is None
+    assert request.tax_rule_sha256 is None
     assert verifier.verify_source(request)
     assert not verifier.verify_source(replace(request, cash_amount=Decimal("201.00")))
     assert not verifier.verify_source(replace(request, source_revision_id="wrong-revision"))
     assert not verifier.verify_source(replace(request, asset_code="301237.SZ"))
+    assert not verifier.verify_source(replace(request, tax_treatment="not_applicable"))
+    withholding = replace(
+        request,
+        stage=CorporateActionStage.TAX_WITHHOLDING,
+        stage_date=date(2026, 10, 20),
+        cash_amount=Decimal("20.00"),
+        tax_rule_id="synthetic-statutory-rule-v1",
+        tax_rule_sha256="c" * 64,
+        tax_basis_record_id="assessment:disposition-1",
+        tax_basis_sha256="d" * 64,
+        ownership_snapshot_id=None,
+        ownership_snapshot_sha256=None,
+        ownership_snapshot_as_of_date=None,
+        ownership_snapshot_observed_at=None,
+        eligible_quantity=None,
+        entitlement_calculation_sha256=None,
+    )
+    assert not verifier.verify_source(withholding)
+    future_cutoff = timezone.now() + timedelta(minutes=1)
+    assert not verifier.verify_source(
+        replace(
+            request,
+            qualified_at=future_cutoff,
+            posted_at=future_cutoff + timedelta(seconds=1),
+        )
+    )
 
     corrected_body = b"%PDF-1.4\ncorrected terms\n%%EOF"
     successor = SecurityDisclosureEvent.from_source_document(

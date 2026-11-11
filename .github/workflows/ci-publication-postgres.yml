@@ -12,6 +12,7 @@ on:
       - 'apps/audit/**'
       - 'apps/simulated_trading/**'
       - 'tests/component/simulated_trading/test_transition_plan_execution_native.py'
+      - 'tests/component/simulated_trading/test_corporate_action_posting_postgres.py'
       - 'tests/component/account/**'
       - 'tests/component/data_center/**'
       - 'tests/component/test_ai_provider_plaintext_removal_migration.py'
@@ -41,6 +42,7 @@ on:
       - 'apps/audit/**'
       - 'apps/simulated_trading/**'
       - 'tests/component/simulated_trading/test_transition_plan_execution_native.py'
+      - 'tests/component/simulated_trading/test_corporate_action_posting_postgres.py'
       - 'tests/component/account/**'
       - 'tests/component/data_center/**'
       - 'tests/component/test_ai_provider_plaintext_removal_migration.py'
@@ -133,6 +135,17 @@ jobs:
           --ds=core.settings.critical_postgres_test
           --confcutdir=tests/component
           --create-db -q -o addopts='' --junitxml=ash05-lease-postgres.xml
+      - name: Exercise ASH-05 native cash entitlement ledger
+        env:
+          DATABASE_URL: postgresql://contract_test:disposable_ci_only@127.0.0.1:5432/agom_release_rehearsal_ci
+          AGOM_CRITICAL_TEST_DB_NAME: ash05_cash_posting_test
+        run: >-
+          python -m pytest
+          tests/component/simulated_trading/test_corporate_action_posting_postgres.py::test_postgres_concurrent_entitlement_replay_writes_one_receivable
+          tests/component/simulated_trading/test_corporate_action_posting_postgres.py::test_postgres_wrong_owner_account_or_security_scope_blocks_without_writes
+          --ds=core.settings.critical_postgres_test
+          --confcutdir=tests/component
+          --create-db -q -o addopts='' --junitxml=ash05-cash-posting-postgres.xml
       - name: Exercise authority read-lock concurrency
         env:
           AGOM_EVID06_POSTGRES_TEST_DATABASE_URL: postgresql://contract_test:disposable_ci_only@127.0.0.1:5432/evid06_authority_test
@@ -582,6 +595,7 @@ jobs:
               'financial-slice-sync-contracts.xml',
               'ai-provider-plaintext-removal-postgres.xml',
               'ash05-lease-postgres.xml',
+              'ash05-cash-posting-postgres.xml',
           )
           cases = []
           for filename in junit_files:
@@ -634,6 +648,7 @@ jobs:
             financial-slice-sync-contracts.xml
             ai-provider-plaintext-removal-postgres.xml
             ash05-lease-postgres.xml
+            ash05-cash-posting-postgres.xml
             role-bootstrap-postgres.log
             statement-logging-guard.log
             statement-logging-window.log

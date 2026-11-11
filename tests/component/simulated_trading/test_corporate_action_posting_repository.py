@@ -109,7 +109,7 @@ def _request(
     payment_date: date | None = None,
     sellable_date: date | None = None,
     tax_treatment: str | None = "deferred_withholding",
-    tax_rule_id: str | None = "official-holding-period-tax-v1",
+    tax_rule_id: str | None = None,
     tax_basis_record_id: str | None = None,
     ownership_snapshot: bool = True,
     eligible_quantity: Decimal = Decimal("1000.000000"),
@@ -239,6 +239,8 @@ def test_late_cash_entitlement_payment_and_tax_are_idempotent_and_separate(
         cash_amount=Decimal("40.00"),
         payment_date=None,
         stage_date=date(2026, 10, 20),
+        tax_rule_id="synthetic-statutory-rule-v1",
+        tax_rule_sha256="c" * 64,
         tax_basis_record_id="qualified-tax-basis:holding-period-bucket",
         tax_basis_sha256="f" * 64,
     )
@@ -381,7 +383,7 @@ def test_historical_snapshot_is_not_current_position_and_share_release_is_t_plus
         cash_amount=None,
         share_amount=Decimal("40.000000"),
         tax_treatment="not_applicable",
-        tax_rule_id="official-no-tax-treatment",
+        tax_rule_id=None,
         ownership_snapshot=True,
         eligible_quantity=Decimal("100.000000"),
         odd_lot_policy="whole_shares",
@@ -448,6 +450,8 @@ def test_tax_after_payment_fails_closed_when_basis_exceeds_paid_gross(
         cash_amount=Decimal("201.00"),
         payment_date=None,
         stage_date=date(2026, 10, 20),
+        tax_rule_id="synthetic-statutory-rule-v1",
+        tax_rule_sha256="c" * 64,
         tax_basis_record_id="qualified-tax-basis:excess",
         tax_basis_sha256="f" * 64,
     )
@@ -463,6 +467,37 @@ def test_tax_after_payment_fails_closed_when_basis_exceeds_paid_gross(
         ).count()
         == 0
     )
+
+
+def test_tax_withholding_without_a_legal_rule_verifier_fails_closed(
+    action_ledger: tuple[AbstractBaseUser, SimulatedAccountModel],
+) -> None:
+    """A typed basis ID and hash cannot bypass the absent statutory tax verifier."""
+
+    _, account = action_ledger
+    repository = DjangoCorporateActionPostingRepository(
+        source_qualifier=_SyntheticSourceQualifier(),
+        ownership_verifier=_SyntheticOwnershipVerifier(),
+        using="default",
+    )
+    request = _request(
+        account,
+        stage=CorporateActionStage.TAX_WITHHOLDING,
+        stage_date=date(2026, 10, 20),
+        ownership_snapshot=False,
+        tax_rule_id="synthetic-statutory-rule-v1",
+        tax_basis_record_id="assessment:disposition-1",
+        tax_basis_sha256="f" * 64,
+        cash_amount=Decimal("1.00"),
+    )
+
+    with pytest.raises(CorporateActionPostingBlockedError) as blocked:
+        PostCorporateActionStageUseCase(repository).execute((request,))
+
+    assert blocked.value.code == "CORPORATE_ACTION_TAX_VERIFIER_UNAVAILABLE"
+    assert CorporateActionPostingModel.objects.filter(account=account).count() == 0
+    account.refresh_from_db()
+    assert account.current_cash == Decimal("10000.00")
 
 
 def test_repository_without_source_and_ownership_verifiers_remains_blocked(

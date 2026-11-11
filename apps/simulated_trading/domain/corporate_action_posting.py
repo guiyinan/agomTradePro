@@ -351,24 +351,23 @@ class CorporateActionStageRequest:
                 "rights-election terms are only valid for a no-effect rights stage"
             )
 
-        if (
-            type(self.tax_treatment) is not str
-            or self.tax_treatment not in {"not_applicable", "deferred_withholding"}
-            or type(self.tax_rule_id) is not str
-            or not self.tax_rule_id
-            or self.tax_rule_id != self.tax_rule_id.strip()
-        ):
+        if type(self.tax_treatment) is not str or self.tax_treatment not in {
+            "not_applicable",
+            "deferred_withholding",
+        }:
             raise CorporateActionInputValidationError(
-                "corporate-action tax treatment and rule must be explicitly qualified",
+                "corporate-action tax treatment must be explicitly qualified",
                 "CORPORATE_ACTION_TAX_TERMS_UNKNOWN",
             )
-        _require_digest(self.tax_rule_sha256, "tax_rule_sha256")
 
         if self.stage is CorporateActionStage.TAX_WITHHOLDING:
             _require_positive_money(self.cash_amount, "cash_amount")
             if (
                 self.tax_treatment != "deferred_withholding"
                 or self.share_amount is not None
+                or type(self.tax_rule_id) is not str
+                or not self.tax_rule_id
+                or self.tax_rule_id != self.tax_rule_id.strip()
                 or type(self.tax_basis_record_id) is not str
                 or not self.tax_basis_record_id
                 or self.tax_basis_record_id != self.tax_basis_record_id.strip()
@@ -377,6 +376,7 @@ class CorporateActionStageRequest:
                     "withholding requires deferred treatment and a qualified tax-basis record",
                     "CORPORATE_ACTION_TAX_TERMS_UNKNOWN",
                 )
+            _require_digest(self.tax_rule_sha256, "tax_rule_sha256")
             _require_digest(self.tax_basis_sha256, "tax_basis_sha256")
             if self.stage_date < self.effective_date:
                 raise CorporateActionInputValidationError(
@@ -404,6 +404,11 @@ class CorporateActionStageRequest:
                 )
             return
 
+        if self.tax_rule_id is not None or self.tax_rule_sha256 is not None:
+            raise CorporateActionInputValidationError(
+                "legal tax rule provenance is only valid on a withholding stage",
+                "CORPORATE_ACTION_TAX_TERMS_UNKNOWN",
+            )
         if self.tax_basis_record_id is not None or self.tax_basis_sha256 is not None:
             raise CorporateActionInputValidationError(
                 "tax-basis evidence is only valid for a withholding stage"
