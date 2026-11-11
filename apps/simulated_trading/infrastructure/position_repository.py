@@ -5,9 +5,13 @@ from decimal import Decimal
 from typing import Any
 
 from django.db import DEFAULT_DB_ALIAS, transaction
+from django.db.models import Sum
 
 from apps.simulated_trading.application.ports import PositionPriceRefreshInput
 from apps.simulated_trading.domain.entities import Position
+from apps.simulated_trading.infrastructure.corporate_action_posting_models import (
+    CorporateActionPostingModel,
+)
 from apps.simulated_trading.infrastructure.models import (
     PositionModel,
     SimulatedAccountModel,
@@ -94,6 +98,15 @@ class DjangoPositionRepository(_PositionInvalidationRepositoryMixin):
             )
         for asset_code, observation in price_by_code.items():
             if (
+                type(observation) is PositionPriceRefreshInput
+                and observation.price_adjustment != "none"
+            ):
+                raise BusinessLogicError(
+                    "持仓价格缺少不复权基准证明",
+                    code="POSITION_PRICE_BASIS_UNVERIFIED",
+                    details={"asset_code": asset_code},
+                )
+            if (
                 type(asset_code) is not str
                 or not asset_code
                 or type(observation) is not PositionPriceRefreshInput
@@ -103,7 +116,7 @@ class DjangoPositionRepository(_PositionInvalidationRepositoryMixin):
                 or type(observation.price) is not float
                 or not Decimal(str(observation.price)).is_finite()
                 or observation.price <= 0
-                or observation.freshness not in {"realtime", "close_fallback", "cached"}
+                or observation.freshness not in {"realtime", "close_fallback", "historical"}
                 or (
                     observation.freshness == "realtime"
                     and (
@@ -115,20 +128,12 @@ class DjangoPositionRepository(_PositionInvalidationRepositoryMixin):
                     )
                 )
                 or (
-                    observation.freshness == "close_fallback"
+                    observation.freshness in {"close_fallback", "historical"}
                     and (
                         type(observation.source) is not str
                         or not observation.source.strip()
                         or not isinstance(observation.as_of, date)
                         or isinstance(observation.as_of, datetime)
-                    )
-                )
-                or (
-                    observation.freshness == "cached"
-                    and (
-                        observation.source is not None
-                        or observation.as_of is not None
-                        or observation.observed_at is not None
                     )
                 )
             ):
@@ -163,6 +168,18 @@ class DjangoPositionRepository(_PositionInvalidationRepositoryMixin):
                 )
                 if account is None:
                     continue
+
+                if (
+                    not require_complete_scope
+                    and CorporateActionPostingModel._base_manager.using(DEFAULT_DB_ALIAS)
+                    .filter(account_id=account_id)
+                    .exists()
+                ):
+                    raise BusinessLogicError(
+                        "公司行动账户不能使用无价格基准的兼容刷新入口",
+                        code="POSITION_PRICE_BASIS_UNVERIFIED",
+                        details={"account_id": account_id},
+                    )
 
                 all_positions = list(
                     PositionModel._default_manager.using(DEFAULT_DB_ALIAS)
@@ -262,7 +279,24 @@ class DjangoPositionRepository(_PositionInvalidationRepositoryMixin):
                     (position.market_value for position in all_positions),
                     start=Decimal("0"),
                 )
-                total_value = market_value + account.current_cash
+                cash_receivable = CorporateActionPostingModel._base_manager.using(
+                    DEFAULT_DB_ALIAS
+                ).filter(account_id=account_id).aggregate(total=Sum("cash_receivable_delta"))[
+                    "total"
+                ] or Decimal(
+                    "0.00"
+                )
+                if (
+                    not isinstance(cash_receivable, Decimal)
+                    or not cash_receivable.is_finite()
+                    or cash_receivable < 0
+                ):
+                    raise BusinessLogicError(
+                        "账户公司行动现金应收账本无效",
+                        code="CORPORATE_ACTION_RECEIVABLE_INVALID",
+                        details={"account_id": account_id},
+                    )
+                total_value = market_value + account.current_cash + cash_receivable
                 total_return = (
                     float(
                         ((total_value - account.initial_capital) / account.initial_capital)

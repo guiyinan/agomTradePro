@@ -8,6 +8,7 @@ from types import SimpleNamespace
 import pytest
 
 from apps.data_center.application.price_service import PriceLookupResult
+from apps.data_center.domain.enums import PriceAdjustment
 from apps.simulated_trading.application import performance_calculator as calculator_module
 from apps.simulated_trading.application import (
     position_price_refresh,
@@ -302,7 +303,7 @@ def test_price_cleanup_and_inspection_success_count_actual_mutations(
     source_observed_at = datetime(2020, 1, 1, tzinfo=UTC)
 
     class _PriceProvider:
-        def require_latest_price_result(
+        def require_latest_unadjusted_price_result(
             self,
             asset_code: str,
             asset_type: str | None = None,
@@ -318,6 +319,7 @@ def test_price_cleanup_and_inspection_success_count_actual_mutations(
                 freshness="realtime",
                 is_fallback=False,
                 observed_at=source_observed_at,
+                price_adjustment=PriceAdjustment.NONE,
             )
 
     monkeypatch.setattr(position_price_refresh, "UnifiedPriceService", _PriceProvider)
@@ -342,6 +344,7 @@ def test_price_cleanup_and_inspection_success_count_actual_mutations(
                     freshness="realtime",
                     as_of=None,
                     observed_at=source_observed_at,
+                    price_adjustment=PriceAdjustment.NONE.value,
                 )
             },
         )
@@ -384,10 +387,20 @@ def test_price_cleanup_and_inspection_success_count_actual_mutations(
     ) == (1, 1, 0, 1)
 
 
-def test_position_price_refresh_passes_source_evidence_to_account_scoped_repository(
+@pytest.mark.parametrize(
+    ("price_adjustment", "expected_outcome"),
+    [
+        pytest.param(PriceAdjustment.NONE, "success", id="unadjusted-basis"),
+        pytest.param(None, "failed", id="basis-missing"),
+        pytest.param(PriceAdjustment.FORWARD, "failed", id="forward-adjusted"),
+    ],
+)
+def test_position_price_refresh_passes_only_raw_source_evidence_to_repository(
     monkeypatch: pytest.MonkeyPatch,
+    price_adjustment: PriceAdjustment | None,
+    expected_outcome: str,
 ) -> None:
-    """A qualified provider clock reaches only the atomic refresh repository."""
+    """The provider's raw-basis proof reaches the atomic repo; unknown basis blocks writes."""
     account = SimpleNamespace(account_id=16)
     position = SimpleNamespace(
         account_id=16,
@@ -424,7 +437,7 @@ def test_position_price_refresh_passes_source_evidence_to_account_scoped_reposit
             return len(price_by_code)
 
     class _PriceProvider:
-        def require_latest_price_result(
+        def require_latest_unadjusted_price_result(
             self,
             asset_code: str,
             asset_type: str | None = None,
@@ -440,6 +453,7 @@ def test_position_price_refresh_passes_source_evidence_to_account_scoped_reposit
                 freshness="realtime",
                 is_fallback=False,
                 observed_at=source_observed_at,
+                price_adjustment=price_adjustment,
             )
 
     account_repo = _AccountRepository()
@@ -458,7 +472,13 @@ def test_position_price_refresh_passes_source_evidence_to_account_scoped_reposit
 
     result = tasks.update_position_prices_task.run(account_id=account.account_id)
 
-    assert result["outcome"] == "success"
+    assert result["outcome"] == expected_outcome
+    if price_adjustment is not PriceAdjustment.NONE:
+        assert result["failed"] == 1
+        assert result["stored"] == 0
+        assert position_repo.price_refresh_calls == []
+        return
+
     assert (result["requested"], result["succeeded"], result["failed"], result["stored"]) == (
         1,
         1,
@@ -477,6 +497,7 @@ def test_position_price_refresh_passes_source_evidence_to_account_scoped_reposit
                     freshness="realtime",
                     as_of=None,
                     observed_at=source_observed_at,
+                    price_adjustment=PriceAdjustment.NONE.value,
                 )
             },
         )
@@ -484,17 +505,12 @@ def test_position_price_refresh_passes_source_evidence_to_account_scoped_reposit
     assert account_repo.saved == []
 
 
-@pytest.mark.parametrize(
-    ("cached_price", "expected_outcome", "expected_stored"),
-    [(10.0, "success", 2), (0.0, "failed", 0)],
-)
+@pytest.mark.parametrize("cached_price", [10.0, 0.0], ids=["positive-cache", "empty-cache"])
 def test_position_price_refresh_cached_fallback_has_no_synthetic_provenance(
     monkeypatch: pytest.MonkeyPatch,
     cached_price: float,
-    expected_outcome: str,
-    expected_stored: int,
 ) -> None:
-    """A provider failure never turns a cached numeric value into source evidence."""
+    """An unavailable provider cannot turn a cached number into a verified raw price."""
     account = SimpleNamespace(account_id=17)
     position = SimpleNamespace(
         account_id=17,
@@ -524,7 +540,7 @@ def test_position_price_refresh_cached_fallback_has_no_synthetic_provenance(
             return len(price_by_code)
 
     class _UnavailablePriceProvider:
-        def require_latest_price_result(
+        def require_latest_unadjusted_price_result(
             self,
             asset_code: str,
             asset_type: str | None = None,
@@ -557,27 +573,11 @@ def test_position_price_refresh_cached_fallback_has_no_synthetic_provenance(
     result = tasks.update_position_prices_task.run(account_id=account.account_id)
 
     assert result["requested"] == 1
-    assert result["outcome"] == expected_outcome
-    assert result["stored"] == expected_stored
-    if cached_price > 0:
-        assert result["success"] is True
-        assert (result["succeeded"], result["failed"], result["stored"]) == (1, 0, 2)
-        assert result["warning_count"] == 1
-        assert result["error_count"] == 0
-        assert len(position_repo.price_refresh_calls) == 1
-        input_row = position_repo.price_refresh_calls[0][1][position.asset_code]
-        assert input_row.price == cached_price
-        assert input_row.freshness == "cached"
-        assert input_row.source is None
-        assert input_row.as_of is None
-        assert input_row.observed_at is None
-    else:
-        assert result["success"] is False
-        assert result["succeeded"] == 0
-        assert result["failed"] == 1
-        assert result["stored"] == 0
-        assert result["error_count"] == 1
-        assert position_repo.price_refresh_calls == []
+    assert result["outcome"] == "failed"
+    assert (result["succeeded"], result["failed"], result["stored"]) == (0, 1, 0)
+    assert result["warning_count"] == 0
+    assert result["error_count"] == 1
+    assert position_repo.price_refresh_calls == []
 
 
 def test_position_price_refresh_reports_partial_when_one_account_has_no_price(
@@ -627,7 +627,7 @@ def test_position_price_refresh_reports_partial_when_one_account_has_no_price(
             return len(price_by_code)
 
     class _PriceProvider:
-        def require_latest_price_result(
+        def require_latest_unadjusted_price_result(
             self,
             asset_code: str,
             asset_type: str | None = None,
@@ -644,6 +644,7 @@ def test_position_price_refresh_reports_partial_when_one_account_has_no_price(
                 freshness="realtime",
                 is_fallback=False,
                 observed_at=source_observed_at,
+                price_adjustment=PriceAdjustment.NONE,
             )
 
     account_repo = _AccountRepository()

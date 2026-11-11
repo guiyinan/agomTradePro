@@ -12,6 +12,7 @@ from apps.data_center.application.price_service import (
     UnifiedPriceService,
 )
 from apps.data_center.domain.entities import FundNavFact, PriceBar, QuoteSnapshot
+from apps.data_center.domain.enums import PriceAdjustment
 from core.exceptions import DataFetchError
 
 
@@ -89,6 +90,7 @@ def _bar_row(
         "asset_code": asset_code,
         "timestamp": bar_date.isoformat(),
         "period": "1d",
+        "adjustment": "none",
         "open": close - 0.05,
         "high": close + 0.05,
         "low": close - 0.15,
@@ -141,6 +143,7 @@ def test_get_price_uses_historical_capability():
             high=5.0,
             low=4.8,
             close=4.95,
+            adjustment=PriceAdjustment.NONE,
             source="eastmoney",
         )
     ]
@@ -150,6 +153,47 @@ def test_get_price_uses_historical_capability():
     assert result.normalized_code == "510300.SH"
     assert result.price == 4.95
     assert result.freshness == "historical"
+    assert result.price_adjustment is PriceAdjustment.NONE
+
+
+def test_historical_price_rejects_adjusted_price_basis():
+    service = UnifiedPriceService()
+    service._dc_price_repo = Mock()
+    service._dc_price_repo.get_bars.return_value = [
+        SimpleNamespace(
+            asset_code="510300.SH",
+            bar_date=date(2026, 3, 20),
+            open=4.9,
+            high=5.0,
+            low=4.8,
+            close=4.95,
+            adjustment=PriceAdjustment.FORWARD,
+            source="eastmoney",
+        )
+    ]
+
+    assert service.get_price_result("510300", trade_date=date(2026, 3, 20)) is None
+
+
+@pytest.mark.parametrize(
+    "adjustment",
+    ["forward", "backward", None, "unknown"],
+    ids=["forward", "backward", "missing", "unknown"],
+)
+def test_published_close_requires_explicit_none_adjustment(adjustment, monkeypatch):
+    service = UnifiedPriceService(now_provider=_after_close_now)
+    row = _bar_row(asset_code="510300.SH", bar_date=_test_session_date())
+    if adjustment is None:
+        row.pop("adjustment")
+    else:
+        row["adjustment"] = adjustment
+    monkeypatch.setattr(
+        price_service_module,
+        "get_published_price_bar_series",
+        lambda _code, limit=1: _published([row]),
+    )
+
+    assert service._get_recent_close("510300.SH") is None
 
 
 def test_get_latest_price_prefers_realtime_quote(monkeypatch):
@@ -169,6 +213,54 @@ def test_get_latest_price_prefers_realtime_quote(monkeypatch):
     assert result.price == 2.18
     assert result.freshness == "realtime"
     assert result.observed_at == observed_at
+    assert result.price_adjustment is None
+
+
+def test_account_valuation_uses_published_raw_close_when_quote_basis_is_unknown(monkeypatch):
+    service = UnifiedPriceService(now_provider=_after_close_now)
+    observed_at = _after_close_now()
+    monkeypatch.setattr(
+        price_service_module,
+        "get_published_quote_payloads",
+        lambda _codes: _published(
+            [_quote_row(asset_code="510300.SH", current_price=5.1, snapshot_at=observed_at)]
+        ),
+    )
+    monkeypatch.setattr(
+        price_service_module,
+        "get_published_price_bar_series",
+        lambda _code, limit=1: _published(
+            [_bar_row(asset_code="510300.SH", bar_date=_test_session_date(), close=4.95)]
+        ),
+    )
+
+    result = service.require_latest_unadjusted_price_result("510300.SH")
+
+    assert result.price == 4.95
+    assert result.price_adjustment is PriceAdjustment.NONE
+    assert result.freshness == "close_fallback"
+
+
+def test_account_valuation_blocks_unknown_quote_without_raw_close(monkeypatch):
+    service = UnifiedPriceService(now_provider=_after_close_now)
+    observed_at = _after_close_now()
+    monkeypatch.setattr(
+        price_service_module,
+        "get_published_quote_payloads",
+        lambda _codes: _published(
+            [_quote_row(asset_code="510300.SH", current_price=5.1, snapshot_at=observed_at)]
+        ),
+    )
+    monkeypatch.setattr(
+        price_service_module,
+        "get_published_price_bar_series",
+        lambda _code, limit=1: _published([]),
+    )
+
+    with pytest.raises(DataFetchError) as exc_info:
+        service.require_latest_unadjusted_price_result("510300.SH")
+
+    assert exc_info.value.code == "PRICE_BASIS_UNVERIFIED"
 
 
 def test_latest_price_requires_published_members(monkeypatch):

@@ -1321,6 +1321,10 @@
         "all_success": {
           "test_file": "tests/unit/simulated_trading/test_celery_task_outcome_contracts.py",
           "test_function": "test_price_cleanup_and_inspection_success_count_actual_mutations"
+        },
+        "complete_failure": {
+          "test_file": "tests/unit/simulated_trading/test_celery_task_outcome_contracts.py",
+          "test_function": "test_position_price_refresh_passes_only_raw_source_evidence_to_repository"
         }
       }
     },

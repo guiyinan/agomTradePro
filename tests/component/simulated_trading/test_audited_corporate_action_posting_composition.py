@@ -6,6 +6,7 @@ from collections.abc import Iterator
 from dataclasses import dataclass, replace
 from datetime import UTC, date, datetime
 from decimal import Decimal
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -34,6 +35,7 @@ from apps.simulated_trading.audited_corporate_action_posting_composition import 
     DjangoAuditedCorporateActionPostingRepository,
     DjangoAuditedCorporateActionPostingRepositoryFactory,
     DjangoRuntimeCorporateActionAuditGate,
+    build_audited_cash_entitlement_use_case,
 )
 from apps.simulated_trading.domain.corporate_action_posting import (
     CorporateActionEntryKind,
@@ -338,6 +340,17 @@ def test_mismatched_alias_blocks_before_database_access() -> None:
                 environment="test", using="default"
             ),
             using="default",
+        )
+
+    assert captured.value.code == "CORPORATE_ACTION_AUDIT_OUTBOX_UNAVAILABLE"
+
+
+def test_production_builder_rejects_alias_without_account_valuation_support() -> None:
+    """Cash posting cannot use an alias that its account NAV reader cannot see."""
+
+    with pytest.raises(CorporateActionPostingBlockedError) as captured:
+        build_audited_cash_entitlement_use_case(
+            body_store_root=Path("."), runtime_environment="test", using="other"
         )
 
     assert captured.value.code == "CORPORATE_ACTION_AUDIT_OUTBOX_UNAVAILABLE"

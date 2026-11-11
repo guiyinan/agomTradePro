@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Any, NotRequired, Protocol, TypedDict
+from typing import Any, Literal, NotRequired, Protocol, TypedDict
 
 from apps.simulated_trading.domain.entities import (
     Position,
@@ -55,7 +55,7 @@ class PriceProviderProtocol(Protocol):
 
 @dataclass(frozen=True)
 class PositionPriceRefreshInput:
-    """One price result passed without replacing its source clock with task time."""
+    """One raw-basis price passed with its source clock and adjustment proof."""
 
     asset_code: str
     asset_type: str
@@ -64,6 +64,7 @@ class PositionPriceRefreshInput:
     freshness: str
     as_of: date | None
     observed_at: datetime | None
+    price_adjustment: Literal["none", "forward", "backward"] | None
 
 
 class PositionPriceRefreshRepositoryProtocol(Protocol):

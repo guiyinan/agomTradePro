@@ -14015,6 +14015,76 @@
           "test_function": "test_owner_reads_holding_disclosure_and_failed_scope_clears_previous_facts"
         }
       ]
+    },
+    {
+      "id": "simulated_trading.corporate_action_price_basis_and_nav",
+      "surface": "Account-scoped simulated position refresh and cash-dividend net value",
+      "source_files": [
+        "apps/data_center/application/price_service.py",
+        "apps/data_center/infrastructure/price_bar_repository.py",
+        "apps/simulated_trading/application/ports.py",
+        "apps/simulated_trading/application/position_price_refresh.py",
+        "apps/simulated_trading/infrastructure/position_repository.py"
+      ],
+      "required_markers": {
+        "apps/data_center/application/price_service.py": [
+          "price_adjustment=None,",
+          "def require_latest_unadjusted_price_result(",
+          "if price_adjustment is not None and price_adjustment is not PriceAdjustment.NONE:"
+        ],
+        "apps/data_center/infrastructure/price_bar_repository.py": [
+          "PriceAdjustment.NONE.value"
+        ],
+        "apps/simulated_trading/application/ports.py": [
+          "price_adjustment: Literal[\"none\", \"forward\", \"backward\"] | None"
+        ],
+        "apps/simulated_trading/application/position_price_refresh.py": [
+          "if price_result.price_adjustment is not PriceAdjustment.NONE:",
+          "code=\"PRICE_BASIS_UNVERIFIED\""
+        ],
+        "apps/simulated_trading/infrastructure/position_repository.py": [
+          "code=\"POSITION_PRICE_BASIS_UNVERIFIED\"",
+          "Sum(\"cash_receivable_delta\")",
+          "total_value = market_value + account.current_cash + cash_receivable"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "realtime_basis_unknown",
+          "test_file": "tests/unit/test_unified_price_service.py",
+          "test_function": "test_get_latest_price_prefers_realtime_quote"
+        },
+        {
+          "case": "published_close_requires_explicit_raw",
+          "test_file": "tests/unit/test_unified_price_service.py",
+          "test_function": "test_published_close_requires_explicit_none_adjustment"
+        },
+        {
+          "case": "valuation_falls_back_to_published_raw_close",
+          "test_file": "tests/unit/test_unified_price_service.py",
+          "test_function": "test_account_valuation_uses_published_raw_close_when_quote_basis_is_unknown"
+        },
+        {
+          "case": "valuation_blocks_unknown_basis_without_raw_close",
+          "test_file": "tests/unit/test_unified_price_service.py",
+          "test_function": "test_account_valuation_blocks_unknown_quote_without_raw_close"
+        },
+        {
+          "case": "refresh_blocks_unknown_or_adjusted",
+          "test_file": "tests/unit/simulated_trading/test_celery_task_outcome_contracts.py",
+          "test_function": "test_position_price_refresh_passes_only_raw_source_evidence_to_repository"
+        },
+        {
+          "case": "cash_receivable_and_payment_nav_continuity",
+          "test_file": "tests/component/simulated_trading/test_corporate_action_performance_continuity.py",
+          "test_function": "test_cash_receivable_and_payment_keep_account_net_value_continuous"
+        },
+        {
+          "case": "legacy_numeric_refresh_blocked",
+          "test_file": "tests/component/simulated_trading/test_corporate_action_performance_continuity.py",
+          "test_function": "test_legacy_numeric_refresh_blocks_account_with_corporate_action_history"
+        }
+      ]
     }
   ]
 }

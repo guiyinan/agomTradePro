@@ -27,6 +27,7 @@ from apps.data_center.composition import (
     get_quote_snapshot_repository,
 )
 from apps.data_center.domain.entities import FundNavFact, PriceBar
+from apps.data_center.domain.enums import PriceAdjustment
 from apps.data_center.domain.protocols import (
     FundNavRepositoryProtocol,
     PriceBarRepositoryProtocol,
@@ -47,7 +48,7 @@ class FundPriceResult(TypedDict):
 
 @dataclass(frozen=True)
 class PriceLookupResult:
-    """Validated canonical price returned to business modules."""
+    """Validated canonical price and its source adjustment basis."""
 
     requested_code: str
     normalized_code: str
@@ -57,6 +58,7 @@ class PriceLookupResult:
     freshness: str
     is_fallback: bool = False
     observed_at: datetime | None = None
+    price_adjustment: PriceAdjustment | None = None
 
     def __post_init__(self) -> None:
         """Reject unusable prices and unauditable result metadata."""
@@ -69,6 +71,8 @@ class PriceLookupResult:
             raise ValueError("价格查询结果日期无效")
         if not self.source.strip():
             raise ValueError("价格查询结果缺少数据来源")
+        if self.price_adjustment is not None and type(self.price_adjustment) is not PriceAdjustment:
+            raise ValueError("价格查询结果调整基准类型无效")
         if self.freshness not in {"historical", "realtime", "close_fallback"}:
             raise ValueError("价格查询结果新鲜度类型无效")
         if self.observed_at is not None and (
@@ -187,6 +191,39 @@ class UnifiedPriceService:
             asset_type=asset_type,
         )
 
+    def require_latest_unadjusted_price_result(
+        self,
+        asset_code: str,
+        asset_type: str | None = None,
+    ) -> PriceLookupResult:
+        """Return a published latest price with an explicit unadjusted basis."""
+
+        result = self.require_latest_price_result(asset_code, asset_type=asset_type)
+        if result.price_adjustment is PriceAdjustment.NONE:
+            return result
+
+        normalized_code = self.normalize_asset_code(asset_code, asset_type=asset_type)
+        recent_close = self._get_recent_close(normalized_code)
+        if recent_close is not None:
+            fallback = self._build_price_result(
+                requested_code=asset_code,
+                normalized_code=normalized_code,
+                raw_price=recent_close.close,
+                as_of=recent_close.bar_date,
+                raw_source=recent_close.source,
+                freshness="close_fallback",
+                is_fallback=True,
+                price_adjustment=recent_close.adjustment,
+            )
+            if fallback is not None and fallback.price_adjustment is PriceAdjustment.NONE:
+                return fallback
+
+        raise DataFetchError(
+            message="价格缺少不复权基准证明，拒绝刷新账户估值",
+            code="PRICE_BASIS_UNVERIFIED",
+            details={"asset_code": asset_code},
+        )
+
     def require_price_result(
         self,
         asset_code: str,
@@ -235,6 +272,7 @@ class UnifiedPriceService:
                     raw_source=historical.source,
                     freshness="historical",
                     is_fallback=False,
+                    price_adjustment=historical.adjustment,
                 )
                 if result is not None:
                     return result
@@ -254,6 +292,7 @@ class UnifiedPriceService:
                         raw_source=fund_nav["source"],
                         freshness="historical",
                         is_fallback=True,
+                        price_adjustment=PriceAdjustment.NONE,
                     )
             return None
 
@@ -268,6 +307,8 @@ class UnifiedPriceService:
                 freshness="realtime",
                 is_fallback=False,
                 observed_at=quote.snapshot_at,
+                # The canonical QuoteResponse has no adjustment attestation.
+                price_adjustment=None,
             )
             if result is not None:
                 return result
@@ -282,6 +323,7 @@ class UnifiedPriceService:
                 raw_source=recent_close.source,
                 freshness="close_fallback",
                 is_fallback=True,
+                price_adjustment=recent_close.adjustment,
             )
             if result is not None:
                 return result
@@ -301,6 +343,7 @@ class UnifiedPriceService:
                     raw_source=fund_nav["source"],
                     freshness="close_fallback",
                     is_fallback=True,
+                    price_adjustment=PriceAdjustment.NONE,
                 )
 
         return None
@@ -315,10 +358,13 @@ class UnifiedPriceService:
         raw_source: object,
         freshness: str,
         is_fallback: bool,
+        price_adjustment: PriceAdjustment | None,
         observed_at: datetime | None = None,
     ) -> PriceLookupResult | None:
-        """Build a canonical result only from positive, attributable prices."""
+        """Build a canonical result only from positive raw, attributable prices."""
 
+        if price_adjustment is not None and price_adjustment is not PriceAdjustment.NONE:
+            return None
         if isinstance(raw_price, bool):
             return None
         try:
@@ -338,6 +384,7 @@ class UnifiedPriceService:
             freshness=freshness,
             is_fallback=is_fallback,
             observed_at=observed_at,
+            price_adjustment=price_adjustment,
         )
 
     def _get_realtime_quote(self, normalized_code: str) -> QuoteResponse | None:
@@ -402,7 +449,9 @@ class UnifiedPriceService:
                 end=trade_date,
                 limit=1,
             )
-            return bars[0] if bars else None
+            if not bars or getattr(bars[0], "adjustment", None) is not PriceAdjustment.NONE:
+                return None
+            return bars[0]
         except Exception as exc:
             logger.debug(
                 "Historical price lookup failed for %s on %s: %s",
@@ -423,7 +472,7 @@ class UnifiedPriceService:
             if self._publication_row_blocked(rows[-1]):
                 return None
             latest = self._price_bar_from_payload(rows[-1], normalized_code)
-            if latest is None:
+            if latest is None or latest.adjustment is not PriceAdjustment.NONE:
                 return None
             if not latest_daily_market_observation_is_current(
                 asset_code=normalized_code,
@@ -643,6 +692,13 @@ class UnifiedPriceService:
         high = cls._parse_float(payload.get("high"))
         low = cls._parse_float(payload.get("low"))
         source = payload.get("source")
+        raw_adjustment = payload.get("adjustment")
+        if not isinstance(raw_adjustment, str) or raw_adjustment != raw_adjustment.strip():
+            return None
+        try:
+            adjustment = PriceAdjustment(raw_adjustment)
+        except ValueError:
+            return None
         if (
             close is None
             or open_price is None
@@ -662,6 +718,7 @@ class UnifiedPriceService:
                 "low": low,
                 "close": close,
                 "freq": str(payload.get("period") or payload.get("freq") or "1d"),
+                "adjustment": adjustment,
                 "volume": cls._parse_optional_float(payload.get("volume")),
                 "amount": cls._parse_optional_float(payload.get("amount")),
                 "source": source.strip(),

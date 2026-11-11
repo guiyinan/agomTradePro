@@ -4,6 +4,7 @@ import logging
 from typing import Any, cast
 
 from apps.data_center.application.price_service import UnifiedPriceService
+from apps.data_center.domain.enums import PriceAdjustment
 from apps.simulated_trading.application.ports import (
     PositionPriceRefreshInput,
     PositionPriceRefreshRepositoryProtocol,
@@ -31,9 +32,9 @@ def refresh_position_prices_task_body(account_id: int | None = None) -> dict[str
 
     The repository re-reads account and position state under account-first
     locks; this task never writes a previously read Account or Position entity
-    back after the provider call. The Data Center observation clock is carried
-    as-is in the typed refresh input. Cached fallbacks have no source clock and
-    cannot upgrade an unknown valuation flag.
+    back after the provider call. The Data Center observation clock and explicit
+    unadjusted price basis are carried in the typed refresh input. A cached value
+    without that source proof cannot update account valuation.
     """
     try:
         validated_account_id = _validate_optional_id(account_id, "account_id")
@@ -81,10 +82,16 @@ def refresh_position_prices_task_body(account_id: int | None = None) -> dict[str
 
             for position in positions:
                 try:
-                    price_result = price_provider.require_latest_price_result(
+                    price_result = price_provider.require_latest_unadjusted_price_result(
                         position.asset_code,
                         asset_type=position.asset_type,
                     )
+                    if price_result.price_adjustment is not PriceAdjustment.NONE:
+                        raise DataFetchError(
+                            message="价格缺少不复权基准证明，拒绝刷新账户估值",
+                            code="PRICE_BASIS_UNVERIFIED",
+                            details={"asset_code": position.asset_code},
+                        )
                     price_by_code[position.asset_code] = PositionPriceRefreshInput(
                         asset_code=position.asset_code,
                         asset_type=position.asset_type,
@@ -93,34 +100,9 @@ def refresh_position_prices_task_body(account_id: int | None = None) -> dict[str
                         freshness=price_result.freshness,
                         as_of=price_result.as_of,
                         observed_at=price_result.observed_at,
+                        price_adjustment=price_result.price_adjustment.value,
                     )
                 except DataFetchError as exc:
-                    if position.current_price > 0:
-                        logger.warning(
-                            "更新持仓 %s 失败，沿用库内价格: %s",
-                            position.asset_code,
-                            exc,
-                        )
-                        warning_count += 1
-                        warnings.append(
-                            {
-                                "account_id": account.account_id,
-                                "asset_code": position.asset_code,
-                                "warning": str(exc),
-                                "fallback": "cached_position_price",
-                                "details": exc.details,
-                            }
-                        )
-                        price_by_code[position.asset_code] = PositionPriceRefreshInput(
-                            asset_code=position.asset_code,
-                            asset_type=position.asset_type,
-                            price=position.current_price,
-                            source=None,
-                            freshness="cached",
-                            as_of=None,
-                            observed_at=None,
-                        )
-                        continue
                     logger.error("更新持仓 %s 失败: %s", position.asset_code, exc)
                     account_has_errors = True
                     error_count += 1

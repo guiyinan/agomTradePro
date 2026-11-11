@@ -449,6 +449,11 @@ def build_audited_cash_entitlement_use_case(
 ) -> PostCashDividendEntitlementUseCase:
     """Wire official cash entitlement to canonical same-alias Audit/Outbox."""
 
+    if using != DEFAULT_DB_ALIAS:
+        raise CorporateActionPostingBlockedError(
+            "cash entitlement valuation currently supports the default account database only",
+            code="CORPORATE_ACTION_AUDIT_OUTBOX_UNAVAILABLE",
+        )
     return build_corporate_action_posting_use_case(
         body_store_root=body_store_root,
         runtime_environment=runtime_environment,

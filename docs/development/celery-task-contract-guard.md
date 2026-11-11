@@ -89,6 +89,8 @@ Interface Serializer 可重复提供更友好的 HTTP 错误，但不能作为�
 “按适用性”以任务当前允许的行为为准。永久 fail-closed 的兼容入口不应登记
 `all_success`、`partial_failure`、`complete_failure` 或 `zero_output` 来代表它不再允许的旧路径；
 应登记其真实 `invalid_input` 与 `blocked` 契约，并由受控的新任务登记其实际成功/部分失败场景。
+
+ASH-05 的 `update_position_prices_task` 从 Data Center 收到未知或复权价格基准时按账户失败，`outcome=failed`、`stored=0`，不将旧缓存价格伪装为已验证未复权价。对应 `complete_failure` 精确测试登记在任务合同中；账户范围部分成功时仍按原统计口径发布 `partial`。
 例如 `equity.sync_financial_data_task` 仅允许校验参数，合法范围也必须在访问 Repository、Provider
 前返回 `FINANCIAL_CAPACITY_RECEIPT_REQUIRED`。其 blocked 测试同时覆盖默认全市场范围与显式证券范围。
 

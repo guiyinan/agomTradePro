@@ -5,6 +5,8 @@ from __future__ import annotations
 from collections.abc import Sequence
 from datetime import date
 
+from django.db.models import Case, IntegerField, Value, When
+
 from apps.data_center.domain.control_plane import PublicationFactReference
 from apps.data_center.domain.entities import PriceBar
 from apps.data_center.domain.enums import PriceAdjustment
@@ -75,7 +77,19 @@ class PriceBarRepository:
                 qs = qs.filter(bar_date__gte=start)
             if end:
                 qs = qs.filter(bar_date__lte=end)
-            rows = list(qs.order_by("-bar_date")[:limit])
+            rows = list(
+                qs.order_by(
+                    "-bar_date",
+                    Case(
+                        When(adjustment=PriceAdjustment.NONE.value, then=Value(0)),
+                        default=Value(1),
+                        output_field=IntegerField(),
+                    ),
+                    "-fetched_at",
+                    "-revision_number",
+                    "-pk",
+                )[:limit]
+            )
             if rows:
                 return [self._from_model(m) for m in rows]
         return []
