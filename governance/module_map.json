@@ -1132,7 +1132,7 @@
       "layers": {
         "application": 82,
         "domain": 45,
-        "infrastructure": 153,
+        "infrastructure": 154,
         "interface": 24,
         "management": 14,
         "root": 29

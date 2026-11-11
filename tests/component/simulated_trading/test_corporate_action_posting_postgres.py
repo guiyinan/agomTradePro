@@ -54,6 +54,9 @@ from apps.simulated_trading.infrastructure.corporate_action_posting_repository i
 from apps.simulated_trading.infrastructure.simulated_account_trade_models import (
     SimulatedAccountModel,
 )
+from tests.support.account_authority_generation_flush import (
+    preserve_account_authority_generation as preserve_account_authority_generation,
+)
 
 _RECORD_DATE = date(2026, 9, 23)
 _EFFECTIVE_DATE = date(2026, 9, 24)

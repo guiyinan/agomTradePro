@@ -35,6 +35,7 @@ OWNER_MODULES = (
     "apps.account.infrastructure.identity_models",
     "apps.account.infrastructure.classification_models",
     "apps.account.infrastructure.portfolio_models",
+    "apps.account.infrastructure.simulated_corporate_action_write_grant_models",
     "apps.account.infrastructure.single_owner_authority_policy_v1_models",
     "apps.account.infrastructure.owner_tenant_authority_v2_models",
     "apps.account.infrastructure.owner_tenant_authority_v3_models",
@@ -72,6 +73,7 @@ def test_account_model_legacy_exports_resolve_to_owner_modules() -> None:
     for module_name in OWNER_MODULES:
         owner_module = import_module(module_name)
         exports = set(owner_module.__all__)
+        assert all(not name.startswith("_") for name in exports)
         owner_exports.update(exports)
         for export_name in exports:
             exported_model = getattr(models, export_name)
@@ -92,6 +94,7 @@ def test_account_model_modules_stay_bounded_and_one_way() -> None:
     """Prevent model owners from regrowing or importing the aggregator."""
     budgets = {
         AGGREGATOR_MODULE: 100,
+        "apps.account.infrastructure._model_owner_registry": 100,
         "apps.account.infrastructure.identity_models": 450,
         "apps.account.infrastructure.classification_constraints": 80,
         "apps.account.infrastructure.classification_models": 350,

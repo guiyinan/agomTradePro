@@ -337,6 +337,4 @@ for _model in (
 __all__ = [
     "SimulatedCorporateActionWriteGrantModel",
     "SimulatedCorporateActionWriteGrantRevocationModel",
-    "_activate_simulated_corporate_action_write_grant_uow",
-    "_claim_simulated_corporate_action_write_grant_insert",
 ]

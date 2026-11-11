@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-11-05",
+  "updated_at": "2026-11-12",
   "status": "frozen_pending_evidence_gate",
   "transition_plan_internal_writer_scopes": [
     "apps/decision_rhythm/application/workspace_services.py",
@@ -184,6 +184,10 @@
     "apps/portfolio/interface/api_views.py::TransitionPlanSubmitView.post",
     "apps/simulated_trading/interface/_account_views.py::AccountBatchDeleteAPIView.post",
     "apps/simulated_trading/interface/_account_views.py::AccountDetailAPIView.delete",
+    "apps/simulated_trading/interface/corporate_action_consent_views.py::SimulatedActionConsentAPIView.post",
+    "apps/simulated_trading/interface/corporate_action_consent_views.py::SimulatedActionConsentPreparationAPIView.post",
+    "apps/simulated_trading/interface/corporate_action_consent_views.py::SimulatedActionConsentWithdrawalAPIView.post",
+    "apps/simulated_trading/interface/corporate_action_consent_views.py::SimulatedActionWithdrawalPreparationAPIView.post",
     "apps/simulated_trading/interface/fee_correction_policy_views.py::FeeCorrectionPolicyAPIView.put",
     "apps/simulated_trading/interface/fee_correction_views.py::FeeCorrectionAPIView.post",
     "apps/simulated_trading/interface/fee_correction_views.py::FeeCorrectionConfirmationAPIView.post",
@@ -339,6 +343,7 @@
     "Owner M1 risk-policy publish and revoke require authenticated current-owner scope, explicit validated terms or revocation reason, and scoped idempotency; they write risk revision and audit records only, do not change financial ledgers or authorize orders, and inventory classification is not preview qualification.",
     "Owner portfolio pressure-run POST is an authenticated current-owner, CSRF-protected, explicitly confirmed and idempotent simulation analysis write; it creates or exactly replays only the existing ScenarioRunEvidence, keeps scope simulation_only and must_not_execute=true, and does not create orders, alter reservations or financial ledgers, activate policy, or authorize execution. Registration records the existing stateful write and grants no additional permission or production qualification.",
     "Transition-plan internal writers freeze both the default-enabled legacy chain and its canonical replacement; inventory presence does not approve either path.",
-    "Owner ASH-08 full-unit handoff in main plan section19.158 classifies exact Session/CSRF-protected current-owner plan creation, review request, immutable successor and per-order read-preview routes. Creation/successor append only existing finite-simulation TransitionPlan versions; review records a pending request without staff approval or an execution receipt. Preview preserves exact plan/order pins and ordinary source/risk/fee/cash/share gates without reserving or filling an order. Actual reservation/confirmation remains on the already classified ordinary manual route. No automatic/full-plan/live execution, production qualification, inactive approval activation, or generic token proxy permission is granted. The write-surface freeze stays in force."
+    "Owner ASH-08 full-unit handoff in main plan section19.158 classifies exact Session/CSRF-protected current-owner plan creation, review request, immutable successor and per-order read-preview routes. Creation/successor append only existing finite-simulation TransitionPlan versions; review records a pending request without staff approval or an execution receipt. Preview preserves exact plan/order pins and ordinary source/risk/fee/cash/share gates without reserving or filling an order. Actual reservation/confirmation remains on the already classified ordinary manual route. No automatic/full-plan/live execution, production qualification, inactive approval activation, or generic token proxy permission is granted. The write-surface freeze stays in force.",
+    "Owner ASH-05 consent management registers exact Session/CSRF-bound consent and withdrawal POSTs plus both read-only POST preparations. Preparation only reads retained owner/source/policy metadata and returns a protected per-result continuation; explicit consent appends one finite server-sealed grant and withdrawal appends its immutable revocation. Withdrawal remains possible for the exact historical owner after expiry, role loss or policy disablement and never renews the old grant. These four routes do not post cash/shares, create orders, activate financial stages or confer production qualification. Audited financial stages require their independent exact owner/source/policy/role/time and required Audit/Outbox gates; staff audit read scope is not financial write authority. Classification preserves the existing frozen graph, scanner and defaults."
   ]
 }

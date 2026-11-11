@@ -131,6 +131,27 @@ def test_guard_rejects_new_unclassified_http_surface() -> None:
         )
 
 
+@pytest.mark.parametrize(
+    "surface",
+    [
+        "apps/simulated_trading/interface/corporate_action_consent_views.py::SimulatedActionConsentAPIView.post",
+        "apps/simulated_trading/interface/corporate_action_consent_views.py::SimulatedActionConsentPreparationAPIView.post",
+        "apps/simulated_trading/interface/corporate_action_consent_views.py::SimulatedActionConsentWithdrawalAPIView.post",
+        "apps/simulated_trading/interface/corporate_action_consent_views.py::SimulatedActionWithdrawalPreparationAPIView.post",
+    ],
+)
+def test_owner_consent_and_read_preparations_require_explicit_http_classification(
+    surface: str,
+) -> None:
+    """Conservative POST classification also covers consent and its read preparations."""
+    inventory = load_inventory()
+    assert surface in inventory.http_surfaces
+    with pytest.raises(ValueError, match="unclassified HTTP mutation surfaces"):
+        validate_surface_freeze(
+            replace(inventory, http_surfaces=inventory.http_surfaces - {surface})
+        )
+
+
 def test_owner_order_match_requires_exact_http_classification() -> None:
     """The public matcher cannot bypass classification as an existing-order read."""
     inventory = load_inventory()
