@@ -3147,3 +3147,7 @@ v373 隔离成交应收准备的五个文件已按 Luna max 的逐文件 SHA-256
 成交应收候选 `ed5a38c448bcaaae978c20c5f9882e18945d7b4f` 的 Fast Feedback 增量质量门因两份既有大仓储继续增长而失败，原件 `artifacts/ash05-event-policy-20261111/ed5-fast-failed.log`；另外五项适用 CI 成功，不能跨候选拼成全通过。修复把买卖持仓持久化从 `execution_settlement_uow_repository.py` 抽到独立基础设施模块，前者非空行从基线 1070 降至 911；撮合仓储精简快照展开后为 999（基线 995），处于 1000 行门内。正式树买卖/到账组件重新执行 **3 passed**，增量 mypy、全库债务和架构零回归；模块地图及 Data Center 投影按生成器重建，下一精确候选仍需独立 CI 验收。
 
 下一有界准备登记在 registry v375：Luna max 只建立 Account 的模拟公司行动服务写入 lease 的纯契约与失效测试，明确与现有 staff-only Audit 读取和 `evidence_read` V3 区分。Root 后续负责可信签发、撤销、同别名账户锁内复验及写入事件证据；在这些门通过前普通账户入账保持 fail closed。现金付款目前仅有公告预定付款日，不能称作已核实银行到账；模拟付款日期门与金额对账需独立完成，当前窗口官方覆盖、后扣税、股份/配股和 §9 金样本仍未通过。ASH-05 保持 active。
+
+成交应收及持仓存储提取候选 `2fa52dfa3d417c54e2e740e6c50179c9f81bf1b6` 的六项适用 CI 全部成功，包含 Publication PostgreSQL 与 Quote Metric PostgreSQL；本机买卖/到账组件 **3 passed**、文件大小门、增量 mypy 与债务上限均通过。忽略目录索引 `artifacts/ash05-event-policy-20261111/2fa-settlement-evidence-index.json` 的 SHA-256 为 `eae3d74826d994882eaf1a0d18d5a8ac8eef7e9ffd109a7c2333e4243b47a65`，保留隔离 RED/GREEN、正式树检查和精确 CI 列表。前一候选 `ed5a38c44` 的 Fast Feedback 失败仍单独保留，不拼接为通过。
+
+v375 隔离的 Account 服务写入 lease 契约按三个 SHA-256 核验后整合，正式树定向 **25 passed**；Black、isort、Ruff、两文件增量 mypy、全库债务、模块地图、架构、治理与 Data Center 生成投影均通过。Domain lease 绑定显式写权限、服务 actor、账户与 owner/tenant scope、源和 policy 谱系、半开有效时钟及撤销状态；Application 只接受受控 provider 返回的精确当前 lease。内容 SHA-256 不是签发证明，当前没有可信 issuer、持久化和锁内复验，普通账户生产写入仍阻断。Owner 于 2026-11-11 选择现金分红按交易所公告付款日进行模拟到账；后续必须以服务器时钟和完整未结应收校验，明确标注为模拟转账，不宣称核实实际银行入账。该选择不解除当前窗口覆盖、后扣税、股份/配股和 §9 全量验收门。

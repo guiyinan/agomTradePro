@@ -927,6 +927,11 @@
           "summarize_risk_results",
           "unknown_stage_snapshot"
         ],
+        "application/simulated_corporate_action_write_lease.py": [
+          "RequireSimulatedCorporateActionWriteLease",
+          "SimulatedCorporateActionWriteLeaseProvider",
+          "SimulatedCorporateActionWriteLeaseUnavailable"
+        ],
         "application/simulated_trading_gateway.py": [
           "AccountApiViewClass",
           "build_market_price_provider",
@@ -1111,8 +1116,8 @@
         ]
       },
       "layers": {
-        "application": 79,
-        "domain": 43,
+        "application": 80,
+        "domain": 44,
         "infrastructure": 150,
         "interface": 24,
         "management": 14,

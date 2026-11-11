@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 6724,
+    "current_surface_references": 6728,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -2239,6 +2239,18 @@
       "text": "\"\"\"Return account summary metrics for operational diagnostics.\"\"\""
     },
     {
+      "path": "apps/account/application/simulated_corporate_action_write_lease.py",
+      "text": "\"\"\"Read one exact provider-issued lease and its current revocation state.\"\"\""
+    },
+    {
+      "path": "apps/account/application/simulated_corporate_action_write_lease.py",
+      "text": "\"\"\"Return the selected current lease, or ``None`` when it cannot be proven.\"\"\""
+    },
+    {
+      "path": "apps/account/application/simulated_corporate_action_write_lease.py",
+      "text": "\"\"\"The exact current owner-scoped service-write lease cannot be proven.\"\"\""
+    },
+    {
       "path": "apps/account/application/single_owner_actor_authority.py",
       "text": "\"\"\"Resolve both roles only while the selected policy and real admin remain current."
     },
@@ -3033,6 +3045,10 @@
     {
       "path": "apps/account/domain/services.py",
       "text": "while current <= as_of_date:"
+    },
+    {
+      "path": "apps/account/domain/simulated_corporate_action_write_lease.py",
+      "text": "\"\"\"Select one provider-issued lease and its exact current authority source.\"\"\""
     },
     {
       "path": "apps/account/domain/single_owner_authority_policy_v1.py",
