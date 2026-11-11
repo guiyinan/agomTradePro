@@ -3,19 +3,27 @@
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from datetime import UTC, date, datetime
 from decimal import Decimal
 from threading import Barrier
+from unittest.mock import patch
 
 import pytest
 from django.contrib.auth import get_user_model
 from django.db import connection, connections
 
+from apps.audit.domain.system_audit_event import AuditScopeRef
+from apps.audit.infrastructure.system_audit_models import SystemAuditEventModel
+from apps.audit.infrastructure.system_audit_outbox_models import SystemAuditOutboxModel
 from apps.simulated_trading.application.corporate_action_posting import (
     CorporateActionPostingBlockedError,
     CorporateActionPostingReceipt,
     PostCorporateActionStageUseCase,
+)
+from apps.simulated_trading.audited_corporate_action_posting_composition import (
+    DjangoAuditedCorporateActionPostingRepositoryFactory,
+    DjangoRuntimeCorporateActionAuditGate,
 )
 from apps.simulated_trading.domain.corporate_action_posting import (
     CorporateActionEntryKind,
@@ -35,9 +43,17 @@ from apps.simulated_trading.infrastructure.simulated_account_trade_models import
 
 _RECORD_DATE = date(2026, 9, 23)
 _EFFECTIVE_DATE = date(2026, 9, 24)
-_OBSERVED_AT = datetime(2026, 11, 11, 1, 0, tzinfo=UTC)
-_QUALIFIED_AT = datetime(2026, 11, 11, 1, 5, tzinfo=UTC)
-_POSTED_AT = datetime(2026, 11, 11, 1, 10, tzinfo=UTC)
+_OBSERVED_AT = datetime(2026, 11, 10, 1, 0, tzinfo=UTC)
+_QUALIFIED_AT = datetime(2026, 11, 10, 1, 5, tzinfo=UTC)
+_POSTED_AT = datetime(2026, 11, 10, 1, 10, tzinfo=UTC)
+
+
+@dataclass(frozen=True, slots=True)
+class _NativeTestAuthority:
+    """Provide one fixed provider-like scope while testing database concurrency."""
+
+    user_id: int
+    scope: AuditScopeRef
 
 
 class _SourceVerifier:
@@ -93,7 +109,7 @@ def _request(account: SimulatedAccountModel) -> CorporateActionStageRequest:
         entry_kind=CorporateActionEntryKind.POSTING,
         record_date=_RECORD_DATE,
         effective_date=_EFFECTIVE_DATE,
-        stage_date=_RECORD_DATE,
+        stage_date=_EFFECTIVE_DATE,
         cash_amount=Decimal("200.00"),
         tax_treatment="deferred_withholding",
         tax_rule_id=None,
@@ -129,35 +145,43 @@ def test_postgres_concurrent_entitlement_replay_writes_one_receivable() -> None:
         is_active=True,
     )
     request = _request(account)
-    use_case = PostCorporateActionStageUseCase(
-        DjangoCorporateActionPostingRepository(
-            source_qualifier=_SourceVerifier(),
-            ownership_verifier=_OwnershipVerifier(),
-            using="default",
-        )
-    )
     barrier = Barrier(2)
 
     def post_from_separate_connection() -> tuple[CorporateActionPostingReceipt, ...]:
-        """Start both repository calls together and return the exact receipt tuple."""
+        """Race independent same-alias Audit UOWs behind one account row lock."""
 
         connections.close_all()
         barrier.wait(timeout=30)
         try:
-            return use_case.execute((request,))
+            repository = (
+                DjangoAuditedCorporateActionPostingRepositoryFactory().build_posting_repository(
+                    source_qualifier=_SourceVerifier(),
+                    ownership_verifier=_OwnershipVerifier(),
+                    tax_basis_verifier=None,
+                    using="default",
+                )
+            )
+            return repository.post_revision_with_audit((request,))
         finally:
             connections.close_all()
 
-    with ThreadPoolExecutor(max_workers=2) as executor:
-        first_future = executor.submit(post_from_separate_connection)
-        second_future = executor.submit(post_from_separate_connection)
-        first_receipts = first_future.result(timeout=60)
-        second_receipts = second_future.result(timeout=60)
+    authority = _NativeTestAuthority(
+        user_id=account.user_id,
+        scope=AuditScopeRef("postgres-test-tenant", f"postgres-test-owner-{account.pk}"),
+    )
+    with patch.object(DjangoRuntimeCorporateActionAuditGate, "assert_live", return_value=authority):
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            first_future = executor.submit(post_from_separate_connection)
+            second_future = executor.submit(post_from_separate_connection)
+            first_receipts = first_future.result(timeout=60)
+            second_receipts = second_future.result(timeout=60)
 
     receipts = (first_receipts[0], second_receipts[0])
     assert len({receipt.entry_id for receipt in receipts}) == 1
     assert sorted(receipt.replayed for receipt in receipts) == [False, True]
     assert CorporateActionPostingModel.objects.filter(account=account).count() == 1
+    assert SystemAuditEventModel.objects.count() == 1
+    assert SystemAuditOutboxModel.objects.count() == 1
     row = CorporateActionPostingModel.objects.get(account=account)
     assert row.cash_receivable_delta == Decimal("200.00")
     account.refresh_from_db()

@@ -770,6 +770,26 @@
         "tests/component/audit/test_calendar_publication_audit.py::test_calendar_scope_none_event_dispatches_to_exact_durable_receipt"
       ],
       "test_contract": "tests/unit/audit/test_calendar_publication_audit.py::test_blocked_builder_keeps_attempt_identity_without_fabricating_candidate_evidence"
+    },
+    {
+      "event_type": "simulated.corporate_action.stage_posted",
+      "category": "execution.control",
+      "owner": "simulated_trading",
+      "status": "active",
+      "implementation_status": "wired",
+      "write_policy": "transactional_outbox",
+      "severity": "info",
+      "outcomes": [
+        "success"
+      ],
+      "required_correlations": [
+        "evidence_ref"
+      ],
+      "detail_schema": "simulated.corporate_action.stage_posted.v1",
+      "reason_codes": [
+        "corporate_action_stage_posted"
+      ],
+      "test_contract": "tests/component/simulated_trading/test_audited_corporate_action_posting_composition.py::test_entitlement_and_exact_replay_keep_one_ledger_audit_outbox_pair"
     }
   ]
 }

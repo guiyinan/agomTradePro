@@ -186,6 +186,12 @@ class DjangoCorporateActionPostingRepository(CorporateActionPostingRepositoryPro
         self._tax_basis_verifier = tax_basis_verifier
         self._using = using
 
+    @property
+    def database_alias(self) -> str:
+        """Return the alias used for account locks and stage persistence."""
+
+        return self._using
+
     def post_revision(
         self,
         requests: tuple[CorporateActionStageRequest, ...],

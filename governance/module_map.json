@@ -2368,7 +2368,7 @@
           "imports": 1
         },
         "simulated_trading": {
-          "imports": 2
+          "imports": 8
         },
         "terminal": {
           "imports": 2
@@ -10958,9 +10958,11 @@
           ]
         },
         "audit": {
-          "imports": 2,
+          "imports": 8,
           "target_layers": [
             "application",
+            "domain",
+            "infrastructure",
             "security_disclosure_capture_composition"
           ]
         },
@@ -11970,7 +11972,7 @@
         "infrastructure": 134,
         "interface": 34,
         "management": 7,
-        "root": 39
+        "root": 40
       },
       "orm_models": {
         "infrastructure/models.py": [
