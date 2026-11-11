@@ -3189,3 +3189,9 @@ Account grant/revocation 存储隔离八文件按 SHA-256 核验后整合。正�
 | 466ac6a4832bfec6686c080429b11a6df121046c | account._SimulatedCorporateActionWriteGrantModel | added_abstract | Shared Account-only immutable insert-claim and manager guards for the two new ledgers; no physical table | Only the two concrete grant/revocation models inherit it; generic ORM writes are covered by repository-bypass negative tests; no cross-app inheritance or raw SQL consumer is added | Abstract declaration creates no table; revert with both concrete classes while retaining their persisted history and migration compatibility |
 
 精确候选 `45760956252d65928be1dc5a7f369d97506e62e8` 的六项适用 CI 及看板全部成功，手动完整 Fast Feedback 包含双 Python 运行验证；Publication PostgreSQL 的 ASH-05 原生组 **17 passed**，最终 JUnit 门确认无缺失或跳过。累计 REF-01 三项模型增量按完整 SHA 复验通过。本机 `gh run watch` 曾因 API EOF 中断，独立最终状态读回和完整完成日志确认工作流成功，该 CLI 错误原件保留。最终源码、各原件及 CI 身份见 `artifacts/ash05-event-policy-20261111/resume-final-ci-evidence.json`，SHA-256：`e85027d0b9b7d477cf0e2ae1aeab2aae45ddb3493134ce41a66d1d6395c7604c`。本段及 registry 仅回写已经发生的开发验收，生产源码相对该候选不变；不代表 S6、生产部署或 §9 整项验收。后续首先完成可信受认证签发、撤销与物理账户锁内复验，ASH-05 保持 active。
+
+### 19.186 ASH-05 Owner 授权 Root 带领 Luna max 继续收口（2026-11-11）
+
+Owner 明确要求 Root 带领 Luna max 继续完成 ASH-05。Root 负责真实 Session/CSRF 凭据与 User/Profile 锁内复验、显式 owner 同意、可信 grant 签发/撤销、物理模拟账户绑定和服务写入 gate；不得把 staff Audit 读取上下文或内容哈希当写权限。拟对完整 grant 使用现有 secrets 入口提供的服务器密钥及独立 domain separator 计算 MAC，普通存储 fixture 不因此取得签发资格；消费时仍核对当前头、撤销、来源/政策及物理账户 owner。未完成真实生产组合前保持阻断。
+
+Luna max 先只读复核后，在 registry 登记的 `.tmp/ash05-audited-payment-20261111` 隔离副本准备窄 CASH_PAYMENT 用例及审计组合。仅允许三份模拟交易生产组合/用例和四份直接测试；保持原权益入口窄约束、required Audit/Outbox、账户 owner 与同别名原子边界，并补精确重放、越权和审计失败零写入。官方付款日与完整未结应收复用已有仓储和来源限定器，不复制业务规则。Root 在采用前不改该审计组合文件；worker 不改正式 Source、共享 Git/index、工作流、治理或投影。重数据库测试使用隔离 SQLite 串行运行；Root 同期仅执行轻量非数据库检查。最近可交付事项是可信签发与审计模拟付款的合批整合；随后接线普通账户并补后扣税、送转/配股及 §9 全量验收。该登记不新增 active、不恢复 deferred，也不替代整单元退出。
