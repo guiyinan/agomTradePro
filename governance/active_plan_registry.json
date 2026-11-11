@@ -1,5 +1,5 @@
 {
-  "version": "2026-11-11.v369",
+  "version": "2026-11-11.v370",
   "updated_at": "2026-11-11",
   "execution_focus": {
     "unit_id": "ASH-05",
@@ -8,12 +8,20 @@
       "external",
       "governance"
     ],
-    "policy": "ASH-05 remains the sole active repository focus. Exact candidate bdcc77a23 has five successful CI workflows; Publication PostgreSQL is still running after its native cash-entitlement step passed. The official proof windows are historical only. Root owns formal Audit/Outbox integration, cash payment, deferred tax, share/rights stages, ex-date recognition and all section 9 acceptance. One isolated Luna max price-return preparation is registered below. Default M1 remains available; production execution and deferred ASH-06/09/12 stay disabled. See A-share plan 19.184.",
+    "policy": "ASH-05 remains the sole active repository focus. Exact candidate bdcc77a23 has five successful CI workflows; Publication PostgreSQL is still running after its native cash-entitlement step passed. The official proof windows are historical only. Root owns formal Audit/Outbox integration, cash payment, deferred tax, share/rights stages, ex-date recognition and all section 9 acceptance. One isolated Luna max price-return preparation and one isolated CAL-02 pure calendar contract preparation are registered below. Default M1 remains available; production execution and deferred ASH-06/09/12 stay disabled. See A-share plan 19.184.",
     "parallel_preparation": [
       {
         "unit_id": "ASH-05",
         "scope": "One isolated ASH-05 price-return preparation in .tmp/ash05-price-continuity-20261111 based on bdcc77a23. Preserve and enforce verifiable unadjusted price basis from Data Center PriceBar through price lookup and position refresh; reject forward/backward adjusted or basis-unknown prices for cash-dividend valuation. Add account-scoped open cash-receivable valuation from immutable corporate-action rows so entitlement and payment each preserve NAV without double counting. Build focused gold tests for 10 shares at 10.00 then ex-date raw 9.80 plus 2.00 receivable, and for raw payment transfer to cash, replay and adjusted-price rejection. Allowed production paths: apps/data_center/application/price_service.py, apps/data_center/infrastructure/price_bar_repository.py, apps/simulated_trading/application/ports.py, apps/simulated_trading/application/position_price_refresh.py, apps/simulated_trading/infrastructure/position_repository.py. Allowed tests: tests/unit/test_unified_price_service.py, tests/component/simulated_trading/test_corporate_action_performance_continuity.py, tests/component/simulated_trading/test_corporate_action_posting_repository.py, tests/integration/simulated_trading/test_daily_net_value_service.py and direct price-refresh tests under tests/unit/simulated_trading/. No Audit/Outbox, tax, posting factory, model/migration, workflow, governance, heavy QA, shared Git/index or formal tree edits. Root owns integration, projection updates, formal native PostgreSQL and section 9 acceptance. Report extra path needs before editing.",
         "owner": "Luna max event_refresh under Root integration",
+        "isolated_workspace": true,
+        "shared_git_serialized": true,
+        "isolated_test_resources": true
+      },
+      {
+        "unit_id": "CAL-02",
+        "scope": "One isolated CAL-02 preparation in .tmp/cal02-calendar-contract-20261111 based on the formal registration commit. Implement only the six natural-day period Domain rules, institutional-event evidence/lifecycle separation, and market-availability versus system-known dual-clock typed contracts with NBS schedule/actual-release fixtures. Allowed new production paths: apps/data_center/domain/institutional_calendar.py and apps/data_center/application/institutional_calendar.py. Allowed new test path: tests/unit/data_center/test_institutional_calendar.py. Cover cross-month, leap-year, trading-calendar alignment, cancellation/revision, future-version rejection and conservative date-only availability. No model/migration, ORM, provider/network call, TUI/runtime, current/latest endpoint, production tree edit, heavy QA or shared Git/index. Root owns later formal integration, module-map projection, persistence, public Application reads and real TUI acceptance.",
+        "owner": "Kimi CAL-02 isolated preparation under Root integration",
         "isolated_workspace": true,
         "shared_git_serialized": true,
         "isolated_test_resources": true

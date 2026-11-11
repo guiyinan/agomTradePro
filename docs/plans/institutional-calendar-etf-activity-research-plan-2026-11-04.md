@@ -524,3 +524,9 @@ CAL-01 是只读准备事项，后续实现按机器依赖串行交接；CAL-02 
 - **交接。** CAL-02 依赖 CAL-01 和 ASH-07 均已满足，状态转为 `planned`；其实施仍须取得串行 repository 焦点，不抢占 ASH-05，不随 M0 关闭启动生产代码、重 QA、自动交易或部署。
 
 原件索引为 `.tmp/cal01-m0-close-20261111/evidence-index.json`，SHA-256 `06b90675986b88a3493fba460dbc47526b380b05397521c45804e66927000f63`；M0 逐项结论、V2 来源目录、法律声明、实际发布、完整分页与验证日志均保留在该 Git 忽略目录。本批未改生产源码、未写数据库、未调用生产服务、未查看 OOS 结果。
+
+### 13.8 CAL-02 六候与事件时序隔离准备（2026-11-11）
+
+Owner 授权在 ASH-05 保持唯一 repository 焦点时并行准备 CAL-02。登记副本为 `.tmp/cal02-calendar-contract-20261111`，从本登记正式提交创建 detached 工作树；只允许新增 `apps/data_center/domain/institutional_calendar.py`、`apps/data_center/application/institutional_calendar.py` 和 `tests/unit/data_center/test_institutional_calendar.py`。
+
+最近可提交事项为六候自然日窗口、证据等级与生命周期分离、市场可得/系统已知双时钟及国家统计局日程/实际发布 typed 契约。测试须覆盖跨月、闰年、交易日对齐、取消/修订、未来版本拒绝和 date-only 保守可用；不使用 ORM、Provider 网络、数据库或 TUI runtime，不运行重 QA，不写共享 Git/index。Root 后续在取得串行焦点后负责正式采用、模块图投影、持久化、公开 Application 读取和真实 TUI 验收；本准备完成不等于 CAL-02 整单元关闭。
