@@ -3153,3 +3153,5 @@ v373 隔离成交应收准备的五个文件已按 Luna max 的逐文件 SHA-256
 v375 隔离的 Account 服务写入 lease 契约按三个 SHA-256 核验后整合，正式树定向 **25 passed**；Black、isort、Ruff、两文件增量 mypy、全库债务、模块地图、架构、治理与 Data Center 生成投影均通过。Domain lease 绑定显式写权限、服务 actor、账户与 owner/tenant scope、源和 policy 谱系、半开有效时钟及撤销状态；Application 只接受受控 provider 返回的精确当前 lease。内容 SHA-256 不是签发证明，当前没有可信 issuer、持久化和锁内复验，普通账户生产写入仍阻断。Owner 于 2026-11-11 选择现金分红按交易所公告付款日进行模拟到账；后续必须以服务器时钟和完整未结应收校验，明确标注为模拟转账，不宣称核实实际银行入账。该选择不解除当前窗口覆盖、后扣税、股份/配股和 §9 全量验收门。
 
 下一隔离准备登记在 registry v377：Luna max 只补现金付款账本锁内门，按交易所本地付款日和服务器时钟阻断提前付款，金额必须恰好结清同一来源事件的未结现金应收；重放、修订、撤销和失败零写入需保留。当前官方 PDF qualifier 的付款日核对继续复用。Root 独立负责可信 Account 签发与锁内授权、Audit/Outbox 生产付款组合、原生 PostgreSQL 和 §9 端到端验收；这次准备不得被表述为普通账户已可领取现金。
+
+只读授权审计确认现有 Account RBAC 是 `attestation_only`，OwnerTenant V3 是 `evidence_read`，SingleOwnerAuthorityPolicyV1 只声明归属；均不能为普通非 staff 账户签发 `simulated_corporate_action_stage_write`。registry v378 因此并行登记一个隔离的 Account 专用显式 grant/revocation 存储准备，要求一个账户、一个 owner/tenant scope、确定来源与政策谱系、有限时效、不可变撤销和无旧版本回退；Root 后续用当前认证主体和物理模拟账户 owner 锁内事实签发及复验，System Audit required/outbox 门保持独立。存储准备不能代替认证或自动获得生产资格。
