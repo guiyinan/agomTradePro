@@ -3155,3 +3155,5 @@ v375 隔离的 Account 服务写入 lease 契约按三个 SHA-256 核验后整�
 下一隔离准备登记在 registry v377：Luna max 只补现金付款账本锁内门，按交易所本地付款日和服务器时钟阻断提前付款，金额必须恰好结清同一来源事件的未结现金应收；重放、修订、撤销和失败零写入需保留。当前官方 PDF qualifier 的付款日核对继续复用。Root 独立负责可信 Account 签发与锁内授权、Audit/Outbox 生产付款组合、原生 PostgreSQL 和 §9 端到端验收；这次准备不得被表述为普通账户已可领取现金。
 
 只读授权审计确认现有 Account RBAC 是 `attestation_only`，OwnerTenant V3 是 `evidence_read`，SingleOwnerAuthorityPolicyV1 只声明归属；均不能为普通非 staff 账户签发 `simulated_corporate_action_stage_write`。registry v378 因此并行登记一个隔离的 Account 专用显式 grant/revocation 存储准备，要求一个账户、一个 owner/tenant scope、确定来源与政策谱系、有限时效、不可变撤销和无旧版本回退；Root 后续用当前认证主体和物理模拟账户 owner 锁内事实签发及复验，System Audit required/outbox 门保持独立。存储准备不能代替认证或自动获得生产资格。
+
+服务写入 lease 契约精确候选 `8c500f9885c172b88531f81ce6fab1ecb405693b` 的七项适用 CI 全部成功，包含两个独立 PostgreSQL 工作流；正式树定向 **25 passed**、增量 mypy、债务上限、架构、治理与生成投影均通过。忽略目录索引 `artifacts/ash05-event-policy-20261111/8c500-owner-lease-evidence-index.json` SHA-256 为 `f254870c9f2add8210dfed73a07d79927136b5edea40b16166c4ff16b2a3d4fe`。该候选只验收有限、可撤销、精确 scope 的纯契约；无可信签发源及模拟账户物理锁内绑定，不能凭 CI 通过开启普通账户写入或关闭 ASH-05。
