@@ -34,6 +34,9 @@ from apps.simulated_trading.application.ports import DailyNetValueWritePayload
 from apps.simulated_trading.domain.fee_correction import CorrectableFeeComponents
 from apps.simulated_trading.infrastructure import fee_correction_repository as repository_module
 from apps.simulated_trading.infrastructure.account_mapper import SimulatedAccountMapper
+from apps.simulated_trading.infrastructure.corporate_action_posting_models import (
+    CorporateActionPostingModel,
+)
 from apps.simulated_trading.infrastructure.daily_net_value_repository import (
     DjangoDailyNetValueRepository,
 )
@@ -732,6 +735,57 @@ def test_active_hold_still_blocks_a_new_fee_cash_posting() -> None:
     ledger.position.refresh_from_db()
     assert ledger.account.current_cash == cash_before
     assert ledger.position.total_cost == position_before
+
+
+def test_corporate_action_receivable_blocks_fee_correction_before_cash_write() -> None:
+    """An unintegrated dividend receivable cannot be erased by fee correction."""
+
+    ledger = _seed_ledger(
+        commission=Decimal("0.05"),
+        revised_commission=Decimal("0.03"),
+    )
+    now = timezone.now()
+    CorporateActionPostingModel.objects.create(
+        account=ledger.account,
+        account_revision=1,
+        source_namespace="exchange_official_disclosure",
+        source_record_id="synthetic-fee-correction-boundary",
+        source_event_id="synthetic-dividend",
+        source_revision_id="v1",
+        asset_code=_ASSET_CODE,
+        security_id=_ASSET_CODE,
+        asset_name="Fee correction fixture",
+        action_kind="cash_dividend",
+        stage="cash_entitlement",
+        entry_kind="posting",
+        stage_key="posting:cash_entitlement",
+        request_payload_sha256="a" * 64,
+        source_payload_sha256="b" * 64,
+        qualification_sha256="c" * 64,
+        qualifier_identity="synthetic-test",
+        source_observed_at=now,
+        qualified_at=now,
+        posted_at=now,
+        record_date=now.date(),
+        effective_date=now.date(),
+        stage_date=now.date(),
+        cash_amount=Decimal("2.00"),
+        cash_receivable_delta=Decimal("2.00"),
+    )
+    SimulatedAccountModel.objects.filter(pk=ledger.account.pk).update(
+        total_value=ledger.account.total_value + Decimal("2.00")
+    )
+    account_before = SimulatedAccountModel.objects.get(pk=ledger.account.pk)
+    clock = _CountingClock(now + timedelta(minutes=5))
+
+    with pytest.raises(FeeCorrectionBlockedError) as raised:
+        _run_apply(ledger, clock).execute(ledger.request, principal=ledger.owner)
+
+    assert raised.value.code == "FEE_CORRECTION_CORPORATE_ACTION_HISTORY_UNSUPPORTED"
+    account_after = SimulatedAccountModel.objects.get(pk=ledger.account.pk)
+    assert account_after.current_cash == account_before.current_cash
+    assert account_after.total_value == account_before.total_value
+    assert SimulatedFeeCorrectionEventModel.objects.filter(account=ledger.account).count() == 0
 
 
 def test_posting_time_cash_replay_accepts_a_refund_before_a_later_buy() -> None:

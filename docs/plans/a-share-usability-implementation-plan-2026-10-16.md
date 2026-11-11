@@ -3133,3 +3133,9 @@ Audit 小事项代码提交 `f33c51ed4c1341db26893dd9612f7ca7b71d1041`，随后�
 v368 隔离价格准备的八个授权文件均按 Luna max 报告的 SHA-256 核验后整合。Data Center 的日线读取明确只选未复权 `PriceBar`；`QuoteResponse` 当前没有调整基准证明，实时结果保留 `price_adjustment=None`。账户估值可回退到合格的已发布未复权收盘，否则阻断未知基准，不把常见的现价语义冒称原始价。账户锁内净值增加该账户未结现金应收，到账仅从应收转现金；旧裸数值批量刷新遇到有公司行动历史的账户会拒绝。正式树 **68 个价格/任务单测、6 个组件金样本通过**：10 股 10.00→9.80 加 2.00 应收，以及到账、重放、跨账户隔离，三日净值保持 10100；复权/未知基准及旧入口均零写入。该证据只覆盖指定 position refresh → DailyNetValue 链路；其他交易/费用写入口仍可能重算 `total_value`，需要统一应收口径或先阻断，不能以此关闭收益连续性退出门。
 
 价格块候选 `3f63ed917775a33a3034f2bb924a83ddbdfbed17` 的 Consistency Check 因两份 Data Center 生成投影过期而失败，不能计为候选通过；Root 按生成器更新 `data_center_architecture_inventory.json` 和 `data_center_entrypoints.json`，下一精确候选须重新通过全部适用 CI。Luna max 只读审计确认当前引用成交结算与本地订单撮合两条生产写入路径仍以现金加持仓市值覆盖账户总资产，漏掉未结现金应收；费用更正的写入和校验、账户摘要读侧及日终快照时序也有独立缺口。registry v371 只登记前两条成交写入路径为下一有界隔离准备，Root 保留其余路径、普通账户 Audit 授权、现金到账/后扣税、送转/配股、当前官方公告覆盖和 §9 全量金样本。ASH-05 继续 active，不能用价格刷新局部证据关闭整单元。
+
+费用更正尚未把公司行动现金流和应收纳入历史对账。为防止该写入入口把已记应收从账户净值中抹去，仓储在账户锁内发现任一公司行动账本行时以 `FEE_CORRECTION_CORPORATE_ACTION_HISTORY_UNSUPPORTED` 阻断；真实 ORM 组件断言现金、净值与费用更正事件均不变。该保护是临时拒绝门，不代表费用更正与公司行动已可同时使用；后续需按完整账本时序整合并独立验收。
+
+投影修复和 v371 登记后的精确候选 `d846b3aab37ae307021bf839431e2c877bd230b9` 已通过六项适用 CI：Fast Feedback、Consistency、Architecture、Security、Quote Metric PostgreSQL 与 Publication PostgreSQL。原失败候选 `3f63ed917` 保留为失败记录，不能计入该结论。忽略目录索引 `artifacts/ash05-event-policy-20261111/d846-price-continuity-evidence-index.json` 的 SHA-256 为 `8502edbe771f94f59631d36d38a0ae34fbb67cd7dc525a0592a23c6b5115aa3d`，索引定位同一候选的 CI 列表及本地价格单测、金样本、mypy、债务与投影原件。该候选只收价格连续性小事项，ASH-05 的整单元退出仍未完成。
+
+Luna max 的下一块 RED 测试发现本地撮合在写入前还有账户快照守卫，原守卫只认现金加持仓市值，含应收账户会提前被拒。registry v373 将 `order_reservation_fill_ledger_storage.py` 加入同一有界隔离范围，由账户锁内读取同 alias 净应收并同时修正前置校验与后续总资产写入；当前引用成交路径没有同类前置守卫。该扩围不改变 ASH-05 的其余退出门或并发边界。

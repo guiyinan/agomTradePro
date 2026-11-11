@@ -36,6 +36,9 @@ from apps.simulated_trading.domain.fee_correction import (
     require_exact_ledger_price,
     require_exact_ledger_quantity,
 )
+from apps.simulated_trading.infrastructure.corporate_action_posting_models import (
+    CorporateActionPostingModel,
+)
 from apps.simulated_trading.infrastructure.fee_correction_event_models import (
     SimulatedFeeCorrectionEventModel,
 )
@@ -241,6 +244,15 @@ class DjangoFeeCorrectionRepository(FeeCorrectionRepositoryProtocol):
                 or account.cash_reconciliation_status != "simulated_ledger"
             ):
                 raise _blocked("模拟账户现金账本未核实", "ACCOUNT_CASH_UNKNOWN")
+            if (
+                CorporateActionPostingModel._base_manager.using(using)
+                .filter(account_id=account.pk)
+                .exists()
+            ):
+                raise _blocked(
+                    "公司行动账本尚未接入费用更正现金历史核对",
+                    "FEE_CORRECTION_CORPORATE_ACTION_HISTORY_UNSUPPORTED",
+                )
 
             active_rows = lock_active_order_reservations(account_id=account.pk, using=using)
             validate_account_v4_fill_history(account=account, intent=None, using=using)
