@@ -1,5 +1,5 @@
 {
-  "version": "2026-11-11.v381",
+  "version": "2026-11-11.v382",
   "updated_at": "2026-11-11",
   "execution_focus": {
     "unit_id": "ASH-05",
@@ -8,7 +8,7 @@
       "external",
       "governance"
     ],
-    "policy": "ASH-05 remains the sole active repository focus. Exact candidates 2fa52dfa3 and 8c500f988 passed all six and seven applicable CI workflows respectively; the earlier size failure at ed5a38c44 remains failed. Luna max owner service-write lease contract is integrated but grants no production authority. Cash-payment ledger guard is integrated with local gates green; its exact CI/native PostgreSQL candidate is pending. Official proof windows remain historical. Owner approved simulation of cash transfer on the exchange-announced payment date with explicit simulated wording, not bank receipt verification. Root owns trusted Account issuer and authenticated owner verification, same-alias locked posting verification, audited production payment, deferred tax, share/rights stages and all section 9 acceptance. One isolated Account explicit grant/revocation storage preparation remains registered below. CAL-02 remains planned after its offline contract integration. Default M1 remains available; production execution and deferred ASH-06/09/12 stay disabled. See A-share plan 19.184.",
+    "policy": "ASH-05 remains the sole active repository focus. Exact candidates 2fa52dfa3 and 8c500f988 passed all six and seven applicable CI workflows respectively; earlier failures ed5a38c44, e42f937e8 and 97b7ae4b2 remain failed. Luna max owner service-write lease contract is integrated but grants no production authority. Cash-payment ledger guard is integrated with local gates green; 97b7ae4b2 Publication PG failed its strict test-node manifest before running native payment, corrected on the next candidate. Official proof windows remain historical. Owner approved simulation of cash transfer on the exchange-announced payment date with explicit simulated wording, not bank receipt verification. Root owns trusted Account issuer and authenticated owner verification, same-alias locked posting verification, audited production payment, deferred tax, share/rights stages and all section 9 acceptance. One isolated Account explicit grant/revocation storage preparation remains registered below. CAL-02 remains planned after its offline contract integration. Default M1 remains available; production execution and deferred ASH-06/09/12 stay disabled. See A-share plan 19.184.",
     "parallel_preparation": [
       {
         "unit_id": "ASH-05",
@@ -404,7 +404,7 @@
       "priority": "P0/P1",
       "owner": "portfolio+risk_center+data_center+simulated_trading+backtest+broker_execution+terminal",
       "status": "active",
-      "next_gate": "ASH-05 stays active. Settlement candidate 2fa52dfa3 and owner lease contract candidate 8c500f988 passed their exact CI workflows; the owner lease is not a production grant. Owner-approved payment-date ledger guard is integrated with local gates green and exact CI/native PG pending. Explicit Account grant/revocation storage remains in one isolated preparation. Authenticated issuance and audited production posting remain Root-owned. Current-window official coverage, normal-account Audit write authority, cash/share/tax posting and section 9 gold journeys precede closure. Default M1 remains available; production execution and deferred ASH-06/09/12 stay disabled.",
+      "next_gate": "ASH-05 stays active. Settlement candidate 2fa52dfa3 and owner lease contract candidate 8c500f988 passed their exact CI workflows; the owner lease is not a production grant. Owner-approved payment-date ledger guard is integrated locally, but 97b7ae4b2 failed Publication PG's strict test-node manifest before the native payment test. Next exact candidate must pass native PG and all applicable CI. Explicit Account grant/revocation storage remains in one isolated preparation. Authenticated issuance and audited production posting remain Root-owned. Current-window official coverage, normal-account Audit write authority, cash/share/tax posting and section 9 gold journeys precede closure. Default M1 remains available; production execution and deferred ASH-06/09/12 stay disabled.",
       "documents": [
         {
           "path": "docs/plans/a-share-usability-implementation-plan-2026-10-16.md",

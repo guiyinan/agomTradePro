@@ -3161,3 +3161,5 @@ v375 隔离的 Account 服务写入 lease 契约按三个 SHA-256 核验后整�
 治理候选 `e42f937e8` 的 Consistency Check 因 `parallel_preparation` 为同一 ASH-05 写了两条记录而失败，失败原件 `artifacts/ash05-event-policy-20261111/e42-consistency-failed.log`；普通治理一致性检查没有覆盖该专门规则。registry v380 将两个互不重叠的隔离范围合并为一条 ASH-05 并行准备记录，`check_active_plan_registry.py` 检查 **0 violation**。下一精确候选须重新通过适用 CI，失败候选不借用上一提交的通过结果。
 
 v380 专门 registry 修复候选 `b3f9d9e13f24d45da6bc48c13cd46d64624e1178` 的五项适用 CI 全部成功。付款门隔离 RED 为 **4 failed**，证明提前日历边界和非全额未阻断；GREEN **6 passed**。两个修改文件按隔离 SHA-256 复核后整合，正式树同 6 项组件 **6 passed**、Black/isort/Ruff、增量 mypy、债务上限、架构、治理及 Data Center 投影通过。账本在账户及事件锁内按服务器时钟换算深交所本地日，未到官方付款日阻断；非撤销付款必须恰好结清同事件完整未结应收，失败整批回滚。Root 新增原生 PostgreSQL 付款日期/金额回归并纳入 Publication PG 工作流，精确 CI 尚待下一候选。该门只约束账本，不代表普通账户可信授权、Audit/Outbox 生产付款或实际银行到账。
+
+付款候选 `97b7ae4b200a7332d4ef3995fe7ee97a86ba301e` 的 Publication PostgreSQL 在进入原生测试前因 CI 节点精确清单未同步而失败；失败原件 `artifacts/ash05-event-policy-20261111/97b-publication-failed.log`，不能声称原生付款通过。Root 已在 `tests/unit/ci/test_publication_postgres_workflow.py` 补列该测试节点，定向契约 **1 passed**。下一候选需重新执行完整适用 CI 与 native PG；失败候选结果不得拼接。

@@ -577,6 +577,7 @@ def test_ash05_cash_entitlement_runs_on_an_isolated_migrated_postgres_database()
     )
     assert _pytest_nodeids(step["run"]) == (
         "tests/component/simulated_trading/test_corporate_action_posting_postgres.py::test_postgres_concurrent_entitlement_replay_writes_one_receivable",
+        "tests/component/simulated_trading/test_corporate_action_posting_postgres.py::test_postgres_payment_waits_for_szse_date_and_settles_exact_receivable",
         "tests/component/simulated_trading/test_corporate_action_posting_postgres.py::test_postgres_wrong_owner_account_or_security_scope_blocks_without_writes",
     )
     assert step["env"]["DATABASE_URL"].endswith("/agom_release_rehearsal_ci")
