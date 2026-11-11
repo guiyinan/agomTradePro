@@ -18,6 +18,12 @@ from enum import StrEnum
 _ZERO = Decimal("0")
 _ONE = Decimal("1")
 _MAX_DECIMAL_INTEGER_DIGITS = 18
+_MAX_DIVIDEND_PER_SHARE_SCALE = 12
+_MAX_CURRENCY_QUANTUM_SCALE = 12
+# Technical capacity across Python's date range, not a statutory holding band.
+MAX_SUPPORTED_HOLDING_MONTHS = (
+    (date.max.year - date.min.year) * 12 + date.max.month - date.min.month
+)
 _DIGEST_CHARACTERS = frozenset("0123456789abcdef")
 
 
@@ -109,6 +115,7 @@ def _require_share_quantity(value: Decimal, field_name: str, allow_zero: bool) -
     if (
         type(exponent) is not int
         or exponent < -6
+        or exponent > _MAX_DECIMAL_INTEGER_DIGITS - 1
         or value.adjusted() >= _MAX_DECIMAL_INTEGER_DIGITS
     ):
         raise DeferredDividendTaxValidationError(
@@ -123,7 +130,7 @@ def _require_unit_decimal(value: Decimal, field_name: str) -> None:
     if type(value) is not Decimal or not value.is_finite() or value < _ZERO or value > _ONE:
         raise DeferredDividendTaxValidationError(f"{field_name} must be a Decimal from zero to one")
     exponent = value.as_tuple().exponent
-    if type(exponent) is not int or exponent < -12:
+    if type(exponent) is not int or exponent < -12 or exponent > 0:
         raise DeferredDividendTaxValidationError(f"{field_name} precision is unsupported")
 
 
@@ -132,10 +139,16 @@ def _require_positive_money_quantum(value: Decimal) -> None:
 
     if type(value) is not Decimal or not value.is_finite() or value <= _ZERO:
         raise DeferredDividendTaxValidationError("currency_quantum must be a positive Decimal")
-    exponent = value.as_tuple().exponent
-    if type(exponent) is not int or exponent > 0 or value != Decimal(1).scaleb(exponent):
+    sign, digits, exponent = value.as_tuple()
+    if (
+        type(exponent) is not int
+        or sign != 0
+        or digits != (1,)
+        or exponent > 0
+        or exponent < -_MAX_CURRENCY_QUANTUM_SCALE
+    ):
         raise DeferredDividendTaxValidationError(
-            "currency_quantum must be a positive power-of-ten quantum"
+            "currency_quantum must be a power of ten within supported scale"
         )
 
 
@@ -166,10 +179,12 @@ class HoldingPeriodTaxBand:
 
         _require_token(self.band_id, "band_id", 96)
         if self.maximum_holding_months is not None and (
-            type(self.maximum_holding_months) is not int or self.maximum_holding_months <= 0
+            type(self.maximum_holding_months) is not int
+            or self.maximum_holding_months <= 0
+            or self.maximum_holding_months > MAX_SUPPORTED_HOLDING_MONTHS
         ):
             raise DeferredDividendTaxValidationError(
-                "maximum_holding_months must be a positive integer or None"
+                "maximum_holding_months must fit the supported calendar span or be None"
             )
         _require_unit_decimal(self.taxable_dividend_ratio, "taxable_dividend_ratio")
         _require_unit_decimal(self.withholding_rate, "withholding_rate")
@@ -238,7 +253,7 @@ class DeferredDividendTaxPolicy:
 
     @property
     def policy_sha256(self) -> str:
-        """Return a stable digest binding the full source-qualified policy."""
+        """Hash explicit policy terms; callers independently qualify the source."""
 
         return _sha256_json(
             {
@@ -326,6 +341,16 @@ class TaxLotEvidence:
             raise DeferredDividendTaxValidationError("dividend_per_share must be a finite Decimal")
         if self.dividend_per_share < _ZERO:
             raise DeferredDividendTaxValidationError("dividend_per_share cannot be negative")
+        exponent = self.dividend_per_share.as_tuple().exponent
+        if (
+            type(exponent) is not int
+            or exponent < -_MAX_DIVIDEND_PER_SHARE_SCALE
+            or exponent > _MAX_DECIMAL_INTEGER_DIGITS - 1
+            or self.dividend_per_share.adjusted() >= _MAX_DECIMAL_INTEGER_DIGITS
+        ):
+            raise DeferredDividendTaxValidationError(
+                "dividend_per_share exceeds supported exact decimal precision"
+            )
         for value, field_name in (
             (self.acquisition_evidence_id, "acquisition_evidence_id"),
             (self.record_date_evidence_id, "record_date_evidence_id"),
@@ -445,11 +470,13 @@ class DeferredDividendTaxAssessment:
     assessment_sha256: str
 
 
-def _add_calendar_months(day: date, month_count: int) -> date:
-    """Return the calendar anniversary, clamping month-end to its final day."""
+def _add_calendar_months(day: date, month_count: int) -> date | None:
+    """Return a representable clamped anniversary, or None beyond date limits."""
 
     month_index = (day.year * 12) + (day.month - 1) + month_count
     target_year, target_month_index = divmod(month_index, 12)
+    if target_year < date.min.year or target_year > date.max.year:
+        return None
     target_month = target_month_index + 1
     target_day = min(day.day, calendar.monthrange(target_year, target_month)[1])
     return date(target_year, target_month, target_day)
@@ -467,9 +494,14 @@ def _completed_calendar_months(acquired_on: date, settlement_date: date) -> int:
     )
     if month_count < 0:
         return 0
-    while month_count > 0 and _add_calendar_months(acquired_on, month_count) > settlement_date:
+    anniversary = _add_calendar_months(acquired_on, month_count)
+    while month_count > 0 and (anniversary is None or anniversary > settlement_date):
         month_count -= 1
-    while _add_calendar_months(acquired_on, month_count + 1) <= settlement_date:
+        anniversary = _add_calendar_months(acquired_on, month_count)
+    while True:
+        next_anniversary = _add_calendar_months(acquired_on, month_count + 1)
+        if next_anniversary is None or next_anniversary > settlement_date:
+            break
         month_count += 1
     return month_count
 
@@ -484,10 +516,12 @@ def _select_band(
     months_held = _completed_calendar_months(acquired_on, settlement_date)
     for band in bands:
         maximum_months = band.maximum_holding_months
-        if maximum_months is None or settlement_date <= _add_calendar_months(
-            acquired_on,
-            maximum_months,
-        ):
+        anniversary = (
+            _add_calendar_months(acquired_on, maximum_months)
+            if maximum_months is not None
+            else None
+        )
+        if maximum_months is None or anniversary is None or settlement_date <= anniversary:
             return band, months_held
     raise DeferredDividendTaxValidationError(
         "policy bands do not cover the lot holding period",
@@ -745,6 +779,8 @@ def calculate_deferred_dividend_tax(
     target_allocations: list[TaxLotAllocation] = []
 
     with localcontext() as context:
+        # Bounded shares (18 integer/6 fractional), per-share amounts (18/12),
+        # and two unit ratios (12 fractional) require at most 78 exact digits.
         context.prec = 80
         for disposition in dispositions:
             disposition_settlement_date = disposition.transfer_settlement_date
@@ -904,6 +940,7 @@ __all__ = [
     "DeferredDividendTaxRequest",
     "DeferredDividendTaxValidationError",
     "HoldingPeriodTaxBand",
+    "MAX_SUPPORTED_HOLDING_MONTHS",
     "TaxLotAllocation",
     "TaxLotEvidence",
     "TaxLotOrigin",

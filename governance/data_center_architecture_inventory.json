@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 6856,
+    "current_surface_references": 6857,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -22089,6 +22089,10 @@
     {
       "path": "apps/simulated_trading/application/consumer_gateways.py",
       "text": "from apps.realtime.application.simulated_trading_gateway import ("
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_tax_policy.py",
+      "text": "current policy, or establish that a source identity/hash is genuine."
     },
     {
       "path": "apps/simulated_trading/application/current_account_ownership.py",

@@ -11201,6 +11201,12 @@
           "PostCorporateActionStageUseCase",
           "RecordDateOwnershipProofReaderProtocol"
         ],
+        "application/corporate_action_tax_policy.py": [
+          "CorporateActionTaxPolicyDecodeError",
+          "DeferredDividendTaxPolicyJSON",
+          "HoldingPeriodTaxBandJSON",
+          "decode_deferred_dividend_tax_policy"
+        ],
         "application/current_account_ownership.py": [
           "CurrentAccountOwnership",
           "CurrentAccountOwnershipReader",
@@ -12016,7 +12022,7 @@
         ]
       },
       "layers": {
-        "application": 123,
+        "application": 124,
         "domain": 40,
         "infrastructure": 135,
         "interface": 35,
