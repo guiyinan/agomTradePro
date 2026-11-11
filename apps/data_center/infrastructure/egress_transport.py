@@ -28,6 +28,9 @@ from apps.data_center.domain.financial_response_evidence import (
     FinancialResponseBodyScope,
     FinancialResponseScope,
 )
+from apps.data_center.domain.provider_document_response import (
+    ProviderDocumentResponseCapture,
+)
 from apps.data_center.domain.provider_response import (
     ProviderResponseCapture,
     ProviderResponseTransport,
@@ -42,6 +45,11 @@ from apps.data_center.infrastructure.financial_response_capture import (
     RawFinancialResponseProtocol,
     capture_financial_response,
     decode_json_bytes,
+)
+from apps.data_center.infrastructure.provider_document_response_capture import (
+    ProviderDocumentResponseHttpProtocol,
+    capture_provider_document_response_result,
+    execute_provider_document_http_request,
 )
 from apps.data_center.infrastructure.provider_response_capture import (
     ProviderResponseCaptureError,
@@ -422,6 +430,28 @@ class EgressHttpTransport:
             return result, payload
         return result, None
 
+    def request_provider_document_response(
+        self,
+        context: EgressRequestContext,
+        *,
+        egress_id: int | None,
+        request_id: UUID,
+        attempt: int,
+        max_bytes: int,
+        allowed_media_types: frozenset[str],
+    ) -> tuple[EgressTransportResult, ProviderDocumentResponseCapture | None]:
+        """Capture one exact non-JSON document on the existing safe route."""
+
+        return execute_provider_document_http_request(
+            self,
+            context,
+            egress_id=egress_id,
+            request_id=request_id,
+            attempt=attempt,
+            max_bytes=max_bytes,
+            allowed_media_types=allowed_media_types,
+        )
+
     def should_route_history(self, *, provider_id: int, deployment_region: str) -> bool:
         """Return whether an explicit rule owns EastMoney history transport."""
 
@@ -498,6 +528,8 @@ class EgressHttpTransport:
         financial_request_scope: FinancialRequestScope | None = None,
         financial_response_scope: FinancialResponseScope | None = None,
         capture_provider_response: bool = False,
+        document_capture_request_id: UUID | None = None,
+        document_capture_allowed_media_types: frozenset[str] | None = None,
     ) -> tuple[EgressTransportResult, object | None]:
         """Perform one request after target, circuit, and concurrency checks."""
 
@@ -514,7 +546,20 @@ class EgressHttpTransport:
             )
         if (financial_request_scope is None) != (financial_response_scope is None):
             return _financial_scope_error_result()
-        if capture_provider_response and financial_request_scope is not None:
+        capture_provider_document = document_capture_request_id is not None or (
+            document_capture_allowed_media_types is not None
+        )
+        if capture_provider_document and (
+            document_capture_request_id is None
+            or document_capture_allowed_media_types is None
+            or expect_json
+        ):
+            return _document_capture_error_result("EGRESS_DOCUMENT_CAPTURE_INVALID")
+        if capture_provider_response and capture_provider_document:
+            return _document_capture_error_result("EGRESS_RESPONSE_CAPTURE_MODE_CONFLICT")
+        if (capture_provider_response or capture_provider_document) and (
+            financial_request_scope is not None
+        ):
             return (
                 EgressTransportResult(
                     outcome="blocked",
@@ -741,6 +786,22 @@ class EgressHttpTransport:
                     ),
                     captured_provider,
                 )
+            if capture_provider_document:
+                document_result = capture_provider_document_response_result(
+                    cast(ProviderDocumentResponseHttpProtocol, response),
+                    request_id=cast(UUID, document_capture_request_id),
+                    attempt=attempt,
+                    egress_id=egress_id,
+                    target_url=context.target_url,
+                    max_bytes=max_response_bytes,
+                    allowed_media_types=cast(frozenset[str], document_capture_allowed_media_types),
+                    started=started,
+                )
+                if document_result[0].outcome == "success":
+                    _shared_state.success(state_key)
+                elif document_result[0].retryable:
+                    _shared_state.failure(state_key)
+                return document_result
             payload = (
                 _read_bounded_json(response, max_bytes=max_response_bytes) if expect_json else None
             )
@@ -864,6 +925,22 @@ def _financial_scope_error_result() -> (
             outcome="blocked",
             error_code="EGRESS_FINANCIAL_SCOPE_INVALID",
             message="金融响应范围未通过安全校验。",
+            retryable=False,
+        ),
+        None,
+    )
+
+
+def _document_capture_error_result(
+    error_code: str,
+) -> tuple[EgressTransportResult, ProviderDocumentResponseCapture | None]:
+    """Reject a raw-document request before network I/O with no fallback."""
+
+    return (
+        EgressTransportResult(
+            outcome="blocked",
+            error_code=error_code,
+            message="原始文档请求未通过安全校验。",
             retryable=False,
         ),
         None,

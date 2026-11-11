@@ -4525,6 +4525,7 @@
           "FinancialResponseRequestFailed",
           "FinancialResponseValidationResult",
           "FinancialResponseValidatorProtocol",
+          "ProviderDocumentResponseTransportProtocol",
           "configure_egress_audit_writer",
           "configure_egress_rule_repository",
           "configure_egress_transport",
@@ -4533,6 +4534,7 @@
           "delete_endpoint",
           "diagnose_route",
           "execute_financial_response_request",
+          "execute_provider_document_request",
           "execute_provider_request",
           "execute_provider_response_request",
           "get_egress_transport",
@@ -5530,6 +5532,10 @@
           "CaptureSinaQuoteUseCase",
           "SinaQuoteTransportProtocol"
         ],
+        "application/statutory_source_capture.py": [
+          "CaptureStatutorySourceDocumentUseCase",
+          "StatutorySourceDocumentFetchPort"
+        ],
         "application/statutory_source_documents.py": [
           "AppendStatutorySourceDocumentBundleUseCase",
           "QueryStatutorySourceDocumentBundleUseCase",
@@ -5702,9 +5708,9 @@
         ]
       },
       "layers": {
-        "application": 184,
-        "domain": 55,
-        "infrastructure": 244,
+        "application": 185,
+        "domain": 56,
+        "infrastructure": 245,
         "interface": 32,
         "management": 42,
         "root": 42

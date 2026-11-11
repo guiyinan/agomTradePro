@@ -3233,6 +3233,12 @@ Owner 已另行授权后续衔接：**仅在 ASH-05 达到本计划 §9 整单�
 
 正式工作区来源原生组 **10 passed**（106.36 秒），来源底座与 CI 选择契约合批 **86 passed / 1 skipped**；跳过仍是普通 Windows symlink 权限，junction 拒绝实际通过。真实生产迁移 dry-run 无差值；生成字典为 **611 模型 / 9515 直接声明字段**（包含抽象声明，非物理表计数），入口投影新增本机证据 profile。投影尚未生成完成时的一次提前校验失败已保留，随后按生成完成后的同一源码重新校验；未将提前结果记为通过。类型首轮结果为增量三文件零错误、全库债务零；因上下文切换丢失工具退出元数据，补一轮明确落盘退出码，而不重跑数据库或已确认覆盖。
 
+上述来源持久化已在 `47a3634b147a7443271bbd5491b5c2b512fcd5ac` 落地开发分支；精确五项模型差值及三文件体积门通过，CI 仍按该 SHA 独立验收。后继原文采集批次采用独立非 JSON DTO 和可选 transport 能力，只接受完整 context URL 的 GET，固定 identity 编码、具体 MIME 白名单、显式字节上限及响应全部读完后的 UTC 时刻，继续使用既有 DNS/SSRF、IP pin、无重定向、路由、重试及资源清理。原 JSON 与金融捕获协议未被放宽。缺原文能力的旧 transport 明确阻断，不把 HTML 塞入 JSON 或金融 DTO。
+
+正式树原文采集、留存接线和兼容回归 **274 passed**，含服务器请求 UUID/真实完成时间写入留存、原生修订原文 SHA/大小及目标/MIME/次数不一致的零写入反例。私有副本 Domain 分支覆盖 100%，四生产文件增量类型通过；正式五文件增量与全库债务均为零，九文件风格、架构/模块依赖及 current-data 108 门通过。真实 urllib3 流异常的初版会绕过重试和每次审计，已转为稳定可重试的读取失败；Root 补充相同反例证明并修齐熔断失败计数，全部失败原件保留在同一索引。两个增长中的生产模块分别为 988/976 非空行，未提高上限。
+
+捕获 UUID 可关联既有出网尝试记录，但该审计仍是 best-effort，不能宣称持久审计已经成功；无匹配规则时保留原有 default-direct 语义。当前捕获和四表留存只保证请求/字节/历史身份，不授予官方来源、法律适用或财务写权限。后续按 registry v415 准备显式 publisher、主机、修订、MIME、体积及采集年龄目录，再接专用 provider 和官方限定，不能冒用现有金融 provider 类型。税务日期口径的 Owner 问题仍待答复，后扣税未激活；送转/配股、冲正、整单元金样本和最后精确候选 CI 仍须完成。代码回滚按独立采集提交撤销并重建投影，已保留元数据与外部原文继续配对留存，不删除历史事实。
+
 | base_sha | identity | change_kind | rationale | consumer_audit | compatibility_or_rollback |
 | --- | --- | --- | --- | --- | --- |
 | 1dedaa6958564561080c261815cf85a9942c0e98 | data_center.StatutorySourceDocumentRevisionModel | added_concrete | Publisher-native legal metadata and body digest require immutable identity conflicts; mutable redacted RawPayload JSON cannot serve this record, and security disclosure models require unrelated asset/exchange facts | Only DjangoStatutorySourceRepository exact revision/capture/bundle ports, source model registration and native component tests consume it; no current policy or financial consumer | Additive dc_statutory_source_revision table; preserve historical rows and matching bodies on code rollback, disable prospective consumers first |

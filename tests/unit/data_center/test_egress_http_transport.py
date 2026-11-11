@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
+from hashlib import sha256
 from types import SimpleNamespace
 from unittest.mock import Mock
 from uuid import uuid4
@@ -10,10 +11,18 @@ from uuid import uuid4
 import pytest
 import requests
 from django.test import override_settings
+from urllib3.exceptions import ProtocolError
 
 from apps.config_center.domain.egress import EgressEndpoint
+from apps.data_center.application import egress_service
 from apps.data_center.application.egress_service import EgressTransportResult
-from apps.data_center.domain.egress_routing import EgressRequestContext
+from apps.data_center.domain.egress_routing import (
+    EgressRequestContext,
+    EgressRouteRule,
+    EgressStrategy,
+)
+from apps.data_center.domain.provider_document_response import ProviderDocumentResponseCapture
+from apps.data_center.domain.provider_response import ProviderResponseTransport
 from apps.data_center.infrastructure import egress_transport as transport_module
 from apps.data_center.infrastructure.egress_target import PublicTargetError
 
@@ -113,6 +122,61 @@ class _Response:
         """Record response cleanup."""
 
         self.closed = True
+
+
+class _RawDocumentStream:
+    """Expose the entity stream without Requests' content decoding."""
+
+    def __init__(
+        self,
+        body: bytes,
+        *,
+        read_raises: bool = False,
+        stream_error: BaseException | None = None,
+    ) -> None:
+        self.body = body
+        self.read_raises = read_raises
+        self.stream_error = stream_error
+        self.calls = 0
+
+    def stream(self, amt: int, decode_content: bool = False) -> Iterator[bytes]:
+        """Yield two exact chunks after asserting decode is disabled."""
+
+        assert amt > 0
+        assert decode_content is False
+        self.calls += 1
+        if self.stream_error is not None:
+            raise self.stream_error
+        if self.read_raises:
+            raise OSError("raw stream failed")
+        yield self.body[:7]
+        yield self.body[7:]
+
+
+class _DocumentResponse(_Response):
+    """Successful or redirect response with a raw byte entity stream."""
+
+    def __init__(
+        self,
+        *,
+        status_code: int = 200,
+        body: bytes = b"<html>document\xff</html>",
+        content_type: str = "text/html; charset=utf-8",
+        content_encoding: str | None = None,
+        redirect: bool = False,
+        read_raises: bool = False,
+        stream_error: BaseException | None = None,
+    ) -> None:
+        super().__init__(
+            status_code=status_code,
+            body=body,
+            redirect=redirect,
+            content_length=True,
+        )
+        self.headers["Content-Type"] = content_type
+        if content_encoding is not None:
+            self.headers["Content-Encoding"] = content_encoding
+        self.raw = _RawDocumentStream(body, read_raises=read_raises, stream_error=stream_error)
 
 
 class _Session:
@@ -318,6 +382,238 @@ def test_transport_error_retry_policy(
     assert payload is None
     assert failure.call_count == (1 if retryable else 0)
     assert session.closed is True
+
+
+def test_document_capture_reuses_pinned_route_and_closes_every_resource(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Raw capture preserves exact bytes while using governed proxy safeguards."""
+
+    body = b"%PDF\x00 exact document bytes\xff"
+    response = _DocumentResponse(body=body, content_type="application/pdf")
+    session = _Session(response=response)
+    endpoint = _endpoint()
+    _patch_request(monkeypatch, session, endpoint=endpoint)
+    request_id = uuid4()
+
+    result, capture = transport_module.EgressHttpTransport(
+        max_attempts=1, max_response_bytes=2048
+    ).request_provider_document_response(
+        _context(),
+        egress_id=endpoint.id,
+        request_id=request_id,
+        attempt=1,
+        max_bytes=512,
+        allowed_media_types=frozenset({"application/pdf"}),
+    )
+
+    assert result.outcome == "success"
+    assert isinstance(capture, ProviderDocumentResponseCapture)
+    assert capture.body == body
+    assert capture.status_code == 200
+    assert capture.transport is ProviderResponseTransport.EGRESS
+    assert capture.request_id == request_id
+    assert capture.egress_id == endpoint.id
+    assert capture.attempt == 1
+    assert capture.target_url_sha256 == sha256(_context().target_url.encode("utf-8")).hexdigest()
+    assert capture.target_host == "data.example.com"
+    assert capture.content_type == "application/pdf"
+    assert response.raw.calls == 1
+    assert response.closed and session.closed
+    assert session.trust_env is False
+    assert session.proxies["https"].startswith("http://proxy-user:proxy-password@")
+    request = session.calls[0][1]
+    assert request["allow_redirects"] is False
+    assert request["stream"] is True
+    assert request["headers"]["Accept-Encoding"] == "identity"
+    assert request["headers"]["Host"] == "data.example.com"
+    assert session.calls[0][0] == "https://93.184.216.34/history"
+
+
+@pytest.mark.parametrize(
+    ("max_bytes", "allowed_media_types", "error_code"),
+    [
+        (1025, frozenset({"text/html"}), "EGRESS_DOCUMENT_BODY_LIMIT_INVALID"),
+        (512, frozenset({"*/*"}), "EGRESS_DOCUMENT_MEDIA_TYPES_INVALID"),
+    ],
+)
+def test_document_capture_invalid_request_blocks_before_http(
+    monkeypatch: pytest.MonkeyPatch,
+    max_bytes: int,
+    allowed_media_types: frozenset[str],
+    error_code: str,
+) -> None:
+    """Byte caps and concrete MIME types are explicit preflight inputs."""
+
+    session_factory = Mock()
+    monkeypatch.setattr(transport_module.requests, "Session", session_factory)
+
+    result, capture = transport_module.EgressHttpTransport(
+        max_response_bytes=1024
+    ).request_provider_document_response(
+        _context(),
+        egress_id=None,
+        request_id=uuid4(),
+        attempt=1,
+        max_bytes=max_bytes,
+        allowed_media_types=allowed_media_types,
+    )
+
+    assert result.outcome == "blocked"
+    assert result.error_code == error_code
+    assert capture is None
+    session_factory.assert_not_called()
+
+
+def test_document_capture_rejects_redirect_and_encoded_response(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Redirects and compressed entities are never followed or decoded."""
+
+    response = _DocumentResponse(status_code=302, redirect=True, read_raises=True)
+    session = _Session(response=response)
+    _patch_request(monkeypatch, session)
+
+    result, capture = transport_module.EgressHttpTransport().request_provider_document_response(
+        _context(),
+        egress_id=None,
+        request_id=uuid4(),
+        attempt=1,
+        max_bytes=512,
+        allowed_media_types=frozenset({"text/html"}),
+    )
+
+    assert result.error_code == "EGRESS_REDIRECT_BLOCKED"
+    assert result.retryable is False
+    assert capture is None
+    assert session.calls[0][1]["allow_redirects"] is False
+    assert response.raw.calls == 0
+    assert response.closed and session.closed
+
+    encoded = _DocumentResponse(content_encoding="gzip")
+    encoded_session = _Session(response=encoded)
+    _patch_request(monkeypatch, encoded_session)
+    result, capture = transport_module.EgressHttpTransport().request_provider_document_response(
+        _context(),
+        egress_id=None,
+        request_id=uuid4(),
+        attempt=1,
+        max_bytes=512,
+        allowed_media_types=frozenset({"text/html"}),
+    )
+    assert result.error_code == "PROVIDER_DOCUMENT_ENCODING_UNSUPPORTED"
+    assert capture is None
+    assert encoded.raw.calls == 0
+    assert encoded.closed and encoded_session.closed
+
+
+def test_document_capture_public_target_guard_blocks_before_http(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Raw document mode cannot bypass the shared DNS and SSRF preflight."""
+
+    session_factory = Mock()
+
+    def reject_target(_url: str) -> None:
+        raise PublicTargetError("blocked test target", code="EGRESS_PRIVATE_TARGET")
+
+    monkeypatch.setattr(transport_module, "_validate_public_target", reject_target)
+    monkeypatch.setattr(transport_module.requests, "Session", session_factory)
+
+    result, capture = transport_module.EgressHttpTransport().request_provider_document_response(
+        _context(),
+        egress_id=None,
+        request_id=uuid4(),
+        attempt=1,
+        max_bytes=512,
+        allowed_media_types=frozenset({"text/html"}),
+    )
+
+    assert result.outcome == "blocked"
+    assert result.error_code == "EGRESS_PRIVATE_TARGET"
+    assert capture is None
+    session_factory.assert_not_called()
+
+
+def test_document_capture_retries_urllib3_read_error_and_audits_both_routes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A raw urllib3 stream failure becomes retryable and still closes resources."""
+
+    context = _context()
+    rule = EgressRouteRule(
+        rule_id=7,
+        provider_id=context.provider_id,
+        dataset_key=context.dataset_key,
+        domain_pattern="data.example.com",
+        deployment_region=context.deployment_region,
+        strategy=EgressStrategy.DIRECT_FALLBACK,
+        fixed_egress_id=17,
+        priority=10,
+        enabled=True,
+    )
+    repository = Mock()
+    repository.list.return_value = (rule,)
+    audit = Mock()
+    endpoint = _endpoint()
+    first_response = _DocumentResponse(stream_error=ProtocolError("truncated raw stream"))
+    second_response = _DocumentResponse()
+    first_session = _Session(response=first_response)
+    second_session = _Session(response=second_response)
+    sessions = [first_session, second_session]
+    released_slots: list[str] = []
+    failed_circuits: list[str] = []
+
+    monkeypatch.setattr(egress_service, "_rule_repository", repository)
+    monkeypatch.setattr(egress_service, "_audit_writer", audit)
+    monkeypatch.setattr(egress_service, "_transport", transport_module.EgressHttpTransport())
+    monkeypatch.setattr(transport_module, "get_egress_endpoint", lambda _id: endpoint)
+    monkeypatch.setattr(
+        transport_module,
+        "_validate_public_target",
+        lambda _url: SimpleNamespace(
+            url="https://93.184.216.34/history",
+            scheme="https",
+            host_header="data.example.com",
+            adapter=None,
+        ),
+    )
+    monkeypatch.setattr(transport_module.requests, "Session", lambda: sessions.pop(0))
+    monkeypatch.setattr(transport_module._shared_state, "circuit_open", lambda _key: False)
+    monkeypatch.setattr(transport_module._shared_state, "shared_state_unavailable", lambda: False)
+    monkeypatch.setattr(transport_module._shared_state, "acquire", lambda *_args, **_kwargs: True)
+    monkeypatch.setattr(transport_module._shared_state, "success", lambda _key: None)
+    monkeypatch.setattr(transport_module._shared_state, "failure", failed_circuits.append)
+    monkeypatch.setattr(
+        transport_module._shared_state,
+        "release",
+        lambda key: released_slots.append(key),
+    )
+
+    capture = egress_service.execute_provider_document_request(
+        context,
+        max_bytes=512,
+        allowed_media_types=frozenset({"text/html"}),
+    )
+
+    assert capture.body == b"<html>document\xff</html>"
+    assert [call.kwargs["egress_id"] for call in audit.record.call_args_list] == [None, 17]
+    assert [call.kwargs["attempt"] for call in audit.record.call_args_list] == [1, 2]
+    assert [call.kwargs["outcome"] for call in audit.record.call_args_list] == [
+        "failed",
+        "success",
+    ]
+    assert audit.record.call_args_list[0].kwargs["request_id"] == capture.request_id
+    assert audit.record.call_args_list[1].kwargs["request_id"] == capture.request_id
+    assert first_response.raw.calls == 1 and first_response.closed and first_session.closed
+    assert second_response.raw.calls == 1 and second_response.closed and second_session.closed
+    assert failed_circuits == [
+        f"data_center:egress:circuit:0:{context.provider_id}:data.example.com"
+    ]
+    assert released_slots == [
+        "data_center:egress:concurrency:0",
+        "data_center:egress:concurrency:17",
+    ]
 
 
 def test_oversized_json_body_is_failed_closed(monkeypatch: pytest.MonkeyPatch) -> None:

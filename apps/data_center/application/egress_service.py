@@ -7,7 +7,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from threading import Lock
-from typing import Protocol
+from typing import Protocol, cast
 from uuid import UUID, uuid4
 
 from apps.data_center.domain.egress_routing import (
@@ -24,7 +24,15 @@ from apps.data_center.domain.financial_response_evidence import (
     FinancialResponseEvidence,
     FinancialResponseScope,
 )
-from apps.data_center.domain.provider_response import ProviderResponseCapture
+from apps.data_center.domain.provider_document_response import (
+    ProviderDocumentResponseCapture,
+    normalize_document_content_type,
+    normalize_document_media_type_allowlist,
+)
+from apps.data_center.domain.provider_response import (
+    ProviderResponseCapture,
+    ProviderResponseTransport,
+)
 from core.exceptions import DataFetchError
 from core.integration.config_center_egress import (
     EgressEndpointSummary,
@@ -166,6 +174,23 @@ class EgressTransportProtocol(Protocol):
         headers: Mapping[str, str] | None,
     ) -> tuple[EgressTransportResult, ProviderResponseCapture | None]:
         """Return exact JSON body bytes for one non-financial provider response."""
+        ...
+
+
+class ProviderDocumentResponseTransportProtocol(Protocol):
+    """Optional raw-document capability for configured governed transports."""
+
+    def request_provider_document_response(
+        self,
+        context: EgressRequestContext,
+        *,
+        egress_id: int | None,
+        request_id: UUID,
+        attempt: int,
+        max_bytes: int,
+        allowed_media_types: frozenset[str],
+    ) -> tuple[EgressTransportResult, ProviderDocumentResponseCapture | None]:
+        """Capture exact identity-encoded bytes from one routed GET request."""
         ...
 
 
@@ -525,6 +550,107 @@ def execute_provider_response_request(
     raise DataFetchError(
         last.message or "出网原始响应捕获失败。",
         code=last.error_code or "EGRESS_PROVIDER_RESPONSE_CAPTURE_FAILED",
+    )
+
+
+def execute_provider_document_request(
+    context: EgressRequestContext,
+    *,
+    max_bytes: int,
+    allowed_media_types: frozenset[str],
+    max_attempts: int = 2,
+) -> ProviderDocumentResponseCapture:
+    """Capture one exact non-JSON document through the configured egress route."""
+
+    if isinstance(max_bytes, bool) or not isinstance(max_bytes, int) or max_bytes < 1:
+        raise EgressRoutingError("max_bytes must be positive", code="EGRESS_INVALID_BODY_LIMIT")
+    if (
+        isinstance(max_attempts, bool)
+        or not isinstance(max_attempts, int)
+        or not 1 <= max_attempts <= 2
+    ):
+        raise EgressRoutingError("max_attempts must be one or two")
+    try:
+        accepted_media_types = normalize_document_media_type_allowlist(allowed_media_types)
+    except ValueError as exc:
+        raise EgressRoutingError(
+            "an explicit concrete document MIME allowlist is required",
+            code="EGRESS_INVALID_DOCUMENT_MEDIA_TYPES",
+        ) from exc
+    transport = _transport
+    if transport is None:
+        raise DataFetchError("出网传输尚未配置。", code="EGRESS_TRANSPORT_UNAVAILABLE")
+    document_request = getattr(transport, "request_provider_document_response", None)
+    if not callable(document_request):
+        raise DataFetchError(
+            "出网传输不支持原始文档捕获。",
+            code="EGRESS_DOCUMENT_TRANSPORT_UNAVAILABLE",
+        )
+    document_transport = cast(ProviderDocumentResponseTransportProtocol, transport)
+    route = preview_route(context)
+    request_id = uuid4()
+    last = EgressTransportResult(
+        outcome="blocked",
+        error_code="EGRESS_NO_CANDIDATE",
+        message="没有可用出口。",
+    )
+    expected_host = target_hostname(context.target_url)
+    for attempt_number, egress_id in enumerate(route.candidates[:max_attempts], start=1):
+        result, capture = document_transport.request_provider_document_response(
+            context,
+            egress_id=egress_id,
+            request_id=request_id,
+            attempt=attempt_number,
+            max_bytes=max_bytes,
+            allowed_media_types=accepted_media_types,
+        )
+        if not isinstance(result, EgressTransportResult):
+            raise DataFetchError(
+                "出网传输未返回可核验的文档请求结果。",
+                code="EGRESS_DOCUMENT_TRANSPORT_INVALID",
+            )
+        valid_capture = False
+        if result.outcome == "success" and isinstance(capture, ProviderDocumentResponseCapture):
+            try:
+                media_type = normalize_document_content_type(capture.content_type)
+            except ValueError:
+                media_type = ""
+            valid_capture = (
+                capture.is_bound_to(
+                    request_id=request_id,
+                    attempt=attempt_number,
+                    egress_id=egress_id,
+                    target_url=context.target_url,
+                    target_host=expected_host,
+                )
+                and capture.body_size_bytes <= max_bytes
+                and capture.status_code == result.status_code
+                and capture.transport is ProviderResponseTransport.EGRESS
+                and media_type in accepted_media_types
+            )
+        if valid_capture and isinstance(capture, ProviderDocumentResponseCapture):
+            _record_attempt(
+                context, route, request_id, _diagnostic_attempt(result, attempt_number, egress_id)
+            )
+            return capture
+        if result.outcome == "success":
+            result = EgressTransportResult(
+                outcome="failed",
+                error_code="EGRESS_DOCUMENT_CAPTURE_BINDING_FAILED",
+                message="出网返回的文档响应未绑定到本次请求。",
+                status_code=result.status_code,
+                latency_ms=result.latency_ms,
+                retryable=False,
+            )
+        _record_attempt(
+            context, route, request_id, _diagnostic_attempt(result, attempt_number, egress_id)
+        )
+        last = result
+        if not result.retryable:
+            break
+    raise DataFetchError(
+        last.message or "出网文档响应捕获失败。",
+        code=last.error_code or "EGRESS_PROVIDER_DOCUMENT_CAPTURE_FAILED",
     )
 
 
@@ -1007,12 +1133,14 @@ __all__ = [
     "delete_endpoint",
     "diagnose_route",
     "execute_financial_response_request",
+    "execute_provider_document_request",
     "execute_provider_request",
     "FinancialResponseAttemptBudget",
     "FinancialResponseCaptureProtocol",
     "FinancialResponseRequestFailed",
     "FinancialResponseValidationResult",
     "FinancialResponseValidatorProtocol",
+    "ProviderDocumentResponseTransportProtocol",
     "get_egress_transport",
     "list_endpoints",
     "list_rules",

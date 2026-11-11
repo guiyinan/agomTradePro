@@ -1,5 +1,6 @@
 """Real application orchestration for bounded provider reads and redacted audit."""
 
+from hashlib import sha256
 from types import SimpleNamespace
 from unittest.mock import Mock
 from uuid import uuid4
@@ -15,11 +16,14 @@ from apps.data_center.domain.egress_routing import (
     EgressRequestContext,
     EgressRouteRule,
     EgressStrategy,
+    target_hostname,
 )
 from apps.data_center.domain.financial_response_evidence import (
     FinancialRequestScope,
     FinancialResponseScope,
 )
+from apps.data_center.domain.provider_document_response import ProviderDocumentResponseCapture
+from apps.data_center.domain.provider_response import ProviderResponseTransport
 from core.exceptions import DataFetchError
 
 
@@ -50,6 +54,36 @@ def routed(monkeypatch):
         deployment_region="overseas",
     )
     return context, transport, audit
+
+
+def _document_capture_for(
+    context: EgressRequestContext,
+    *,
+    request_id,
+    attempt: int,
+    egress_id: int | None,
+    **overrides: object,
+) -> ProviderDocumentResponseCapture:
+    """Build a raw capture bound to the exact request attempt and URL."""
+
+    body = overrides.pop("body", b"<html>raw law bytes\xff</html>")
+    assert isinstance(body, bytes)
+    values: dict[str, object] = {
+        "request_id": request_id,
+        "attempt": attempt,
+        "egress_id": egress_id,
+        "target_url_sha256": sha256(context.target_url.encode("utf-8")).hexdigest(),
+        "target_host": target_hostname(context.target_url),
+        "body": body,
+        "body_sha256": sha256(body).hexdigest(),
+        "body_size_bytes": len(body),
+        "response_completed_at": service.datetime.now(service.UTC),
+        "status_code": 200,
+        "content_type": "text/html; charset=utf-8",
+        "transport": ProviderResponseTransport.EGRESS,
+    }
+    values.update(overrides)
+    return ProviderDocumentResponseCapture(**values)  # type: ignore[arg-type]
 
 
 def test_network_failure_uses_one_backup_with_shared_request_id(routed):
@@ -99,6 +133,138 @@ def test_total_budget_stops_before_backup(routed):
         service.execute_provider_request(context, max_attempts=1)
     assert transport.request_payload.call_count == 1
     assert audit.record.call_count == 1
+
+
+def test_raw_document_executor_retries_and_audits_each_bound_request_attempt(
+    routed, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Raw documents use governed route candidates and one logical request ID."""
+
+    context, transport, audit = routed
+    request_id = uuid4()
+    monkeypatch.setattr(service, "uuid4", lambda: request_id)
+    first_capture = _document_capture_for(context, request_id=request_id, attempt=1, egress_id=None)
+    second_capture = _document_capture_for(context, request_id=request_id, attempt=2, egress_id=9)
+    transport.request_provider_document_response.side_effect = [
+        (
+            service.EgressTransportResult(
+                outcome="failed", error_code="EGRESS_TIMEOUT", retryable=True
+            ),
+            None,
+        ),
+        (service.EgressTransportResult(outcome="success", status_code=200), second_capture),
+    ]
+
+    capture = service.execute_provider_document_request(
+        context,
+        max_bytes=128,
+        allowed_media_types=frozenset({"text/html"}),
+    )
+
+    calls = transport.request_provider_document_response.call_args_list
+    assert capture is second_capture
+    assert [call.kwargs["egress_id"] for call in calls] == [None, 9]
+    assert [call.kwargs["attempt"] for call in calls] == [1, 2]
+    assert calls[0].kwargs["request_id"] == calls[1].kwargs["request_id"]
+    assert [call.kwargs["outcome"] for call in audit.record.call_args_list] == [
+        "failed",
+        "success",
+    ]
+    assert "private-token" not in str(audit.record.call_args_list)
+    assert first_capture.request_id == request_id
+
+
+@pytest.mark.parametrize(
+    ("overrides", "max_bytes"),
+    [
+        ({"request_id": uuid4()}, 128),
+        ({"attempt": 2}, 128),
+        ({"egress_id": 9}, 128),
+        ({"target_url_sha256": "0" * 64}, 128),
+        ({"target_host": "other.example.com"}, 128),
+        ({"content_type": "application/pdf"}, 128),
+        ({"transport": ProviderResponseTransport.DIRECT}, 128),
+        ({"status_code": 201}, 128),
+        ({"body": b"x" * 256}, 128),
+    ],
+    ids=[
+        "request",
+        "attempt",
+        "egress",
+        "url",
+        "host",
+        "mime",
+        "transport",
+        "status",
+        "size",
+    ],
+)
+def test_raw_document_executor_rejects_capture_not_bound_to_request(
+    routed,
+    monkeypatch: pytest.MonkeyPatch,
+    overrides: dict[str, object],
+    max_bytes: int,
+) -> None:
+    """A success result cannot return bytes from another route or request."""
+
+    context, transport, audit = routed
+    request_id = uuid4()
+    monkeypatch.setattr(service, "uuid4", lambda: request_id)
+
+    def response_for_request(
+        request_context: EgressRequestContext, **kwargs: object
+    ) -> tuple[service.EgressTransportResult, ProviderDocumentResponseCapture]:
+        capture_fields: dict[str, object] = {
+            "request_id": request_id,
+            "attempt": kwargs["attempt"],
+            "egress_id": kwargs["egress_id"],
+        }
+        capture_fields.update(overrides)
+        return (
+            service.EgressTransportResult(outcome="success", status_code=200),
+            _document_capture_for(request_context, **capture_fields),
+        )
+
+    transport.request_provider_document_response.side_effect = response_for_request
+
+    with pytest.raises(DataFetchError) as caught:
+        service.execute_provider_document_request(
+            context,
+            max_bytes=max_bytes,
+            allowed_media_types=frozenset({"text/html"}),
+        )
+
+    assert caught.value.code == "EGRESS_DOCUMENT_CAPTURE_BINDING_FAILED"
+    assert audit.record.call_count == 1
+    assert audit.record.call_args.kwargs["outcome"] == "failed"
+    assert transport.request_provider_document_response.call_count == 1
+
+
+def test_raw_document_executor_fails_closed_without_optional_transport_capability(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A transport without raw-byte support never falls back to decoded JSON."""
+
+    audit = Mock()
+    monkeypatch.setattr(service, "_transport", object())
+    monkeypatch.setattr(service, "_audit_writer", audit)
+    monkeypatch.setattr(service, "_rule_repository", Mock())
+    context = EgressRequestContext(
+        provider_id=3,
+        dataset_key="equity.price.bar",
+        target_url="https://data.example.com/daily",
+        deployment_region="overseas",
+    )
+
+    with pytest.raises(DataFetchError) as caught:
+        service.execute_provider_document_request(
+            context,
+            max_bytes=128,
+            allowed_media_types=frozenset({"text/html"}),
+        )
+
+    assert caught.value.code == "EGRESS_DOCUMENT_TRANSPORT_UNAVAILABLE"
+    audit.record.assert_not_called()
 
 
 def test_capacity_financial_capture_does_not_retry_a_second_route_candidate(
