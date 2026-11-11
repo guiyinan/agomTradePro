@@ -4149,7 +4149,7 @@
           "imports": 3
         },
         "simulated_trading": {
-          "imports": 77
+          "imports": 78
         },
         "strategy": {
           "imports": 1
@@ -10986,7 +10986,7 @@
           ]
         },
         "data_center": {
-          "imports": 77,
+          "imports": 78,
           "target_layers": [
             "application",
             "calendar_publication_operations_composition",

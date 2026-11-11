@@ -13832,7 +13832,7 @@
         "apps/simulated_trading/transition_plan_official_disclosure_source.py": [
           "policy.end_on != calendar.decision_on",
           "recorded_at < as_of",
-          "capture_and_append_szse_distribution_window",
+          "capture_and_append_szse_distribution_cohort",
           "transition_plan_disclosure_fingerprint"
         ],
         "apps/simulated_trading/transition_plan_event_coverage_composition.py": [

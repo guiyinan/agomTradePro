@@ -1,5 +1,5 @@
 {
-  "version": "2026-11-11.v384",
+  "version": "2026-11-11.v385",
   "updated_at": "2026-11-11",
   "execution_focus": {
     "unit_id": "ASH-05",
@@ -8,17 +8,8 @@
       "external",
       "governance"
     ],
-    "policy": "ASH-05 remains the sole active repository focus. Exact candidates 2fa52dfa3 and 8c500f988 passed their applicable CI workflows; failed ed5a38c44, e42f937e8, 97b7ae4b2 and 90aaa49f5 remain failed. Cash-payment ledger guard candidate 466ac6a48 passed all six applicable exact CI workflows including native Publication PostgreSQL; failed predecessor 90aaa49f5 retains its teardown failure. Owner service-write lease contract and Account explicit grant/revocation storage are integrated locally, but no authenticated issuer or production grant exists. Official proof windows remain historical. Owner approved simulation of cash transfer on the exchange-announced payment date with explicit simulated wording, not bank receipt verification. Root owns trusted Account issuer, same-alias locked posting verification, audited production payment, deferred tax, share/rights stages and all section 9 acceptance. One isolated official multi-asset cohort capture preparation remains registered below. CAL-02 remains planned after its offline contract integration. Default M1 remains available; production execution and deferred ASH-06/09/12 stay disabled. See A-share plan 19.184.",
-    "parallel_preparation": [
-      {
-        "unit_id": "ASH-05",
-        "scope": "One isolated ASH-05 official multi-asset cohort capture preparation in .tmp/ash05-official-cohort-20261111 based on 90aaa49f5. Refactor Data Center capture into candidate collection, final official listing recheck, and one common verified batch clock; append every security fact and coverage proof with Audit/Outbox in one same-alias atomic transaction only after all candidates qualify. Preserve single-security entry as one-item cohort, 60-second half-open lease, exact identity/scope, authority preflight and precommit revalidation, and fail-closed no partial DB writes on any member failure. Allowed production paths: apps/data_center/security_disclosure_capture_composition.py, apps/audit/security_disclosure_capture_composition.py, apps/simulated_trading/transition_plan_official_disclosure_source.py. Allowed tests: tests/unit/data_center/test_security_disclosure_capture_composition.py, tests/component/data_center/test_szse_distribution_window_ingestion.py, tests/unit/simulated_trading/test_transition_plan_official_disclosure_source.py. No grant/issuer/ledger posting, TUI, new Celery task, governance, generated projections, shared Git/index or formal tree edits. Root owns formal integration, native PostgreSQL, plan endpoint timing and section 9 acceptance. Report extra path needs before editing.",
-        "owner": "Luna max event_refresh under Root integration",
-        "isolated_workspace": true,
-        "shared_git_serialized": true,
-        "isolated_test_resources": true
-      }
-    ]
+    "policy": "ASH-05 remains the sole active repository focus. Exact candidates 2fa52dfa3 and 8c500f988 passed their applicable CI workflows; failed ed5a38c44, e42f937e8, 97b7ae4b2 and 90aaa49f5 remain failed. Cash-payment ledger guard candidate 466ac6a48 passed all six applicable exact CI workflows including native Publication PostgreSQL; failed predecessor 90aaa49f5 retains its teardown failure. Owner service-write lease contract and Account explicit grant/revocation storage are committed at 95d201f45, but no authenticated issuer or production grant exists. Official proof windows remain historical. Owner approved simulation of cash transfer on the exchange-announced payment date with explicit simulated wording, not bank receipt verification. Root owns trusted Account issuer, same-alias locked posting verification, audited production payment, deferred tax, share/rights stages and all section 9 acceptance. Official multi-asset cohort capture is integrated into the formal tree; 64 final local regression cases, incremental mypy, zero full debt and applicable development gates passed; exact native PostgreSQL CI remains pending. No isolated ASH-05 preparation remains. CAL-02 remains planned after its offline contract integration. Default M1 remains available; production execution and deferred ASH-06/09/12 stay disabled. See A-share plan 19.185.",
+    "parallel_preparation": []
   },
   "workstreams": [
     {
@@ -404,7 +395,7 @@
       "priority": "P0/P1",
       "owner": "portfolio+risk_center+data_center+simulated_trading+backtest+broker_execution+terminal",
       "status": "active",
-      "next_gate": "ASH-05 stays active. Settlement candidate 2fa52dfa3 and owner lease contract candidate 8c500f988 passed exact CI. Cash-payment ledger guard candidate 466ac6a48 passed six exact CI workflows including native Publication PostgreSQL; failed predecessors remain recorded. Account grant/revocation storage is integrated locally with no trusted authenticated issuer or production grant. One isolated official multi-asset cohort capture preparation remains. Current-window official coverage, normal-account Audit write authority, cash/share/tax posting and section 9 gold journeys precede closure. Default M1 remains available; production execution and deferred ASH-06/09/12 stay disabled.",
+      "next_gate": "ASH-05 stays active. Settlement candidate 2fa52dfa3 and owner lease contract candidate 8c500f988 passed exact CI. Cash-payment ledger guard candidate 466ac6a48 passed six exact CI workflows including native Publication PostgreSQL; failed predecessors remain recorded. Account grant/revocation storage is committed at 95d201f45 with no trusted authenticated issuer or production grant. Official multi-asset cohort capture is integrated; local development gates passed; exact native PostgreSQL CI remains pending. Current-window official coverage, normal-account Audit write authority, cash/share/tax posting and section 9 gold journeys precede closure. Default M1 remains available; production execution and deferred ASH-06/09/12 stay disabled.",
       "documents": [
         {
           "path": "docs/plans/a-share-usability-implementation-plan-2026-10-16.md",

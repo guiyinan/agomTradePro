@@ -23,7 +23,9 @@ from apps.data_center.domain.security_disclosure_event import (
     SzseDistributionTerms,
 )
 from apps.data_center.infrastructure.official_szse_announcement_listing import (
-    CapturedOfficialSzseListingWindow,
+    CapturedOfficialSzseListingWindow as CapturedOfficialSzseListingWindow,
+)
+from apps.data_center.infrastructure.official_szse_announcement_listing import (
     OfficialSzseListingError,
     capture_official_szse_announcement_window,
 )
@@ -169,6 +171,25 @@ class CapturedSzseDistributionCandidate:
     proof: SecurityDisclosureListingCoverageProof
 
 
+@dataclass(frozen=True, slots=True)
+class SzseDistributionWindowRequest:
+    """One exact official listing window to capture into a shared cohort."""
+
+    asset_code: str
+    start_on: date
+    end_on: date
+    body_store_root: Path
+
+
+@dataclass(frozen=True, slots=True)
+class _PendingSzseDistributionCandidate:
+    """Initial complete listing and every selected PDF before final cohort recheck."""
+
+    request: SzseDistributionWindowRequest
+    listing: CapturedOfficialSzseListingWindow
+    events: tuple[tuple[SecurityDisclosureEvent, bytes], ...]
+
+
 def _distribution_title_key(title: str) -> str:
     """Normalize one source title only for a bounded correction-lineage match."""
 
@@ -183,17 +204,66 @@ def capture_szse_distribution_window(
     end_on: date,
     body_store_root: Path,
 ) -> CapturedSzseDistributionCandidate:
-    """Capture every listed official PDF, recheck both lists, and return typed evidence."""
+    """Capture one official window through the same two-phase cohort path."""
 
-    if type(asset_code) is not str or re.fullmatch(r"[0-9]{6}\.SZ", asset_code) is None:
-        raise ValueError("asset_code must be a canonical SZSE security code")
-    listing = capture_official_szse_announcement_window(
+    request = SzseDistributionWindowRequest(
         asset_code=asset_code,
         start_on=start_on,
         end_on=end_on,
-        body_store_root=body_store_root / "listing",
+        body_store_root=body_store_root,
     )
-    body_store = OfficialSzsePdfBodyStore(body_store_root / "pdf")
+    return capture_szse_distribution_cohort((request,))[0]
+
+
+def capture_szse_distribution_cohort(
+    windows: tuple[SzseDistributionWindowRequest, ...],
+) -> tuple[CapturedSzseDistributionCandidate, ...]:
+    """Capture all PDFs first, recheck every listing, then seal one verified cohort clock."""
+
+    if type(windows) is not tuple or not windows:
+        raise OfficialSzseListingError("SZSE cohort requires at least one exact window")
+    first_window = windows[0]
+    if type(first_window) is not SzseDistributionWindowRequest:
+        raise OfficialSzseListingError("SZSE cohort window request is invalid")
+    seen_assets: set[str] = set()
+    for window in windows:
+        if (
+            type(window) is not SzseDistributionWindowRequest
+            or type(window.asset_code) is not str
+            or re.fullmatch(r"[0-9]{6}\.SZ", window.asset_code) is None
+            or type(window.start_on) is not date
+            or type(window.end_on) is not date
+            or window.start_on > window.end_on
+            or not isinstance(window.body_store_root, Path)
+            or (window.start_on, window.end_on) != (first_window.start_on, first_window.end_on)
+            or window.asset_code in seen_assets
+        ):
+            raise OfficialSzseListingError("SZSE cohort identities or windows are invalid")
+        seen_assets.add(window.asset_code)
+
+    pending = tuple(_capture_distribution_candidate(window) for window in windows)
+    final_listings = tuple(_recheck_distribution_listing(item) for item in pending)
+    verified_at = max(listing.observed_at for listing in final_listings)
+    candidates = tuple(
+        _finalize_distribution_candidate(item, final_listing, verified_at=verified_at)
+        for item, final_listing in zip(pending, final_listings, strict=True)
+    )
+    return candidates
+
+
+def _capture_distribution_candidate(
+    request: SzseDistributionWindowRequest,
+) -> _PendingSzseDistributionCandidate:
+    """Capture one complete initial listing and all of its original PDFs."""
+
+    asset_code = request.asset_code
+    listing = capture_official_szse_announcement_window(
+        asset_code=asset_code,
+        start_on=request.start_on,
+        end_on=request.end_on,
+        body_store_root=request.body_store_root / "listing",
+    )
+    body_store = OfficialSzsePdfBodyStore(request.body_store_root / "pdf")
     latest_by_title: dict[str, SecurityDisclosureEvent] = {}
     captured_events: list[tuple[SecurityDisclosureEvent, bytes]] = []
     listed_entries = sorted(
@@ -269,27 +339,51 @@ def capture_szse_distribution_window(
             SecurityDisclosureEventType.STOCK_DIVIDEND,
         ):
             latest_by_title[title_key] = event
+    return _PendingSzseDistributionCandidate(
+        request=request,
+        listing=listing,
+        events=tuple(captured_events),
+    )
+
+
+def _recheck_distribution_listing(
+    candidate: _PendingSzseDistributionCandidate,
+) -> CapturedOfficialSzseListingWindow:
+    """Re-read one listing only after every cohort member's PDFs have been captured."""
+
+    request = candidate.request
     final_listing = capture_official_szse_announcement_window(
-        asset_code=asset_code,
-        start_on=start_on,
-        end_on=end_on,
-        body_store_root=body_store_root / "listing",
+        asset_code=request.asset_code,
+        start_on=request.start_on,
+        end_on=request.end_on,
+        body_store_root=request.body_store_root / "listing",
     )
     if (
-        final_listing.manifest_sha256 != listing.manifest_sha256
-        or final_listing.coverage_manifest_sha256 != listing.coverage_manifest_sha256
+        final_listing.manifest_sha256 != candidate.listing.manifest_sha256
+        or final_listing.coverage_manifest_sha256 != candidate.listing.coverage_manifest_sha256
     ):
-        raise OfficialSzseListingError("SZSE listing changed during PDF capture")
-    if any(event.first_seen_at > final_listing.observed_at for event, _ in captured_events):
+        raise OfficialSzseListingError("SZSE listing changed during cohort PDF capture")
+    if any(event.first_seen_at > final_listing.observed_at for event, _ in candidate.events):
         raise OfficialSzseListingError("SZSE PDF knowledge follows final listing verification")
+    return final_listing
+
+
+def _finalize_distribution_candidate(
+    candidate: _PendingSzseDistributionCandidate,
+    final_listing: CapturedOfficialSzseListingWindow,
+    *,
+    verified_at: datetime,
+) -> CapturedSzseDistributionCandidate:
+    """Bind every member to the same server verification instant."""
+
     proof = SecurityDisclosureListingCoverageProof(
         source=SecurityDisclosureSource.SZSE_OFFICIAL,
         exchange=SecurityDisclosureExchange.SZSE,
         asset_code=final_listing.asset_code,
         start_on=final_listing.start_on,
         end_on=final_listing.end_on,
-        first_observed_at=listing.observed_at,
-        verified_at=final_listing.observed_at,
+        first_observed_at=candidate.listing.observed_at,
+        verified_at=verified_at,
         announcement_count=final_listing.announcement_count,
         entries=final_listing.entries,
         first_pass_page_body_sha256=final_listing.first_pass_page_body_sha256,
@@ -297,6 +391,6 @@ def capture_szse_distribution_window(
     )
     return CapturedSzseDistributionCandidate(
         listing=final_listing,
-        events=tuple(captured_events),
+        events=candidate.events,
         proof=proof,
     )

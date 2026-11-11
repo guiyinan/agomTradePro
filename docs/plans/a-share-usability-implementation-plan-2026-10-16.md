@@ -3171,3 +3171,11 @@ v380 专门 registry 修复候选 `b3f9d9e13f24d45da6bc48c13cd46d64624e1178` 的
 Account grant/revocation 存储隔离八文件按 SHA-256 核验后整合。正式树单测 **6 passed**、真实迁移组件 **7 passed**，Black/isort/Ruff、六文件增量 mypy、债务上限、`makemigrations --check --dry-run account`、Django 系统检查、架构、模块地图、数据字典与 Data Center 投影通过；PostgreSQL 原生存储门已加入 Publication 工作流，精确 CI 等下一提交。grant 绑定固定写权限与服务 actor、精确模拟账户和 owner/tenant、来源/政策及 consent/issuer 证据，append-only CAS successor、撤销及当前读取不回退旧版本；scope 查询保留并存 owner 冲突。只读审查未发现 P0/P1 存储缺陷，但当前 cutoff 前的未来撤销会保守拒绝旧 grant；生产接线必须使用服务端当前时钟、受认证主体与物理账户 owner 锁内事实，不能将存储自身当签发资格。registry v384 仅保留 cohort 隔离准备，ASH-05 仍 active。
 
 付款门精确候选 `466ac6a4832bfec6686c080429b11a6df121046c` 的六项适用 CI 全部成功，Publication PostgreSQL 真实执行到账日期、完整应收和既有现金权益/账户隔离用例；忽略目录索引 `artifacts/ash05-event-policy-20261111/466-payment-evidence-index.json` SHA-256 为 `2430e86562f5b1023bd646d6800d100bdd0d7a06107c7ca261ae19604ee01bf8`。索引保留两次失败候选的原件，不能用该通过替代 Account grant 的原生 PG 或生产授权接线。
+
+### 19.185 ASH-05 恢复与多证券原子捕获（2026-11-11）
+
+本次恢复基线 `466ac6a48`，沿用 `dev/next-development`。已有 Account grant/revocation 八文件和对应模型入口、投影及 PostgreSQL 节点落入正式提交 `95d201f45`；恢复单测与工作流契约 44 passed。此前已记录的迁移组件和开发门禁结论保留，精确 CI 另验，不将纯存储等同于可信签发或普通账户已获授权。
+
+登记副本 `.tmp/ash05-official-cohort-20261111` 的六文件逐项 SHA-256 核对后整合。候选收集、全部原文捕获、末次列表复核与共同验证时钟分阶段执行；在同别名外层事务中追加全部证券事实、覆盖证明、Audit 和 Outbox。单证券走一项批次。任一成员、审计或提交前时钟/授权失败均回滚；60 秒半开 lease 保持。补入写入过程中到期的回滚反例；三个批次组件节点加入既有原生 PostgreSQL 工作流，并同步精确节点清单。正式树首次回归 25 passed，最终源码合批回归 **64 passed**；新增测试的全局时钟污染、运行器缺少 PYTHONPATH、公开类型未显式导出和中间投影漂移均保留失败原件，修正后分别复验。最终回归复用本次已迁移且模型未变化的隔离 SQLite，未使用开发业务库。命令、输入身份、真实退出码与原件哈希集中记录于 `artifacts/ash05-event-policy-20261111/resume-cohort-evidence-index.json`；未完成的检查不得计通过。
+
+剩余顺序：先完成本批开发门禁和同候选 PostgreSQL CI，再实现受认证主体的 Account 签发/撤销与锁内复验、Audit/Outbox 模拟付款、后扣税与股份/配股阶段，最后验证当前官方窗口、普通用户主任务及 §9 全部金样本。默认 M1 保留；无生产部署或实盘执行变更。ASH-05 仍 active，当前批次通过不能关闭整单元。回滚按本批提交撤销代码并重建投影；已入库的不可变事实和授权历史不删除。

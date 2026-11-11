@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import hashlib
 from contextlib import AbstractContextManager
-from datetime import date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 from django.utils import timezone
@@ -191,7 +192,7 @@ def test_window_ingestion_links_corrected_pdf_and_replays_without_duplicate_rows
             documents, start=1
         )
     )
-    listing_observed_at = timezone.now() - timedelta(seconds=150)
+    listing_observed_at = timezone.now() - timedelta(seconds=30)
     verified_at = listing_observed_at + timedelta(seconds=5)
     retained_entries = tuple(reversed(entries))
     proof = SecurityDisclosureListingCoverageProof(
@@ -224,12 +225,12 @@ def test_window_ingestion_links_corrected_pdf_and_replays_without_duplicate_rows
 
     listing = make_listing(listing_observed_at)
     final_listing = make_listing(verified_at)
-    later_listing = make_listing(listing_observed_at + timedelta(seconds=60))
-    later_final_listing = make_listing(listing_observed_at + timedelta(seconds=65))
+    later_listing = make_listing(listing_observed_at + timedelta(seconds=10))
+    later_final_listing = make_listing(listing_observed_at + timedelta(seconds=15))
     batch_first_seen_at = (
         listing_observed_at + timedelta(seconds=1),
         listing_observed_at + timedelta(seconds=1),
-        listing_observed_at + timedelta(seconds=61),
+        listing_observed_at + timedelta(seconds=11),
     )
     bodies = {
         document_id: f"%PDF-1.4\n{document_id}\n%%EOF".encode() for document_id, *_ in documents
@@ -1181,3 +1182,217 @@ def test_late_recorded_fact_does_not_complete_older_exact_coverage_snapshot() ->
     assert snapshot.events == ()
     assert snapshot.coverage_status is SecurityDisclosureListingCoverageStatus.PARTIAL
     assert snapshot.reason_code == "LISTED_EVENT_NOT_REPRESENTED"
+
+
+def _empty_candidate_for_asset(
+    asset_code: str, *, verified_at: datetime
+) -> source_composition.CapturedSzseDistributionCandidate:
+    """Build one exact empty-listing candidate for a cohort transaction test."""
+
+    page_hash = hashlib.sha256(asset_code.encode("ascii")).hexdigest()
+    proof = SecurityDisclosureListingCoverageProof(
+        source=SecurityDisclosureSource.SZSE_OFFICIAL,
+        exchange=SecurityDisclosureExchange.SZSE,
+        asset_code=asset_code,
+        start_on=date(2026, 9, 1),
+        end_on=date(2026, 9, 30),
+        first_observed_at=verified_at - timedelta(seconds=1),
+        verified_at=verified_at,
+        announcement_count=0,
+        entries=(),
+        first_pass_page_body_sha256=(page_hash,),
+        second_pass_page_body_sha256=(page_hash,),
+    )
+    listing = CapturedOfficialSzseListingWindow(
+        asset_code=asset_code,
+        start_on=proof.start_on,
+        end_on=proof.end_on,
+        observed_at=verified_at,
+        announcement_count=0,
+        entries=(),
+        first_pass_page_body_sha256=proof.first_pass_page_body_sha256,
+        page_body_sha256=proof.second_pass_page_body_sha256,
+        manifest_sha256=proof.source_manifest_sha256,
+        coverage_manifest_sha256=proof.coverage_manifest_sha256,
+    )
+    return source_composition.CapturedSzseDistributionCandidate(
+        listing=listing,
+        events=(),
+        proof=proof,
+    )
+
+
+@pytest.mark.django_db
+def test_multi_asset_cohort_commits_all_proofs_and_audits_at_shared_clocks(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Two securities share one verification and persistence clock in one cohort."""
+
+    _configure_test_audit(monkeypatch)
+    verified_at = timezone.now() - timedelta(seconds=1)
+    asset_codes = ("002727.SZ", "301237.SZ")
+    candidates = tuple(
+        _empty_candidate_for_asset(asset_code, verified_at=verified_at)
+        for asset_code in asset_codes
+    )
+    requests = tuple(
+        source_composition.SzseDistributionWindowRequest(
+            asset_code=asset_code,
+            start_on=date(2026, 9, 1),
+            end_on=date(2026, 9, 30),
+            body_store_root=tmp_path / asset_code,
+        )
+        for asset_code in asset_codes
+    )
+    monkeypatch.setattr(
+        composition,
+        "capture_szse_distribution_cohort",
+        lambda windows: candidates,
+    )
+
+    results = composition.capture_and_append_szse_distribution_cohort(
+        requests,
+        lease_ttl=timedelta(seconds=60),
+        using="default",
+        audit_environment="development",
+    )
+
+    assert tuple(result.coverage.record.proof.asset_code for result in results) == asset_codes
+    assert {result.coverage.record.proof.verified_at for result in results} == {verified_at}
+    assert len({result.coverage.record.recorded_at for result in results}) == 1
+    assert len({result.audit.commit.event.recorded_at for result in results}) == 1
+    assert {result.coverage.record.recorded_at for result in results} == {
+        result.audit.commit.event.recorded_at for result in results
+    }
+    assert SecurityDisclosureEventModel.objects.count() == 0
+    assert SecurityDisclosureListingCoverageModel.objects.count() == 2
+    assert (
+        SystemAuditEventModel.objects.filter(event_type="data.disclosure_fact.appended").count()
+        == 2
+    )
+    assert SystemAuditOutboxModel.objects.count() == 2
+
+
+@pytest.mark.django_db
+def test_second_asset_audit_failure_rolls_back_entire_cohort(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """A failure after the second Audit/outbox append leaves no cohort DB writes."""
+
+    _configure_test_audit(monkeypatch)
+    verified_at = timezone.now() - timedelta(seconds=1)
+    asset_codes = ("002727.SZ", "301237.SZ")
+    candidates = tuple(
+        _empty_candidate_for_asset(asset_code, verified_at=verified_at)
+        for asset_code in asset_codes
+    )
+    requests = tuple(
+        source_composition.SzseDistributionWindowRequest(
+            asset_code=asset_code,
+            start_on=date(2026, 9, 1),
+            end_on=date(2026, 9, 30),
+            body_store_root=tmp_path / asset_code,
+        )
+        for asset_code in asset_codes
+    )
+    monkeypatch.setattr(
+        composition,
+        "capture_szse_distribution_cohort",
+        lambda windows: candidates,
+    )
+    original_append = DjangoSystemAuditEventOutboxCoordinator.append_and_enqueue
+    append_count = 0
+
+    def append_second_then_fail(
+        coordinator: DjangoSystemAuditEventOutboxCoordinator,
+        event: SystemAuditEvent,
+        *,
+        expected_predecessor_hash: str | None,
+        recorded_at: datetime,
+    ) -> SystemAuditEventOutboxCommit:
+        nonlocal append_count
+        result = original_append(
+            coordinator,
+            event,
+            expected_predecessor_hash=expected_predecessor_hash,
+            recorded_at=recorded_at,
+        )
+        append_count += 1
+        if append_count == 2:
+            raise RuntimeError("second cohort audit append failed")
+        return result
+
+    monkeypatch.setattr(
+        DjangoSystemAuditEventOutboxCoordinator,
+        "append_and_enqueue",
+        append_second_then_fail,
+    )
+
+    with pytest.raises(RuntimeError, match="second cohort audit append failed"):
+        composition.capture_and_append_szse_distribution_cohort(
+            requests,
+            lease_ttl=timedelta(seconds=60),
+            using="default",
+            audit_environment="development",
+        )
+
+    assert append_count == 2
+    assert SecurityDisclosureEventModel.objects.count() == 0
+    assert SecurityDisclosureListingCoverageModel.objects.count() == 0
+    assert SystemAuditEventModel.objects.count() == 0
+    assert SystemAuditOutboxModel.objects.count() == 0
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("expire_before_commit", [False, True])
+def test_cohort_source_proof_at_lease_expiry_blocks_all_writes(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    expire_before_commit: bool,
+) -> None:
+    """The half-open cohort lease rejects a proof exactly at its configured expiry."""
+
+    _configure_test_audit(monkeypatch)
+    verified_at = datetime(2026, 11, 11, 1, 0, tzinfo=UTC)
+    batch_recorded_at = verified_at + timedelta(seconds=59 if expire_before_commit else 60)
+    candidates = (_empty_candidate_for_asset("002727.SZ", verified_at=verified_at),)
+    request = source_composition.SzseDistributionWindowRequest(
+        asset_code="002727.SZ",
+        start_on=date(2026, 9, 1),
+        end_on=date(2026, 9, 30),
+        body_store_root=tmp_path,
+    )
+    monkeypatch.setattr(composition, "capture_szse_distribution_cohort", lambda windows: candidates)
+    ticks = iter(
+        (
+            verified_at + timedelta(seconds=1),
+            verified_at + timedelta(seconds=2),
+            batch_recorded_at,
+            verified_at + timedelta(seconds=60),
+        )
+    )
+    monkeypatch.setattr(composition, "timezone", SimpleNamespace(now=lambda: next(ticks)))
+    monkeypatch.setattr(
+        composition,
+        "get_system_audit_authority_lease",
+        lambda **kwargs: SystemAuditAuthorityLease(
+            mode="required",
+            outbox_enabled=True,
+            valid_until=verified_at + timedelta(minutes=5),
+        ),
+    )
+
+    with pytest.raises(SecurityDisclosureAuditUnavailable):
+        composition.capture_and_append_szse_distribution_cohort(
+            (request,),
+            lease_ttl=timedelta(seconds=60),
+            using="default",
+            audit_environment="development",
+        )
+
+    assert SecurityDisclosureEventModel.objects.count() == 0
+    assert SecurityDisclosureListingCoverageModel.objects.count() == 0
+    assert SystemAuditEventModel.objects.count() == 0
+    assert SystemAuditOutboxModel.objects.count() == 0

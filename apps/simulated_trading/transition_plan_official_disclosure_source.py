@@ -12,12 +12,15 @@ from typing import Protocol
 from apps.audit.application.security_disclosure_audit import SecurityDisclosureAuditAppendResult
 from apps.audit.security_disclosure_capture_composition import (
     SzseDistributionWindowIngestion,
-    capture_and_append_szse_distribution_window,
+    capture_and_append_szse_distribution_cohort,
 )
 from apps.data_center.domain.security_disclosure_event import (
     SecurityDisclosureExchange,
     SecurityDisclosureListingCoverageAppendResult,
     SecurityDisclosureSource,
+)
+from apps.data_center.security_disclosure_capture_composition import (
+    SzseDistributionWindowRequest,
 )
 from apps.portfolio.domain.transition_plan_event_review import (
     TransitionPlanEventCoverageLeasePolicy,
@@ -144,6 +147,20 @@ class OfficialDisclosurePolicyReader(Protocol):
 class OfficialSzseWindowCapture(Protocol):
     """Persist an official window with Audit/Outbox outside the account lock."""
 
+    def capture_cohort(
+        self,
+        *,
+        asset_codes: tuple[str, ...],
+        start_on: date,
+        end_on: date,
+        body_store_root: Path,
+        lease_ttl: timedelta,
+        using: str,
+        audit_environment: str,
+    ) -> datetime:
+        """Capture and atomically append all listed securities with one record clock."""
+        ...
+
     def capture_window(
         self,
         *,
@@ -173,32 +190,81 @@ class AuditBackedSzseWindowCapture:
     ) -> datetime:
         """Return the exact persisted proof clock only for a matching Audit batch."""
 
-        result = capture_and_append_szse_distribution_window(
-            asset_code=asset_code,
+        return self.capture_cohort(
+            asset_codes=(asset_code,),
             start_on=start_on,
             end_on=end_on,
             body_store_root=body_store_root,
+            lease_ttl=_MAXIMUM_LEASE,
             using=using,
             audit_environment=audit_environment,
         )
+
+    def capture_cohort(
+        self,
+        *,
+        asset_codes: tuple[str, ...],
+        start_on: date,
+        end_on: date,
+        body_store_root: Path,
+        lease_ttl: timedelta,
+        using: str,
+        audit_environment: str,
+    ) -> datetime:
+        """Verify the complete durable cohort and return its common persisted clock."""
+
         if (
-            type(result) is not SzseDistributionWindowIngestion
-            or type(result.coverage) is not SecurityDisclosureListingCoverageAppendResult
-            or type(result.audit) is not SecurityDisclosureAuditAppendResult
+            type(asset_codes) is not tuple
+            or not asset_codes
+            or len(set(asset_codes)) != len(asset_codes)
         ):
+            raise RebalanceJourneyUnavailable(code="REBALANCE_PLAN_EVENT_CAPTURE_SCOPE_INVALID")
+        windows = tuple(
+            SzseDistributionWindowRequest(
+                asset_code=asset_code,
+                start_on=start_on,
+                end_on=end_on,
+                body_store_root=body_store_root,
+            )
+            for asset_code in asset_codes
+        )
+        results = capture_and_append_szse_distribution_cohort(
+            windows,
+            lease_ttl=lease_ttl,
+            using=using,
+            audit_environment=audit_environment,
+        )
+        if type(results) is not tuple or len(results) != len(asset_codes):
             raise RebalanceJourneyUnavailable(code="REBALANCE_PLAN_EVENT_CAPTURE_INVALID")
-        record = result.coverage.record
-        proof = record.proof
-        if (
-            proof.source is not SecurityDisclosureSource.SZSE_OFFICIAL
-            or proof.exchange is not SecurityDisclosureExchange.SZSE
-            or proof.asset_code != asset_code
-            or proof.start_on != start_on
-            or proof.end_on != end_on
-            or result.candidate.proof != proof
-        ):
-            raise RebalanceJourneyUnavailable(code="REBALANCE_PLAN_EVENT_CAPTURE_MISMATCH")
-        return record.recorded_at
+        verified_clocks: set[datetime] = set()
+        recorded_clocks: set[datetime] = set()
+        for asset_code, result in zip(asset_codes, results, strict=True):
+            if (
+                type(result) is not SzseDistributionWindowIngestion
+                or type(result.coverage) is not SecurityDisclosureListingCoverageAppendResult
+                or type(result.audit) is not SecurityDisclosureAuditAppendResult
+            ):
+                raise RebalanceJourneyUnavailable(code="REBALANCE_PLAN_EVENT_CAPTURE_INVALID")
+            record = result.coverage.record
+            proof = record.proof
+            if (
+                proof.source is not SecurityDisclosureSource.SZSE_OFFICIAL
+                or proof.exchange is not SecurityDisclosureExchange.SZSE
+                or proof.asset_code != asset_code
+                or proof.start_on != start_on
+                or proof.end_on != end_on
+                or result.candidate.proof != proof
+                or result.candidate.listing.asset_code != asset_code
+                or result.audit.commit.event.event_type != "data.disclosure_fact.appended"
+                or result.audit.commit.event.recorded_at != record.recorded_at
+                or record.recorded_at < proof.verified_at
+            ):
+                raise RebalanceJourneyUnavailable(code="REBALANCE_PLAN_EVENT_CAPTURE_MISMATCH")
+            verified_clocks.add(proof.verified_at)
+            recorded_clocks.add(record.recorded_at)
+        if len(verified_clocks) != 1 or len(recorded_clocks) != 1:
+            raise RebalanceJourneyUnavailable(code="REBALANCE_PLAN_EVENT_CAPTURE_CLOCK_MISMATCH")
+        return next(iter(recorded_clocks))
 
 
 class OfficialSzseDistributionRefresher:
@@ -218,7 +284,7 @@ class OfficialSzseDistributionRefresher:
         if (
             not callable(getattr(origin_reader, "read_verified_zero_origin_calendar", None))
             or not callable(getattr(policy_reader, "read_policy", None))
-            or not callable(getattr(capture, "capture_window", None))
+            or not callable(getattr(capture, "capture_cohort", None))
             or type(using) is not str
             or not using
             or type(audit_environment) is not str
@@ -310,35 +376,33 @@ class OfficialSzseDistributionRefresher:
             maximum_ttl=policy.lease_policy.maximum_ttl,
         )
 
-        for identity in asset_identities:
-            try:
-                recorded_at = self._capture.capture_window(
-                    asset_code=identity.asset_code,
-                    start_on=policy.start_on,
-                    end_on=policy.end_on,
-                    body_store_root=policy.body_store_root,
-                    using=self._using,
-                    audit_environment=self._audit_environment,
-                )
-            except (
-                AgomTradeProException,
-                ArithmeticError,
-                AttributeError,
-                OSError,
-                RuntimeError,
-                TypeError,
-                ValueError,
-            ) as error:
-                raise RebalanceJourneyUnavailable(
-                    code="REBALANCE_PLAN_EVENT_REFRESH_FAILED"
-                ) from error
-            if (
-                type(recorded_at) is not datetime
-                or recorded_at.tzinfo is None
-                or recorded_at.utcoffset() is None
-                or recorded_at < as_of
-            ):
-                raise RebalanceJourneyUnavailable(code="REBALANCE_PLAN_EVENT_CAPTURE_INVALID")
+        try:
+            recorded_at = self._capture.capture_cohort(
+                asset_codes=tuple(sorted(asset_codes)),
+                start_on=policy.start_on,
+                end_on=policy.end_on,
+                body_store_root=policy.body_store_root,
+                lease_ttl=policy.lease_policy.ttl,
+                using=self._using,
+                audit_environment=self._audit_environment,
+            )
+        except (
+            AgomTradeProException,
+            ArithmeticError,
+            AttributeError,
+            OSError,
+            RuntimeError,
+            TypeError,
+            ValueError,
+        ) as error:
+            raise RebalanceJourneyUnavailable(code="REBALANCE_PLAN_EVENT_REFRESH_FAILED") from error
+        if (
+            type(recorded_at) is not datetime
+            or recorded_at.tzinfo is None
+            or recorded_at.utcoffset() is None
+            or recorded_at < as_of
+        ):
+            raise RebalanceJourneyUnavailable(code="REBALANCE_PLAN_EVENT_CAPTURE_INVALID")
         return RebalanceJourneyOfficialEventRefreshReceipt(
             request_scope=request_scope,
             asset_pairs=tuple(

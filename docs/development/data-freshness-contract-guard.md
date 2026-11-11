@@ -315,6 +315,8 @@ ASH-05 的 `simulated_trading.corporate_action_price_basis_and_nav` 要求公司
 
 ### ASH-05 逐证券公告 proof 的当前复核
 
+多证券官方抓取先完成全部候选列表及原文，再逐证券末次复核列表，绑定共同的验证与持久化时钟。事实、覆盖证明及每只证券的 Audit/Outbox 使用同一数据库别名和外层事务；任一证券、审计写入或提交前校验失败时整批回滚。单证券沿用一项批次入口。内部 lease 仍最多 60 秒且为半开区间，采集耗时不能延长有效期；提交前再次核对当前授权与时钟，失败不留下部分证券的数据库证明。原文可保留作诊断，不能凭文件存在宣称覆盖完整。此改动不证明当前生产窗口或普通账户入账资格。
+
 调仓计划封存的公告窗口只证明其原始 `recorded_at` 截止点。普通精确读取在较晚时刻仍返回 `UNKNOWN`，不得因读到最新 proof 就宣称当前完整。显式复核先在动作时刻定位同证券、同来源、同窗口的最新持久 proof，再按其 `recorded_at` 精确二读 `COMPLETE`，并读取动作时刻已入库的窗口内事件修订。计划绑定 lease 和当前 proof 的内部 lease 均按版本化政策在动作时刻检查，60 秒为半开上限；到期、缺失、身份不一致、UNKNOWN 或无法核实的更正均阻断。能确认的新事件或修订要求后继计划复核；正常的 proof 记录时钟更新且内容不变不构成事件变化。此内部容忍时效不代表交易所保证公告不变，历史窗口也不证明当前日期覆盖。Config Center 的可选 `simulated_disclosure_coverage_policy` 明确启用时，生产计划生成才成对注入 SZSE 官方 Audit/Outbox 采集与最终 proof pin；未配置时维持 M1。`start_on` 不得晚于账户已核实零起点，实际窗口终点取交易所本地决策日（包括非交易日）。非 proof 刷新回执绑定账户、精确证券集、窗口以及 Config Center profile/snapshot、策略内容和时区政策指纹；最终计划时钟重新读取这些证据，再从 Data Center latest→exact 路径独立取得 proof。复核及锁内预留重新核对现行指纹、窗口、事件修订与 lease，事务写入前还需再验时钟；采集回执不代替数据库证明。策略缺失、证据矛盾或 lease 到期阻断选入公告门的计划；该链仍待真实 PostgreSQL、普通用户路径和 §9 公司行为金样本验收。合同沿用 `simulated_trading.trusted_rebalance_journey`。
 
 ### 评分消费者保留上下文阻断

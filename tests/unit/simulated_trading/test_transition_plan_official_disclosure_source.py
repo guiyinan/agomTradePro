@@ -79,6 +79,35 @@ class _Capture:
     fail_on: str | None = None
     recorded_at: datetime = AS_OF + timedelta(seconds=1)
     calls: list[tuple[str, date, date, Path, str, str]] = field(default_factory=list)
+    cohort_calls: list[tuple[tuple[str, ...], date, date, Path, timedelta, str, str]] = field(
+        default_factory=list
+    )
+
+    def capture_cohort(
+        self,
+        *,
+        asset_codes: tuple[str, ...],
+        start_on: date,
+        end_on: date,
+        body_store_root: Path,
+        lease_ttl: timedelta,
+        using: str,
+        audit_environment: str,
+    ) -> datetime:
+        self.cohort_calls.append(
+            (
+                asset_codes,
+                start_on,
+                end_on,
+                body_store_root,
+                lease_ttl,
+                using,
+                audit_environment,
+            )
+        )
+        if self.fail_on is not None and self.fail_on in asset_codes:
+            raise RuntimeError("official cohort capture failed")
+        return self.recorded_at
 
     def capture_window(
         self,
@@ -147,17 +176,18 @@ def test_official_capture_uses_verified_account_window_and_exact_identities() ->
     assert not hasattr(receipt, "proof_recorded_at")
     assert origin.calls == [(12, 9, "SZSE", AS_OF)]
     assert policy.calls == [(date(2026, 11, 11), date(2026, 10, 1), AS_OF)]
-    assert capture.calls == [
+    assert capture.cohort_calls == [
         (
-            identity.asset_code,
+            tuple(identity.asset_code for identity in IDENTITIES),
             date(2026, 10, 1),
             date(2026, 11, 11),
             _policy().body_store_root,
+            timedelta(seconds=60),
             "default",
             "development",
         )
-        for identity in IDENTITIES
     ]
+    assert capture.calls == []
 
 
 def test_refresh_receipt_fingerprint_binds_config_and_timezone_provenance() -> None:
@@ -218,6 +248,7 @@ def test_missing_or_incomplete_policy_blocks_before_network(
     with pytest.raises(RebalanceJourneyUnavailable):
         refresher.refresh(asset_identities=IDENTITIES, request_scope=SCOPE, as_of=AS_OF)
     assert capture.calls == []
+    assert capture.cohort_calls == []
 
 
 def test_unsupported_asset_and_partial_multi_asset_capture_cannot_complete() -> None:
@@ -242,7 +273,18 @@ def test_unsupported_asset_and_partial_multi_asset_capture_cannot_complete() -> 
 
     with pytest.raises(RebalanceJourneyUnavailable):
         refresher.refresh(asset_identities=IDENTITIES, request_scope=SCOPE, as_of=AS_OF)
-    assert [call[0] for call in capture.calls] == ["002727.SZ", "301237.SZ"]
+    assert capture.cohort_calls == [
+        (
+            ("002727.SZ", "301237.SZ"),
+            date(2026, 10, 1),
+            date(2026, 11, 11),
+            _policy().body_store_root,
+            timedelta(seconds=60),
+            "default",
+            "development",
+        )
+    ]
+    assert capture.calls == []
 
 
 def test_replayed_old_proof_cannot_be_reported_as_fresh_capture() -> None:
@@ -257,3 +299,15 @@ def test_replayed_old_proof_cannot_be_reported_as_fresh_capture() -> None:
 
     with pytest.raises(RebalanceJourneyUnavailable):
         refresher.refresh(asset_identities=IDENTITIES[:1], request_scope=SCOPE, as_of=AS_OF)
+    assert capture.cohort_calls == [
+        (
+            ("002727.SZ",),
+            date(2026, 10, 1),
+            date(2026, 11, 11),
+            _policy().body_store_root,
+            timedelta(seconds=60),
+            "default",
+            "development",
+        )
+    ]
+    assert capture.calls == []

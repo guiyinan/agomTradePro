@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 from django.utils import timezone
@@ -29,13 +29,20 @@ from apps.data_center.domain.security_disclosure_event import (
     SecurityDisclosureEvent,
     SecurityDisclosureEventAppendDisposition,
     SecurityDisclosureEventAppendResult,
+    SecurityDisclosureExchange,
     SecurityDisclosureListingCoverageAppendResult,
+    SecurityDisclosureListingCoverageProof,
+    SecurityDisclosureSource,
 )
 from apps.data_center.security_disclosure_capture_composition import (
+    CapturedOfficialSzseListingWindow,
     CapturedSzseDistributionCandidate,
-    capture_szse_distribution_window,
+    SzseDistributionWindowRequest,
+    capture_szse_distribution_cohort,
     make_security_disclosure_event_append_use_cases,
 )
+
+_MAXIMUM_COHORT_LEASE = timedelta(seconds=60)
 
 
 @dataclass(frozen=True, slots=True)
@@ -52,7 +59,7 @@ def _preflight_disclosure_audit(
     *,
     environment: str,
     using: str,
-) -> tuple[AppendSecurityDisclosureAuditObservationUseCase, AuditScopeRef, datetime]:
+) -> tuple[AppendSecurityDisclosureAuditObservationUseCase, AuditScopeRef, datetime, datetime]:
     """Require live required/outbox authority and a scoped writer before capture."""
 
     checked_at = timezone.now()
@@ -77,7 +84,7 @@ def _preflight_disclosure_audit(
         raise SecurityDisclosureAuditUnavailable(
             "SZSE disclosure capture requires an expiring Audit authority lease."
         )
-    return writer, writer.preflight(as_of=checked_at), valid_until
+    return writer, writer.preflight(as_of=checked_at), valid_until, checked_at
 
 
 def capture_and_append_szse_distribution_window(
@@ -89,131 +96,239 @@ def capture_and_append_szse_distribution_window(
     using: str = "default",
     audit_environment: str = "production",
 ) -> SzseDistributionWindowIngestion:
-    """Capture, recheck authority, then atomically persist facts, coverage, and Audit."""
+    """Preserve the single-window API by delegating to a one-member cohort."""
 
-    audit_writer, initial_scope, _ = _preflight_disclosure_audit(
-        environment=audit_environment,
-        using=using,
-    )
-    candidate = capture_szse_distribution_window(
+    request = SzseDistributionWindowRequest(
         asset_code=asset_code,
         start_on=start_on,
         end_on=end_on,
         body_store_root=body_store_root,
     )
-    audit_writer, current_scope, lease_valid_until = _preflight_disclosure_audit(
+    return capture_and_append_szse_distribution_cohort(
+        (request,),
+        lease_ttl=_MAXIMUM_COHORT_LEASE,
+        using=using,
+        audit_environment=audit_environment,
+    )[0]
+
+
+def capture_and_append_szse_distribution_cohort(
+    windows: tuple[SzseDistributionWindowRequest, ...],
+    *,
+    lease_ttl: timedelta,
+    using: str = "default",
+    audit_environment: str = "production",
+) -> tuple[SzseDistributionWindowIngestion, ...]:
+    """Capture every source first, then atomically persist one verified cohort."""
+
+    if (
+        type(windows) is not tuple
+        or not windows
+        or any(type(window) is not SzseDistributionWindowRequest for window in windows)
+        or type(lease_ttl) is not timedelta
+        or lease_ttl <= timedelta(0)
+        or lease_ttl > _MAXIMUM_COHORT_LEASE
+    ):
+        raise SecurityDisclosureAuditUnavailable("SZSE disclosure cohort scope is invalid.")
+    first = windows[0]
+    if any(
+        window.start_on != first.start_on or window.end_on != first.end_on for window in windows
+    ) or len({window.asset_code for window in windows}) != len(windows):
+        raise SecurityDisclosureAuditUnavailable("SZSE disclosure cohort identities are invalid.")
+
+    audit_writer, initial_scope, _, _ = _preflight_disclosure_audit(
+        environment=audit_environment,
+        using=using,
+    )
+    candidates = capture_szse_distribution_cohort(windows)
+    if type(candidates) is not tuple or len(candidates) != len(windows):
+        raise SecurityDisclosureAuditUnavailable("SZSE disclosure cohort is incomplete.")
+
+    common_verified_at: datetime | None = None
+    observations: list[SecurityDisclosureAuditObservation] = []
+    for window, candidate in zip(windows, candidates, strict=True):
+        if (
+            type(candidate) is not CapturedSzseDistributionCandidate
+            or type(candidate.listing) is not CapturedOfficialSzseListingWindow
+            or type(candidate.proof) is not SecurityDisclosureListingCoverageProof
+            or type(candidate.events) is not tuple
+            or candidate.proof.source is not SecurityDisclosureSource.SZSE_OFFICIAL
+            or candidate.proof.exchange is not SecurityDisclosureExchange.SZSE
+            or candidate.proof.asset_code != window.asset_code
+            or candidate.proof.start_on != window.start_on
+            or candidate.proof.end_on != window.end_on
+            or candidate.listing.asset_code != window.asset_code
+            or candidate.listing.start_on != window.start_on
+            or candidate.listing.end_on != window.end_on
+            or candidate.listing.observed_at > candidate.proof.verified_at
+        ):
+            raise SecurityDisclosureAuditUnavailable("SZSE disclosure cohort identity mismatched.")
+        if common_verified_at is None:
+            common_verified_at = candidate.proof.verified_at
+        elif candidate.proof.verified_at != common_verified_at:
+            raise SecurityDisclosureAuditUnavailable(
+                "SZSE disclosure cohort does not share one verification clock."
+            )
+        if any(
+            event.source is not SecurityDisclosureSource.SZSE_OFFICIAL
+            or event.exchange is not SecurityDisclosureExchange.SZSE
+            or event.asset_code != window.asset_code
+            for event, _ in candidate.events
+        ):
+            raise SecurityDisclosureAuditUnavailable("SZSE disclosure fact identity mismatched.")
+
+    if common_verified_at is None:
+        raise SecurityDisclosureAuditUnavailable(
+            "SZSE disclosure cohort has no verification clock."
+        )
+    audit_writer, current_scope, lease_valid_until, _ = _preflight_disclosure_audit(
         environment=audit_environment,
         using=using,
     )
     if current_scope != initial_scope:
         raise SecurityDisclosureAuditUnavailable(
-            "SZSE disclosure Audit authority changed during external capture."
+            "SZSE disclosure Audit authority changed during external cohort capture."
         )
-    proof = candidate.proof
     batch_recorded_at = timezone.now()
-    if batch_recorded_at >= lease_valid_until:
+    try:
+        verified_expires_at = common_verified_at + lease_ttl
+    except OverflowError as error:
         raise SecurityDisclosureAuditUnavailable(
-            "SZSE disclosure batch clock is outside the active Audit authority lease."
-        )
-    if batch_recorded_at < proof.verified_at or any(
-        event.available_at > batch_recorded_at for event, _ in candidate.events
+            "SZSE disclosure cohort lease deadline is invalid."
+        ) from error
+    if (
+        batch_recorded_at < common_verified_at
+        or batch_recorded_at >= verified_expires_at
+        or batch_recorded_at >= lease_valid_until
     ):
         raise SecurityDisclosureAuditUnavailable(
-            "SZSE disclosure batch clock predates verified source availability."
+            "SZSE disclosure cohort clock is outside the active half-open lease."
         )
-    observation = SecurityDisclosureAuditObservation(
-        source=proof.source.value,
-        exchange=proof.exchange.value,
-        asset_code=proof.asset_code,
-        start_on=proof.start_on,
-        end_on=proof.end_on,
-        first_observed_at=proof.first_observed_at,
-        verified_at=proof.verified_at,
-        announcement_count=proof.announcement_count,
-        coverage_manifest_sha256=proof.coverage_manifest_sha256,
-        source_manifest_sha256=proof.source_manifest_sha256,
-        first_pass_page_body_sha256=proof.first_pass_page_body_sha256,
-        second_pass_page_body_sha256=proof.second_pass_page_body_sha256,
-        facts=tuple(_fact_evidence(event) for event, _ in candidate.events),
-        recorded_at=batch_recorded_at,
-        scope=current_scope,
-    )
+    if any(
+        event.available_at > batch_recorded_at
+        for candidate in candidates
+        for event, _ in candidate.events
+    ):
+        raise SecurityDisclosureAuditUnavailable(
+            "SZSE disclosure batch clock predates source availability."
+        )
+
+    for candidate in candidates:
+        proof = candidate.proof
+        observations.append(
+            SecurityDisclosureAuditObservation(
+                source=proof.source.value,
+                exchange=proof.exchange.value,
+                asset_code=proof.asset_code,
+                start_on=proof.start_on,
+                end_on=proof.end_on,
+                first_observed_at=proof.first_observed_at,
+                verified_at=common_verified_at,
+                announcement_count=proof.announcement_count,
+                coverage_manifest_sha256=proof.coverage_manifest_sha256,
+                source_manifest_sha256=proof.source_manifest_sha256,
+                first_pass_page_body_sha256=proof.first_pass_page_body_sha256,
+                second_pass_page_body_sha256=proof.second_pass_page_body_sha256,
+                facts=tuple(_fact_evidence(event) for event, _ in candidate.events),
+                recorded_at=batch_recorded_at,
+                scope=current_scope,
+            )
+        )
     appenders = make_security_disclosure_event_append_use_cases(
         using=using,
         recorded_at=batch_recorded_at,
     )
-    if appenders.database_alias != using:
+    if appenders.database_alias != using or audit_writer.database_alias != using:
         raise SecurityDisclosureAuditUnavailable(
-            "Disclosure fact appenders do not share the Audit database alias."
+            "Disclosure facts, coverage, and Audit/Outbox must share one alias."
         )
-    results: list[SecurityDisclosureEventAppendResult] = []
+
+    ingestions: list[SzseDistributionWindowIngestion] = []
     with audit_writer.atomic():
-        existing_audit = audit_writer.find_exact_winner(
-            observation,
-            as_of=batch_recorded_at,
-            scope=current_scope,
-        )
-        for event, body in candidate.events:
-            results.append(appenders.events.execute(event, body))
-        if existing_audit is None:
-            duplicate_facts = tuple(
-                _fact_evidence(result.record.event)
-                for result in results
-                if result.disposition is SecurityDisclosureEventAppendDisposition.DUPLICATE
+        for candidate, observation in zip(candidates, observations, strict=True):
+            results = [appenders.events.execute(event, body) for event, body in candidate.events]
+            existing_audit = audit_writer.find_exact_winner(
+                observation,
+                as_of=batch_recorded_at,
+                scope=current_scope,
             )
-            if duplicate_facts:
-                audit_writer.assert_previously_audited_facts(
-                    observation,
-                    facts=duplicate_facts,
-                    as_of=batch_recorded_at,
-                    scope=current_scope,
+            if existing_audit is None:
+                duplicate_facts = tuple(
+                    _fact_evidence(result.record.event)
+                    for result in results
+                    if result.disposition is SecurityDisclosureEventAppendDisposition.DUPLICATE
                 )
-            coverage = appenders.coverage.execute(proof)
-            if coverage.disposition is SecurityDisclosureEventAppendDisposition.DUPLICATE:
-                raise SecurityDisclosureAuditConflict(
-                    "Un-audited disclosure coverage proof already exists for this source batch."
+                if duplicate_facts:
+                    audit_writer.assert_previously_audited_facts(
+                        observation,
+                        facts=duplicate_facts,
+                        as_of=batch_recorded_at,
+                        scope=current_scope,
+                    )
+                coverage = appenders.coverage.execute(candidate.proof)
+                if coverage.disposition is SecurityDisclosureEventAppendDisposition.DUPLICATE:
+                    raise SecurityDisclosureAuditConflict(
+                        "Un-audited disclosure coverage proof already exists for this source batch."
+                    )
+            else:
+                if any(
+                    result.disposition is not SecurityDisclosureEventAppendDisposition.DUPLICATE
+                    for result in results
+                ):
+                    raise SecurityDisclosureAuditConflict(
+                        "An audited disclosure batch is missing one or more immutable source facts."
+                    )
+                persisted_proof = appenders.coverage.get_by_episode(candidate.proof)
+                if persisted_proof is None:
+                    raise SecurityDisclosureAuditConflict(
+                        "An audited disclosure batch is missing its immutable coverage proof."
+                    )
+                coverage = SecurityDisclosureListingCoverageAppendResult(
+                    disposition=SecurityDisclosureEventAppendDisposition.DUPLICATE,
+                    record=persisted_proof,
                 )
-        else:
-            if any(
-                result.disposition is not SecurityDisclosureEventAppendDisposition.DUPLICATE
-                for result in results
+            audit = audit_writer.execute_in_atomic_transaction(
+                observation,
+                scope=current_scope,
+            )
+            if (
+                existing_audit is None
+                and audit.disposition is not SecurityDisclosureAuditDisposition.STORED
             ):
                 raise SecurityDisclosureAuditConflict(
-                    "An audited disclosure batch is missing one or more immutable source facts."
+                    "Disclosure Audit identity changed during the atomic append."
                 )
-            persisted_proof = appenders.coverage.get_by_episode(proof)
-            if persisted_proof is None:
+            if (
+                existing_audit is not None
+                and audit.disposition is not SecurityDisclosureAuditDisposition.DUPLICATE
+            ):
                 raise SecurityDisclosureAuditConflict(
-                    "An audited disclosure batch is missing its immutable coverage proof."
+                    "Existing disclosure Audit identity was not replayed exactly."
                 )
-            coverage = SecurityDisclosureListingCoverageAppendResult(
-                disposition=SecurityDisclosureEventAppendDisposition.DUPLICATE,
-                record=persisted_proof,
+            ingestions.append(
+                SzseDistributionWindowIngestion(
+                    candidate=candidate,
+                    events=tuple(results),
+                    coverage=coverage,
+                    audit=audit,
+                )
             )
-        audit = audit_writer.execute_in_atomic_transaction(
-            observation,
-            scope=current_scope,
+
+        final_writer, final_scope, final_lease_until, commit_checked_at = (
+            _preflight_disclosure_audit(environment=audit_environment, using=using)
         )
         if (
-            existing_audit is None
-            and audit.disposition is not SecurityDisclosureAuditDisposition.STORED
+            final_writer.database_alias != using
+            or final_scope != current_scope
+            or commit_checked_at < batch_recorded_at
+            or commit_checked_at >= verified_expires_at
+            or commit_checked_at >= batch_recorded_at + lease_ttl
+            or commit_checked_at >= final_lease_until
         ):
-            raise SecurityDisclosureAuditConflict(
-                "Disclosure Audit identity changed during the atomic append."
+            raise SecurityDisclosureAuditUnavailable(
+                "SZSE disclosure cohort expired or its Audit authority changed before commit."
             )
-        if (
-            existing_audit is not None
-            and audit.disposition is not SecurityDisclosureAuditDisposition.DUPLICATE
-        ):
-            raise SecurityDisclosureAuditConflict(
-                "Existing disclosure Audit identity was not replayed exactly."
-            )
-    return SzseDistributionWindowIngestion(
-        candidate=candidate,
-        events=tuple(results),
-        coverage=coverage,
-        audit=audit,
-    )
+    return tuple(ingestions)
 
 
 def _fact_evidence(event: SecurityDisclosureEvent) -> SecurityDisclosureFactEvidence:

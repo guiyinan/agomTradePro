@@ -29,6 +29,8 @@ _VERIFIED_AT = datetime(2026, 10, 1, 2, 5, tzinfo=UTC)
 def _captured_window(
     observed_at: datetime,
     *,
+    asset_code: str = "002727.SZ",
+    entries: tuple[SecurityDisclosureListingEntry, ...] = (),
     first_page_hash: str = "a" * 64,
     second_page_hash: str = "b" * 64,
 ) -> CapturedOfficialSzseListingWindow:
@@ -37,23 +39,23 @@ def _captured_window(
     proof = SecurityDisclosureListingCoverageProof(
         source=SecurityDisclosureSource.SZSE_OFFICIAL,
         exchange=SecurityDisclosureExchange.SZSE,
-        asset_code="002727.SZ",
+        asset_code=asset_code,
         start_on=date(2026, 9, 1),
         end_on=date(2026, 9, 30),
         first_observed_at=observed_at,
         verified_at=observed_at,
-        announcement_count=0,
-        entries=(),
+        announcement_count=len(entries),
+        entries=entries,
         first_pass_page_body_sha256=(first_page_hash,),
         second_pass_page_body_sha256=(second_page_hash,),
     )
     return CapturedOfficialSzseListingWindow(
-        asset_code="002727.SZ",
+        asset_code=asset_code,
         start_on=date(2026, 9, 1),
         end_on=date(2026, 9, 30),
         observed_at=observed_at,
-        announcement_count=0,
-        entries=(),
+        announcement_count=len(entries),
+        entries=entries,
         first_pass_page_body_sha256=(first_page_hash,),
         page_body_sha256=(second_page_hash,),
         manifest_sha256=proof.source_manifest_sha256,
@@ -266,3 +268,113 @@ def test_distribution_capture_visits_every_listed_pdf(
         SecurityDisclosureEventType.OTHER,
         SecurityDisclosureEventType.CASH_DIVIDEND,
     )
+
+
+def test_distribution_cohort_collects_all_pdfs_before_final_rechecks_and_shares_clock(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """All members are gathered before final listings and receive one verification clock."""
+
+    start_on = date(2026, 9, 1)
+    end_on = date(2026, 9, 30)
+    asset_codes = ("002727.SZ", "301237.SZ")
+    entries = {
+        asset_code: SecurityDisclosureListingEntry(
+            listing_id=f"00000000-0000-4000-8000-0000000000{index + 1:02d}",
+            announcement_id=1225568073 + index,
+            title=f"Issuer {asset_code}：公告",
+            published_on=date(2026, 9, 17),
+            raw_publish_time="2026-09-17 00:00:00",
+            source_document_id=(
+                "37e23922-f64d-4203-9d27-9ed981a8f799"
+                if index == 0
+                else "68f7d189-bc81-497b-a1e5-2c81b414123c"
+            ),
+            source_url=(
+                "https://disc.static.szse.cn/disc/disk03/finalpage/2026-09-17/"
+                + (
+                    "37e23922-f64d-4203-9d27-9ed981a8f799"
+                    if index == 0
+                    else "68f7d189-bc81-497b-a1e5-2c81b414123c"
+                )
+                + ".PDF"
+            ),
+        )
+        for index, asset_code in enumerate(asset_codes)
+    }
+    listings: dict[str, list[CapturedOfficialSzseListingWindow]] = {}
+    pdfs: dict[str, CapturedOfficialSzsePdf] = {}
+    final_clock_by_asset = {
+        asset_codes[0]: _VERIFIED_AT,
+        asset_codes[1]: _VERIFIED_AT.replace(second=_VERIFIED_AT.second + 1),
+    }
+    for asset_code in asset_codes:
+        entry = entries[asset_code]
+        body = f"%PDF-1.4\n{asset_code}\n%%EOF".encode()
+        captured = CapturedOfficialSzsePdf(
+            source_url=entry.source_url,
+            source_document_id=entry.source_document_id,
+            first_seen_at=_FIRST_OBSERVED_AT.replace(second=1),
+            body_sha256=hashlib.sha256(body).hexdigest(),
+            body=body,
+        )
+        pdfs[entry.source_url] = captured
+        listings[asset_code] = [
+            _captured_window(
+                _FIRST_OBSERVED_AT,
+                asset_code=asset_code,
+                entries=(entry,),
+                first_page_hash="c" * 64,
+                second_page_hash="c" * 64,
+            ),
+            _captured_window(
+                final_clock_by_asset[asset_code],
+                asset_code=asset_code,
+                entries=(entry,),
+                first_page_hash="c" * 64,
+                second_page_hash="c" * 64,
+            ),
+        ]
+    calls: list[tuple[str, str]] = []
+
+    def capture_listing(**kwargs: object) -> CapturedOfficialSzseListingWindow:
+        asset_code = str(kwargs["asset_code"])
+        calls.append(("listing", asset_code))
+        return listings[asset_code].pop(0)
+
+    def capture_pdf(source_url: str) -> CapturedOfficialSzsePdf:
+        calls.append(("pdf", source_url))
+        return pdfs[source_url]
+
+    monkeypatch.setattr(composition, "capture_official_szse_announcement_window", capture_listing)
+    monkeypatch.setattr(composition, "capture_official_szse_pdf", capture_pdf)
+    monkeypatch.setattr(
+        composition,
+        "classify_szse_pdf_disclosure",
+        lambda captured, security_code, **kwargs: ("notice", SecurityDisclosureEventType.OTHER),
+    )
+
+    requests = tuple(
+        composition.SzseDistributionWindowRequest(
+            asset_code=asset_code,
+            start_on=start_on,
+            end_on=end_on,
+            body_store_root=tmp_path / asset_code,
+        )
+        for asset_code in asset_codes
+    )
+    candidates = composition.capture_szse_distribution_cohort(requests)
+
+    assert calls == [
+        ("listing", asset_codes[0]),
+        ("pdf", entries[asset_codes[0]].source_url),
+        ("listing", asset_codes[1]),
+        ("pdf", entries[asset_codes[1]].source_url),
+        ("listing", asset_codes[0]),
+        ("listing", asset_codes[1]),
+    ]
+    assert tuple(candidate.proof.asset_code for candidate in candidates) == asset_codes
+    assert {candidate.proof.verified_at for candidate in candidates} == {
+        final_clock_by_asset[asset_codes[1]]
+    }

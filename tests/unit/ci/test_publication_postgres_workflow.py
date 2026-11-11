@@ -586,6 +586,9 @@ def test_ash05_corporate_action_ledger_runs_on_isolated_migrated_postgres() -> N
         "tests/component/account/test_simulated_corporate_action_write_grant_repository.py::test_exact_selector_absence_does_not_fallback_to_an_available_root",
         "tests/component/account/test_simulated_corporate_action_write_grant_repository.py::test_scope_reader_preserves_owner_conflicts_and_never_falls_back_from_expired_head",
         "tests/component/account/test_simulated_corporate_action_write_grant_repository.py::test_orm_paths_cannot_bypass_the_repository_append_claim",
+        "tests/component/data_center/test_szse_distribution_window_ingestion.py::test_multi_asset_cohort_commits_all_proofs_and_audits_at_shared_clocks",
+        "tests/component/data_center/test_szse_distribution_window_ingestion.py::test_second_asset_audit_failure_rolls_back_entire_cohort",
+        "tests/component/data_center/test_szse_distribution_window_ingestion.py::test_cohort_source_proof_at_lease_expiry_blocks_all_writes",
     )
     assert step["env"]["DATABASE_URL"].endswith("/agom_release_rehearsal_ci")
     assert step["env"]["AGOM_CRITICAL_TEST_DB_NAME"] == "ash05_cash_posting_test"
