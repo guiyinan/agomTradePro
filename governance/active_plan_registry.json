@@ -1,5 +1,5 @@
 {
-  "version": "2026-11-11.v376",
+  "version": "2026-11-11.v377",
   "updated_at": "2026-11-11",
   "execution_focus": {
     "unit_id": "ASH-05",
@@ -8,8 +8,17 @@
       "external",
       "governance"
     ],
-    "policy": "ASH-05 remains the sole active repository focus. Exact candidate 2fa52dfa3 passed all six applicable CI workflows; the earlier size failure at ed5a38c44 remains a failed candidate. Luna max owner service-write lease contract is integrated and locally gated, but it grants no production authority. Official proof windows remain historical. Owner approved simulation of cash transfer on the exchange-announced payment date with explicit simulated wording, not bank receipt verification. Root owns trusted service-write issuance and persistence, same-alias locked verification, cash payment, deferred tax, share/rights stages and all section 9 acceptance. CAL-02 remains planned after its offline contract integration. Default M1 remains available; production execution and deferred ASH-06/09/12 stay disabled. See A-share plan 19.184.",
-    "parallel_preparation": []
+    "policy": "ASH-05 remains the sole active repository focus. Exact candidate 2fa52dfa3 passed all six applicable CI workflows; lease contract candidate 8c500f988 has local gates green and exact CI pending. Luna max owner service-write lease contract is integrated but grants no production authority. Official proof windows remain historical. Owner approved simulation of cash transfer on the exchange-announced payment date with explicit simulated wording, not bank receipt verification. Root owns trusted service-write issuance and persistence, same-alias locked verification, audited production payment, deferred tax, share/rights stages and all section 9 acceptance. One isolated Luna max cash-payment ledger guard preparation is registered below. CAL-02 remains planned after its offline contract integration. Default M1 remains available; production execution and deferred ASH-06/09/12 stay disabled. See A-share plan 19.184.",
+    "parallel_preparation": [
+      {
+        "unit_id": "ASH-05",
+        "scope": "One isolated ASH-05 cash-payment ledger guard preparation in .tmp/ash05-payment-guard-20261111 based on 8c500f988. Strengthen DjangoCorporateActionPostingRepository under the existing account/event lock: use server time in exchange local calendar to reject payment before the official payment date, require the positive payment amount to consume the full exact outstanding event cash receivable, keep replay and correction/reversal semantics explicit, and preserve no-write failure on mismatched or absent official source terms. The existing VerifiedSzseActionSourceQualifier already checks the exact official PDF payment date; inspect its complete definition before modifying. Allowed production path: apps/simulated_trading/infrastructure/corporate_action_posting_repository.py. Allowed tests: tests/component/simulated_trading/test_corporate_action_posting_repository.py and tests/unit/simulated_trading/test_corporate_action_posting.py. No new public production builder, Account issuer, Audit/Outbox authority, tax/share/rights, migrations, governance, shared Git/index or formal tree edits. Root owns formal integration, production payment entry, typed user-facing wording, native PostgreSQL, current-window source coverage and section 9 acceptance. Report extra path needs before editing.",
+        "owner": "Luna max event_refresh under Root integration",
+        "isolated_workspace": true,
+        "shared_git_serialized": true,
+        "isolated_test_resources": true
+      }
+    ]
   },
   "workstreams": [
     {
@@ -395,7 +404,7 @@
       "priority": "P0/P1",
       "owner": "portfolio+risk_center+data_center+simulated_trading+backtest+broker_execution+terminal",
       "status": "active",
-      "next_gate": "ASH-05 stays active. Candidate 2fa52dfa3 passed six exact CI workflows after the failed file-size predecessor. Owner service-write lease value and validation contracts are integrated, with no trusted issuer or production grant yet. Owner-approved payment-date simulation still requires server-clock and outstanding-receivable checks. Current-window official coverage, normal-account Audit write authority, cash/share/tax posting and section 9 gold journeys precede closure. Default M1 remains available; production execution and deferred ASH-06/09/12 stay disabled.",
+      "next_gate": "ASH-05 stays active. Candidate 2fa52dfa3 passed six exact CI workflows after the failed file-size predecessor; lease contract candidate 8c500f988 awaits exact CI. Owner service-write lease value and validation contracts are integrated, with no trusted issuer or production grant yet. Owner-approved payment-date simulation has one isolated locked ledger guard preparation registered; audited production entry remains Root-owned. Current-window official coverage, normal-account Audit write authority, cash/share/tax posting and section 9 gold journeys precede closure. Default M1 remains available; production execution and deferred ASH-06/09/12 stay disabled.",
       "documents": [
         {
           "path": "docs/plans/a-share-usability-implementation-plan-2026-10-16.md",
