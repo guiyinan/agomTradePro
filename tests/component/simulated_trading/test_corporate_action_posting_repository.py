@@ -22,6 +22,7 @@ from apps.simulated_trading.domain.corporate_action_posting import (
     CorporateActionStage,
     CorporateActionStageRequest,
 )
+from apps.simulated_trading.infrastructure import corporate_action_posting_repository
 from apps.simulated_trading.infrastructure.corporate_action_posting_models import (
     CorporateActionPostingModel,
 )
@@ -258,6 +259,98 @@ def test_late_cash_entitlement_payment_and_tax_are_idempotent_and_separate(
     assert rows[1].cash_delta == Decimal("200.00")
     assert rows[2].cash_delta == Decimal("-40.00")
     assert account.total_value == Decimal("10000.00")
+
+
+@pytest.mark.parametrize(
+    ("server_now", "should_block"),
+    (
+        (datetime(2026, 9, 23, 15, 59, 59, tzinfo=UTC), True),
+        (datetime(2026, 9, 23, 16, 0, 0, tzinfo=UTC), False),
+    ),
+)
+def test_cash_payment_uses_szse_calendar_date(
+    action_ledger: tuple[AbstractBaseUser, SimulatedAccountModel],
+    monkeypatch: pytest.MonkeyPatch,
+    server_now: datetime,
+    should_block: bool,
+) -> None:
+    """A UTC date before the SZSE payment date cannot trigger simulated payment."""
+
+    _, account = action_ledger
+    use_case = PostCorporateActionStageUseCase(_repository())
+    entitlement = _request(account, stage_date=_RECORD_DATE)
+    payment = replace(
+        entitlement,
+        stage=CorporateActionStage.CASH_PAYMENT,
+        cash_amount=Decimal("200.00"),
+        payment_date=date(2026, 9, 24),
+        stage_date=date(2026, 9, 24),
+        ownership_snapshot_id=None,
+        ownership_snapshot_sha256=None,
+        ownership_snapshot_as_of_date=None,
+        ownership_snapshot_observed_at=None,
+        eligible_quantity=None,
+        entitlement_calculation_sha256=None,
+    )
+    monkeypatch.setattr(
+        corporate_action_posting_repository.timezone,
+        "now",
+        lambda: server_now,
+    )
+
+    if should_block:
+        with pytest.raises(CorporateActionPostingBlockedError) as error:
+            use_case.execute((entitlement, payment))
+        assert error.value.code == "CORPORATE_ACTION_PAYMENT_DATE_NOT_REACHED"
+        assert CorporateActionPostingModel.objects.filter(account=account).count() == 0
+        account.refresh_from_db()
+        assert account.current_cash == Decimal("10000.00")
+        return
+
+    receipts = use_case.execute((entitlement, payment))
+    assert all(not receipt.replayed for receipt in receipts)
+    account.refresh_from_db()
+    assert account.current_cash == Decimal("10200.00")
+    assert CorporateActionPostingModel.objects.filter(account=account).count() == 2
+    monkeypatch.setattr(
+        corporate_action_posting_repository.timezone,
+        "now",
+        lambda: datetime(2026, 9, 23, 15, 59, 59, tzinfo=UTC),
+    )
+    assert all(receipt.replayed for receipt in use_case.execute((entitlement, payment)))
+
+
+@pytest.mark.parametrize("amount", (Decimal("199.99"), Decimal("200.01")))
+def test_cash_payment_must_settle_exact_outstanding_event_receivable(
+    action_ledger: tuple[AbstractBaseUser, SimulatedAccountModel],
+    amount: Decimal,
+) -> None:
+    """Partial payment and overpayment both leave the append-only ledger untouched."""
+
+    _, account = action_ledger
+    use_case = PostCorporateActionStageUseCase(_repository())
+    entitlement = _request(account, stage_date=_RECORD_DATE)
+    payment = replace(
+        entitlement,
+        stage=CorporateActionStage.CASH_PAYMENT,
+        cash_amount=amount,
+        payment_date=date(2026, 9, 24),
+        stage_date=date(2026, 9, 24),
+        ownership_snapshot_id=None,
+        ownership_snapshot_sha256=None,
+        ownership_snapshot_as_of_date=None,
+        ownership_snapshot_observed_at=None,
+        eligible_quantity=None,
+        entitlement_calculation_sha256=None,
+    )
+
+    with pytest.raises(CorporateActionPostingBlockedError) as error:
+        use_case.execute((entitlement, payment))
+
+    assert error.value.code == "CORPORATE_ACTION_RECEIVABLE_NOT_FULLY_SETTLED"
+    account.refresh_from_db()
+    assert account.current_cash == Decimal("10000.00")
+    assert CorporateActionPostingModel.objects.filter(account=account).count() == 0
 
 
 def test_correction_is_one_replayable_reversal_and_successor_batch(

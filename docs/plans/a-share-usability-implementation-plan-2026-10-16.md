@@ -3159,3 +3159,5 @@ v375 隔离的 Account 服务写入 lease 契约按三个 SHA-256 核验后整�
 服务写入 lease 契约精确候选 `8c500f9885c172b88531f81ce6fab1ecb405693b` 的七项适用 CI 全部成功，包含两个独立 PostgreSQL 工作流；正式树定向 **25 passed**、增量 mypy、债务上限、架构、治理与生成投影均通过。忽略目录索引 `artifacts/ash05-event-policy-20261111/8c500-owner-lease-evidence-index.json` SHA-256 为 `f254870c9f2add8210dfed73a07d79927136b5edea40b16166c4ff16b2a3d4fe`。该候选只验收有限、可撤销、精确 scope 的纯契约；无可信签发源及模拟账户物理锁内绑定，不能凭 CI 通过开启普通账户写入或关闭 ASH-05。
 
 治理候选 `e42f937e8` 的 Consistency Check 因 `parallel_preparation` 为同一 ASH-05 写了两条记录而失败，失败原件 `artifacts/ash05-event-policy-20261111/e42-consistency-failed.log`；普通治理一致性检查没有覆盖该专门规则。registry v380 将两个互不重叠的隔离范围合并为一条 ASH-05 并行准备记录，`check_active_plan_registry.py` 检查 **0 violation**。下一精确候选须重新通过适用 CI，失败候选不借用上一提交的通过结果。
+
+v380 专门 registry 修复候选 `b3f9d9e13f24d45da6bc48c13cd46d64624e1178` 的五项适用 CI 全部成功。付款门隔离 RED 为 **4 failed**，证明提前日历边界和非全额未阻断；GREEN **6 passed**。两个修改文件按隔离 SHA-256 复核后整合，正式树同 6 项组件 **6 passed**、Black/isort/Ruff、增量 mypy、债务上限、架构、治理及 Data Center 投影通过。账本在账户及事件锁内按服务器时钟换算深交所本地日，未到官方付款日阻断；非撤销付款必须恰好结清同事件完整未结应收，失败整批回滚。Root 新增原生 PostgreSQL 付款日期/金额回归并纳入 Publication PG 工作流，精确 CI 尚待下一候选。该门只约束账本，不代表普通账户可信授权、Audit/Outbox 生产付款或实际银行到账。

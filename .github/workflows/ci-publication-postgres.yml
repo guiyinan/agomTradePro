@@ -142,6 +142,7 @@ jobs:
         run: >-
           python -m pytest
           tests/component/simulated_trading/test_corporate_action_posting_postgres.py::test_postgres_concurrent_entitlement_replay_writes_one_receivable
+          tests/component/simulated_trading/test_corporate_action_posting_postgres.py::test_postgres_payment_waits_for_szse_date_and_settles_exact_receivable
           tests/component/simulated_trading/test_corporate_action_posting_postgres.py::test_postgres_wrong_owner_account_or_security_scope_blocks_without_writes
           --ds=core.settings.critical_postgres_test
           --confcutdir=tests/component

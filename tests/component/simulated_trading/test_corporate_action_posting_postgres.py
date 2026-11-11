@@ -31,6 +31,7 @@ from apps.simulated_trading.domain.corporate_action_posting import (
     CorporateActionStage,
     CorporateActionStageRequest,
 )
+from apps.simulated_trading.infrastructure import corporate_action_posting_repository
 from apps.simulated_trading.infrastructure.corporate_action_posting_models import (
     CorporateActionPostingModel,
 )
@@ -186,6 +187,74 @@ def test_postgres_concurrent_entitlement_replay_writes_one_receivable() -> None:
     assert row.cash_receivable_delta == Decimal("200.00")
     account.refresh_from_db()
     assert account.current_cash == Decimal("10000.00")
+
+
+@pytest.mark.django_db(transaction=True)
+def test_postgres_payment_waits_for_szse_date_and_settles_exact_receivable() -> None:
+    """The native ledger rejects early and partial payment before one exact transfer."""
+
+    if connection.vendor != "postgresql":
+        pytest.skip("native PostgreSQL cash-payment contract is required")
+
+    user = get_user_model().objects.create_user(
+        username="corporate-action-postgres-payment",
+        password="unused",
+    )
+    account = SimulatedAccountModel.objects.create(
+        user=user,
+        account_name="corporate-action-postgres-payment",
+        account_type="simulated",
+        initial_capital=Decimal("10000.00"),
+        current_cash=Decimal("10000.00"),
+        current_market_value=Decimal("0.00"),
+        total_value=Decimal("10000.00"),
+        is_active=True,
+    )
+    entitlement = _request(account)
+    payment = replace(
+        entitlement,
+        stage=CorporateActionStage.CASH_PAYMENT,
+        stage_date=_EFFECTIVE_DATE,
+        payment_date=_EFFECTIVE_DATE,
+        ownership_snapshot_id=None,
+        ownership_snapshot_sha256=None,
+        ownership_snapshot_as_of_date=None,
+        ownership_snapshot_observed_at=None,
+        eligible_quantity=None,
+        entitlement_calculation_sha256=None,
+    )
+    use_case = PostCorporateActionStageUseCase(
+        DjangoCorporateActionPostingRepository(
+            source_qualifier=_SourceVerifier(),
+            ownership_verifier=_OwnershipVerifier(),
+            using="default",
+        )
+    )
+    use_case.execute((entitlement,))
+
+    before_szse_payment_date = datetime(2026, 9, 23, 15, 59, 59, tzinfo=UTC)
+    with patch.object(
+        corporate_action_posting_repository.timezone,
+        "now",
+        return_value=before_szse_payment_date,
+    ):
+        with pytest.raises(CorporateActionPostingBlockedError) as early:
+            use_case.execute((payment,))
+    assert early.value.code == "CORPORATE_ACTION_PAYMENT_DATE_NOT_REACHED"
+
+    with pytest.raises(CorporateActionPostingBlockedError) as partial:
+        use_case.execute((replace(payment, cash_amount=Decimal("199.99")),))
+    assert partial.value.code == "CORPORATE_ACTION_RECEIVABLE_NOT_FULLY_SETTLED"
+    account.refresh_from_db()
+    assert account.current_cash == Decimal("10000.00")
+    assert CorporateActionPostingModel.objects.filter(account=account).count() == 1
+
+    paid = use_case.execute((payment,))
+    assert len(paid) == 1 and paid[0].replayed is False
+    account.refresh_from_db()
+    assert account.current_cash == Decimal("10200.00")
+    assert CorporateActionPostingModel.objects.filter(account=account).count() == 2
+    assert use_case.execute((payment,))[0].replayed is True
 
 
 @pytest.mark.parametrize(

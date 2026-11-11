@@ -5,9 +5,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from decimal import ROUND_HALF_EVEN, Decimal
 from typing import NoReturn, TypeAlias
+from zoneinfo import ZoneInfo
 
 from django.db import DEFAULT_DB_ALIAS, transaction
 from django.db.models import Max
+from django.utils import timezone
 
 from apps.simulated_trading.application.corporate_action_posting import (
     CorporateActionPostingBlockedError,
@@ -42,6 +44,7 @@ from apps.simulated_trading.infrastructure.simulated_account_trade_models import
 _ZERO_MONEY = Decimal("0.00")
 _ZERO_SHARES = Decimal("0.000000")
 _SHARE_QUANTUM = Decimal("0.0001")
+_SZSE_TIMEZONE = ZoneInfo("Asia/Shanghai")
 
 
 @dataclass(frozen=True, slots=True)
@@ -313,6 +316,26 @@ class DjangoCorporateActionPostingRepository(CorporateActionPostingRepositoryPro
                 request = entry.request
                 delta = entry.delta
                 if request.stage is CorporateActionStage.CASH_PAYMENT:
+                    if request.entry_kind is not CorporateActionEntryKind.REVERSAL:
+                        server_now = timezone.now()
+                        if not timezone.is_aware(server_now):
+                            _blocked(
+                                "server clock is not timezone-aware for cash settlement",
+                                "CORPORATE_ACTION_SERVER_CLOCK_INVALID",
+                            )
+                        if (
+                            request.payment_date is None
+                            or server_now.astimezone(_SZSE_TIMEZONE).date() < request.payment_date
+                        ):
+                            _blocked(
+                                "the SZSE announced payment date has not been reached",
+                                "CORPORATE_ACTION_PAYMENT_DATE_NOT_REACHED",
+                            )
+                        if event_cash_receivable != -delta.cash_receivable:
+                            _blocked(
+                                "cash payment must settle the full outstanding event receivable",
+                                "CORPORATE_ACTION_RECEIVABLE_NOT_FULLY_SETTLED",
+                            )
                     if event_cash_receivable < -delta.cash_receivable:
                         _blocked(
                             "cash payment exceeds this event's posted entitlement",
