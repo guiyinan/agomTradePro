@@ -35,6 +35,8 @@ class AccountRepositoryProtocol(Protocol):
 
     def get_by_id(self, account_id: int) -> SimulatedAccount | None: ...
 
+    def get_cash_receivable(self, account_id: int) -> Decimal: ...
+
     def get_active_accounts(self) -> list[SimulatedAccount]: ...
 
     def user_owns_account(self, account_id: int, user_id: int) -> bool: ...
@@ -184,7 +186,7 @@ class SimulatedTradingFacade:
         )
         current_cash = Decimal(str(account.current_cash)) if cash_known else None
         total_value = (
-            current_cash + market_value
+            current_cash + market_value + self.account_repo.get_cash_receivable(account_id)
             if current_cash is not None and market_value is not None
             else None
         )
@@ -321,7 +323,7 @@ class SimulatedTradingFacade:
         )
         current_cash = Decimal(str(account.current_cash)) if cash_known else None
         total_value = (
-            current_cash + market_value
+            current_cash + market_value + self.account_repo.get_cash_receivable(account_id)
             if current_cash is not None and market_value is not None
             else None
         )

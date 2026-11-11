@@ -7,7 +7,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import TypeAlias
 
-from django.db import transaction
+from django.db import models, transaction
 
 from apps.risk_center.domain.execution_settlement_v3 import ExecutionSettlementBundleV3
 from apps.risk_center.domain.execution_trading_constraints import ExecutionDenyCode
@@ -46,6 +46,9 @@ from apps.simulated_trading.domain.execution_settlement_uow import (
     SimulatedTradeSide,
     validate_ledger_money,
     validate_ledger_quantity,
+)
+from apps.simulated_trading.infrastructure.corporate_action_posting_models import (
+    CorporateActionPostingModel,
 )
 from apps.simulated_trading.infrastructure.execution_settlement_stop_loss_threshold import (
     normalize_locked_stop_loss_pct,
@@ -128,6 +131,25 @@ from .trade_fee_storage_guard import require_trade_fee_storage_range
 SettlementPlan: TypeAlias = (
     SettlementExecutionPlan | SettlementExecutionPlanV2 | SettlementExecutionPlanV3
 )
+
+
+def _read_net_cash_receivable(*, account_id: int, using: str) -> Decimal:
+    """Return the exact nonnegative net cash receivable for one locked account."""
+
+    raw_value = (
+        CorporateActionPostingModel._base_manager.using(using)
+        .filter(account_id=account_id)
+        .aggregate(total=models.Sum("cash_receivable_delta"))["total"]
+    )
+    if raw_value is None:
+        return Decimal("0.00")
+    try:
+        return validate_ledger_money(raw_value, "account.cash_receivable")
+    except (ArithmeticError, TypeError, ValueError) as error:
+        raise SimulatedTradeExecutionBlocked(
+            "corporate-action cash receivable is invalid",
+            code="CORPORATE_ACTION_RECEIVABLE_INVALID",
+        ) from error
 
 
 class DjangoSimulatedTradeExecutionRepository:
@@ -793,9 +815,13 @@ class DjangoSimulatedTradeExecutionRepository:
             )
             settlement_status = None
 
+        cash_receivable = _read_net_cash_receivable(
+            account_id=intent.account_id,
+            using=self._using,
+        )
         account.current_cash = next_cash
         account.current_market_value = next_market_value
-        account.total_value = _money_sum(next_cash, next_market_value)
+        account.total_value = _money_sum(next_cash, next_market_value, cash_receivable)
         account.total_trades += 1
         if realized_pnl is not None and realized_pnl > 0:
             account.winning_trades += 1

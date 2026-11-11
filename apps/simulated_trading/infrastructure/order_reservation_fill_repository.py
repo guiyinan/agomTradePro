@@ -390,7 +390,12 @@ class DjangoSimulatedOrderFillRepository:
                     .filter(account_id=account.pk)
                     .order_by("pk")
                 )
-                position, current_cash, account_market_value = _account_positions_snapshot(
+                (
+                    position,
+                    current_cash,
+                    account_market_value,
+                    cash_receivable,
+                ) = _account_positions_snapshot(
                     account=account,
                     positions=position_rows,
                     asset_code=reservation_row.asset_code,
@@ -500,6 +505,7 @@ class DjangoSimulatedOrderFillRepository:
                 )
                 result = self._apply_locked_fill(
                     account=account,
+                    cash_receivable=cash_receivable,
                     reservation_row=reservation_row,
                     chain=chain,
                     position=position,
@@ -608,6 +614,7 @@ class DjangoSimulatedOrderFillRepository:
         self,
         *,
         account: SimulatedAccountModel,
+        cash_receivable: Decimal,
         reservation_row: SimulatedOrderReservationModel,
         chain: _LockedFillChain,
         position: PositionModel | None,
@@ -791,7 +798,7 @@ class DjangoSimulatedOrderFillRepository:
             old_market_value,
             next_market_value,
         )
-        next_total_value = _money_sum(next_cash, next_account_market_value)
+        next_total_value = _money_sum(next_cash, next_account_market_value, cash_receivable)
         next_cash_hold = _money_sum(other_cash, reservation_after.remaining_cash)
         _spendable_cash_after_holds(next_cash, next_cash_hold)
         next_share_hold = _quantity_sum(other_shares, reservation_after.remaining_shares)
@@ -856,6 +863,7 @@ class DjangoSimulatedOrderFillRepository:
             ("position.total_cost_after_fill", next_cost, "money"),
             ("position.market_value_after_fill", next_market_value, "money"),
             ("account.market_value_after_fill", next_account_market_value, "money"),
+            ("account.cash_receivable", cash_receivable, "money"),
             ("account.total_value_after_fill", next_total_value, "money"),
             ("holds.cash_after_fill", next_cash_hold, "money"),
             ("holds.shares_after_fill", next_share_hold, "quantity"),

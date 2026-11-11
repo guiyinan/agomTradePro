@@ -9,11 +9,31 @@ from django.db.models import Sum
 
 from apps.simulated_trading.domain.entities import SimulatedAccount
 from apps.simulated_trading.infrastructure.account_mapper import SimulatedAccountMapper
+from apps.simulated_trading.infrastructure.corporate_action_posting_models import (
+    CorporateActionPostingModel,
+)
 from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
+from core.exceptions import BusinessLogicError
 
 
 class SimulatedAccountQueryRepositoryMixin:
     """Provide account reads while preserving the established repository API."""
+
+    def get_cash_receivable(self, account_id: int) -> Decimal:
+        """Return the account's net unsettled corporate-action cash receivable."""
+
+        balance = CorporateActionPostingModel._base_manager.filter(account_id=account_id).aggregate(
+            total=Sum("cash_receivable_delta")
+        )["total"]
+        if balance is None:
+            return Decimal("0.00")
+        if not isinstance(balance, Decimal) or not balance.is_finite() or balance < 0:
+            raise BusinessLogicError(
+                "账户公司行动现金应收账本无效",
+                code="CORPORATE_ACTION_RECEIVABLE_INVALID",
+                details={"account_id": account_id},
+            )
+        return balance
 
     def get_by_id(self, account_id: int) -> SimulatedAccount | None:
         """根据ID获取账户"""

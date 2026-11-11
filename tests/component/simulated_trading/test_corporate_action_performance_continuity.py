@@ -23,6 +23,9 @@ from apps.simulated_trading.domain.corporate_action_posting import (
     CorporateActionStage,
     CorporateActionStageRequest,
 )
+from apps.simulated_trading.infrastructure.account_repository import (
+    DjangoSimulatedAccountRepository,
+)
 from apps.simulated_trading.infrastructure.corporate_action_posting_models import (
     CorporateActionPostingModel,
 )
@@ -285,6 +288,7 @@ def test_cash_receivable_and_payment_keep_account_net_value_continuous() -> None
     )
     account.refresh_from_db()
     assert account.total_value == Decimal("10100.00")
+    assert DjangoSimulatedAccountRepository().get_cash_receivable(account.pk) == Decimal("2.00")
     ex_date_result = net_value_service.record_and_update_performance(
         account_id=account.pk,
         record_date=_EX_DATE,
@@ -303,6 +307,7 @@ def test_cash_receivable_and_payment_keep_account_net_value_continuous() -> None
     assert account.current_cash == Decimal("10002.00")
     assert account.current_market_value == Decimal("98.00")
     assert account.total_value == Decimal("10100.00")
+    assert DjangoSimulatedAccountRepository().get_cash_receivable(account.pk) == Decimal("0.00")
 
     payment_result = net_value_service.record_and_update_performance(
         account_id=account.pk,

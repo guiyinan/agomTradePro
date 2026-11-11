@@ -3139,3 +3139,7 @@ v368 隔离价格准备的八个授权文件均按 Luna max 报告的 SHA-256 �
 投影修复和 v371 登记后的精确候选 `d846b3aab37ae307021bf839431e2c877bd230b9` 已通过六项适用 CI：Fast Feedback、Consistency、Architecture、Security、Quote Metric PostgreSQL 与 Publication PostgreSQL。原失败候选 `3f63ed917` 保留为失败记录，不能计入该结论。忽略目录索引 `artifacts/ash05-event-policy-20261111/d846-price-continuity-evidence-index.json` 的 SHA-256 为 `8502edbe771f94f59631d36d38a0ae34fbb67cd7dc525a0592a23c6b5115aa3d`，索引定位同一候选的 CI 列表及本地价格单测、金样本、mypy、债务与投影原件。该候选只收价格连续性小事项，ASH-05 的整单元退出仍未完成。
 
 Luna max 的下一块 RED 测试发现本地撮合在写入前还有账户快照守卫，原守卫只认现金加持仓市值，含应收账户会提前被拒。registry v373 将 `order_reservation_fill_ledger_storage.py` 加入同一有界隔离范围，由账户锁内读取同 alias 净应收并同时修正前置校验与后续总资产写入；当前引用成交路径没有同类前置守卫。该扩围不改变 ASH-05 的其余退出门或并发边界。
+
+v373 隔离成交应收准备的五个文件已按 Luna max 的逐文件 SHA-256 核对后整合：当前引用买卖结算和本地买卖撮合在账户锁内同别名汇总未结应收；撮合前置快照与写入复用同一余额。隔离 RED 证明旧守卫先于写入拒绝含应收账户；GREEN 聚焦 3 passed。正式树同三例组件 **3 passed**，除息到账与账户仓储读余额金样本 **1 passed**；账户摘要/概览补计净应收的单测 **25 passed**。Black/isort/Ruff、五文件增量 mypy、全库债务上限 0、current-data 契约、架构与生成投影均通过；精确 CI 仍以新候选验收。付款场景的成交测试使用合法追加账本 fixture，不替代正式 Audit/Outbox 组合、税费后扣、送转/配股、当前公告窗口或 §9 全量退出。
+
+费用更正保护候选 `78445c9ad4616daf20bf33cf830f2b776535857d` 的五项适用 CI 已全部成功，包含原生 Publication PostgreSQL；本机保护用例 **1 passed**、增量 mypy 零回归、全库债务上限 0。忽略目录索引 `artifacts/ash05-event-policy-20261111/784-fee-guard-evidence-index.json` SHA-256 为 `c6409e135631bb85d8ea0710227e3033e035a6a638e96eb0fcf76a1cf9786ace`。该候选只证明已登记公司行动账户不会被费用更正错误改写，未证明两类账本可同时完成更正。

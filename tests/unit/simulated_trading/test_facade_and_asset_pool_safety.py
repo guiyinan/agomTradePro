@@ -48,8 +48,14 @@ def _position() -> Position:
 
 
 class AccountRepo:
+    cash_receivable = Decimal("0.00")
+
     def get_by_id(self, account_id: int) -> SimulatedAccount | None:
         return _account() if account_id == 1 else None
+
+    def get_cash_receivable(self, account_id: int) -> Decimal:
+        assert account_id == 1
+        return self.cash_receivable
 
     def get_active_accounts(self) -> list[SimulatedAccount]:
         return [_account()]
@@ -93,6 +99,21 @@ def test_facade_preserves_fractional_quantity_and_recomputes_market_value(
     assert overview is not None
     assert overview.market_value == Decimal("250.0")
     assert overview.total_value == Decimal("650.0")
+
+
+def test_facade_includes_unsettled_cash_receivable_in_summary_and_overview(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    account_repo = AccountRepo()
+    account_repo.cash_receivable = Decimal("2.00")
+    facade = SimulatedTradingFacade(account_repo=account_repo, position_repo=PositionRepo())
+    monkeypatch.setattr(facade, "_get_active_strategy_binding", lambda account_id: None)
+
+    summary = facade.get_account_summary(1)
+    overview = facade.get_account_overview(1)
+
+    assert summary is not None and summary.total_value == Decimal("652.00")
+    assert overview is not None and overview.total_value == Decimal("652.00")
 
 
 def test_facade_does_not_turn_repository_failure_into_empty_portfolio() -> None:

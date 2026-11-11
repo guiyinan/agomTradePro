@@ -14018,12 +14018,17 @@
     },
     {
       "id": "simulated_trading.corporate_action_price_basis_and_nav",
-      "surface": "Account-scoped simulated position refresh and cash-dividend net value",
+      "surface": "Account-scoped simulated price refresh, settlement and cash-dividend net value",
       "source_files": [
         "apps/data_center/application/price_service.py",
         "apps/data_center/infrastructure/price_bar_repository.py",
+        "apps/simulated_trading/application/facade.py",
         "apps/simulated_trading/application/ports.py",
         "apps/simulated_trading/application/position_price_refresh.py",
+        "apps/simulated_trading/infrastructure/account_query_repository.py",
+        "apps/simulated_trading/infrastructure/execution_settlement_uow_repository.py",
+        "apps/simulated_trading/infrastructure/order_reservation_fill_ledger_storage.py",
+        "apps/simulated_trading/infrastructure/order_reservation_fill_repository.py",
         "apps/simulated_trading/infrastructure/position_repository.py"
       ],
       "required_markers": {
@@ -14035,12 +14040,29 @@
         "apps/data_center/infrastructure/price_bar_repository.py": [
           "PriceAdjustment.NONE.value"
         ],
+        "apps/simulated_trading/application/facade.py": [
+          "self.account_repo.get_cash_receivable(account_id)"
+        ],
         "apps/simulated_trading/application/ports.py": [
           "price_adjustment: Literal[\"none\", \"forward\", \"backward\"] | None"
         ],
         "apps/simulated_trading/application/position_price_refresh.py": [
           "if price_result.price_adjustment is not PriceAdjustment.NONE:",
           "code=\"PRICE_BASIS_UNVERIFIED\""
+        ],
+        "apps/simulated_trading/infrastructure/account_query_repository.py": [
+          "Sum(\"cash_receivable_delta\")",
+          "CORPORATE_ACTION_RECEIVABLE_INVALID"
+        ],
+        "apps/simulated_trading/infrastructure/execution_settlement_uow_repository.py": [
+          "cash_receivable = _read_net_cash_receivable(",
+          "_money_sum(next_cash, next_market_value, cash_receivable)"
+        ],
+        "apps/simulated_trading/infrastructure/order_reservation_fill_ledger_storage.py": [
+          "expected_total_value = _money_sum(cash, aggregate, cash_receivable)"
+        ],
+        "apps/simulated_trading/infrastructure/order_reservation_fill_repository.py": [
+          "_money_sum(next_cash, next_account_market_value, cash_receivable)"
         ],
         "apps/simulated_trading/infrastructure/position_repository.py": [
           "code=\"POSITION_PRICE_BASIS_UNVERIFIED\"",
@@ -14078,6 +14100,21 @@
           "case": "cash_receivable_and_payment_nav_continuity",
           "test_file": "tests/component/simulated_trading/test_corporate_action_performance_continuity.py",
           "test_function": "test_cash_receivable_and_payment_keep_account_net_value_continuous"
+        },
+        {
+          "case": "summary_and_overview_include_receivable",
+          "test_file": "tests/unit/simulated_trading/test_facade_and_asset_pool_safety.py",
+          "test_function": "test_facade_includes_unsettled_cash_receivable_in_summary_and_overview"
+        },
+        {
+          "case": "current_reference_settlement_preserves_receivable",
+          "test_file": "tests/component/simulated_trading/test_execution_settlement_uow.py",
+          "test_function": "test_current_reference_buy_sell_and_cash_payment_preserve_net_asset_value"
+        },
+        {
+          "case": "local_fill_preserves_receivable",
+          "test_file": "tests/component/simulated_trading/test_order_reservation_fill_repository.py",
+          "test_function": "test_locked_buy_and_sell_fill_preserve_receivable_and_payment_nav"
         },
         {
           "case": "legacy_numeric_refresh_blocked",

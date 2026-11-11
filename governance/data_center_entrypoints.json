@@ -5991,9 +5991,9 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=5",
-      "id": "current_data_surface:governance/current_data_contracts.json:simulated_trading.corporate_action_price_basis_and_nav:Account-scoped simulated position refresh and cash-dividend net value",
-      "locator": "Account-scoped simulated position refresh and cash-dividend net value",
+      "evidence": "governed current-data contract; source_files=10",
+      "id": "current_data_surface:governance/current_data_contracts.json:simulated_trading.corporate_action_price_basis_and_nav:Account-scoped simulated price refresh, settlement and cash-dividend net value",
+      "locator": "Account-scoped simulated price refresh, settlement and cash-dividend net value",
       "path": "governance/current_data_contracts.json",
       "status": "active_public",
       "symbol": "simulated_trading.corporate_action_price_basis_and_nav",

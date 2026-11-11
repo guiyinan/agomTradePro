@@ -91,6 +91,9 @@ from apps.simulated_trading.domain.execution_settlement_uow import (
     SimulatedTradeIntent,
     SimulatedTradeSide,
 )
+from apps.simulated_trading.infrastructure.corporate_action_posting_models import (
+    CorporateActionPostingModel,
+)
 from apps.simulated_trading.infrastructure.execution_settlement_uow_repository import (
     DjangoSimulatedTradeExecutionRepository,
 )
@@ -263,6 +266,7 @@ def ledger(request: pytest.FixtureRequest) -> object:
             PositionModel,
             SimulatedTradeModel,
             FeeConfigModel,
+            CorporateActionPostingModel,
         ),
         clear_existing_rows=False,
     ):
@@ -293,6 +297,97 @@ def ledger(request: pytest.FixtureRequest) -> object:
             )
         )
         yield user, account
+
+
+def _seed_cash_receivable(
+    account: SimulatedAccountModel,
+    *,
+    amount: Decimal = Decimal("200.00"),
+) -> CorporateActionPostingModel:
+    """Seed one append-only receivable row and the account's matching valuation."""
+
+    row = CorporateActionPostingModel.objects.create(
+        account=account,
+        account_revision=1,
+        source_namespace="fixture-official-disclosure",
+        source_record_id="fixture-disclosure-record",
+        source_event_id=f"fixture-dividend-{account.pk}",
+        source_revision_id="fixture-revision-v1",
+        asset_code="600000.SH",
+        security_id="SH.UOW.SECURITY",
+        asset_name="Test security",
+        action_kind="cash_dividend",
+        stage="cash_entitlement",
+        entry_kind="posting",
+        stage_key="posting:cash_entitlement",
+        request_payload_sha256="a" * 64,
+        source_payload_sha256="b" * 64,
+        qualification_sha256="c" * 64,
+        qualifier_identity="fixture-qualifier-v1",
+        source_observed_at=AS_OF - timedelta(days=2),
+        qualified_at=AS_OF - timedelta(days=1),
+        posted_at=AS_OF - timedelta(hours=1),
+        record_date=AS_OF.date() - timedelta(days=1),
+        effective_date=AS_OF.date(),
+        stage_date=AS_OF.date(),
+        cash_amount=amount,
+        cash_receivable_delta=amount,
+    )
+    account.total_value = account.current_cash + account.current_market_value + amount
+    account.save(update_fields=("total_value",))
+    return row
+
+
+def _transfer_cash_receivable_to_cash_for_test(
+    *,
+    account: SimulatedAccountModel,
+    entitlement: CorporateActionPostingModel,
+    amount: Decimal,
+) -> None:
+    """Mirror the append-only payment transfer used by cash-action settlement."""
+
+    CorporateActionPostingModel.objects.create(
+        account=account,
+        account_revision=2,
+        source_namespace=entitlement.source_namespace,
+        source_record_id=entitlement.source_record_id,
+        source_event_id=entitlement.source_event_id,
+        source_revision_id=entitlement.source_revision_id,
+        asset_code=entitlement.asset_code,
+        security_id=entitlement.security_id,
+        asset_name=entitlement.asset_name,
+        action_kind=entitlement.action_kind,
+        stage="cash_payment",
+        entry_kind="posting",
+        stage_key="posting:cash_payment",
+        request_payload_sha256="d" * 64,
+        source_payload_sha256=entitlement.source_payload_sha256,
+        qualification_sha256=entitlement.qualification_sha256,
+        qualifier_identity=entitlement.qualifier_identity,
+        source_observed_at=entitlement.source_observed_at,
+        qualified_at=entitlement.qualified_at,
+        posted_at=AS_OF,
+        record_date=entitlement.record_date,
+        effective_date=entitlement.effective_date,
+        stage_date=AS_OF.date(),
+        payment_date=AS_OF.date(),
+        cash_amount=amount,
+        cash_delta=amount,
+        cash_receivable_delta=-amount,
+    )
+    account.current_cash += amount
+    account.save(update_fields=("current_cash",))
+
+
+def _cash_receivable_total(account_id: int) -> Decimal:
+    """Return the net receivable from immutable posting rows for one account."""
+
+    total = (
+        CorporateActionPostingModel._base_manager.using("default")
+        .filter(account_id=account_id)
+        .aggregate(total=models.Sum("cash_receivable_delta"))["total"]
+    )
+    return total if isinstance(total, Decimal) else Decimal("0.00")
 
 
 def _seed_fee_policy(row: FeeConfigModel) -> None:
@@ -2865,6 +2960,79 @@ def _seed_position(
         unrealized_pnl_pct=0.0,
         first_buy_date=date(2026, 10, 1),
     )
+
+
+def test_current_reference_buy_sell_and_cash_payment_preserve_net_asset_value(
+    ledger: tuple[object, SimulatedAccountModel],
+) -> None:
+    """Locked settlement carries an unpaid dividend once through trades and payment."""
+
+    user, account = ledger
+    _seed_position(
+        account,
+        quantity=Decimal("100.000000"),
+        available_quantity=Decimal("100.000000"),
+    )
+    entitlement = _seed_cash_receivable(account)
+    repository = DjangoSimulatedTradeExecutionRepository(using="default")
+    assert account.total_value == (
+        account.current_cash + account.current_market_value + entitlement.cash_receivable_delta
+    )
+
+    buy_intent = _intent(
+        user_id=user.pk,
+        account_id=account.pk,
+        key="cash-receivable-buy",
+        quantity=Decimal("100"),
+    )
+    buy_plan, bundle, _ = _current_v3_plan(
+        repository=repository,
+        intent=buy_intent,
+        as_of=AS_OF,
+    )
+    repository.execute_trade(
+        plan=buy_plan,
+        execution_bundle=bundle,
+        clock=_Clock(AS_OF),
+    )
+    account.refresh_from_db()
+    assert account.total_value == (
+        account.current_cash + account.current_market_value + _cash_receivable_total(account.pk)
+    )
+    assert _cash_receivable_total(account.pk) == Decimal("200.00")
+
+    nav_before_payment = account.total_value
+    _transfer_cash_receivable_to_cash_for_test(
+        account=account,
+        entitlement=entitlement,
+        amount=Decimal("200.00"),
+    )
+    account.refresh_from_db()
+    assert _cash_receivable_total(account.pk) == Decimal("0.00")
+    assert account.current_cash + account.current_market_value == nav_before_payment
+    assert account.total_value == nav_before_payment
+
+    sell_intent = _intent(
+        user_id=user.pk,
+        account_id=account.pk,
+        side=SimulatedTradeSide.SELL,
+        key="cash-receivable-sell",
+        quantity=Decimal("50"),
+    )
+    sell_plan, sell_bundle, _ = _current_v3_plan(
+        repository=repository,
+        intent=sell_intent,
+        as_of=AS_OF,
+        bundle=bundle,
+    )
+    repository.execute_trade(
+        plan=sell_plan,
+        execution_bundle=sell_bundle,
+        clock=_Clock(AS_OF),
+    )
+    account.refresh_from_db()
+    assert _cash_receivable_total(account.pk) == Decimal("0.00")
+    assert account.total_value == account.current_cash + account.current_market_value
 
 
 @pytest.mark.parametrize("damage", ["missing", "mismatch", "tampered"])

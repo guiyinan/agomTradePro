@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 from datetime import UTC, date, datetime
+from decimal import Decimal
 from typing import Any
 
 import pytest
@@ -110,6 +111,10 @@ class _AccountRepository:
 
     def get_by_id(self, account_id: int) -> SimulatedAccount | None:
         return self.account if account_id == self.account.account_id else None
+
+    def get_cash_receivable(self, account_id: int) -> Decimal:
+        assert account_id == self.account.account_id
+        return Decimal("0.00")
 
     def get_active_accounts(self) -> list[SimulatedAccount]:
         return [self.account]

@@ -70,10 +70,13 @@ from tests.component.simulated_trading.test_execution_settlement_uow import (
     AS_OF,
     _bundle,
     _calendar,
+    _cash_receivable_total,
     _Clock,
     _current_v3_plan,
     _IdentityReader,
     _RuleReader,
+    _seed_cash_receivable,
+    _transfer_cash_receivable_to_cash_for_test,
 )
 from tests.component.simulated_trading.test_execution_settlement_uow import ledger as ledger
 from tests.component.simulated_trading.test_order_reservation_fill_row_reader import (
@@ -552,6 +555,52 @@ def test_buy_fill_writes_trade_receipt_position_and_reservation_atomically(
     assert account.total_value == account.current_cash + account.current_market_value
     assert account.cash_known is True
     assert account.cash_reconciliation_status == "simulated_ledger"
+
+
+@pytest.mark.parametrize("side", [SimulatedTradeSide.BUY, SimulatedTradeSide.SELL])
+def test_locked_buy_and_sell_fill_preserve_receivable_and_payment_nav(
+    reservation_harness: _Harness,
+    persisted_receipt_schema: None,
+    side: SimulatedTradeSide,
+) -> None:
+    """Account-locked fills retain net receivable until payment transfers it to cash."""
+
+    del persisted_receipt_schema
+    if side is SimulatedTradeSide.BUY:
+        _create_position(reservation_harness.account)
+    rows = _reader_rows(reservation_harness, side=side)
+    _set_consistent_account_mark(
+        reservation_harness.account,
+        market_value=Decimal("1000.00"),
+    )
+    entitlement = _seed_cash_receivable(reservation_harness.account)
+    reader = _EventReader(rows.event, [])
+    repository = DjangoSimulatedOrderFillRepository(event_reader=reader, using="default")
+
+    result = _invoke(
+        repository,
+        rows.event,
+        rows.proof,
+        clock=_FixedClock(_READ_CUTOFF),
+    )
+
+    account = SimulatedAccountModel.objects.get(pk=reservation_harness.account.pk)
+    assert result.replayed is False
+    assert account.total_value == (
+        account.current_cash + account.current_market_value + _cash_receivable_total(account.pk)
+    )
+    assert _cash_receivable_total(account.pk) == Decimal("200.00")
+    nav_before_payment = account.total_value
+
+    _transfer_cash_receivable_to_cash_for_test(
+        account=account,
+        entitlement=entitlement,
+        amount=Decimal("200.00"),
+    )
+    account.refresh_from_db()
+    assert _cash_receivable_total(account.pk) == Decimal("0.00")
+    assert account.current_cash + account.current_market_value == nav_before_payment
+    assert account.total_value == nav_before_payment
 
 
 @pytest.mark.parametrize("missing_state", ["position", "valuation", "aggregate"])

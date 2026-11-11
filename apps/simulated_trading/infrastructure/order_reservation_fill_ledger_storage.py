@@ -8,7 +8,7 @@ from datetime import date, datetime
 from decimal import Decimal, localcontext
 
 from django.contrib.auth import get_user_model
-from django.db import DatabaseError
+from django.db import DatabaseError, models
 
 from apps.simulated_trading.application.execution_settlement_uow import (
     SimulatedTradeAccountScopeUnavailable,
@@ -37,6 +37,9 @@ from apps.simulated_trading.domain.execution_settlement_uow import SimulatedTrad
 from apps.simulated_trading.domain.initial_position_mark import InitialPositionMarkProof
 from apps.simulated_trading.domain.order_reservation_fill_settlement import (
     OrderFillSettlementProof,
+)
+from apps.simulated_trading.infrastructure.corporate_action_posting_models import (
+    CorporateActionPostingModel,
 )
 from apps.simulated_trading.infrastructure.execution_settlement_accounting_math import (
     _money_difference,
@@ -362,7 +365,7 @@ def _account_positions_snapshot(
     asset_code: str,
     using: str,
     allow_missing_target: bool = False,
-) -> tuple[PositionModel | None, Decimal, Decimal]:
+) -> tuple[PositionModel | None, Decimal, Decimal, Decimal]:
     """Validate the marked account aggregate and return its optional target row."""
 
     _require_known_simulated_cash(
@@ -407,6 +410,21 @@ def _account_positions_snapshot(
     cash = validate_ledger_money(account.current_cash, "account.current_cash")
     aggregate = validate_ledger_money(account.current_market_value, "account.current_market_value")
     total_value = validate_ledger_money(account.total_value, "account.total_value")
+    raw_receivable = (
+        CorporateActionPostingModel._base_manager.using(using)
+        .filter(account_id=account.pk)
+        .aggregate(total=models.Sum("cash_receivable_delta"))["total"]
+    )
+    try:
+        cash_receivable = validate_ledger_money(
+            Decimal("0.00") if raw_receivable is None else raw_receivable,
+            "account.cash_receivable",
+        )
+    except (ArithmeticError, TypeError, ValueError) as error:
+        raise _blocked(
+            "CORPORATE_ACTION_RECEIVABLE_INVALID",
+            "公司行动现金应收账本无效，成交记账已阻止",
+        ) from error
     marked_values: list[Decimal] = []
     target: PositionModel | None = None
     for position in positions:
@@ -424,7 +442,8 @@ def _account_positions_snapshot(
                 raise _blocked("POSITION_IDENTITY_AMBIGUOUS", "账户证券持仓重复")
             target = position
     expected_aggregate = _money_sum(*marked_values)
-    if aggregate != expected_aggregate or total_value != _money_sum(cash, aggregate):
+    expected_total_value = _money_sum(cash, aggregate, cash_receivable)
+    if aggregate != expected_aggregate or total_value != expected_total_value:
         raise _blocked(
             "ACCOUNT_VALUATION_INCONSISTENT",
             "账户总资产与已知现金及持仓估值不一致，成交记账已阻止",
@@ -432,7 +451,7 @@ def _account_positions_snapshot(
     if target is None and not allow_missing_target:
         raise _blocked("POSITION_REQUIRED", "成交写入需要已有的已知估值持仓")
     if target is None:
-        return None, cash, aggregate
+        return None, cash, aggregate, cash_receivable
     if target.available_quantity_known is not True:
         raise _blocked("SELLABLE_BALANCE_UNKNOWN", "持仓可卖数量未知，成交记账已阻止")
     if type(target.cost_basis_known) not in (bool, type(None)):
@@ -443,7 +462,7 @@ def _account_positions_snapshot(
     if target.available_quantity > target.quantity:
         raise _blocked("POSITION_QUANTITY_INVALID", "持仓可卖数量超过总数量")
     validate_ledger_money(target.total_cost, "position.total_cost", allow_zero=True)
-    return target, cash, aggregate
+    return target, cash, aggregate, cash_receivable
 
 
 def _locked_pending_buys(
