@@ -530,3 +530,9 @@ CAL-01 是只读准备事项，后续实现按机器依赖串行交接；CAL-02 
 Owner 授权在 ASH-05 保持唯一 repository 焦点时并行准备 CAL-02。登记副本为 `.tmp/cal02-calendar-contract-20261111`，从本登记正式提交创建 detached 工作树；只允许新增 `apps/data_center/domain/institutional_calendar.py`、`apps/data_center/application/institutional_calendar.py` 和 `tests/unit/data_center/test_institutional_calendar.py`。
 
 最近可提交事项为六候自然日窗口、证据等级与生命周期分离、市场可得/系统已知双时钟及国家统计局日程/实际发布 typed 契约。测试须覆盖跨月、闰年、交易日对齐、取消/修订、未来版本拒绝和 date-only 保守可用；不使用 ORM、Provider 网络、数据库或 TUI runtime，不运行重 QA，不写共享 Git/index。Root 后续在取得串行焦点后负责正式采用、模块图投影、持久化、公开 Application 读取和真实 TUI 验收；本准备完成不等于 CAL-02 整单元关闭。
+
+### 13.9 CAL-02 国家统计局原件离线解析准备（2026-11-11）
+
+继续在 `.tmp/cal02-calendar-contract-20261111` 完成一个有界小事项：只新增 `apps/data_center/infrastructure/nbs_institutional_calendar_parser.py`、对应单元测试及最小真实来源 HTML fixtures。解析对象为 CAL-01 已留存的 2026 年发布日程和 2026-11-09 CPI 实际发布，覆盖 meta 发布时间、rowspan 表格、原始字节 SHA-256、显式来源时区及调用方提供的事件身份、类型和真实系统时钟。
+
+解析器必须拒绝缺失或歧义元数据、畸形表格、不支持的时间精度和日程/实际发布不匹配；日程只生成 tentative/scheduled 输入，不根据日期推断实际发生。本批不接网络、ORM、模型/迁移、Provider 注册、current/latest、TUI runtime 或重 QA，不写共享 Git/index。Root 仍负责后续串行正式采用、模块图投影、持久化、公开读取和真实用户验收；离线解析通过不等于 CAL-02 已完成。

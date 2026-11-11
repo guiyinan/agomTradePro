@@ -1,5 +1,5 @@
 {
-  "version": "2026-11-11.v370",
+  "version": "2026-11-11.v372",
   "updated_at": "2026-11-11",
   "execution_focus": {
     "unit_id": "ASH-05",
@@ -20,7 +20,7 @@
       },
       {
         "unit_id": "CAL-02",
-        "scope": "One isolated CAL-02 preparation in .tmp/cal02-calendar-contract-20261111 based on the formal registration commit. Implement only the six natural-day period Domain rules, institutional-event evidence/lifecycle separation, and market-availability versus system-known dual-clock typed contracts with NBS schedule/actual-release fixtures. Allowed new production paths: apps/data_center/domain/institutional_calendar.py and apps/data_center/application/institutional_calendar.py. Allowed new test path: tests/unit/data_center/test_institutional_calendar.py. Cover cross-month, leap-year, trading-calendar alignment, cancellation/revision, future-version rejection and conservative date-only availability. No model/migration, ORM, provider/network call, TUI/runtime, current/latest endpoint, production tree edit, heavy QA or shared Git/index. Root owns later formal integration, module-map projection, persistence, public Application reads and real TUI acceptance.",
+        "scope": "Continue the one isolated CAL-02 preparation in .tmp/cal02-calendar-contract-20261111. Preserve the completed six natural-day period, evidence/lifecycle and dual-clock contracts. Add only strict offline parsing of the retained real NBS 2026 schedule and 2026-11-09 CPI actual-release HTML, including metadata, rowspan tables, exact original hashes, explicit source timezone and caller-supplied event identity/type and real system clocks. Reject missing or ambiguous metadata, malformed tables, unsupported date/time precision and schedule/actual mismatches; never infer actual occurrence from the schedule. Additional allowed production path: apps/data_center/infrastructure/nbs_institutional_calendar_parser.py. Additional allowed test path: tests/unit/data_center/test_nbs_institutional_calendar_parser.py and minimal real-source HTML fixtures under tests/fixtures/data_center/institutional_calendar/. No model/migration, ORM, provider/network call, provider registration, TUI/runtime, current/latest endpoint, production tree edit, heavy QA or shared Git/index. Root owns later formal integration, module-map projection, persistence, public Application reads and real TUI acceptance.",
         "owner": "Kimi CAL-02 isolated preparation under Root integration",
         "isolated_workspace": true,
         "shared_git_serialized": true,
