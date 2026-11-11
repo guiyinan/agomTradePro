@@ -189,7 +189,7 @@ def test_postgres_concurrent_entitlement_replay_writes_one_receivable() -> None:
     assert account.current_cash == Decimal("10000.00")
 
 
-@pytest.mark.django_db(transaction=True)
+@pytest.mark.django_db
 def test_postgres_payment_waits_for_szse_date_and_settles_exact_receivable() -> None:
     """The native ledger rejects early and partial payment before one exact transfer."""
 
