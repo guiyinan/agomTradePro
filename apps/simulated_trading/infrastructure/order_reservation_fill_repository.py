@@ -390,18 +390,14 @@ class DjangoSimulatedOrderFillRepository:
                     .filter(account_id=account.pk)
                     .order_by("pk")
                 )
-                (
-                    position,
-                    current_cash,
-                    account_market_value,
-                    cash_receivable,
-                ) = _account_positions_snapshot(
+                snapshot = _account_positions_snapshot(
                     account=account,
                     positions=position_rows,
                     asset_code=reservation_row.asset_code,
                     using=self._using,
                     allow_missing_target=True,
                 )
+                position, current_cash, account_market_value, cash_receivable = snapshot
                 if position is None and chain.intent.side is not SimulatedTradeSide.BUY:
                     raise _blocked("POSITION_REQUIRED", "卖出成交缺少可核验的持仓")
                 if position is not None and position.asset_type != reservation_row.asset_type:

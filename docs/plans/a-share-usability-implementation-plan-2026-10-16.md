@@ -3143,3 +3143,5 @@ Luna max 的下一块 RED 测试发现本地撮合在写入前还有账户快照
 v373 隔离成交应收准备的五个文件已按 Luna max 的逐文件 SHA-256 核对后整合：当前引用买卖结算和本地买卖撮合在账户锁内同别名汇总未结应收；撮合前置快照与写入复用同一余额。隔离 RED 证明旧守卫先于写入拒绝含应收账户；GREEN 聚焦 3 passed。正式树同三例组件 **3 passed**，除息到账与账户仓储读余额金样本 **1 passed**；账户摘要/概览补计净应收的单测 **25 passed**。Black/isort/Ruff、五文件增量 mypy、全库债务上限 0、current-data 契约、架构与生成投影均通过；精确 CI 仍以新候选验收。付款场景的成交测试使用合法追加账本 fixture，不替代正式 Audit/Outbox 组合、税费后扣、送转/配股、当前公告窗口或 §9 全量退出。
 
 费用更正保护候选 `78445c9ad4616daf20bf33cf830f2b776535857d` 的五项适用 CI 已全部成功，包含原生 Publication PostgreSQL；本机保护用例 **1 passed**、增量 mypy 零回归、全库债务上限 0。忽略目录索引 `artifacts/ash05-event-policy-20261111/784-fee-guard-evidence-index.json` SHA-256 为 `c6409e135631bb85d8ea0710227e3033e035a6a638e96eb0fcf76a1cf9786ace`。该候选只证明已登记公司行动账户不会被费用更正错误改写，未证明两类账本可同时完成更正。
+
+成交应收候选 `ed5a38c448bcaaae978c20c5f9882e18945d7b4f` 的 Fast Feedback 增量质量门因两份既有大仓储继续增长而失败，原件 `artifacts/ash05-event-policy-20261111/ed5-fast-failed.log`；另外五项适用 CI 成功，不能跨候选拼成全通过。修复把买卖持仓持久化从 `execution_settlement_uow_repository.py` 抽到独立基础设施模块，前者非空行从基线 1070 降至 911；撮合仓储精简快照展开后为 999（基线 995），处于 1000 行门内。正式树买卖/到账组件重新执行 **3 passed**，增量 mypy、全库债务和架构零回归；模块地图及 Data Center 投影按生成器重建，下一精确候选仍需独立 CI 验收。
