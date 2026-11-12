@@ -40,6 +40,9 @@ from apps.simulated_trading.domain.corporate_action_tax_settlement_evidence impo
 from apps.simulated_trading.domain.corporate_action_tax_source_evidence import (
     TaxAssessmentStatutorySourceBundle,
 )
+from apps.simulated_trading.domain.simulated_tax_settlement_history import (
+    SimulatedTaxSettlementHistoryObservation,
+)
 
 _SCHEMA = "corporate-action-deferred-tax-assessment.v1"
 
@@ -444,6 +447,7 @@ def _observation_manifest(
     bridge: DeferredDividendTaxSettlementBridgeResult,
     calculation: DeferredTaxCalculation,
     statutory_source_bundle: TaxAssessmentStatutorySourceBundle,
+    simulated_tax_date_observation: SimulatedTaxSettlementHistoryObservation | None,
 ) -> dict[str, object]:
     """Retain actual ownership/source capture observations and legacy evidence hashes."""
 
@@ -462,7 +466,7 @@ def _observation_manifest(
                 "body_size_bytes": capture.body_size_bytes,
             }
         )
-    return {
+    payload: dict[str, object] = {
         "schema": "corporate-action-tax-observation-manifest.v1",
         "ownership_proof": {
             "ownership_snapshot_id": proof.ownership_snapshot_id,
@@ -497,6 +501,11 @@ def _observation_manifest(
             "calculator_assessment_sha256": calculation.assessment_sha256,
         },
     }
+    if simulated_tax_date_observation is not None:
+        payload["simulated_tax_settlement_observation"] = (
+            simulated_tax_date_observation.to_payload()
+        )
+    return payload
 
 
 @dataclass(frozen=True, slots=True)
@@ -515,6 +524,7 @@ class CorporateActionTaxAssessment:
     target_settlement_date: date
     policy: DeferredDividendTaxPolicy
     statutory_source_bundle: TaxAssessmentStatutorySourceBundle
+    simulated_tax_date_observation: SimulatedTaxSettlementHistoryObservation | None = None
     bridge: DeferredDividendTaxSettlementBridgeResult = field(init=False)
     calculation: DeferredTaxCalculation = field(init=False)
     semantic_payload_json: str = field(init=False)
@@ -546,6 +556,15 @@ class CorporateActionTaxAssessment:
             raise DeferredDividendTaxValidationError("assessment requires an explicit tax policy")
         if type(self.statutory_source_bundle) is not TaxAssessmentStatutorySourceBundle:
             raise DeferredDividendTaxValidationError("assessment requires a retained source bundle")
+        if self.simulated_tax_date_observation is not None:
+            if (
+                type(self.simulated_tax_date_observation)
+                is not SimulatedTaxSettlementHistoryObservation
+            ):
+                raise DeferredDividendTaxValidationError(
+                    "simulated tax history observation has an unsupported type"
+                )
+            self.simulated_tax_date_observation.verify_for(self.history)
 
         self.action.__post_init__()
         self.history.__post_init__()
@@ -604,6 +623,7 @@ class CorporateActionTaxAssessment:
             bridge=bridge,
             calculation=calculation,
             statutory_source_bundle=self.statutory_source_bundle,
+            simulated_tax_date_observation=self.simulated_tax_date_observation,
         )
         semantic_json = _canonical_json(semantic_payload)
         observation_json = _canonical_json(observation_payload)
@@ -653,6 +673,7 @@ class CorporateActionTaxAssessment:
             target_settlement_date=self.target_settlement_date,
             policy=self.policy,
             statutory_source_bundle=self.statutory_source_bundle,
+            simulated_tax_date_observation=self.simulated_tax_date_observation,
         )
         if (
             rebuilt.bridge != self.bridge

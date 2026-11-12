@@ -174,13 +174,19 @@ def locked_current_simulated_corporate_action_write_grant(
     This composition never searches historical records. It locks both append-only
     grant ledgers before reading scope state, verifies the current server MAC and
     rechecks the same finite current grant before yielding back to the caller.
+    Assessment reads require the explicit V2 assessment capability. The caller
+    must separately qualify physical ownership, current policy and tax inputs.
     """
 
     if type(required_capability) is not SimulatedCorporateActionWriteCapability or (
-        required_capability is not SimulatedCorporateActionWriteCapability.CASH_STAGE_WRITE
+        required_capability
+        not in {
+            SimulatedCorporateActionWriteCapability.CASH_STAGE_WRITE,
+            SimulatedCorporateActionWriteCapability.TAX_ASSESS,
+        }
     ):
         raise SimulatedCorporateActionWriteGrantUnavailable(
-            "current simulated write grant reader supports only the cash capability"
+            "current simulated write grant reader supports only cash and tax-assessment capabilities"
         )
     if type(selector) is not SimulatedCorporateActionWriteGrantSelector:
         raise SimulatedCorporateActionWriteGrantUnavailable(

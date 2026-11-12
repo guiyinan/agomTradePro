@@ -14150,7 +14150,8 @@
         ],
         "apps/account/simulated_corporate_action_current_grant_composition.py": [
           "locked_current_simulated_corporate_action_write_grant",
-          "IN SHARE MODE NOWAIT"
+          "IN SHARE MODE NOWAIT",
+          "SimulatedCorporateActionWriteCapability.TAX_ASSESS"
         ],
         "apps/simulated_trading/corporate_action_owner_grant_gate.py": [
           "atomic_authority",
@@ -14243,9 +14244,24 @@
           "case": "reversal_uses_exact_predecessor_inverse",
           "test_file": "tests/unit/simulated_trading/test_corporate_action_cash_revision_composition.py",
           "test_function": "test_replay_row_verification_accepts_the_actual_inverse_delta"
+        },
+        {
+          "case": "explicit_tax_only_current_head",
+          "test_file": "tests/unit/account/test_simulated_corporate_action_current_grant.py",
+          "test_function": "test_explicit_v2_tax_assessment_read_keeps_current_head_mac_and_table_locks"
+        },
+        {
+          "case": "assessment_retains_mac_expiry_revocation_exit",
+          "test_file": "tests/unit/account/test_simulated_corporate_action_current_grant.py",
+          "test_function": "test_tax_assessment_read_preserves_liveness_and_exit_revalidation"
+        },
+        {
+          "case": "native_explicit_assessment_without_cash_fallback",
+          "test_file": "tests/component/simulated_trading/test_owner_granted_corporate_action_capabilities_postgres.py",
+          "test_function": "test_native_tax_only_v2_current_head_denies_cash_without_v1_fallback"
         }
       ],
-      "notes": "Server clocks never replace source observed_at or policy lineage. A public content hash is not issuer proof. Real Session/CSRF, current trading RBAC, locked physical owner, exact canonical source and explicit runtime policy, signed exact current grant and immutable revocation are independent gates. Historical withdrawal metadata is never current authority. Scope discovery retains expired heads and conflicting mappings. A financial retry may waive only the initial physical updated_at comparison after exact ledger, same-grant Audit and Outbox proof; every current authorization gate remains required. Current official disclosure coverage and ordinary TUI end-to-end acceptance remain separate. Correction timestamp replay requires the full original reversal/successor set, exact namespace, matched predecessor inverse effects, and all contiguous same-grant Audit/Outbox pairs. Later ordinary payment is outside correction membership; partial correction is never timestamp proof."
+      "notes": "Server clocks never replace source observed_at or policy lineage. A public content hash is not issuer proof. Real Session/CSRF, current trading RBAC, locked physical owner, exact canonical source and explicit runtime policy, signed exact current grant and immutable revocation are independent gates. Historical withdrawal metadata is never current authority. Scope discovery retains expired heads and conflicting mappings. A financial retry may waive only the initial physical updated_at comparison after exact ledger, same-grant Audit and Outbox proof; every current authorization gate remains required. Current official disclosure coverage and ordinary TUI end-to-end acceptance remain separate. Correction timestamp replay requires the full original reversal/successor set, exact namespace, matched predecessor inverse effects, and all contiguous same-grant Audit/Outbox pairs. Later ordinary payment is outside correction membership; partial correction is never timestamp proof. The current-head reader also admits an explicitly server-selected TAX_ASSESS requirement on a matching V2 grant. Cash remains the default requirement; V1 grants cannot authorize tax assessment, and withholding reads remain unsupported. Reading the grant does not qualify tax law/persona/instrument/date/history or authorize financial withholding."
     },
     {
       "id": "data_center.configured_statutory_bundle_evidence",
@@ -14402,6 +14418,94 @@
         }
       ],
       "notes": "The logical source_event_id remains the lineage root, while source_record_id identifies the actual retained current disclosure. Unique complete known parents, no forks/cycles and no currently known successor are required. Keep native first_seen_at and persistence clocks; verification time never refreshes source clocks. Missing body, lineage or economics returns false. Current event selection does not prove listing-window completeness, market freshness, legal eligibility, real custody or owner write permission; those remain independent fail-closed contracts."
+    },
+    {
+      "id": "simulated_trading.current_simulated_tax_settlement_history",
+      "surface": "Read-only complete zero-origin V4 fill prefix mapped through explicitly approved simulated date rules and a current published calendar; no real custody or financial authority",
+      "source_files": [
+        "apps/simulated_trading/domain/simulated_tax_settlement_history.py",
+        "apps/simulated_trading/application/corporate_action_tax_settlement_history.py",
+        "apps/simulated_trading/infrastructure/corporate_action_tax_settlement_history_repository.py"
+      ],
+      "required_markers": {
+        "apps/simulated_trading/domain/simulated_tax_settlement_history.py": [
+          "must_not_use_as_real_custody_proof",
+          "self.date_rule.convention_sha256 != history.settlement_date_rule_sha256",
+          "source_revision_sha256",
+          "history_identity_sha256",
+          "completion day has not ended at the history cutoff"
+        ],
+        "apps/simulated_trading/application/corporate_action_tax_settlement_history.py": [
+          "selected.provenance.as_of != as_of",
+          "checked_at < as_of",
+          "calendar.validate_for(checked_at)",
+          "selected.convention.valid_until"
+        ],
+        "apps/simulated_trading/infrastructure/corporate_action_tax_settlement_history_repository.py": [
+          "fact.recorded_at > as_of or fact.occurred_at > as_of",
+          "current is None or current != event",
+          "source_recorded_at=event.recorded_at",
+          "trade_observed_at=trade_observed_at"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "complete_explicit_zero_sessions",
+          "test_file": "tests/unit/simulated_trading/test_simulated_tax_settlement_history.py",
+          "test_function": "test_builder_preserves_zero_sessions_and_applies_same_day_net_after_fifo_record_position"
+        },
+        {
+          "case": "no_record_position_relabel",
+          "test_file": "tests/unit/simulated_trading/test_simulated_tax_settlement_history.py",
+          "test_function": "test_builder_blocks_when_modeled_record_date_position_differs_from_ownership_proof"
+        },
+        {
+          "case": "unfinished_day_not_zero_activity",
+          "test_file": "tests/unit/simulated_trading/test_simulated_tax_settlement_history.py",
+          "test_function": "test_builder_rejects_an_unfinished_completion_day_instead_of_publishing_zero_activity"
+        },
+        {
+          "case": "observation_refresh_not_new_facts",
+          "test_file": "tests/unit/simulated_trading/test_simulated_tax_settlement_history.py",
+          "test_function": "test_reobservation_changes_only_observation_manifest_inputs_not_semantic_history"
+        },
+        {
+          "case": "bind_actual_rule_not_public_hash_only",
+          "test_file": "tests/unit/simulated_trading/test_simulated_tax_settlement_history.py",
+          "test_function": "test_build_rejects_observation_from_another_date_rule_or_history_prefix"
+        },
+        {
+          "case": "stable_earlier_semantic_prefix",
+          "test_file": "tests/unit/simulated_trading/test_simulated_tax_settlement_history.py",
+          "test_function": "test_later_known_fill_does_not_change_an_earlier_target_prefix_identity"
+        },
+        {
+          "case": "reject_expiry_during_read",
+          "test_file": "tests/unit/simulated_trading/test_simulated_tax_settlement_history.py",
+          "test_function": "test_application_reads_exact_owner_prefix_with_current_rule_calendar_and_server_clock"
+        },
+        {
+          "case": "actual_original_event_clocks",
+          "test_file": "tests/component/simulated_trading/test_corporate_action_tax_settlement_history_repository.py",
+          "test_function": "test_adapter_returns_only_an_exact_current_event_with_its_original_clock"
+        },
+        {
+          "case": "changed_source_blocks_without_fallback",
+          "test_file": "tests/component/simulated_trading/test_corporate_action_tax_settlement_history_repository.py",
+          "test_function": "test_adapter_blocks_changed_current_event_instead_of_using_receipt_metadata"
+        },
+        {
+          "case": "future_source_rejected",
+          "test_file": "tests/component/simulated_trading/test_corporate_action_tax_settlement_history_repository.py",
+          "test_function": "test_adapter_rejects_a_source_reader_row_outside_the_requested_cutoff"
+        },
+        {
+          "case": "actual_persisted_source_history_and_current_rule",
+          "test_file": "tests/component/simulated_trading/test_simulated_tax_history_native_postgres.py",
+          "test_function": "test_native_simulated_history_uses_explicit_tax_dates_and_only_reads_persisted_sources"
+        }
+      ],
+      "notes": "The existing independent occurrence-date record-date ownership proof must agree with the explicitly modeled tax position. Every retained V4 receipt is rechecked against the exact local source event; unknown changes, transfers, share actions, missing sessions and negative positions block. The completion day must have ended in the published exchange timezone; unfinished or future dates cannot be filled with zero activity. Original source, fill, profile and calendar clocks remain distinct from read_at. A final nondecreasing aware server clock rechecks finite rule and calendar windows without restamping observations. Later facts beyond a target settlement prefix do not change its semantic identity; a refreshed observation changes only the observation manifest. Simulation rules cannot serve as real custody proof and this reader issues no tax grant or legal/persona/instrument qualification."
     }
   ]
 }

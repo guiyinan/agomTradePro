@@ -4158,7 +4158,7 @@
           "imports": 3
         },
         "simulated_trading": {
-          "imports": 78
+          "imports": 79
         },
         "strategy": {
           "imports": 1
@@ -11039,7 +11039,7 @@
           ]
         },
         "data_center": {
-          "imports": 78,
+          "imports": 79,
           "target_layers": [
             "application",
             "calendar_publication_operations_composition",
@@ -11245,6 +11245,17 @@
           "DeferredDividendTaxPolicyJSON",
           "HoldingPeriodTaxBandJSON",
           "decode_deferred_dividend_tax_policy"
+        ],
+        "application/corporate_action_tax_settlement_history.py": [
+          "CurrentSimulatedTaxDateRuleReader",
+          "OwnershipHistoryFillSource",
+          "ReadSimulatedTaxSettlementHistoryUseCase",
+          "RecordDateOwnershipHistoryRead",
+          "RecordDateOwnershipSourceRead",
+          "SimulatedTaxDateConventionRead",
+          "SimulatedTaxSettlementHistoryQuery",
+          "TaxSettlementHistoryClock",
+          "TaxSettlementHistoryInputReader"
         ],
         "application/current_account_ownership.py": [
           "CurrentAccountOwnership",
@@ -12061,12 +12072,12 @@
         ]
       },
       "layers": {
-        "application": 125,
-        "domain": 46,
-        "infrastructure": 138,
+        "application": 126,
+        "domain": 47,
+        "infrastructure": 139,
         "interface": 35,
         "management": 7,
-        "root": 45
+        "root": 46
       },
       "orm_models": {
         "infrastructure/models.py": [

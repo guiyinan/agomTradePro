@@ -17,6 +17,10 @@ from django.db import DEFAULT_DB_ALIAS, transaction
 from django.db.models import Q
 from django.utils import timezone
 
+from apps.simulated_trading.application.corporate_action_tax_settlement_history import (
+    OwnershipHistoryFillSource,
+    RecordDateOwnershipSourceRead,
+)
 from apps.simulated_trading.application.execution_settlement_uow import (
     SimulatedTradeExecutionBlocked,
 )
@@ -359,6 +363,33 @@ class DjangoCorporateActionOwnershipHistoryRepository:
         and delegates the exact arithmetic to the pure replay domain.
         """
 
+        return self.read_record_date_ownership_source_history(
+            account_id=account_id,
+            owner_user_id=owner_user_id,
+            security_id=security_id,
+            asset_code=asset_code,
+            record_date=record_date,
+            evidence_cutoff_at=evidence_cutoff_at,
+        ).proof
+
+    @property
+    def database_alias(self) -> str:
+        """Return the alias for the same-pass account, receipt, and action reads."""
+
+        return self._using
+
+    def read_record_date_ownership_source_history(
+        self,
+        *,
+        account_id: int,
+        owner_user_id: int,
+        security_id: str,
+        asset_code: str,
+        record_date: date,
+        evidence_cutoff_at: datetime,
+    ) -> RecordDateOwnershipSourceRead:
+        """Return the proof and exact decoded V4 source events from one ledger replay."""
+
         cutoff = _require_aware_datetime(evidence_cutoff_at, "evidence_cutoff_at")
         if (
             type(account_id) is not int
@@ -433,7 +464,7 @@ class DjangoCorporateActionOwnershipHistoryRepository:
                 intent=None,
                 using=self._using,
             )
-            fills, exchange, instrument_pairs = self._read_complete_account_fill_history(
+            source_fills, exchange, instrument_pairs = self._read_complete_account_fill_history(
                 account=account,
                 security_id=security_id,
                 asset_code=asset_code,
@@ -461,19 +492,25 @@ class DjangoCorporateActionOwnershipHistoryRepository:
                     "CORPORATE_ACTION_OWNERSHIP_POLICY_UNAVAILABLE",
                     "qualified exchange timezone is unavailable",
                 ) from error
-            fills = tuple(
+            source_fills = tuple(
                 replace(
-                    fact,
-                    execution_date=fact.occurred_at.astimezone(exchange_timezone).date(),
+                    source,
+                    ownership_fill=replace(
+                        source.ownership_fill,
+                        execution_date=source.ownership_fill.occurred_at.astimezone(
+                            exchange_timezone
+                        ).date(),
+                    ),
                 )
-                for fact in fills
+                for source in source_fills
             )
+            fills = tuple(source.ownership_fill for source in source_fills)
             record_date_end_exclusive = datetime.combine(
                 record_date + timedelta(days=1),
                 time.min,
                 tzinfo=exchange_timezone,
             )
-            return replay_record_date_ownership(
+            proof = replay_record_date_ownership(
                 OwnershipReplayRequest(
                     account_id=account_id,
                     owner_user_id=owner_user_id,
@@ -491,6 +528,12 @@ class DjangoCorporateActionOwnershipHistoryRepository:
                     corporate_actions=actions,
                 )
             )
+            return RecordDateOwnershipSourceRead(
+                proof=proof,
+                opening_anchor=anchor,
+                source_fills=source_fills,
+                corporate_action_evidence=actions,
+            )
 
     def _read_complete_account_fill_history(
         self,
@@ -499,7 +542,7 @@ class DjangoCorporateActionOwnershipHistoryRepository:
         security_id: str,
         asset_code: str,
         evidence_cutoff_at: datetime,
-    ) -> tuple[tuple[OwnershipFillFact, ...], str, tuple[tuple[str, str], ...]]:
+    ) -> tuple[tuple[OwnershipHistoryFillSource, ...], str, tuple[tuple[str, str], ...]]:
         """Return typed fills after proving every retained Trade is receipt-backed."""
 
         using = self._using
@@ -577,7 +620,7 @@ class DjangoCorporateActionOwnershipHistoryRepository:
 
         security_to_asset: dict[str, str] = {}
         asset_to_security: dict[str, str] = {}
-        facts: list[OwnershipFillFact] = []
+        source_fills: list[OwnershipHistoryFillSource] = []
         known_exchange_by_instrument: dict[tuple[str, str], set[str]] = {}
         for reservation in reservations:
             chain = _locked_fill_chain(reservation_row=reservation, using=using)
@@ -617,23 +660,27 @@ class DjangoCorporateActionOwnershipHistoryRepository:
                     # The record-date boundary policy is loaded after an exact
                     # exchange is selected; the local execution date is bound
                     # immediately before invoking the pure Domain replay.
-                    facts.append(
-                        OwnershipFillFact(
-                            account_id=account.pk,
-                            owner_user_id=owner_user_id,
-                            security_id=event.security_id,
-                            asset_code=event.asset_code,
-                            trade_id=decoded.trade_id,
-                            reservation_id=decoded.reservation_id,
-                            fill_sequence=decoded.fill_sequence,
-                            side=side,
-                            quantity=decoded.economics.quantity,
-                            execution_date=occurred_at.date(),
-                            occurred_at=occurred_at,
-                            recorded_at=recorded_at,
-                            binding_version=receipt.trade.settlement_plan_binding_version,
-                            receipt_version=receipt.receipt_version,
-                            receipt_sha256=decoded.receipt_hash,
+                    source_fills.append(
+                        OwnershipHistoryFillSource(
+                            ownership_fill=OwnershipFillFact(
+                                account_id=account.pk,
+                                owner_user_id=owner_user_id,
+                                security_id=event.security_id,
+                                asset_code=event.asset_code,
+                                trade_id=decoded.trade_id,
+                                reservation_id=decoded.reservation_id,
+                                fill_sequence=decoded.fill_sequence,
+                                side=side,
+                                quantity=decoded.economics.quantity,
+                                execution_date=occurred_at.date(),
+                                occurred_at=occurred_at,
+                                recorded_at=recorded_at,
+                                binding_version=receipt.trade.settlement_plan_binding_version,
+                                receipt_version=receipt.receipt_version,
+                                receipt_sha256=decoded.receipt_hash,
+                            ),
+                            source_event=event,
+                            order_idempotency_key=reservation.idempotency_key,
                         )
                     )
 
@@ -650,7 +697,7 @@ class DjangoCorporateActionOwnershipHistoryRepository:
                 "target V4 fills disagree on the sealed exchange identity",
             )
         instrument_pairs = tuple(sorted(security_to_asset.items()))
-        return tuple(facts), next(iter(target_exchanges)), instrument_pairs
+        return tuple(source_fills), next(iter(target_exchanges)), instrument_pairs
 
     def _read_complete_action_history(
         self,

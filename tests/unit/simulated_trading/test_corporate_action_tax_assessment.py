@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import hashlib
 from dataclasses import replace
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal, localcontext
 from uuid import UUID
 
 import pytest
 
 from apps.simulated_trading.domain import corporate_action_tax_assessment as assessment_domain
+from apps.simulated_trading.domain import simulated_tax_settlement_history as tax_history_domain
 from apps.simulated_trading.domain.corporate_action_deferred_tax import (
     DeferredDividendTaxPolicy,
     DeferredDividendTaxValidationError,
@@ -38,6 +39,10 @@ from apps.simulated_trading.domain.corporate_action_tax_source_evidence import (
     TaxAssessmentSourceDatePrecision,
     TaxAssessmentStatutorySourceBundle,
     TaxAssessmentStatutorySourceRevision,
+)
+from apps.simulated_trading.domain.simulated_tax_settlement_history import (
+    SimulatedTaxDateRuleRuntimeProvenance,
+    SimulatedTaxSettlementHistoryObservation,
 )
 
 _ACCOUNT_ID = 7
@@ -216,6 +221,7 @@ def _assessment(
     action: QualifiedCorporateActionTaxFacts | None = None,
     policy: DeferredDividendTaxPolicy | None = None,
     revision_id: str = "assessment-revision-1",
+    simulated_tax_date_observation: SimulatedTaxSettlementHistoryObservation | None = None,
 ) -> CorporateActionTaxAssessment:
     """Construct one assessment from explicit synthetic qualified inputs."""
 
@@ -246,6 +252,54 @@ def _assessment(
         target_settlement_date=_TARGET_DATE,
         policy=selected_policy,
         statutory_source_bundle=selected_bundle,
+        simulated_tax_date_observation=simulated_tax_date_observation,
+    )
+
+
+def _simulated_tax_date_observation(
+    history: QualifiedTaxSettlementHistory | None = None,
+) -> SimulatedTaxSettlementHistoryObservation:
+    """Build a synthetic Config Center/calendar observation without legal authority."""
+
+    selected_history = _history() if history is None else history
+    observed_at = datetime(2026, 11, 12, 8, tzinfo=UTC)
+    return SimulatedTaxSettlementHistoryObservation(
+        date_rule=SimulatedTaxDateRuleRuntimeProvenance(
+            convention_sha256=selected_history.settlement_date_rule_sha256,
+            environment="synthetic-test",
+            definition_key="config_center.simulated_trading.dividend_tax_date_conventions",
+            profile_id="synthetic-profile",
+            profile_key="synthetic-profile-key",
+            profile_version=1,
+            profile_content_hash="7" * 64,
+            snapshot_id="synthetic-runtime-snapshot",
+            snapshot_hash="8" * 64,
+            created_at=observed_at - timedelta(days=2),
+            known_at=observed_at - timedelta(days=2),
+            activated_at=observed_at - timedelta(days=1),
+            snapshot_generated_at=observed_at - timedelta(days=1),
+            effective_at=observed_at - timedelta(days=1),
+            as_of=observed_at,
+        ),
+        history_identity_sha256=tax_history_domain._history_identity(selected_history),
+        convention_valid_from=observed_at - timedelta(days=1),
+        convention_valid_until=observed_at + timedelta(days=1),
+        calendar_evidence_sha256="9" * 64,
+        calendar_snapshot_id="synthetic-calendar-snapshot",
+        calendar_content_sha256="sha256:" + "a" * 64,
+        calendar_record_digest="sha256:" + "b" * 64,
+        calendar_first_seen_at=observed_at - timedelta(minutes=5),
+        calendar_recorded_at=observed_at - timedelta(minutes=4),
+        calendar_response_completed_at=observed_at - timedelta(minutes=5),
+        calendar_publication_id="synthetic-calendar-publication",
+        calendar_publication_hash="c" * 64,
+        calendar_published_at=observed_at - timedelta(minutes=3),
+        calendar_publication_recorded_at=observed_at - timedelta(minutes=2),
+        calendar_reference_valid_from=observed_at - timedelta(days=1),
+        calendar_reference_valid_until=observed_at + timedelta(days=1),
+        calendar_timezone_name="Asia/Shanghai",
+        read_at=observed_at,
+        date_observations=(),
     )
 
 
@@ -288,6 +342,37 @@ def test_semantic_hash_ignores_reobservation_but_manifest_retains_observation() 
     assert "synthetic-ownership-proof-2" in second.observation_manifest_json
     assert str(UUID("22222222-2222-4222-8222-222222222222")) in second.observation_manifest_json
     assert "ownership_snapshot_sha256" not in first.semantic_payload_json
+
+
+def test_simulated_date_runtime_observation_changes_only_the_observation_manifest() -> None:
+    original = _assessment()
+    observation = _simulated_tax_date_observation()
+    first = _assessment(simulated_tax_date_observation=observation)
+    later_observation = replace(
+        observation,
+        calendar_publication_recorded_at=observation.calendar_publication_recorded_at
+        + timedelta(seconds=1),
+    )
+    second = _assessment(simulated_tax_date_observation=later_observation)
+
+    assert first.semantic_payload_json == original.semantic_payload_json
+    assert second.semantic_payload_json == original.semantic_payload_json
+    assert first.semantic_sha256 == second.semantic_sha256 == original.semantic_sha256
+    assert first.observation_manifest_sha256 != original.observation_manifest_sha256
+    assert second.observation_manifest_sha256 != first.observation_manifest_sha256
+    assert "simulated_tax_settlement_observation" in first.observation_manifest_json
+
+
+def test_assessment_rejects_a_simulated_date_observation_from_another_history_prefix() -> None:
+    original_history = _history()
+    changed_history = _history(changed_source_revision=True)
+    observation = _simulated_tax_date_observation(original_history)
+
+    with pytest.raises(DeferredDividendTaxValidationError):
+        _assessment(
+            history=changed_history,
+            simulated_tax_date_observation=observation,
+        )
 
 
 def test_semantics_bind_zero_days_source_revisions_action_policy_and_fifo_facts() -> None:

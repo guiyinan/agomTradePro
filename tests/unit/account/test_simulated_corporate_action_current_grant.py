@@ -439,6 +439,84 @@ def test_v2_grant_with_explicit_cash_capability_is_accepted(
     assert len(tuple(sql for sql in connection.sql if sql.startswith("LOCK TABLE"))) == 2
 
 
+@pytest.mark.parametrize(
+    "capabilities",
+    [
+        (Capability.TAX_ASSESS,),
+        (Capability.CASH_STAGE_WRITE, Capability.TAX_ASSESS),
+    ],
+)
+def test_explicit_v2_tax_assessment_read_keeps_current_head_mac_and_table_locks(
+    monkeypatch: pytest.MonkeyPatch,
+    capabilities: tuple[Capability, ...],
+) -> None:
+    """A server-selected assessment requirement reads only its explicitly consented V2 head."""
+    grant = _v2_grant(capabilities=capabilities)
+    connection, repository = _install_reader(monkeypatch, grant=grant)
+
+    with current_grant.locked_current_simulated_corporate_action_write_grant(
+        selector=_selector(grant), using="default", required_capability=Capability.TAX_ASSESS
+    ) as observed:
+        assert observed == grant
+
+    assert len(repository.scope_calls) == len(repository.exact_calls) == 2
+    assert len(tuple(sql for sql in connection.sql if sql.startswith("LOCK TABLE"))) == 2
+
+
+@pytest.mark.parametrize("kind", ["legacy_cash", "v2_cash", "v2_withholding"])
+def test_assessment_read_never_borrows_other_or_legacy_capabilities(
+    monkeypatch: pytest.MonkeyPatch, kind: str
+) -> None:
+    """A cash or withholding grant cannot substitute for the exact assessment capability."""
+    grant = (
+        _grant()
+        if kind == "legacy_cash"
+        else _v2_grant(
+            capabilities=(
+                Capability.CASH_STAGE_WRITE if kind == "v2_cash" else Capability.TAX_WITHHOLD,
+            )
+        )
+    )
+    _, repository = _install_reader(monkeypatch, grant=grant)
+    with pytest.raises(SimulatedCorporateActionWriteGrantUnavailable):
+        with current_grant.locked_current_simulated_corporate_action_write_grant(
+            selector=_selector(grant), using="default", required_capability=Capability.TAX_ASSESS
+        ):
+            pytest.fail("assessment consent must be explicit on the exact current V2 head")
+    assert len(repository.scope_calls) == 1
+
+
+@pytest.mark.parametrize("state", ["expired", "revoked", "bad_mac", "changed_head"])
+def test_tax_assessment_read_preserves_liveness_and_exit_revalidation(
+    monkeypatch: pytest.MonkeyPatch, state: str
+) -> None:
+    """Assessment reads keep the same half-open deadline, revocation, MAC and exit fences."""
+    grant = _v2_grant(
+        capabilities=(Capability.TAX_ASSESS,),
+        valid_until=_AT + timedelta(minutes=1) if state == "expired" else _AT + timedelta(hours=1),
+        issuer_hash="d" * 64 if state == "bad_mac" else _C,
+    )
+    current = SimulatedCorporateActionWriteGrantCurrent(
+        grant, revocation=_revocation(grant) if state == "revoked" else None
+    )
+    later = _v2_grant(
+        capabilities=(Capability.CASH_STAGE_WRITE,),
+        grant_version="tax-consent-removed",
+        recorded_at=_AT + timedelta(minutes=1),
+    )
+    snapshots = (_Snapshot((grant,), current),)
+    if state == "changed_head":
+        snapshots += (_Snapshot((later,), SimulatedCorporateActionWriteGrantCurrent(later)),)
+    _install_reader(monkeypatch, grant=grant, snapshots=snapshots)
+    yielded = False
+    with pytest.raises(SimulatedCorporateActionWriteGrantUnavailable):
+        with current_grant.locked_current_simulated_corporate_action_write_grant(
+            selector=_selector(grant), using="default", required_capability=Capability.TAX_ASSESS
+        ):
+            yielded = True
+    assert yielded is (state == "changed_head")
+
+
 def test_tax_only_v2_current_head_cannot_fall_back_to_a_historical_v1_grant(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -471,7 +549,7 @@ def test_tax_only_v2_current_head_cannot_fall_back_to_a_historical_v1_grant(
 
 @pytest.mark.parametrize(
     "required_capability",
-    [Capability.TAX_ASSESS, "simulated.corporate_action_tax.assess"],
+    [Capability.TAX_WITHHOLD, "simulated.corporate_action_tax.assess"],
 )
 def test_cash_current_grant_reader_rejects_unsupported_requirement_types(
     monkeypatch: pytest.MonkeyPatch,

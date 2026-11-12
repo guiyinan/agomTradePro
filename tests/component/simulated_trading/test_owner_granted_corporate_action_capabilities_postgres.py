@@ -6,10 +6,13 @@ from dataclasses import replace
 from datetime import timedelta
 
 import pytest
-from django.db import connection
+from django.db import connection, transaction
 from django.utils import timezone
 
 from apps.account import simulated_corporate_action_policy_scope_composition as policies
+from apps.account.application.simulated_corporate_action_write_grant import (
+    SimulatedCorporateActionWriteGrantUnavailable,
+)
 from apps.account.domain.simulated_corporate_action_write_capabilities import (
     SimulatedCorporateActionWriteCapability as Capability,
 )
@@ -25,8 +28,12 @@ from apps.account.infrastructure.simulated_corporate_action_write_grant_reposito
 from apps.account.simulated_corporate_action_consent_terms import (
     SIMULATED_CORPORATE_ACTION_OWNER_TERMS_V2,
 )
+from apps.account.simulated_corporate_action_current_grant_composition import (
+    locked_current_simulated_corporate_action_write_grant,
+)
 from apps.account.simulated_corporate_action_write_issuance_composition import (
     issue_authenticated_simulated_corporate_action_grant,
+    locked_simulated_action_trading_eligibility,
     revoke_authenticated_simulated_corporate_action_grant,
 )
 from apps.audit.infrastructure.system_audit_models import SystemAuditEventModel
@@ -210,6 +217,31 @@ def test_native_tax_only_v2_current_head_denies_cash_without_v1_fallback(owner_s
     )
     assert len(heads) == 1
     assert heads[0] == grant
+
+    with transaction.atomic():
+        with locked_simulated_action_trading_eligibility(
+            user_id=service.world.user.pk, using="default"
+        ):
+            with service.world.locker.lock_owned_scope(
+                physical_account_id=service.world.row.pk,
+                owner_user_id=service.world.user.pk,
+                expected_binding=grant.binding,
+                expected_grant_schema=SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA,
+            ) as scope:
+                assert scope.binding == grant.binding
+                with locked_current_simulated_corporate_action_write_grant(
+                    selector=grant.selector,
+                    using="default",
+                    required_capability=Capability.TAX_ASSESS,
+                ) as current:
+                    assert current == grant
+                    assert current.capabilities == (Capability.TAX_ASSESS,)
+                    assert current.terms_sha256 == scope.terms_sha256
+                with pytest.raises(SimulatedCorporateActionWriteGrantUnavailable):
+                    with locked_current_simulated_corporate_action_write_grant(
+                        selector=grant.selector, using="default"
+                    ):
+                        pytest.fail("default cash requirement must not borrow tax consent")
 
     baseline = (
         CorporateActionPostingModel.objects.count(),
