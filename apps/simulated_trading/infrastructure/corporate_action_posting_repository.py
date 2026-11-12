@@ -442,6 +442,7 @@ class DjangoCorporateActionPostingRepository(CorporateActionPostingRepositoryPro
             "source_record_id",
             "source_event_id",
             "source_revision_id",
+            "supersedes_revision_id",
             "source_payload_sha256",
             "qualification_sha256",
             "qualifier_identity",
@@ -474,6 +475,30 @@ class DjangoCorporateActionPostingRepository(CorporateActionPostingRepositoryPro
         if not event_rows:
             return None
         first = requests[0]
+        correction_kinds = {
+            CorporateActionEntryKind.REVERSAL.value,
+            CorporateActionEntryKind.SUCCESSOR.value,
+        }
+        submitted_corrections = [
+            request for request in requests if request.entry_kind.value in correction_kinds
+        ]
+        if submitted_corrections:
+            persisted_corrections = [
+                row
+                for row in event_rows
+                if row.source_revision_id == first.source_revision_id
+                and row.entry_kind in correction_kinds
+            ]
+            if persisted_corrections:
+                stored_keys = [row.stage_key for row in persisted_corrections]
+                submitted_keys = [request.stage_key for request in submitted_corrections]
+                if len(stored_keys) != len(submitted_keys) or set(stored_keys) != set(
+                    submitted_keys
+                ):
+                    _conflict(
+                        "a correction replay must include every retained reversal and successor",
+                        "CORPORATE_ACTION_REVISION_REPLAY_CONFLICT",
+                    )
         rows_by_key = {
             row.stage_key: row
             for row in event_rows
@@ -607,6 +632,7 @@ class DjangoCorporateActionPostingRepository(CorporateActionPostingRepositoryPro
         if (
             first.source_revision_id in versions
             or first.supersedes_revision_id != current_head
+            or any(request.supersedes_revision_id != current_head for request in requests)
             or any(
                 request.entry_kind
                 not in {

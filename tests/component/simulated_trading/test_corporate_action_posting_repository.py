@@ -34,6 +34,9 @@ from apps.simulated_trading.infrastructure.simulated_account_trade_models import
     SimulatedAccountModel,
     SimulatedTradeModel,
 )
+from tests.support.account_authority_generation_flush import (
+    preserve_account_authority_generation as preserve_account_authority_generation,
+)
 
 _RECORD_DATE = date(2026, 9, 23)
 _EFFECTIVE_DATE = date(2026, 9, 24)
@@ -171,6 +174,24 @@ def _request(
         supersedes_revision_id=supersedes_revision_id,
         reversal_of_entry_id=reversal_of_entry_id,
         **ownership_fields,
+    )
+
+
+def _unsaved_posting_row(
+    request: CorporateActionStageRequest,
+    *,
+    entry_id: int,
+    account_revision: int,
+) -> CorporateActionPostingModel:
+    """Build a real model instance for replay checks without opening a database."""
+
+    return CorporateActionPostingModel(
+        id=entry_id,
+        account_revision=account_revision,
+        source_revision_id=request.source_revision_id,
+        entry_kind=request.entry_kind.value,
+        stage_key=request.stage_key,
+        request_payload_sha256=request.payload_sha256,
     )
 
 
@@ -440,6 +461,172 @@ def test_correction_is_one_replayable_reversal_and_successor_batch(
     account.refresh_from_db()
     assert account.current_cash == Decimal("10250.00")
     assert CorporateActionPostingModel.objects.filter(account=account).count() == 6
+
+
+def test_correction_replay_requires_complete_set_and_survives_later_payment(
+    action_ledger: tuple[AbstractBaseUser, SimulatedAccountModel],
+) -> None:
+    """A correction is complete, while its later payment remains a separate posting."""
+
+    _, account = action_ledger
+    use_case = PostCorporateActionStageUseCase(_repository())
+    entitlement = _request(account)
+    original_receipt = use_case.execute((entitlement,))[0]
+    correction_common = {
+        "source_revision_id": "sha256:source-v2",
+        "supersedes_revision_id": "sha256:source-v1",
+        "source_payload_sha256": "9" * 64,
+        "qualification_sha256": "8" * 64,
+        "source_observed_at": datetime(2026, 11, 10, 1, 20, tzinfo=UTC),
+        "qualified_at": datetime(2026, 11, 10, 1, 25, tzinfo=UTC),
+        "posted_at": datetime(2026, 11, 10, 1, 30, tzinfo=UTC),
+    }
+    reversal = replace(
+        entitlement,
+        **correction_common,
+        entry_kind=CorporateActionEntryKind.REVERSAL,
+        cash_amount=None,
+        tax_treatment=None,
+        tax_rule_id=None,
+        tax_rule_sha256=None,
+        ownership_snapshot_id=None,
+        ownership_snapshot_sha256=None,
+        ownership_snapshot_as_of_date=None,
+        ownership_snapshot_observed_at=None,
+        eligible_quantity=None,
+        entitlement_calculation_sha256=None,
+        reversal_of_entry_id=original_receipt.entry_id,
+    )
+    successor = replace(
+        entitlement,
+        **correction_common,
+        entry_kind=CorporateActionEntryKind.SUCCESSOR,
+        cash_amount=Decimal("250.00"),
+    )
+    correction = (reversal, successor)
+
+    with pytest.raises(CorporateActionPostingBlockedError) as mismatched_predecessor:
+        use_case.execute((reversal, replace(successor, supersedes_revision_id="sha256:source-v0")))
+    assert mismatched_predecessor.value.code == "CORPORATE_ACTION_BATCH_IDENTITY_INVALID"
+
+    receipts = use_case.execute(correction)
+    assert all(not receipt.replayed for receipt in receipts)
+
+    with pytest.raises(CorporateActionPostingConflictError) as partial_replay:
+        use_case.execute((reversal,))
+    assert partial_replay.value.code == "CORPORATE_ACTION_REVISION_REPLAY_CONFLICT"
+
+    later_payment = replace(
+        successor,
+        stage=CorporateActionStage.CASH_PAYMENT,
+        entry_kind=CorporateActionEntryKind.POSTING,
+        stage_date=date(2026, 9, 25),
+        payment_date=date(2026, 9, 25),
+        ownership_snapshot_id=None,
+        ownership_snapshot_sha256=None,
+        ownership_snapshot_as_of_date=None,
+        ownership_snapshot_observed_at=None,
+        eligible_quantity=None,
+        entitlement_calculation_sha256=None,
+        supersedes_revision_id=None,
+    )
+    payment_receipt = use_case.execute((later_payment,))[0]
+    assert not payment_receipt.replayed
+
+    replay = use_case.execute(correction)
+    assert all(receipt.replayed for receipt in replay)
+    assert tuple(receipt.entry_id for receipt in replay) == tuple(
+        receipt.entry_id for receipt in receipts
+    )
+    account.refresh_from_db()
+    assert account.current_cash == Decimal("10250.00")
+    assert CorporateActionPostingModel.objects.filter(account=account).count() == 4
+
+
+def test_replay_resolution_requires_complete_correction_but_allows_later_posting() -> None:
+    """Replay membership uses correction kinds and preserves ordinary stage retries."""
+
+    account = SimulatedAccountModel(pk=101, user_id=202)
+    original = _request(account)
+    correction_common = {
+        "source_revision_id": "sha256:source-v2",
+        "supersedes_revision_id": "sha256:source-v1",
+        "source_payload_sha256": "9" * 64,
+        "qualification_sha256": "8" * 64,
+        "source_observed_at": datetime(2026, 11, 10, 1, 20, tzinfo=UTC),
+        "qualified_at": datetime(2026, 11, 10, 1, 25, tzinfo=UTC),
+        "posted_at": datetime(2026, 11, 10, 1, 30, tzinfo=UTC),
+    }
+    reversal = replace(
+        original,
+        **correction_common,
+        entry_kind=CorporateActionEntryKind.REVERSAL,
+        cash_amount=None,
+        tax_treatment=None,
+        tax_rule_id=None,
+        tax_rule_sha256=None,
+        ownership_snapshot_id=None,
+        ownership_snapshot_sha256=None,
+        ownership_snapshot_as_of_date=None,
+        ownership_snapshot_observed_at=None,
+        eligible_quantity=None,
+        entitlement_calculation_sha256=None,
+        reversal_of_entry_id=11,
+    )
+    successor = replace(
+        original,
+        **correction_common,
+        entry_kind=CorporateActionEntryKind.SUCCESSOR,
+        cash_amount=Decimal("250.00"),
+    )
+    later_payment = replace(
+        successor,
+        stage=CorporateActionStage.CASH_PAYMENT,
+        entry_kind=CorporateActionEntryKind.POSTING,
+        stage_date=date(2026, 9, 25),
+        payment_date=date(2026, 9, 25),
+        ownership_snapshot_id=None,
+        ownership_snapshot_sha256=None,
+        ownership_snapshot_as_of_date=None,
+        ownership_snapshot_observed_at=None,
+        eligible_quantity=None,
+        entitlement_calculation_sha256=None,
+        supersedes_revision_id=None,
+    )
+    rows = [
+        _unsaved_posting_row(original, entry_id=11, account_revision=1),
+        _unsaved_posting_row(reversal, entry_id=12, account_revision=2),
+        _unsaved_posting_row(successor, entry_id=13, account_revision=3),
+        _unsaved_posting_row(later_payment, entry_id=14, account_revision=4),
+    ]
+    repository = DjangoCorporateActionPostingRepository()
+    mismatched_successor = replace(successor, supersedes_revision_id="sha256:source-v0")
+    with pytest.raises(CorporateActionPostingBlockedError) as mixed_predecessors:
+        repository._validate_batch_identity((reversal, mismatched_successor), reversal)
+    assert mixed_predecessors.value.code == "CORPORATE_ACTION_BATCH_IDENTITY_INVALID"
+
+    prior_row = _unsaved_posting_row(original, entry_id=11, account_revision=1)
+    prior_row.cash_receivable_delta = Decimal("200.00")
+    with pytest.raises(CorporateActionPostingConflictError) as stale_predecessor:
+        repository._validate_revision_transition(
+            (reversal, mismatched_successor),
+            [prior_row],
+        )
+    assert stale_predecessor.value.code == "CORPORATE_ACTION_REVISION_CONFLICT"
+
+    assert all(
+        receipt.replayed for receipt in repository._resolve_exact_replay((original,), rows) or ()
+    )
+    correction_replay = repository._resolve_exact_replay((reversal, successor), rows)
+    assert correction_replay is not None
+    assert all(receipt.replayed for receipt in correction_replay)
+    assert tuple(receipt.entry_id for receipt in correction_replay) == (12, 13)
+    with pytest.raises(CorporateActionPostingConflictError) as partial_replay:
+        repository._resolve_exact_replay((reversal,), rows)
+    assert partial_replay.value.code == "CORPORATE_ACTION_REVISION_REPLAY_CONFLICT"
+    payment_replay = repository._resolve_exact_replay((later_payment,), rows)
+    assert payment_replay is not None and payment_replay[0].entry_id == 14
+    assert payment_replay[0].replayed
 
 
 def test_historical_snapshot_is_not_current_position_and_share_release_is_t_plus_one(
