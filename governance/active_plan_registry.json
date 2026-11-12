@@ -1,6 +1,6 @@
 {
-  "version": "2026-11-13.v488",
-  "updated_at": "2026-11-12T20:25:57.370715+00:00",
+  "version": "2026-11-13.v489",
+  "updated_at": "2026-11-13",
   "execution_focus": {
     "unit_id": "ASH-05",
     "allowed_parallel_execution_modes": [
