@@ -17,6 +17,7 @@ from apps.config_center.domain.runtime_config import (
     RuntimeConfigCriticality,
     RuntimeConfigDefinition,
     RuntimeConfigProfile,
+    RuntimeConfigReloadMode,
     RuntimeConfigSnapshot,
     RuntimeConfigValue,
     RuntimeProfileStatus,
@@ -550,6 +551,28 @@ def test_simulated_dividend_tax_date_conventions_are_optional_typed_json() -> No
     assert definition.criticality is RuntimeConfigCriticality.NORMAL
     assert definition.secret is False
     assert definition.constraints == {}
+    with pytest.raises(ValueError):
+        definition.validate(None)
+
+
+def test_simulated_dividend_tax_policies_are_optional_and_require_explicit_scope() -> None:
+    """Register candidate configuration without seeding policy or making it critical."""
+
+    definition = next(
+        (
+            item
+            for item in DEFAULT_RUNTIME_DEFINITIONS
+            if item.key == "config_center.simulated_trading.dividend_tax_policies"
+        ),
+        None,
+    )
+    assert definition is not None, "feature missing: explicit simulated dividend tax policy"
+    assert definition.namespace == "config_center"
+    assert definition.owner_app == "config_center"
+    assert definition.value_type is RuntimeValueType.TYPED_JSON
+    assert definition.criticality is RuntimeConfigCriticality.NORMAL
+    assert definition.reload_mode is RuntimeConfigReloadMode.NEXT_TASK
+    assert definition.secret is False and definition.constraints == {}
     with pytest.raises(ValueError):
         definition.validate(None)
 

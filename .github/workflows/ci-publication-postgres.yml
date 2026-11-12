@@ -222,6 +222,10 @@ jobs:
           tests/component/simulated_trading/test_corporate_action_posting_repository.py::test_correction_replay_requires_complete_set_and_survives_later_payment
           tests/component/simulated_trading/test_corporate_action_posting_repository.py::test_replay_resolution_requires_complete_correction_but_allows_later_posting
           tests/component/simulated_trading/test_simulated_tax_date_convention_postgres.py::test_native_date_rule_uses_actual_profile_clocks_and_never_falls_back
+          tests/component/simulated_trading/test_simulated_tax_policy_postgres.py::test_native_tax_policy_exact_current_profile_scope_and_disable
+          tests/component/simulated_trading/test_owner_tax_assessment_scope_postgres.py::test_native_tax_assess_owner_commits_one_verified_set_and_exact_retry
+          tests/component/simulated_trading/test_owner_tax_assessment_scope_postgres.py::test_native_owner_final_tax_fact_change_rolls_back_all_four_writes
+          tests/component/simulated_trading/test_owner_tax_assessment_scope_postgres.py::test_native_withholding_only_grant_cannot_assess_tax
           tests/component/simulated_trading/test_simulated_tax_history_native_postgres.py::test_native_simulated_history_uses_explicit_tax_dates_and_only_reads_persisted_sources
           tests/component/simulated_trading/test_corporate_action_tax_settlement_history_repository.py::test_adapter_returns_only_an_exact_current_event_with_its_original_clock
           tests/component/simulated_trading/test_corporate_action_tax_settlement_history_repository.py::test_adapter_blocks_changed_current_event_instead_of_using_receipt_metadata

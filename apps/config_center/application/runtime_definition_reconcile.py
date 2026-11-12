@@ -14,6 +14,16 @@ from apps.config_center.domain.runtime_config import (
 
 DEFAULT_RUNTIME_DEFINITIONS: tuple[RuntimeConfigDefinition, ...] = (
     RuntimeConfigDefinition(
+        key="config_center.simulated_trading.dividend_tax_policies",
+        namespace="config_center",
+        owner_app="config_center",
+        value_type=RuntimeValueType.TYPED_JSON,
+        criticality=RuntimeConfigCriticality.NORMAL,
+        reload_mode=RuntimeConfigReloadMode.NEXT_TASK,
+        description="Explicit simulation-only dividend tax policy and reviewed account/instrument/persona scope.",
+        user_impact="Missing or invalid candidates block tax consumers; configuration does not prove current law, custody or owner consent.",
+    ),
+    RuntimeConfigDefinition(
         key="config_center.simulated_trading.dividend_tax_date_conventions",
         namespace="config_center",
         owner_app="config_center",

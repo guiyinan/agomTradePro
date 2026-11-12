@@ -154,7 +154,6 @@ class _RuntimeExchangeTimezonePolicyReader:
                 "activated_at": _utc_text(evidence.activated_at),
                 "snapshot_generated_at": _utc_text(evidence.snapshot_generated_at),
                 "effective_at": _utc_text(evidence.effective_at),
-                "as_of": _utc_text(evidence.as_of),
             }
         )
         return QualifiedExchangeTimezone(

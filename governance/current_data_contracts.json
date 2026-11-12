@@ -14395,7 +14395,7 @@
           "def _find_current_event_with_complete_lineage(",
           "as_of=verification_at,",
           "if child_counts.get(selected_identity, 0) != 0:",
-          "parent.recorded_at > request.qualified_at",
+          "parent.recorded_at > known_cutoff",
           "event.first_seen_at != request.source_observed_at",
           "read_verified_szse_distribution(event, body_store_root=self._body_store_root)"
         ]
@@ -14415,6 +14415,11 @@
           "case": "share_tax_treatment_compatibility",
           "test_file": "tests/unit/simulated_trading/test_corporate_action_cash_revision_composition.py",
           "test_function": "test_share_disclosure_qualification_preserves_exact_tax_treatment"
+        },
+        {
+          "case": "tax_native_event_body_digest_gross_terms_and_lineage",
+          "test_file": "tests/unit/simulated_trading/test_corporate_action_cash_revision_composition.py",
+          "test_function": "test_tax_action_uses_actual_current_record_body_terms_and_complete_logical_lineage"
         }
       ],
       "notes": "The logical source_event_id remains the lineage root, while source_record_id identifies the actual retained current disclosure. Unique complete known parents, no forks/cycles and no currently known successor are required. Keep native first_seen_at and persistence clocks; verification time never refreshes source clocks. Missing body, lineage or economics returns false. Current event selection does not prove listing-window completeness, market freshness, legal eligibility, real custody or owner write permission; those remain independent fail-closed contracts."
@@ -14506,6 +14511,112 @@
         }
       ],
       "notes": "The existing independent occurrence-date record-date ownership proof must agree with the explicitly modeled tax position. Every retained V4 receipt is rechecked against the exact local source event; unknown changes, transfers, share actions, missing sessions and negative positions block. The completion day must have ended in the published exchange timezone; unfinished or future dates cannot be filled with zero activity. Original source, fill, profile and calendar clocks remain distinct from read_at. A final nondecreasing aware server clock rechecks finite rule and calendar windows without restamping observations. Later facts beyond a target settlement prefix do not change its semantic identity; a refreshed observation changes only the observation manifest. Simulation rules cannot serve as real custody proof and this reader issues no tax grant or legal/persona/instrument qualification."
+    },
+    {
+      "id": "simulated_trading.current_explicit_dividend_tax_policy",
+      "surface": "Optional explicit simulated persona/instrument/CNY/entitlement/date-window policy; no default legal activation",
+      "source_files": [
+        "apps/simulated_trading/corporate_action_tax_policy_composition.py",
+        "apps/simulated_trading/domain/simulated_dividend_tax_policy_scope.py"
+      ],
+      "required_markers": {
+        "apps/simulated_trading/corporate_action_tax_policy_composition.py": [
+          "def read_current_simulated_dividend_tax_policy(",
+          "record_date_entitlement_rule=RecordDateTaxEntitlementRuleKind(",
+          "_validate_runtime_evidence("
+        ],
+        "apps/simulated_trading/domain/simulated_dividend_tax_policy_scope.py": [
+          "record_date_entitlement_rule: RecordDateTaxEntitlementRuleKind",
+          "def verify_for(",
+          "self.valid_until"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "actual_runtime_scope",
+          "test_file": "tests/unit/simulated_trading/test_corporate_action_tax_policy_composition.py",
+          "test_function": "test_reads_one_current_candidate_with_complete_policy_and_runtime_provenance"
+        },
+        {
+          "case": "explicit_coverage",
+          "test_file": "tests/unit/simulated_trading/test_corporate_action_tax_policy_composition.py",
+          "test_function": "test_missing_explicit_entitlement_rule_cannot_infer_aggregate_coverage"
+        }
+      ],
+      "notes": "Current configured candidate is simulation-only, not taxpayer/custody/legal evidence. Exact current immutable profile/snapshot provenance and duplicate denial; native original clauses, instrument facts and Owner grant remain independent. Disabled/missing settings never fall back or seed rates/dates."
+    },
+    {
+      "id": "simulated_trading.current_tax_model_source_and_instrument",
+      "surface": "Strict retained bytes/clause pin and exact current reference snapshot for the explicit simulation model",
+      "source_files": [
+        "apps/simulated_trading/corporate_action_tax_statutory_qualification.py",
+        "apps/simulated_trading/corporate_action_tax_instrument_qualification.py"
+      ],
+      "required_markers": {
+        "apps/simulated_trading/corporate_action_tax_statutory_qualification.py": [
+          "if current >= deadline:",
+          "terms.validate_policy(scope.tax_policy)",
+          "must_not_use_as_real_tax_proof"
+        ],
+        "apps/simulated_trading/corporate_action_tax_instrument_qualification.py": [
+          "classification.validate_at(as_of=current)",
+          "facts.source_currency != scope.currency.value",
+          "source.snapshot_record_digest != snapshot.record_digest",
+          "must_not_use_as_real_tax_proof"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "restricted_source_identity",
+          "test_file": "tests/unit/simulated_trading/test_corporate_action_tax_instrument_qualification.py",
+          "test_function": "test_exact_native_classification_keeps_source_restrictions"
+        },
+        {
+          "case": "source_scope_clock_denials",
+          "test_file": "tests/unit/simulated_trading/test_corporate_action_tax_instrument_qualification.py",
+          "test_function": "test_scope_source_and_clock_mismatches_block"
+        }
+      ],
+      "notes": "Retained capture clocks and original byte seals are unchanged; read time never refreshes legal capture age or unknown instrument upstream clocks. Exactly selected two originals must yield one supported complete clause pair. Current source evidence retains global restrictions and never proves real taxpayer/current law eligibility."
+    },
+    {
+      "id": "simulated_trading.current_owner_tax_assessment_model",
+      "surface": "Rebuilt simulated assessment identity and independent finite Owner TAX_ASSESS fence",
+      "source_files": [
+        "apps/simulated_trading/corporate_action_tax_qualification_composition.py",
+        "apps/simulated_trading/corporate_action_tax_owner_scope_composition.py"
+      ],
+      "required_markers": {
+        "apps/simulated_trading/corporate_action_tax_qualification_composition.py": [
+          "built.assessment.semantic_sha256 != assessment.semantic_sha256",
+          "final_clock >= built.qualification.valid_until",
+          "evidence_cutoff_at=source_cutoff",
+          "complete_through=target_settlement_date"
+        ],
+        "apps/simulated_trading/corporate_action_tax_owner_scope_composition.py": [
+          "class DjangoTaxAssessmentOwnerScopeVerifier",
+          "required_capability=SimulatedCorporateActionWriteCapability.TAX_ASSESS",
+          "_ACTIVE_AUDIT_ORIGIN"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "stable_entitlement_observation",
+          "test_file": "tests/unit/simulated_trading/test_corporate_action_tax_qualification_composition.py",
+          "test_function": "test_entitlement_identity_survives_new_proof_observation"
+        },
+        {
+          "case": "same_alias_write_fence",
+          "test_file": "tests/unit/simulated_trading/test_corporate_action_tax_qualification_composition.py",
+          "test_function": "test_write_qualification_requires_exact_pg_uow_before_reading_source"
+        },
+        {
+          "case": "finite_grant_scope",
+          "test_file": "tests/unit/simulated_trading/test_corporate_action_tax_owner_scope.py",
+          "test_function": "test_grant_cannot_outlive_its_locked_owner_policy_scope"
+        }
+      ],
+      "notes": "No fallback qualifier or real custody proof. Exact current source/body/policy/instrument/history reconstruction and same-alias outer PostgreSQL UOW; qualification and Owner permission are distinct. Origin is usable only inside the concrete locked verifier. Nonfinancial assessment only; financial withholding remains a separate explicit capability and journal contract."
     }
   ]
 }

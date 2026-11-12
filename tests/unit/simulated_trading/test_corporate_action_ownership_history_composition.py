@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from dataclasses import replace
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -14,6 +15,25 @@ from core.integration.config_center_runtime import ActiveRuntimeValueEvidence
 
 _AS_OF = datetime(2026, 11, 12, 0, 0, tzinfo=UTC)
 _KNOWN_AT = datetime(2026, 11, 1, 0, 0, tzinfo=UTC)
+
+
+def test_unchanged_timezone_policy_keeps_semantic_identity_across_reads(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A new observation clock must not create a new tax assessment obligation."""
+    evidence = _runtime_evidence({"SZSE": "Asia/Shanghai"})
+    monkeypatch.setattr(
+        composition,
+        "get_active_runtime_value_evidence",
+        lambda **kwargs: replace(evidence, as_of=kwargs["as_of"]),
+    )
+    reader = composition._RuntimeExchangeTimezonePolicyReader("development")
+    first = reader.read_exchange_timezone_policy(exchange="SZSE", as_of=_AS_OF)
+    second = reader.read_exchange_timezone_policy(
+        exchange="SZSE",
+        as_of=_AS_OF + timedelta(seconds=1),
+    )
+    assert first == second
 
 
 def _runtime_evidence(value: object) -> ActiveRuntimeValueEvidence:

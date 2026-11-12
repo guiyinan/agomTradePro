@@ -45,6 +45,9 @@ from apps.simulated_trading.domain.corporate_action_posting import (
     CorporateActionStageRequest,
     calculate_corporate_action_delta,
 )
+from apps.simulated_trading.domain.corporate_action_tax_assessment import (
+    QualifiedCorporateActionTaxFacts,
+)
 from apps.simulated_trading.infrastructure.corporate_action_posting_repository import (
     DjangoCorporateActionPostingRepository,
 )
@@ -345,6 +348,48 @@ def test_correction_source_uses_complete_chain_and_actual_current_record_id(
         ),
     )
     assert not qualifier.verify_source(successor)
+
+
+def test_tax_action_uses_actual_current_record_body_terms_and_complete_logical_lineage(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    events = _lineage()
+    event = events[-1].event
+    terms = replace(_terms(), cash_per_ten=Decimal("2.50"))
+    reader = _DisclosureReader(events)
+    monkeypatch.setattr(official, "make_security_disclosure_event_reader", lambda **kwargs: reader)
+    monkeypatch.setattr(official, "read_verified_szse_distribution", lambda *args, **kwargs: terms)
+    monkeypatch.setattr(official.timezone, "now", lambda: _T5)
+    qualifier = official.VerifiedSzseActionSourceQualifier(body_store_root=Path("."))
+    action = QualifiedCorporateActionTaxFacts(
+        account_id=11,
+        owner_user_id=21,
+        security_id="internal-security-11",
+        asset_code=event.asset_code,
+        corporate_action_id="logical-dividend-root",
+        source_namespace="exchange_official_disclosure",
+        source_record_id=event.source_event_id,
+        source_event_id=events[0].event.source_event_id,
+        source_revision_id=event.source_revision_id,
+        source_revision_sha256=event.content_hash,
+        source_payload_sha256=event.source_body_sha256,
+        record_date=terms.record_date,
+        effective_date=terms.ex_date,
+        dividend_per_share=Decimal("0.25"),
+    )
+    assert qualifier.verify_tax_action(action, as_of=_T3)
+    assert not qualifier.verify_tax_action(
+        replace(action, dividend_per_share=Decimal("0.24")), as_of=_T3
+    )
+    assert not qualifier.verify_tax_action(
+        replace(action, source_revision_sha256="a" * 64), as_of=_T3
+    )
+    assert not qualifier.verify_tax_action(action, as_of=_T5 + timedelta(seconds=1))
+    reader.events = (events[0], events[-1])
+    assert not qualifier.verify_tax_action(action, as_of=_T3)
+    reader.events = events
+    monkeypatch.setattr(official, "read_verified_szse_distribution", lambda *args, **kwargs: None)
+    assert not qualifier.verify_tax_action(action, as_of=_T3)
 
 
 def test_cash_revision_preparation_normalizes_financial_order_and_restores_receipts() -> None:

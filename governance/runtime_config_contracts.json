@@ -1181,6 +1181,31 @@
         "tests/component/simulated_trading/test_simulated_tax_date_convention_postgres.py::test_native_date_rule_uses_actual_profile_clocks_and_never_falls_back"
       ],
       "notes": "Optional unseeded Owner-approved simulation-only tax-date hypothesis. Exact account/user/exchange/window, explicit buy/sell open-session offsets, finite validity and approval reference are required. Current active profile evidence retains actual creation/activation/snapshot clocks; missing, ambiguous, disabled or expired configuration blocks the tax consumer without fallback. Dates are derived against a published calendar and never establish real custody or financial write authority."
+    },
+    {
+      "config_key": "config_center.simulated_trading.dividend_tax_policies",
+      "namespace": "config_center",
+      "owner": "config_center",
+      "type": "typed_json",
+      "criticality": "normal",
+      "current_source": "config_center_runtime_profile",
+      "fallback": "blocked",
+      "migration_status": "canonical_only_fail_closed",
+      "materialization_required": false,
+      "consumers": [
+        "apps/simulated_trading/corporate_action_tax_policy_composition.py::read_current_simulated_dividend_tax_policy"
+      ],
+      "definition_source": "apps/config_center/application/runtime_definition_reconcile.py::DEFAULT_RUNTIME_DEFINITIONS",
+      "bootstrap_command": "python manage.py initialize_runtime_definitions",
+      "tests": [
+        "tests/unit/config_center/test_runtime_definition_reconcile.py::test_simulated_dividend_tax_policies_are_optional_and_require_explicit_scope",
+        "tests/unit/simulated_trading/test_corporate_action_tax_policy_composition.py::test_duplicate_canonical_asset_mapping_is_detected_before_instrument_and_owner_filters",
+        "tests/unit/simulated_trading/test_corporate_action_tax_policy_composition.py::test_runtime_profile_and_snapshot_provenance_is_rechecked",
+        "tests/unit/simulated_trading/test_corporate_action_tax_policy_composition.py::test_missing_explicit_currency_cannot_authorize_an_untyped_cash_amount",
+        "tests/unit/simulated_trading/test_corporate_action_tax_policy_composition.py::test_missing_explicit_entitlement_rule_cannot_infer_aggregate_coverage",
+        "tests/component/simulated_trading/test_simulated_tax_policy_postgres.py::test_native_tax_policy_exact_current_profile_scope_and_disable"
+      ],
+      "notes": "Optional, unseeded, finite simulation-only policy candidate for one exact canonical/physical account, Owner and instrument. Persona, exchange, listed-equity kind, CNY currency, explicit record-date entitlement rule and window, reviewed applicability reference, complete existing tax-policy terms and exact named statutory revision set are explicit. Unique canonical-account/asset selection precedes caller identity and Owner filtering. Actual Config Center clocks are retained; no older profile, date, numeric or currency fallback. Current configuration does not prove current legal applicability, official action/instrument identity, real custody, tax permission or financial posting. Independent source and owner fences remain required."
     }
   ]
 }

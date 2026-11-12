@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 from datetime import datetime
-from decimal import Decimal
+from decimal import Decimal, localcontext
 from pathlib import Path
 
 from django.db import DatabaseError
@@ -33,25 +33,39 @@ from apps.simulated_trading.domain.corporate_action_posting import (
     CorporateActionStage,
     CorporateActionStageRequest,
 )
+from apps.simulated_trading.domain.corporate_action_tax_assessment import (
+    QualifiedCorporateActionTaxFacts,
+)
 from core.exceptions import DataFetchError, DataValidationError
 
 _PARSER_ID = "szse_official_pdf.v1"
 
 
 def _find_current_event_with_complete_lineage(
-    request: CorporateActionStageRequest,
+    request: CorporateActionStageRequest | QualifiedCorporateActionTaxFacts,
     facts: tuple[PersistedSecurityDisclosureEvent, ...],
     *,
     verification_at: datetime,
+    qualified_at: datetime | None = None,
 ) -> SecurityDisclosureEvent | None:
     """Bind the exact current disclosure record to one unbranched logical source root."""
 
     if (
-        type(request) is not CorporateActionStageRequest
+        type(request) not in {CorporateActionStageRequest, QualifiedCorporateActionTaxFacts}
         or type(facts) is not tuple
         or type(verification_at) is not datetime
         or verification_at.tzinfo is None
         or verification_at.utcoffset() is None
+    ):
+        return None
+    known_cutoff = (
+        request.qualified_at if isinstance(request, CorporateActionStageRequest) else qualified_at
+    )
+    if (
+        type(known_cutoff) is not datetime
+        or known_cutoff.tzinfo is None
+        or known_cutoff.utcoffset() is None
+        or known_cutoff > verification_at
     ):
         return None
     available: list[PersistedSecurityDisclosureEvent] = []
@@ -77,8 +91,8 @@ def _find_current_event_with_complete_lineage(
         for item in available
         if item.event.source_event_id == request.source_record_id
         and item.event.source_revision_id == request.source_revision_id
-        and item.recorded_at <= request.qualified_at
-        and item.event.first_seen_at <= request.qualified_at
+        and item.recorded_at <= known_cutoff
+        and item.event.first_seen_at <= known_cutoff
     )
     if len(current_candidates) != 1:
         return None
@@ -128,8 +142,8 @@ def _find_current_event_with_complete_lineage(
         parent = by_identity.get(parent_identity)
         if (
             parent is None
-            or parent.recorded_at > request.qualified_at
-            or parent.event.first_seen_at > request.qualified_at
+            or parent.recorded_at > known_cutoff
+            or parent.event.first_seen_at > known_cutoff
             or parent.event.asset_code != event.asset_code
             or parent.event.exchange is not event.exchange
         ):
@@ -138,12 +152,17 @@ def _find_current_event_with_complete_lineage(
             immediate_parent_revision = parent.event.source_revision_id
         current = parent
 
-    if request.entry_kind in {
-        CorporateActionEntryKind.REVERSAL,
-        CorporateActionEntryKind.SUCCESSOR,
-    } and (
-        request.supersedes_revision_id is None
-        or immediate_parent_revision != request.supersedes_revision_id
+    if (
+        isinstance(request, CorporateActionStageRequest)
+        and request.entry_kind
+        in {
+            CorporateActionEntryKind.REVERSAL,
+            CorporateActionEntryKind.SUCCESSOR,
+        }
+        and (
+            request.supersedes_revision_id is None
+            or immediate_parent_revision != request.supersedes_revision_id
+        )
     ):
         return None
     return selected.event
@@ -177,6 +196,62 @@ class VerifiedSzseActionSourceQualifier(CorporateActionSourceQualificationVerifi
 
         self._body_store_root = body_store_root
         self._reader = make_security_disclosure_event_reader(using=using)
+
+    def verify_tax_action(
+        self, action: QualifiedCorporateActionTaxFacts, *, as_of: datetime
+    ) -> bool:
+        """Bind tax facts to the exact retained current event and parsed gross terms.
+
+        The revision digest is the complete native event content hash; the
+        payload digest separately binds original PDF bytes. This read confers
+        neither tax-policy applicability nor account write authority.
+        """
+
+        if type(action) is not QualifiedCorporateActionTaxFacts:
+            return False
+        try:
+            action.__post_init__()
+            if (
+                type(as_of) is not datetime
+                or as_of.tzinfo is None
+                or as_of.utcoffset() is None
+                or action.source_namespace != "exchange_official_disclosure"
+            ):
+                return False
+            verified_at = timezone.now()
+            facts = self._reader.execute(
+                SecurityDisclosureEventReadScope(
+                    as_of=verified_at,
+                    exchange=SecurityDisclosureExchange.SZSE,
+                    asset_code=action.asset_code,
+                )
+            )
+            event = _find_current_event_with_complete_lineage(
+                action, facts, verification_at=verified_at, qualified_at=as_of
+            )
+            if (
+                event is None
+                or event.source is not SecurityDisclosureSource.SZSE_OFFICIAL
+                or event.event_type is not SecurityDisclosureEventType.CASH_DIVIDEND
+                or action.source_revision_sha256 != event.content_hash
+                or action.source_payload_sha256 != event.source_body_sha256
+                or event.source_revision_id != f"sha256:{event.source_body_sha256}"
+                or type(event.effective_at) is not type(action.effective_date)
+                or event.effective_at != action.effective_date
+            ):
+                return False
+            terms = read_verified_szse_distribution(event, body_store_root=self._body_store_root)
+            if terms is None or terms.cash_per_ten is None:
+                return False
+            with localcontext() as context:
+                context.prec = 80
+                return (
+                    terms.record_date == action.record_date
+                    and terms.ex_date == action.effective_date
+                    and terms.cash_per_ten / Decimal("10") == action.dividend_per_share
+                )
+        except (DataValidationError, DataFetchError, DatabaseError, ValueError):
+            return False
 
     def verify_source(self, request: CorporateActionStageRequest) -> bool:
         """Verify official revision, dates, gross entitlement, and tax terms."""

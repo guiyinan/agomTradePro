@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 6959,
+    "current_surface_references": 7059,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -8384,6 +8384,10 @@
     },
     {
       "path": "apps/config_center/application/runtime_definition_reconcile.py",
+      "text": "user_impact=\"Missing or invalid candidates block tax consumers; configuration does not prove current law, custody or owner consent.\","
+    },
+    {
+      "path": "apps/config_center/application/runtime_definition_reconcile.py",
       "text": "user_impact=\"Selects retained current reference evidence and its explicit local age policy; absence leaves this simulated action unavailable.\","
     },
     {
@@ -9817,6 +9821,22 @@
     {
       "path": "apps/data_center/application/institutional_calendar.py",
       "text": "\"\"\"Read exact immutable event versions without selecting a latest row.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/institutional_calendar_query.py",
+      "text": "\"\"\"One visible current event state on its explicit local calendar date.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/institutional_calendar_query.py",
+      "text": "\"\"\"Select visible current revisions before applying calendar filters.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/institutional_calendar_query.py",
+      "text": "current = visible.get(event.event_id)"
+    },
+    {
+      "path": "apps/data_center/application/institutional_calendar_query.py",
+      "text": "if current is None or event.revision > current.revision:"
     },
     {
       "path": "apps/data_center/application/instrument_reference_capture.py",
@@ -22167,6 +22187,34 @@
       "text": "current policy, or establish that a source identity/hash is genuine."
     },
     {
+      "path": "apps/simulated_trading/application/corporate_action_tax_qualification.py",
+      "text": "\"\"\"Finite current-read facts from an injected trusted qualification provider."
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_tax_qualification.py",
+      "text": "\"\"\"Read current legal, policy, instrument and complete-history qualification.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_tax_qualification.py",
+      "text": "\"\"\"Require exact assessment and owner scope while this result is current.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_tax_qualification.py",
+      "text": "\"\"\"Typed port for rechecking current facts behind a tax assessment.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_tax_qualification.py",
+      "text": "\"current qualification differs from the exact assessment scope\","
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_tax_qualification.py",
+      "text": "\"current tax qualification is expired\", code=\"TAX_QUALIFICATION_EXPIRED\""
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_tax_qualification.py",
+      "text": "validates current legal sources, policy, date rules and complete history."
+    },
+    {
       "path": "apps/simulated_trading/application/corporate_action_tax_settlement_history.py",
       "text": "\"\"\"Assemble current rule/calendar observations with the verified V4 source prefix.\"\"\""
     },
@@ -23499,6 +23547,230 @@
       "text": "raise _invalid(\"policies\", \"current canonical row does not match physical account owner\")"
     },
     {
+      "path": "apps/simulated_trading/corporate_action_tax_instrument_qualification.py",
+      "text": "The current selector remains a local simulation classification. This check"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_instrument_qualification.py",
+      "text": "\"\"\"Stable current model/source identity with its original local expiry.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_instrument_qualification.py",
+      "text": "\"\"\"Verify exact current selector pins, CNY and listing coverage at record date."
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_instrument_qualification.py",
+      "text": "\"current instrument occurrence is absent or ambiguous in retained source\""
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_instrument_qualification.py",
+      "text": "as_of=current,"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_instrument_qualification.py",
+      "text": "classification.validate_at(as_of=current)"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_instrument_qualification.py",
+      "text": "current = as_of.astimezone(UTC)"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_instrument_qualification.py",
+      "text": "raise _blocked(\"current instrument identity differs from exact native snapshot pins\")"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_instrument_qualification.py",
+      "text": "raise _blocked(\"exact typed model, current classification and native snapshot are required\")"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_instrument_qualification.py",
+      "text": "raise _blocked(\"instrument or current model evidence failed exact validation\") from error"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_owner_scope_composition.py",
+      "text": "This adapter adds no qualification itself. It requires the supplied current"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_owner_scope_composition.py",
+      "text": "\"\"\"Bind tax-assessment verification to current Account and Audit scopes.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_owner_scope_composition.py",
+      "text": "\"\"\"Hold RBAC, physical/source/policy, current grant and Audit checks in the caller UOW.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_owner_scope_composition.py",
+      "text": "\"\"\"Lock current Account owner/grant facts around an injected tax qualifier."
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_owner_scope_composition.py",
+      "text": "\"\"\"Match physical owner, exact current V2 policy, and authenticated grant facts.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_owner_scope_composition.py",
+      "text": "\"\"\"Require current global transactional Audit/Outbox readiness.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_owner_scope_composition.py",
+      "text": "raise _blocked(\"a server-selected current grant selector is required\")"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_owner_scope_composition.py",
+      "text": "raise _blocked(\"an explicit current tax-qualification provider is required\")"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_owner_scope_composition.py",
+      "text": "raise _blocked(\"current Account grant does not match the exact tax-assessment scope\")"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_owner_scope_composition.py",
+      "text": "raise _blocked(\"current Account grant outlives its exact source and policy scope\")"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_owner_scope_composition.py",
+      "text": "raise _blocked(\"current configured Account scope does not include exact tax assessment\")"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_owner_scope_composition.py",
+      "text": "raise _blocked(\"current qualification result is untyped\")"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_owner_scope_composition.py",
+      "text": "raise _blocked(\"current tax grant changed before transaction exit\")"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_owner_scope_composition.py",
+      "text": "raise _blocked(\"current tax grant is untyped\")"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_owner_scope_composition.py",
+      "text": "raise _blocked(\"current tax qualification changed before transaction exit\")"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_owner_scope_composition.py",
+      "text": "raise _blocked(\"final current qualification result is untyped\")"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_policy_composition.py",
+      "text": "\"\"\"Current configured candidate and its immutable Config Center provenance."
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_policy_composition.py",
+      "text": "\"\"\"Read one exact current Config Center policy candidate for simulated tax.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_policy_composition.py",
+      "text": "\"\"\"Read the unique current configured candidate for one exact simulated owner."
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_policy_composition.py",
+      "text": "\"\"\"Recheck current profile/snapshot identity and creation/activation clocks.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_policy_composition.py",
+      "text": "\"\"\"Recheck the requested scope against this fixed current Config Center read.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_policy_composition.py",
+      "text": "\"\"\"Revalidate selected date, current candidate, and runtime evidence facts.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_policy_composition.py",
+      "text": "\"\"\"Strict current Config Center value for explicit simulated tax candidates.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_policy_composition.py",
+      "text": "\"\"\"The current explicit simulation policy is absent or cannot be trusted.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_policy_composition.py",
+      "text": "\"policies\", \"selected candidate failed final current-scope validation\""
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_policy_composition.py",
+      "text": "raise _invalid(\"candidate.known_at\", \"must come from current runtime evidence\")"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_policy_composition.py",
+      "text": "raise _invalid(\"candidate\", \"does not match the requested current scope\") from error"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_policy_composition.py",
+      "text": "raise _invalid(\"candidate\", \"is not applicable at the current read cutoff\") from error"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_policy_composition.py",
+      "text": "sources as authentic/current or authorize assessment, collection or refund."
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_qualification_composition.py",
+      "text": "\"\"\"Actual reconstructed assessment and stable finite current qualification.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_qualification_composition.py",
+      "text": "\"\"\"Compose current simulation tax facts from exact retained sources and V4 history."
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_qualification_composition.py",
+      "text": "\"\"\"Join exact current model, source bodies, listing facts and complete history.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_qualification_composition.py",
+      "text": "\"\"\"Reconstruct assessments through concrete public current-read adapters.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_qualification_composition.py",
+      "text": "\"\"\"Reject invalid clocks before comparing current source windows.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_qualification_composition.py",
+      "text": "\"schema\": \"current-simulated-tax-qualification.v1\","
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_qualification_composition.py",
+      "text": "\"the actual current disclosure body and complete correction lineage differ\""
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_qualification_composition.py",
+      "text": "as_of=current,"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_qualification_composition.py",
+      "text": "current = _utc(as_of)"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_qualification_composition.py",
+      "text": "current official announcement, instrument and statutory clauses have to be"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_qualification_composition.py",
+      "text": "raise _blocked(\"current assessment write facts require the exact PostgreSQL UOW\")"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_qualification_composition.py",
+      "text": "raise _blocked(\"current explicit simulated instrument classification is unavailable\")"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_qualification_composition.py",
+      "text": "raise _blocked(\"current tax qualification clock is not representable\") from error"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_qualification_composition.py",
+      "text": "raise _blocked(\"current tax qualification requires an aware server clock\")"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_qualification_composition.py",
+      "text": "raise _blocked(\"current tax qualification requires an aware server clock\")"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_qualification_composition.py",
+      "text": "raise _blocked(\"server clock moved backwards during current tax qualification\")"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_qualification_composition.py",
+      "text": "raise _blocked(\"submitted assessment differs from current independently rebuilt facts\")"
+    },
+    {
       "path": "apps/simulated_trading/corporate_action_tax_settlement_history_composition.py",
       "text": "\"\"\"Bind the public Config Center current-read function to one runtime environment.\"\"\""
     },
@@ -23521,6 +23793,50 @@
     {
       "path": "apps/simulated_trading/corporate_action_tax_settlement_history_composition.py",
       "text": "\"tax date environment differs from the composed current reader\","
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_statutory_qualification.py",
+      "text": "This operation never refreshes sources, chooses latest captures, or changes"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_statutory_qualification.py",
+      "text": "\"\"\"Recheck exact original bytes, explicit current model scope and parsed terms."
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_statutory_qualification.py",
+      "text": "\"\"\"Require one exact aware representable current-read clock.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_statutory_qualification.py",
+      "text": "checked_at=current,"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_statutory_qualification.py",
+      "text": "current < _utc(configured.as_of, name=\"configured.as_of\")"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_statutory_qualification.py",
+      "text": "current = _utc(as_of, name=\"as_of\")"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_statutory_qualification.py",
+      "text": "if current >= deadline:"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_statutory_qualification.py",
+      "text": "or current < _utc(retained.checked_at, name=\"source.checked_at\")"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_statutory_qualification.py",
+      "text": "or not scope.valid_from <= current < scope.valid_until"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_statutory_qualification.py",
+      "text": "raise _blocked(\"current model scope or exact retained selection is unavailable\")"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_statutory_qualification.py",
+      "text": "raise _blocked(\"exact current candidate and retained source evidence are required\")"
     },
     {
       "path": "apps/simulated_trading/corporate_action_write_scope_composition.py",
@@ -23589,6 +23905,54 @@
     {
       "path": "apps/simulated_trading/domain/corporate_action_tax_assessment.py",
       "text": "source, activate a policy, prove current ownership, grant authority, or post a"
+    },
+    {
+      "path": "apps/simulated_trading/domain/corporate_action_tax_liability.py",
+      "text": "\"\"\"Current due-versus-collected status for one action disposition.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/domain/corporate_action_tax_liability.py",
+      "text": "\"\"\"Latest immutable assessment and net collected amount for one disposition.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/domain/corporate_action_tax_liability.py",
+      "text": "\"\"\"Validate current liability facts and seal their exact immutable identity.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/domain/corporate_action_tax_liability.py",
+      "text": "\"correction must be a changed semantic successor of the exact current revision\""
+    },
+    {
+      "path": "apps/simulated_trading/domain/corporate_action_tax_liability.py",
+      "text": "_fail(\"collection delta exceeds available unreserved cash or current tax due\")"
+    },
+    {
+      "path": "apps/simulated_trading/domain/corporate_action_tax_liability.py",
+      "text": "_fail(\"liability state hash does not match its current facts\")"
+    },
+    {
+      "path": "apps/simulated_trading/domain/corporate_action_tax_liability.py",
+      "text": "_fail(\"liability transition hash does not match its current facts\")"
+    },
+    {
+      "path": "apps/simulated_trading/domain/corporate_action_tax_liability.py",
+      "text": "_fail(\"net collected tax cannot exceed the current assessment\")"
+    },
+    {
+      "path": "apps/simulated_trading/domain/corporate_action_tax_liability.py",
+      "text": "_fail(\"reserved cash cannot exceed current book cash\")"
+    },
+    {
+      "path": "apps/simulated_trading/domain/corporate_action_tax_liability.py",
+      "text": "_fail(\"reserved cash cannot exceed current book cash\")"
+    },
+    {
+      "path": "apps/simulated_trading/domain/corporate_action_tax_liability.py",
+      "text": "current immutable state, revalidate owner scope and capability, and append any"
+    },
+    {
+      "path": "apps/simulated_trading/domain/corporate_action_tax_liability.py",
+      "text": "identity, current state, cash, ownership, and authority still require trusted"
     },
     {
       "path": "apps/simulated_trading/domain/corporate_action_tax_settlement_evidence.py",
@@ -23801,6 +24165,38 @@
     {
       "path": "apps/simulated_trading/domain/rebalance_preview_math.py",
       "text": "exact current and target quantities; every valuation input remains subject"
+    },
+    {
+      "path": "apps/simulated_trading/domain/simulated_dividend_tax_policy_scope.py",
+      "text": "<= current"
+    },
+    {
+      "path": "apps/simulated_trading/domain/simulated_dividend_tax_policy_scope.py",
+      "text": "\"\"\"Require exact account/instrument/persona scope and current validity.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/domain/simulated_dividend_tax_policy_scope.py",
+      "text": "_reject(\"candidate is not current at the requested cutoff\")"
+    },
+    {
+      "path": "apps/simulated_trading/domain/simulated_dividend_tax_policy_scope.py",
+      "text": "_reject(\"current candidate differs from the exact simulated owner or instrument\")"
+    },
+    {
+      "path": "apps/simulated_trading/domain/simulated_dividend_tax_policy_scope.py",
+      "text": "_reject(\"current candidate validity must be finite and ordered\")"
+    },
+    {
+      "path": "apps/simulated_trading/domain/simulated_dividend_tax_policy_scope.py",
+      "text": "current = _utc(as_of, \"as_of\")"
+    },
+    {
+      "path": "apps/simulated_trading/domain/simulated_dividend_tax_policy_scope.py",
+      "text": "if _utc(self.known_at, \"known_at\") > current:"
+    },
+    {
+      "path": "apps/simulated_trading/domain/simulated_dividend_tax_policy_scope.py",
+      "text": "not prove that a legal source is authentic/current or that an account may assess"
     },
     {
       "path": "apps/simulated_trading/domain/simulated_tax_date_convention.py",
@@ -25193,6 +25589,10 @@
     {
       "path": "apps/simulated_trading/local_daily_match_composition.py",
       "text": "\"\"\"Bind durable events, sealed fill calendars and current settlement/mark readers."
+    },
+    {
+      "path": "apps/simulated_trading/official_disclosure_action_composition.py",
+      "text": "\"\"\"Bind tax facts to the exact retained current event and parsed gross terms."
     },
     {
       "path": "apps/simulated_trading/official_disclosure_action_composition.py",

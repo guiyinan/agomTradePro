@@ -43,7 +43,7 @@
           "imports": 1
         },
         "simulated_trading": {
-          "imports": 53
+          "imports": 58
         },
         "terminal": {
           "imports": 6
@@ -2387,7 +2387,7 @@
           "imports": 1
         },
         "simulated_trading": {
-          "imports": 11
+          "imports": 14
         },
         "terminal": {
           "imports": 2
@@ -3496,7 +3496,7 @@
           "imports": 1
         },
         "simulated_trading": {
-          "imports": 1
+          "imports": 2
         },
         "terminal": {
           "imports": 3
@@ -4158,7 +4158,7 @@
           "imports": 3
         },
         "simulated_trading": {
-          "imports": 82
+          "imports": 87
         },
         "strategy": {
           "imports": 1
@@ -11005,7 +11005,7 @@
       },
       "depends_on": {
         "account": {
-          "imports": 53,
+          "imports": 58,
           "target_layers": [
             "application",
             "domain",
@@ -11027,7 +11027,7 @@
           ]
         },
         "audit": {
-          "imports": 11,
+          "imports": 14,
           "target_layers": [
             "application",
             "corporate_action_tax_assessment_composition",
@@ -11038,13 +11038,13 @@
           ]
         },
         "config_center": {
-          "imports": 1,
+          "imports": 2,
           "target_layers": [
             "application"
           ]
         },
         "data_center": {
-          "imports": 82,
+          "imports": 87,
           "target_layers": [
             "application",
             "calendar_publication_operations_composition",
@@ -11054,7 +11054,8 @@
             "instrument_reference_snapshot_composition",
             "price_limit_publication_operations_composition",
             "qmt_bridge_composition",
-            "security_disclosure_capture_composition"
+            "security_disclosure_capture_composition",
+            "statutory_source_capture_composition"
           ]
         },
         "policy": {
@@ -11250,6 +11251,10 @@
           "DeferredDividendTaxPolicyJSON",
           "HoldingPeriodTaxBandJSON",
           "decode_deferred_dividend_tax_policy"
+        ],
+        "application/corporate_action_tax_qualification.py": [
+          "CurrentTaxAssessmentQualification",
+          "CurrentTaxAssessmentQualificationPort"
         ],
         "application/corporate_action_tax_settlement_history.py": [
           "CurrentSimulatedTaxDateRuleReader",
@@ -12083,12 +12088,12 @@
         ]
       },
       "layers": {
-        "application": 127,
-        "domain": 48,
+        "application": 128,
+        "domain": 50,
         "infrastructure": 140,
         "interface": 37,
         "management": 7,
-        "root": 46
+        "root": 51
       },
       "orm_models": {
         "infrastructure/models.py": [

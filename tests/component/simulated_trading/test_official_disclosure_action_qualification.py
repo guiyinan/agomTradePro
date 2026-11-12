@@ -34,6 +34,9 @@ from apps.simulated_trading.domain.corporate_action_posting import (
     CorporateActionStage,
     CorporateActionStageRequest,
 )
+from apps.simulated_trading.domain.corporate_action_tax_assessment import (
+    QualifiedCorporateActionTaxFacts,
+)
 
 
 @pytest.mark.django_db
@@ -123,6 +126,27 @@ def test_exact_source_revision_and_gross_terms_are_qualified(
     assert request.tax_rule_id is None
     assert request.tax_rule_sha256 is None
     assert verifier.verify_source(request)
+    tax_action = QualifiedCorporateActionTaxFacts(
+        account_id=request.account_id,
+        owner_user_id=request.owner_user_id,
+        security_id="internal-security-002727",
+        asset_code=request.asset_code,
+        corporate_action_id="synthetic-logical-dividend",
+        source_namespace=request.source_namespace,
+        source_record_id=event.source_event_id,
+        source_event_id=event.source_event_id,
+        source_revision_id=event.source_revision_id,
+        source_revision_sha256=event.content_hash,
+        source_payload_sha256=event.source_body_sha256,
+        record_date=terms.record_date,
+        effective_date=terms.ex_date,
+        dividend_per_share=Decimal("0.2"),
+    )
+    assert verifier.verify_tax_action(tax_action, as_of=qualified_at)
+    assert not verifier.verify_tax_action(
+        replace(tax_action, source_payload_sha256="0" * 64),
+        as_of=qualified_at,
+    )
     assert not verifier.verify_source(replace(request, cash_amount=Decimal("201.00")))
     assert not verifier.verify_source(replace(request, source_revision_id="wrong-revision"))
     assert not verifier.verify_source(replace(request, asset_code="301237.SZ"))

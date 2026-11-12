@@ -9,7 +9,7 @@
       "celery_dispatch_edge": 18,
       "celery_task": 130,
       "compatibility_facade": 95,
-      "current_data_surface": 112,
+      "current_data_surface": 115,
       "dynamic_import_edge": 15,
       "management_command": 50,
       "management_command_edge": 65,
@@ -21,22 +21,22 @@
       "public_port": 97,
       "rest_url": 90,
       "runbook": 7,
-      "runtime_config_key": 51,
+      "runtime_config_key": 52,
       "scheduler_writer": 18,
       "script": 20,
       "sdk": 57,
       "terminal_tui": 32,
-      "test_evidence": 137,
+      "test_evidence": 139,
       "workflow_step": 11
     },
     "by_status": {
-      "active_public": 917,
+      "active_public": 921,
       "adjacent_operational": 346,
-      "candidate-review": 56,
+      "candidate-review": 58,
       "compatibility": 139,
       "retired_blocked": 0
     },
-    "total": 1458
+    "total": 1464
   },
   "entries": [
     {
@@ -6041,12 +6041,32 @@
     },
     {
       "category": "current_data_surface",
+      "evidence": "governed current-data contract; source_files=2",
+      "id": "current_data_surface:governance/current_data_contracts.json:simulated_trading.current_explicit_dividend_tax_policy:Optional explicit simulated persona/instrument/CNY/entitlement/date-window policy; no default legal activation",
+      "locator": "Optional explicit simulated persona/instrument/CNY/entitlement/date-window policy; no default legal activation",
+      "path": "governance/current_data_contracts.json",
+      "status": "active_public",
+      "symbol": "simulated_trading.current_explicit_dividend_tax_policy",
+      "target": ""
+    },
+    {
+      "category": "current_data_surface",
       "evidence": "governed current-data contract; source_files=1",
       "id": "current_data_surface:governance/current_data_contracts.json:simulated_trading.current_official_corporate_action_revision:Exact retained official disclosure correction lineage at an explicit verification cutoff; no complete-market coverage or tax eligibility claim",
       "locator": "Exact retained official disclosure correction lineage at an explicit verification cutoff; no complete-market coverage or tax eligibility claim",
       "path": "governance/current_data_contracts.json",
       "status": "active_public",
       "symbol": "simulated_trading.current_official_corporate_action_revision",
+      "target": ""
+    },
+    {
+      "category": "current_data_surface",
+      "evidence": "governed current-data contract; source_files=2",
+      "id": "current_data_surface:governance/current_data_contracts.json:simulated_trading.current_owner_tax_assessment_model:Rebuilt simulated assessment identity and independent finite Owner TAX_ASSESS fence",
+      "locator": "Rebuilt simulated assessment identity and independent finite Owner TAX_ASSESS fence",
+      "path": "governance/current_data_contracts.json",
+      "status": "active_public",
+      "symbol": "simulated_trading.current_owner_tax_assessment_model",
       "target": ""
     },
     {
@@ -6077,6 +6097,16 @@
       "path": "governance/current_data_contracts.json",
       "status": "active_public",
       "symbol": "simulated_trading.current_simulated_tax_settlement_history",
+      "target": ""
+    },
+    {
+      "category": "current_data_surface",
+      "evidence": "governed current-data contract; source_files=2",
+      "id": "current_data_surface:governance/current_data_contracts.json:simulated_trading.current_tax_model_source_and_instrument:Strict retained bytes/clause pin and exact current reference snapshot for the explicit simulation model",
+      "locator": "Strict retained bytes/clause pin and exact current reference snapshot for the explicit simulation model",
+      "path": "governance/current_data_contracts.json",
+      "status": "active_public",
+      "symbol": "simulated_trading.current_tax_model_source_and_instrument",
       "target": ""
     },
     {
@@ -11781,6 +11811,16 @@
     },
     {
       "category": "runtime_config_key",
+      "evidence": "runtime owner=config_center; consumers=1; migration_status=canonical_only_fail_closed",
+      "id": "runtime_config_key:governance/runtime_config_contracts.json:config_center.simulated_trading.dividend_tax_policies:canonical_only_fail_closed",
+      "locator": "canonical_only_fail_closed",
+      "path": "governance/runtime_config_contracts.json",
+      "status": "active_public",
+      "symbol": "config_center.simulated_trading.dividend_tax_policies",
+      "target": ""
+    },
+    {
+      "category": "runtime_config_key",
       "evidence": "runtime owner=data-platform; consumers=4; migration_status=canonical_only_fail_closed",
       "id": "runtime_config_key:governance/runtime_config_contracts.json:data_center.provider.default_source:canonical_only_fail_closed",
       "locator": "canonical_only_fail_closed",
@@ -13842,6 +13882,16 @@
     {
       "category": "test_evidence",
       "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/component/simulated_trading/test_owner_tax_assessment_scope_postgres.py:test_owner_tax_assessment_scope_postgres:",
+      "locator": "",
+      "path": "tests/component/simulated_trading/test_owner_tax_assessment_scope_postgres.py",
+      "status": "candidate-review",
+      "symbol": "test_owner_tax_assessment_scope_postgres",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
       "id": "test_evidence:tests/component/simulated_trading/test_position_knowledge_migration.py:test_position_knowledge_migration:",
       "locator": "",
       "path": "tests/component/simulated_trading/test_position_knowledge_migration.py",
@@ -13887,6 +13937,16 @@
       "path": "tests/component/simulated_trading/test_simulated_tax_history_native_postgres.py",
       "status": "candidate-review",
       "symbol": "test_simulated_tax_history_native_postgres",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/component/simulated_trading/test_simulated_tax_policy_postgres.py:test_simulated_tax_policy_postgres:",
+      "locator": "",
+      "path": "tests/component/simulated_trading/test_simulated_tax_policy_postgres.py",
+      "status": "candidate-review",
+      "symbol": "test_simulated_tax_policy_postgres",
       "target": ""
     },
     {
@@ -14631,10 +14691,10 @@
   },
   "source_contract_counts": {
     "celery_tasks": 95,
-    "current_data_contracts": 112,
+    "current_data_contracts": 115,
     "legacy_entrypoints_and_wrappers": 0,
     "operational_governance_rules": 45,
-    "runtime_config_keys": 51
+    "runtime_config_keys": 52
   },
   "source_contracts": [
     "governance/celery_task_contracts.json",
