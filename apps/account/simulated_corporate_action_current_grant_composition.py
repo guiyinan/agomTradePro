@@ -14,9 +14,15 @@ from django.utils.connection import ConnectionDoesNotExist
 from apps.account.application.simulated_corporate_action_write_grant import (
     SimulatedCorporateActionWriteGrantUnavailable,
 )
+from apps.account.domain.simulated_corporate_action_write_capabilities import (
+    SimulatedCorporateActionWriteCapability,
+)
 from apps.account.domain.simulated_corporate_action_write_grant import (
     SIMULATED_CORPORATE_ACTION_SERVICE_ACTOR_ID,
     SIMULATED_CORPORATE_ACTION_STAGE_WRITE_PERMISSION,
+    SIMULATED_CORPORATE_ACTION_WRITE_GRANT_SCHEMA,
+    SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_PERMISSION,
+    SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA,
     SimulatedCorporateActionWriteGrant,
     SimulatedCorporateActionWriteGrantCurrent,
     SimulatedCorporateActionWriteGrantSelector,
@@ -91,6 +97,7 @@ def _read_exact_current_grant(
     repository: DjangoSimulatedCorporateActionWriteGrantRepository,
     seal: SimulatedCorporateActionWriteGrantSeal,
     as_of: datetime,
+    required_capability: SimulatedCorporateActionWriteCapability,
 ) -> SimulatedCorporateActionWriteGrant:
     """Require the unique active scope head, exact selector, and current server MAC."""
 
@@ -118,6 +125,7 @@ def _read_exact_current_grant(
         grant.__post_init__()
         selector.__post_init__()
         is_active = current.is_active_at(as_of)
+        supports_required_capability = grant.supports_capability(required_capability)
     except (TypeError, ValueError) as error:
         raise SimulatedCorporateActionWriteGrantUnavailable(
             "simulated write grant current record is invalid"
@@ -128,8 +136,21 @@ def _read_exact_current_grant(
         or current.selector != selector
         or grant.selector != selector
         or grant.binding != selector.binding
-        or grant.permission != SIMULATED_CORPORATE_ACTION_STAGE_WRITE_PERMISSION
+        or (
+            grant.schema == SIMULATED_CORPORATE_ACTION_WRITE_GRANT_SCHEMA
+            and grant.permission != SIMULATED_CORPORATE_ACTION_STAGE_WRITE_PERMISSION
+        )
+        or (
+            grant.schema == SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA
+            and grant.permission != SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_PERMISSION
+        )
+        or grant.schema
+        not in {
+            SIMULATED_CORPORATE_ACTION_WRITE_GRANT_SCHEMA,
+            SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA,
+        }
         or grant.service_actor_id != SIMULATED_CORPORATE_ACTION_SERVICE_ACTOR_ID
+        or not supports_required_capability
         or not is_active
         or not seal.verify(grant)
     ):
@@ -144,6 +165,9 @@ def locked_current_simulated_corporate_action_write_grant(
     *,
     selector: SimulatedCorporateActionWriteGrantSelector,
     using: str,
+    required_capability: SimulatedCorporateActionWriteCapability = (
+        SimulatedCorporateActionWriteCapability.CASH_STAGE_WRITE
+    ),
 ) -> Iterator[SimulatedCorporateActionWriteGrant]:
     """Hold the exact unrevoked grant head stable inside its caller's write UOW.
 
@@ -152,6 +176,12 @@ def locked_current_simulated_corporate_action_write_grant(
     rechecks the same finite current grant before yielding back to the caller.
     """
 
+    if type(required_capability) is not SimulatedCorporateActionWriteCapability or (
+        required_capability is not SimulatedCorporateActionWriteCapability.CASH_STAGE_WRITE
+    ):
+        raise SimulatedCorporateActionWriteGrantUnavailable(
+            "current simulated write grant reader supports only the cash capability"
+        )
     if type(selector) is not SimulatedCorporateActionWriteGrantSelector:
         raise SimulatedCorporateActionWriteGrantUnavailable(
             "simulated write grant selector type is invalid"
@@ -171,6 +201,7 @@ def locked_current_simulated_corporate_action_write_grant(
         repository=repository,
         seal=seal,
         as_of=timezone.now(),
+        required_capability=required_capability,
     )
     yield grant
     current = _read_exact_current_grant(
@@ -178,6 +209,7 @@ def locked_current_simulated_corporate_action_write_grant(
         repository=repository,
         seal=seal,
         as_of=timezone.now(),
+        required_capability=required_capability,
     )
     if current != grant:
         raise SimulatedCorporateActionWriteGrantUnavailable(

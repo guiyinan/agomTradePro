@@ -215,6 +215,80 @@ def test_v2_policy_requires_explicit_schema_and_fails_closed_for_legacy_readers(
             pytest.fail("legacy locked callers must not accept V2 policy")
 
 
+@pytest.mark.parametrize("version", ["v1", "v2"])
+def test_read_discovery_can_select_the_single_current_policy_without_a_schema(
+    policy_world, version: str
+):
+    item, install = policy_world
+    if version == "v1":
+        row = item
+        schema_version = "simulated-corporate-action-write-policies.v1"
+        expected = SIMULATED_CORPORATE_ACTION_WRITE_GRANT_SCHEMA
+    else:
+        row = _v2_item(
+            item,
+            capabilities=_v2_capabilities(SimulatedCorporateActionWriteCapability.TAX_ASSESS),
+            terms_version="tax-terms-v1",
+            terms_sha256="b" * 64,
+        )
+        schema_version = "simulated-corporate-action-write-policies.v2"
+        expected = SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA
+    binding, _, _, _ = install([row], schema_version=schema_version)
+
+    result = policies.read_current_simulated_action_write_policy(
+        canonical_account_id=binding.account_id,
+        owner_user_id=binding.owner_user_id,
+        environment="development",
+        as_of=_AT,
+        expected_grant_schema=None,
+    )
+
+    assert result.grant_schema == expected
+    assert result.owner_user_id == binding.owner_user_id
+
+
+def test_read_and_write_policy_paths_do_not_share_schema_discovery(policy_world):
+    item, install = policy_world
+    row = _v2_item(
+        item,
+        capabilities=_v2_capabilities(SimulatedCorporateActionWriteCapability.TAX_ASSESS),
+        terms_version="tax-terms-v1",
+        terms_sha256="b" * 64,
+    )
+    binding, _, _, _ = install([row], schema_version="simulated-corporate-action-write-policies.v2")
+
+    with pytest.raises(ValueError, match="expected grant schema"):
+        policies._read_policy(
+            binding=binding,
+            environment="development",
+            as_of=_AT,
+            expected_grant_schema=None,
+        )
+
+
+def test_locked_policy_rejects_schema_discovery_even_when_policy_is_current(
+    policy_world, monkeypatch
+):
+    _, install = policy_world
+    binding, _, _, _ = install()
+
+    @contextmanager
+    def unlocked_runtime_environment(*, environment: str, using: str) -> Iterator[None]:
+        yield
+
+    monkeypatch.setattr(policies, "locked_runtime_environment", unlocked_runtime_environment)
+    monkeypatch.setattr(policies.timezone, "now", lambda: _AT)
+    with pytest.raises(SimulatedCorporateActionWriteGrantUnavailable):
+        with policies.locked_simulated_action_owner_policy(
+            binding=binding,
+            canonical_namespace="account",
+            using="default",
+            runtime_environment="development",
+            expected_grant_schema=None,
+        ):
+            pytest.fail("write lock must require an exact schema")
+
+
 def test_v2_policy_fingerprint_binds_capabilities_and_terms(policy_world):
     item, install = policy_world
     rows = (

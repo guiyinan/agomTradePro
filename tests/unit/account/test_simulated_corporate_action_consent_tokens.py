@@ -5,6 +5,7 @@ import hashlib
 import json
 from dataclasses import replace
 from datetime import timedelta
+from types import SimpleNamespace
 
 import pytest
 
@@ -28,6 +29,40 @@ from tests.unit.account.test_simulated_corporate_action_write_grant import (
     _grant_v2,
 )
 from tests.unit.account.test_simulated_corporate_action_write_grant_seal import _key
+
+
+@pytest.mark.parametrize("present", [True, False])
+def test_exact_withdrawal_metadata_does_not_fallback_to_current_head(monkeypatch, present):
+    grant = _grant_v2(
+        capabilities=(SimulatedCorporateActionWriteCapability.TAX_ASSESS,),
+        supersedes_content_hash=None,
+    )
+    calls = []
+
+    class HistoricalRepository:
+        def __init__(self, *, using):
+            assert using == "history"
+
+        def get_exact_record(self, *, selector, as_of):
+            calls.append((selector, as_of))
+            return SimpleNamespace(grant=grant) if present else None
+
+    monkeypatch.setattr(
+        tokens, "DjangoSimulatedCorporateActionWriteGrantRepository", HistoricalRepository
+    )
+    if present:
+        assert (
+            tokens.read_exact_simulated_action_withdrawal_metadata(
+                selector=grant.selector, as_of=_AT, using="history"
+            )
+            == grant
+        )
+    else:
+        with pytest.raises(SimulatedCorporateActionWriteGrantUnavailable):
+            tokens.read_exact_simulated_action_withdrawal_metadata(
+                selector=grant.selector, as_of=_AT, using="history"
+            )
+    assert calls == [(grant.selector, _AT)]
 
 
 def _command():

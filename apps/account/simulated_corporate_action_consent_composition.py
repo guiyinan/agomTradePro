@@ -341,6 +341,21 @@ def read_latest_simulated_action_withdrawal_metadata(
     return owned[-1] if owned else None
 
 
+def read_exact_simulated_action_withdrawal_metadata(
+    *, selector: SimulatedCorporateActionWriteGrantSelector, as_of: datetime, using: str
+) -> SimulatedCorporateActionWriteGrant:
+    """Read the exact immutable historical withdrawal scope without conferring authority."""
+    if type(selector) is not SimulatedCorporateActionWriteGrantSelector:
+        raise SimulatedCorporateActionWriteGrantUnavailable("withdrawal selector is invalid")
+    selector.__post_init__()
+    record = DjangoSimulatedCorporateActionWriteGrantRepository(using=using).get_exact_record(
+        selector=selector, as_of=as_of
+    )
+    if record is None or record.grant.selector != selector:
+        raise SimulatedCorporateActionWriteGrantUnavailable("withdrawal metadata is unavailable")
+    return record.grant
+
+
 def read_authenticated_withdrawal_session_deadline(request: Request) -> datetime:
     """Use the real credential deadline for UI withdrawal preparation, without renewing a grant."""
     authenticator = _session_consent_authenticator(request)

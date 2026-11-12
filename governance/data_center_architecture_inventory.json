@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 6885,
+    "current_surface_references": 6904,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -4472,6 +4472,10 @@
     },
     {
       "path": "apps/account/simulated_corporate_action_current_grant_composition.py",
+      "text": "\"current simulated write grant reader supports only the cash capability\""
+    },
+    {
+      "path": "apps/account/simulated_corporate_action_current_grant_composition.py",
       "text": "\"current simulated write grant requires READ COMMITTED\""
     },
     {
@@ -4545,6 +4549,10 @@
     {
       "path": "apps/account/simulated_corporate_action_policy_scope_composition.py",
       "text": "\"\"\"Exact current configuration scope including immutable runtime lineage.\"\"\""
+    },
+    {
+      "path": "apps/account/simulated_corporate_action_policy_scope_composition.py",
+      "text": "current account policy's schema; it must not be used by a write fence."
     },
     {
       "path": "apps/account/simulated_corporate_action_write_issuance_composition.py",
@@ -23284,6 +23292,14 @@
     },
     {
       "path": "apps/simulated_trading/corporate_action_consent_composition.py",
+      "text": "\"summary\": \"已有有限期的分项模拟授权；条款暂时无法核对，但仍可撤销。\","
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_consent_composition.py",
+      "text": "\"summary\": \"已有有限期的分项模拟授权；条款暂时无法核对，但仍可撤销。\","
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_consent_composition.py",
       "text": "\"summary\": \"已有有限期的现金分红模拟入账授权，可随时撤销。\","
     },
     {
@@ -23296,23 +23312,15 @@
     },
     {
       "path": "apps/simulated_trading/corporate_action_consent_composition.py",
-      "text": "\"summary\": \"现金分红模拟入账授权已保存；本次操作仅保存授权。\","
+      "text": "\"summary\": \"该次模拟公司行为授权已撤销。\","
     },
     {
       "path": "apps/simulated_trading/corporate_action_consent_composition.py",
-      "text": "\"summary\": \"确认后，服务可在有效期内为本账户核对并记录现金分红模拟权益和模拟到账。\","
+      "text": "\"summary\": summary,"
     },
     {
       "path": "apps/simulated_trading/corporate_action_consent_composition.py",
-      "text": "\"summary\": \"该次模拟入账授权已撤销。\","
-    },
-    {
-      "path": "apps/simulated_trading/corporate_action_consent_composition.py",
-      "text": "payload[\"summary\"] = \"当前角色不能新增模拟入账授权。\""
-    },
-    {
-      "path": "apps/simulated_trading/corporate_action_consent_composition.py",
-      "text": "payload[\"summary\"] = \"缺少当前有效且范围明确的模拟入账政策，请先完成配置核对。\""
+      "text": "\"summary\": summary,"
     },
     {
       "path": "apps/simulated_trading/corporate_action_consent_composition.py",
@@ -23320,7 +23328,75 @@
     },
     {
       "path": "apps/simulated_trading/corporate_action_consent_composition.py",
-      "text": "payload[\"summary\"] = \"请先核对并刷新该模拟账户的归属资料。\""
+      "text": "payload[\"summary\"] = _active_v2_summary(payload[\"capability_labels\"])"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_consent_composition.py",
+      "text": "payload[\"summary\"] = _scope_block_summary("
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_consent_composition.py",
+      "text": "payload[\"summary\"] = _scope_block_summary("
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_consent_composition.py",
+      "text": "payload[\"summary\"] = _scope_block_summary("
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_consent_composition.py",
+      "text": "payload[\"summary\"] = _scope_block_summary("
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_consent_composition.py",
+      "text": "payload[\"summary\"] = _scope_block_summary("
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_consent_composition.py",
+      "text": "payload[\"summary\"] = _scope_block_summary("
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_consent_composition.py",
+      "text": "payload[\"summary\"] = _scope_block_summary("
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_consent_composition.py",
+      "text": "payload[\"summary\"] = _scope_block_summary("
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_consent_composition.py",
+      "text": "payload[\"summary\"] = _scope_block_summary("
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_consent_composition.py",
+      "text": "payload[\"summary\"] = _scope_block_summary(payload, \"当前角色不能新增模拟入账授权。\")"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_consent_composition.py",
+      "text": "raise ValueError(\"current V2 grant and policy terms are required\")"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_consent_composition.py",
+      "text": "raise ValueError(\"current service policy differs from requested grant schema\")"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_consent_composition.py",
+      "text": "summary = ("
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_consent_composition.py",
+      "text": "summary = ("
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_consent_composition.py",
+      "text": "summary = ("
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_consent_composition.py",
+      "text": "summary = \"现金分红模拟入账授权已保存；本次操作仅保存授权。\""
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_consent_composition.py",
+      "text": "summary = \"确认后，服务可在有效期内为本账户核对并记录现金分红模拟权益和模拟到账。\""
     },
     {
       "path": "apps/simulated_trading/corporate_action_consent_composition.py",
@@ -25832,7 +25908,7 @@
     },
     {
       "path": "apps/terminal/application/tui_simulated_corporate_action_consent_result.py",
-      "text": "\"business_summary\": f\"{response['summary']} {_SIMULATION_NOTICE}\","
+      "text": "\"business_summary\": f\"{response['summary']} {business_notice}\","
     },
     {
       "path": "apps/terminal/application/tui_simulated_corporate_action_consent_result.py",

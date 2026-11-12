@@ -18,9 +18,15 @@ from apps.account.application.simulated_corporate_action_write_grant import (
 from apps.account.application.simulated_corporate_action_write_issuance import (
     LockedSimulatedCorporateActionWriteScope,
 )
+from apps.account.domain.simulated_corporate_action_write_capabilities import (
+    SimulatedCorporateActionWriteCapability,
+)
 from apps.account.domain.simulated_corporate_action_write_grant import (
     SIMULATED_CORPORATE_ACTION_SERVICE_ACTOR_ID,
     SIMULATED_CORPORATE_ACTION_STAGE_WRITE_PERMISSION,
+    SIMULATED_CORPORATE_ACTION_WRITE_GRANT_SCHEMA,
+    SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_PERMISSION,
+    SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA,
     SimulatedCorporateActionWriteGrant,
     SimulatedCorporateActionWriteGrantSelector,
 )
@@ -86,7 +92,22 @@ class OwnerGrantedCorporateActionAuthority:
                 tenant_id=self.grant.binding.tenant_id,
                 owner_id=self.grant.binding.owner_id,
             )
-            or self.grant.permission != SIMULATED_CORPORATE_ACTION_STAGE_WRITE_PERMISSION
+            or self.grant.schema
+            not in {
+                SIMULATED_CORPORATE_ACTION_WRITE_GRANT_SCHEMA,
+                SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA,
+            }
+            or (
+                self.grant.schema == SIMULATED_CORPORATE_ACTION_WRITE_GRANT_SCHEMA
+                and self.grant.permission != SIMULATED_CORPORATE_ACTION_STAGE_WRITE_PERMISSION
+            )
+            or (
+                self.grant.schema == SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA
+                and self.grant.permission != SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_PERMISSION
+            )
+            or not self.grant.supports_capability(
+                SimulatedCorporateActionWriteCapability.CASH_STAGE_WRITE
+            )
             or self.grant.service_actor_id != SIMULATED_CORPORATE_ACTION_SERVICE_ACTOR_ID
         ):
             raise ValueError("owner-granted Audit scope differs from the exact Account grant")
@@ -116,7 +137,13 @@ _ACTIVE_AUTHORITY: ContextVar[tuple[object, _ActiveAuthority] | None] = ContextV
 class DjangoCorporateActionOwnerGrantGate:
     """Hold exact owner, current Account grant and Audit readiness in one UOW."""
 
-    __slots__ = ("_environment", "_scope_locker", "_selector", "_using")
+    __slots__ = (
+        "_environment",
+        "_expected_grant_schema",
+        "_scope_locker",
+        "_selector",
+        "_using",
+    )
 
     def __init__(
         self,
@@ -125,12 +152,21 @@ class DjangoCorporateActionOwnerGrantGate:
         scope_locker: DjangoSimulatedCorporateActionWriteScopeLocker,
         using: str,
         environment: str,
+        expected_grant_schema: str = SIMULATED_CORPORATE_ACTION_WRITE_GRANT_SCHEMA,
     ) -> None:
         """Bind one server-selected grant to its concrete same-alias scope locker."""
 
         if type(selector) is not SimulatedCorporateActionWriteGrantSelector:
             raise CorporateActionPostingBlockedError(
                 "owner-grant selector type is invalid",
+                code="CORPORATE_ACTION_WRITE_AUTHORITY_UNAVAILABLE",
+            )
+        if type(expected_grant_schema) is not str or expected_grant_schema not in {
+            SIMULATED_CORPORATE_ACTION_WRITE_GRANT_SCHEMA,
+            SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA,
+        }:
+            raise CorporateActionPostingBlockedError(
+                "owner-grant schema is unsupported",
                 code="CORPORATE_ACTION_WRITE_AUTHORITY_UNAVAILABLE",
             )
         try:
@@ -159,6 +195,7 @@ class DjangoCorporateActionOwnerGrantGate:
         self._scope_locker = scope_locker
         self._using = using
         self._environment = environment
+        self._expected_grant_schema = expected_grant_schema
 
     @property
     def database_alias(self) -> str:
@@ -176,6 +213,42 @@ class DjangoCorporateActionOwnerGrantGate:
         """Construct one stable posting-domain failure without leaking authority data."""
 
         return CorporateActionPostingBlockedError(message, code=code)
+
+    def _grant_matches_locked_scope(
+        self,
+        *,
+        grant: SimulatedCorporateActionWriteGrant,
+        scope: LockedSimulatedCorporateActionWriteScope,
+    ) -> bool:
+        """Require the exact server-selected schema and cash capability subset."""
+
+        if (
+            grant.schema != self._expected_grant_schema
+            or scope.grant_schema != self._expected_grant_schema
+            or not grant.supports_capability(
+                SimulatedCorporateActionWriteCapability.CASH_STAGE_WRITE
+            )
+        ):
+            return False
+        if self._expected_grant_schema == SIMULATED_CORPORATE_ACTION_WRITE_GRANT_SCHEMA:
+            return all(
+                value is None
+                for value in (
+                    grant.capabilities,
+                    grant.terms_version,
+                    grant.terms_sha256,
+                    scope.capabilities,
+                    scope.terms_version,
+                    scope.terms_sha256,
+                )
+            )
+        if grant.capabilities is None or scope.capabilities is None:
+            return False
+        return (
+            set(grant.capabilities).issubset(scope.capabilities)
+            and grant.terms_version == scope.terms_version
+            and grant.terms_sha256 == scope.terms_sha256
+        )
 
     def _require_request(self, request: CorporateActionStageRequest) -> None:
         """Accept only one ordinary cash-dividend posting for the server owner selector."""
@@ -287,6 +360,7 @@ class DjangoCorporateActionOwnerGrantGate:
             with locked_current_simulated_corporate_action_write_grant(
                 selector=authority.grant.selector,
                 using=self._using,
+                required_capability=SimulatedCorporateActionWriteCapability.CASH_STAGE_WRITE,
             ) as current_grant:
                 if current_grant != authority.grant:
                     raise self._block(
@@ -397,6 +471,7 @@ class DjangoCorporateActionOwnerGrantGate:
                         owner_user_id=self._selector.binding.owner_user_id,
                         expected_binding=self._selector.binding,
                         request=request,
+                        expected_grant_schema=self._expected_grant_schema,
                     ) as scope:
                         if type(scope) is not LockedSimulatedCorporateActionWriteScope:
                             raise self._block(
@@ -421,6 +496,9 @@ class DjangoCorporateActionOwnerGrantGate:
                         with locked_current_simulated_corporate_action_write_grant(
                             selector=self._selector,
                             using=self._using,
+                            required_capability=(
+                                SimulatedCorporateActionWriteCapability.CASH_STAGE_WRITE
+                            ),
                         ) as grant:
                             if type(grant) is not SimulatedCorporateActionWriteGrant:
                                 raise self._block(
@@ -431,6 +509,10 @@ class DjangoCorporateActionOwnerGrantGate:
                             if (
                                 grant.selector != self._selector
                                 or grant.binding != scope.binding
+                                or not self._grant_matches_locked_scope(
+                                    grant=grant,
+                                    scope=scope,
+                                )
                                 or grant.valid_until > scope.valid_until
                                 or not grant.is_active_at(now)
                             ):

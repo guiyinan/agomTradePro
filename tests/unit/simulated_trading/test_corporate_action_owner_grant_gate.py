@@ -12,7 +12,12 @@ import pytest
 from apps.account.application.simulated_corporate_action_write_issuance import (
     LockedSimulatedCorporateActionWriteScope,
 )
+from apps.account.domain.simulated_corporate_action_write_capabilities import (
+    SimulatedCorporateActionWriteCapability as Capability,
+)
 from apps.account.domain.simulated_corporate_action_write_grant import (
+    SIMULATED_CORPORATE_ACTION_WRITE_GRANT_SCHEMA,
+    SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA,
     SimulatedCorporateActionWriteGrant,
     SimulatedCorporateActionWriteGrantSelector,
 )
@@ -39,6 +44,7 @@ from apps.simulated_trading.domain.corporate_action_posting import CorporateActi
 from tests.unit.account.test_simulated_corporate_action_write_grant import (
     _AT,
     _grant,
+    _grant_v2,
     _selector,
 )
 from tests.unit.simulated_trading.test_corporate_action_posting import _request
@@ -94,10 +100,28 @@ class _Connection:
 
 
 @pytest.fixture
-def owner_gate_world(monkeypatch: pytest.MonkeyPatch):
+def owner_gate_world(monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureRequest):
     """Install deterministic same-alias transaction and owner-grant contexts."""
 
-    grant = _grant()
+    configuration = cast(dict[str, object], getattr(request, "param", {}))
+    grant_value = configuration.get("grant", _grant())
+    assert type(grant_value) is SimulatedCorporateActionWriteGrant
+    grant = grant_value
+    expected_grant_schema = cast(
+        str,
+        configuration.get("expected_grant_schema", SIMULATED_CORPORATE_ACTION_WRITE_GRANT_SCHEMA),
+    )
+    scope_schema = cast(str, configuration.get("scope_schema", expected_grant_schema))
+    scope_capabilities = cast(
+        tuple[Capability, ...] | None,
+        configuration.get("scope_capabilities", grant.capabilities),
+    )
+    scope_terms_version = cast(
+        str | None, configuration.get("scope_terms_version", grant.terms_version)
+    )
+    scope_terms_sha256 = cast(
+        str | None, configuration.get("scope_terms_sha256", grant.terms_sha256)
+    )
     selector: SimulatedCorporateActionWriteGrantSelector = _selector(grant)
     connection = _Connection()
     order: list[str] = []
@@ -136,18 +160,24 @@ def owner_gate_world(monkeypatch: pytest.MonkeyPatch):
         owner_user_id: int,
         expected_binding: object,
         request: CorporateActionStageRequest,
+        expected_grant_schema: str,
     ) -> Iterator[LockedSimulatedCorporateActionWriteScope]:
         assert connection.in_atomic_block and not connection.autocommit
         assert physical_account_id == 11
         assert owner_user_id == grant.binding.owner_user_id
         assert expected_binding == grant.binding
         assert request.account_id == physical_account_id
+        assert expected_grant_schema == gate_schema
         order.append("scope-enter")
         try:
             yield LockedSimulatedCorporateActionWriteScope(
                 physical_account_id=physical_account_id,
                 binding=grant.binding,
                 valid_until=_AT + timedelta(hours=2),
+                grant_schema=scope_schema,
+                capabilities=scope_capabilities,
+                terms_version=scope_terms_version,
+                terms_sha256=scope_terms_sha256,
             )
         finally:
             order.append("scope-exit")
@@ -168,12 +198,18 @@ def owner_gate_world(monkeypatch: pytest.MonkeyPatch):
 
     expected_grant = grant
 
+    gate_schema = expected_grant_schema
+
     @contextmanager
     def current_grant(
-        *, selector: SimulatedCorporateActionWriteGrantSelector, using: str
+        *,
+        selector: SimulatedCorporateActionWriteGrantSelector,
+        using: str,
+        required_capability: Capability,
     ) -> Iterator[SimulatedCorporateActionWriteGrant]:
         assert connection.in_atomic_block and not connection.autocommit
         assert selector == grant.selector and using == "default"
+        assert required_capability is Capability.CASH_STAGE_WRITE
         order.append("grant-enter")
         try:
             yield grant
@@ -211,6 +247,7 @@ def owner_gate_world(monkeypatch: pytest.MonkeyPatch):
         scope_locker=scope_locker,
         using="default",
         environment="test",
+        expected_grant_schema=expected_grant_schema,
     )
     return gate, grant, connection, order, lease
 
@@ -336,6 +373,21 @@ def test_invalid_alias_or_scope_locker_is_rejected_at_construction(
             ),
             using="other",
             environment="test",
+        )
+
+
+@pytest.mark.parametrize("schema", [None, "account.simulated_corporate_action_write_grant.v3"])
+def test_gate_requires_an_exact_server_selected_grant_schema(schema: object) -> None:
+    grant = _grant()
+    with pytest.raises(CorporateActionPostingBlockedError):
+        DjangoCorporateActionOwnerGrantGate(
+            selector=grant.selector,
+            scope_locker=DjangoSimulatedCorporateActionWriteScopeLocker(
+                database_alias="default", runtime_environment="test"
+            ),
+            using="default",
+            environment="test",
+            expected_grant_schema=cast(str, schema),
         )
 
 
@@ -471,3 +523,198 @@ def test_replay_timestamp_proof_requires_same_audit_and_outbox_hash() -> None:
             audit_event_content_hash="c" * 64,
             outbox_event_content_hash="d" * 64,
         )
+
+
+@pytest.mark.parametrize(
+    "owner_gate_world",
+    [
+        {
+            "grant": _grant_v2(
+                capabilities=(Capability.CASH_STAGE_WRITE,),
+                recorded_at=_AT,
+                supersedes_content_hash=None,
+            ),
+            "expected_grant_schema": SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA,
+        }
+    ],
+    indirect=True,
+)
+def test_v2_explicit_cash_grant_enters_cash_only_owner_authority(owner_gate_world) -> None:
+    gate, grant, _, _, _ = owner_gate_world
+    request = _request(account_id=11, owner_user_id=grant.binding.owner_user_id)
+
+    with gate.atomic_authority(request) as authority:
+        assert authority.grant == grant
+        assert grant.supports_capability(Capability.CASH_STAGE_WRITE)
+        assert authority.grant.schema == SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA
+
+
+@pytest.mark.parametrize(
+    "owner_gate_world",
+    [
+        {
+            "grant": _grant_v2(
+                capabilities=(Capability.TAX_ASSESS,),
+                recorded_at=_AT,
+                supersedes_content_hash=None,
+            ),
+            "expected_grant_schema": SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA,
+        }
+    ],
+    indirect=True,
+)
+def test_tax_only_v2_grant_cannot_enter_cash_owner_authority(owner_gate_world) -> None:
+    gate, grant, connection, _, _ = owner_gate_world
+    request = _request(account_id=11, owner_user_id=grant.binding.owner_user_id)
+
+    with pytest.raises(CorporateActionPostingBlockedError):
+        with gate.atomic_authority(request):
+            pytest.fail("tax assessment capability cannot authorize cash posting")
+    assert connection.autocommit and not connection.in_atomic_block
+
+
+@pytest.mark.parametrize(
+    "owner_gate_world",
+    [
+        {
+            "grant": _grant_v2(
+                capabilities=(Capability.CASH_STAGE_WRITE,),
+                recorded_at=_AT,
+                supersedes_content_hash=None,
+            ),
+            "expected_grant_schema": SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA,
+            "scope_schema": SIMULATED_CORPORATE_ACTION_WRITE_GRANT_SCHEMA,
+            "scope_capabilities": None,
+            "scope_terms_version": None,
+            "scope_terms_sha256": None,
+        }
+    ],
+    indirect=True,
+)
+def test_policy_scope_schema_must_match_the_actual_v2_grant(owner_gate_world) -> None:
+    gate, grant, connection, _, _ = owner_gate_world
+
+    with pytest.raises(CorporateActionPostingBlockedError):
+        with gate.atomic_authority(
+            _request(account_id=11, owner_user_id=grant.binding.owner_user_id)
+        ):
+            pytest.fail("a V1 policy scope must not accompany a V2 current grant")
+    assert connection.autocommit and not connection.in_atomic_block
+
+
+@pytest.mark.parametrize(
+    "owner_gate_world",
+    [
+        {
+            "grant": _grant_v2(
+                capabilities=tuple(
+                    sorted(
+                        (Capability.CASH_STAGE_WRITE, Capability.TAX_ASSESS),
+                        key=lambda capability: capability.value,
+                    )
+                ),
+                recorded_at=_AT,
+                supersedes_content_hash=None,
+            ),
+            "expected_grant_schema": SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA,
+            "scope_capabilities": (Capability.CASH_STAGE_WRITE,),
+        }
+    ],
+    indirect=True,
+)
+def test_v2_grant_capabilities_must_be_subset_of_locked_policy(owner_gate_world) -> None:
+    gate, grant, connection, _, _ = owner_gate_world
+
+    with pytest.raises(CorporateActionPostingBlockedError):
+        with gate.atomic_authority(
+            _request(account_id=11, owner_user_id=grant.binding.owner_user_id)
+        ):
+            pytest.fail("grant rights outside current policy cannot enter owner authority")
+    assert connection.autocommit and not connection.in_atomic_block
+
+
+@pytest.mark.parametrize(
+    "owner_gate_world",
+    [
+        {
+            "grant": _grant_v2(
+                capabilities=(Capability.CASH_STAGE_WRITE,),
+                recorded_at=_AT,
+                supersedes_content_hash=None,
+            ),
+            "expected_grant_schema": SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA,
+            "scope_terms_version": "owner-terms-v3",
+        },
+        {
+            "grant": _grant_v2(
+                capabilities=(Capability.CASH_STAGE_WRITE,),
+                recorded_at=_AT,
+                supersedes_content_hash=None,
+            ),
+            "expected_grant_schema": SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA,
+            "scope_terms_sha256": "e" * 64,
+        },
+    ],
+    indirect=True,
+)
+def test_v2_grant_terms_must_match_locked_policy(owner_gate_world) -> None:
+    gate, grant, connection, _, _ = owner_gate_world
+    with pytest.raises(CorporateActionPostingBlockedError):
+        with gate.atomic_authority(
+            _request(account_id=11, owner_user_id=grant.binding.owner_user_id)
+        ):
+            pytest.fail("a changed V2 consent terms pin cannot authorize cash posting")
+    assert connection.autocommit and not connection.in_atomic_block
+
+
+@pytest.mark.parametrize(
+    "owner_gate_world",
+    [
+        {
+            "grant": _grant_v2(
+                capabilities=(Capability.CASH_STAGE_WRITE,),
+                recorded_at=_AT,
+                supersedes_content_hash=None,
+            ),
+            "expected_grant_schema": SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA,
+        }
+    ],
+    indirect=True,
+)
+def test_v2_cash_grant_is_rechecked_after_the_write_body(owner_gate_world, monkeypatch) -> None:
+    _, grant, connection, _, _ = owner_gate_world
+    assert grant.schema == SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA
+    tax_only = _grant_v2(
+        capabilities=(Capability.TAX_ASSESS,),
+        grant_version="grant-v2-tax-only",
+        recorded_at=_AT,
+        supersedes_content_hash=None,
+    )
+    gate, _, _, _, _ = owner_gate_world
+    calls = 0
+
+    @contextmanager
+    def changing_current_grant(
+        *,
+        selector: SimulatedCorporateActionWriteGrantSelector,
+        using: str,
+        required_capability: Capability,
+    ) -> Iterator[SimulatedCorporateActionWriteGrant]:
+        nonlocal calls
+        assert using == "default" and required_capability is Capability.CASH_STAGE_WRITE
+        calls += 1
+        yield grant if calls == 1 else tax_only
+
+    monkeypatch.setattr(
+        gate_module,
+        "locked_current_simulated_corporate_action_write_grant",
+        changing_current_grant,
+    )
+    request = _request(account_id=11, owner_user_id=grant.binding.owner_user_id)
+
+    with pytest.raises(CorporateActionPostingBlockedError):
+        with gate.atomic_authority(request):
+            pass
+
+    assert calls >= 2
+    assert connection.autocommit and not connection.in_atomic_block

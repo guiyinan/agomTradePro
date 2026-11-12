@@ -94,6 +94,19 @@ def _hidden_continuation_field(key: str, label: str) -> dict[str, Any]:
     }
 
 
+def _capability_choice_field(key: str, label: str) -> dict[str, Any]:
+    """Collect each explicit choice, including unchecked false, without requiring a tick."""
+    return {
+        "key": key,
+        "label": label,
+        "binding": "body",
+        "input_type": "checkbox",
+        "value_type": "boolean",
+        "required": False,
+        "default": False,
+    }
+
+
 def _explicit_confirmation_field(label: str, description: str) -> dict[str, Any]:
     """Require a separate explicit body acknowledgement without a default."""
 
@@ -120,11 +133,16 @@ RUNTIME_CORPORATE_ACTION_CONSENT_ACTIONS: tuple[dict[str, Any], ...] = (
         endpoint=f"{_ENDPOINT}prepare/",
         intent="prepare_owner_simulated_corporate_action_consent",
         description=(
-            "读取本人账户的来源观测时间、有效期和授权期限，并准备一次单独确认。"
-            "此步骤只读取和准备资料，不保存授权，也不实际入账。"
+            "先勾选本次同意的能力，至少一项，再读取来源观测时间、有效期和完整条款。"
+            "新授权将替换原授权范围；此步骤只准备资料，不保存授权，也不实际入账。"
         ),
         sequence=830,
-        fields=[_account_selector_field()],
+        fields=[
+            _account_selector_field(),
+            _capability_choice_field("cash_dividend", "现金分红模拟权益与支付日模拟到账"),
+            _capability_choice_field("tax_assessment", "股息红利税额评估与证据留存"),
+            _capability_choice_field("tax_withholding", "股息红利模拟扣税与欠税记录"),
+        ],
         result_continuation={
             "target_action_key": CORPORATE_ACTION_CONSENT_CONFIRM_ACTION_KEY,
             "field_map": {
@@ -139,8 +157,8 @@ RUNTIME_CORPORATE_ACTION_CONSENT_ACTIONS: tuple[dict[str, Any], ...] = (
         endpoint=_ENDPOINT,
         intent="confirm_owner_simulated_corporate_action_consent",
         description=(
-            "核对本人账户、来源观测与有限授权期限后，再明确确认保存授权。"
-            "现金分红模拟权益和支付日模拟到账属于模拟处理；本操作仅保存授权，不会实际入账。"
+            "核对本人账户、所选能力、完整条款、来源观测与有限期限后，再明确确认。"
+            "本操作仅保存所列授权，不会评估税额、扣税、入账或下单。"
         ),
         sequence=831,
         fields=[

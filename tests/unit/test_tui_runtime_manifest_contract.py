@@ -28,6 +28,7 @@ def test_manifest_covers_server_side_tui_contract() -> None:
         "apps/terminal/application/tui_metadata_field_aliases.py",
         "apps/terminal/application/tui_experience.py",
         "apps/terminal/application/tui_workbench.py",
+        "apps/terminal/application/tui_simulated_corporate_action_consent_result.py",
         "apps/terminal/application/tui_workbench_execution.py",
         "apps/terminal/application/tui_workbench_result_models.py",
         "apps/terminal/application/tui_equity_pool_result.py",

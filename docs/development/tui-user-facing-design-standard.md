@@ -19,6 +19,18 @@ after expiry or policy loss; a current session deadline never renews the old gra
 Use ordinary status/recovery copy without transport details. Saving or withdrawing
 consent does not post financial entries or establish actual bank receipt.
 
+Preparation presents three unchecked choices for cash-dividend simulation, tax
+assessment evidence and simulated tax withholding. Send each choice as a literal
+boolean, including unchecked false; require at least one choice. Resolve the
+supported schema from the unique current policy, without granting tax rights to
+legacy cash consent. Show the selected range, source clocks, finite consent
+deadline and complete pinned document before separate confirmation. A successor
+replaces the prior range. Withdrawal presents the original range and document;
+unavailable historical prose must not prevent removal of permission. In that
+case show that the range cannot currently be verified, without displaying
+protocol codes or claiming it remains usable. The runtime manifest covers this
+server-side projector as well as its metadata source.
+
 The existing account workspace offers a read-only holding disclosure reference
 for an explicitly selected account and held security. Direct reads and the TUI
 action-run entry require a real signed-in session, including for authorized

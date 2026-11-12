@@ -11,6 +11,9 @@ from apps.account.application.simulated_corporate_action_write_grant import (
     SimulatedCorporateActionWriteGrantConflict,
     SimulatedCorporateActionWriteGrantUnavailable,
 )
+from apps.account.domain.simulated_corporate_action_write_capabilities import (
+    SimulatedCorporateActionWriteCapability as Capability,
+)
 from apps.simulated_trading.interface import corporate_action_consent_views as views
 from core.exceptions import AuthorizationError
 
@@ -159,3 +162,75 @@ def test_preparation_tokens_appear_only_inside_exact_protected_continuation(
     assert set(continuation) == {"action_key", "input", "expires_at"}
     assert continuation["input"] == {"account_id": "41", field: payload[field]}
     assert response.data["account_id"] == 41
+
+
+@pytest.mark.parametrize(
+    "body,selected",
+    [
+        (
+            {"cash_dividend": True, "tax_assessment": False, "tax_withholding": False},
+            (Capability.CASH_STAGE_WRITE,),
+        ),
+        (
+            {"cash_dividend": False, "tax_assessment": True, "tax_withholding": False},
+            (Capability.TAX_ASSESS,),
+        ),
+        (
+            {"cash_dividend": True, "tax_assessment": True, "tax_withholding": True},
+            (Capability.TAX_ASSESS, Capability.TAX_WITHHOLD, Capability.CASH_STAGE_WRITE),
+        ),
+    ],
+)
+def test_explicit_capability_checkboxes_reach_preparation_as_an_exact_set(
+    monkeypatch, body, selected
+):
+    calls = []
+
+    def prepare(request, **kwargs):
+        calls.append(kwargs)
+        return {
+            "account_id": 41,
+            "outcome": "blocked",
+            "consent_token": None,
+            "withdrawal_token": None,
+        }
+
+    monkeypatch.setattr(views, "prepare_owner_simulated_action_consent", prepare)
+    request = APIRequestFactory().post("/prepare/", body, format="json")
+    force_authenticate(request, user=SimpleNamespace(pk=81, is_authenticated=True))
+    response = views.SimulatedActionConsentPreparationAPIView.as_view()(request, account_id=41)
+    response.render()
+    assert response.status_code == 200
+    assert response.headers["Content-Type"].startswith("application/json")
+    assert calls == [{"account_id": 41, "grant_schema": None, "requested_capabilities": selected}]
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        {"tax_assessment": True},
+        {"cash_dividend": True, "tax_assessment": True},
+        {"cash_dividend": False, "tax_assessment": False, "tax_withholding": False},
+        {"cash_dividend": True, "tax_assessment": "true", "tax_withholding": False},
+        {"cash_dividend": True, "tax_assessment": 1, "tax_withholding": False},
+        {"cash_dividend": True, "tax_assessment": None, "tax_withholding": False},
+        {
+            "cash_dividend": True,
+            "tax_assessment": True,
+            "tax_withholding": False,
+            "owner_user_id": 82,
+        },
+    ],
+)
+def test_capability_preparation_rejects_partial_coerced_empty_or_extra_choices(monkeypatch, body):
+    monkeypatch.setattr(
+        views,
+        "prepare_owner_simulated_action_consent",
+        lambda *args, **kwargs: pytest.fail("Invalid choice reached owner preparation"),
+    )
+    request = APIRequestFactory().post("/prepare/", body, format="json")
+    force_authenticate(request, user=SimpleNamespace(pk=81, is_authenticated=True))
+    response = views.SimulatedActionConsentPreparationAPIView.as_view()(request, account_id=41)
+    response.render()
+    assert response.status_code == 400
+    assert response.headers["Content-Type"].startswith("application/json")

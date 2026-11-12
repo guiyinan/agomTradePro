@@ -160,13 +160,15 @@ def read_current_simulated_action_write_policy(
     owner_user_id: int,
     environment: str,
     as_of: datetime,
-    expected_grant_schema: str = SIMULATED_CORPORATE_ACTION_WRITE_GRANT_SCHEMA,
+    expected_grant_schema: str | None = SIMULATED_CORPORATE_ACTION_WRITE_GRANT_SCHEMA,
 ) -> ConfiguredSimulatedActionWritePolicy:
     """Discover one explicit current policy for an owner without issuing authority.
 
     Every configured scope is validated and account collisions are retained
-    before checking the requester. Consumers must reacquire the activation fence
-    and exact expected binding before granting or posting financial effects.
+    before checking the requester. ``None`` explicitly discovers the unique
+    current account policy's schema; it must not be used by a write fence.
+    Consumers must reacquire the activation fence and exact expected binding
+    before granting or posting financial effects.
     The unique current account row is selected before its owner and requested
     grant schema are checked, so legacy readers cannot fall back to older rights.
     """
@@ -180,7 +182,8 @@ def read_current_simulated_action_write_policy(
         or as_of.utcoffset() is None
     ):
         raise ValueError("service policy discovery scope or clock is invalid")
-    expected_grant_schema = _require_grant_schema(expected_grant_schema)
+    if expected_grant_schema is not None:
+        expected_grant_schema = _require_grant_schema(expected_grant_schema)
     evidence = get_active_runtime_value_evidence(
         environment=environment, definition_key=SIMULATED_ACTION_WRITE_POLICY_KEY, as_of=as_of
     )
@@ -329,7 +332,7 @@ def read_current_simulated_action_write_policy(
     selected = matches[0]
     if selected.owner_user_id != owner_user_id:
         raise ValueError("service policy differs from requested owner scope")
-    if selected.grant_schema != expected_grant_schema:
+    if expected_grant_schema is not None and selected.grant_schema != expected_grant_schema:
         raise ValueError("service policy grant schema differs from expected grant schema")
     return selected
 
@@ -342,6 +345,7 @@ def _read_policy(
     expected_grant_schema: str = SIMULATED_CORPORATE_ACTION_WRITE_GRANT_SCHEMA,
 ) -> ConfiguredSimulatedActionWritePolicy:
     """Match the discovered policy to every previously selected exact scope field."""
+    expected_grant_schema = _require_grant_schema(expected_grant_schema)
     selected = read_current_simulated_action_write_policy(
         canonical_account_id=binding.account_id,
         owner_user_id=binding.owner_user_id,
@@ -381,6 +385,7 @@ def locked_simulated_action_owner_policy(
             "service policy canonical namespace is invalid"
         )
     try:
+        expected_grant_schema = _require_grant_schema(expected_grant_schema)
         with locked_runtime_environment(environment=runtime_environment, using=using):
             selected = _read_policy(
                 binding=binding,

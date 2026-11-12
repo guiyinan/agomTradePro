@@ -7,6 +7,16 @@ from collections.abc import Mapping
 from datetime import datetime
 from typing import TypedDict, TypeGuard, cast
 
+from apps.account.domain.simulated_corporate_action_write_capabilities import (
+    SimulatedCorporateActionWriteCapability,
+)
+from apps.account.domain.simulated_corporate_action_write_grant import (
+    SIMULATED_CORPORATE_ACTION_WRITE_GRANT_SCHEMA as _V1_GRANT_SCHEMA,
+)
+from apps.account.domain.simulated_corporate_action_write_grant import (
+    SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA as _V2_GRANT_SCHEMA,
+)
+
 CORPORATE_ACTION_CONSENT_PREPARE_ACTION_KEY = "simulated-trading.corporate-action-consent-prepare"
 CORPORATE_ACTION_CONSENT_CONFIRM_ACTION_KEY = "simulated-trading.corporate-action-consent-confirm"
 CORPORATE_ACTION_CONSENT_WITHDRAW_PREPARE_ACTION_KEY = (
@@ -40,9 +50,34 @@ _RESPONSE_FIELDS = frozenset(
         "must_not_execute",
     }
 )
+_VERSIONED_RESPONSE_FIELDS = _RESPONSE_FIELDS | frozenset(
+    {
+        "grant_schema",
+        "selected_capabilities",
+        "capability_labels",
+        "terms_version",
+        "terms_sha256",
+        "terms_text",
+    }
+)
+_CAPABILITY_CODES = tuple(
+    sorted(
+        (
+            SimulatedCorporateActionWriteCapability.CASH_STAGE_WRITE.value,
+            SimulatedCorporateActionWriteCapability.TAX_ASSESS.value,
+            SimulatedCorporateActionWriteCapability.TAX_WITHHOLD.value,
+        )
+    )
+)
+_TERMS_VERSION_PATTERN = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,191}\Z")
+_TERMS_SHA256_PATTERN = re.compile(r"[0-9a-f]{64}\Z")
 _SIMULATION_NOTICE = (
     "现金分红模拟权益和支付日模拟到账均为模拟结果。此操作只保存或撤回授权，"
     "不会实际入账，也不证明银行已经到账。"
+)
+_V2_SIMULATION_NOTICE = (
+    "现金分红模拟权益和支付日模拟到账均为模拟结果。本次操作只保存或撤回所选授权；"
+    "现在不会评估税额、扣缴模拟资金、模拟入账或下单，也不证明银行已经到账。"
 )
 _OUTCOME_TEXT: dict[str, str] = {"success": "已完成", "noop": "无需变更", "blocked": "当前受阻"}
 _CONSENT_STATUS_TEXT: dict[str, str] = {
@@ -72,7 +107,7 @@ def _reason_text(reason: str) -> str:
 
 
 class _ConsentResponse(TypedDict):
-    """Exact JSON fields returned by the consent owner composition."""
+    """Normalized exact JSON fields returned by the consent owner composition."""
 
     account_id: int
     outcome: str
@@ -87,6 +122,12 @@ class _ConsentResponse(TypedDict):
     grant_id: str | None
     grant_version: str | None
     grant_content_hash: str | None
+    grant_schema: str | None
+    selected_capabilities: list[str]
+    capability_labels: list[str]
+    terms_version: str | None
+    terms_sha256: str | None
+    terms_text: str
     must_not_execute: bool
 
 
@@ -132,10 +173,15 @@ def _valid_optional_timestamp(value: object) -> bool:
     return parsed.tzinfo is not None and parsed.utcoffset() is not None
 
 
-def _narrow_response(value: object) -> _ConsentResponse | None:
-    """Validate the exact composition payload while excluding private token echoes."""
+def _narrow_response(
+    value: object, *, allow_unavailable_withdrawal_terms: bool = False
+) -> _ConsentResponse | None:
+    """Validate either exact legacy or expanded payload without exposing credentials."""
 
-    if not _is_string_keyed_object(value) or frozenset(value) != _RESPONSE_FIELDS:
+    if not _is_string_keyed_object(value):
+        return None
+    response_fields = frozenset(value)
+    if response_fields not in {_RESPONSE_FIELDS, _VERSIONED_RESPONSE_FIELDS}:
         return None
     account_id = value["account_id"]
     outcome = value["outcome"]
@@ -171,7 +217,93 @@ def _narrow_response(value: object) -> _ConsentResponse | None:
         or (outcome == "blocked") != (blocking_reason is not None)
     ):
         return None
-    return cast(_ConsentResponse, value)
+    normalized = dict(value)
+    if response_fields == _RESPONSE_FIELDS:
+        normalized.update(
+            {
+                "grant_schema": None,
+                "selected_capabilities": [],
+                "capability_labels": [],
+                "terms_version": None,
+                "terms_sha256": None,
+                "terms_text": "",
+            }
+        )
+    if not _valid_capability_terms_fields(
+        normalized, allow_unavailable_withdrawal_terms=allow_unavailable_withdrawal_terms
+    ):
+        return None
+    return cast(_ConsentResponse, normalized)
+
+
+def _valid_capability_terms_fields(
+    value: dict[str, object], *, allow_unavailable_withdrawal_terms: bool
+) -> bool:
+    """Require known ordered capability codes and a safe schema-specific terms shape."""
+    grant_schema = value["grant_schema"]
+    selected = value["selected_capabilities"]
+    labels = value["capability_labels"]
+    version = value["terms_version"]
+    digest = value["terms_sha256"]
+    text = value["terms_text"]
+    if (
+        (
+            grant_schema is not None
+            and (
+                type(grant_schema) is not str
+                or grant_schema not in {_V1_GRANT_SCHEMA, _V2_GRANT_SCHEMA}
+            )
+        )
+        or type(selected) is not list
+        or type(labels) is not list
+        or type(text) is not str
+        or len(text) > 10000
+        or (text and _bounded_text(text, maximum=10000) is None)
+    ):
+        return False
+    selected_values = cast(list[object], selected)
+    label_values = cast(list[object], labels)
+    if any(type(item) is not str or item not in _CAPABILITY_CODES for item in selected_values):
+        return False
+    selected_codes = tuple(cast(str, item) for item in selected_values)
+    if selected_codes != tuple(sorted(set(selected_codes))):
+        return False
+    if grant_schema in {None, _V1_GRANT_SCHEMA}:
+        return (
+            not selected_codes
+            and not label_values
+            and version is None
+            and digest is None
+            and text == ""
+        )
+    if not selected_codes:
+        return False
+    incomplete_blocked_terms = (
+        (
+            value["outcome"] == "blocked"
+            or (
+                allow_unavailable_withdrawal_terms
+                and value["consent_status"] in {"stored", "expired", "revoked"}
+            )
+        )
+        and not label_values
+        and version is None
+        and digest is None
+        and text == ""
+    )
+    if incomplete_blocked_terms:
+        return True
+    if len(label_values) != len(selected_codes) or any(
+        _bounded_text(item, maximum=160) is None for item in label_values
+    ):
+        return False
+    return (
+        type(version) is str
+        and _TERMS_VERSION_PATTERN.fullmatch(version) is not None
+        and type(digest) is str
+        and _TERMS_SHA256_PATTERN.fullmatch(digest) is not None
+        and _bounded_text(text, maximum=10000) is not None
+    )
 
 
 def _requested_account_id(requested_params: Mapping[str, object] | None) -> int | None:
@@ -252,7 +384,14 @@ def project_simulated_corporate_action_consent_result(
             "simulated_action_consent_request_unavailable",
         )
 
-    response = _narrow_response(payload)
+    response = _narrow_response(
+        payload,
+        allow_unavailable_withdrawal_terms=action_key
+        in {
+            CORPORATE_ACTION_CONSENT_WITHDRAW_PREPARE_ACTION_KEY,
+            CORPORATE_ACTION_CONSENT_WITHDRAW_ACTION_KEY,
+        },
+    )
     request_account_id = _requested_account_id(requested_params)
     if response is None:
         return _blocked(title, "simulated_action_consent_response_invalid")
@@ -279,6 +418,22 @@ def project_simulated_corporate_action_consent_result(
         _field("consent_valid_until", "同意期限", consent_valid_until),
         _field("blocking_reason", "阻断原因", blocking_reason),
     ]
+    business_notice = _SIMULATION_NOTICE
+    if response["grant_schema"] == _V2_GRANT_SCHEMA:
+        business_notice = _V2_SIMULATION_NOTICE
+        labels = response["capability_labels"]
+        if labels:
+            fields.append(_field("selected_capabilities", "所选模拟能力", "、".join(labels)))
+        elif response["selected_capabilities"]:
+            fields.append(
+                _field(
+                    "selected_capabilities",
+                    "授权范围核对",
+                    "现有授权范围暂无法核对；本结果不表示授权当前可用。",
+                )
+            )
+        if response["terms_text"]:
+            fields.append(_field("terms_text", "完整授权条款", response["terms_text"]))
     return {
         "kind": "detail",
         "title": title,
@@ -286,7 +441,7 @@ def project_simulated_corporate_action_consent_result(
         "outcome": response["outcome"],
         "fields": fields,
         "nested": [],
-        "business_summary": f"{response['summary']} {_SIMULATION_NOTICE}",
+        "business_summary": f"{response['summary']} {business_notice}",
         "blocking_reason": response["blocking_reason"] or "",
         "next_steps": [],
     }

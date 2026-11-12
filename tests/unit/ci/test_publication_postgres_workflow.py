@@ -645,6 +645,11 @@ def test_ash05_corporate_action_ledger_runs_on_isolated_migrated_postgres() -> N
         "tests/component/account/test_simulated_corporate_action_capability_issuance_postgres.py::test_native_v2_missing_csrf_or_another_owner_cannot_issue",
         "tests/component/account/test_simulated_corporate_action_capability_issuance_postgres.py::test_native_v2_changed_locked_policy_terms_reject_original_confirmation",
         "tests/component/account/test_simulated_corporate_action_capability_issuance_postgres.py::test_native_v2_cannot_select_a_capability_outside_current_policy",
+        "tests/component/account/test_simulated_corporate_action_consent_capabilities_http.py::test_native_http_selected_capabilities_replace_same_chain_and_withdraw_after_policy_loss",
+        "tests/component/account/test_simulated_corporate_action_consent_capabilities_http.py::test_native_http_current_policy_change_blocks_prepared_capability_confirmation",
+        "tests/component/account/test_simulated_corporate_action_consent_capabilities_http.py::test_native_http_unknown_historical_terms_can_still_be_withdrawn",
+        "tests/component/simulated_trading/test_owner_granted_corporate_action_capabilities_postgres.py::test_native_v2_cash_grant_posts_replays_and_withdrawal_blocks",
+        "tests/component/simulated_trading/test_owner_granted_corporate_action_capabilities_postgres.py::test_native_tax_only_v2_current_head_denies_cash_without_v1_fallback",
     )
     assert step["env"]["DATABASE_URL"].endswith("/agom_release_rehearsal_ci")
     assert step["env"]["AGOM_CRITICAL_TEST_DB_NAME"] == "ash05_cash_posting_test"

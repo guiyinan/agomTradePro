@@ -43,10 +43,10 @@
           "imports": 1
         },
         "simulated_trading": {
-          "imports": 49
+          "imports": 53
         },
         "terminal": {
-          "imports": 3
+          "imports": 6
         }
       },
       "depends_on": {
@@ -10997,7 +10997,7 @@
       },
       "depends_on": {
         "account": {
-          "imports": 49,
+          "imports": 53,
           "target_layers": [
             "application",
             "domain",
@@ -11005,6 +11005,7 @@
             "infrastructure",
             "owner_profile_identity_composition",
             "simulated_corporate_action_consent_composition",
+            "simulated_corporate_action_consent_terms",
             "simulated_corporate_action_current_grant_composition",
             "simulated_corporate_action_policy_scope_composition",
             "simulated_corporate_action_write_issuance_composition"
@@ -12511,9 +12512,10 @@
     "terminal": {
       "depends_on": {
         "account": {
-          "imports": 3,
+          "imports": 6,
           "target_layers": [
-            "application"
+            "application",
+            "domain"
           ]
         },
         "agent_runtime": {

@@ -145,6 +145,18 @@ def test_actions_use_two_session_bound_result_to_confirmation_flows() -> None:
     assert consent_prepare["effect"] == "read"
     assert consent_prepare["confirmation_required"] is False
     assert consent_prepare["audit_required"] is False
+    choice_fields = _action_fields(consent_prepare)
+    assert set(choice_fields) == {
+        "account_id",
+        "cash_dividend",
+        "tax_assessment",
+        "tax_withholding",
+    }
+    for key in ("cash_dividend", "tax_assessment", "tax_withholding"):
+        assert choice_fields[key]["input_type"] == "checkbox"
+        assert choice_fields[key]["value_type"] == "boolean"
+        assert choice_fields[key]["required"] is False
+        assert choice_fields[key]["default"] is False
     assert consent_prepare["result_continuation"] == {
         "target_action_key": CORPORATE_ACTION_CONSENT_CONFIRM_ACTION_KEY,
         "field_map": {

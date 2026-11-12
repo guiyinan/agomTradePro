@@ -21,6 +21,9 @@ from apps.account.application.simulated_corporate_action_write_grant import (
     SimulatedCorporateActionWriteGrantConflict,
     SimulatedCorporateActionWriteGrantUnavailable,
 )
+from apps.account.domain.simulated_corporate_action_write_capabilities import (
+    SimulatedCorporateActionWriteCapability,
+)
 from apps.account.simulated_corporate_action_consent_composition import (
     read_authenticated_withdrawal_session_deadline,
 )
@@ -76,6 +79,42 @@ class SimulatedActionWithdrawalRequestSerializer(_ConsentInputSerializer):
     withdrawal_token = serializers.CharField(max_length=16384, trim_whitespace=False)
 
 
+class SimulatedActionConsentPreparationRequestSerializer(serializers.Serializer[dict[str, Any]]):
+    """Accept the legacy empty body or three explicit literal capability choices."""
+
+    cash_dividend = serializers.BooleanField(required=False)
+    tax_assessment = serializers.BooleanField(required=False)
+    tax_withholding = serializers.BooleanField(required=False)
+
+    def to_internal_value(self, data: Any) -> dict[str, Any]:
+        """Reject partial, coerced, unknown or empty capability selections."""
+        if not isinstance(data, Mapping):
+            raise serializers.ValidationError({"non_field_errors": ["请选择本次授权范围。"]})
+        if data and (
+            set(data) != set(self.fields)
+            or any(type(value) is not bool for value in data.values())
+            or not any(value is True for value in data.values())
+        ):
+            raise serializers.ValidationError(
+                {"non_field_errors": ["请明确选择全部能力项的同意状态，并至少选择一项。"]}
+            )
+        return cast(dict[str, Any], super().to_internal_value(data))
+
+
+def _selected_preparation_capabilities(
+    values: Mapping[str, object],
+) -> tuple[SimulatedCorporateActionWriteCapability, ...] | None:
+    """Translate validated checkbox values into the canonical explicit choice tuple."""
+    if not values:
+        return None
+    fields = (
+        ("tax_assessment", SimulatedCorporateActionWriteCapability.TAX_ASSESS),
+        ("tax_withholding", SimulatedCorporateActionWriteCapability.TAX_WITHHOLD),
+        ("cash_dividend", SimulatedCorporateActionWriteCapability.CASH_STAGE_WRITE),
+    )
+    return tuple(capability for key, capability in fields if values[key] is True)
+
+
 class SimulatedActionConsentResponseSerializer(serializers.Serializer[dict[str, object]]):
     """Publish preparation status and original source clocks separately from consent validity."""
 
@@ -92,6 +131,12 @@ class SimulatedActionConsentResponseSerializer(serializers.Serializer[dict[str, 
     grant_id = serializers.CharField(allow_null=True)
     grant_version = serializers.CharField(allow_null=True)
     grant_content_hash = serializers.CharField(allow_null=True)
+    grant_schema = serializers.CharField(allow_null=True)
+    selected_capabilities = serializers.ListField(child=serializers.CharField())
+    capability_labels = serializers.ListField(child=serializers.CharField())
+    terms_version = serializers.CharField(allow_null=True)
+    terms_sha256 = serializers.CharField(allow_null=True)
+    terms_text = serializers.CharField(allow_blank=True)
     must_not_execute = serializers.BooleanField()
 
 
@@ -240,13 +285,29 @@ class SimulatedActionConsentPreparationAPIView(_OwnerConsentAPIView):
 
     http_method_names = ("post", "options")
 
-    @typed_extend_schema(responses={200: SimulatedActionConsentPreparationResponseSerializer})
+    @typed_extend_schema(
+        request=SimulatedActionConsentPreparationRequestSerializer,
+        responses={200: SimulatedActionConsentPreparationResponseSerializer},
+    )
     def post(self, request: Request, account_id: int) -> Response:
         """Read exact terms without issuing consent or writing financial state."""
-        if request.query_params or request.data != {}:
-            return Response({"detail": "准备操作只接受空对象。"}, status=400)
+        if request.query_params:
+            return Response({"detail": "准备操作不接受额外查询参数。"}, status=400)
+        serializer = SimulatedActionConsentPreparationRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        selected = _selected_preparation_capabilities(serializer.validated_data)
+        payload = (
+            prepare_owner_simulated_action_consent(request, account_id=account_id)
+            if selected is None
+            else prepare_owner_simulated_action_consent(
+                request,
+                account_id=account_id,
+                grant_schema=None,
+                requested_capabilities=selected,
+            )
+        )
         return _preparation_response(
-            prepare_owner_simulated_action_consent(request, account_id=account_id),
+            payload,
             purpose="consent",
         )
 

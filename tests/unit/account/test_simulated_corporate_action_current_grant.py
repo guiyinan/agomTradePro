@@ -11,7 +11,13 @@ from apps.account import simulated_corporate_action_current_grant_composition as
 from apps.account.application.simulated_corporate_action_write_grant import (
     SimulatedCorporateActionWriteGrantUnavailable,
 )
+from apps.account.domain.simulated_corporate_action_write_capabilities import (
+    SimulatedCorporateActionWriteCapability as Capability,
+)
 from apps.account.domain.simulated_corporate_action_write_grant import (
+    SIMULATED_CORPORATE_ACTION_WRITE_GRANT_SCHEMA,
+    SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_PERMISSION,
+    SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA,
     SimulatedCorporateActionWriteGrant,
     SimulatedCorporateActionWriteGrantBinding,
     SimulatedCorporateActionWriteGrantCurrent,
@@ -53,6 +59,10 @@ def _grant(
     valid_until: datetime = _AT + timedelta(hours=1),
     supersedes_content_hash: str | None = None,
     issuer_hash: str = _C,
+    schema: str = SIMULATED_CORPORATE_ACTION_WRITE_GRANT_SCHEMA,
+    capabilities: tuple[Capability, ...] | None = None,
+    terms_version: str | None = None,
+    terms_sha256: str | None = None,
 ) -> SimulatedCorporateActionWriteGrant:
     """Build one exact grant whose MAC acceptance is controlled by the test seal."""
 
@@ -71,6 +81,36 @@ def _grant(
         recorded_at=recorded_at,
         valid_until=valid_until,
         supersedes_content_hash=supersedes_content_hash,
+        permission=(
+            SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_PERMISSION
+            if schema == SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA
+            else current_grant.SIMULATED_CORPORATE_ACTION_STAGE_WRITE_PERMISSION
+        ),
+        schema=schema,
+        capabilities=capabilities,
+        terms_version=terms_version,
+        terms_sha256=terms_sha256,
+    )
+
+
+def _v2_grant(
+    *,
+    capabilities: tuple[Capability, ...],
+    grant_version: str = "v2",
+    recorded_at: datetime = _AT,
+    valid_until: datetime = _AT + timedelta(hours=1),
+    issuer_hash: str = _C,
+) -> SimulatedCorporateActionWriteGrant:
+    """Build an explicit V2 capability grant for current-head checks."""
+    return _grant(
+        grant_version=grant_version,
+        recorded_at=recorded_at,
+        valid_until=valid_until,
+        issuer_hash=issuer_hash,
+        schema=SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA,
+        capabilities=tuple(sorted(capabilities, key=lambda item: item.value)),
+        terms_version="owner-terms-v2",
+        terms_sha256=_B,
     )
 
 
@@ -190,6 +230,29 @@ class _Repository:
         return snapshot.current
 
 
+def _install_reader(
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    grant: SimulatedCorporateActionWriteGrant,
+    snapshots: tuple[_Snapshot, ...] | None = None,
+) -> tuple[_Connection, _Repository]:
+    """Install a same-alias current-head repository around an exact grant chain."""
+    connection = _Connection()
+    repository = _Repository(
+        connection,
+        snapshots or (_Snapshot((grant,), SimulatedCorporateActionWriteGrantCurrent(grant)),),
+    )
+    monkeypatch.setattr(current_grant, "connections", {"default": connection})
+    monkeypatch.setattr(
+        current_grant,
+        "DjangoSimulatedCorporateActionWriteGrantRepository",
+        lambda *, using: repository,
+    )
+    monkeypatch.setattr(current_grant, "SimulatedCorporateActionWriteGrantSeal", _Seal)
+    monkeypatch.setattr(current_grant.timezone, "now", lambda: _AT + timedelta(minutes=1))
+    return connection, repository
+
+
 class _Seal:
     """Represent server MAC verification without depending on process secrets."""
 
@@ -203,20 +266,8 @@ def current_world(
 ) -> tuple[_Connection, _Repository, SimulatedCorporateActionWriteGrant]:
     """Install a synthetic PostgreSQL UOW and exact current grant reader."""
 
-    connection = _Connection()
     grant = _grant()
-    repository = _Repository(
-        connection,
-        (_Snapshot((grant,), SimulatedCorporateActionWriteGrantCurrent(grant)),),
-    )
-    monkeypatch.setattr(current_grant, "connections", {"default": connection})
-    monkeypatch.setattr(
-        current_grant,
-        "DjangoSimulatedCorporateActionWriteGrantRepository",
-        lambda *, using: repository,
-    )
-    monkeypatch.setattr(current_grant, "SimulatedCorporateActionWriteGrantSeal", _Seal)
-    monkeypatch.setattr(current_grant.timezone, "now", lambda: _AT + timedelta(minutes=1))
+    connection, repository = _install_reader(monkeypatch, grant=grant)
     return connection, repository, grant
 
 
@@ -371,3 +422,135 @@ def test_invalid_alias_is_rejected_before_opening_a_database_connection() -> Non
             selector=_selector(grant), using=" default"
         ):
             pytest.fail("an invalid alias must not yield a grant")
+
+
+def test_v2_grant_with_explicit_cash_capability_is_accepted(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    grant = _v2_grant(capabilities=(Capability.CASH_STAGE_WRITE,))
+    connection, _ = _install_reader(monkeypatch, grant=grant)
+
+    with current_grant.locked_current_simulated_corporate_action_write_grant(
+        selector=_selector(grant),
+        using="default",
+        required_capability=Capability.CASH_STAGE_WRITE,
+    ) as observed:
+        assert observed == grant
+    assert len(tuple(sql for sql in connection.sql if sql.startswith("LOCK TABLE"))) == 2
+
+
+def test_tax_only_v2_current_head_cannot_fall_back_to_a_historical_v1_grant(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    legacy = _grant()
+    current = _v2_grant(
+        capabilities=(Capability.TAX_ASSESS,),
+        recorded_at=_AT + timedelta(minutes=1),
+        valid_until=_AT + timedelta(hours=1),
+    )
+    connection, repository = _install_reader(monkeypatch, grant=current)
+    assert repository.snapshots[0].heads == (current,)
+
+    with pytest.raises(SimulatedCorporateActionWriteGrantUnavailable):
+        with current_grant.locked_current_simulated_corporate_action_write_grant(
+            selector=_selector(current),
+            using="default",
+            required_capability=Capability.CASH_STAGE_WRITE,
+        ):
+            pytest.fail("a tax-only current V2 head must not authorize cash or revive V1")
+
+    connection.sql.clear()
+    with pytest.raises(SimulatedCorporateActionWriteGrantUnavailable):
+        with current_grant.locked_current_simulated_corporate_action_write_grant(
+            selector=_selector(legacy),
+            using="default",
+            required_capability=Capability.CASH_STAGE_WRITE,
+        ):
+            pytest.fail("the historical V1 selector is not the current V2 head")
+
+
+@pytest.mark.parametrize(
+    "required_capability",
+    [Capability.TAX_ASSESS, "simulated.corporate_action_tax.assess"],
+)
+def test_cash_current_grant_reader_rejects_unsupported_requirement_types(
+    monkeypatch: pytest.MonkeyPatch,
+    required_capability: object,
+) -> None:
+    grant = _v2_grant(capabilities=(Capability.CASH_STAGE_WRITE, Capability.TAX_ASSESS))
+    _install_reader(monkeypatch, grant=grant)
+
+    with pytest.raises(SimulatedCorporateActionWriteGrantUnavailable):
+        with current_grant.locked_current_simulated_corporate_action_write_grant(
+            selector=_selector(grant),
+            using="default",
+            required_capability=required_capability,
+        ):
+            pytest.fail("this current cash gate accepts only its exact cash capability")
+
+
+@pytest.mark.parametrize("state", ["revoked", "expired"])
+def test_v2_cash_grant_revocation_and_expiry_still_fail_closed(
+    monkeypatch: pytest.MonkeyPatch,
+    state: str,
+) -> None:
+    if state == "expired":
+        grant = _v2_grant(
+            valid_until=_AT + timedelta(minutes=1), capabilities=(Capability.CASH_STAGE_WRITE,)
+        )
+        _install_reader(monkeypatch, grant=grant)
+        monkeypatch.setattr(current_grant.timezone, "now", lambda: grant.valid_until)
+        snapshot = _Snapshot((grant,), SimulatedCorporateActionWriteGrantCurrent(grant))
+    else:
+        grant = _v2_grant(capabilities=(Capability.CASH_STAGE_WRITE,))
+        _install_reader(monkeypatch, grant=grant)
+        snapshot = _Snapshot(
+            (grant,),
+            SimulatedCorporateActionWriteGrantCurrent(grant, revocation=_revocation(grant)),
+        )
+    _, repository = _install_reader(monkeypatch, grant=grant, snapshots=(snapshot,))
+    del repository
+
+    with pytest.raises(SimulatedCorporateActionWriteGrantUnavailable):
+        with current_grant.locked_current_simulated_corporate_action_write_grant(
+            selector=_selector(grant),
+            using="default",
+            required_capability=Capability.CASH_STAGE_WRITE,
+        ):
+            pytest.fail("V2 cash does not bypass revocation or half-open expiry")
+
+
+def test_v2_cash_capability_is_rechecked_after_the_locked_yield(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    cash = _v2_grant(capabilities=(Capability.CASH_STAGE_WRITE,))
+    later = _v2_grant(
+        capabilities=(Capability.TAX_ASSESS,),
+        grant_version="v2-next",
+        recorded_at=_AT + timedelta(minutes=1),
+    )
+    connection = _Connection()
+    repository = _Repository(
+        connection,
+        (
+            _Snapshot((cash,), SimulatedCorporateActionWriteGrantCurrent(cash)),
+            _Snapshot((later,), SimulatedCorporateActionWriteGrantCurrent(later)),
+        ),
+    )
+    monkeypatch.setattr(current_grant, "connections", {"default": connection})
+    monkeypatch.setattr(
+        current_grant,
+        "DjangoSimulatedCorporateActionWriteGrantRepository",
+        lambda *, using: repository,
+    )
+    monkeypatch.setattr(current_grant, "SimulatedCorporateActionWriteGrantSeal", _Seal)
+    times = iter((_AT + timedelta(minutes=1), _AT + timedelta(minutes=2)))
+    monkeypatch.setattr(current_grant.timezone, "now", lambda: next(times))
+
+    with pytest.raises(SimulatedCorporateActionWriteGrantUnavailable):
+        with current_grant.locked_current_simulated_corporate_action_write_grant(
+            selector=_selector(cash),
+            using="default",
+            required_capability=Capability.CASH_STAGE_WRITE,
+        ):
+            pass
