@@ -19,6 +19,9 @@ from apps.data_center.domain.entities import (
     ProviderConfig,
     PublisherCatalog,
 )
+from apps.data_center.domain.provider_document_response import (
+    PUBLIC_DOCUMENT_SOURCE_TYPE as _PUBLIC_DOCUMENT_SOURCE_TYPE,
+)
 from shared.numeric import safe_float
 
 from .candidate_raw_audit_manifest_models import (
@@ -119,6 +122,7 @@ class ProviderConfigModel(models.Model):
         ("fred", "FRED"),
         ("wind", "Wind"),
         ("choice", "Choice"),
+        (_PUBLIC_DOCUMENT_SOURCE_TYPE, "Public documents"),
     ]
 
     name = models.CharField(

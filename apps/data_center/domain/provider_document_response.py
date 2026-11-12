@@ -10,6 +10,8 @@ from uuid import UUID
 
 from apps.data_center.domain.provider_response import ProviderResponseTransport
 
+PUBLIC_DOCUMENT_SOURCE_TYPE = "public_document"
+
 _SHA256_PATTERN = re.compile(r"[0-9a-f]{64}\Z")
 _MEDIA_TYPE_TOKEN = re.compile(r"[!#$%&'+.^_`|~0-9A-Za-z-]+\Z")
 
@@ -147,6 +149,7 @@ class ProviderDocumentResponseCapture:
 
 
 __all__ = [
+    "PUBLIC_DOCUMENT_SOURCE_TYPE",
     "ProviderDocumentResponseCapture",
     "normalize_document_content_type",
     "normalize_document_media_type_allowlist",

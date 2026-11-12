@@ -25,6 +25,10 @@ def _required_text(value: object, *, field_name: str, maximum: int) -> str:
         or any(ord(character) < 32 or ord(character) == 127 for character in value)
     ):
         raise ValueError(f"{field_name} must be non-empty bounded text")
+    try:
+        value.encode("utf-8")
+    except UnicodeEncodeError as error:
+        raise ValueError(f"{field_name} must be UTF-8 representable") from error
     return value
 
 

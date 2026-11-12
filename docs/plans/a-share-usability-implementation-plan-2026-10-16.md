@@ -3239,6 +3239,20 @@ Owner 已另行授权后续衔接：**仅在 ASH-05 达到本计划 §9 整单�
 
 捕获 UUID 可关联既有出网尝试记录，但该审计仍是 best-effort，不能宣称持久审计已经成功；无匹配规则时保留原有 default-direct 语义。当前捕获和四表留存只保证请求/字节/历史身份，不授予官方来源、法律适用或财务写权限。后续按 registry v415 准备显式 publisher、主机、修订、MIME、体积及采集年龄目录，再接专用 provider 和官方限定，不能冒用现有金融 provider 类型。税务日期口径的 Owner 问题仍待答复，后扣税未激活；送转/配股、冲正、整单元金样本和最后精确候选 CI 仍须完成。代码回滚按独立采集提交撤销并重建投影，已保留元数据与外部原文继续配对留存，不删除历史事实。
 
+`47a3634b147a7443271bbd5491b5c2b512fcd5ac` 的七项适用 CI 全部成功，PostgreSQL 原件已下载并独立解析：ASH-05 四十个选择节点展开 **49 cases / 0 failure / 0 error / 0 skip**，其中十项为新增来源表；Python 3.13 Fast Feedback **5310 passed / 196 skipped**，来源字节存储用例在 Linux 实际执行，原件与候选身份进入同一索引。后继采集批次落地 `fb3abfc3b32af5c7aeeec71e6460b905d8d9f14f`，本机增量/全库类型、体积及零模型差值通过，其 CI 另行等待，不借父候选成功。
+
+registry v416 接续来源目录集成：专用 `public_document` 类型必须在 ORM/输入序列化器一致登记，并从金融 adapter 构造排除；仅有文档配置时金融 registry 为空，有真实金融配置但全部构造失败时仍保留原先失败保护。目录与 publisher 只提供显式配置，正文、字节、主机及采集时钟另行校验，合法性/当前适用另设门。回归覆盖配置正反例、管理员 HTTP 状态/Content-Type、金融源失败保护及既有 provider 语义，迁移只扩充 choices，不触碰财务账本。税历史先只读设计完整已交割日终事实到现有 FIFO 输入的桥接；不把 V4 成交时间或可卖日伪装为税务交割日，不另建持仓真源。剩余仍为实际官方限定、政策与历史接线、股份/配股及冲正、整体验收；源覆盖缺口和默认关闭的生产边界不变。
+
+原文采集候选 `fb3abfc3b32af5c7aeeec71e6460b905d8d9f14f` 随后七项 CI 全成功。本轮目录配置正式树定向 **177 passed / 1 skipped**，另有 CI 选择契约 **38 passed**；冻结最终十八项源码/测试/依赖输入后，真实全迁移 PostgreSQL 接线 **8 passed**（393.51 秒），八生产文件增量与全库债务均零，十四文件风格通过。新目录私有 Domain 覆盖 97.3%，不替代正式候选 CI。`0112` 为 Django 生成的 provider choices 扩充，原生 fixture 同时检查真实 0111/0112 迁移及四个 ALWAYS trigger，迁移 dry-run 无差值；已重建字典，模型/直接字段计数仍为 611/9515。
+
+配置采集组合只从完整原生键选择固定 URL，先校验独立 publisher 的 HTTPS 主机/端口范围，避免等待 HTTP/文件时持有配置锁，并在留存后复核目录指纹和实际观测年龄。配置中途变化或观测过期会阻断本次操作，已经取得的原文/元数据保留为未限定历史，不重写观测时间。实际反例补齐外层事务中误发请求，以及已解析 JSON 的孤立 surrogate 可进入目录却无法生成 UTF-8 摘要；源修订和目录文本现于进入后续存储/摘要前拒绝，九个负例与全部前驱日志保留。Source-only 的早期结果不冒充最终输入；正式原生组已在同一最终源码重跑。新增五个节点进入既有全迁移 ASH-05 JUnit 组（共四十五个选择节点），原件/报告名称、S6 必需报告和拒绝缺失/跳过门均未改变。
+
+registry v418/v419 仅将下一税历史准备开放为两个纯 Domain 文件及对应两个测试：显式已确认交割日期、完整结算日终覆盖（含零变动日）、零起点和全部账户/源/日期规则/日历谱系绑定后，回放登记日前 FIFO 剩余与登记日后净额，输出既有税计算输入。全部登记日仓位享有权益必须另有明确来源核验的规则，不能仅凭 aggregate quantity 假定；转入、未知、公司行为股份缺 lot lineage 时保持受阻。Root 仍负责实际来源、政策/历史持久化与财务接线，未启用日期映射、后扣税或其他生产动作，§9 整单元未关闭。
+
+目录批次最终复核发现 publisher 的显式端口 0 会被 `or 443` 当作默认端口；真实反例先失败，现只在端口缺失时取 HTTPS 默认，并拒绝非正端口。新增十一项纯 origin 正反例和原生端口拒绝案例，最终合批 **226 passed / 1 skipped**、全迁移 PostgreSQL **9 passed**（387.99 秒）、末次变更增量一文件及全库债务零，前八文件类型证据保留；最终原件/输入继续绑定同一索引，不将此前八例候选拼接成九例通过。已审查 active provider 的新闻、基金净值、摘要及配置引用方：金融使用者均经能力或 registry 过滤，文档类型不会取得行情能力；只扩充现有管理员配置入口的类型，未新增配置写路由。源码回滚停用前瞻文档配置并按独立提交撤销，保留不可变来源事实和配对原文。
+
+registry v421 将桥接原四路径重新打开以修齐评估中发现的 Decimal 上下文/信令 NaN、锚晚于登记截止及来源时钟谱系边界；旧税和权属模块、数据映射及财务入口保持冻结。初步隔离四十一项通过不替代这些修正后的最终候选验证，不能将纯 DTO/hash 当作受信交割证明。
+
 | base_sha | identity | change_kind | rationale | consumer_audit | compatibility_or_rollback |
 | --- | --- | --- | --- | --- | --- |
 | 1dedaa6958564561080c261815cf85a9942c0e98 | data_center.StatutorySourceDocumentRevisionModel | added_concrete | Publisher-native legal metadata and body digest require immutable identity conflicts; mutable redacted RawPayload JSON cannot serve this record, and security disclosure models require unrelated asset/exchange facts | Only DjangoStatutorySourceRepository exact revision/capture/bundle ports, source model registration and native component tests consume it; no current policy or financial consumer | Additive dc_statutory_source_revision table; preserve historical rows and matching bodies on code rollback, disable prospective consumers first |

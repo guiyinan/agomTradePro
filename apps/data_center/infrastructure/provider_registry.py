@@ -20,6 +20,7 @@ from apps.data_center.domain.protocols import (
     ProviderProtocol,
     UnifiedDataProviderProtocol,
 )
+from apps.data_center.domain.provider_document_response import PUBLIC_DOCUMENT_SOURCE_TYPE
 from apps.data_center.infrastructure.provider_adapters import build_unified_provider_adapter
 
 T = TypeVar("T")
@@ -169,9 +170,17 @@ class ProviderRegistry:
         self,
         repository: ProviderConfigRepositoryProtocol,
     ) -> None:
-        """Stage active providers and replace runtime state only after a viable build."""
+        """Stage financial providers and replace runtime state after a viable build.
 
-        configs = repository.list_active()
+        Public-document configurations belong to the separate governed raw
+        capture capability and must never construct a market-data adapter.
+        """
+
+        configs = [
+            config
+            for config in repository.list_active()
+            if config.source_type != PUBLIC_DOCUMENT_SOURCE_TYPE
+        ]
         staged = ProviderRegistry(builder=self._builder)
         built_count = 0
         for config in configs:

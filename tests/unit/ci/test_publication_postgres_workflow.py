@@ -616,6 +616,11 @@ def test_ash05_corporate_action_ledger_runs_on_isolated_migrated_postgres() -> N
         "tests/component/data_center/test_statutory_source_repository.py::test_postgres_concurrent_revision_conflict_has_one_immutable_winner",
         "tests/component/data_center/test_statutory_source_repository.py::test_postgres_concurrent_capture_uuid_is_one_exact_replay",
         "tests/component/data_center/test_statutory_source_repository.py::test_postgres_unsupported_isolation_blocks_before_metadata_write",
+        "tests/component/data_center/test_statutory_source_capture_composition.py::test_native_configured_document_retains_exact_server_observation",
+        "tests/component/data_center/test_statutory_source_capture_composition.py::test_native_invalid_configuration_blocks_before_fetch",
+        "tests/component/data_center/test_statutory_source_capture_composition.py::test_native_configuration_drift_preserves_unqualified_capture",
+        "tests/component/data_center/test_statutory_source_capture_composition.py::test_native_old_observation_is_retained_but_rejected_for_capture_window",
+        "tests/component/data_center/test_statutory_source_capture_composition.py::test_native_capture_rejects_ambient_transaction_before_network",
     )
     assert step["env"]["DATABASE_URL"].endswith("/agom_release_rehearsal_ci")
     assert step["env"]["AGOM_CRITICAL_TEST_DB_NAME"] == "ash05_cash_posting_test"

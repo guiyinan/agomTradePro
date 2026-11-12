@@ -5536,6 +5536,14 @@
           "CaptureStatutorySourceDocumentUseCase",
           "StatutorySourceDocumentFetchPort"
         ],
+        "application/statutory_source_catalog.py": [
+          "StatutorySourceCatalogDecodeError",
+          "StatutorySourceCatalogProfileJSON",
+          "StatutorySourceDateEvidenceJSON",
+          "StatutorySourceDocumentCaptureRuleJSON",
+          "StatutorySourceDocumentRevisionJSON",
+          "decode_statutory_source_catalog_profile"
+        ],
         "application/statutory_source_documents.py": [
           "AppendStatutorySourceDocumentBundleUseCase",
           "QueryStatutorySourceDocumentBundleUseCase",
@@ -5708,12 +5716,12 @@
         ]
       },
       "layers": {
-        "application": 185,
-        "domain": 56,
+        "application": 186,
+        "domain": 57,
         "infrastructure": 245,
         "interface": 32,
         "management": 42,
-        "root": 42
+        "root": 43
       },
       "orm_models": {
         "infrastructure/models.py": [

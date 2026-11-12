@@ -12,6 +12,7 @@ from typing import Any, cast
 
 from rest_framework import serializers
 
+from apps.data_center.domain.provider_document_response import PUBLIC_DOCUMENT_SOURCE_TYPE
 from shared.config.tushare import (
     TUSHARE_REQUEST_MODE_REST_PATH,
     TUSHARE_REQUEST_MODE_SDK_PATH,
@@ -50,6 +51,7 @@ class ProviderConfigSerializer(serializers.Serializer[Any]):
         "fred",
         "wind",
         "choice",
+        PUBLIC_DOCUMENT_SOURCE_TYPE,
     ]
 
     id = serializers.IntegerField(read_only=True)
