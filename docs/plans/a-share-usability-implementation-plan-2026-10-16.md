@@ -3301,3 +3301,6 @@ V2 授权准备已按十一条精确交接哈希整合：继续复用 Account �
 | base_sha | identity | change_kind | rationale | consumer_audit | compatibility_or_rollback |
 | --- | --- | --- | --- | --- | --- |
 | c1d8eccf36f766bbfa9d691a75c9f8bde60cfcc4 | account.SimulatedCorporateActionWriteGrantModel | model_change | Reuse the existing unique immutable owner-account grant chain for explicit V2 capabilities and terms instead of a second tax authority table; nullable columns retain V1 bytes and history | Exact repository codec and MAC restore all schemas before current-head selection; legacy cash/current-policy consumers deny V2, no live V2 issuer or financial route is enabled | Additive nullable columns plus versioned CHECK via0071; disable prospective V2 consumers on rollback, preserve original V1 and V2 canonical payloads, terms and whole-grant revocations; do not drop evidence columns |
+
+
+`c1d8eccf` 精确 CI 的 PostgreSQL workflow 成功，下载原件独立证明70例（含12项评估）且无失败/错误/跳过；Fast Feedback 因模型注册顺序测试失败，故该候选不接受。Root 新增导入被排序到旧模型 facade 之前，确实改变了历史注册顺序，同时旧期待清单未追加两项新模型。现用明确 isort split 先加载既有 facade，再注册新评估模型，并扩展新模型唯一身份/表名检查，不增长1000行 facade；相关22单元、修复后真实迁移 PostgreSQL first-append/replay（1 passed，123.11秒，8335输入无变化）、单生产文件增量及全库债务零、格式与模块地图检查均通过；最终按包含修复的新候选全跑 CI。V2 本地提交 `d4fee9a3` 的架构/模型差值/体积门通过，尚未推送；原失败日志、70例PG原件及精确身份保留同一索引。

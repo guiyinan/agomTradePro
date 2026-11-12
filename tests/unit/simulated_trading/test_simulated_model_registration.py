@@ -40,6 +40,8 @@ _EXPECTED_REGISTERED_MODEL_NAMES: tuple[str, ...] = (
     "AccountBenchmarkComponentModel",
     "UnifiedAccountCashFlowModel",
     "AccountPositionValuationSnapshotModel",
+    "CorporateActionTaxAssessmentHeaderModel",
+    "CorporateActionTaxAssessmentAllocationModel",
 )
 
 _MOVED_MODELS: tuple[tuple[str, str], ...] = (
@@ -138,6 +140,20 @@ def test_simulated_models_keep_one_registered_identity() -> None:
             getattr(module, model_name) is registered_model for module in compatibility_modules
         )
         assert registered_model._meta.app_label == "simulated_trading"
+        assert registered_model._meta.db_table == expected_table
+        assert sum(model is registered_model for model in registry_models) == 1
+        assert sum(model.__name__ == model_name for model in registry_models) == 1
+
+    tax_models = import_module(
+        "apps.simulated_trading.infrastructure.corporate_action_tax_assessment_models"
+    )
+    for model_name, expected_table in (
+        ("CorporateActionTaxAssessmentHeaderModel", "sim_ca_tax_assessment"),
+        ("CorporateActionTaxAssessmentAllocationModel", "sim_ca_tax_assess_allocation"),
+    ):
+        registered_model = cast(type[Model], apps.get_model("simulated_trading", model_name))
+        assert getattr(public_models, model_name) is registered_model
+        assert getattr(tax_models, model_name) is registered_model
         assert registered_model._meta.db_table == expected_table
         assert sum(model is registered_model for model in registry_models) == 1
         assert sum(model.__name__ == model_name for model in registry_models) == 1
