@@ -4820,6 +4820,11 @@
           "NbsScheduleInput",
           "ReadInstitutionalEventUseCase"
         ],
+        "application/institutional_calendar_query.py": [
+          "InstitutionalCalendarEntry",
+          "InstitutionalCalendarQueryRepositoryPort",
+          "QueryInstitutionalCalendarUseCase"
+        ],
         "application/instrument_reference_capture.py": [
           "CaptureClaimDisposition",
           "CaptureExecutionStatus",
@@ -5723,7 +5728,7 @@
         ]
       },
       "layers": {
-        "application": 187,
+        "application": 188,
         "domain": 57,
         "infrastructure": 245,
         "interface": 32,

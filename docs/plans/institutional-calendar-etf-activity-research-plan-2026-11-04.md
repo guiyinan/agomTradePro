@@ -536,3 +536,12 @@ Owner 授权在 ASH-05 保持唯一 repository 焦点时并行准备 CAL-02。�
 继续在 `.tmp/cal02-calendar-contract-20261111` 完成一个有界小事项：只新增 `apps/data_center/infrastructure/nbs_institutional_calendar_parser.py`、对应单元测试及最小真实来源 HTML fixtures。解析对象为 CAL-01 已留存的 2026 年发布日程和 2026-11-09 CPI 实际发布，覆盖 meta 发布时间、rowspan 表格、原始字节 SHA-256、显式来源时区及调用方提供的事件身份、类型和真实系统时钟。
 
 解析器必须拒绝缺失或歧义元数据、畸形表格、不支持的时间精度和日程/实际发布不匹配；日程只生成 tentative/scheduled 输入，不根据日期推断实际发生。隔离阶段不接网络、ORM、模型/迁移、Provider 注册、current/latest、TUI runtime 或重 QA，不写共享 Git/index。本批契约、离线解析与模块图投影作为独立小事项进入正式开发分支；持久化、公开读取和真实用户验收仍待后续串行窗口，离线解析通过不等于 CAL-02 已完成。
+
+
+### 13.10 CAL-02 日历查询纯用例隔离准备（2026-11-12）
+
+Owner 授权继续在既有 `.tmp/cal02-calendar-contract-20261111` 准备一个独立小事项，只新增 `apps/data_center/application/institutional_calendar_query.py` 和 `tests/unit/data_center/test_institutional_calendar_query.py`。查询契约覆盖闭区间本地日期、事件类别、生命周期、知识截止点和双时钟；先选择每个事件在截止点可见的最高修订，再应用过滤，避免未来版本、旧修订和取消前状态泄漏。测试还须覆盖空态、时区跨日、非法范围/返回及重复版本。
+
+本批不接 ORM、模型/迁移、Provider 网络、current/latest 捷径、TUI runtime 或重 QA，不写共享 Git/index，不启动 CAL-03。Root 后续在串行窗口负责正式采用、持久化、公开组合、模块图投影及真实用户验收；CAL-02 保持 `planned`，本准备完成不等于 M1 或整单元关闭。
+
+完成交接：查询用例 18 项测试及日历/解析/查询聚焦套件 53 项均通过，Domain 覆盖率 97.48%；Black、isort、Ruff 和新增生产文件增量 mypy 零回归。初始缺少模块的 RED 与格式失败原件保留，最终日志为 `.tmp/cal02-query-style-final.log`、`.tmp/cal02-query-mypy-final.log` 和 `.tmp/cal02-query-focused-final.log`。两个新增文件与前置契约/解析文件已一并进入正式候选，隔离准备项关闭；正式提交身份以本次 Git 提交为准。
