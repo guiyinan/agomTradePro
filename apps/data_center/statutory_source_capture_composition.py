@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import hashlib
 import json
-from dataclasses import dataclass
-from datetime import timedelta
+from dataclasses import dataclass, replace
+from datetime import datetime, timedelta
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -13,6 +13,7 @@ from django.db import DEFAULT_DB_ALIAS, connections, transaction
 from django.utils import timezone
 
 from apps.data_center.application.egress_service import execute_provider_document_request
+from apps.data_center.application.statutory_source_bundle import ConfiguredStatutorySourceBundleRead
 from apps.data_center.application.statutory_source_capture import (
     CaptureStatutorySourceDocumentUseCase,
 )
@@ -20,6 +21,7 @@ from apps.data_center.application.statutory_source_catalog import (
     decode_statutory_source_catalog_profile,
 )
 from apps.data_center.application.statutory_source_documents import (
+    QueryStatutorySourceDocumentBundleUseCase,
     RetainStatutorySourceDocumentUseCase,
 )
 from apps.data_center.domain.provider_document_response import PUBLIC_DOCUMENT_SOURCE_TYPE
@@ -27,7 +29,11 @@ from apps.data_center.domain.statutory_source_catalog import (
     StatutorySourceCatalogProfile,
     StatutorySourceDocumentCaptureRule,
 )
-from apps.data_center.domain.statutory_source_documents import StatutorySourceDocumentAppendResult
+from apps.data_center.domain.statutory_source_documents import (
+    RetainedStatutorySourceDocumentCapture,
+    StatutorySourceDocumentAppendResult,
+)
+from apps.data_center.infrastructure.egress_models import EgressRequestAuditModel
 from apps.data_center.infrastructure.models import ProviderConfigModel, PublisherCatalogModel
 from apps.data_center.infrastructure.statutory_source_body_store import StatutorySourceBodyStore
 from apps.data_center.infrastructure.statutory_source_repository import (
@@ -95,6 +101,34 @@ class _Configuration:
 
     profile: StatutorySourceCatalogProfile
     fingerprint: str
+
+
+def _retained_capture_audit_count(
+    capture: RetainedStatutorySourceDocumentCapture,
+    *,
+    provider_id: int,
+    checked_at: datetime,
+    using: str,
+) -> int:
+    """Require one actual successful governed attempt for the exact capture scope.
+
+    Egress audit is best-effort during capture. Missing or ambiguous audit is
+    therefore a read qualification failure, never synthesized afterwards.
+    This association is not a signature or proof of current legal status.
+    """
+    return (
+        EgressRequestAuditModel._default_manager.using(using)
+        .filter(
+            request_id=capture.capture_id,
+            provider_id=provider_id,
+            dataset_key=_DATASET_KEY,
+            target_host=urlsplit(capture.revision.canonical_url).hostname,
+            outcome="success",
+            created_at__gte=capture.captured_at,
+            created_at__lte=checked_at,
+        )
+        .count()
+    )
 
 
 class ConfiguredStatutorySourceCaptureService:
@@ -187,6 +221,54 @@ class ConfiguredStatutorySourceCaptureService:
     def read_catalog(self) -> StatutorySourceCatalogProfile:
         """Read a validated configuration snapshot without granting source qualification."""
         return self._configuration().profile
+
+    def read_retained_bundle(
+        self, *, bundle_id: str, version: str
+    ) -> ConfiguredStatutorySourceBundleRead:
+        """Verify exact retained bodies under unchanged configuration and real audit.
+
+        No HTTP request, replacement capture, latest fallback, source-clock
+        rewrite, legal qualification or financial authorization occurs here.
+        """
+        snapshot = self._configuration()
+        maximum = max(rule.max_bytes for rule in snapshot.profile.documents)
+        body_store = StatutorySourceBodyStore(self._body_store_root, max_body_bytes=maximum)
+        repository = DjangoStatutorySourceRepository(body_store=body_store, using=self._using)
+        bundle = QueryStatutorySourceDocumentBundleUseCase(repository).get_exact(
+            bundle_id=bundle_id, version=version
+        )
+        if bundle is None:
+            raise _invalid(
+                "Exact retained source bundle is unavailable.",
+                "STATUTORY_SOURCE_BUNDLE_UNAVAILABLE",
+            )
+        bodies = tuple(body_store.read(capture.body_reference) for capture in bundle.captures)
+        checked_at = timezone.now()
+        result = ConfiguredStatutorySourceBundleRead(
+            bundle=bundle,
+            bodies=bodies,
+            provider_id=self._provider_id,
+            catalog=snapshot.profile,
+            configuration_sha256=snapshot.fingerprint,
+            checked_at=checked_at,
+        )
+        for capture in bundle.captures:
+            if (
+                _retained_capture_audit_count(
+                    capture, provider_id=self._provider_id, checked_at=checked_at, using=self._using
+                )
+                != 1
+            ):
+                raise _invalid(
+                    "Exact successful source capture audit is missing or ambiguous.",
+                    "STATUTORY_SOURCE_CAPTURE_PROVENANCE_UNAVAILABLE",
+                )
+        if self._configuration().fingerprint != snapshot.fingerprint:
+            raise _invalid(
+                "Source configuration changed during retained evidence read.",
+                "STATUTORY_SOURCE_CAPTURE_CONFIGURATION_CHANGED",
+            )
+        return replace(result, checked_at=timezone.now())
 
     def capture_document(
         self, *, issuer: str, document_id: str, source_version: str

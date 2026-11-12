@@ -3253,16 +3253,20 @@ registry v418/v419 仅将下一税历史准备开放为两个纯 Domain 文件�
 
 registry v421 将桥接原四路径重新打开以修齐评估中发现的 Decimal 上下文/信令 NaN、锚晚于登记截止及来源时钟谱系边界；旧税和权属模块、数据映射及财务入口保持冻结。初步隔离四十一项通过不替代这些修正后的最终候选验证，不能将纯 DTO/hash 当作受信交割证明。
 
+修正后的四路径税日终桥接已按精确交接哈希整合正式树，与既有税政策及权属回放合批 **146 passed**；仍只接受调用方另行限定的显式交割日期，不启用模拟日期映射。原文目录候选 `6eccbc73b9473533077dbd6b585f2fd615825468` 已提交推送，其精确 CI 单独跟踪。2026-11-12 通过真实受控出网取得财税〔2015〕101号与财税〔2012〕85号两份官方页面原始字节，并在隔离库 `ash05_owner_native_test` 保存实际 UUID、完成时钟、匹配出网审计及外部原文，组合来源集后独立读回；2015 成文日期未冒充网站发布时间。来源及采集双摘要进入同一验收索引，该库与原文现为在用输入，后续重 QA 禁止 flush 此库。真实来源留存不等于法律现行适用、政策启用或税务日期资格。
+
+registry v422 仅开放下一独立评估封套、Application 端口及不可变评估/分配模型声明的六路径隔离准备。语义摘要绑定完整业务事实，独立观察清单保留真实采集和权属回放时钟，避免仅再次观测被误作新扣税；旧现金授权和哈希协议不扩大。Root 继续负责正式迁移/注册、锁定物理账户、当前来源/政策/新增权限复核、同库 Audit/Outbox 原子仓储及原生验证。该准备不写现金、股份或其他持仓真源，显式更正谱系保留历史；正式财务链路、税务日期 Owner 答复、送转配股及冲正、完整用户金样本和最终精确候选 CI 仍未完成。当前桥接为纯 Domain 增量，可独立撤销代码并重建模块投影；已保留原文及元数据须配对保留，不通过删除事实回滚。
+
+
+来源精确读取批次正式树 **154 passed**，生产两文件增量类型及全库债务均零。真实已留存的两份原文通过同一生产组合只读验证：原始采集时刻仍为 00:14 UTC，完整读回结束为 00:39 UTC，来源及采集双摘要未变；fresh 仅说明显式采集年龄，仍发布 legally unqualified 与禁止决策。原生成功出网记录缺失/歧义、正文/版本/目录漂移、未来或过期采集以及核验末段过期均稳定阻断，不隐式 HTTP 刷新或 latest 回退；新鲜度合同登记在 `data_center.configured_statutory_bundle_evidence`。
+
+桥接提交 `e151f831e6ea6157939978ed30d14fa8a51f77a3` 的 Consistency CI 发现新增源码引用未同步 Data Center 架构生成清单；完整失败原件进入同一索引，不记为通过。本轮重新生成全部适用投影，并验证其完整读回，相关 CI 继续绑定下一精确候选。前驱 `6eccbc73` 的 PostgreSQL workflow 因后继推送被取消，六项成功不替代第七项验收。registry v424 允许将八路径税评估准备按来源封套与评估职责拆开，保持体积上限；稳定政策来源集合摘要绑定完整原生修订事实，单独保留具体来源集 ID/version、采集清单及权属观测，不将新的观察版本伪装为法定修订。ASH-05 仍 active，后继 ASH-06 未启动。
+
 | base_sha | identity | change_kind | rationale | consumer_audit | compatibility_or_rollback |
 | --- | --- | --- | --- | --- | --- |
 | 1dedaa6958564561080c261815cf85a9942c0e98 | data_center.StatutorySourceDocumentRevisionModel | added_concrete | Publisher-native legal metadata and body digest require immutable identity conflicts; mutable redacted RawPayload JSON cannot serve this record, and security disclosure models require unrelated asset/exchange facts | Only DjangoStatutorySourceRepository exact revision/capture/bundle ports, source model registration and native component tests consume it; no current policy or financial consumer | Additive dc_statutory_source_revision table; preserve historical rows and matching bodies on code rollback, disable prospective consumers first |
 | 1dedaa6958564561080c261815cf85a9942c0e98 | data_center.StatutorySourceDocumentCaptureModel | added_concrete | Separate repeated server observations from publisher revisions without fabricating a legal version or publication time | Repository capture UUID append/exact read and protected bundle membership; body readback and native conflict tests; no origin qualification | Additive dc_statutory_source_capture table; retain exact UUID/time/reference and source FK; metadata recovery must retain its external body |
 | 1dedaa6958564561080c261815cf85a9942c0e98 | data_center.StatutorySourceDocumentBundleModel | added_concrete | Retain one exact source-set identity with independent semantic and capture-manifest hashes | Repository atomic bundle append/exact read; no latest or active policy pointer added | Additive dc_statutory_source_bundle table; preserve immutable selections, do not replace them when code reverts |
-
-修正后的四路径税日终桥接已按精确交接哈希整合正式树，与既有税政策及权属回放合批 **146 passed**；仍只接受调用方另行限定的显式交割日期，不启用模拟日期映射。原文目录候选 `6eccbc73b9473533077dbd6b585f2fd615825468` 已提交推送，其精确 CI 单独跟踪。2026-11-12 通过真实受控出网取得财税〔2015〕101号与财税〔2012〕85号两份官方页面原始字节，并在隔离库 `ash05_owner_native_test` 保存实际 UUID、完成时钟、匹配出网审计及外部原文，组合来源集后独立读回；2015 成文日期未冒充网站发布时间。来源及采集双摘要进入同一验收索引，该库与原文现为在用输入，后续重 QA 禁止 flush 此库。真实来源留存不等于法律现行适用、政策启用或税务日期资格。
-
-registry v422 仅开放下一独立评估封套、Application 端口及不可变评估/分配模型声明的六路径隔离准备。语义摘要绑定完整业务事实，独立观察清单保留真实采集和权属回放时钟，避免仅再次观测被误作新扣税；旧现金授权和哈希协议不扩大。Root 继续负责正式迁移/注册、锁定物理账户、当前来源/政策/新增权限复核、同库 Audit/Outbox 原子仓储及原生验证。该准备不写现金、股份或其他持仓真源，显式更正谱系保留历史；正式财务链路、税务日期 Owner 答复、送转配股及冲正、完整用户金样本和最终精确候选 CI 仍未完成。当前桥接为纯 Domain 增量，可独立撤销代码并重建模块投影；已保留原文及元数据须配对保留，不通过删除事实回滚。
-
 
 | 1dedaa6958564561080c261815cf85a9942c0e98 | data_center.StatutorySourceDocumentBundleMemberModel | added_concrete | FK-protected ordered capture membership prevents dangling opaque JSON references and binds a complete atomic source set | Same-alias bundle repository only; exact selected capture and contiguous order verified on read, second-member failure rolls back whole set | Additive dc_statutory_source_bundle_member table; keep protected source links with their parent bundles |
 | 1dedaa6958564561080c261815cf85a9942c0e98 | data_center._StatutorySourceImmutableModel | added_abstract | Share exact claimed insert and immutable model/manager boundaries among the four Source-owned tables, without introducing another public authority framework | Only the four concrete Source models inherit it; ORM shortcut and native mutation tests cover its boundary | Abstract model creates no table; revert with its concrete classes while retaining already persisted immutable records and migration compatibility |

@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 6860,
+    "current_surface_references": 6866,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -11023,6 +11023,14 @@
       "text": "\"\"\"Read one exact historical listing window without claiming current coverage.\"\"\""
     },
     {
+      "path": "apps/data_center/application/statutory_source_bundle.py",
+      "text": "\"\"\"Publish a stable reason instead of implying that latest capture means law.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/statutory_source_bundle.py",
+      "text": "current law nor suitability for any financial decision. Consumers must"
+    },
+    {
       "path": "apps/data_center/application/statutory_source_catalog.py",
       "text": "origin, establish current legal status, or activate a policy."
     },
@@ -14025,6 +14033,14 @@
     {
       "path": "apps/data_center/security_disclosure_capture_composition.py",
       "text": "\"\"\"Compose the non-current exact-window proof reader with Data Center repositories.\"\"\""
+    },
+    {
+      "path": "apps/data_center/statutory_source_capture_composition.py",
+      "text": "No HTTP request, replacement capture, latest fallback, source-clock"
+    },
+    {
+      "path": "apps/data_center/statutory_source_capture_composition.py",
+      "text": "This association is not a signature or proof of current legal status."
     },
     {
       "path": "apps/decision_rhythm/application/advisor_contracts.py",
@@ -23341,6 +23357,14 @@
     {
       "path": "apps/simulated_trading/domain/corporate_action_posting.py",
       "text": "\"settlement stages must reference their ledger entitlement, not current holdings\""
+    },
+    {
+      "path": "apps/simulated_trading/domain/corporate_action_tax_settlement_evidence.py",
+      "text": "not independent proof that the calendar or source is authentic/current."
+    },
+    {
+      "path": "apps/simulated_trading/domain/corporate_action_tax_settlement_evidence.py",
+      "text": "revision is current; only a trusted Application/Infrastructure composition may"
     },
     {
       "path": "apps/simulated_trading/domain/daily_net_value_metrics.py",

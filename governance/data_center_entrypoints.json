@@ -9,7 +9,7 @@
       "celery_dispatch_edge": 18,
       "celery_task": 130,
       "compatibility_facade": 95,
-      "current_data_surface": 108,
+      "current_data_surface": 109,
       "dynamic_import_edge": 15,
       "management_command": 50,
       "management_command_edge": 65,
@@ -30,13 +30,13 @@
       "workflow_step": 11
     },
     "by_status": {
-      "active_public": 911,
+      "active_public": 912,
       "adjacent_operational": 346,
       "candidate-review": 49,
       "compatibility": 139,
       "retired_blocked": 0
     },
-    "total": 1445
+    "total": 1446
   },
   "entries": [
     {
@@ -5347,6 +5347,16 @@
       "path": "governance/current_data_contracts.json",
       "status": "active_public",
       "symbol": "data_center.close_and_nav_fallbacks",
+      "target": ""
+    },
+    {
+      "category": "current_data_surface",
+      "evidence": "governed current-data contract; source_files=2",
+      "id": "current_data_surface:governance/current_data_contracts.json:data_center.configured_statutory_bundle_evidence:Exact retained statutory bundle/body read with unchanged configured publisher/catalog and original capture-age checks; fresh capture remains legally unqualified and forbidden for decisions",
+      "locator": "Exact retained statutory bundle/body read with unchanged configured publisher/catalog and original capture-age checks; fresh capture remains legally unqualified and forbidden for decisions",
+      "path": "governance/current_data_contracts.json",
+      "status": "active_public",
+      "symbol": "data_center.configured_statutory_bundle_evidence",
       "target": ""
     },
     {
@@ -14501,7 +14511,7 @@
   },
   "source_contract_counts": {
     "celery_tasks": 95,
-    "current_data_contracts": 108,
+    "current_data_contracts": 109,
     "legacy_entrypoints_and_wrappers": 0,
     "operational_governance_rules": 45,
     "runtime_config_keys": 50

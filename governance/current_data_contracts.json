@@ -14224,6 +14224,62 @@
         }
       ],
       "notes": "Server clocks never replace source observed_at or policy lineage. A public content hash is not issuer proof. Real Session/CSRF, current trading RBAC, locked physical owner, exact canonical source and explicit runtime policy, signed exact current grant and immutable revocation are independent gates. Historical withdrawal metadata is never current authority. Scope discovery retains expired heads and conflicting mappings. A financial retry may waive only the initial physical updated_at comparison after exact ledger, same-grant Audit and Outbox proof; every current authorization gate remains required. Current official disclosure coverage and ordinary TUI end-to-end acceptance remain separate."
+    },
+    {
+      "id": "data_center.configured_statutory_bundle_evidence",
+      "surface": "Exact retained statutory bundle/body read with unchanged configured publisher/catalog and original capture-age checks; fresh capture remains legally unqualified and forbidden for decisions",
+      "source_files": [
+        "apps/data_center/application/statutory_source_bundle.py",
+        "apps/data_center/statutory_source_capture_composition.py"
+      ],
+      "required_markers": {
+        "apps/data_center/application/statutory_source_bundle.py": [
+          "def source_observed_at(",
+          "capture.captured_at > self.checked_at",
+          "STATUTORY_SOURCE_CAPTURE_OUTSIDE_WINDOW",
+          "def must_not_use_for_decision(",
+          "statutory_legal_qualification_required"
+        ],
+        "apps/data_center/statutory_source_capture_composition.py": [
+          "def read_retained_bundle(",
+          "STATUTORY_SOURCE_CAPTURE_PROVENANCE_UNAVAILABLE",
+          "STATUTORY_SOURCE_CAPTURE_CONFIGURATION_CHANGED",
+          "return replace(result, checked_at=timezone.now())"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "fresh_observation_remains_unqualified",
+          "test_file": "tests/unit/data_center/test_statutory_source_bundle_read.py",
+          "test_function": "test_exact_bundle_read_keeps_original_clocks_and_blocks_decision"
+        },
+        {
+          "case": "future_or_stale_original_clock",
+          "test_file": "tests/unit/data_center/test_statutory_source_bundle_read.py",
+          "test_function": "test_future_or_old_capture_does_not_receive_new_observation_time"
+        },
+        {
+          "case": "expiry_during_final_read",
+          "test_file": "tests/unit/data_center/test_statutory_source_bundle_read.py",
+          "test_function": "test_expiry_while_final_configuration_is_checked_blocks"
+        },
+        {
+          "case": "missing_or_ambiguous_audit",
+          "test_file": "tests/unit/data_center/test_statutory_source_bundle_read.py",
+          "test_function": "test_missing_or_ambiguous_successful_capture_audit_blocks"
+        },
+        {
+          "case": "configuration_drift",
+          "test_file": "tests/unit/data_center/test_statutory_source_bundle_read.py",
+          "test_function": "test_configuration_drift_after_readback_blocks"
+        },
+        {
+          "case": "no_latest_fallback",
+          "test_file": "tests/unit/data_center/test_statutory_source_bundle_read.py",
+          "test_function": "test_missing_exact_bundle_has_no_latest_fallback"
+        }
+      ],
+      "notes": "Publication/effective DATE/INSTANT/UNKNOWN and real response completion clocks are preserved. Byte integrity, configured-origin consistency, actual audit association and fresh capture do not prove legal currency, tax scope, date mapping, policy activation or financial authority. No implicit refresh and no current-policy pointer."
     }
   ]
 }

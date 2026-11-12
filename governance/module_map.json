@@ -5532,6 +5532,10 @@
           "CaptureSinaQuoteUseCase",
           "SinaQuoteTransportProtocol"
         ],
+        "application/statutory_source_bundle.py": [
+          "ConfiguredStatutorySourceBundleRead",
+          "ConfiguredStatutorySourceBundleReaderProtocol"
+        ],
         "application/statutory_source_capture.py": [
           "CaptureStatutorySourceDocumentUseCase",
           "StatutorySourceDocumentFetchPort"
@@ -5716,7 +5720,7 @@
         ]
       },
       "layers": {
-        "application": 186,
+        "application": 187,
         "domain": 57,
         "infrastructure": 245,
         "interface": 32,
