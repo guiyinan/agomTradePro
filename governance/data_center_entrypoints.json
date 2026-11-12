@@ -26,17 +26,17 @@
       "script": 20,
       "sdk": 57,
       "terminal_tui": 32,
-      "test_evidence": 133,
+      "test_evidence": 134,
       "workflow_step": 11
     },
     "by_status": {
       "active_public": 912,
       "adjacent_operational": 346,
-      "candidate-review": 52,
+      "candidate-review": 53,
       "compatibility": 139,
       "retired_blocked": 0
     },
-    "total": 1449
+    "total": 1450
   },
   "entries": [
     {
@@ -13757,6 +13757,16 @@
       "path": "tests/component/simulated_trading/test_order_reservation_migration.py",
       "status": "candidate-review",
       "symbol": "test_order_reservation_migration",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/component/simulated_trading/test_owner_granted_corporate_action_capabilities_postgres.py:test_owner_granted_corporate_action_capabilities_postgres:",
+      "locator": "",
+      "path": "tests/component/simulated_trading/test_owner_granted_corporate_action_capabilities_postgres.py",
+      "status": "candidate-review",
+      "symbol": "test_owner_granted_corporate_action_capabilities_postgres",
       "target": ""
     },
     {

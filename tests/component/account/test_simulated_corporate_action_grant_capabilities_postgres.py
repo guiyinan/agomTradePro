@@ -126,6 +126,7 @@ def test_native_v1_to_v2_selects_one_head_without_resurrecting_v1() -> None:
             repository=repository,
             seal=SimulatedCorporateActionWriteGrantSeal(),
             as_of=upgraded.recorded_at,
+            required_capability=Capability.CASH_STAGE_WRITE,
         )
     assert GrantRow._default_manager.count() == 2
 
