@@ -87,7 +87,12 @@ def _position(account: SimulatedAccountModel, code: str, value: str) -> None:
 
 
 def _run_action(page: Page, action_key: str, left: int, right: int) -> None:
-    form = page.locator(f'[data-action-ui-key="{action_key}"]')
+    labels = {
+        "portfolio-comparison.metrics": "对比收益与净值曲线",
+        "portfolio-comparison.holdings": "对比当前持仓与重合度",
+        "portfolio-comparison.industries": "对比当前行业配置",
+    }
+    form = page.locator("form.tui-action-form").filter(has_text=labels[action_key])
     expect(form).to_be_visible()
     form.locator('[name="left_account_id"]').fill(str(left))
     form.locator('[name="right_account_id"]').fill(str(right))
@@ -140,11 +145,12 @@ def test_two_portfolio_comparison_browser_journey(live_server, playwright_policy
             page.on("pageerror", lambda error: errors.append(str(error)))
             page.goto(
                 f"{live_server.url}/tui/?screen=task.portfolio-comparison",
-                wait_until="networkidle",
+                wait_until="domcontentloaded",
             )
             expect(page.get_by_text("双组合对比", exact=True).first).to_be_visible()
             expect(page.get_by_text("稳健组合", exact=True).first).to_be_visible()
             expect(page.get_by_text("进取组合", exact=True).first).to_be_visible()
+            page.keyboard.press("F9")
 
             _run_action(page, "portfolio-comparison.metrics", left.pk, right.pk)
             expect(page.get_by_text("时间加权收益率", exact=True).first).to_be_visible()
@@ -161,7 +167,7 @@ def test_two_portfolio_comparison_browser_journey(live_server, playwright_policy
             _run_action(page, "portfolio-comparison.industries", left.pk, right.pk)
             expect(page.get_by_text("行业未知", exact=True).first).to_be_visible()
             assert errors == []
-            assert DailyNetValueModel.objects.count() == history_count
             page.screenshot(path=str(artifact), full_page=True)
         finally:
             browser.close()
+    assert DailyNetValueModel.objects.count() == history_count
