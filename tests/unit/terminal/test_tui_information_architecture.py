@@ -41,6 +41,7 @@ EXPECTED_AUTHENTICATED_SCREEN_KEYS = {
     "task.portfolio-check",
     "task.account-inspection",
     "task.rebalance-plan",
+    "task.portfolio-comparison",
 }
 
 EXPECTED_ADMIN_ONLY_SCREEN_KEYS = {
@@ -112,7 +113,7 @@ def test_tui_ia_registry_is_the_complete_screen_routing_source() -> None:
 
     assert len(registry["published_screens"]) == 12
 
-    assert len(registry["runtime_screens"]) == 21
+    assert len(registry["runtime_screens"]) == 22
 
     assert {"task.today-focus", "task.portfolio-check", "task.account-inspection"} <= {
         screen["key"] for screen in registry["runtime_screens"]
@@ -278,7 +279,7 @@ def test_runtime_screen_registry_publishes_complete_user_experience_contract() -
 
     action_keys = {action["key"] for action in payload["actions"]}
 
-    assert len(runtime_screens) == 21
+    assert len(runtime_screens) == 22
 
     assert {"task.today-focus", "task.portfolio-check", "task.account-inspection"} <= set(
         runtime_screens

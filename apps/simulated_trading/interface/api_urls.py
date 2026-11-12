@@ -42,6 +42,7 @@ from .performance_views import (
     AccountValuationSnapshotAPIView,
     AccountValuationTimelineAPIView,
 )
+from .portfolio_comparison_views import PortfolioComparisonAPIView
 from .portfolio_risk_views import (
     PortfolioPressureOptionsAPIView,
     PortfolioPressureRunAPIView,
@@ -137,6 +138,7 @@ urlpatterns = [
             {
                 "module": "simulated-trading",
                 "endpoints": [
+                    "/api/simulated-trading/portfolio-comparison/",
                     "/api/simulated-trading/accounts/",
                     "/api/simulated-trading/accounts/batch-delete/",
                     "/api/simulated-trading/accounts/{account_id}/",
@@ -171,6 +173,11 @@ urlpatterns = [
             }
         ),
         name="api-root",
+    ),
+    path(
+        "portfolio-comparison/",
+        PortfolioComparisonAPIView.as_view(),
+        name="portfolio-comparison",
     ),
     path("accounts/", AccountListAPIView.as_view(), name="account-list"),
     path(

@@ -142,6 +142,10 @@ from .tui_metadata_runtime_injection_policy import (
     RUNTIME_POLICY_EVENT_ACTIONS,
     RUNTIME_POLICY_RSS_ACTIONS,
 )
+from .tui_metadata_runtime_injection_portfolio_comparison import (
+    RUNTIME_PORTFOLIO_COMPARISON_ACTIONS,
+    RUNTIME_PORTFOLIO_COMPARISON_SCREEN,
+)
 from .tui_metadata_runtime_injection_prompt import (
     RUNTIME_PROMPT_ACTIONS,
     RUNTIME_PROMPT_SCREEN,
@@ -418,6 +422,11 @@ _LEGACY_RUNTIME_METADATA_INJECTIONS: tuple[RuntimeMetadataInjectionBundle, ...] 
     RuntimeMetadataInjectionBundle(
         coverage_key="runtime_injected_simulated_trading_metadata",
         actions=(*RUNTIME_SIMULATED_TRADING_ACTIONS, *RUNTIME_CORPORATE_ACTION_CONSENT_ACTIONS),
+    ),
+    RuntimeMetadataInjectionBundle(
+        coverage_key="runtime_injected_portfolio_comparison_metadata",
+        screens=(RUNTIME_PORTFOLIO_COMPARISON_SCREEN,),
+        actions=RUNTIME_PORTFOLIO_COMPARISON_ACTIONS,
     ),
     RuntimeMetadataInjectionBundle(
         coverage_key="runtime_injected_owner_order_entry_metadata",

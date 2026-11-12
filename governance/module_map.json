@@ -4158,7 +4158,7 @@
           "imports": 3
         },
         "simulated_trading": {
-          "imports": 79
+          "imports": 82
         },
         "strategy": {
           "imports": 1
@@ -11039,7 +11039,7 @@
           ]
         },
         "data_center": {
-          "imports": 79,
+          "imports": 82,
           "target_layers": [
             "application",
             "calendar_publication_operations_composition",
@@ -11605,6 +11605,11 @@
           "UnifiedCashFlowRepositoryProtocol",
           "ValuationSnapshotRepositoryProtocol"
         ],
+        "application/portfolio_comparison.py": [
+          "CompareInvestmentPortfoliosUseCase",
+          "PortfolioComparisonPerformanceProvider",
+          "PortfolioComparisonReadRepository"
+        ],
         "application/portfolio_risk_calendar.py": [
           "PortfolioRiskCalendarReadRequest",
           "PortfolioRiskCalendarReadResult",
@@ -12019,6 +12024,7 @@
           "accounts/<int:account_id>/rebalance-plans/<str:plan_id>/reconciliation/",
           "accounts/<int:account_id>/rebalance-plans/<str:plan_id>/orders/<int:order_ordinal>/preview/",
           "",
+          "portfolio-comparison/",
           "accounts/",
           "accounts/batch-delete/",
           "accounts/<int:account_id>/",
@@ -12072,10 +12078,10 @@
         ]
       },
       "layers": {
-        "application": 126,
-        "domain": 47,
-        "infrastructure": 139,
-        "interface": 35,
+        "application": 127,
+        "domain": 48,
+        "infrastructure": 140,
+        "interface": 37,
         "management": 7,
         "root": 46
       },
@@ -12979,7 +12985,7 @@
       "layers": {
         "application": 61,
         "domain": 5,
-        "infrastructure": 99,
+        "infrastructure": 100,
         "interface": 9,
         "management": 7,
         "root": 4

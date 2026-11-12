@@ -3379,6 +3379,30 @@
           "单笔模拟预览与后续对账"
         ]
       }
+    },
+    {
+      "key": "task.portfolio-comparison",
+      "label": "双组合对比",
+      "module_key": "daily-decisions",
+      "group": "daily",
+      "audience": "authenticated",
+      "summary": "选择两个已授权组合，对比共同区间绩效、归一化净值、当前持仓与行业差异。",
+      "view_type": "datagrid",
+      "status": "online",
+      "chrome_mode": "immersive",
+      "entry_mode": "dashboard",
+      "dashboard_layout": "task_flow",
+      "default_action_key": "portfolio-comparison.metrics",
+      "user_experience": {
+        "journey": "dashboard",
+        "primary_task": "选择两个不同的已授权组合和共同区间，完成收益、风险、净值及持仓对比。",
+        "primary_outcome": "得到并排指标、期初为 100 的现金流调整曲线、A 减 B 超额收益、当前持仓重合与行业差异；未知数据保持明确提示。",
+        "empty_state_hint": "先查看可对比组合目录，再填写两个不同账户 ID 和共同日期区间。",
+        "next_step_hint": "先核对收益与归一化曲线，再查看当前持仓和行业差异；当前持仓不代表历史区间时点。"
+      },
+      "sources": [
+        "task.portfolio-comparison"
+      ]
     }
   ],
   "workflow": [

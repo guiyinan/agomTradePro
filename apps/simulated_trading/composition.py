@@ -10,11 +10,16 @@ from apps.simulated_trading.application.performance_use_cases import (
     BenchmarkComponentRepositoryProtocol,
     CapitalFlowRepositoryProtocol,
     DailyNetValueRepositoryProtocol,
+    GetAccountPerformanceReportUseCase,
+    ListAccountValuationTimelineUseCase,
     MarketDataRepositoryProtocol,
     ObserverGrantRepositoryProtocol,
     TradeHistoryRepositoryProtocol,
     UnifiedCashFlowRepositoryProtocol,
     ValuationSnapshotRepositoryProtocol,
+)
+from apps.simulated_trading.application.portfolio_comparison import (
+    CompareInvestmentPortfoliosUseCase,
 )
 from apps.simulated_trading.infrastructure.account_physical_row_provider import (
     DjangoExactPhysicalSimulatedAccountRowProvider,
@@ -29,6 +34,10 @@ from apps.simulated_trading.infrastructure.performance_repositories import (
     DjangoTradeHistoryRepository,
     DjangoUnifiedCashFlowRepository,
     DjangoValuationSnapshotRepository,
+)
+from apps.simulated_trading.infrastructure.portfolio_comparison_repository import (
+    DjangoPortfolioComparisonPerformanceProvider,
+    DjangoPortfolioComparisonReadRepository,
 )
 from apps.simulated_trading.infrastructure.simulated_account_row_source_repository import (
     DjangoSimulatedAccountRowSourceRepository,
@@ -88,3 +97,30 @@ def build_valuation_snapshot_repository() -> ValuationSnapshotRepositoryProtocol
 def build_capital_flow_repository() -> CapitalFlowRepositoryProtocol:
     """Build the legacy capital-flow adapter used by backfill."""
     return DjangoCapitalFlowRepository()
+
+
+def build_portfolio_comparison_use_case() -> CompareInvestmentPortfoliosUseCase:
+    """Assemble the read-only two-portfolio comparison from canonical services."""
+
+    account_repo = build_performance_account_repository()
+    daily_repo = build_daily_net_value_repository()
+    cash_flow_repo = build_unified_cash_flow_repository()
+    provider = DjangoPortfolioComparisonPerformanceProvider(
+        report_use_case=GetAccountPerformanceReportUseCase(
+            account_repo=account_repo,
+            daily_net_value_repo=daily_repo,
+            cash_flow_repo=cash_flow_repo,
+            benchmark_repo=build_benchmark_component_repository(),
+            market_data_repo=build_market_data_repository(),
+            trade_history_repo=build_trade_history_repository(),
+        ),
+        timeline_use_case=ListAccountValuationTimelineUseCase(
+            account_repo=account_repo,
+            daily_net_value_repo=daily_repo,
+            cash_flow_repo=cash_flow_repo,
+        ),
+    )
+    return CompareInvestmentPortfoliosUseCase(
+        read_repository=DjangoPortfolioComparisonReadRepository(),
+        performance_provider=provider,
+    )
