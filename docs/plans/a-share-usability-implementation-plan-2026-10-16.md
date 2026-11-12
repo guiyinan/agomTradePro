@@ -3262,6 +3262,12 @@ registry v422 仅开放下一独立评估封套、Application 端口及不可变
 
 桥接提交 `e151f831e6ea6157939978ed30d14fa8a51f77a3` 的 Consistency CI 发现新增源码引用未同步 Data Center 架构生成清单；完整失败原件进入同一索引，不记为通过。本轮重新生成全部适用投影，并验证其完整读回，相关 CI 继续绑定下一精确候选。前驱 `6eccbc73` 的 PostgreSQL workflow 因后继推送被取消，六项成功不替代第七项验收。registry v424 允许将八路径税评估准备按来源封套与评估职责拆开，保持体积上限；稳定政策来源集合摘要绑定完整原生修订事实，单独保留具体来源集 ID/version、采集清单及权属观测，不将新的观察版本伪装为法定修订。ASH-05 仍 active，后继 ASH-06 未启动。
 
+法定条款解释批次从显式原文读取持股期限、应税比例与税率，并逐项核对暂不预扣、转让后扣缴、FIFO、日终净增减、自然年/月及登记日排他边界；数值来自原文，不内置税率。正式相关回归 **209 passed**，新条款 Domain 分支覆盖 **100%**，两生产文件增量与全库类型债务为零；真实两份原文在声明的 Beautiful Soup **4.15.0** 中重验，解释摘要未变。该直接依赖只改 `pyproject.toml` 并重建 requirements 投影，在隔离导入目标测试，未改共享 Python 环境。货币 quantum/舍入仍为显式账户模拟配置选择，未伪称通知已规定某种舍入。条款语法缺失、冲突、歧义、数字或政策窗口不符均阻断；本批不启用运行政策、交割日期映射或财务写入。回滚仅撤销本批解释/依赖代码并重建投影，保留实际源原件与历史元数据。
+
+来源读取候选 `6d0ec4a04eeae97815b71d8a819734d77c82bf6f` 的七项适用 CI 全部成功，PostgreSQL 原件已下载独立解析：四十五个选择节点展开 **58 cases / 0 failure / 0 error / 0 skip**，其中九项为配置采集组合。前驱失败/取消仍保留。原文旧采集超过显式年龄后，通过既有目录重新受控抓取，新增真实 UUID/完成时钟及不可变观察版来源集，两份原生事实/正文 SHA 未变；未改目录、伪造法定修订或覆盖旧源时钟。新观察仍 legally unqualified；法定来源集的稳定内容身份由下一评估封套单独重算原生修订集合，具体观察版及捕获清单只进入观察凭证。
+
+Luna 八路径评估原型 **58 passed**、Domain 95.3%，尚未正式采用；Root 完整复核发现回执误用本次 manifest、最后完整性重算期间可能过期及规范化边界问题。registry v428 仅重开同八路径，先保留九个真实 RED，再修齐首次落盘凭证重放、最后廉价时钟校验、Decimal 规范表示、UTF-8 和 auto-PK 防绕过；旧现金/税计算/权属/日终桥接协议保持冻结。新权限必须明确追加并重新同意，当前仍不准从旧现金 grant 或 staff reader 取得评估/扣税资格。Root 尚需迁移与原子评估/分配/Audit/Outbox 仓储、当前政策及交割历史限定、后扣税/送转配股及冲正、普通用户完整金样本与最终精确候选 CI，ASH-05 整单元未完成。
+
 | base_sha | identity | change_kind | rationale | consumer_audit | compatibility_or_rollback |
 | --- | --- | --- | --- | --- | --- |
 | 1dedaa6958564561080c261815cf85a9942c0e98 | data_center.StatutorySourceDocumentRevisionModel | added_concrete | Publisher-native legal metadata and body digest require immutable identity conflicts; mutable redacted RawPayload JSON cannot serve this record, and security disclosure models require unrelated asset/exchange facts | Only DjangoStatutorySourceRepository exact revision/capture/bundle ports, source model registration and native component tests consume it; no current policy or financial consumer | Additive dc_statutory_source_revision table; preserve historical rows and matching bodies on code rollback, disable prospective consumers first |

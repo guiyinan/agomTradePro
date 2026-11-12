@@ -39,6 +39,7 @@ dependencies = [
     "tushare",
     "akshare==1.18.22",
     "feedparser",
+    "beautifulsoup4>=4.15,<5",
     "drf-spectacular",
     "requests>=2.33.0",
     "pypdf>=6,<7",
