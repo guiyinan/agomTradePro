@@ -1,5 +1,5 @@
 {
-  "version": "2026-11-12.v472",
+  "version": "2026-11-12.v473",
   "updated_at": "2026-11-12",
   "execution_focus": {
     "unit_id": "ASH-05",
@@ -14,14 +14,6 @@
         "unit_id": "ASH-05",
         "scope": "v472 Luna only NEW apps/simulated_trading/application/corporate_action_tax_qualification.py, apps/simulated_trading/corporate_action_tax_owner_scope_composition.py and tests/unit/simulated_trading/test_corporate_action_tax_owner_scope.py in existing ignored private worktree. Define a small typed current-qualification port/result and a real Account-locked CurrentTaxAssessmentScopeVerifierPort compatible with the existing audited tax assessment UOW. Require exact V2 TAX_ASSESS capability, actual current trading eligibility, same-alias PostgreSQL READ COMMITTED, concrete physical/canonical owner/source/policy locker, server-selected signed current grant/MAC/revocation, terms/subset consistency and required operational Audit/Outbox readiness. Independent injected current qualification must match exact assessment semantic/account/owner/canonical/environment and finite window; no default/trivial source/legal provider. Revalidate qualification and finite clocks on exit under locks; ContextVar Audit origin is accessible only within that exact active context and cannot leak/nest. No cash-only/V1/staff/DTO authority, financial changes, permissive timestamp replay, TAX_WITHHOLD support or broad grant gates modification. Root supplies the actual current policy/source/clauses/instrument/history qualifier and central production wiring. Read complete Account scope/current grant/Audit origin contracts. Focused pure port-mocked tests and three-file style/production incremental mypy only; no DB/full-debt/shared formal source/old frozen files/Git/index/projections/config activation. Ask before additional paths.",
         "owner": "Luna max owner tax-assessment fence preparation under Root",
-        "isolated_workspace": true,
-        "shared_git_serialized": true,
-        "isolated_test_resources": true
-      },
-      {
-        "unit_id": "TUX-11",
-        "scope": "Owner explicitly authorizes an independent read-only two-portfolio comparison item in isolated .tmp/portfolio-comparison-tux11. Only portfolio-comparison-specific Application/Interface code, its TUI runtime/IA wiring, official generated projections and directly related tests are in scope. Reuse existing owner-scoped account, performance, position and asset-fact contracts; no ledger, corporate-action, ASH-05, production, deployment, trading or permission changes. Use isolated SQLite/cache/browser resources and one lightweight worker; no concurrent PostgreSQL or heavy repository QA during the ASH-05 finite-lease window. Shared Source, generated projections, Git index and final integration remain serialized with the ASH-05 Root.",
-        "owner": "Kimi Code isolated TUX-11 implementation; ASH-05 Root retains shared integration coordination",
         "isolated_workspace": true,
         "shared_git_serialized": true,
         "isolated_test_resources": true
@@ -435,7 +427,7 @@
   ],
   "review_queue": [],
   "closure_backlog": {
-    "version": "2026-11-12.v96",
+    "version": "2026-11-12.v97",
     "legacy_unchecked_count": 142,
     "legacy_unchecked_by_workstream": {
       "evidence-hard-gate": 0,
@@ -1957,7 +1949,7 @@
         "wave": 5,
         "priority": "P1",
         "execution_mode": "repository",
-        "status": "planned",
+        "status": "completed",
         "title": "Compare two owned investment portfolios in one read-only TUI task",
         "depends_on": [
           "TUX-10"
