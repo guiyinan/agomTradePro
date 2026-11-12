@@ -1159,6 +1159,28 @@
         "tests/component/account/test_simulated_corporate_action_write_issuance_postgres.py::test_native_nonstaff_owner_consent_is_sealed_and_exact_retry_is_idempotent"
       ],
       "notes": "Optional unseeded dedicated service-write policy, separate from staff SingleOwner/evidence_read. Exact canonical account/user/tenant/owner, fixed service permission, finite max grant and active profile/snapshot lineage are required under owner activation fence. Missing/disabled/colliding policy blocks new grants and writes without blocking unrelated M1 or owner withdrawal. Policy alone never supplies consent, Session authentication or physical ownership."
+    },
+    {
+      "config_key": "config_center.simulated_trading.dividend_tax_date_conventions",
+      "namespace": "config_center",
+      "owner": "config_center",
+      "type": "typed_json",
+      "criticality": "normal",
+      "current_source": "config_center_runtime_profile",
+      "fallback": "blocked",
+      "migration_status": "canonical_only_fail_closed",
+      "materialization_required": false,
+      "consumers": [
+        "apps/simulated_trading/corporate_action_tax_date_convention_composition.py::read_current_simulated_dividend_tax_date_convention"
+      ],
+      "definition_source": "apps/config_center/application/runtime_definition_reconcile.py::DEFAULT_RUNTIME_DEFINITIONS",
+      "bootstrap_command": "python manage.py initialize_runtime_definitions",
+      "tests": [
+        "tests/unit/config_center/test_runtime_definition_reconcile.py::test_simulated_dividend_tax_date_conventions_are_optional_typed_json",
+        "tests/unit/simulated_trading/test_corporate_action_tax_date_convention_composition.py::test_current_explicit_rule_preserves_runtime_provenance_and_server_known_at",
+        "tests/component/simulated_trading/test_simulated_tax_date_convention_postgres.py::test_native_date_rule_uses_actual_profile_clocks_and_never_falls_back"
+      ],
+      "notes": "Optional unseeded Owner-approved simulation-only tax-date hypothesis. Exact account/user/exchange/window, explicit buy/sell open-session offsets, finite validity and approval reference are required. Current active profile evidence retains actual creation/activation/snapshot clocks; missing, ambiguous, disabled or expired configuration blocks the tax consumer without fallback. Dates are derived against a published calendar and never establish real custody or financial write authority."
     }
   ]
 }

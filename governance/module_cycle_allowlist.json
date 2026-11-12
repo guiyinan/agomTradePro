@@ -1,7 +1,7 @@
 {
-  "version": "2026-11-11.v29",
-  "description": "Exact cycle-free dependency graph including the ASH-05 Simulated Trading-to-Audit public official SZSE capture composition. Only the exact edge total and two affected per-app counts are synchronized; no cycle, bidirectional, ORM boundary exceptions or unused capacity are added.",
-  "max_app_import_edges": 208,
+  "version": "2026-11-12.v30",
+  "description": "Exact cycle-free dependency graph including the ASH-05 Simulated Trading-to-Config Center public Application evidence reader for explicit simulated tax date conventions. Only the exact edge total and the affected outbound/inbound counts are synchronized; no cycles, bidirectional pairs, ORM boundary exceptions or unused capacity are added.",
+  "max_app_import_edges": 209,
   "max_outbound_modules_per_app": 25,
   "max_inbound_modules_per_app": 30,
   "max_outbound_modules_by_app": {
@@ -42,7 +42,7 @@
     "setup_wizard": 2,
     "share": 0,
     "signal": 7,
-    "simulated_trading": 13,
+    "simulated_trading": 14,
     "strategy": 7,
     "portfolio": 1,
     "research": 6,
@@ -62,7 +62,7 @@
     "backtest": 1,
     "beta_gate": 4,
     "broker_execution": 0,
-    "config_center": 4,
+    "config_center": 5,
     "dashboard": 1,
     "data_center": 30,
     "decision_rhythm": 4,

@@ -14134,7 +14134,8 @@
         "apps/simulated_trading/corporate_action_write_scope_composition.py",
         "apps/account/simulated_corporate_action_consent_composition.py",
         "apps/simulated_trading/corporate_action_consent_composition.py",
-        "apps/simulated_trading/infrastructure/simulated_account_row_source_v2_repository.py"
+        "apps/simulated_trading/infrastructure/simulated_account_row_source_v2_repository.py",
+        "apps/simulated_trading/audited_corporate_action_posting_composition.py"
       ],
       "required_markers": {
         "apps/account/simulated_corporate_action_write_issuance_composition.py": [
@@ -14174,6 +14175,12 @@
           "def get_physical_account_heads(",
           "_restore_full_chain(tuple(chain))",
           "get_historical_exact_metadata"
+        ],
+        "apps/simulated_trading/audited_corporate_action_posting_composition.py": [
+          "self.posting._resolve_exact_replay(self.requests, list(event_rows))",
+          "source_namespace=request.source_namespace,",
+          "delta = _delta_for_reversal(reversal_target)",
+          "winner.predecessor_hash != previous_winner.content_hash"
         ]
       },
       "required_tests": [
@@ -14221,9 +14228,24 @@
           "case": "key_rotation_cannot_prevent_revocation",
           "test_file": "tests/component/account/test_simulated_corporate_action_write_issuance_postgres.py",
           "test_function": "test_native_rotated_issuer_key_does_not_prevent_owner_withdrawal_or_restore_permission"
+        },
+        {
+          "case": "whole_audited_correction_after_payment",
+          "test_file": "tests/component/simulated_trading/test_owner_granted_cash_correction_postgres.py",
+          "test_function": "test_native_owner_cash_correction_replays_complete_batch_after_payment"
+        },
+        {
+          "case": "late_second_audit_failure_rolls_back_batch",
+          "test_file": "tests/component/simulated_trading/test_owner_granted_cash_correction_postgres.py",
+          "test_function": "test_native_owner_cash_correction_second_audit_failure_rolls_back_batch"
+        },
+        {
+          "case": "reversal_uses_exact_predecessor_inverse",
+          "test_file": "tests/unit/simulated_trading/test_corporate_action_cash_revision_composition.py",
+          "test_function": "test_replay_row_verification_accepts_the_actual_inverse_delta"
         }
       ],
-      "notes": "Server clocks never replace source observed_at or policy lineage. A public content hash is not issuer proof. Real Session/CSRF, current trading RBAC, locked physical owner, exact canonical source and explicit runtime policy, signed exact current grant and immutable revocation are independent gates. Historical withdrawal metadata is never current authority. Scope discovery retains expired heads and conflicting mappings. A financial retry may waive only the initial physical updated_at comparison after exact ledger, same-grant Audit and Outbox proof; every current authorization gate remains required. Current official disclosure coverage and ordinary TUI end-to-end acceptance remain separate."
+      "notes": "Server clocks never replace source observed_at or policy lineage. A public content hash is not issuer proof. Real Session/CSRF, current trading RBAC, locked physical owner, exact canonical source and explicit runtime policy, signed exact current grant and immutable revocation are independent gates. Historical withdrawal metadata is never current authority. Scope discovery retains expired heads and conflicting mappings. A financial retry may waive only the initial physical updated_at comparison after exact ledger, same-grant Audit and Outbox proof; every current authorization gate remains required. Current official disclosure coverage and ordinary TUI end-to-end acceptance remain separate. Correction timestamp replay requires the full original reversal/successor set, exact namespace, matched predecessor inverse effects, and all contiguous same-grant Audit/Outbox pairs. Later ordinary payment is outside correction membership; partial correction is never timestamp proof."
     },
     {
       "id": "data_center.configured_statutory_bundle_evidence",
@@ -14345,6 +14367,41 @@
           "test_function": "test_disabled_or_inactive_rule_blocks_current_read"
         }
       ]
+    },
+    {
+      "id": "simulated_trading.current_official_corporate_action_revision",
+      "surface": "Exact retained official disclosure correction lineage at an explicit verification cutoff; no complete-market coverage or tax eligibility claim",
+      "source_files": [
+        "apps/simulated_trading/official_disclosure_action_composition.py"
+      ],
+      "required_markers": {
+        "apps/simulated_trading/official_disclosure_action_composition.py": [
+          "def _find_current_event_with_complete_lineage(",
+          "as_of=verification_at,",
+          "if child_counts.get(selected_identity, 0) != 0:",
+          "parent.recorded_at > request.qualified_at",
+          "event.first_seen_at != request.source_observed_at",
+          "read_verified_szse_distribution(event, body_store_root=self._body_store_root)"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "retained_body_and_actual_correction_record",
+          "test_file": "tests/component/simulated_trading/test_official_disclosure_action_qualification.py",
+          "test_function": "test_exact_source_revision_and_gross_terms_are_qualified"
+        },
+        {
+          "case": "complete_unbranched_cutoff_known_lineage",
+          "test_file": "tests/unit/simulated_trading/test_corporate_action_cash_revision_composition.py",
+          "test_function": "test_correction_source_uses_complete_chain_and_actual_current_record_id"
+        },
+        {
+          "case": "share_tax_treatment_compatibility",
+          "test_file": "tests/unit/simulated_trading/test_corporate_action_cash_revision_composition.py",
+          "test_function": "test_share_disclosure_qualification_preserves_exact_tax_treatment"
+        }
+      ],
+      "notes": "The logical source_event_id remains the lineage root, while source_record_id identifies the actual retained current disclosure. Unique complete known parents, no forks/cycles and no currently known successor are required. Keep native first_seen_at and persistence clocks; verification time never refreshes source clocks. Missing body, lineage or economics returns false. Current event selection does not prove listing-window completeness, market freshness, legal eligibility, real custody or owner write permission; those remain independent fail-closed contracts."
     }
   ]
 }

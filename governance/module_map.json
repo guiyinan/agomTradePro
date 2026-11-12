@@ -2387,7 +2387,7 @@
           "imports": 1
         },
         "simulated_trading": {
-          "imports": 10
+          "imports": 11
         },
         "terminal": {
           "imports": 2
@@ -11022,7 +11022,7 @@
           ]
         },
         "audit": {
-          "imports": 10,
+          "imports": 11,
           "target_layers": [
             "application",
             "corporate_action_tax_assessment_composition",

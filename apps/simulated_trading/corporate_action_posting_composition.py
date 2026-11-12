@@ -17,6 +17,7 @@ from apps.simulated_trading.application.corporate_action_posting import (
     CorporateActionTaxBasisVerifierProtocol,
     PostCashDividendEntitlementUseCase,
     PostCashDividendPaymentUseCase,
+    PostCorporateActionStageUseCase,
 )
 from apps.simulated_trading.corporate_action_ownership_history_composition import (
     build_corporate_action_ownership_history_repository,
@@ -86,6 +87,24 @@ def build_corporate_action_payment_use_case(
     return PostCashDividendPaymentUseCase(posting_repository)
 
 
+def build_corporate_action_revision_use_case(
+    *,
+    body_store_root: Path,
+    runtime_environment: str,
+    audited_repository: AuditedCorporateActionPostingRepositoryProtocol | None = None,
+    using: str = DEFAULT_DB_ALIAS,
+) -> PostCorporateActionStageUseCase:
+    """Build the generic stage application only over same-alias audited cash persistence."""
+
+    posting_repository = _build_audited_posting_repository(
+        body_store_root=body_store_root,
+        runtime_environment=runtime_environment,
+        audited_repository=audited_repository,
+        using=using,
+    )
+    return PostCorporateActionStageUseCase(posting_repository)
+
+
 def _build_audited_posting_repository(
     *,
     body_store_root: Path,
@@ -142,6 +161,7 @@ def _build_audited_posting_repository(
 
 
 __all__ = [
+    "build_corporate_action_revision_use_case",
     "build_corporate_action_payment_use_case",
     "build_corporate_action_posting_use_case",
 ]

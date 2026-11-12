@@ -668,3 +668,5 @@ M1 内部编排只接受一个 Tushare provider、一个规范 A 股代码和明
 2026-11-12 法定来源精确读回：`data_center.configured_statutory_bundle_evidence` 只按指定来源集及版本读取，校验完整原文字节、未改变的 publisher/catalog 配置、匹配成功的受控出网记录及原始采集年龄；查询结束后再次检查年龄，禁止将读取时钟写成源时钟。`source_observed_at` 保留来源集中最早的真实响应完成时间，`checked_at` 仅表示本次完整核验结束。fresh 只说明采集年龄；`reliability=unqualified`、`must_not_use_for_decision=true` 及 `statutory_legal_qualification_required` 保持明确。法律现行适用、政策启用、税务日期和财务写入均由独立下游合同限定，不从 active 配置或历史来源集授予；不隐式回退 latest 或刷新。
 
 2026-11-12 模拟税务日期配置：`simulated_trading.configured_simulated_tax_date_convention` 只描述Owner已明确允许的模拟假设。购买和出售的开市日偏移、历史适用区间、账户/Owner/交易所、有限激活窗和批准引用全部显式配置；缺失、不唯一、未来或失效时阻断，不选择旧行。`known_at` 保留Config Center实际profile创建时间，激活/快照生成/生效/读取时钟独立保留。原成交时钟按发布日历的时区定位到明确开市日，未知覆盖不使用周末推算。规则与日期语义摘要独立于本次观察摘要；后者绑定实际原成交、配置和日历观察/读取时钟，刷新不会伪造新成交或新税额。结果固定标注模拟且不可作真实托管证明，不授予扣税或入账权限；真实账户仍需独立托管交割证明。
+
+2026-11-12 公司行为更正：`simulated_trading.current_official_corporate_action_revision` 将逻辑事件根与实际当前公告记录分开，要求在明确核验时点已知、完整且无分叉/环的前驱谱系；已知后继会使旧版失去资格。原文必须实际留存，源首次观察与持久化时钟不能改为本次读取时间。当前事件头不证明市场覆盖完整、税务适用或写入授权。已有Owner授权合同同时覆盖更正整批的旧物理时间豁免：必须核对精确namespace、完整冲正/后继集合、原分录及其反向金额、连续Audit链和原Outbox；后续独立到账不混入更正集合，残缺请求不得获得豁免。

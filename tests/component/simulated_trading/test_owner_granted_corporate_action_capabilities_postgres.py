@@ -81,7 +81,7 @@ pytestmark = [
 ]
 
 
-def _v2_cash_repository(service, *, capabilities):
+def _v2_cash_repository(service, *, capabilities, valid_for=timedelta(minutes=2)):
     """Upgrade the real V1 owner chain and bind a repository to its V2 schema."""
     _publish_known_policy(version="native-owner-capability-v2")
     policy = policies.read_current_simulated_action_write_policy(
@@ -101,7 +101,7 @@ def _v2_cash_repository(service, *, capabilities):
             policy_version=policy.policy_version,
             policy_content_hash=policy.content_hash,
         ),
-        valid_until=min(now + timedelta(minutes=2), policy.valid_until),
+        valid_until=min(now + valid_for, policy.valid_until),
         expected_predecessor_content_hash=service.grant.content_hash,
         grant_schema=policy.grant_schema,
         capabilities=capabilities,

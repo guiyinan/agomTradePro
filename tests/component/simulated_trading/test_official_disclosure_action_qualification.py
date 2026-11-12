@@ -194,3 +194,58 @@ def test_exact_source_revision_and_gross_terms_are_qualified(
     )
 
     assert not verifier.verify_source(request)
+    correction_qualified_at = timezone.now()
+    corrected_common = {
+        "source_record_id": successor.source_event_id,
+        "source_event_id": event.source_event_id,
+        "source_revision_id": successor.source_revision_id,
+        "source_payload_sha256": successor.source_body_sha256,
+        "qualification_sha256": composition.szse_action_qualification_sha256(successor, terms),
+        "source_observed_at": successor.first_seen_at,
+        "qualified_at": correction_qualified_at,
+        "posted_at": correction_qualified_at + timedelta(seconds=1),
+        "supersedes_revision_id": event.source_revision_id,
+    }
+    correction_reversal = replace(
+        request,
+        **corrected_common,
+        entry_kind=CorporateActionEntryKind.REVERSAL,
+        cash_amount=None,
+        tax_treatment=None,
+        ownership_snapshot_id=None,
+        ownership_snapshot_sha256=None,
+        ownership_snapshot_as_of_date=None,
+        ownership_snapshot_observed_at=None,
+        eligible_quantity=None,
+        entitlement_calculation_sha256=None,
+        reversal_of_entry_id=701,
+    )
+    correction_successor = replace(
+        request,
+        **corrected_common,
+        entry_kind=CorporateActionEntryKind.SUCCESSOR,
+        cash_amount=Decimal("200.00"),
+    )
+    assert correction_reversal.source_event_id == event.source_event_id
+    assert correction_reversal.source_record_id == successor.source_event_id
+    assert not verifier.verify_source(correction_reversal)
+    OfficialSzsePdfBodyStore(tmp_path).retain(
+        CapturedOfficialSzsePdf(
+            source_url=successor.source_url,
+            source_document_id=successor.source_event_id,
+            first_seen_at=successor.first_seen_at,
+            body_sha256=successor.source_body_sha256,
+            body=corrected_body,
+        )
+    )
+    assert verifier.verify_source(correction_reversal)
+    assert verifier.verify_source(correction_successor)
+    assert not verifier.verify_source(
+        replace(
+            correction_successor,
+            supersedes_revision_id="sha256:" + "0" * 64,
+        )
+    )
+    assert not verifier.verify_source(
+        replace(correction_successor, source_record_id=event.source_event_id)
+    )

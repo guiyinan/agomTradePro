@@ -100,6 +100,7 @@ def _request(
     account: SimulatedAccountModel,
     *,
     event_id: str = "SZSE:002727:synthetic-dividend",
+    source_record_id: str = "SZSE:synthetic-disclosure-pdf",
     source_revision_id: str = "sha256:source-v1",
     supersedes_revision_id: str | None = None,
     source_payload_sha256: str = "a" * 64,
@@ -143,7 +144,7 @@ def _request(
         asset_code="002727.SZ",
         asset_name="Synthetic security",
         source_namespace="exchange_official_disclosure",
-        source_record_id="SZSE:synthetic-disclosure-pdf",
+        source_record_id=source_record_id,
         source_event_id=event_id,
         source_revision_id=source_revision_id,
         source_payload_sha256=source_payload_sha256,
@@ -187,11 +188,20 @@ def _unsaved_posting_row(
 
     return CorporateActionPostingModel(
         id=entry_id,
+        account_id=request.account_id,
         account_revision=account_revision,
+        source_namespace=request.source_namespace,
+        source_record_id=request.source_record_id,
+        source_event_id=request.source_event_id,
         source_revision_id=request.source_revision_id,
+        asset_code=request.asset_code,
+        security_id=request.security_id,
+        action_kind=request.action_kind.value,
         entry_kind=request.entry_kind.value,
+        stage=request.stage.value,
         stage_key=request.stage_key,
         request_payload_sha256=request.payload_sha256,
+        supersedes_revision_id=request.supersedes_revision_id,
     )
 
 
@@ -399,6 +409,7 @@ def test_correction_is_one_replayable_reversal_and_successor_batch(
     payment_receipt = use_case.execute((payment,))[0]
 
     correction_common = {
+        "source_record_id": "SZSE:synthetic-corrected-disclosure-pdf",
         "source_revision_id": "sha256:source-v2",
         "supersedes_revision_id": "sha256:source-v1",
         "source_payload_sha256": "9" * 64,
@@ -462,6 +473,68 @@ def test_correction_is_one_replayable_reversal_and_successor_batch(
     assert account.current_cash == Decimal("10250.00")
     assert CorporateActionPostingModel.objects.filter(account=account).count() == 6
 
+    second_correction_common = {
+        "source_record_id": "SZSE:synthetic-second-correction-pdf",
+        "source_revision_id": "sha256:source-v3",
+        "supersedes_revision_id": "sha256:source-v2",
+        "source_payload_sha256": "7" * 64,
+        "qualification_sha256": "6" * 64,
+        "source_observed_at": datetime(2026, 11, 10, 1, 40, tzinfo=UTC),
+        "qualified_at": datetime(2026, 11, 10, 1, 45, tzinfo=UTC),
+        "posted_at": datetime(2026, 11, 10, 1, 50, tzinfo=UTC),
+    }
+    reverse_second_payment = replace(
+        corrected_payment,
+        **second_correction_common,
+        entry_kind=CorporateActionEntryKind.REVERSAL,
+        payment_date=None,
+        cash_amount=None,
+        tax_treatment=None,
+        tax_rule_id=None,
+        tax_rule_sha256=None,
+        reversal_of_entry_id=receipts[3].entry_id,
+    )
+    reverse_second_entitlement = replace(
+        corrected_entitlement,
+        **second_correction_common,
+        entry_kind=CorporateActionEntryKind.REVERSAL,
+        cash_amount=None,
+        tax_treatment=None,
+        tax_rule_id=None,
+        tax_rule_sha256=None,
+        ownership_snapshot_id=None,
+        ownership_snapshot_sha256=None,
+        ownership_snapshot_as_of_date=None,
+        ownership_snapshot_observed_at=None,
+        eligible_quantity=None,
+        entitlement_calculation_sha256=None,
+        reversal_of_entry_id=receipts[2].entry_id,
+    )
+    second_successor_entitlement = replace(
+        corrected_entitlement,
+        **second_correction_common,
+        entry_kind=CorporateActionEntryKind.SUCCESSOR,
+        cash_amount=Decimal("275.00"),
+    )
+    second_successor_payment = replace(
+        corrected_payment,
+        **second_correction_common,
+        entry_kind=CorporateActionEntryKind.SUCCESSOR,
+        cash_amount=Decimal("275.00"),
+    )
+    second_correction = (
+        reverse_second_payment,
+        reverse_second_entitlement,
+        second_successor_entitlement,
+        second_successor_payment,
+    )
+    second_receipts = use_case.execute(second_correction)
+    assert all(not receipt.replayed for receipt in second_receipts)
+    assert all(receipt.replayed for receipt in use_case.execute(second_correction))
+    account.refresh_from_db()
+    assert account.current_cash == Decimal("10275.00")
+    assert CorporateActionPostingModel.objects.filter(account=account).count() == 10
+
 
 def test_correction_replay_requires_complete_set_and_survives_later_payment(
     action_ledger: tuple[AbstractBaseUser, SimulatedAccountModel],
@@ -516,6 +589,15 @@ def test_correction_replay_requires_complete_set_and_survives_later_payment(
         use_case.execute((reversal,))
     assert partial_replay.value.code == "CORPORATE_ACTION_REVISION_REPLAY_CONFLICT"
 
+    duplicate_entitlement = replace(
+        successor,
+        entry_kind=CorporateActionEntryKind.POSTING,
+        supersedes_revision_id=None,
+    )
+    with pytest.raises(CorporateActionPostingConflictError) as duplicate_stage:
+        use_case.execute((duplicate_entitlement,))
+    assert duplicate_stage.value.code == "CORPORATE_ACTION_STAGE_ALREADY_APPLIED"
+
     later_payment = replace(
         successor,
         stage=CorporateActionStage.CASH_PAYMENT,
@@ -530,6 +612,11 @@ def test_correction_replay_requires_complete_set_and_survives_later_payment(
         entitlement_calculation_sha256=None,
         supersedes_revision_id=None,
     )
+    with pytest.raises(CorporateActionPostingConflictError) as changed_record:
+        use_case.execute(
+            (replace(later_payment, source_record_id="SZSE:other-corrected-document"),)
+        )
+    assert changed_record.value.code == "CORPORATE_ACTION_SOURCE_RECORD_IDENTITY_CONFLICT"
     payment_receipt = use_case.execute((later_payment,))[0]
     assert not payment_receipt.replayed
 
@@ -627,6 +714,127 @@ def test_replay_resolution_requires_complete_correction_but_allows_later_posting
     payment_replay = repository._resolve_exact_replay((later_payment,), rows)
     assert payment_replay is not None and payment_replay[0].entry_id == 14
     assert payment_replay[0].replayed
+
+
+def test_source_record_identity_may_change_only_between_source_revisions() -> None:
+    """Logical event identity spans corrections, but one revision pins one disclosure ID."""
+
+    account = SimulatedAccountModel(pk=101, user_id=202)
+    original = _request(account)
+    successor = replace(
+        original,
+        source_record_id="SZSE:synthetic-corrected-disclosure-pdf",
+        source_revision_id="sha256:source-v2",
+        source_payload_sha256="9" * 64,
+        qualification_sha256="8" * 64,
+        entry_kind=CorporateActionEntryKind.SUCCESSOR,
+        supersedes_revision_id=original.source_revision_id,
+    )
+    old_row = _unsaved_posting_row(original, entry_id=11, account_revision=1)
+    corrected_row = _unsaved_posting_row(successor, entry_id=12, account_revision=2)
+    corrected_row.source_record_id = "SZSE:other-disclosure-pdf"
+
+    assert corporate_action_posting_repository._same_event_identity(successor, [old_row])
+    assert corporate_action_posting_repository._same_revision_source_record(successor, [old_row])
+    assert not corporate_action_posting_repository._same_revision_source_record(
+        successor, [old_row, corrected_row]
+    )
+
+
+def test_corrected_revision_blocks_duplicate_posting_but_allows_payment_and_full_replay() -> None:
+    """One source head cannot credit an entitlement twice or lose correction retries."""
+
+    account = SimulatedAccountModel(pk=101, user_id=202)
+    original = _request(account)
+    correction_common = {
+        "source_record_id": "SZSE:synthetic-corrected-disclosure-pdf",
+        "source_revision_id": "sha256:source-v2",
+        "supersedes_revision_id": original.source_revision_id,
+        "source_payload_sha256": "9" * 64,
+        "qualification_sha256": "8" * 64,
+        "source_observed_at": datetime(2026, 11, 10, 1, 20, tzinfo=UTC),
+        "qualified_at": datetime(2026, 11, 10, 1, 25, tzinfo=UTC),
+        "posted_at": datetime(2026, 11, 10, 1, 30, tzinfo=UTC),
+    }
+    reversal = replace(
+        original,
+        **correction_common,
+        entry_kind=CorporateActionEntryKind.REVERSAL,
+        cash_amount=None,
+        tax_treatment=None,
+        ownership_snapshot_id=None,
+        ownership_snapshot_sha256=None,
+        ownership_snapshot_as_of_date=None,
+        ownership_snapshot_observed_at=None,
+        eligible_quantity=None,
+        entitlement_calculation_sha256=None,
+        reversal_of_entry_id=11,
+    )
+    successor = replace(
+        original,
+        **correction_common,
+        entry_kind=CorporateActionEntryKind.SUCCESSOR,
+        cash_amount=Decimal("250.00"),
+    )
+    later_payment = replace(
+        successor,
+        stage=CorporateActionStage.CASH_PAYMENT,
+        entry_kind=CorporateActionEntryKind.POSTING,
+        stage_date=date(2026, 9, 25),
+        payment_date=date(2026, 9, 25),
+        ownership_snapshot_id=None,
+        ownership_snapshot_sha256=None,
+        ownership_snapshot_as_of_date=None,
+        ownership_snapshot_observed_at=None,
+        eligible_quantity=None,
+        entitlement_calculation_sha256=None,
+        supersedes_revision_id=None,
+    )
+    duplicate_entitlement = replace(
+        successor,
+        entry_kind=CorporateActionEntryKind.POSTING,
+        supersedes_revision_id=None,
+    )
+    rows = [
+        _unsaved_posting_row(original, entry_id=11, account_revision=1),
+        _unsaved_posting_row(reversal, entry_id=12, account_revision=2),
+        _unsaved_posting_row(successor, entry_id=13, account_revision=3),
+        _unsaved_posting_row(later_payment, entry_id=14, account_revision=4),
+    ]
+    repository = DjangoCorporateActionPostingRepository()
+
+    with pytest.raises(CorporateActionPostingConflictError) as duplicate:
+        repository._validate_revision_transition((duplicate_entitlement,), rows)
+    assert duplicate.value.code == "CORPORATE_ACTION_STAGE_ALREADY_APPLIED"
+
+    repository._validate_revision_transition((later_payment,), rows[:-1])
+    replay = repository._resolve_exact_replay((reversal, successor), rows)
+    assert replay is not None and all(receipt.replayed for receipt in replay)
+    with pytest.raises(CorporateActionPostingConflictError) as partial:
+        repository._resolve_exact_replay((reversal,), rows)
+    assert partial.value.code == "CORPORATE_ACTION_REVISION_REPLAY_CONFLICT"
+
+
+def test_current_source_head_does_not_repeat_an_existing_rights_no_effect_stage() -> None:
+    """A no-effect stage is still a unique immutable source-revision decision."""
+
+    account = SimulatedAccountModel(pk=101, user_id=202)
+    no_effect = _request(
+        account,
+        action_kind=CorporateActionKind.RIGHTS_ISSUE,
+        stage=CorporateActionStage.RIGHTS_NOT_EXERCISED,
+        entry_kind=CorporateActionEntryKind.NO_EFFECT,
+        cash_amount=None,
+        tax_treatment=None,
+        rights_terms_sha256="f" * 64,
+        rights_election="not_exercised",
+    )
+    row = _unsaved_posting_row(no_effect, entry_id=11, account_revision=1)
+
+    with pytest.raises(CorporateActionPostingConflictError) as duplicate:
+        DjangoCorporateActionPostingRepository._validate_revision_transition((no_effect,), [row])
+
+    assert duplicate.value.code == "CORPORATE_ACTION_STAGE_ALREADY_APPLIED"
 
 
 def test_historical_snapshot_is_not_current_position_and_share_release_is_t_plus_one(

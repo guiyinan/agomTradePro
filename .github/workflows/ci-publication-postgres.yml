@@ -222,6 +222,16 @@ jobs:
           tests/component/simulated_trading/test_corporate_action_posting_repository.py::test_correction_replay_requires_complete_set_and_survives_later_payment
           tests/component/simulated_trading/test_corporate_action_posting_repository.py::test_replay_resolution_requires_complete_correction_but_allows_later_posting
           tests/component/simulated_trading/test_simulated_tax_date_convention_postgres.py::test_native_date_rule_uses_actual_profile_clocks_and_never_falls_back
+          tests/component/simulated_trading/test_owner_granted_cash_correction_postgres.py::test_native_owner_cash_correction_replays_complete_batch_after_payment
+          tests/component/simulated_trading/test_owner_granted_cash_correction_postgres.py::test_native_owner_cash_correction_second_audit_failure_rolls_back_batch
+          tests/component/simulated_trading/test_audited_corporate_action_posting_composition.py::test_audited_cash_correction_normalizes_appends_and_replays_the_full_batch
+          tests/component/simulated_trading/test_audited_corporate_action_posting_composition.py::test_audited_cash_correction_rejects_partial_and_mixed_source_batches
+          tests/component/simulated_trading/test_audited_corporate_action_posting_composition.py::test_second_audit_append_failure_rolls_back_entire_cash_correction
+          tests/component/simulated_trading/test_audited_corporate_action_posting_composition.py::test_second_correction_outbox_failure_rolls_back_audit_and_ledger_batch
+          tests/component/simulated_trading/test_corporate_action_posting_repository.py::test_source_record_identity_may_change_only_between_source_revisions
+          tests/component/simulated_trading/test_corporate_action_posting_repository.py::test_corrected_revision_blocks_duplicate_posting_but_allows_payment_and_full_replay
+          tests/component/simulated_trading/test_corporate_action_posting_repository.py::test_current_source_head_does_not_repeat_an_existing_rights_no_effect_stage
+          tests/component/simulated_trading/test_official_disclosure_action_qualification.py::test_exact_source_revision_and_gross_terms_are_qualified
           --ds=core.settings.critical_postgres_test
           --confcutdir=tests/component
           --create-db -q -o addopts='' --junitxml=ash05-cash-posting-postgres.xml

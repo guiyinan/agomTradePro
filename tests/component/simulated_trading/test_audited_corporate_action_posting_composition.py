@@ -283,6 +283,77 @@ def _payment_request(account: SimulatedAccountModel) -> CorporateActionStageRequ
     )
 
 
+def _cash_correction_requests(
+    entitlement: CorporateActionStageRequest,
+    *,
+    entitlement_entry_id: int,
+    payment: CorporateActionStageRequest | None = None,
+    payment_entry_id: int | None = None,
+) -> tuple[CorporateActionStageRequest, ...]:
+    """Build one synthetic correction revision, intentionally in caller order."""
+
+    source_observed_at = datetime.now(UTC) - timedelta(minutes=5)
+    qualified_at = source_observed_at + timedelta(seconds=2)
+    posted_at = qualified_at + timedelta(seconds=1)
+    correction_common = {
+        "source_record_id": "SZSE:synthetic-corrected-disclosure-pdf",
+        "source_revision_id": "sha256:" + "f" * 64,
+        "supersedes_revision_id": entitlement.source_revision_id,
+        "source_payload_sha256": "f" * 64,
+        "qualification_sha256": "e" * 64,
+        "source_observed_at": source_observed_at,
+        "qualified_at": qualified_at,
+        "posted_at": posted_at,
+    }
+    reversal_entitlement = replace(
+        entitlement,
+        **correction_common,
+        entry_kind=CorporateActionEntryKind.REVERSAL,
+        cash_amount=None,
+        tax_treatment=None,
+        ownership_snapshot_id=None,
+        ownership_snapshot_sha256=None,
+        ownership_snapshot_as_of_date=None,
+        ownership_snapshot_observed_at=None,
+        eligible_quantity=None,
+        entitlement_calculation_sha256=None,
+        reversal_of_entry_id=entitlement_entry_id,
+    )
+    successor_entitlement = replace(
+        entitlement,
+        **correction_common,
+        entry_kind=CorporateActionEntryKind.SUCCESSOR,
+        cash_amount=Decimal("2.50"),
+    )
+    if payment is None:
+        if payment_entry_id is not None:
+            raise ValueError("payment entry ID requires a payment request")
+        return (successor_entitlement, reversal_entitlement)
+    if type(payment_entry_id) is not int or payment_entry_id <= 0:
+        raise ValueError("payment request requires its exact predecessor entry ID")
+    reversal_payment = replace(
+        payment,
+        **correction_common,
+        entry_kind=CorporateActionEntryKind.REVERSAL,
+        cash_amount=None,
+        payment_date=None,
+        tax_treatment=None,
+        reversal_of_entry_id=payment_entry_id,
+    )
+    successor_payment = replace(
+        payment,
+        **correction_common,
+        entry_kind=CorporateActionEntryKind.SUCCESSOR,
+        cash_amount=Decimal("2.50"),
+    )
+    return (
+        successor_payment,
+        reversal_entitlement,
+        successor_entitlement,
+        reversal_payment,
+    )
+
+
 def _audited_repository(owner_user_id: int) -> AuditedCorporateActionPostingRepositoryPort:
     """Bind synthetic evidence verifiers to the actual same-alias repositories."""
 
@@ -337,6 +408,178 @@ def test_cash_payment_and_exact_replay_keep_one_ledger_audit_outbox_pair() -> No
     assert sum((row.cash_receivable_delta for row in rows), Decimal("0.00")) == Decimal("0.00")
     assert SystemAuditEventModel.objects.count() == 2
     assert SystemAuditOutboxModel.objects.count() == 2
+
+
+@pytest.mark.django_db
+def test_audited_cash_correction_normalizes_appends_and_replays_the_full_batch() -> None:
+    """A scrambled full correction is written canonically and retried as one batch."""
+
+    account = _account()
+    entitlement = _request(account)
+    payment = _payment_request(account)
+    repository = _audited_repository(account.user_id)
+    entitlement_receipt = repository.post_revision_with_audit((entitlement,))[0]
+    payment_receipt = repository.post_revision_with_audit((payment,))[0]
+    requests = _cash_correction_requests(
+        entitlement,
+        entitlement_entry_id=entitlement_receipt.entry_id,
+        payment=payment,
+        payment_entry_id=payment_receipt.entry_id,
+    )
+
+    first = repository.post_revision_with_audit(requests)
+    replay = repository.post_revision_with_audit(requests)
+
+    assert tuple(receipt.stage_key for receipt in first) == tuple(
+        request.stage_key for request in requests
+    )
+    assert all(not receipt.replayed for receipt in first)
+    assert all(receipt.replayed for receipt in replay)
+    assert tuple(receipt.entry_id for receipt in replay) == tuple(
+        receipt.entry_id for receipt in first
+    )
+    account.refresh_from_db()
+    assert account.current_cash == Decimal("2.50")
+    assert CorporateActionPostingModel.objects.filter(account=account).count() == 6
+    assert SystemAuditEventModel.objects.count() == 6
+    assert SystemAuditOutboxModel.objects.count() == 6
+
+
+@pytest.mark.django_db
+def test_audited_cash_correction_rejects_partial_and_mixed_source_batches() -> None:
+    """A partial reversal set or a heterogeneous disclosure tuple writes nothing."""
+
+    account = _account()
+    entitlement = _request(account)
+    payment = _payment_request(account)
+    repository = _audited_repository(account.user_id)
+    entitlement_receipt = repository.post_revision_with_audit((entitlement,))[0]
+    payment_receipt = repository.post_revision_with_audit((payment,))[0]
+    requests = _cash_correction_requests(
+        entitlement,
+        entitlement_entry_id=entitlement_receipt.entry_id,
+        payment=payment,
+        payment_entry_id=payment_receipt.entry_id,
+    )
+
+    partial = (requests[1], requests[2])
+    with pytest.raises(CorporateActionPostingBlockedError) as incomplete:
+        repository.post_revision_with_audit(partial)
+    assert incomplete.value.code == "CORPORATE_ACTION_REVERSAL_SET_INCOMPLETE"
+
+    heterogeneous = tuple(
+        (
+            replace(request, source_record_id="SZSE:other-corrected-record")
+            if request is requests[-1]
+            else request
+        )
+        for request in requests
+    )
+    with pytest.raises(CorporateActionPostingBlockedError) as mixed_source:
+        repository.post_revision_with_audit(heterogeneous)
+    assert mixed_source.value.code == "CORPORATE_ACTION_BATCH_IDENTITY_INVALID"
+
+    assert CorporateActionPostingModel.objects.filter(account=account).count() == 2
+    assert SystemAuditEventModel.objects.count() == 2
+    assert SystemAuditOutboxModel.objects.count() == 2
+
+
+@pytest.mark.django_db
+def test_second_audit_append_failure_rolls_back_entire_cash_correction() -> None:
+    """A failure after the first correction event rolls back all ledger/Audit/Outbox rows."""
+
+    account = _account()
+    entitlement = _request(account)
+    repository = _audited_repository(account.user_id)
+    original_receipt = repository.post_revision_with_audit((entitlement,))[0]
+    requests = _cash_correction_requests(
+        entitlement,
+        entitlement_entry_id=original_receipt.entry_id,
+    )
+    original_append = DjangoSystemAuditEventOutboxCoordinator.append_and_enqueue
+    calls = 0
+
+    def _fail_second_append(
+        coordinator: DjangoSystemAuditEventOutboxCoordinator,
+        event: object,
+        *,
+        expected_predecessor_hash: str | None,
+        recorded_at: datetime,
+    ) -> object:
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            raise SystemAuditEventOutboxUnavailable("second correction Audit failure")
+        return original_append(
+            coordinator,
+            event,
+            expected_predecessor_hash=expected_predecessor_hash,
+            recorded_at=recorded_at,
+        )
+
+    with patch.object(
+        DjangoSystemAuditEventOutboxCoordinator,
+        "append_and_enqueue",
+        autospec=True,
+        side_effect=_fail_second_append,
+    ):
+        with pytest.raises(SystemAuditEventOutboxUnavailable):
+            repository.post_revision_with_audit(requests)
+
+    account.refresh_from_db()
+    assert account.current_cash == Decimal("0.00")
+    assert CorporateActionPostingModel.objects.filter(account=account).count() == 1
+    assert SystemAuditEventModel.objects.count() == 1
+    assert SystemAuditOutboxModel.objects.count() == 1
+
+
+@pytest.mark.django_db
+def test_second_correction_outbox_failure_rolls_back_audit_and_ledger_batch() -> None:
+    """A later Outbox enqueue failure removes all correction writes from the UOW."""
+
+    account = _account()
+    entitlement = _request(account)
+    repository = _audited_repository(account.user_id)
+    original_receipt = repository.post_revision_with_audit((entitlement,))[0]
+    requests = _cash_correction_requests(
+        entitlement,
+        entitlement_entry_id=original_receipt.entry_id,
+    )
+    original_enqueue = DjangoSystemAuditOutboxRepository.enqueue
+    calls = 0
+
+    def _fail_second_enqueue(
+        outbox: DjangoSystemAuditOutboxRepository,
+        event: object,
+        *,
+        available_at: datetime | None = None,
+        created_at: datetime | None = None,
+    ) -> object:
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            raise SystemAuditEventOutboxUnavailable("second correction Outbox failure")
+        return original_enqueue(
+            outbox,
+            event,
+            available_at=available_at,
+            created_at=created_at,
+        )
+
+    with patch.object(
+        DjangoSystemAuditOutboxRepository,
+        "enqueue",
+        autospec=True,
+        side_effect=_fail_second_enqueue,
+    ):
+        with pytest.raises(SystemAuditEventOutboxUnavailable):
+            repository.post_revision_with_audit(requests)
+
+    account.refresh_from_db()
+    assert account.current_cash == Decimal("0.00")
+    assert CorporateActionPostingModel.objects.filter(account=account).count() == 1
+    assert SystemAuditEventModel.objects.count() == 1
+    assert SystemAuditOutboxModel.objects.count() == 1
 
 
 @pytest.mark.django_db

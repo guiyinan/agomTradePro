@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
 
@@ -11,6 +12,7 @@ from django.db import DatabaseError
 from django.utils import timezone
 
 from apps.data_center.domain.security_disclosure_event import (
+    PersistedSecurityDisclosureEvent,
     SecurityDisclosureEvent,
     SecurityDisclosureEventReadScope,
     SecurityDisclosureEventType,
@@ -26,6 +28,7 @@ from apps.simulated_trading.application.corporate_action_posting import (
     CorporateActionSourceQualificationVerifierProtocol,
 )
 from apps.simulated_trading.domain.corporate_action_posting import (
+    CorporateActionEntryKind,
     CorporateActionKind,
     CorporateActionStage,
     CorporateActionStageRequest,
@@ -33,6 +36,117 @@ from apps.simulated_trading.domain.corporate_action_posting import (
 from core.exceptions import DataFetchError, DataValidationError
 
 _PARSER_ID = "szse_official_pdf.v1"
+
+
+def _find_current_event_with_complete_lineage(
+    request: CorporateActionStageRequest,
+    facts: tuple[PersistedSecurityDisclosureEvent, ...],
+    *,
+    verification_at: datetime,
+) -> SecurityDisclosureEvent | None:
+    """Bind the exact current disclosure record to one unbranched logical source root."""
+
+    if (
+        type(request) is not CorporateActionStageRequest
+        or type(facts) is not tuple
+        or type(verification_at) is not datetime
+        or verification_at.tzinfo is None
+        or verification_at.utcoffset() is None
+    ):
+        return None
+    available: list[PersistedSecurityDisclosureEvent] = []
+    by_identity: dict[tuple[str, str], PersistedSecurityDisclosureEvent] = {}
+    for item in facts:
+        if (
+            type(item) is not PersistedSecurityDisclosureEvent
+            or type(item.event) is not SecurityDisclosureEvent
+            or item.event.asset_code != request.asset_code
+            or item.event.exchange is not SecurityDisclosureExchange.SZSE
+            or item.recorded_at > verification_at
+            or item.event.first_seen_at > verification_at
+        ):
+            return None
+        identity = (item.event.source_event_id, item.event.source_revision_id)
+        if identity in by_identity:
+            return None
+        by_identity[identity] = item
+        available.append(item)
+
+    current_candidates = tuple(
+        item
+        for item in available
+        if item.event.source_event_id == request.source_record_id
+        and item.event.source_revision_id == request.source_revision_id
+        and item.recorded_at <= request.qualified_at
+        and item.event.first_seen_at <= request.qualified_at
+    )
+    if len(current_candidates) != 1:
+        return None
+    selected = current_candidates[0]
+    selected_identity = (selected.event.source_event_id, selected.event.source_revision_id)
+
+    child_counts: dict[tuple[str, str], int] = {}
+    for item in available:
+        parent_event_id = item.event.supersedes_source_event_id
+        parent_revision_id = item.event.supersedes_source_revision_id
+        if parent_event_id is None or parent_revision_id is None:
+            continue
+        parent_identity = (parent_event_id, parent_revision_id)
+        child_counts[parent_identity] = child_counts.get(parent_identity, 0) + 1
+    if child_counts.get(selected_identity, 0) != 0:
+        return None
+
+    visited: set[tuple[str, str]] = set()
+    current = selected
+    immediate_parent_revision: str | None = None
+    while True:
+        event = current.event
+        identity = (event.source_event_id, event.source_revision_id)
+        if identity in visited:
+            return None
+        visited.add(identity)
+        parent_event_id = event.supersedes_source_event_id
+        parent_revision_id = event.supersedes_source_revision_id
+        if parent_event_id is None and parent_revision_id is None:
+            if event.source_event_id != request.source_event_id:
+                return None
+            roots = tuple(
+                item
+                for item in available
+                if item.event.source_event_id == request.source_event_id
+                and item.event.supersedes_source_event_id is None
+                and item.event.supersedes_source_revision_id is None
+            )
+            if len(roots) != 1 or roots[0] is not current:
+                return None
+            break
+        if parent_event_id is None or parent_revision_id is None:
+            return None
+        parent_identity = (parent_event_id, parent_revision_id)
+        if child_counts.get(parent_identity) != 1:
+            return None
+        parent = by_identity.get(parent_identity)
+        if (
+            parent is None
+            or parent.recorded_at > request.qualified_at
+            or parent.event.first_seen_at > request.qualified_at
+            or parent.event.asset_code != event.asset_code
+            or parent.event.exchange is not event.exchange
+        ):
+            return None
+        if current is selected:
+            immediate_parent_revision = parent.event.source_revision_id
+        current = parent
+
+    if request.entry_kind in {
+        CorporateActionEntryKind.REVERSAL,
+        CorporateActionEntryKind.SUCCESSOR,
+    } and (
+        request.supersedes_revision_id is None
+        or immediate_parent_revision != request.supersedes_revision_id
+    ):
+        return None
+    return selected.event
 
 
 def szse_action_qualification_sha256(
@@ -74,7 +188,6 @@ class VerifiedSzseActionSourceQualifier(CorporateActionSourceQualificationVerifi
             or request.qualifier_identity != _PARSER_ID
             or request.asset_code != request.security_id
             or not request.asset_code.endswith(".SZ")
-            or request.source_record_id != request.source_event_id
         ):
             return False
         try:
@@ -88,22 +201,12 @@ class VerifiedSzseActionSourceQualifier(CorporateActionSourceQualificationVerifi
                     asset_code=request.asset_code,
                 )
             )
-            matched = tuple(
-                item.event
-                for item in facts
-                if item.recorded_at <= request.qualified_at
-                and item.event.source_event_id == request.source_event_id
-                and item.event.source_revision_id == request.source_revision_id
+            event = _find_current_event_with_complete_lineage(
+                request,
+                facts,
+                verification_at=verification_at,
             )
-            if len(matched) != 1:
-                return False
-            event = matched[0]
-            if any(
-                item.event.supersedes_source_event_id == event.source_event_id
-                and item.event.supersedes_source_revision_id == event.source_revision_id
-                for item in facts
-                if item.recorded_at <= verification_at
-            ):
+            if event is None:
                 return False
             if (
                 event.source is not SecurityDisclosureSource.SZSE_OFFICIAL
@@ -131,7 +234,6 @@ class VerifiedSzseActionSourceQualifier(CorporateActionSourceQualificationVerifi
             request.record_date != terms.record_date
             or request.effective_date != terms.ex_date
             or request.qualification_sha256 != szse_action_qualification_sha256(event, terms)
-            or request.tax_treatment != terms.tax_treatment
         ):
             return False
         if request.action_kind is CorporateActionKind.CASH_DIVIDEND:
@@ -139,6 +241,14 @@ class VerifiedSzseActionSourceQualifier(CorporateActionSourceQualificationVerifi
                 event.event_type is not SecurityDisclosureEventType.CASH_DIVIDEND
                 or terms.cash_per_ten is None
             ):
+                return False
+            if request.entry_kind is CorporateActionEntryKind.REVERSAL:
+                return (
+                    request.supersedes_revision_id is not None
+                    and event.supersedes_source_revision_id == request.supersedes_revision_id
+                    and request.tax_treatment is None
+                )
+            if request.tax_treatment != terms.tax_treatment:
                 return False
             if request.stage is CorporateActionStage.CASH_ENTITLEMENT:
                 if request.eligible_quantity is None or request.cash_amount is None:
@@ -152,6 +262,7 @@ class VerifiedSzseActionSourceQualifier(CorporateActionSourceQualificationVerifi
             if (
                 event.event_type is not SecurityDisclosureEventType.STOCK_DIVIDEND
                 or terms.shares_per_ten is None
+                or request.tax_treatment != terms.tax_treatment
             ):
                 return False
             if request.stage is CorporateActionStage.SHARE_ENTITLEMENT:

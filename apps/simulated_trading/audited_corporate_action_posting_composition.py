@@ -13,6 +13,7 @@ from django.utils import timezone
 from apps.account.domain.simulated_corporate_action_write_grant import (
     SimulatedCorporateActionWriteGrant,
 )
+from apps.audit.application.system_audit_event_outbox import ExactSystemAuditOutboxWinner
 from apps.audit.domain.system_audit_event import (
     AuditActorRef,
     AuditCategory,
@@ -39,6 +40,7 @@ from apps.simulated_trading.application.corporate_action_posting import (
     HistoricalAccountOwnershipVerifierProtocol,
     PostCashDividendEntitlementUseCase,
     PostCashDividendPaymentUseCase,
+    PostCorporateActionStageUseCase,
 )
 from apps.simulated_trading.corporate_action_owner_grant_gate import (
     DjangoCorporateActionOwnerGrantGate,
@@ -47,6 +49,7 @@ from apps.simulated_trading.corporate_action_owner_grant_gate import (
 from apps.simulated_trading.corporate_action_posting_composition import (
     build_corporate_action_payment_use_case,
     build_corporate_action_posting_use_case,
+    build_corporate_action_revision_use_case,
 )
 from apps.simulated_trading.corporate_action_write_scope_composition import (
     CorporateActionSourceTimestampReplayProof,
@@ -64,6 +67,7 @@ from apps.simulated_trading.infrastructure.corporate_action_posting_models impor
 )
 from apps.simulated_trading.infrastructure.corporate_action_posting_repository import (
     DjangoCorporateActionPostingRepository,
+    _delta_for_reversal,
 )
 from apps.simulated_trading.infrastructure.simulated_account_trade_models import (
     SimulatedAccountModel,
@@ -72,15 +76,174 @@ from apps.simulated_trading.infrastructure.simulated_account_trade_models import
 _EVENT_TYPE = "simulated.corporate_action.stage_posted"
 _EVENT_VERSION = "1"
 _DETAIL_SCHEMA = "simulated.corporate_action.stage_posted.v1"
+_CASH_CORRECTION_KINDS = frozenset(
+    {CorporateActionEntryKind.REVERSAL, CorporateActionEntryKind.SUCCESSOR}
+)
+_CASH_REVISION_IDENTITY_FIELDS = (
+    "account_id",
+    "owner_user_id",
+    "security_id",
+    "asset_code",
+    "asset_name",
+    "source_namespace",
+    "source_record_id",
+    "source_event_id",
+    "source_revision_id",
+    "supersedes_revision_id",
+    "record_date",
+    "effective_date",
+    "source_payload_sha256",
+    "qualification_sha256",
+    "qualifier_identity",
+    "source_observed_at",
+    "qualified_at",
+    "posted_at",
+    "action_kind",
+)
+
+
+def _prepare_cash_revision_requests(
+    requests: tuple[CorporateActionStageRequest, ...],
+) -> tuple[tuple[CorporateActionStageRequest, ...], CorporateActionStageRequest]:
+    """Validate one ordinary cash stage or normalize one complete cash correction."""
+
+    if type(requests) is not tuple or not requests:
+        raise CorporateActionPostingBlockedError(
+            "cash revision must contain an exact non-empty request tuple",
+            code="CORPORATE_ACTION_INPUT_INVALID",
+        )
+    for request in requests:
+        if type(request) is not CorporateActionStageRequest:
+            raise CorporateActionPostingBlockedError(
+                "cash revision contains an invalid stage request",
+                code="CORPORATE_ACTION_INPUT_INVALID",
+            )
+        try:
+            request.__post_init__()
+        except (TypeError, ValueError) as error:
+            raise CorporateActionPostingBlockedError(
+                "cash revision contains an invalid stage request",
+                code="CORPORATE_ACTION_INPUT_INVALID",
+            ) from error
+        if request.action_kind is not CorporateActionKind.CASH_DIVIDEND or request.stage not in {
+            CorporateActionStage.CASH_ENTITLEMENT,
+            CorporateActionStage.CASH_PAYMENT,
+        }:
+            raise CorporateActionPostingBlockedError(
+                "audited cash revision excludes tax, share, and rights stages",
+                code="CORPORATE_ACTION_STAGE_UNSUPPORTED",
+            )
+
+    if len(requests) == 1:
+        request = requests[0]
+        if request.entry_kind not in {
+            CorporateActionEntryKind.POSTING,
+            CorporateActionEntryKind.SUCCESSOR,
+        }:
+            raise CorporateActionPostingBlockedError(
+                "audited cash posting only accepts one ordinary posting stage",
+                code="CORPORATE_ACTION_STAGE_UNSUPPORTED",
+            )
+        return requests, request
+
+    first = requests[0]
+    stage_keys: set[str] = set()
+    for request in requests:
+        if request.entry_kind not in _CASH_CORRECTION_KINDS:
+            raise CorporateActionPostingBlockedError(
+                "a multi-stage audited cash revision must be one reversal/successor batch",
+                code="CORPORATE_ACTION_STAGE_UNSUPPORTED",
+            )
+        if any(
+            getattr(request, field) != getattr(first, field)
+            for field in _CASH_REVISION_IDENTITY_FIELDS
+        ):
+            raise CorporateActionPostingBlockedError(
+                "cash correction stages must share one exact owner and source revision",
+                code="CORPORATE_ACTION_BATCH_IDENTITY_INVALID",
+            )
+        if request.stage_key in stage_keys:
+            raise CorporateActionPostingBlockedError(
+                "cash correction contains a duplicate stage key",
+                code="CORPORATE_ACTION_DUPLICATE_STAGE",
+            )
+        stage_keys.add(request.stage_key)
+
+    if (
+        first.supersedes_revision_id is None
+        or first.supersedes_revision_id == first.source_revision_id
+        or not any(request.entry_kind is CorporateActionEntryKind.REVERSAL for request in requests)
+        or not any(request.entry_kind is CorporateActionEntryKind.SUCCESSOR for request in requests)
+    ):
+        raise CorporateActionPostingBlockedError(
+            "cash correction needs one predecessor and both reversal and successor rows",
+            code="CORPORATE_ACTION_REVISION_CONFLICT",
+        )
+
+    def _financial_order(request: CorporateActionStageRequest) -> tuple[int, int]:
+        reversal = request.entry_kind is CorporateActionEntryKind.REVERSAL
+        if reversal:
+            return (0, 0 if request.stage is CorporateActionStage.CASH_PAYMENT else 1)
+        return (1, 0 if request.stage is CorporateActionStage.CASH_ENTITLEMENT else 1)
+
+    ordered = tuple(sorted(requests, key=_financial_order))
+    representative = next(
+        request for request in ordered if request.entry_kind is CorporateActionEntryKind.SUCCESSOR
+    )
+    return ordered, representative
+
+
+def _restore_cash_revision_receipt_order(
+    requests: tuple[CorporateActionStageRequest, ...],
+    receipts: tuple[CorporateActionPostingReceipt, ...],
+) -> tuple[CorporateActionPostingReceipt, ...]:
+    """Return canonical writes in the caller's original request order."""
+
+    receipts_by_stage_key = {receipt.stage_key: receipt for receipt in receipts}
+    if len(receipts_by_stage_key) != len(receipts) or set(receipts_by_stage_key) != {
+        request.stage_key for request in requests
+    }:
+        raise CorporateActionPostingBlockedError(
+            "cash revision receipts do not match the submitted stage keys",
+            code="CORPORATE_ACTION_AUDIT_IDENTITY_CONFLICT",
+        )
+    return tuple(receipts_by_stage_key[request.stage_key] for request in requests)
 
 
 def _ledger_row_matches_request(
     row: CorporateActionPostingModel,
     request: CorporateActionStageRequest,
+    *,
+    reversal_target: CorporateActionPostingModel | None = None,
 ) -> bool:
     """Reject a replay whose immutable row columns no longer match the full request."""
 
-    delta = calculate_corporate_action_delta(request)
+    if request.entry_kind is CorporateActionEntryKind.REVERSAL:
+        if (
+            reversal_target is None
+            or reversal_target.pk != request.reversal_of_entry_id
+            or reversal_target.account_id != request.account_id
+            or reversal_target.source_namespace != request.source_namespace
+            or reversal_target.source_event_id != request.source_event_id
+            or reversal_target.source_revision_id != request.supersedes_revision_id
+            or reversal_target.security_id != request.security_id
+            or reversal_target.asset_code != request.asset_code
+            or reversal_target.action_kind != request.action_kind.value
+            or reversal_target.stage != request.stage.value
+            or reversal_target.entry_kind
+            not in {
+                CorporateActionEntryKind.POSTING.value,
+                CorporateActionEntryKind.SUCCESSOR.value,
+            }
+            or reversal_target.reversal_of_id is not None
+            or reversal_target.account_revision >= row.account_revision
+        ):
+            return False
+        delta = _delta_for_reversal(reversal_target)
+    else:
+        if reversal_target is not None:
+            return False
+        delta = calculate_corporate_action_delta(request)
     return all(
         (
             row.account_id == request.account_id,
@@ -294,10 +457,30 @@ def _build_event(
 
 @dataclass(frozen=True, slots=True)
 class _DjangoCorporateActionReplayTimestampVerifier(CorporateActionSourceTimestampReplayVerifier):
-    """Verify one exact existing ledger/Audit/Outbox identity before timestamp bypass."""
+    """Verify one exact request tuple and every ledger/Audit/Outbox row before timestamp bypass."""
 
     coordinator: DjangoSystemAuditEventOutboxCoordinator
+    posting: DjangoCorporateActionPostingRepository
+    requests: tuple[CorporateActionStageRequest, ...]
+    representative: CorporateActionStageRequest
     using: str
+
+    def __post_init__(self) -> None:
+        """Bind the verifier to its canonical immutable request tuple and representative."""
+
+        if (
+            type(self.requests) is not tuple
+            or not self.requests
+            or type(self.representative) is not CorporateActionStageRequest
+            or not any(request is self.representative for request in self.requests)
+            or type(self.posting) is not DjangoCorporateActionPostingRepository
+            or self.posting.database_alias != self.using
+            or self.coordinator.database_alias != self.using
+        ):
+            raise ValueError("replay verifier scope is invalid")
+        ordered, representative = _prepare_cash_revision_requests(self.requests)
+        if ordered != self.requests or representative is not self.representative:
+            raise ValueError("replay verifier request tuple is not its captured canonical tuple")
 
     def verify_exact_replay(
         self,
@@ -305,72 +488,103 @@ class _DjangoCorporateActionReplayTimestampVerifier(CorporateActionSourceTimesta
         request: CorporateActionStageRequest,
         grant: SimulatedCorporateActionWriteGrant,
     ) -> CorporateActionSourceTimestampReplayProof | None:
-        """Return a proof only for the exact immutable request under this current grant."""
+        """Return one representative proof only after the whole captured batch is exact."""
 
+        if type(request) is not CorporateActionStageRequest or request is not self.representative:
+            return None
         request.__post_init__()
         grant.__post_init__()
-        rows = tuple(
+        event_rows = tuple(
             CorporateActionPostingModel._base_manager.using(self.using)
             .select_for_update()
             .filter(
                 account_id=request.account_id,
+                source_namespace=request.source_namespace,
                 source_event_id=request.source_event_id,
-                source_revision_id=request.source_revision_id,
-                stage_key=request.stage_key,
             )
-            .order_by("pk")[:2]
+            .order_by("account_revision")
         )
-        if not rows:
+        if not event_rows:
             return None
-        if len(rows) != 1:
+        receipts = self.posting._resolve_exact_replay(self.requests, list(event_rows))
+        if receipts is None or len(receipts) != len(self.requests):
             raise CorporateActionPostingBlockedError(
-                "corporate-action replay ledger identity is ambiguous",
+                "corporate-action replay is not the complete retained request tuple",
                 code="CORPORATE_ACTION_AUDIT_REPLAY_INVALID",
             )
-        row = rows[0]
-        if (
-            type(row.pk) is not int
-            or not _ledger_row_matches_request(row, request)
-            or row.request_payload_sha256 != request.payload_sha256
-            or row.stage_key != request.stage_key
-        ):
-            raise CorporateActionPostingBlockedError(
-                "corporate-action replay request differs from its ledger hash",
-                code="CORPORATE_ACTION_AUDIT_REPLAY_INVALID",
-            )
-        receipt = CorporateActionPostingReceipt(
-            entry_id=row.pk,
-            account_revision=row.account_revision,
-            stage_key=row.stage_key,
-            request_payload_sha256=row.request_payload_sha256,
-            replayed=True,
-        )
+        rows_by_key = {(row.source_revision_id, row.stage_key): row for row in event_rows}
+        rows_by_id = {row.pk: row for row in event_rows}
         receipt_scope = AuditScopeRef(
             tenant_id=grant.binding.tenant_id,
             owner_id=grant.binding.owner_id,
         )
-        winner = self.coordinator.get_winner(
-            event_id=_event_id(request),
-            event_version=_EVENT_VERSION,
-            as_of=timezone.now(),
-        )
-        if winner is None or not DjangoAuditedCorporateActionPostingRepository._matches_winner(
-            winner,
-            request,
-            receipt,
-            receipt_scope,
-            owner_grant=grant,
-        ):
+        previous_winner: SystemAuditEvent | None = None
+        representative_evidence: tuple[SystemAuditEvent, ExactSystemAuditOutboxWinner] | None = None
+        prior_account_revision = 0
+        for batch_request, receipt in zip(self.requests, receipts, strict=True):
+            row = rows_by_key.get((batch_request.source_revision_id, batch_request.stage_key))
+            target_id = batch_request.reversal_of_entry_id
+            reversal_target = rows_by_id.get(target_id) if target_id is not None else None
+            if (
+                row is None
+                or type(row.pk) is not int
+                or type(row.account_revision) is not int
+                or row.account_revision <= prior_account_revision
+                or receipt.entry_id != row.pk
+                or receipt.account_revision != row.account_revision
+                or receipt.stage_key != batch_request.stage_key
+                or receipt.request_payload_sha256 != batch_request.payload_sha256
+                or not _ledger_row_matches_request(
+                    row,
+                    batch_request,
+                    reversal_target=reversal_target,
+                )
+            ):
+                raise CorporateActionPostingBlockedError(
+                    "corporate-action correction ledger order or row differs from its request",
+                    code="CORPORATE_ACTION_AUDIT_REPLAY_INVALID",
+                )
+            prior_account_revision = row.account_revision
+            winner = self.coordinator.get_winner(
+                event_id=_event_id(batch_request),
+                event_version=_EVENT_VERSION,
+                as_of=timezone.now(),
+            )
+            if winner is None or not DjangoAuditedCorporateActionPostingRepository._matches_winner(
+                winner,
+                batch_request,
+                receipt,
+                receipt_scope,
+                owner_grant=grant,
+            ):
+                raise CorporateActionPostingBlockedError(
+                    "corporate-action replay lacks exact owner-grant Audit evidence",
+                    code="CORPORATE_ACTION_AUDIT_REPLAY_INVALID",
+                )
+            if previous_winner is not None and (
+                winner.stream_id != previous_winner.stream_id
+                or winner.sequence_no != previous_winner.sequence_no + 1
+                or winner.predecessor_hash != previous_winner.content_hash
+            ):
+                raise CorporateActionPostingBlockedError(
+                    "corporate-action correction Audit events are not one ordered stream batch",
+                    code="CORPORATE_ACTION_AUDIT_REPLAY_INVALID",
+                )
+            outbox = self.coordinator.get_exact_outbox_winner_targeted(winner)
+            if outbox is None or outbox.event != winner:
+                raise CorporateActionPostingBlockedError(
+                    "corporate-action replay lacks exact Outbox evidence",
+                    code="CORPORATE_ACTION_AUDIT_REPLAY_INVALID",
+                )
+            if batch_request is self.representative:
+                representative_evidence = (winner, outbox)
+            previous_winner = winner
+        if representative_evidence is None:
             raise CorporateActionPostingBlockedError(
-                "corporate-action replay lacks exact owner-grant Audit evidence",
+                "corporate-action replay did not retain its exact gate representative",
                 code="CORPORATE_ACTION_AUDIT_REPLAY_INVALID",
             )
-        outbox = self.coordinator.get_exact_outbox_winner_targeted(winner)
-        if outbox is None or outbox.event != winner:
-            raise CorporateActionPostingBlockedError(
-                "corporate-action replay lacks exact Outbox evidence",
-                code="CORPORATE_ACTION_AUDIT_REPLAY_INVALID",
-            )
+        winner, outbox = representative_evidence
         return CorporateActionSourceTimestampReplayProof(
             request_payload_sha256=request.payload_sha256,
             grant_content_hash=grant.content_hash,
@@ -418,40 +632,29 @@ class DjangoAuditedCorporateActionPostingRepository(AuditedCorporateActionPostin
         self,
         requests: tuple[CorporateActionStageRequest, ...],
     ) -> tuple[CorporateActionPostingReceipt, ...]:
-        """Rollback all ledger and Audit writes when any required append fails."""
+        """Atomically append one cash stage or a complete audited cash correction batch."""
 
-        if (
-            type(requests) is not tuple
-            or len(requests) != 1
-            or type(requests[0]) is not CorporateActionStageRequest
-            or requests[0].action_kind is not CorporateActionKind.CASH_DIVIDEND
-            or requests[0].stage
-            not in {
-                CorporateActionStage.CASH_ENTITLEMENT,
-                CorporateActionStage.CASH_PAYMENT,
-            }
-            or requests[0].entry_kind
-            not in {CorporateActionEntryKind.POSTING, CorporateActionEntryKind.SUCCESSOR}
-        ):
-            raise CorporateActionPostingBlockedError(
-                "audited production posting only accepts one cash entitlement or payment",
-                code="CORPORATE_ACTION_STAGE_UNSUPPORTED",
-            )
-        request = requests[0]
+        ordered_requests, representative = _prepare_cash_revision_requests(requests)
         replay_verifier = _DjangoCorporateActionReplayTimestampVerifier(
             coordinator=self._coordinator,
+            posting=self._posting,
+            requests=ordered_requests,
+            representative=representative,
             using=self._using,
         )
         with self._owner_grant_gate.atomic_authority(
-            request,
+            representative,
             replay_timestamp_verifier=replay_verifier,
         ) as authority:
             with self._coordinator.atomic():
-                self._owner_grant_gate.assert_source_timestamp_current_or_proven(request=request)
-                return self._post_revision_in_atomic(
-                    requests,
+                self._owner_grant_gate.assert_source_timestamp_current_or_proven(
+                    request=representative
+                )
+                receipts = self._post_revision_in_atomic(
+                    ordered_requests,
                     authority=authority,
                 )
+                return _restore_cash_revision_receipt_order(requests, receipts)
 
     def _post_revision_in_atomic(
         self,
@@ -459,7 +662,7 @@ class DjangoAuditedCorporateActionPostingRepository(AuditedCorporateActionPostin
         *,
         authority: OwnerGrantedCorporateActionAuthority,
     ) -> tuple[CorporateActionPostingReceipt, ...]:
-        """Append one ledger request with its exact authority-scoped Audit/Outbox event."""
+        """Append canonical ledger rows with ordered authority-scoped Audit/Outbox events."""
 
         owner_user_id = _locked_owner_user_id(requests[0], using=self._using)
         current_authority = self._assert_current_authority(authority)
@@ -666,6 +869,31 @@ def build_audited_cash_payment_use_case(
             code="CORPORATE_ACTION_AUDIT_OUTBOX_UNAVAILABLE",
         )
     return build_corporate_action_payment_use_case(
+        body_store_root=body_store_root,
+        runtime_environment=runtime_environment,
+        audited_repository=DjangoAuditedCorporateActionPostingRepositoryFactory(
+            environment=runtime_environment,
+            owner_grant_gate=owner_grant_gate,
+        ),
+        using=using,
+    )
+
+
+def build_audited_cash_revision_use_case(
+    *,
+    body_store_root: Path,
+    runtime_environment: str,
+    owner_grant_gate: DjangoCorporateActionOwnerGrantGate,
+    using: str = DEFAULT_DB_ALIAS,
+) -> PostCorporateActionStageUseCase:
+    """Wire the generic cash stage use case to the same explicit owner-grant Audit UOW."""
+
+    if using != DEFAULT_DB_ALIAS:
+        raise CorporateActionPostingBlockedError(
+            "cash correction valuation currently supports the default account database only",
+            code="CORPORATE_ACTION_AUDIT_OUTBOX_UNAVAILABLE",
+        )
+    return build_corporate_action_revision_use_case(
         body_store_root=body_store_root,
         runtime_environment=runtime_environment,
         audited_repository=DjangoAuditedCorporateActionPostingRepositoryFactory(

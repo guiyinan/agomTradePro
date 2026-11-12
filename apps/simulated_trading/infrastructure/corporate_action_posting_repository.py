@@ -110,17 +110,29 @@ def _same_event_identity(
     request: CorporateActionStageRequest,
     rows: _EntryRows,
 ) -> bool:
-    """Check immutable source-event and asset identity across stored revisions."""
+    """Check stable logical event and asset identity across stored source revisions."""
 
     return all(
         row.source_namespace == request.source_namespace
-        and row.source_record_id == request.source_record_id
         and row.source_event_id == request.source_event_id
         and row.action_kind == request.action_kind.value
         and row.asset_code == request.asset_code
         and row.security_id == request.security_id
         and row.account_id == request.account_id
         for row in rows
+    )
+
+
+def _same_revision_source_record(
+    request: CorporateActionStageRequest,
+    rows: _EntryRows,
+) -> bool:
+    """Keep the exact current disclosure record stable within one source revision."""
+
+    return all(
+        row.source_record_id == request.source_record_id
+        for row in rows
+        if row.source_revision_id == request.source_revision_id
     )
 
 
@@ -241,6 +253,11 @@ class DjangoCorporateActionPostingRepository(CorporateActionPostingRepositoryPro
                 _conflict(
                     "source event identity was already bound to another account asset",
                     "CORPORATE_ACTION_EVENT_IDENTITY_CONFLICT",
+                )
+            if event_rows and not _same_revision_source_record(first, event_rows):
+                _conflict(
+                    "one source revision cannot change its exact disclosure record identity",
+                    "CORPORATE_ACTION_SOURCE_RECORD_IDENTITY_CONFLICT",
                 )
 
             replay = self._resolve_exact_replay(requests, event_rows)
@@ -627,6 +644,26 @@ class DjangoCorporateActionPostingRepository(CorporateActionPostingRepositoryPro
                 _conflict(
                     "stages on the current source version cannot claim a correction predecessor",
                     "CORPORATE_ACTION_REVISION_CONFLICT",
+                )
+            existing_stage_keys = {
+                (row.source_revision_id, row.stage)
+                for row in event_rows
+                if row.entry_kind
+                in {
+                    CorporateActionEntryKind.POSTING.value,
+                    CorporateActionEntryKind.SUCCESSOR.value,
+                    CorporateActionEntryKind.NO_EFFECT.value,
+                }
+            }
+            if any(
+                request.entry_kind
+                in {CorporateActionEntryKind.POSTING, CorporateActionEntryKind.NO_EFFECT}
+                and (request.source_revision_id, request.stage.value) in existing_stage_keys
+                for request in requests
+            ):
+                _conflict(
+                    "a source revision cannot apply an already retained corporate-action stage",
+                    "CORPORATE_ACTION_STAGE_ALREADY_APPLIED",
                 )
             return
         if (
