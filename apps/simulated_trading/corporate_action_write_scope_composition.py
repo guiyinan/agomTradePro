@@ -19,6 +19,7 @@ from apps.account.application.simulated_corporate_action_write_issuance import (
     LockedSimulatedCorporateActionWriteScope,
 )
 from apps.account.domain.simulated_corporate_action_write_grant import (
+    SIMULATED_CORPORATE_ACTION_WRITE_GRANT_SCHEMA,
     SimulatedCorporateActionWriteGrant,
     SimulatedCorporateActionWriteGrantBinding,
 )
@@ -116,6 +117,7 @@ class DjangoSimulatedCorporateActionWriteScopeLocker:
         owner_user_id: int,
         expected_binding: SimulatedCorporateActionWriteGrantBinding,
         request: CorporateActionStageRequest | None = None,
+        expected_grant_schema: str = SIMULATED_CORPORATE_ACTION_WRITE_GRANT_SCHEMA,
     ) -> Iterator[LockedSimulatedCorporateActionWriteScope]:
         """Never infer authority from financial balances, physical IDs or evidence-only flags."""
         binding = expected_binding
@@ -213,6 +215,7 @@ class DjangoSimulatedCorporateActionWriteScopeLocker:
             canonical_namespace=source.account_namespace,
             using=self.database_alias,
             runtime_environment=self.runtime_environment,
+            expected_grant_schema=expected_grant_schema,
         ) as policy:
             if request is None:
                 yield LockedSimulatedCorporateActionWriteScope(
@@ -222,6 +225,10 @@ class DjangoSimulatedCorporateActionWriteScopeLocker:
                         as_of=timezone.now(),
                         source_valid_until=source.valid_until,
                     ),
+                    grant_schema=policy.grant_schema,
+                    capabilities=policy.capabilities,
+                    terms_version=policy.terms_version,
+                    terms_sha256=policy.terms_sha256,
                 )
                 row.refresh_from_db(using=self.database_alias)
                 if (
@@ -249,6 +256,10 @@ class DjangoSimulatedCorporateActionWriteScopeLocker:
                             as_of=timezone.now(),
                             source_valid_until=source.valid_until,
                         ),
+                        grant_schema=policy.grant_schema,
+                        capabilities=policy.capabilities,
+                        terms_version=policy.terms_version,
+                        terms_sha256=policy.terms_sha256,
                     )
                     if not active_scope.timestamp_matches and active_scope.replay_proof is None:
                         raise SimulatedCorporateActionWriteGrantUnavailable(

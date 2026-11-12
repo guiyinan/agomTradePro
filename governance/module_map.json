@@ -1135,7 +1135,7 @@
         "infrastructure": 154,
         "interface": 24,
         "management": 14,
-        "root": 29
+        "root": 30
       }
     },
     "agent_runtime": {

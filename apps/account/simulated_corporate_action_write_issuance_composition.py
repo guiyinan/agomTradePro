@@ -25,6 +25,9 @@ from apps.account.application.simulated_corporate_action_write_issuance import (
     SimulatedCorporateActionWriteScopeLocker,
 )
 from apps.account.domain.simulated_corporate_action_write_grant import (
+    SIMULATED_CORPORATE_ACTION_STAGE_WRITE_PERMISSION,
+    SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_PERMISSION,
+    SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA,
     SimulatedCorporateActionWriteGrant,
     SimulatedCorporateActionWriteGrantRevocation,
     SimulatedCorporateActionWriteGrantSelector,
@@ -165,6 +168,7 @@ def issue_authenticated_simulated_corporate_action_grant(
             physical_account_id=command.physical_account_id,
             owner_user_id=requester.user_id,
             expected_binding=command.expected_binding,
+            expected_grant_schema=command.grant_schema,
         ) as scope:
             if type(scope) is not LockedSimulatedCorporateActionWriteScope:
                 raise SimulatedCorporateActionWriteGrantUnavailable("locked grant scope is invalid")
@@ -174,6 +178,17 @@ def issue_authenticated_simulated_corporate_action_grant(
                 scope.physical_account_id != command.physical_account_id
                 or scope.binding != command.expected_binding
                 or scope.binding.owner_user_id != requester.user_id
+                or scope.grant_schema != command.grant_schema
+                or scope.terms_version != command.terms_version
+                or scope.terms_sha256 != command.terms_sha256
+                or (
+                    command.grant_schema == SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA
+                    and (
+                        scope.capabilities is None
+                        or command.capabilities is None
+                        or not set(command.capabilities).issubset(scope.capabilities)
+                    )
+                )
                 or not now < command.valid_until <= scope.valid_until
             ):
                 raise SimulatedCorporateActionWriteGrantUnavailable(
@@ -191,8 +206,12 @@ def issue_authenticated_simulated_corporate_action_grant(
                 if (
                     existing.grant_id == command.grant_id
                     and existing.grant_version == command.grant_version
+                    and existing.schema == command.grant_schema
                     and existing.binding == scope.binding
                     and existing.valid_until == command.valid_until
+                    and existing.capabilities == command.capabilities
+                    and existing.terms_version == command.terms_version
+                    and existing.terms_sha256 == command.terms_sha256
                     and existing.supersedes_content_hash
                     == command.expected_predecessor_content_hash
                     and existing.is_active_at(now)
@@ -209,18 +228,36 @@ def issue_authenticated_simulated_corporate_action_grant(
                 raise SimulatedCorporateActionWriteGrantConflict(
                     "grant consent conflicts with the current account scope"
                 )
+            consent_facts: dict[str, object] = {
+                "schema": "account.simulated-action-owner-consent.v1",
+                "actor_id": requester.actor_id,
+                "grant_id": command.grant_id,
+                "grant_version": command.grant_version,
+                "physical_account_id": scope.physical_account_id,
+                "binding": scope.binding.to_payload(),
+                "consented_at": now.isoformat(),
+                "valid_until": command.valid_until.isoformat(),
+            }
+            consent_version = "1"
+            if command.grant_schema == SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA:
+                if command.capabilities is None:
+                    raise SimulatedCorporateActionWriteGrantUnavailable(
+                        "V2 consent capabilities are missing"
+                    )
+                consent_facts.update(
+                    {
+                        "schema": "account.simulated-action-owner-consent.v2",
+                        "grant_schema": command.grant_schema,
+                        "capabilities": [capability.value for capability in command.capabilities],
+                        "terms_version": command.terms_version,
+                        "terms_sha256": command.terms_sha256,
+                        "predecessor_content_hash": command.expected_predecessor_content_hash,
+                    }
+                )
+                consent_version = "2"
             consent_hash = hashlib.sha256(
                 json.dumps(
-                    {
-                        "schema": "account.simulated-action-owner-consent.v1",
-                        "actor_id": requester.actor_id,
-                        "grant_id": command.grant_id,
-                        "grant_version": command.grant_version,
-                        "physical_account_id": scope.physical_account_id,
-                        "binding": scope.binding.to_payload(),
-                        "consented_at": now.isoformat(),
-                        "valid_until": command.valid_until.isoformat(),
-                    },
+                    consent_facts,
                     ensure_ascii=False,
                     sort_keys=True,
                     separators=(",", ":"),
@@ -232,7 +269,7 @@ def issue_authenticated_simulated_corporate_action_grant(
                     grant_version=command.grant_version,
                     binding=scope.binding,
                     consent_evidence_id=consent_hash,
-                    consent_evidence_version="1",
+                    consent_evidence_version=consent_version,
                     consent_evidence_hash=consent_hash,
                     issuer_evidence_id="pending",
                     issuer_evidence_version="1",
@@ -242,6 +279,15 @@ def issue_authenticated_simulated_corporate_action_grant(
                     recorded_at=now,
                     valid_until=command.valid_until,
                     supersedes_content_hash=command.expected_predecessor_content_hash,
+                    permission=(
+                        SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_PERMISSION
+                        if command.grant_schema == SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA
+                        else SIMULATED_CORPORATE_ACTION_STAGE_WRITE_PERMISSION
+                    ),
+                    schema=command.grant_schema,
+                    capabilities=command.capabilities,
+                    terms_version=command.terms_version,
+                    terms_sha256=command.terms_sha256,
                 )
             )
             stored = repository.append_grant(

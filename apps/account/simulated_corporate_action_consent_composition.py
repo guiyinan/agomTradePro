@@ -21,7 +21,13 @@ from apps.account.application.simulated_corporate_action_write_grant import (
 from apps.account.application.simulated_corporate_action_write_issuance import (
     SimulatedCorporateActionGrantConsent,
 )
+from apps.account.domain.simulated_corporate_action_write_capabilities import (
+    SimulatedCorporateActionWriteCapability,
+    validate_simulated_corporate_action_write_capabilities,
+)
 from apps.account.domain.simulated_corporate_action_write_grant import (
+    SIMULATED_CORPORATE_ACTION_WRITE_GRANT_SCHEMA,
+    SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA,
     SimulatedCorporateActionWriteGrant,
     SimulatedCorporateActionWriteGrantBinding,
     SimulatedCorporateActionWriteGrantRecord,
@@ -41,6 +47,23 @@ from apps.account.simulated_corporate_action_write_issuance_composition import (
     _session_consent_authenticator,
 )
 from core.exceptions import AuthenticationError
+
+_CONSENT_PURPOSE_V1 = "account.simulated-action-consent-preparation.v1"
+_CONSENT_PURPOSE_V2 = "account.simulated-action-consent-preparation.v2"
+_CONSENT_FIELDS_V1 = frozenset(
+    {
+        "grant_id",
+        "grant_version",
+        "physical_account_id",
+        "binding",
+        "prepared_at",
+        "valid_until",
+        "predecessor",
+    }
+)
+_CONSENT_FIELDS_V2 = _CONSENT_FIELDS_V1 | frozenset(
+    {"grant_schema", "capabilities", "terms_version", "terms_sha256"}
+)
 
 
 def _object(value: object) -> dict[str, object]:
@@ -132,6 +155,44 @@ def _unpack(token: str, *, purpose: str) -> dict[str, object]:
         ) from error
 
 
+def _unpack_consent_token(token: object) -> tuple[dict[str, object], str]:
+    """Select the consent protocol from its explicit version prefix before MAC decode."""
+    if type(token) is not str or len(token) > 16384:
+        raise SimulatedCorporateActionWriteGrantUnavailable(
+            "owner consent preparation token is invalid or unavailable"
+        )
+    if token.startswith("v2."):
+        return (
+            _unpack(token[3:], purpose=_CONSENT_PURPOSE_V2),
+            SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA,
+        )
+    prefix, separator, _ = token.partition(".")
+    if separator and prefix.startswith("v") and prefix[1:].isdigit():
+        raise SimulatedCorporateActionWriteGrantUnavailable(
+            "owner consent preparation version is unsupported"
+        )
+    return (
+        _unpack(token, purpose=_CONSENT_PURPOSE_V1),
+        SIMULATED_CORPORATE_ACTION_WRITE_GRANT_SCHEMA,
+    )
+
+
+def _restore_capabilities(value: object) -> tuple[SimulatedCorporateActionWriteCapability, ...]:
+    """Decode one nonempty canonical JSON array of exact known capabilities."""
+    if type(value) is not list:
+        raise ValueError("consent preparation capabilities must be an array")
+    raw_values = cast(list[object], value)
+    decoded: list[SimulatedCorporateActionWriteCapability] = []
+    for raw in raw_values:
+        if type(raw) is not str:
+            raise ValueError("consent preparation capability must be an exact string")
+        try:
+            decoded.append(SimulatedCorporateActionWriteCapability(raw))
+        except ValueError as error:
+            raise ValueError("consent preparation capability is unknown") from error
+    return validate_simulated_corporate_action_write_capabilities(tuple(decoded))
+
+
 def prepare_simulated_action_consent_token(
     command: SimulatedCorporateActionGrantConsent, *, as_of: datetime
 ) -> str:
@@ -139,18 +200,35 @@ def prepare_simulated_action_consent_token(
     command.__post_init__()
     if as_of.tzinfo is None or as_of.utcoffset() is None or not as_of < command.valid_until:
         raise SimulatedCorporateActionWriteGrantUnavailable("consent preparation already expired")
-    return _pack(
+    payload: dict[str, object] = {
+        "grant_id": command.grant_id,
+        "grant_version": command.grant_version,
+        "physical_account_id": command.physical_account_id,
+        "binding": command.expected_binding.to_payload(),
+        "prepared_at": as_of.isoformat(),
+        "valid_until": command.valid_until.isoformat(),
+        "predecessor": command.expected_predecessor_content_hash,
+    }
+    if command.grant_schema == SIMULATED_CORPORATE_ACTION_WRITE_GRANT_SCHEMA:
+        return _pack(payload, purpose=_CONSENT_PURPOSE_V1)
+    if command.grant_schema != SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA:
+        raise SimulatedCorporateActionWriteGrantUnavailable(
+            "owner consent preparation schema is unsupported"
+        )
+    if command.capabilities is None:
+        raise SimulatedCorporateActionWriteGrantUnavailable(
+            "V2 consent preparation capabilities are missing"
+        )
+    capabilities = validate_simulated_corporate_action_write_capabilities(command.capabilities)
+    payload.update(
         {
-            "grant_id": command.grant_id,
-            "grant_version": command.grant_version,
-            "physical_account_id": command.physical_account_id,
-            "binding": command.expected_binding.to_payload(),
-            "prepared_at": as_of.isoformat(),
-            "valid_until": command.valid_until.isoformat(),
-            "predecessor": command.expected_predecessor_content_hash,
-        },
-        purpose="account.simulated-action-consent-preparation.v1",
+            "grant_schema": command.grant_schema,
+            "capabilities": [capability.value for capability in capabilities],
+            "terms_version": command.terms_version,
+            "terms_sha256": command.terms_sha256,
+        }
     )
+    return "v2." + _pack(payload, purpose=_CONSENT_PURPOSE_V2)
 
 
 def restore_simulated_action_consent_token(
@@ -162,19 +240,25 @@ def restore_simulated_action_consent_token(
     as_of: datetime,
 ) -> SimulatedCorporateActionGrantConsent:
     """Restore displayed terms after explicit confirmation, before real credential checks."""
-    value = _unpack(token, purpose="account.simulated-action-consent-preparation.v1")
+    value, grant_schema = _unpack_consent_token(token)
     try:
-        if set(value) != {
-            "grant_id",
-            "grant_version",
-            "physical_account_id",
-            "binding",
-            "prepared_at",
-            "valid_until",
-            "predecessor",
-        }:
+        expected_fields = (
+            _CONSENT_FIELDS_V2
+            if grant_schema == SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA
+            else _CONSENT_FIELDS_V1
+        )
+        if set(value) != expected_fields:
             raise ValueError("consent preparation fields are invalid")
         predecessor = value["predecessor"]
+        capabilities = None
+        terms_version = None
+        terms_sha256 = None
+        if grant_schema == SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA:
+            if _text(value["grant_schema"]) != SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA:
+                raise ValueError("consent preparation grant schema is invalid")
+            capabilities = _restore_capabilities(value["capabilities"])
+            terms_version = _text(value["terms_version"])
+            terms_sha256 = _text(value["terms_sha256"])
         result = SimulatedCorporateActionGrantConsent(
             grant_id=_text(value["grant_id"]),
             grant_version=_text(value["grant_version"]),
@@ -183,6 +267,10 @@ def restore_simulated_action_consent_token(
             valid_until=_clock(value["valid_until"]),
             consent=confirmed,
             expected_predecessor_content_hash=None if predecessor is None else _text(predecessor),
+            grant_schema=grant_schema,
+            capabilities=capabilities,
+            terms_version=terms_version,
+            terms_sha256=terms_sha256,
         )
         if (
             result.physical_account_id != _integer(physical_account_id)

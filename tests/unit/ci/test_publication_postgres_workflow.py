@@ -640,6 +640,11 @@ def test_ash05_corporate_action_ledger_runs_on_isolated_migrated_postgres() -> N
         "tests/component/account/test_simulated_corporate_action_grant_capabilities_postgres.py::test_native_database_check_rejects_null_v2_terms",
         "tests/component/account/test_simulated_corporate_action_grant_capabilities_postgres.py::test_native_v2_cannot_downgrade_to_a_new_v1_head",
         "tests/component/account/test_simulated_corporate_action_grant_capabilities_postgres.py::test_native_concurrent_v2_root_replay_retains_one_record",
+        "tests/component/account/test_simulated_corporate_action_capability_issuance_postgres.py::test_native_v2_session_owner_issues_only_selected_capability_and_retries_exactly",
+        "tests/component/account/test_simulated_corporate_action_capability_issuance_postgres.py::test_native_v2_owner_upgrade_and_withdraw_survive_role_policy_and_key_loss",
+        "tests/component/account/test_simulated_corporate_action_capability_issuance_postgres.py::test_native_v2_missing_csrf_or_another_owner_cannot_issue",
+        "tests/component/account/test_simulated_corporate_action_capability_issuance_postgres.py::test_native_v2_changed_locked_policy_terms_reject_original_confirmation",
+        "tests/component/account/test_simulated_corporate_action_capability_issuance_postgres.py::test_native_v2_cannot_select_a_capability_outside_current_policy",
     )
     assert step["env"]["DATABASE_URL"].endswith("/agom_release_rehearsal_ci")
     assert step["env"]["AGOM_CRITICAL_TEST_DB_NAME"] == "ash05_cash_posting_test"

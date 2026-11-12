@@ -2288,7 +2288,7 @@
     },
     {
       "path": "apps/account/application/simulated_corporate_action_write_issuance.py",
-      "text": "\"\"\"Revalidate exact current physical/source/policy facts before and after yield.\"\"\""
+      "text": "\"\"\"Revalidate exact current physical/source/policy facts before and after yield."
     },
     {
       "path": "apps/account/application/simulated_corporate_action_write_lease.py",

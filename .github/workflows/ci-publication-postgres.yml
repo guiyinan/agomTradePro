@@ -209,6 +209,11 @@ jobs:
           tests/component/account/test_simulated_corporate_action_grant_capabilities_postgres.py::test_native_database_check_rejects_null_v2_terms
           tests/component/account/test_simulated_corporate_action_grant_capabilities_postgres.py::test_native_v2_cannot_downgrade_to_a_new_v1_head
           tests/component/account/test_simulated_corporate_action_grant_capabilities_postgres.py::test_native_concurrent_v2_root_replay_retains_one_record
+          tests/component/account/test_simulated_corporate_action_capability_issuance_postgres.py::test_native_v2_session_owner_issues_only_selected_capability_and_retries_exactly
+          tests/component/account/test_simulated_corporate_action_capability_issuance_postgres.py::test_native_v2_owner_upgrade_and_withdraw_survive_role_policy_and_key_loss
+          tests/component/account/test_simulated_corporate_action_capability_issuance_postgres.py::test_native_v2_missing_csrf_or_another_owner_cannot_issue
+          tests/component/account/test_simulated_corporate_action_capability_issuance_postgres.py::test_native_v2_changed_locked_policy_terms_reject_original_confirmation
+          tests/component/account/test_simulated_corporate_action_capability_issuance_postgres.py::test_native_v2_cannot_select_a_capability_outside_current_policy
           --ds=core.settings.critical_postgres_test
           --confcutdir=tests/component
           --create-db -q -o addopts='' --junitxml=ash05-cash-posting-postgres.xml
@@ -261,6 +266,9 @@ jobs:
               -d evid06_authority_test -v ON_ERROR_STOP=1 \
               -c "SELECT current_database() = 'evid06_authority_test', (SELECT count(*) FROM pg_stat_activity WHERE datname = current_database() AND pid <> pg_backend_pid()), (SELECT count(*) FROM pg_class AS relation JOIN pg_namespace AS namespace ON namespace.oid = relation.relnamespace WHERE namespace.nspname NOT IN ('pg_catalog', 'information_schema') AND namespace.nspname NOT LIKE 'pg_toast%' AND relation.relkind IN ('r', 'p', 'v', 'm', 'f', 'S')); ")" || return $?
             if [ "$identity" != "t|0|0" ]; then
+              echo "EVID-06 database guard observed: $identity" >&2
+              psql -X -h 127.0.0.1 -U contract_test -d evid06_authority_test -v ON_ERROR_STOP=1 \
+                -c "SELECT pid, state, wait_event_type, wait_event FROM pg_stat_activity WHERE datname=current_database() AND pid<>pg_backend_pid(); SELECT namespace.nspname, relation.relname, relation.relkind FROM pg_class relation JOIN pg_namespace namespace ON namespace.oid=relation.relnamespace WHERE namespace.nspname NOT IN ('pg_catalog','information_schema') AND namespace.nspname NOT LIKE 'pg_toast%' AND relation.relkind IN ('r','p','v','m','f','S');"
               echo "dedicated EVID-06 database must have no user relations or other connections" >&2
               return 1
             fi

@@ -47,7 +47,13 @@ from tests.support.account_authority_generation_flush import (
     preserve_account_authority_generation as preserve_account_authority_generation,
 )
 
-pytestmark = pytest.mark.django_db
+pytestmark = [
+    pytest.mark.django_db,
+    pytest.mark.skipif(
+        connection.vendor != "postgresql",
+        reason="Native migrated PostgreSQL contract; executed by the required PostgreSQL workflow.",
+    ),
+]
 
 
 @pytest.fixture(scope="module", autouse=True)

@@ -56,16 +56,22 @@ from tests.unit.simulated_trading.test_corporate_action_tax_assessment import (
 )
 from tests.unit.simulated_trading.test_corporate_action_tax_assessment_application import _lease
 
-pytestmark = pytest.mark.django_db(
-    transaction=True,
-    available_apps=[
-        "django.contrib.auth",
-        "django.contrib.contenttypes",
-        "apps.account",
-        "apps.simulated_trading",
-        "apps.audit",
-    ],
-)
+pytestmark = [
+    pytest.mark.skipif(
+        connection.vendor != "postgresql",
+        reason="Native migrated PostgreSQL contract; executed by the required PostgreSQL workflow.",
+    ),
+    pytest.mark.django_db(
+        transaction=True,
+        available_apps=[
+            "django.contrib.auth",
+            "django.contrib.contenttypes",
+            "apps.account",
+            "apps.simulated_trading",
+            "apps.audit",
+        ],
+    ),
+]
 _EVENT = "simulated.corporate_action.tax_assessed"
 
 
