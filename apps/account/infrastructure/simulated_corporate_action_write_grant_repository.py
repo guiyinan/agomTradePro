@@ -15,11 +15,14 @@ from apps.account.application.simulated_corporate_action_write_grant import (
     SimulatedCorporateActionWriteGrantRepository,
     SimulatedCorporateActionWriteGrantUnavailable,
 )
+from apps.account.domain.simulated_corporate_action_write_capabilities import (
+    SimulatedCorporateActionWriteCapability,
+    validate_simulated_corporate_action_write_capabilities,
+)
 from apps.account.domain.simulated_corporate_action_write_grant import (
     SIMULATED_CORPORATE_ACTION_SERVICE_ACTOR_ID,
     SIMULATED_CORPORATE_ACTION_STAGE_WRITE_PERMISSION,
     SIMULATED_CORPORATE_ACTION_WRITE_GRANT_REVOCATION_SCHEMA,
-    SIMULATED_CORPORATE_ACTION_WRITE_GRANT_SCHEMA,
     SimulatedCorporateActionWriteGrant,
     SimulatedCorporateActionWriteGrantBinding,
     SimulatedCorporateActionWriteGrantCurrent,
@@ -614,11 +617,12 @@ def _grant_values(
     """Map one validated grant to its typed columns and canonical payload."""
 
     binding = grant.binding
+    capabilities = grant.capabilities
     return {
         "owner": "account",
         "artifact_type": "simulated_corporate_action_write_grant",
-        "schema": SIMULATED_CORPORATE_ACTION_WRITE_GRANT_SCHEMA,
-        "permission": SIMULATED_CORPORATE_ACTION_STAGE_WRITE_PERMISSION,
+        "schema": grant.schema,
+        "permission": grant.permission,
         "service_actor_id": SIMULATED_CORPORATE_ACTION_SERVICE_ACTOR_ID,
         "status": "active",
         "identity_hash": grant.identity_hash,
@@ -648,6 +652,11 @@ def _grant_values(
         "recorded_at": grant.recorded_at,
         "valid_until": grant.valid_until,
         "supersedes_content_hash": grant.supersedes_content_hash,
+        "capabilities": (
+            [capability.value for capability in capabilities] if capabilities is not None else None
+        ),
+        "terms_version": grant.terms_version,
+        "terms_sha256": grant.terms_sha256,
         "predecessor_id": predecessor_id,
     }
 
@@ -692,6 +701,7 @@ def _restore_grant(
     """Restore one row and reject any typed-column or canonical-payload disagreement."""
 
     try:
+        capabilities = _restore_capabilities(row.capabilities)
         grant = SimulatedCorporateActionWriteGrant(
             grant_id=row.grant_id,
             grant_version=row.grant_version,
@@ -724,6 +734,9 @@ def _restore_grant(
             schema=row.schema,
             identity_hash=row.identity_hash,
             content_hash=row.content_hash,
+            capabilities=capabilities,
+            terms_version=row.terms_version,
+            terms_sha256=row.terms_sha256,
         )
         if (
             row.owner != "account"
@@ -737,6 +750,26 @@ def _restore_grant(
         raise SimulatedCorporateActionWriteGrantCorruption(
             "stored simulated corporate-action write grant is invalid"
         ) from error
+
+
+def _restore_capabilities(
+    value: object,
+) -> tuple[SimulatedCorporateActionWriteCapability, ...] | None:
+    """Decode one nullable JSON array without coercion or canonical-order repair."""
+
+    if value is None:
+        return None
+    if type(value) is not list:
+        raise TypeError("stored grant capabilities must be an exact JSON array")
+    capabilities: list[SimulatedCorporateActionWriteCapability] = []
+    for item in value:
+        if type(item) is not str:
+            raise TypeError("stored grant capability must be an exact string")
+        try:
+            capabilities.append(SimulatedCorporateActionWriteCapability(item))
+        except ValueError as error:
+            raise ValueError("stored grant capability is unknown") from error
+    return validate_simulated_corporate_action_write_capabilities(tuple(capabilities))
 
 
 def _restore_revocation(

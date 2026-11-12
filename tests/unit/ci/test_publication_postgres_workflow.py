@@ -633,6 +633,13 @@ def test_ash05_corporate_action_ledger_runs_on_isolated_migrated_postgres() -> N
         "tests/component/simulated_trading/test_corporate_action_tax_assessment_postgres.py::test_native_later_partial_sale_has_its_own_fifo_assessment_and_audit_stream",
         "tests/component/simulated_trading/test_corporate_action_tax_assessment_postgres.py::test_native_allocation_insert_failure_rolls_back_header_and_all_audit_writes",
         "tests/component/simulated_trading/test_corporate_action_tax_assessment_postgres.py::test_native_physical_account_owner_cannot_be_substituted_by_consistent_dtos",
+        "tests/component/account/test_simulated_corporate_action_grant_capabilities_postgres.py::test_native_v1_roundtrip_keeps_cash_only_scope_and_null_v2_columns",
+        "tests/component/account/test_simulated_corporate_action_grant_capabilities_postgres.py::test_native_v1_to_v2_selects_one_head_without_resurrecting_v1",
+        "tests/component/account/test_simulated_corporate_action_grant_capabilities_postgres.py::test_native_v2_retry_narrowing_and_conflict_preserve_one_chain",
+        "tests/component/account/test_simulated_corporate_action_grant_capabilities_postgres.py::test_native_v2_whole_revocation_retains_expired_exact_withdrawal_metadata",
+        "tests/component/account/test_simulated_corporate_action_grant_capabilities_postgres.py::test_native_database_check_rejects_null_v2_terms",
+        "tests/component/account/test_simulated_corporate_action_grant_capabilities_postgres.py::test_native_v2_cannot_downgrade_to_a_new_v1_head",
+        "tests/component/account/test_simulated_corporate_action_grant_capabilities_postgres.py::test_native_concurrent_v2_root_replay_retains_one_record",
     )
     assert step["env"]["DATABASE_URL"].endswith("/agom_release_rehearsal_ci")
     assert step["env"]["AGOM_CRITICAL_TEST_DB_NAME"] == "ash05_cash_posting_test"

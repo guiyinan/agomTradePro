@@ -17,6 +17,8 @@ from apps.account.application.simulated_corporate_action_write_grant import (
     SimulatedCorporateActionWriteGrantUnavailable,
 )
 from apps.account.domain.simulated_corporate_action_write_grant import (
+    SIMULATED_CORPORATE_ACTION_WRITE_GRANT_SCHEMA,
+    SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA,
     SimulatedCorporateActionWriteGrant,
     SimulatedCorporateActionWriteGrantRevocation,
 )
@@ -24,9 +26,23 @@ from shared.config.secrets import get_secrets
 
 _ISSUER_ID = "account.session-authenticated-simulated-action-owner"
 _ISSUER_VERSION = "1"
+_ISSUER_V2_VERSION = "2"
 _KEY_DOMAIN = b"account.simulated-corporate-action-owner-issuer.v1/key"
 _CONTENT_DOMAIN = "account.simulated-corporate-action-owner-issuer.v1/grant"
+_CONTENT_V2_DOMAIN = "account.simulated-corporate-action-owner-issuer.v2/grant"
 _REVOCATION_DOMAIN = "account.simulated-corporate-action-owner-issuer.v1/revocation"
+
+
+def _grant_seal_contract(grant: SimulatedCorporateActionWriteGrant) -> tuple[str, str]:
+    """Select the immutable issuer-version and MAC domain for one grant schema."""
+
+    if grant.schema == SIMULATED_CORPORATE_ACTION_WRITE_GRANT_SCHEMA:
+        return _ISSUER_VERSION, _CONTENT_DOMAIN
+    if grant.schema == SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA:
+        return _ISSUER_V2_VERSION, _CONTENT_V2_DOMAIN
+    raise SimulatedCorporateActionWriteGrantUnavailable(
+        "simulated action issuer grant schema is unsupported"
+    )
 
 
 def _issuer_key() -> bytes:
@@ -111,14 +127,17 @@ class SimulatedCorporateActionWriteGrantSeal:
         """Seal facts supplied by the credential/owner transaction, without doing its checks."""
         if type(grant) is not SimulatedCorporateActionWriteGrant:
             raise SimulatedCorporateActionWriteGrantUnavailable("issuer grant type is invalid")
+        issuer_version, domain = _grant_seal_contract(grant)
         selected = replace(
             grant,
             issuer_evidence_id=_ISSUER_ID,
-            issuer_evidence_version=_ISSUER_VERSION,
+            issuer_evidence_version=issuer_version,
             issuer_evidence_hash="0" * 64,
             content_hash="",
         )
-        digest = hmac.new(_issuer_key(), _signed_payload(selected), "sha256").hexdigest()
+        digest = hmac.new(
+            _issuer_key(), _signed_payload(selected, domain=domain), "sha256"
+        ).hexdigest()
         return replace(selected, issuer_evidence_hash=digest, content_hash="")
 
     def verify(self, grant: SimulatedCorporateActionWriteGrant) -> bool:
@@ -135,10 +154,16 @@ class SimulatedCorporateActionWriteGrantSeal:
             grant.__post_init__()
         except (TypeError, ValueError):
             return False
+        try:
+            issuer_version, domain = _grant_seal_contract(grant)
+        except SimulatedCorporateActionWriteGrantUnavailable:
+            return False
         if (
             grant.issuer_evidence_id != _ISSUER_ID
-            or grant.issuer_evidence_version != _ISSUER_VERSION
+            or grant.issuer_evidence_version != issuer_version
         ):
             return False
-        expected = hmac.new(_issuer_key(), _signed_payload(grant), "sha256").hexdigest()
+        expected = hmac.new(
+            _issuer_key(), _signed_payload(grant, domain=domain), "sha256"
+        ).hexdigest()
         return hmac.compare_digest(grant.issuer_evidence_hash, expected)

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -10,12 +11,18 @@ from apps.account.application.simulated_corporate_action_write_grant import (
     RequireSimulatedCorporateActionWriteGrant,
     SimulatedCorporateActionWriteGrantUnavailable,
 )
+from apps.account.domain.simulated_corporate_action_write_capabilities import (
+    SimulatedCorporateActionWriteCapability,
+)
 from apps.account.domain.simulated_corporate_action_write_grant import (
     SIMULATED_CORPORATE_ACTION_SERVICE_ACTOR_ID,
     SIMULATED_CORPORATE_ACTION_STAGE_WRITE_PERMISSION,
+    SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_PERMISSION,
+    SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA,
     SimulatedCorporateActionWriteGrant,
     SimulatedCorporateActionWriteGrantBinding,
     SimulatedCorporateActionWriteGrantCurrent,
+    SimulatedCorporateActionWriteGrantRecord,
     SimulatedCorporateActionWriteGrantRevocation,
     SimulatedCorporateActionWriteGrantSelector,
     validate_simulated_corporate_action_write_grant_revocation,
@@ -73,6 +80,44 @@ def _grant(
         recorded_at=recorded_at,
         valid_until=valid_until or recorded_at + timedelta(hours=2),
         supersedes_content_hash=supersedes_content_hash,
+    )
+
+
+def _grant_v2(
+    *,
+    capabilities: tuple[SimulatedCorporateActionWriteCapability, ...],
+    grant_id: str = "sim-corp-action-grant-41",
+    grant_version: str = "grant-v2",
+    recorded_at: datetime = _AT + timedelta(hours=1),
+    supersedes_content_hash: str | None,
+    binding: SimulatedCorporateActionWriteGrantBinding | None = None,
+    terms_version: str = "owner-terms-v2",
+    terms_sha256: str = _HASH_C,
+    service_actor_id: str = SIMULATED_CORPORATE_ACTION_SERVICE_ACTOR_ID,
+) -> SimulatedCorporateActionWriteGrant:
+    """Build one V2 capability bundle with explicit terms and chain predecessor."""
+
+    return SimulatedCorporateActionWriteGrant(
+        grant_id=grant_id,
+        grant_version=grant_version,
+        binding=binding or _binding(),
+        consent_evidence_id="consent-v2-41",
+        consent_evidence_version=terms_version,
+        consent_evidence_hash=terms_sha256,
+        issuer_evidence_id="issuer-v2-41",
+        issuer_evidence_version="issuer-v2",
+        issuer_evidence_hash=_HASH_A,
+        consented_at=recorded_at - timedelta(minutes=2),
+        issued_at=recorded_at - timedelta(minutes=1),
+        recorded_at=recorded_at,
+        valid_until=recorded_at + timedelta(hours=2),
+        supersedes_content_hash=supersedes_content_hash,
+        permission=SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_PERMISSION,
+        service_actor_id=service_actor_id,
+        schema=SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA,
+        capabilities=capabilities,
+        terms_version=terms_version,
+        terms_sha256=terms_sha256,
     )
 
 
@@ -151,6 +196,256 @@ def test_grant_binds_only_the_fixed_permission_service_actor_and_exact_scope() -
         _binding(policy_content_hash="not-a-digest")
 
 
+def test_v1_hashes_payload_and_legacy_permission_mapping_remain_byte_stable() -> None:
+    grant = _grant()
+
+    assert grant.identity_hash == "f12b878e7bd6d77d78b830b070eef96ee4cafae97ea1f92dd3a2c086fc309700"
+    assert grant.content_hash == "a539aeb903b0d19e69b39109b1cbbbb38e6934c5eab013bf7d2dfc99b2b6a645"
+    assert "capabilities" not in grant.to_payload()
+    assert "terms_version" not in grant.to_payload()
+    assert "terms_sha256" not in grant.to_payload()
+    assert grant.supports_capability(SimulatedCorporateActionWriteCapability.CASH_STAGE_WRITE)
+    assert not grant.supports_capability(SimulatedCorporateActionWriteCapability.TAX_ASSESS)
+    assert not grant.supports_capability(SimulatedCorporateActionWriteCapability.TAX_WITHHOLD)
+
+
+def test_v2_grant_requires_explicit_capabilities_terms_and_a_distinct_scalar_marker() -> None:
+    predecessor = _grant()
+    grant = _grant_v2(
+        capabilities=(SimulatedCorporateActionWriteCapability.TAX_ASSESS,),
+        supersedes_content_hash=predecessor.content_hash,
+    )
+
+    assert grant.permission == SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_PERMISSION
+    assert grant.permission != SIMULATED_CORPORATE_ACTION_STAGE_WRITE_PERMISSION
+    assert grant.identity_hash == predecessor.identity_hash
+    assert grant.content_hash != predecessor.content_hash
+    assert grant.to_payload()["capabilities"] == ["simulated.corporate_action_tax.assess"]
+    assert grant.to_payload()["terms_version"] == "owner-terms-v2"
+    assert grant.to_payload()["terms_sha256"] == _HASH_C
+    assert grant.supports_capability(SimulatedCorporateActionWriteCapability.TAX_ASSESS)
+    assert not grant.supports_capability(SimulatedCorporateActionWriteCapability.CASH_STAGE_WRITE)
+    assert not grant.supports_capability(SimulatedCorporateActionWriteCapability.TAX_WITHHOLD)
+    with pytest.raises(TypeError, match="exact known enum"):
+        grant.supports_capability("simulated.corporate_action_tax.assess")  # type: ignore[arg-type]
+    with pytest.raises(ValueError, match="service actor"):
+        _grant_v2(
+            capabilities=(SimulatedCorporateActionWriteCapability.TAX_ASSESS,),
+            supersedes_content_hash=predecessor.content_hash,
+            service_actor_id="another-service",
+        )
+
+
+def test_v2_grant_rejects_missing_or_invalid_capability_and_terms_fields() -> None:
+    predecessor = _grant()
+    values: dict[str, object] = {
+        "grant_id": predecessor.grant_id,
+        "grant_version": "grant-v2",
+        "binding": predecessor.binding,
+        "consent_evidence_id": "consent-v2",
+        "consent_evidence_version": "terms-v2",
+        "consent_evidence_hash": _HASH_A,
+        "issuer_evidence_id": "issuer-v2",
+        "issuer_evidence_version": "issuer-v2",
+        "issuer_evidence_hash": _HASH_B,
+        "consented_at": _AT,
+        "issued_at": _AT,
+        "recorded_at": _AT,
+        "valid_until": _AT + timedelta(hours=1),
+        "supersedes_content_hash": predecessor.content_hash,
+        "permission": SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_PERMISSION,
+        "schema": SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA,
+    }
+    for invalid in (
+        {},
+        {"capabilities": ()},
+        {
+            "capabilities": (
+                SimulatedCorporateActionWriteCapability.TAX_ASSESS,
+                SimulatedCorporateActionWriteCapability.TAX_ASSESS,
+            ),
+        },
+        {
+            "capabilities": (
+                SimulatedCorporateActionWriteCapability.TAX_WITHHOLD,
+                SimulatedCorporateActionWriteCapability.TAX_ASSESS,
+            ),
+        },
+        {"capabilities": ("unknown.permission",)},
+        {"capabilities": (SimulatedCorporateActionWriteCapability.TAX_ASSESS,)},
+        {
+            "capabilities": (SimulatedCorporateActionWriteCapability.TAX_ASSESS,),
+            "terms_version": "",
+            "terms_sha256": _HASH_A,
+        },
+        {
+            "capabilities": (SimulatedCorporateActionWriteCapability.TAX_ASSESS,),
+            "terms_version": "terms-v2",
+            "terms_sha256": "not-a-digest",
+        },
+    ):
+        with pytest.raises((TypeError, ValueError)):
+            SimulatedCorporateActionWriteGrant(**(values | invalid))  # type: ignore[arg-type]
+
+
+def test_successor_allows_confirmed_v1_to_v2_and_source_policy_refresh_only_in_same_owner_chain():
+    predecessor = _grant()
+    refreshed = _binding(
+        account_source_id="sim-account-source-41-v2",
+        account_source_version="source-v4",
+        account_source_content_hash=_HASH_C,
+        policy_id="corporate-action-policy-2",
+        policy_version="policy-v3",
+        policy_content_hash=_HASH_A,
+    )
+    successor = _grant_v2(
+        capabilities=(
+            SimulatedCorporateActionWriteCapability.TAX_ASSESS,
+            SimulatedCorporateActionWriteCapability.TAX_WITHHOLD,
+            SimulatedCorporateActionWriteCapability.CASH_STAGE_WRITE,
+        ),
+        recorded_at=_AT + timedelta(hours=1),
+        supersedes_content_hash=predecessor.content_hash,
+        binding=refreshed,
+    )
+
+    validate_simulated_corporate_action_write_grant_successor(predecessor, successor)
+
+
+def test_v2_successor_can_explicitly_narrow_and_cannot_cross_owner_or_chain():
+    predecessor = _grant_v2(
+        capabilities=(
+            SimulatedCorporateActionWriteCapability.TAX_ASSESS,
+            SimulatedCorporateActionWriteCapability.TAX_WITHHOLD,
+            SimulatedCorporateActionWriteCapability.CASH_STAGE_WRITE,
+        ),
+        grant_version="grant-v2",
+        recorded_at=_AT + timedelta(hours=1),
+        supersedes_content_hash=_grant().content_hash,
+    )
+    successor = _grant_v2(
+        capabilities=(SimulatedCorporateActionWriteCapability.TAX_ASSESS,),
+        grant_version="grant-v3",
+        recorded_at=_AT + timedelta(hours=2),
+        supersedes_content_hash=predecessor.content_hash,
+        binding=_binding(policy_version="policy-v4", policy_content_hash=_HASH_C),
+        terms_version="owner-terms-v3",
+        terms_sha256=_HASH_B,
+    )
+
+    validate_simulated_corporate_action_write_grant_successor(predecessor, successor)
+
+    cross_owner = _grant_v2(
+        capabilities=(SimulatedCorporateActionWriteCapability.TAX_ASSESS,),
+        grant_version="grant-v3-owner",
+        recorded_at=_AT + timedelta(hours=2),
+        supersedes_content_hash=predecessor.content_hash,
+        binding=_binding(owner_user_id=82, owner_id="owner-82"),
+    )
+    with pytest.raises(ValueError, match="identity|scope"):
+        validate_simulated_corporate_action_write_grant_successor(predecessor, cross_owner)
+
+    cross_chain = _grant_v2(
+        capabilities=(SimulatedCorporateActionWriteCapability.TAX_ASSESS,),
+        grant_id="another-grant-chain",
+        grant_version="grant-v3-chain",
+        recorded_at=_AT + timedelta(hours=2),
+        supersedes_content_hash=predecessor.content_hash,
+    )
+    with pytest.raises(ValueError, match="grant_id|identity"):
+        validate_simulated_corporate_action_write_grant_successor(predecessor, cross_chain)
+
+    v1_downgrade = _grant(
+        grant_version="grant-v3-v1",
+        recorded_at=_AT + timedelta(hours=2),
+        supersedes_content_hash=predecessor.content_hash,
+    )
+    with pytest.raises(ValueError, match="downgrade|version"):
+        validate_simulated_corporate_action_write_grant_successor(predecessor, v1_downgrade)
+
+
+def test_v2_exact_revocation_targets_the_complete_capability_bundle_hash():
+    grant = _grant_v2(
+        capabilities=(
+            SimulatedCorporateActionWriteCapability.TAX_ASSESS,
+            SimulatedCorporateActionWriteCapability.CASH_STAGE_WRITE,
+        ),
+        supersedes_content_hash=_grant().content_hash,
+    )
+    revocation = _revocation(grant, recorded_at=grant.recorded_at + timedelta(minutes=5))
+
+    validate_simulated_corporate_action_write_grant_revocation(grant, revocation)
+    assert revocation.grant_content_hash == grant.content_hash
+
+    changed_target = replace(
+        revocation, grant_content_hash=_HASH_B, identity_hash="", content_hash=""
+    )
+    with pytest.raises(ValueError, match="target"):
+        validate_simulated_corporate_action_write_grant_revocation(grant, changed_target)
+
+
+def test_grant_fact_hashes_schema_and_v1_payload_are_fail_closed() -> None:
+    grant = _grant()
+
+    with pytest.raises(TypeError, match="exact string"):
+        replace(grant, identity_hash=None)  # type: ignore[arg-type]
+    with pytest.raises(ValueError, match="does not match"):
+        replace(grant, content_hash="f" * 64)
+    with pytest.raises(ValueError, match="permission is fixed"):
+        replace(grant, permission="another-permission")
+    with pytest.raises(ValueError, match="V1 grants"):
+        replace(
+            grant,
+            capabilities=(SimulatedCorporateActionWriteCapability.TAX_ASSESS,),
+        )
+    with pytest.raises(ValueError, match="schema is fixed"):
+        replace(grant, schema="account.simulated_corporate_action_write_grant.v3")
+    with pytest.raises(ValueError, match="exact positive integer"):
+        _binding(owner_user_id=True)
+
+    v2 = _grant_v2(
+        capabilities=(SimulatedCorporateActionWriteCapability.TAX_ASSESS,),
+        supersedes_content_hash=grant.content_hash,
+    )
+    with pytest.raises(ValueError, match="V2 grant permission marker"):
+        replace(
+            v2,
+            permission=SIMULATED_CORPORATE_ACTION_STAGE_WRITE_PERMISSION,
+            identity_hash="",
+            content_hash="",
+        )
+    with pytest.raises(ValueError, match="terms_sha256 is required"):
+        replace(v2, terms_sha256=None, identity_hash="", content_hash="")
+    with pytest.raises(ValueError, match="capabilities are required"):
+        replace(v2, capabilities=None, identity_hash="", content_hash="")
+
+
+def test_selector_current_and_historical_grant_records_validate_exact_types() -> None:
+    grant = _grant()
+    revocation = _revocation(grant)
+
+    with pytest.raises(TypeError, match="exact simulated write grant binding"):
+        replace(grant.selector, binding=object())  # type: ignore[arg-type]
+    with pytest.raises(TypeError, match="exact simulated corporate-action write grant"):
+        SimulatedCorporateActionWriteGrantCurrent(grant=object())  # type: ignore[arg-type]
+    with pytest.raises(TypeError, match="exact simulated write grant revocation"):
+        SimulatedCorporateActionWriteGrantCurrent(
+            grant=grant,
+            revocation=object(),  # type: ignore[arg-type]
+        )
+
+    record = SimulatedCorporateActionWriteGrantRecord(grant=grant, revocation=revocation)
+    assert record.grant is grant
+    assert record.revocation is revocation
+    with pytest.raises(TypeError, match="grant record requires"):
+        SimulatedCorporateActionWriteGrantRecord(grant=object())  # type: ignore[arg-type]
+    with pytest.raises(TypeError, match="grant record revocation"):
+        SimulatedCorporateActionWriteGrantRecord(
+            grant=grant,
+            revocation=object(),  # type: ignore[arg-type]
+        )
+
+
 def test_grant_rejects_empty_or_naive_validity_and_unsealed_evidence() -> None:
     with pytest.raises(ValueError, match="clock sequence"):
         _grant(valid_until=_AT)
@@ -202,6 +497,22 @@ def test_successor_must_extend_the_same_exact_scope_and_name_its_predecessor() -
     )
     with pytest.raises(ValueError, match="predecessor"):
         validate_simulated_corporate_action_write_grant_successor(predecessor, wrong_predecessor)
+
+    same_version = _grant(
+        grant_version=predecessor.grant_version,
+        recorded_at=_AT + timedelta(hours=1),
+        supersedes_content_hash=predecessor.content_hash,
+    )
+    with pytest.raises(ValueError, match="grant_version"):
+        validate_simulated_corporate_action_write_grant_successor(predecessor, same_version)
+
+    same_time = _grant(
+        grant_version="grant-v5",
+        recorded_at=predecessor.recorded_at,
+        supersedes_content_hash=predecessor.content_hash,
+    )
+    with pytest.raises(ValueError, match="recorded after"):
+        validate_simulated_corporate_action_write_grant_successor(predecessor, same_time)
 
 
 def test_revocation_is_an_explicit_event_bound_to_one_exact_grant_hash() -> None:

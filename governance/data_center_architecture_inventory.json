@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 6884,
+    "current_surface_references": 6885,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -4533,6 +4533,10 @@
     {
       "path": "apps/account/simulated_corporate_action_current_grant_composition.py",
       "text": "rechecks the same finite current grant before yielding back to the caller."
+    },
+    {
+      "path": "apps/account/simulated_corporate_action_policy_scope_composition.py",
+      "text": "The unique current account row is selected before its owner and requested"
     },
     {
       "path": "apps/account/simulated_corporate_action_policy_scope_composition.py",

@@ -15,9 +15,16 @@ from django.utils import timezone
 from apps.account.application.simulated_corporate_action_write_grant import (
     SimulatedCorporateActionWriteGrantUnavailable,
 )
+from apps.account.domain.simulated_corporate_action_write_capabilities import (
+    SimulatedCorporateActionWriteCapability,
+    validate_simulated_corporate_action_write_capabilities,
+)
 from apps.account.domain.simulated_corporate_action_write_grant import (
     SIMULATED_CORPORATE_ACTION_SERVICE_ACTOR_ID,
     SIMULATED_CORPORATE_ACTION_STAGE_WRITE_PERMISSION,
+    SIMULATED_CORPORATE_ACTION_WRITE_GRANT_SCHEMA,
+    SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_PERMISSION,
+    SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA,
     SimulatedCorporateActionWriteGrantBinding,
 )
 from apps.config_center.runtime_environment_lock_composition import locked_runtime_environment
@@ -33,6 +40,8 @@ from core.integration.config_center_runtime import (
 SIMULATED_ACTION_WRITE_POLICY_KEY = (
     "config_center.account.simulated_corporate_action_write_policies"
 )
+SIMULATED_ACTION_WRITE_POLICY_SCHEMA_V1 = "simulated-corporate-action-write-policies.v1"
+SIMULATED_ACTION_WRITE_POLICY_SCHEMA_V2 = "simulated-corporate-action-write-policies.v2"
 _FIELDS = frozenset(
     {
         "policy_id",
@@ -48,6 +57,7 @@ _FIELDS = frozenset(
         "service_actor_id",
     }
 )
+_V2_FIELDS = _FIELDS | frozenset({"capabilities", "terms_version", "terms_sha256"})
 
 
 @dataclass(frozen=True, slots=True)
@@ -64,6 +74,10 @@ class ConfiguredSimulatedActionWritePolicy:
     valid_until: datetime
     maximum_grant_seconds: int
     content_hash: str
+    grant_schema: str = SIMULATED_CORPORATE_ACTION_WRITE_GRANT_SCHEMA
+    capabilities: tuple[SimulatedCorporateActionWriteCapability, ...] | None = None
+    terms_version: str | None = None
+    terms_sha256: str | None = None
 
     def grant_valid_until(self, *, as_of: datetime, source_valid_until: datetime) -> datetime:
         """Bound the configured duration before datetime addition, preserving finite source limits."""
@@ -92,18 +106,69 @@ def _aware_text(value: object) -> datetime:
     return result
 
 
+def _require_grant_schema(value: object) -> str:
+    """Accept only the two explicitly supported grant schemas."""
+    if type(value) is not str or value not in {
+        SIMULATED_CORPORATE_ACTION_WRITE_GRANT_SCHEMA,
+        SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA,
+    }:
+        raise ValueError("expected grant schema is unsupported")
+    return value
+
+
+def _decode_capabilities(value: object) -> tuple[SimulatedCorporateActionWriteCapability, ...]:
+    """Decode a nonempty JSON capability array without coercion or repair."""
+    if type(value) is not list:
+        raise ValueError("service policy capabilities must be a JSON array")
+    raw_values = cast(list[object], value)
+    decoded: list[SimulatedCorporateActionWriteCapability] = []
+    for raw in raw_values:
+        if type(raw) is not str:
+            raise ValueError("service policy capability must be an exact string")
+        try:
+            decoded.append(SimulatedCorporateActionWriteCapability(raw))
+        except ValueError as error:
+            raise ValueError("service policy capability is unknown") from error
+    try:
+        return validate_simulated_corporate_action_write_capabilities(tuple(decoded))
+    except (TypeError, ValueError) as error:
+        raise ValueError("service policy capabilities are not canonical") from error
+
+
+def _decode_terms(version: object, digest: object) -> tuple[str, str]:
+    """Require explicit bounded terms identity and a canonical SHA-256 digest."""
+    if (
+        type(version) is not str
+        or not version
+        or version.strip() != version
+        or len(version) > 192
+        or any(character.isspace() for character in version)
+    ):
+        raise ValueError("service policy terms version is invalid")
+    if (
+        type(digest) is not str
+        or len(digest) != 64
+        or any(character not in "0123456789abcdef" for character in digest)
+    ):
+        raise ValueError("service policy terms digest is invalid")
+    return version, digest
+
+
 def read_current_simulated_action_write_policy(
     *,
     canonical_account_id: str,
     owner_user_id: int,
     environment: str,
     as_of: datetime,
+    expected_grant_schema: str = SIMULATED_CORPORATE_ACTION_WRITE_GRANT_SCHEMA,
 ) -> ConfiguredSimulatedActionWritePolicy:
     """Discover one explicit current policy for an owner without issuing authority.
 
     Every configured scope is validated and account collisions are retained
     before checking the requester. Consumers must reacquire the activation fence
     and exact expected binding before granting or posting financial effects.
+    The unique current account row is selected before its owner and requested
+    grant schema are checked, so legacy readers cannot fall back to older rights.
     """
     if (
         type(canonical_account_id) is not str
@@ -115,6 +180,7 @@ def read_current_simulated_action_write_policy(
         or as_of.utcoffset() is None
     ):
         raise ValueError("service policy discovery scope or clock is invalid")
+    expected_grant_schema = _require_grant_schema(expected_grant_schema)
     evidence = get_active_runtime_value_evidence(
         environment=environment, definition_key=SIMULATED_ACTION_WRITE_POLICY_KEY, as_of=as_of
     )
@@ -165,17 +231,28 @@ def read_current_simulated_action_write_policy(
     value = cast(dict[str, object], evidence.value)
     if (
         set(value) != {"schema_version", "enabled", "policies"}
-        or value["schema_version"] != "simulated-corporate-action-write-policies.v1"
+        or type(value["schema_version"]) is not str
         or value["enabled"] is not True
         or type(value["policies"]) is not list
     ):
         raise ValueError("service policy schema is invalid or disabled")
+    config_schema = value["schema_version"]
+    if config_schema == SIMULATED_ACTION_WRITE_POLICY_SCHEMA_V1:
+        grant_schema = SIMULATED_CORPORATE_ACTION_WRITE_GRANT_SCHEMA
+        expected_fields = _FIELDS
+        expected_permission = SIMULATED_CORPORATE_ACTION_STAGE_WRITE_PERMISSION
+    elif config_schema == SIMULATED_ACTION_WRITE_POLICY_SCHEMA_V2:
+        grant_schema = SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA
+        expected_fields = _V2_FIELDS
+        expected_permission = SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_PERMISSION
+    else:
+        raise ValueError("service policy schema version is unsupported")
     policies: list[ConfiguredSimulatedActionWritePolicy] = []
     for raw in cast(list[object], value["policies"]):
         if type(raw) is not dict:
             raise ValueError("service policy scope is invalid")
         item = cast(dict[str, object], raw)
-        if set(item) != _FIELDS or any(
+        if set(item) != expected_fields or any(
             type(item[name]) is not str
             or not item[name]
             or len(cast(str, item[name])) > 192
@@ -194,7 +271,9 @@ def read_current_simulated_action_write_policy(
             or item["owner_user_id"] <= 0
             or type(item["maximum_grant_seconds"]) is not int
             or item["maximum_grant_seconds"] <= 0
-            or item["permission"] != SIMULATED_CORPORATE_ACTION_STAGE_WRITE_PERMISSION
+            or type(item["permission"]) is not str
+            or item["permission"] != expected_permission
+            or type(item["service_actor_id"]) is not str
             or item["service_actor_id"] != SIMULATED_CORPORATE_ACTION_SERVICE_ACTOR_ID
         ):
             raise ValueError("service policy permission or duration is invalid")
@@ -205,6 +284,12 @@ def read_current_simulated_action_write_policy(
         starts, ends = _aware_text(item["valid_from"]), _aware_text(item["valid_until"])
         if starts >= ends:
             raise ValueError("service policy validity is empty")
+        capabilities: tuple[SimulatedCorporateActionWriteCapability, ...] | None = None
+        terms_version: str | None = None
+        terms_sha256: str | None = None
+        if grant_schema == SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA:
+            capabilities = _decode_capabilities(item["capabilities"])
+            terms_version, terms_sha256 = _decode_terms(item["terms_version"], item["terms_sha256"])
         fingerprint = _hash(
             {
                 "policy": item,
@@ -228,6 +313,10 @@ def read_current_simulated_action_write_policy(
                 valid_until=ends,
                 maximum_grant_seconds=item["maximum_grant_seconds"],
                 content_hash=fingerprint,
+                grant_schema=grant_schema,
+                capabilities=capabilities,
+                terms_version=terms_version,
+                terms_sha256=terms_sha256,
             )
         )
     matches = tuple(
@@ -240,6 +329,8 @@ def read_current_simulated_action_write_policy(
     selected = matches[0]
     if selected.owner_user_id != owner_user_id:
         raise ValueError("service policy differs from requested owner scope")
+    if selected.grant_schema != expected_grant_schema:
+        raise ValueError("service policy grant schema differs from expected grant schema")
     return selected
 
 
@@ -248,6 +339,7 @@ def _read_policy(
     binding: SimulatedCorporateActionWriteGrantBinding,
     environment: str,
     as_of: datetime,
+    expected_grant_schema: str = SIMULATED_CORPORATE_ACTION_WRITE_GRANT_SCHEMA,
 ) -> ConfiguredSimulatedActionWritePolicy:
     """Match the discovered policy to every previously selected exact scope field."""
     selected = read_current_simulated_action_write_policy(
@@ -255,6 +347,7 @@ def _read_policy(
         owner_user_id=binding.owner_user_id,
         environment=environment,
         as_of=as_of,
+        expected_grant_schema=expected_grant_schema,
     )
     if (
         selected.owner_user_id != binding.owner_user_id
@@ -275,8 +368,13 @@ def locked_simulated_action_owner_policy(
     canonical_namespace: str,
     using: str,
     runtime_environment: str,
+    expected_grant_schema: str = SIMULATED_CORPORATE_ACTION_WRITE_GRANT_SCHEMA,
 ) -> Iterator[ConfiguredSimulatedActionWritePolicy]:
-    """Hold the actual activation fence; authenticated owner consent remains separate."""
+    """Hold the activation fence and recheck the expected policy schema before exit.
+
+    Callers default to the V1 cash policy. Requesting V2 is explicit and does not
+    itself issue a grant or authorize a financial operation.
+    """
     binding.__post_init__()
     if canonical_namespace != "account":
         raise SimulatedCorporateActionWriteGrantUnavailable(
@@ -285,11 +383,19 @@ def locked_simulated_action_owner_policy(
     try:
         with locked_runtime_environment(environment=runtime_environment, using=using):
             selected = _read_policy(
-                binding=binding, environment=runtime_environment, as_of=timezone.now()
+                binding=binding,
+                environment=runtime_environment,
+                as_of=timezone.now(),
+                expected_grant_schema=expected_grant_schema,
             )
             yield selected
             if (
-                _read_policy(binding=binding, environment=runtime_environment, as_of=timezone.now())
+                _read_policy(
+                    binding=binding,
+                    environment=runtime_environment,
+                    as_of=timezone.now(),
+                    expected_grant_schema=expected_grant_schema,
+                )
                 != selected
             ):
                 raise ValueError("service policy changed before commit")

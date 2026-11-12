@@ -11,15 +11,27 @@ import json
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
+from apps.account.domain.simulated_corporate_action_write_capabilities import (
+    SimulatedCorporateActionWriteCapability,
+    validate_simulated_corporate_action_write_capabilities,
+)
+
 SIMULATED_CORPORATE_ACTION_STAGE_WRITE_PERMISSION = "simulated_corporate_action_stage_write"
 SIMULATED_CORPORATE_ACTION_SERVICE_ACTOR_ID = "simulated-trading"
 SIMULATED_CORPORATE_ACTION_WRITE_GRANT_SCHEMA = "account.simulated_corporate_action_write_grant.v1"
+SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA = (
+    "account.simulated_corporate_action_write_grant.v2"
+)
+SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_PERMISSION = (
+    "simulated_corporate_action_capability_bundle"
+)
 SIMULATED_CORPORATE_ACTION_WRITE_GRANT_REVOCATION_SCHEMA = (
     "account.simulated_corporate_action_write_grant.revocation.v1"
 )
 
 _GRANT_IDENTITY_HASH_DOMAIN = "account.simulated-corporate-action-write-grant.v1/identity"
 _GRANT_CONTENT_HASH_DOMAIN = "account.simulated-corporate-action-write-grant.v1/content"
+_GRANT_V2_CONTENT_HASH_DOMAIN = "account.simulated-corporate-action-write-grant.v2/content"
 _REVOCATION_IDENTITY_HASH_DOMAIN = (
     "account.simulated-corporate-action-write-grant-revocation.v1/identity"
 )
@@ -194,6 +206,9 @@ class SimulatedCorporateActionWriteGrant:
     schema: str = SIMULATED_CORPORATE_ACTION_WRITE_GRANT_SCHEMA
     identity_hash: str = ""
     content_hash: str = ""
+    capabilities: tuple[SimulatedCorporateActionWriteCapability, ...] | None = None
+    terms_version: str | None = None
+    terms_sha256: str | None = None
 
     def __post_init__(self) -> None:
         """Validate fixed permission, exact scope, evidence, clocks and canonical hashes."""
@@ -203,11 +218,31 @@ class SimulatedCorporateActionWriteGrant:
         if type(self.binding) is not SimulatedCorporateActionWriteGrantBinding:
             raise TypeError("binding must be an exact simulated write grant binding")
         self.binding.__post_init__()
-        if self.permission != SIMULATED_CORPORATE_ACTION_STAGE_WRITE_PERMISSION:
-            raise ValueError("grant permission is fixed")
         if self.service_actor_id != SIMULATED_CORPORATE_ACTION_SERVICE_ACTOR_ID:
             raise ValueError("grant service actor is fixed")
-        if self.schema != SIMULATED_CORPORATE_ACTION_WRITE_GRANT_SCHEMA:
+        if self.schema == SIMULATED_CORPORATE_ACTION_WRITE_GRANT_SCHEMA:
+            if self.permission != SIMULATED_CORPORATE_ACTION_STAGE_WRITE_PERMISSION:
+                raise ValueError("grant permission is fixed")
+            if any(
+                value is not None
+                for value in (self.capabilities, self.terms_version, self.terms_sha256)
+            ):
+                raise ValueError("V1 grants cannot contain V2 capability or terms fields")
+            content_domain = _GRANT_CONTENT_HASH_DOMAIN
+        elif self.schema == SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA:
+            if self.permission != SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_PERMISSION:
+                raise ValueError("V2 grant permission marker is fixed")
+            if self.capabilities is None:
+                raise ValueError("V2 grant capabilities are required")
+            validate_simulated_corporate_action_write_capabilities(self.capabilities)
+            if self.terms_version is None:
+                raise ValueError("V2 grant terms_version is required")
+            _token(self.terms_version, "terms_version")
+            if self.terms_sha256 is None:
+                raise ValueError("V2 grant terms_sha256 is required")
+            _digest(self.terms_sha256, "terms_sha256")
+            content_domain = _GRANT_V2_CONTENT_HASH_DOMAIN
+        else:
             raise ValueError("grant schema is fixed")
         for name in (
             "consent_evidence_id",
@@ -229,9 +264,7 @@ class SimulatedCorporateActionWriteGrant:
         _set_or_validate_hash(
             self, "identity_hash", _hash(_GRANT_IDENTITY_HASH_DOMAIN, self._identity_payload())
         )
-        _set_or_validate_hash(
-            self, "content_hash", _hash(_GRANT_CONTENT_HASH_DOMAIN, self._content_payload())
-        )
+        _set_or_validate_hash(self, "content_hash", _hash(content_domain, self._content_payload()))
 
     @property
     def selector(self) -> SimulatedCorporateActionWriteGrantSelector:
@@ -253,6 +286,24 @@ class SimulatedCorporateActionWriteGrant:
         cutoff = _aware(as_of, "as_of")
         return self.recorded_at <= cutoff < self.valid_until
 
+    @property
+    def effective_capabilities(self) -> tuple[SimulatedCorporateActionWriteCapability, ...]:
+        """Return the explicit V2 set or the fixed legacy cash capability for V1."""
+
+        self.__post_init__()
+        if self.schema == SIMULATED_CORPORATE_ACTION_WRITE_GRANT_SCHEMA:
+            return (SimulatedCorporateActionWriteCapability.CASH_STAGE_WRITE,)
+        if self.capabilities is None:
+            raise ValueError("V2 grant capabilities are required")
+        return validate_simulated_corporate_action_write_capabilities(self.capabilities)
+
+    def supports_capability(self, capability: SimulatedCorporateActionWriteCapability) -> bool:
+        """Return whether this grant explicitly includes one exact known capability."""
+
+        if type(capability) is not SimulatedCorporateActionWriteCapability:
+            raise TypeError("capability must be an exact known enum value")
+        return capability in self.effective_capabilities
+
     def to_payload(self) -> dict[str, object]:
         """Return every immutable grant fact and both canonical hashes."""
 
@@ -268,7 +319,9 @@ class SimulatedCorporateActionWriteGrant:
 
         return {
             "grant_id": self.grant_id,
-            "permission": self.permission,
+            # Chain identity is version-neutral: V2 changes the content marker, not the
+            # owner/account chain identity established by the original V1 contract.
+            "permission": SIMULATED_CORPORATE_ACTION_STAGE_WRITE_PERMISSION,
             "service_actor_id": self.service_actor_id,
             "account_namespace": self.binding.account_namespace,
             "account_id": self.binding.account_id,
@@ -280,7 +333,7 @@ class SimulatedCorporateActionWriteGrant:
     def _content_payload(self) -> dict[str, object]:
         """Serialize the full grant, evidence hashes, source lineage and validity clocks."""
 
-        return {
+        payload: dict[str, object] = {
             "schema": self.schema,
             "grant_id": self.grant_id,
             "grant_version": self.grant_version,
@@ -299,6 +352,18 @@ class SimulatedCorporateActionWriteGrant:
             "valid_until": _utc_text(self.valid_until),
             "supersedes_content_hash": self.supersedes_content_hash,
         }
+        if self.schema == SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA:
+            if self.capabilities is None or self.terms_version is None or self.terms_sha256 is None:
+                raise ValueError("V2 grant capabilities and terms are required")
+            capabilities = validate_simulated_corporate_action_write_capabilities(self.capabilities)
+            payload.update(
+                {
+                    "capabilities": [capability.value for capability in capabilities],
+                    "terms_version": self.terms_version,
+                    "terms_sha256": self.terms_sha256,
+                }
+            )
+        return payload
 
 
 @dataclass(frozen=True, slots=True)
@@ -467,6 +532,11 @@ def validate_simulated_corporate_action_write_grant_successor(
 
     predecessor.__post_init__()
     successor.__post_init__()
+    if (
+        predecessor.schema == SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA
+        and successor.schema != SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA
+    ):
+        raise ValueError("successor grant schema downgrade is forbidden")
     if successor.grant_id != predecessor.grant_id:
         raise ValueError("successor grant_id differs from its predecessor")
     if successor.grant_version == predecessor.grant_version:
@@ -505,7 +575,7 @@ def _grant_scope(grant: SimulatedCorporateActionWriteGrant) -> tuple[object, ...
 
     binding = grant.binding
     return (
-        grant.permission,
+        SIMULATED_CORPORATE_ACTION_STAGE_WRITE_PERMISSION,
         grant.service_actor_id,
         binding.account_namespace,
         binding.account_id,
@@ -520,6 +590,8 @@ __all__ = [
     "SIMULATED_CORPORATE_ACTION_STAGE_WRITE_PERMISSION",
     "SIMULATED_CORPORATE_ACTION_WRITE_GRANT_REVOCATION_SCHEMA",
     "SIMULATED_CORPORATE_ACTION_WRITE_GRANT_SCHEMA",
+    "SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_PERMISSION",
+    "SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA",
     "SimulatedCorporateActionWriteGrant",
     "SimulatedCorporateActionWriteGrantBinding",
     "SimulatedCorporateActionWriteGrantCurrent",

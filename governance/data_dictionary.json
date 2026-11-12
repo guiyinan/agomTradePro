@@ -12880,6 +12880,38 @@
               "positional_args": []
             },
             {
+              "field_type": "JSONField",
+              "kwargs": {
+                "blank": true,
+                "null": true
+              },
+              "name": "capabilities",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 192,
+                "null": true
+              },
+              "name": "terms_version",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 64,
+                "null": true
+              },
+              "name": "terms_sha256",
+              "null": true,
+              "positional_args": []
+            },
+            {
               "field_type": "OneToOneField",
               "kwargs": {
                 "blank": true,
@@ -12896,7 +12928,7 @@
           ],
           "meta": {
             "app_label": "account",
-            "constraints": "[models.UniqueConstraint(fields=('grant_id', 'grant_version'), name='acct_scawg_version_uq'), models.UniqueConstraint(fields=('grant_id',), condition=models.Q(predecessor__isnull=True), name='acct_scawg_root_uq'), models.UniqueConstraint(fields=('supersedes_content_hash',), name='acct_scawg_predecessor_uq'), models.CheckConstraint(condition=models.Q(owner='account', artifact_type='simulated_corporate_action_write_grant', schema='account.simulated_corporate_action_write_grant.v1', permission='simulated_corporate_action_stage_write', service_actor_id='simulated-trading', status='active', account_namespace='simulated'), name='acct_scawg_fixed_ck'), models.CheckConstraint(condition=models.Q(consented_at__lte=models.F('issued_at')) & models.Q(issued_at__lte=models.F('recorded_at')) & models.Q(recorded_at__lt=models.F('valid_until')), name='acct_scawg_clock_ck'), models.CheckConstraint(condition=models.Q(supersedes_content_hash__isnull=True) & models.Q(predecessor__isnull=True) | models.Q(supersedes_content_hash__isnull=False) & models.Q(predecessor__isnull=False), name='acct_scawg_chain_ck')]",
+            "constraints": "[models.UniqueConstraint(fields=('grant_id', 'grant_version'), name='acct_scawg_version_uq'), models.UniqueConstraint(fields=('grant_id',), condition=models.Q(predecessor__isnull=True), name='acct_scawg_root_uq'), models.UniqueConstraint(fields=('supersedes_content_hash',), name='acct_scawg_predecessor_uq'), models.CheckConstraint(condition=models.Q(owner='account', artifact_type='simulated_corporate_action_write_grant', service_actor_id='simulated-trading', status='active', account_namespace='simulated') & (models.Q(schema=SIMULATED_CORPORATE_ACTION_WRITE_GRANT_SCHEMA, permission=SIMULATED_CORPORATE_ACTION_STAGE_WRITE_PERMISSION, capabilities__isnull=True, terms_version__isnull=True, terms_sha256__isnull=True) | models.Q(schema=SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA, permission=SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_PERMISSION, capabilities__isnull=False, terms_version__isnull=False, terms_version__gt='', terms_sha256__isnull=False, terms_sha256__regex='^[0-9a-f]{64}$')), name='acct_scawg_fixed_ck'), models.CheckConstraint(condition=models.Q(consented_at__lte=models.F('issued_at')) & models.Q(issued_at__lte=models.F('recorded_at')) & models.Q(recorded_at__lt=models.F('valid_until')), name='acct_scawg_clock_ck'), models.CheckConstraint(condition=models.Q(supersedes_content_hash__isnull=True) & models.Q(predecessor__isnull=True) | models.Q(supersedes_content_hash__isnull=False) & models.Q(predecessor__isnull=False), name='acct_scawg_chain_ck')]",
             "db_table": "account_sim_corp_action_write_grant_ledger",
             "indexes": "[models.Index(fields=('grant_id', 'recorded_at'), name='acct_scawg_grant_time_ix'), models.Index(fields=('account_id', 'recorded_at'), name='acct_scawg_account_time_ix')]"
           },

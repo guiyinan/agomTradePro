@@ -2,6 +2,7 @@
 
 import base64
 from dataclasses import replace
+from datetime import timedelta
 from types import SimpleNamespace
 
 import pytest
@@ -9,8 +10,19 @@ import pytest
 from apps.account.application.simulated_corporate_action_write_grant import (
     SimulatedCorporateActionWriteGrantUnavailable,
 )
+from apps.account.domain.simulated_corporate_action_write_capabilities import (
+    SimulatedCorporateActionWriteCapability,
+)
+from apps.account.domain.simulated_corporate_action_write_grant import (
+    validate_simulated_corporate_action_write_grant_revocation,
+)
 from apps.account.infrastructure import simulated_corporate_action_write_grant_seal as seals
-from tests.unit.account.test_simulated_corporate_action_write_grant import _binding, _grant
+from tests.unit.account.test_simulated_corporate_action_write_grant import (
+    _binding,
+    _grant,
+    _grant_v2,
+    _revocation,
+)
 
 
 def _key(monkeypatch: pytest.MonkeyPatch, raw: bytes = b"a" * 32) -> None:
@@ -31,8 +43,70 @@ def test_plain_canonical_storage_record_is_not_issuer_proof(
     assert not seal.verify(_grant())
     issued = seal.seal(_grant())
     assert seal.verify(issued)
+    assert issued.issuer_evidence_hash == (
+        "c613635ae033121e8dba03ed66eceaa46dde8e693c08126c9c3afa29823767bf"
+    )
     assert issued.content_hash != _grant().content_hash
     assert seal.seal(issued) == issued
+
+
+def test_v2_capabilities_use_a_versioned_mac_and_reject_public_hash_resealing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _key(monkeypatch)
+    seal = seals.SimulatedCorporateActionWriteGrantSeal()
+    grant = _grant_v2(
+        capabilities=(
+            SimulatedCorporateActionWriteCapability.TAX_ASSESS,
+            SimulatedCorporateActionWriteCapability.TAX_WITHHOLD,
+        ),
+        supersedes_content_hash=None,
+    )
+
+    issued = seal.seal(grant)
+
+    assert issued.issuer_evidence_version == "2"
+    assert seal.verify(issued)
+    forged = replace(
+        issued,
+        capabilities=(SimulatedCorporateActionWriteCapability.TAX_ASSESS,),
+        identity_hash="",
+        content_hash="",
+    )
+    assert not seal.verify(forged)
+
+
+def test_v2_revocation_mac_binds_the_complete_grant_content_hash(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _key(monkeypatch)
+    seal = seals.SimulatedCorporateActionWriteGrantSeal()
+    grant = seal.seal(
+        _grant_v2(
+            capabilities=(
+                SimulatedCorporateActionWriteCapability.TAX_ASSESS,
+                SimulatedCorporateActionWriteCapability.TAX_WITHHOLD,
+            ),
+            supersedes_content_hash=None,
+        )
+    )
+    revocation = seal.seal_revocation(
+        _revocation(grant, recorded_at=grant.recorded_at + timedelta(minutes=5))
+    )
+
+    assert seal.verify_revocation(revocation)
+    assert revocation.grant_content_hash == grant.content_hash
+    validate_simulated_corporate_action_write_grant_revocation(grant, revocation)
+
+    forged = replace(
+        revocation,
+        grant_content_hash="f" * 64,
+        identity_hash="",
+        content_hash="",
+    )
+    assert not seal.verify_revocation(forged)
+    with pytest.raises(ValueError, match="target"):
+        validate_simulated_corporate_action_write_grant_revocation(grant, forged)
 
 
 @pytest.mark.parametrize(

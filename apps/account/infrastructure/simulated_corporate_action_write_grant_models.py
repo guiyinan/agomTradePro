@@ -13,6 +13,16 @@ from django.db import models
 from django.db.models.base import ModelBase
 from django.db.models.signals import pre_delete
 
+from apps.account.domain.simulated_corporate_action_write_capabilities import (
+    SimulatedCorporateActionWriteCapability,
+    validate_simulated_corporate_action_write_capabilities,
+)
+from apps.account.domain.simulated_corporate_action_write_grant import (
+    SIMULATED_CORPORATE_ACTION_STAGE_WRITE_PERMISSION,
+    SIMULATED_CORPORATE_ACTION_WRITE_GRANT_SCHEMA,
+    SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_PERMISSION,
+    SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA,
+)
 from shared.infrastructure.django_append_only import AppendOnlyManager
 
 _ModelT = TypeVar("_ModelT", bound=models.Model)
@@ -183,6 +193,9 @@ class SimulatedCorporateActionWriteGrantModel(_SimulatedCorporateActionWriteGran
     recorded_at = models.DateTimeField(db_index=True)
     valid_until = models.DateTimeField(db_index=True)
     supersedes_content_hash = models.CharField(max_length=64, null=True, blank=True)
+    capabilities = models.JSONField(null=True, blank=True)
+    terms_version = models.CharField(max_length=192, null=True, blank=True)
+    terms_sha256 = models.CharField(max_length=64, null=True, blank=True)
     predecessor = models.OneToOneField(
         "self",
         on_delete=models.PROTECT,
@@ -222,11 +235,27 @@ class SimulatedCorporateActionWriteGrantModel(_SimulatedCorporateActionWriteGran
                 condition=models.Q(
                     owner="account",
                     artifact_type="simulated_corporate_action_write_grant",
-                    schema="account.simulated_corporate_action_write_grant.v1",
-                    permission="simulated_corporate_action_stage_write",
                     service_actor_id="simulated-trading",
                     status="active",
                     account_namespace="simulated",
+                )
+                & (
+                    models.Q(
+                        schema=SIMULATED_CORPORATE_ACTION_WRITE_GRANT_SCHEMA,
+                        permission=SIMULATED_CORPORATE_ACTION_STAGE_WRITE_PERMISSION,
+                        capabilities__isnull=True,
+                        terms_version__isnull=True,
+                        terms_sha256__isnull=True,
+                    )
+                    | models.Q(
+                        schema=SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA,
+                        permission=SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_PERMISSION,
+                        capabilities__isnull=False,
+                        terms_version__isnull=False,
+                        terms_version__gt="",
+                        terms_sha256__isnull=False,
+                        terms_sha256__regex=r"^[0-9a-f]{64}$",
+                    )
                 ),
                 name="acct_scawg_fixed_ck",
             ),
@@ -252,6 +281,70 @@ class SimulatedCorporateActionWriteGrantModel(_SimulatedCorporateActionWriteGran
                 name="acct_scawg_chain_ck",
             ),
         ]
+
+    def clean(self) -> None:
+        """Require null V2 columns for V1 and exact canonical capability facts for V2."""
+
+        super().clean()
+        if self.schema == SIMULATED_CORPORATE_ACTION_WRITE_GRANT_SCHEMA:
+            if (
+                self.permission != SIMULATED_CORPORATE_ACTION_STAGE_WRITE_PERMISSION
+                or self.capabilities is not None
+                or self.terms_version is not None
+                or self.terms_sha256 is not None
+            ):
+                raise ValidationError("V1 grant rows must keep all V2 columns null.")
+            return
+        if self.schema != SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA:
+            raise ValidationError("simulated write grant schema is unsupported.")
+        if self.permission != SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_PERMISSION:
+            raise ValidationError("V2 grant permission marker is invalid.")
+        if type(self.capabilities) is not list or not self.capabilities:
+            raise ValidationError("V2 grant capabilities must be a nonempty JSON array.")
+        capability_values: list[SimulatedCorporateActionWriteCapability] = []
+        for value in self.capabilities:
+            if type(value) is not str:
+                raise ValidationError("V2 grant capabilities must contain exact strings.")
+            try:
+                capability_values.append(SimulatedCorporateActionWriteCapability(value))
+            except ValueError as error:
+                raise ValidationError("V2 grant capability is unknown.") from error
+        try:
+            validate_simulated_corporate_action_write_capabilities(tuple(capability_values))
+        except (TypeError, ValueError) as error:
+            raise ValidationError("V2 grant capabilities are not canonical.") from error
+        if (
+            type(self.terms_version) is not str
+            or not self.terms_version
+            or self.terms_version.strip() != self.terms_version
+            or len(self.terms_version) > 192
+            or any(character.isspace() for character in self.terms_version)
+        ):
+            raise ValidationError("V2 grant terms version is invalid.")
+        if (
+            type(self.terms_sha256) is not str
+            or len(self.terms_sha256) != 64
+            or any(character not in "0123456789abcdef" for character in self.terms_sha256)
+        ):
+            raise ValidationError("V2 grant terms digest is invalid.")
+
+    def save(
+        self,
+        *,
+        force_insert: bool | tuple[ModelBase, ...] = False,
+        force_update: bool = False,
+        using: str | None = None,
+        update_fields: Iterable[str] | None = None,
+    ) -> None:
+        """Validate version-specific columns before the base exact-insert claim."""
+
+        self.clean()
+        super().save(
+            force_insert=force_insert,
+            force_update=force_update,
+            using=using,
+            update_fields=update_fields,
+        )
 
 
 class SimulatedCorporateActionWriteGrantRevocationModel(_SimulatedCorporateActionWriteGrantModel):
