@@ -1,5 +1,5 @@
 {
-  "version": "2026-11-12.v479",
+  "version": "2026-11-12.v480",
   "updated_at": "2026-11-12",
   "execution_focus": {
     "unit_id": "ASH-05",
@@ -1571,6 +1571,59 @@
           "AUD-05"
         ],
         "exit_gate": "Complete the repository phases R1-R4 and S1-S6 in docs/plans/production-recovery-and-regression-remediation-2026-09-24.md with failing-first behavior evidence, appropriate SQLite/PostgreSQL and API/SDK/MCP/browser regression, unchanged safety thresholds, zero implicit business writes on reads, mandatory candidate-bound real-provider rehearsal validation and independent Luna max review. Audit authority migration must replace the 22-table global SHARE-lock decision path with a complete RR proof and short RC final fence; the fence must remain open through same-database publication/current-pointer/audit/outbox writes, reject cross-alias or generation drift, and pass the no-skip PostgreSQL concurrency matrix before old relation locks are removed. Partial root/revocation evidence cannot authorize production. Report unavailable real-provider inputs explicitly; no mock-only rehearsal or skipped required check can satisfy the gate. Repository closure does not complete DATA-02, EVID/AUD or TUI production acceptance; real publication reconciliation and ordinary-user production UAT remain separate."
+      },
+      {
+        "id": "DATA-19",
+        "workstream_id": "data-production-reliability",
+        "wave": 3,
+        "priority": "P2",
+        "execution_mode": "repository",
+        "status": "planned",
+        "title": "Govern dataset source capabilities, provenance and shared failover quality",
+        "depends_on": [
+          "DATA-16"
+        ],
+        "exit_gate": "Reuse ProviderConfig, ProviderRegistry, Config Center and canonical Publication/PIT contracts to register dataset, market, frequency, history, field, unit and adjustment coverage with actual upstream identity distinct from adapter/library identity. Connection probes cannot establish all-dataset readiness. Preserve observation, disclosure/availability, transport completion and knowledge clocks plus exact raw response identity. Empty, unpublished, stale, incomplete, malformed, quota and upstream failures remain distinct with business outcome and counts. Cross-worker rate limits, cooldown and circuits share the actual upstream risk group; same-upstream adapters are not independent fallback. Same-scope failover requires overlap evidence and configured consistency rules with default 1 percent tolerance; unknown or conflicting evidence blocks current decisions. Meaningful quality/concurrency tests, incremental mypy/debt and applicable architecture, generated projection, current-data and task contracts pass. Record a-stock-data reference version, pinned commit before code reuse, adopted scope and applicable attribution/license; README acknowledgement is a documentation deliverable, not implementation or live-source evidence. Scope and acceptance: docs/plans/model-market-data-center-routing-2026-09-09.md, section Data source expansion and user switching dated 2026-11-12. Registration does not change execution_focus, authorize production writes or reopen DATA-16."
+      },
+      {
+        "id": "DATA-20",
+        "workstream_id": "data-production-reliability",
+        "wave": 3,
+        "priority": "P2",
+        "execution_mode": "repository",
+        "status": "waiting_dependency",
+        "title": "Integrate and reconcile Tongdaxin full-market daily packages",
+        "depends_on": [
+          "DATA-19"
+        ],
+        "exit_gate": "Deliver a typed Tongdaxin official daily-package adapter, governed capability/unit initialization and idempotent canonical import. Filter package records through the frozen A-share security universe; do not count other instruments or provider omissions as market coverage or trading-status proof. Retained real response fixtures and controlled live probes verify requested date, raw OHLC, shares/lots, CNY amount, duplicates, archive/layout corruption and completeness against the same frozen denominator. Cross-check overlapping securities/dates with a different actual upstream, including main boards, ChiNext and STAR; unsupported BSE/ETF scope is explicitly refused or independently qualified. Read-only previews have zero canonical/current writes; partial or stale imports do not publish complete current data. Tests and applicable typing, architecture, projection, current-data and Celery gates pass with candidate-bound originals. Record exact upstream code attribution if adopted. Scope and acceptance: docs/plans/model-market-data-center-routing-2026-09-09.md, 2026-11-12 proposal delivery 1. Offline fixture success alone is not live-source acceptance; deployment and production backfill remain separate."
+      },
+      {
+        "id": "DATA-21",
+        "workstream_id": "data-production-reliability",
+        "wave": 3,
+        "priority": "P2",
+        "execution_mode": "repository",
+        "status": "waiting_dependency",
+        "title": "Complete scoped user source selection and reversible TUI switching",
+        "depends_on": [
+          "DATA-20",
+          "ASH-04"
+        ],
+        "exit_gate": "Complete the daily-data TUI primary task with at least two different actual upstreams: inspect coverage and clocks, choose automatic/preferred-with-approved-fallback/strict-single-source mode, preview and compare, save explicit scope, read back effective settings, inspect actual source/reason and restore a prior configuration. Ordinary-user preferences and per-request overrides never modify global priority, shared secrets, other users or shared current pointers; administrator policy remains separate and all system quality/authorization restrictions still apply. Strict mode never silently switches; stale candidates continue only within allowed fallback, while absent overlap or excessive differences block. Versioned saves reject concurrent drift, in-flight tasks freeze their policy and late responses cannot overwrite a new choice. Caches isolate authorization, scope, mode, adjustment and policy version. Shared source changes require shadow comparison and governed Publication; rollback preserves facts, audit and historical research/order evidence. Desktop and narrow-screen ordinary/read-only/unauthorized/empty/stale/failure journeys plus API status/Content-Type, scoped cache, task-version and concurrency regressions pass. Synchronize applicable TUI metadata/schema/runtime, SDK/MCP, mypy, architecture and freshness gates. Scope and acceptance: docs/plans/model-market-data-center-routing-2026-09-09.md, 2026-11-12 proposal delivery 2; no deployment or production qualification inferred."
+      },
+      {
+        "id": "DATA-22",
+        "workstream_id": "data-production-reliability",
+        "wave": 3,
+        "priority": "P2",
+        "execution_mode": "repository",
+        "status": "waiting_dependency",
+        "title": "Add qualified official margin and calendar sources with adoption records",
+        "depends_on": [
+          "DATA-21"
+        ],
+        "exit_gate": "Deliver separate governed SSE/SZSE margin-data capabilities and the official SZSE trading-calendar capability through existing Data Center application ports, configured capabilities/units and the completed source-choice workflow. Each source has retained real fixtures, controlled target-network probes, source dates, publication precision, pagination/whole-month completeness, missing-field handling, idempotent import and a typed unavailable result. Cross-exchange or cross-dataset substitution is refused; the two exchanges are not fallback providers for the same security. Calendar replacement checks existing authorized calendar semantics and does not activate production schedules or financial rules. Validate quality conflicts, not-yet-published data, incomplete results, source selection, permitted fallback and rollback with applicable contract/type/architecture/TUI gates. Update the existing plan's actual adoption list and README acknowledgement with pinned upstream references and applicable code attribution/license. CSI/CNI, ETF shares, BSE, research reports, announcements and interaction/event expansion remain explicitly unevaluated candidates until separately bounded and registered; this unit cannot imply their completion. Scope and acceptance: docs/plans/model-market-data-center-routing-2026-09-09.md, 2026-11-12 proposal delivery 3. Production rollout, DATA-02 closure and financial activation remain independent."
       },
       {
         "id": "IDX-01",

@@ -1107,6 +1107,12 @@ pytest tests/ -v --cov=apps
 
 ---
 
+## 参考项目与致谢
+
+感谢 **Simon 林（simonlin1212）及 [a-stock-data](https://github.com/simonlin1212/a-stock-data/) 项目贡献者**，公开整理 A 股数据接口、备用来源、数据口径差异与回归样本，为 AgomTradePro 的数据源扩展和管理设计提供参考。
+
+本轮参考范围、后续采用记录及用户选源方案见[数据源扩展与用户切换方案](docs/plans/model-market-data-center-routing-2026-09-09.md#数据源扩展与用户切换方案-2026-11-12)。当前致谢记录不代表已集成其实现；后续复用代码将记录具体来源、修改和适用许可。
+
 ## 开源协议
 
 Apache License 2.0 —— 详见 [LICENSE](LICENSE)。

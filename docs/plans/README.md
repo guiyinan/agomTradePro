@@ -72,7 +72,7 @@
 | 支撑 | [DATA-02 可恢复批次证据整改计划（2026-09-21）](data02-resumable-recovery-remediation-2026-09-21.md) |
 | 支撑 | [DataHubCo RDS 数据中台绑定](datahubco-rds-binding-2026-09-09.md) |
 | 支撑 | [治理契约存量覆盖缺口备忘录（2026-08-10）](governance-legacy-coverage-gaps-memo-2026-08-10.md) |
-| 支撑 | [模型行情经数据中台取数（本地改造，2026-09-09）](model-market-data-center-routing-2026-09-09.md) |
+| 支撑 | [模型行情经数据中台取数与数据源扩展、用户切换方案](model-market-data-center-routing-2026-09-09.md) |
 | 支撑 | [生产恢复与系统性防回归整改计划（2026-09-24）](production-recovery-and-regression-remediation-2026-09-24.md) |
 | 支撑 | [财务发现与发布能力隔离整改（2026-10-16）](financial-scope-resilience-2026-10-16.md) |
 | 支撑 | [发布阻塞清零综合实施方案（2026-08-29）](release-blocker-closure-execution-plan-2026-08-29.md) |
