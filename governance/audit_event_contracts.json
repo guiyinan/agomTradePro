@@ -790,6 +790,26 @@
         "corporate_action_stage_posted"
       ],
       "test_contract": "tests/component/simulated_trading/test_audited_corporate_action_posting_composition.py::test_entitlement_and_exact_replay_keep_one_ledger_audit_outbox_pair"
+    },
+    {
+      "event_type": "simulated.corporate_action.tax_assessed",
+      "category": "execution.control",
+      "owner": "simulated_trading",
+      "status": "active",
+      "implementation_status": "wired",
+      "write_policy": "transactional_outbox",
+      "severity": "info",
+      "outcomes": [
+        "success"
+      ],
+      "required_correlations": [
+        "evidence_ref"
+      ],
+      "detail_schema": "simulated.corporate_action.tax_assessed.v1",
+      "reason_codes": [
+        "corporate_action_tax_assessed"
+      ],
+      "test_contract": "tests/component/simulated_trading/test_corporate_action_tax_assessment_postgres.py::test_native_assessment_and_retry_keep_one_header_allocation_audit_outbox_set"
     }
   ]
 }

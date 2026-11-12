@@ -7,8 +7,8 @@
 ## 概览
 
 - App 数：42
-- 模型数：611
-- 字段数：9515
+- 模型数：614
+- 字段数：9565
 
 口径说明：仅覆盖 `apps/*/infrastructure/` 下的 `models.py`、`models/` 包与 `*_models.py`；字段为类体内显式赋值的 Django 字段，继承字段不展开，动态字段与隐式自增主键不在投影内。
 
@@ -13810,6 +13810,83 @@
 | `share_receivable_delta` | `DecimalField` |  |  | 0 |  |  |
 | `available_share_delta` | `DecimalField` |  |  | 0 |  |  |
 | `created_at` | `DateTimeField` |  |  |  |  |  |
+
+### CorporateActionTaxAssessmentAllocationModel
+
+- 来源文件：`apps/simulated_trading/infrastructure/corporate_action_tax_assessment_models.py`
+- 数据表：`sim_ca_tax_assess_allocation`
+- 说明：One ordered lossless FIFO allocation row belonging to one assessment revision.
+
+| 字段 | 类型 | null | unique | 默认值 | 说明 | 关系目标 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `assessment` | `ForeignKey` |  |  |  |  | CorporateActionTaxAssessmentHeaderModel |
+| `ordinal` | `PositiveIntegerField` |  |  |  |  |  |
+| `lot_id` | `CharField` |  |  |  |  |  |
+| `allocation_payload_json` | `TextField` |  |  |  |  |  |
+| `allocation_sha256` | `CharField` |  |  |  |  |  |
+
+### CorporateActionTaxAssessmentHeaderModel
+
+- 来源文件：`apps/simulated_trading/infrastructure/corporate_action_tax_assessment_models.py`
+- 数据表：`sim_ca_tax_assessment`
+- 说明：One immutable source-, policy-, history-, and owner-bound assessment revision.
+
+| 字段 | 类型 | null | unique | 默认值 | 说明 | 关系目标 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `account` | `ForeignKey` |  |  |  |  | SimulatedAccountModel |
+| `owner_user` | `ForeignKey` |  |  |  |  | settings.AUTH_USER_MODEL |
+| `authority_grant_id` | `CharField` |  |  |  |  |  |
+| `authority_grant_version` | `CharField` |  |  |  |  |  |
+| `authority_grant_sha256` | `CharField` |  |  |  |  |  |
+| `audit_tenant_id` | `CharField` |  |  |  |  |  |
+| `audit_owner_id` | `CharField` |  |  |  |  |  |
+| `assessment_revision_id` | `CharField` |  |  |  |  |  |
+| `supersedes` | `ForeignKey` | 是 |  |  | self | self |
+| `supersedes_assessment_revision_id` | `CharField` | 是 |  |  |  |  |
+| `asset_code` | `CharField` |  |  |  |  |  |
+| `security_id` | `CharField` |  |  |  |  |  |
+| `corporate_action_id` | `CharField` |  |  |  |  |  |
+| `source_namespace` | `CharField` |  |  |  |  |  |
+| `source_record_id` | `CharField` |  |  |  |  |  |
+| `source_event_id` | `CharField` |  |  |  |  |  |
+| `action_source_revision_id` | `CharField` |  |  |  |  |  |
+| `action_source_revision_sha256` | `CharField` |  |  |  |  |  |
+| `action_source_payload_sha256` | `CharField` |  |  |  |  |  |
+| `settlement_source_revision_id` | `CharField` |  |  |  |  |  |
+| `settlement_source_revision_sha256` | `CharField` |  |  |  |  |  |
+| `record_date` | `DateField` |  |  |  |  |  |
+| `settlement_date` | `DateField` |  |  |  |  |  |
+| `settlement_date_rule_id` | `CharField` |  |  |  |  |  |
+| `settlement_date_rule_sha256` | `CharField` |  |  |  |  |  |
+| `settlement_calendar_id` | `CharField` |  |  |  |  |  |
+| `settlement_calendar_sha256` | `CharField` |  |  |  |  |  |
+| `policy_id` | `CharField` |  |  |  |  |  |
+| `policy_version` | `CharField` |  |  |  |  |  |
+| `policy_source_identity` | `CharField` |  |  |  |  |  |
+| `policy_source_sha256` | `CharField` |  |  |  |  |  |
+| `policy_sha256` | `CharField` |  |  |  |  |  |
+| `statutory_revision_set_sha256` | `CharField` |  |  |  |  |  |
+| `disposition_id` | `CharField` |  |  |  |  |  |
+| `idempotency_key` | `CharField` |  |  |  |  |  |
+| `semantic_payload_json` | `TextField` |  |  |  |  |  |
+| `semantic_sha256` | `CharField` |  |  |  |  |  |
+| `observation_manifest_json` | `TextField` |  |  |  |  |  |
+| `observation_manifest_sha256` | `CharField` |  |  |  |  |  |
+| `calculation_payload_json` | `TextField` |  |  |  |  |  |
+| `calculation_sha256` | `CharField` |  |  |  |  |  |
+| `gross_dividend_amount_text` | `CharField` |  |  |  |  |  |
+| `taxable_dividend_amount_text` | `CharField` |  |  |  |  |  |
+| `withholding_amount_text` | `CharField` |  |  |  |  |  |
+
+### _TaxAssessmentImmutableModel
+
+- 来源文件：`apps/simulated_trading/infrastructure/corporate_action_tax_assessment_models.py`
+- 抽象模型：是
+- 说明：Require exact repository claims for new rows and reject all later mutation.
+
+| 字段 | 类型 | null | unique | 默认值 | 说明 | 关系目标 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `recorded_at` | `DateTimeField` |  |  |  |  |  |
 
 ### SimulatedFeeCorrectionEventModel
 

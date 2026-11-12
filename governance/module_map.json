@@ -2387,7 +2387,7 @@
           "imports": 1
         },
         "simulated_trading": {
-          "imports": 8
+          "imports": 10
         },
         "terminal": {
           "imports": 2
@@ -2878,7 +2878,7 @@
         "infrastructure": 28,
         "interface": 14,
         "management": 8,
-        "root": 8,
+        "root": 9,
         "templatetags": 2
       },
       "orm_models": {
@@ -11018,9 +11018,10 @@
           ]
         },
         "audit": {
-          "imports": 8,
+          "imports": 10,
           "target_layers": [
             "application",
+            "corporate_action_tax_assessment_composition",
             "domain",
             "infrastructure",
             "security_disclosure_capture_composition",
@@ -11218,6 +11219,16 @@
           "PostCashDividendPaymentUseCase",
           "PostCorporateActionStageUseCase",
           "RecordDateOwnershipProofReaderProtocol"
+        ],
+        "application/corporate_action_tax_assessment.py": [
+          "CorporateActionTaxAssessmentUseCase",
+          "CurrentTaxAssessmentScopeVerifierPort",
+          "TaxAssessmentAppendDisposition",
+          "TaxAssessmentAtomicUnitOfWorkPort",
+          "TaxAssessmentAtomicWriterPort",
+          "TaxAssessmentClockPort",
+          "TaxAssessmentWriteLease",
+          "TaxAssessmentWriteReceipt"
         ],
         "application/corporate_action_tax_policy.py": [
           "CorporateActionTaxPolicyDecodeError",
@@ -12040,12 +12051,12 @@
         ]
       },
       "layers": {
-        "application": 124,
-        "domain": 43,
-        "infrastructure": 136,
+        "application": 125,
+        "domain": 45,
+        "infrastructure": 138,
         "interface": 35,
         "management": 7,
-        "root": 43
+        "root": 44
       },
       "orm_models": {
         "infrastructure/models.py": [

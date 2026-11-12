@@ -86797,6 +86797,450 @@
         },
         {
           "bases": [
+            "_TaxAssessmentImmutableModel"
+          ],
+          "class_name": "CorporateActionTaxAssessmentAllocationModel",
+          "docstring": "One ordered lossless FIFO allocation row belonging to one assessment revision.",
+          "fields": [
+            {
+              "field_type": "ForeignKey",
+              "kwargs": {
+                "on_delete": "models.PROTECT",
+                "related_name": "allocations"
+              },
+              "name": "assessment",
+              "positional_args": [
+                "CorporateActionTaxAssessmentHeaderModel"
+              ]
+            },
+            {
+              "field_type": "PositiveIntegerField",
+              "name": "ordinal",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 128
+              },
+              "name": "lot_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "TextField",
+              "name": "allocation_payload_json",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "allocation_sha256",
+              "positional_args": []
+            }
+          ],
+          "meta": {
+            "base_manager_name": "objects",
+            "constraints": "[models.UniqueConstraint(fields=('assessment', 'ordinal'), name='sim_ca_tax_alloc_order_uq'), models.UniqueConstraint(fields=('assessment', 'lot_id'), name='sim_ca_tax_alloc_lot_uq'), models.CheckConstraint(condition=models.Q(ordinal__gt=0) & models.Q(lot_id__gt=''), name='sim_ca_tax_alloc_identity_ck'), models.CheckConstraint(condition=models.Q(allocation_sha256__regex='^[0-9a-f]{64}$'), name='sim_ca_tax_alloc_hash_ck')]",
+            "db_table": "sim_ca_tax_assess_allocation",
+            "default_manager_name": "objects",
+            "ordering": [
+              "assessment_id",
+              "ordinal"
+            ]
+          },
+          "source_file": "infrastructure/corporate_action_tax_assessment_models.py"
+        },
+        {
+          "bases": [
+            "_TaxAssessmentImmutableModel"
+          ],
+          "class_name": "CorporateActionTaxAssessmentHeaderModel",
+          "docstring": "One immutable source-, policy-, history-, and owner-bound assessment revision.",
+          "fields": [
+            {
+              "field_type": "ForeignKey",
+              "kwargs": {
+                "on_delete": "models.PROTECT",
+                "related_name": "corporate_action_tax_assessments"
+              },
+              "name": "account",
+              "positional_args": [
+                "SimulatedAccountModel"
+              ]
+            },
+            {
+              "field_type": "ForeignKey",
+              "kwargs": {
+                "on_delete": "models.PROTECT",
+                "related_name": "corporate_action_tax_assessments"
+              },
+              "name": "owner_user",
+              "positional_args": [
+                "settings.AUTH_USER_MODEL"
+              ]
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 192
+              },
+              "name": "authority_grant_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 192
+              },
+              "name": "authority_grant_version",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "authority_grant_sha256",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 192
+              },
+              "name": "audit_tenant_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 192
+              },
+              "name": "audit_owner_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 192
+              },
+              "name": "assessment_revision_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "ForeignKey",
+              "kwargs": {
+                "blank": true,
+                "null": true,
+                "on_delete": "models.PROTECT",
+                "related_name": "successor_assessments"
+              },
+              "name": "supersedes",
+              "null": true,
+              "positional_args": [
+                "'self'"
+              ]
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 192,
+                "null": true
+              },
+              "name": "supersedes_assessment_revision_id",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 96
+              },
+              "name": "asset_code",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 96
+              },
+              "name": "security_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 128
+              },
+              "name": "corporate_action_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 128
+              },
+              "name": "source_namespace",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 192
+              },
+              "name": "source_record_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 192
+              },
+              "name": "source_event_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 192
+              },
+              "name": "action_source_revision_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "action_source_revision_sha256",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "action_source_payload_sha256",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 192
+              },
+              "name": "settlement_source_revision_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "settlement_source_revision_sha256",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateField",
+              "name": "record_date",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateField",
+              "name": "settlement_date",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 192
+              },
+              "name": "settlement_date_rule_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "settlement_date_rule_sha256",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 192
+              },
+              "name": "settlement_calendar_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "settlement_calendar_sha256",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 96
+              },
+              "name": "policy_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 96
+              },
+              "name": "policy_version",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 192
+              },
+              "name": "policy_source_identity",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "policy_source_sha256",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "policy_sha256",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "statutory_revision_set_sha256",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 128
+              },
+              "name": "disposition_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "idempotency_key",
+              "positional_args": []
+            },
+            {
+              "field_type": "TextField",
+              "name": "semantic_payload_json",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "semantic_sha256",
+              "positional_args": []
+            },
+            {
+              "field_type": "TextField",
+              "name": "observation_manifest_json",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "observation_manifest_sha256",
+              "positional_args": []
+            },
+            {
+              "field_type": "TextField",
+              "name": "calculation_payload_json",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "calculation_sha256",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 128
+              },
+              "name": "gross_dividend_amount_text",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 128
+              },
+              "name": "taxable_dividend_amount_text",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 128
+              },
+              "name": "withholding_amount_text",
+              "positional_args": []
+            }
+          ],
+          "meta": {
+            "base_manager_name": "objects",
+            "constraints": "[models.UniqueConstraint(fields=('account', 'source_event_id', 'action_source_revision_id', 'disposition_id', 'assessment_revision_id'), name='sim_ca_tax_assessment_rev_uq'), models.CheckConstraint(condition=models.Q(assessment_revision_id__gt='') & models.Q(asset_code__gt='') & models.Q(security_id__gt='') & models.Q(corporate_action_id__gt='') & models.Q(source_event_id__gt='') & models.Q(action_source_revision_id__gt='') & models.Q(settlement_source_revision_id__gt='') & models.Q(disposition_id__gt='') & models.Q(authority_grant_id__gt='') & models.Q(authority_grant_version__gt='') & models.Q(audit_tenant_id__gt='') & models.Q(audit_owner_id__gt=''), name='sim_ca_tax_assess_scope_ck'), models.CheckConstraint(condition=models.Q(supersedes__isnull=True) & models.Q(supersedes_assessment_revision_id__isnull=True) | models.Q(supersedes__isnull=False) & models.Q(supersedes_assessment_revision_id__gt=''), name='sim_ca_tax_assess_successor_ck'), models.CheckConstraint(condition=models.Q(action_source_revision_sha256__regex='^[0-9a-f]{64}$', action_source_payload_sha256__regex='^[0-9a-f]{64}$', settlement_source_revision_sha256__regex='^[0-9a-f]{64}$', settlement_date_rule_sha256__regex='^[0-9a-f]{64}$', settlement_calendar_sha256__regex='^[0-9a-f]{64}$', policy_source_sha256__regex='^[0-9a-f]{64}$', policy_sha256__regex='^[0-9a-f]{64}$', statutory_revision_set_sha256__regex='^[0-9a-f]{64}$', idempotency_key__regex='^[0-9a-f]{64}$', semantic_sha256__regex='^[0-9a-f]{64}$', observation_manifest_sha256__regex='^[0-9a-f]{64}$', calculation_sha256__regex='^[0-9a-f]{64}$', authority_grant_sha256__regex='^[0-9a-f]{64}$'), name='sim_ca_tax_assess_hash_ck')]",
+            "db_table": "sim_ca_tax_assessment",
+            "default_manager_name": "objects"
+          },
+          "source_file": "infrastructure/corporate_action_tax_assessment_models.py"
+        },
+        {
+          "abstract": true,
+          "bases": [
+            "models.Model"
+          ],
+          "class_name": "_TaxAssessmentImmutableModel",
+          "docstring": "Require exact repository claims for new rows and reject all later mutation.",
+          "fields": [
+            {
+              "field_type": "DateTimeField",
+              "name": "recorded_at",
+              "positional_args": []
+            }
+          ],
+          "meta": {
+            "abstract": true
+          },
+          "source_file": "infrastructure/corporate_action_tax_assessment_models.py"
+        },
+        {
+          "bases": [
             "models.Model"
           ],
           "class_name": "SimulatedFeeCorrectionEventModel",

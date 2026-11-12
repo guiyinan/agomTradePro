@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 6868,
+    "current_surface_references": 6884,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -22119,6 +22119,34 @@
       "text": "from apps.realtime.application.simulated_trading_gateway import ("
     },
     {
+      "path": "apps/simulated_trading/application/corporate_action_tax_assessment.py",
+      "text": "Implementations must require explicit current tax-assessment permission"
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_tax_assessment.py",
+      "text": "The trusted verifier yields this only while all relevant current rows are"
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_tax_assessment.py",
+      "text": "\"\"\"Hold exact current-scope locks and recheck the tax-specific lease on exit."
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_tax_assessment.py",
+      "text": "\"\"\"Lock and reverify current source, policy, date, physical owner, and tax grant.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_tax_assessment.py",
+      "text": "\"\"\"Verify current owner scope and atomically retain a complete assessment.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_tax_assessment.py",
+      "text": "\"locked current tax-assessment scope differs from the complete assessment\","
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_tax_assessment.py",
+      "text": "composition must provide locked current-source/policy/date/owner checks and an"
+    },
+    {
       "path": "apps/simulated_trading/application/corporate_action_tax_policy.py",
       "text": "current policy, or establish that a source identity/hash is genuine."
     },
@@ -23207,6 +23235,34 @@
       "text": "return current"
     },
     {
+      "path": "apps/simulated_trading/audited_corporate_action_tax_assessment_composition.py",
+      "text": "The producer must independently require current owner consent, role, source,"
+    },
+    {
+      "path": "apps/simulated_trading/audited_corporate_action_tax_assessment_composition.py",
+      "text": "\"\"\"Current verifier and its active original-grant Audit origin from the same locks.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/audited_corporate_action_tax_assessment_composition.py",
+      "text": "\"\"\"References yielded only inside an actual locked current-scope verifier."
+    },
+    {
+      "path": "apps/simulated_trading/audited_corporate_action_tax_assessment_composition.py",
+      "text": "\"\"\"Require a real current-scope implementation before exposing assessment writes."
+    },
+    {
+      "path": "apps/simulated_trading/audited_corporate_action_tax_assessment_composition.py",
+      "text": "\"\"\"Return only while the exact current-scope context is active; otherwise block.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/audited_corporate_action_tax_assessment_composition.py",
+      "text": "raise _blocked(\"A locked current tax-specific source/policy/owner verifier is required.\")"
+    },
+    {
+      "path": "apps/simulated_trading/audited_corporate_action_tax_assessment_composition.py",
+      "text": "raise _blocked(\"Assessment, current authority and Audit must use one alias.\")"
+    },
+    {
       "path": "apps/simulated_trading/close_snapshot_submission_composition.py",
       "text": "\"\"\"Retain original source clocks while rechecking all current financial bindings.\"\"\""
     },
@@ -23363,12 +23419,20 @@
       "text": "current runtime configuration remain separate qualification gates."
     },
     {
+      "path": "apps/simulated_trading/domain/corporate_action_tax_assessment.py",
+      "text": "source, activate a policy, prove current ownership, grant authority, or post a"
+    },
+    {
       "path": "apps/simulated_trading/domain/corporate_action_tax_settlement_evidence.py",
       "text": "not independent proof that the calendar or source is authentic/current."
     },
     {
       "path": "apps/simulated_trading/domain/corporate_action_tax_settlement_evidence.py",
       "text": "revision is current; only a trusted Application/Infrastructure composition may"
+    },
+    {
+      "path": "apps/simulated_trading/domain/corporate_action_tax_source_evidence.py",
+      "text": "origin, current qualification, policy activation, or write authority."
     },
     {
       "path": "apps/simulated_trading/domain/daily_net_value_metrics.py",

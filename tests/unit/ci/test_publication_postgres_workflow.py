@@ -566,7 +566,7 @@ def test_ash05_hold_lease_rollback_runs_on_a_distinct_postgres_test_database() -
 
 
 def test_ash05_corporate_action_ledger_runs_on_isolated_migrated_postgres() -> None:
-    """Run native cash and grant contracts and reject skipped JUnit evidence."""
+    """Run cash, grant and immutable tax evidence contracts on migrated PostgreSQL."""
 
     workflow = yaml.load(WORKFLOW_PATH.read_text(encoding="utf-8"), Loader=yaml.BaseLoader)
     steps = workflow["jobs"]["publication-postgres"]["steps"]
@@ -621,6 +621,18 @@ def test_ash05_corporate_action_ledger_runs_on_isolated_migrated_postgres() -> N
         "tests/component/data_center/test_statutory_source_capture_composition.py::test_native_configuration_drift_preserves_unqualified_capture",
         "tests/component/data_center/test_statutory_source_capture_composition.py::test_native_old_observation_is_retained_but_rejected_for_capture_window",
         "tests/component/data_center/test_statutory_source_capture_composition.py::test_native_capture_rejects_ambient_transaction_before_network",
+        "tests/component/simulated_trading/test_corporate_action_tax_assessment_postgres.py::test_native_assessment_and_retry_keep_one_header_allocation_audit_outbox_set",
+        "tests/component/simulated_trading/test_corporate_action_tax_assessment_postgres.py::test_native_new_observation_and_nonce_return_first_persisted_manifest",
+        "tests/component/simulated_trading/test_corporate_action_tax_assessment_postgres.py::test_native_changed_facts_require_explicit_successor_and_preserve_history",
+        "tests/component/simulated_trading/test_corporate_action_tax_assessment_postgres.py::test_native_authority_change_at_exit_rolls_back_all_four_writes",
+        "tests/component/simulated_trading/test_corporate_action_tax_assessment_postgres.py::test_native_late_outbox_verification_failure_rolls_back_all_writes",
+        "tests/component/simulated_trading/test_corporate_action_tax_assessment_postgres.py::test_native_missing_original_outbox_is_blocked_without_repair",
+        "tests/component/simulated_trading/test_corporate_action_tax_assessment_postgres.py::test_native_source_action_alias_cannot_create_another_tax_stream",
+        "tests/component/simulated_trading/test_corporate_action_tax_assessment_postgres.py::test_native_concurrent_first_writes_keep_one_complete_set",
+        "tests/component/simulated_trading/test_corporate_action_tax_assessment_postgres.py::test_native_always_guards_reject_raw_mutation_even_in_replica_mode",
+        "tests/component/simulated_trading/test_corporate_action_tax_assessment_postgres.py::test_native_later_partial_sale_has_its_own_fifo_assessment_and_audit_stream",
+        "tests/component/simulated_trading/test_corporate_action_tax_assessment_postgres.py::test_native_allocation_insert_failure_rolls_back_header_and_all_audit_writes",
+        "tests/component/simulated_trading/test_corporate_action_tax_assessment_postgres.py::test_native_physical_account_owner_cannot_be_substituted_by_consistent_dtos",
     )
     assert step["env"]["DATABASE_URL"].endswith("/agom_release_rehearsal_ci")
     assert step["env"]["AGOM_CRITICAL_TEST_DB_NAME"] == "ash05_cash_posting_test"
