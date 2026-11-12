@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 7059,
+    "current_surface_references": 7123,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -4472,7 +4472,7 @@
     },
     {
       "path": "apps/account/simulated_corporate_action_current_grant_composition.py",
-      "text": "\"current simulated write grant reader supports only cash and tax-assessment capabilities\""
+      "text": "\"current simulated write grant reader does not support the requested capability\""
     },
     {
       "path": "apps/account/simulated_corporate_action_current_grant_composition.py",
@@ -22183,6 +22183,186 @@
       "text": "composition must provide locked current-source/policy/date/owner checks and an"
     },
     {
+      "path": "apps/simulated_trading/application/corporate_action_tax_liability.py",
+      "text": "The supplied verifier must hold an explicit current ``TAX_WITHHOLD`` grant,"
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_tax_liability.py",
+      "text": "\"\"\"Apply one immutable assessment/liability operation under current withholding authority.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_tax_liability.py",
+      "text": "\"\"\"Bind a locked current balance read to its exact account and liability.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_tax_liability.py",
+      "text": "\"\"\"Current liability state with the exact currency and last audited operation.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_tax_liability.py",
+      "text": "\"\"\"Finite current TAX_WITHHOLD authority for one persisted assessment.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_tax_liability.py",
+      "text": "\"\"\"Hold current owner, physical source, V2 TAX_WITHHOLD grant, and Audit scope locks.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_tax_liability.py",
+      "text": "\"\"\"Lock operation/current-liability state and atomically persist complete evidence.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_tax_liability.py",
+      "text": "\"\"\"Open one unnested atomic UOW for current locks, state, journal, Audit, and Outbox.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_tax_liability.py",
+      "text": "\"\"\"Read the complete locked current liability and prove its stored assessment chain.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_tax_liability.py",
+      "text": "\"\"\"Require exact disposition, canonical account, and currency on the current head.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_tax_liability.py",
+      "text": "\"\"\"Return the alias on which all current scope facts are locked.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_tax_liability.py",
+      "text": "\"\"\"Tie the current state to its stored assessment and complete operation receipt.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_tax_liability.py",
+      "text": "\"\"\"Validate current balance facts without granting authority from their hash.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_tax_liability.py",
+      "text": "\"\"\"Writer-read current cash and holds, bound to one locked liability scope.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_tax_liability.py",
+      "text": "\"financial writer returned an untyped current snapshot\""
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_tax_liability.py",
+      "text": "current = writer.read_current_state("
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_tax_liability.py",
+      "text": "current.__post_init__()"
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_tax_liability.py",
+      "text": "current.state.scope != scope"
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_tax_liability.py",
+      "text": "current: object,"
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_tax_liability.py",
+      "text": "else _validate_current_state(current, scope=scope, lease=lease)"
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_tax_liability.py",
+      "text": "if current is None"
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_tax_liability.py",
+      "text": "if type(current) is not TaxLiabilityCurrentState:"
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_tax_liability.py",
+      "text": "or current.canonical_account_id != lease.canonical_account_id"
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_tax_liability.py",
+      "text": "or current.canonical_account_namespace != lease.canonical_account_namespace"
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_tax_liability.py",
+      "text": "or current.currency is not lease.currency"
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_tax_liability.py",
+      "text": "or current.state.currency_quantum != lease.currency_quantum"
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_tax_liability.py",
+      "text": "raise _blocked(\"current currency quantum is invalid\", \"TAX_LIABILITY_SCOPE_BLOCKED\")"
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_tax_liability.py",
+      "text": "raise _blocked(\"current financial snapshot differs from the locked owner scope\")"
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_tax_liability.py",
+      "text": "raise _blocked(\"current liability currency is untyped\")"
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_tax_liability.py",
+      "text": "raise _blocked(\"current liability differs from its last persisted operation\")"
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_tax_liability.py",
+      "text": "raise _blocked(\"current liability head belongs to another scope or currency\")"
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_tax_liability.py",
+      "text": "raise _blocked(\"current liability lacks its original operation receipt\")"
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_tax_liability.py",
+      "text": "raise _blocked(\"current liability reader returned an untyped result\")"
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_tax_liability.py",
+      "text": "raise _blocked(\"current liability state failed Domain validation\") from error"
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_tax_liability.py",
+      "text": "raise _blocked(\"current liability state is untyped\")"
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_tax_liability.py",
+      "text": "raise _blocked(\"current liability uses another canonical namespace\")"
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_tax_liability.py",
+      "text": "raise _blocked(\"current tax-withholding lease is untyped\")"
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_tax_liability.py",
+      "text": "raise _blocked(\"current withholding lease differs from the exact assessment scope\")"
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_tax_liability.py",
+      "text": "raise _blocked(\"current withholding lease expired\", \"TAX_LIABILITY_AUTHORITY_EXPIRED\")"
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_tax_liability.py",
+      "text": "raise _blocked(\"current withholding lease expired\", \"TAX_LIABILITY_AUTHORITY_EXPIRED\")"
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_tax_liability.py",
+      "text": "raise _blocked(\"current withholding lease has an invalid cash action\")"
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_tax_liability.py",
+      "text": "return current.state"
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_tax_liability_authority.py",
+      "text": "\"\"\"Return the exact tenant/owner used by the actual current grant.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_tax_liability_authority.py",
+      "text": "raise _blocked(\"financial Audit origin has no exact current lease\")"
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_tax_liability_authority.py",
+      "text": "raise _blocked(\"new financial authority cannot outlive current tax qualification\")"
+    },
+    {
       "path": "apps/simulated_trading/application/corporate_action_tax_policy.py",
       "text": "current policy, or establish that a source identity/hash is genuine."
     },
@@ -23363,6 +23543,18 @@
       "text": "raise _blocked(\"Assessment, current authority and Audit must use one alias.\")"
     },
     {
+      "path": "apps/simulated_trading/audited_corporate_action_tax_liability_composition.py",
+      "text": "\"\"\"Compose financial writes only with an explicit current tax-withholding verifier.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/audited_corporate_action_tax_liability_composition.py",
+      "text": "\"\"\"Read the current server instant.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/audited_corporate_action_tax_liability_composition.py",
+      "text": "raise _blocked(\"Financial UOW, current authority and Audit aliases must agree\")"
+    },
+    {
       "path": "apps/simulated_trading/close_snapshot_submission_composition.py",
       "text": "\"\"\"Retain original source clocks while rechecking all current financial bindings.\"\"\""
     },
@@ -23585,6 +23777,42 @@
     {
       "path": "apps/simulated_trading/corporate_action_tax_instrument_qualification.py",
       "text": "raise _blocked(\"instrument or current model evidence failed exact validation\") from error"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_liability_owner_scope_composition.py",
+      "text": "\"Current financial tax qualification changed before commit\""
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_liability_owner_scope_composition.py",
+      "text": "\"Explicit current withholding capabilities and terms are required\""
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_liability_owner_scope_composition.py",
+      "text": "\"\"\"Current ordinary-owner TAX_WITHHOLD scope for atomic simulated tax journals.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_liability_owner_scope_composition.py",
+      "text": "\"\"\"Recheck actual current authority and finite eligibility before transaction commit.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_liability_owner_scope_composition.py",
+      "text": "\"\"\"Require explicit current V2 withholding policy, terms, owner and signed grant.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_liability_owner_scope_composition.py",
+      "text": "\"\"\"Require explicit server-selected current authority and tax qualification.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_liability_owner_scope_composition.py",
+      "text": "\"\"\"Return the single current-authority and financial-write database alias.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_liability_owner_scope_composition.py",
+      "text": "raise _blocked(\"Current financial tax qualification is untyped\")"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_liability_owner_scope_composition.py",
+      "text": "raise _blocked(\"Exact current V2 withholding consent, owner and grant are required\")"
     },
     {
       "path": "apps/simulated_trading/corporate_action_tax_owner_scope_composition.py",
@@ -24577,6 +24805,34 @@
     {
       "path": "apps/simulated_trading/infrastructure/corporate_action_posting_repository.py",
       "text": "\"stages on the current source version cannot claim a correction predecessor\","
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/corporate_action_tax_assessment_repository.py",
+      "text": "\"\"\"Verify immutable historical material without claiming current tax eligibility."
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/corporate_action_tax_liability_readback.py",
+      "text": "Readback never reconstructs missing persisted evidence and never issues current"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/corporate_action_tax_liability_writer.py",
+      "text": "\"\"\"Read the exact existing revision again under its current transaction lock.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/corporate_action_tax_liability_writer.py",
+      "text": "\"\"\"Return the complete verified current state with its original last receipt.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/corporate_action_tax_liability_writer.py",
+      "text": "raise _blocked(\"Current state read differs from the locked financial scope\")"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/corporate_action_tax_liability_writer.py",
+      "text": "raise _blocked(\"Financial lock selector differs from current exact authority\")"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/corporate_action_tax_liability_writer.py",
+      "text": "raise _blocked(\"Physical account no longer matches locked current source facts\")"
     },
     {
       "path": "apps/simulated_trading/infrastructure/corporate_action_tax_settlement_history_repository.py",

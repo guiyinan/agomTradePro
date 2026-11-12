@@ -43,7 +43,7 @@
           "imports": 1
         },
         "simulated_trading": {
-          "imports": 58
+          "imports": 66
         },
         "terminal": {
           "imports": 6
@@ -2387,7 +2387,7 @@
           "imports": 1
         },
         "simulated_trading": {
-          "imports": 14
+          "imports": 21
         },
         "terminal": {
           "imports": 2
@@ -11005,7 +11005,7 @@
       },
       "depends_on": {
         "account": {
-          "imports": 58,
+          "imports": 66,
           "target_layers": [
             "application",
             "domain",
@@ -11027,7 +11027,7 @@
           ]
         },
         "audit": {
-          "imports": 14,
+          "imports": 21,
           "target_layers": [
             "application",
             "corporate_action_tax_assessment_composition",
@@ -11245,6 +11245,24 @@
           "TaxAssessmentClockPort",
           "TaxAssessmentWriteLease",
           "TaxAssessmentWriteReceipt"
+        ],
+        "application/corporate_action_tax_liability.py": [
+          "CorporateActionTaxLiabilityUseCase",
+          "CurrentTaxLiabilityScopeVerifierPort",
+          "TaxLiabilityAppendDisposition",
+          "TaxLiabilityAtomicUnitOfWorkPort",
+          "TaxLiabilityAtomicWriterPort",
+          "TaxLiabilityCurrentState",
+          "TaxLiabilityEvidenceReference",
+          "TaxLiabilityFinancialSnapshot",
+          "TaxLiabilityWriteLease",
+          "TaxLiabilityWriteReceipt"
+        ],
+        "application/corporate_action_tax_liability_authority.py": [
+          "AuditedTaxLiabilityScopeVerifierPort",
+          "TaxLiabilityAuditOrigin",
+          "TaxLiabilityReplayRequest",
+          "TaxLiabilityReplayTimestampVerifierPort"
         ],
         "application/corporate_action_tax_policy.py": [
           "CorporateActionTaxPolicyDecodeError",
@@ -12088,12 +12106,12 @@
         ]
       },
       "layers": {
-        "application": 128,
+        "application": 130,
         "domain": 50,
-        "infrastructure": 140,
+        "infrastructure": 146,
         "interface": 37,
         "management": 7,
-        "root": 51
+        "root": 53
       },
       "orm_models": {
         "infrastructure/models.py": [

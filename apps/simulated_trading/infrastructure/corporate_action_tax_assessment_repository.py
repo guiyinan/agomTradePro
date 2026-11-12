@@ -409,6 +409,113 @@ class DjangoCorporateActionTaxAssessmentRepository:
                     "Retained FIFO allocation differs from the exact original ordered set."
                 )
 
+    def verify_retained_integrity(self, header: Header) -> dict[str, object]:
+        """Verify immutable historical material without claiming current tax eligibility.
+
+        Financial readback also verifies the original Audit/Outbox pair. This
+        method supplies neither new assessment facts nor write permission.
+        """
+        semantic = read_material(header.semantic_payload_json, header.semantic_sha256)
+        read_material(header.observation_manifest_json, header.observation_manifest_sha256)
+        calculation = read_material(header.calculation_payload_json, header.calculation_sha256)
+        if semantic.get(
+            "schema"
+        ) != "corporate-action-deferred-tax-assessment.v1" or calculation != semantic.get(
+            "calculation"
+        ):
+            raise _blocked("Historical assessment schema or calculation differs.")
+
+        def component(name: str) -> dict[str, object]:
+            """Narrow one original JSON component before inspecting its fields."""
+            value = semantic.get(name)
+            if type(value) is not dict or any(type(key) is not str for key in value):
+                raise _blocked("Historical assessment component is incomplete.")
+            return cast(dict[str, object], value)
+
+        scope = component("assessment_scope")
+        action = component("action_revision")
+        policy = component("policy")
+        history = component("settlement_history")
+        dispositions = history.get("daily_net_dispositions")
+        if type(dispositions) is not list:
+            raise _blocked("Historical assessment dispositions are missing.")
+        targets = [
+            row
+            for row in dispositions
+            if type(row) is dict
+            and row.get("settlement_date") == header.settlement_date.isoformat()
+        ]
+        if len(targets) != 1:
+            raise _blocked("Historical assessment target disposition is not unique.")
+        expected: dict[str, object] = {
+            "account_id": scope.get("account_id"),
+            "owner_user_id": scope.get("owner_user_id"),
+            "asset_code": scope.get("asset_code"),
+            "security_id": scope.get("security_id"),
+            "corporate_action_id": scope.get("corporate_action_id"),
+            "source_namespace": action.get("source_namespace"),
+            "source_record_id": action.get("source_record_id"),
+            "source_event_id": action.get("source_event_id"),
+            "action_source_revision_id": action.get("source_revision_id"),
+            "action_source_revision_sha256": action.get("source_revision_sha256"),
+            "action_source_payload_sha256": action.get("source_payload_sha256"),
+            "settlement_source_revision_id": history.get("source_revision_id"),
+            "settlement_source_revision_sha256": history.get("source_revision_sha256"),
+            "policy_id": policy.get("policy_id"),
+            "policy_version": policy.get("version"),
+            "policy_source_identity": policy.get("source_identity"),
+            "policy_source_sha256": policy.get("source_sha256"),
+            "policy_sha256": policy.get("policy_sha256"),
+            "disposition_id": targets[0].get("disposition_id"),
+            "idempotency_key": calculation.get("idempotency_key"),
+        }
+        for name, value in expected.items():
+            if value is None or getattr(header, name) != value:
+                raise _blocked("Historical assessment columns differ from sealed original facts.")
+        for column, value in (
+            (header.record_date, scope.get("record_date")),
+            (header.settlement_date, scope.get("target_settlement_date")),
+        ):
+            if column.isoformat() != value:
+                raise _blocked("Historical assessment dates differ from sealed original facts.")
+        for component_name, id_column, hash_column in (
+            ("date_rule", header.settlement_date_rule_id, header.settlement_date_rule_sha256),
+            ("calendar", header.settlement_calendar_id, header.settlement_calendar_sha256),
+        ):
+            value = history.get(component_name)
+            if (
+                type(value) is not dict
+                or value.get("id") != id_column
+                or value.get("sha256") != hash_column
+            ):
+                raise _blocked("Historical settlement rule or calendar differs.")
+        statutory = component("statutory_source_revision_set")
+        if statutory.get("source_revision_set_sha256") != header.statutory_revision_set_sha256:
+            raise _blocked("Historical statutory source revision set differs.")
+        for name in ("gross_dividend_amount", "taxable_dividend_amount", "withholding_amount"):
+            if getattr(header, f"{name}_text") != calculation.get(name):
+                raise _blocked("Historical assessment amounts differ from retained calculation.")
+        rows = tuple(
+            Allocation._default_manager.using(self._using)
+            .filter(assessment_id=recorded_id(header))
+            .order_by("ordinal")
+        )
+        allocations = calculation.get("allocations")
+        if type(allocations) is not list or len(rows) != len(allocations):
+            raise _blocked("Historical assessment allocations are incomplete.")
+        for ordinal, (row, expected_allocation) in enumerate(
+            zip(rows, allocations, strict=True), 1
+        ):
+            payload = read_material(row.allocation_payload_json, row.allocation_sha256)
+            if (
+                row.ordinal != ordinal
+                or payload != expected_allocation
+                or row.lot_id != payload.get("lot_id")
+                or row.recorded_at != header.recorded_at
+            ):
+                raise _blocked("Historical assessment allocation differs from original evidence.")
+        return semantic
+
 
 __all__ = [
     "DjangoCorporateActionTaxAssessmentRepository",

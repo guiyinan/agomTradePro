@@ -8,6 +8,7 @@ from contextlib import contextmanager
 from contextvars import ContextVar, Token
 from dataclasses import dataclass
 from datetime import datetime
+from decimal import Decimal
 
 from django.db import connections
 from django.utils import timezone
@@ -25,6 +26,10 @@ from apps.account.domain.simulated_corporate_action_write_grant import (
 )
 from apps.account.simulated_corporate_action_policy_scope_composition import (
     locked_simulated_action_owner_policy,
+)
+from apps.simulated_trading.application.corporate_action_tax_liability_authority import (
+    TaxLiabilityReplayRequest,
+    TaxLiabilityReplayTimestampVerifierPort,
 )
 from apps.simulated_trading.domain.corporate_action_posting import CorporateActionStageRequest
 from apps.simulated_trading.domain.simulated_account_row_source_v2 import (
@@ -102,6 +107,62 @@ _ACTIVE_SOURCE_SCOPE: ContextVar[_ActiveSourceScope | None] = ContextVar(
 )
 
 
+@dataclass(slots=True)
+class _ActiveTaxSourceScope:
+    """Separate financial replay context; it cannot waive a cash-stage request."""
+
+    locker: object
+    request: TaxLiabilityReplayRequest
+    source: SimulatedAccountRowSourceV2
+    row_updated_at: datetime
+    cash: Decimal
+    cash_known: bool
+    proven: bool = False
+
+
+_ACTIVE_TAX_SOURCE: ContextVar[_ActiveTaxSourceScope | None] = ContextVar(
+    "simulated_tax_liability_locked_source", default=None
+)
+
+
+@contextmanager
+def _tax_source_context(
+    *,
+    locker: object,
+    request: TaxLiabilityReplayRequest | None,
+    source: SimulatedAccountRowSourceV2,
+    row: SimulatedAccountModel,
+) -> Iterator[None]:
+    """Keep narrow source mismatch proof inside the exact physical owner lock."""
+    if request is None:
+        yield
+        return
+    if _ACTIVE_TAX_SOURCE.get() is not None:
+        raise SimulatedCorporateActionWriteGrantUnavailable(
+            "tax financial source contexts cannot nest"
+        )
+    active = _ActiveTaxSourceScope(
+        locker, request, source, row.updated_at, row.current_cash, row.cash_known
+    )
+    token = _ACTIVE_TAX_SOURCE.set(active)
+    try:
+        yield
+        if source.row_updated_at != active.row_updated_at and not active.proven:
+            raise SimulatedCorporateActionWriteGrantUnavailable(
+                "old financial source lacks exact original journal/Audit/Outbox proof"
+            )
+        if source.row_updated_at != active.row_updated_at and (
+            row.updated_at != active.row_updated_at
+            or row.current_cash != active.cash
+            or row.cash_known is not active.cash_known
+        ):
+            raise SimulatedCorporateActionWriteGrantUnavailable(
+                "a historical financial retry must not change the physical ledger"
+            )
+    finally:
+        _ACTIVE_TAX_SOURCE.reset(token)
+
+
 @dataclass(frozen=True, slots=True)
 class DjangoSimulatedCorporateActionWriteScopeLocker:
     """Verify immutable canonical source and real owner while physical locks are held."""
@@ -118,10 +179,25 @@ class DjangoSimulatedCorporateActionWriteScopeLocker:
         expected_binding: SimulatedCorporateActionWriteGrantBinding,
         request: CorporateActionStageRequest | None = None,
         expected_grant_schema: str = SIMULATED_CORPORATE_ACTION_WRITE_GRANT_SCHEMA,
+        tax_replay_request: TaxLiabilityReplayRequest | None = None,
     ) -> Iterator[LockedSimulatedCorporateActionWriteScope]:
         """Never infer authority from financial balances, physical IDs or evidence-only flags."""
         binding = expected_binding
         binding.__post_init__()
+        if tax_replay_request is not None:
+            if type(tax_replay_request) is not TaxLiabilityReplayRequest or request is not None:
+                raise SimulatedCorporateActionWriteGrantUnavailable(
+                    "tax financial replay requires its own exact request"
+                )
+            tax_replay_request.__post_init__()
+            if (
+                tax_replay_request.assessment.account_id != physical_account_id
+                or tax_replay_request.assessment.owner_user_id != owner_user_id
+                or tax_replay_request.canonical_account_id != binding.account_id
+            ):
+                raise SimulatedCorporateActionWriteGrantUnavailable(
+                    "tax financial replay differs from its exact account source"
+                )
         if request is not None and type(request) is not CorporateActionStageRequest:
             raise SimulatedCorporateActionWriteGrantUnavailable(
                 "simulated action source scope requires one exact posting request"
@@ -206,7 +282,7 @@ class DjangoSimulatedCorporateActionWriteScopeLocker:
 
         source = current_source()
         timestamp_matches = source.row_updated_at == row.updated_at
-        if request is None and not timestamp_matches:
+        if request is None and tax_replay_request is None and not timestamp_matches:
             raise SimulatedCorporateActionWriteGrantUnavailable(
                 "simulated action source predates the physical account state"
             )
@@ -218,28 +294,31 @@ class DjangoSimulatedCorporateActionWriteScopeLocker:
             expected_grant_schema=expected_grant_schema,
         ) as policy:
             if request is None:
-                yield LockedSimulatedCorporateActionWriteScope(
-                    physical_account_id=physical_account_id,
-                    binding=binding,
-                    valid_until=policy.grant_valid_until(
-                        as_of=timezone.now(),
-                        source_valid_until=source.valid_until,
-                    ),
-                    grant_schema=policy.grant_schema,
-                    capabilities=policy.capabilities,
-                    terms_version=policy.terms_version,
-                    terms_sha256=policy.terms_sha256,
-                )
-                row.refresh_from_db(using=self.database_alias)
-                if (
-                    row.user_id != owner_user_id
-                    or row.account_type != "simulated"
-                    or row.is_active is not True
-                    or current_source() != source
+                with _tax_source_context(
+                    locker=self, request=tax_replay_request, source=source, row=row
                 ):
-                    raise SimulatedCorporateActionWriteGrantUnavailable(
-                        "simulated action physical ownership or source changed before commit"
+                    yield LockedSimulatedCorporateActionWriteScope(
+                        physical_account_id=physical_account_id,
+                        binding=binding,
+                        valid_until=policy.grant_valid_until(
+                            as_of=timezone.now(),
+                            source_valid_until=source.valid_until,
+                        ),
+                        grant_schema=policy.grant_schema,
+                        capabilities=policy.capabilities,
+                        terms_version=policy.terms_version,
+                        terms_sha256=policy.terms_sha256,
                     )
+                    row.refresh_from_db(using=self.database_alias)
+                    if (
+                        row.user_id != owner_user_id
+                        or row.account_type != "simulated"
+                        or row.is_active is not True
+                        or current_source() != source
+                    ):
+                        raise SimulatedCorporateActionWriteGrantUnavailable(
+                            "simulated action physical ownership or source changed before commit"
+                        )
             else:
                 active_scope = _ActiveSourceScope(
                     locker=self,
@@ -281,6 +360,46 @@ class DjangoSimulatedCorporateActionWriteScopeLocker:
                         )
                 finally:
                     _ACTIVE_SOURCE_SCOPE.reset(token)
+
+    def get_locked_tax_source(
+        self, *, request: TaxLiabilityReplayRequest
+    ) -> SimulatedAccountRowSourceV2:
+        """Return exact source provenance only inside this locker's financial context."""
+        active = _ACTIVE_TAX_SOURCE.get()
+        if active is None or active.locker is not self or active.request != request:
+            raise SimulatedCorporateActionWriteGrantUnavailable(
+                "financial source is outside its exact locked context"
+            )
+        return active.source
+
+    def assert_tax_source_timestamp_current_or_proven(
+        self,
+        *,
+        request: TaxLiabilityReplayRequest,
+        verifier: TaxLiabilityReplayTimestampVerifierPort,
+    ) -> None:
+        """Waive only the same already-recorded financial operation's source timestamp."""
+        source = self.get_locked_tax_source(request=request)
+        active = _ACTIVE_TAX_SOURCE.get()
+        if active is None:
+            raise SimulatedCorporateActionWriteGrantUnavailable(
+                "financial source context is unavailable"
+            )
+        if source.row_updated_at == active.row_updated_at:
+            return
+        original = verifier.verify_exact_replay_timestamp(
+            request=request,
+            source=source,
+            physical_updated_at=active.row_updated_at,
+            physical_cash=active.cash,
+            cash_known=active.cash_known,
+            using=self.database_alias,
+        )
+        if original != source.row_updated_at:
+            raise SimulatedCorporateActionWriteGrantUnavailable(
+                "old financial source lacks exact original operation evidence"
+            )
+        active.proven = True
 
     def assert_source_timestamp_current_or_proven(
         self,

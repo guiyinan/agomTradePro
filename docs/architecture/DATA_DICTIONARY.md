@@ -7,8 +7,8 @@
 ## 概览
 
 - App 数：42
-- 模型数：614
-- 字段数：9568
+- 模型数：616
+- 字段数：9598
 
 口径说明：仅覆盖 `apps/*/infrastructure/` 下的 `models.py`、`models/` 包与 `*_models.py`；字段为类体内显式赋值的 Django 字段，继承字段不展开，动态字段与隐式自增主键不在投影内。
 
@@ -13884,6 +13884,54 @@
 ### _TaxAssessmentImmutableModel
 
 - 来源文件：`apps/simulated_trading/infrastructure/corporate_action_tax_assessment_models.py`
+- 抽象模型：是
+- 说明：Require exact repository claims for new rows and reject all later mutation.
+
+| 字段 | 类型 | null | unique | 默认值 | 说明 | 关系目标 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `recorded_at` | `DateTimeField` |  |  |  |  |  |
+
+### CorporateActionTaxLiabilityOperationModel
+
+- 来源文件：`apps/simulated_trading/infrastructure/corporate_action_tax_liability_models.py`
+- 数据表：`sim_ca_tax_liability_operation`
+- 说明：One immutable operation with separate state/journal component identities.
+
+| 字段 | 类型 | null | unique | 默认值 | 说明 | 关系目标 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `account` | `ForeignKey` |  |  |  |  | SimulatedAccountModel |
+| `owner_user` | `ForeignKey` |  |  |  |  | settings.AUTH_USER_MODEL |
+| `assessment` | `ForeignKey` |  |  |  |  | CorporateActionTaxAssessmentHeaderModel |
+| `operation_id` | `CharField` |  |  |  |  |  |
+| `operation_request_sha256` | `CharField` |  |  |  |  |  |
+| `scope_sha256` | `CharField` |  |  |  |  |  |
+| `sequence` | `PositiveBigIntegerField` |  |  |  |  |  |
+| `predecessor` | `ForeignKey` | 是 |  |  | self | self |
+| `canonical_account_namespace` | `CharField` |  |  |  |  |  |
+| `canonical_account_id` | `CharField` |  |  |  |  |  |
+| `currency` | `CharField` |  |  |  |  |  |
+| `state_payload_json` | `TextField` |  |  |  |  |  |
+| `state_sha256` | `CharField` |  |  |  |  |  |
+| `transition_payload_json` | `TextField` |  |  |  |  |  |
+| `transition_sha256` | `CharField` |  |  |  |  |  |
+| `operation_payload_json` | `TextField` |  |  |  |  |  |
+| `operation_sha256` | `CharField` |  |  |  |  |  |
+| `assessed_amount_text` | `CharField` |  |  |  |  |  |
+| `net_collected_amount_text` | `CharField` |  |  |  |  |  |
+| `outstanding_amount_text` | `CharField` |  |  |  |  |  |
+| `tax_due_delta_text` | `CharField` |  |  |  |  |  |
+| `collected_delta_text` | `CharField` |  |  |  |  |  |
+| `outstanding_delta_text` | `CharField` |  |  |  |  |  |
+| `cash_delta_text` | `CharField` |  |  |  |  |  |
+| `audit_event_id` | `CharField` |  |  |  |  |  |
+| `audit_event_version` | `CharField` |  |  |  |  |  |
+| `audit_event_sha256` | `CharField` |  |  |  |  |  |
+| `outbox_record_id` | `CharField` |  |  |  |  |  |
+| `outbox_payload_sha256` | `CharField` |  |  |  |  |  |
+
+### _TaxLiabilityImmutableModel
+
+- 来源文件：`apps/simulated_trading/infrastructure/corporate_action_tax_liability_models.py`
 - 抽象模型：是
 - 说明：Require exact repository claims for new rows and reject all later mutation.
 

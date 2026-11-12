@@ -14617,6 +14617,50 @@
         }
       ],
       "notes": "No fallback qualifier or real custody proof. Exact current source/body/policy/instrument/history reconstruction and same-alias outer PostgreSQL UOW; qualification and Owner permission are distinct. Origin is usable only inside the concrete locked verifier. Nonfinancial assessment only; financial withholding remains a separate explicit capability and journal contract."
+    },
+    {
+      "id": "simulated_trading.current_owner_tax_liability",
+      "surface": "Actual finite nonstaff TAX_WITHHOLD authority and original financial-operation replay",
+      "source_files": [
+        "apps/simulated_trading/corporate_action_tax_liability_owner_scope_composition.py",
+        "apps/simulated_trading/corporate_action_write_scope_composition.py"
+      ],
+      "required_markers": {
+        "apps/simulated_trading/corporate_action_tax_liability_owner_scope_composition.py": [
+          "required_capability=Capability.TAX_WITHHOLD",
+          "final_qualification != qualification",
+          "exact_retry_only",
+          "origin.verify_for("
+        ],
+        "apps/simulated_trading/corporate_action_write_scope_composition.py": [
+          "assert_tax_source_timestamp_current_or_proven",
+          "verify_exact_replay_timestamp",
+          "row.current_cash != active.cash"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "actual_nonstaff_original_retry",
+          "test_file": "tests/component/simulated_trading/test_owner_tax_liability_scope_postgres.py",
+          "test_function": "test_native_nonstaff_withholding_and_old_source_retry_preserve_original_evidence"
+        },
+        {
+          "case": "current_consent_and_role",
+          "test_file": "tests/component/simulated_trading/test_owner_tax_liability_scope_postgres.py",
+          "test_function": "test_native_withholding_retry_still_requires_current_consent_and_role"
+        },
+        {
+          "case": "old_source_cannot_authorize_new_operation",
+          "test_file": "tests/component/simulated_trading/test_owner_tax_liability_scope_postgres.py",
+          "test_function": "test_native_old_source_replay_cannot_authorize_a_different_financial_operation"
+        },
+        {
+          "case": "late_qualification_rollback",
+          "test_file": "tests/component/simulated_trading/test_owner_tax_liability_scope_postgres.py",
+          "test_function": "test_native_final_current_tax_change_rolls_back_all_financial_effects"
+        }
+      ],
+      "notes": "New financial appends require actual current configured source/policy/instrument/history qualification and finite same-alias Owner V2 withholding grant plus required Audit/Outbox. Exact original retries retain old qualification observations and all journal/Audit/Outbox evidence; they still require current role/grant and cannot append another operation or alter cash. Real accounts remain excluded."
     }
   ]
 }

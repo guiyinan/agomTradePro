@@ -23,6 +23,9 @@ from apps.simulated_trading.domain.corporate_action_deferred_tax import (
 from apps.simulated_trading.domain.corporate_action_tax_assessment import (
     CorporateActionTaxAssessment,
 )
+from apps.simulated_trading.domain.simulated_dividend_tax_policy_scope import (
+    SimulatedDividendTaxCurrency,
+)
 
 _ZERO = Decimal("0")
 _PRECISION = 80
@@ -279,6 +282,97 @@ def _scope_for_assessment(
         record_date=assessment.history.record_date,
         target_settlement_date=assessment.target_settlement_date,
     )
+
+
+@dataclass(frozen=True, slots=True)
+class TaxLiabilityOperationIdentity:
+    """Stable client intent shared by financial writes and historical verification.
+
+    Mutable balances, observation clocks and renewed grant versions do not
+    belong to this identity. The original stored assessment manifest does.
+    A public request hash validates consistency and grants no permission.
+    """
+
+    operation_id: str
+    scope: TaxLiabilityScope
+    canonical_account_namespace: str
+    canonical_account_id: str
+    currency: SimulatedDividendTaxCurrency
+    assessment_revision_id: str
+    supersedes_assessment_revision_id: str | None
+    assessment_semantic_sha256: str
+    stored_assessment_manifest_sha256: str
+    cash_action: TaxLiabilityCashAction | None
+    request_sha256: str = field(init=False)
+
+    def __post_init__(self) -> None:
+        """Validate exact intent and retain its context-independent wire seal."""
+        if type(self.scope) is not TaxLiabilityScope:
+            _fail("operation identity requires an exact disposition scope")
+        self.scope.__post_init__()
+        for name, value in (
+            ("operation_id", self.operation_id),
+            ("canonical_account_namespace", self.canonical_account_namespace),
+            ("canonical_account_id", self.canonical_account_id),
+            ("assessment_revision_id", self.assessment_revision_id),
+        ):
+            _token(value, name)
+        if (
+            self.canonical_account_namespace != "account"
+            or type(self.currency) is not SimulatedDividendTaxCurrency
+            or self.currency is not SimulatedDividendTaxCurrency.CNY
+            or (
+                self.cash_action is not None
+                and type(self.cash_action) is not TaxLiabilityCashAction
+            )
+        ):
+            _fail("operation identity has unsupported canonical currency or action scope")
+        if self.supersedes_assessment_revision_id is not None:
+            _token(self.supersedes_assessment_revision_id, "supersedes_assessment_revision_id")
+            if self.supersedes_assessment_revision_id == self.assessment_revision_id:
+                _fail("an operation assessment cannot supersede itself")
+        _digest(self.assessment_semantic_sha256, "assessment_semantic_sha256")
+        _digest(self.stored_assessment_manifest_sha256, "stored_assessment_manifest_sha256")
+        object.__setattr__(self, "request_sha256", _hash_payload(self._payload()))
+
+    def _payload(self) -> dict[str, object]:
+        """Preserve the existing Application operation wire schema."""
+        return {
+            "schema": "simulated-corporate-action-tax-liability-operation.v1",
+            "operation_id": self.operation_id,
+            "scope": _scope_payload(self.scope),
+            "canonical_account_namespace": self.canonical_account_namespace,
+            "canonical_account_id": self.canonical_account_id,
+            "currency": self.currency.value,
+            "assessment_revision_id": self.assessment_revision_id,
+            "assessment_supersedes_revision_id": self.supersedes_assessment_revision_id,
+            "assessment_semantic_sha256": self.assessment_semantic_sha256,
+            "stored_assessment_manifest_sha256": self.stored_assessment_manifest_sha256,
+            "cash_action": None if self.cash_action is None else self.cash_action.value,
+        }
+
+    def verify_integrity(self) -> TaxLiabilityOperationIdentity:
+        """Reject changed identity fields even if frozen-dataclass protection is bypassed."""
+        rebuilt = TaxLiabilityOperationIdentity(
+            operation_id=self.operation_id,
+            scope=self.scope,
+            canonical_account_namespace=self.canonical_account_namespace,
+            canonical_account_id=self.canonical_account_id,
+            currency=self.currency,
+            assessment_revision_id=self.assessment_revision_id,
+            supersedes_assessment_revision_id=self.supersedes_assessment_revision_id,
+            assessment_semantic_sha256=self.assessment_semantic_sha256,
+            stored_assessment_manifest_sha256=self.stored_assessment_manifest_sha256,
+            cash_action=self.cash_action,
+        )
+        if rebuilt.request_sha256 != self.request_sha256:
+            _fail("operation request hash differs from its immutable intent")
+        return rebuilt
+
+    def to_payload(self) -> dict[str, object]:
+        """Return fresh wire facts after verifying the original cached request seal."""
+        self.verify_integrity()
+        return self._payload()
 
 
 @dataclass(frozen=True, slots=True)
@@ -648,6 +742,7 @@ __all__ = [
     "CorporateActionTaxLiabilityTransition",
     "TaxLiabilityCashAction",
     "TaxLiabilityCashRequest",
+    "TaxLiabilityOperationIdentity",
     "TaxLiabilityScope",
     "TaxLiabilityStatus",
     "TaxLiabilityTransitionKind",

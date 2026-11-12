@@ -183,10 +183,11 @@ def locked_current_simulated_corporate_action_write_grant(
         not in {
             SimulatedCorporateActionWriteCapability.CASH_STAGE_WRITE,
             SimulatedCorporateActionWriteCapability.TAX_ASSESS,
+            SimulatedCorporateActionWriteCapability.TAX_WITHHOLD,
         }
     ):
         raise SimulatedCorporateActionWriteGrantUnavailable(
-            "current simulated write grant reader supports only cash and tax-assessment capabilities"
+            "current simulated write grant reader does not support the requested capability"
         )
     if type(selector) is not SimulatedCorporateActionWriteGrantSelector:
         raise SimulatedCorporateActionWriteGrantUnavailable(

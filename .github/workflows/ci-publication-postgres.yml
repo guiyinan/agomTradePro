@@ -226,6 +226,22 @@ jobs:
           tests/component/simulated_trading/test_owner_tax_assessment_scope_postgres.py::test_native_tax_assess_owner_commits_one_verified_set_and_exact_retry
           tests/component/simulated_trading/test_owner_tax_assessment_scope_postgres.py::test_native_owner_final_tax_fact_change_rolls_back_all_four_writes
           tests/component/simulated_trading/test_owner_tax_assessment_scope_postgres.py::test_native_withholding_only_grant_cannot_assess_tax
+          tests/component/simulated_trading/test_corporate_action_tax_liability_postgres.py::test_native_partial_collection_and_exact_retry_keep_one_complete_financial_set
+          tests/component/simulated_trading/test_corporate_action_tax_liability_postgres.py::test_native_recognition_retains_unpaid_tax_without_cash_movement
+          tests/component/simulated_trading/test_corporate_action_tax_liability_postgres.py::test_native_new_operation_recovers_remaining_tax_after_later_funding
+          tests/component/simulated_trading/test_corporate_action_tax_liability_postgres.py::test_native_explicit_successor_refunds_only_actual_overcollection
+          tests/component/simulated_trading/test_corporate_action_tax_liability_postgres.py::test_native_late_owner_failure_rolls_back_cash_journal_audit_and_outbox
+          tests/component/simulated_trading/test_corporate_action_tax_liability_postgres.py::test_native_late_journal_failure_rolls_back_cash_audit_and_outbox
+          tests/component/simulated_trading/test_corporate_action_tax_liability_postgres.py::test_native_missing_original_financial_outbox_is_blocked_without_repair
+          tests/component/simulated_trading/test_corporate_action_tax_liability_postgres.py::test_native_same_operation_id_changed_action_cannot_write_again
+          tests/component/simulated_trading/test_corporate_action_tax_liability_postgres.py::test_native_concurrent_exact_operations_collect_only_once
+          tests/component/simulated_trading/test_corporate_action_tax_liability_postgres.py::test_native_financial_journal_always_guard_blocks_raw_replica_mutations
+          tests/component/simulated_trading/test_corporate_action_tax_liability_postgres.py::test_native_partial_dispositions_can_reuse_revision_labels_without_cross_readback
+          tests/component/simulated_trading/test_owner_tax_liability_scope_postgres.py::test_native_nonstaff_withholding_and_old_source_retry_preserve_original_evidence
+          tests/component/simulated_trading/test_owner_tax_liability_scope_postgres.py::test_native_withholding_retry_still_requires_current_consent_and_role
+          tests/component/simulated_trading/test_owner_tax_liability_scope_postgres.py::test_native_old_source_replay_cannot_authorize_a_different_financial_operation
+          tests/component/simulated_trading/test_owner_tax_liability_scope_postgres.py::test_native_final_current_tax_change_rolls_back_all_financial_effects
+          tests/component/simulated_trading/test_owner_tax_liability_scope_postgres.py::test_native_assessment_only_current_grant_cannot_collect_tax
           tests/component/simulated_trading/test_simulated_tax_history_native_postgres.py::test_native_simulated_history_uses_explicit_tax_dates_and_only_reads_persisted_sources
           tests/component/simulated_trading/test_corporate_action_tax_settlement_history_repository.py::test_adapter_returns_only_an_exact_current_event_with_its_original_clock
           tests/component/simulated_trading/test_corporate_action_tax_settlement_history_repository.py::test_adapter_blocks_changed_current_event_instead_of_using_receipt_metadata

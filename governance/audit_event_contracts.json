@@ -810,6 +810,30 @@
         "corporate_action_tax_assessed"
       ],
       "test_contract": "tests/component/simulated_trading/test_corporate_action_tax_assessment_postgres.py::test_native_assessment_and_retry_keep_one_header_allocation_audit_outbox_set"
+    },
+    {
+      "event_type": "simulated.corporate_action.tax_liability_applied",
+      "category": "execution.control",
+      "owner": "simulated_trading",
+      "status": "active",
+      "implementation_status": "wired",
+      "write_policy": "transactional_outbox",
+      "severity": "info",
+      "outcomes": [
+        "success",
+        "noop"
+      ],
+      "required_correlations": [
+        "evidence_ref"
+      ],
+      "detail_schema": "simulated.corporate_action.tax_liability_applied.v1",
+      "reason_codes": [
+        "tax_liability_noop",
+        "tax_liability_overcollection_refunded",
+        "tax_liability_collected",
+        "tax_liability_recognized"
+      ],
+      "test_contract": "tests/component/simulated_trading/test_corporate_action_tax_liability_postgres.py::test_native_partial_collection_and_exact_retry_keep_one_complete_financial_set"
     }
   ]
 }

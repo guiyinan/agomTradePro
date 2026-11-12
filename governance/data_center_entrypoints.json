@@ -9,7 +9,7 @@
       "celery_dispatch_edge": 18,
       "celery_task": 130,
       "compatibility_facade": 95,
-      "current_data_surface": 115,
+      "current_data_surface": 116,
       "dynamic_import_edge": 15,
       "management_command": 50,
       "management_command_edge": 65,
@@ -26,17 +26,17 @@
       "script": 20,
       "sdk": 57,
       "terminal_tui": 32,
-      "test_evidence": 139,
+      "test_evidence": 141,
       "workflow_step": 11
     },
     "by_status": {
-      "active_public": 921,
+      "active_public": 922,
       "adjacent_operational": 346,
-      "candidate-review": 58,
+      "candidate-review": 60,
       "compatibility": 139,
       "retired_blocked": 0
     },
-    "total": 1464
+    "total": 1467
   },
   "entries": [
     {
@@ -6067,6 +6067,16 @@
       "path": "governance/current_data_contracts.json",
       "status": "active_public",
       "symbol": "simulated_trading.current_owner_tax_assessment_model",
+      "target": ""
+    },
+    {
+      "category": "current_data_surface",
+      "evidence": "governed current-data contract; source_files=2",
+      "id": "current_data_surface:governance/current_data_contracts.json:simulated_trading.current_owner_tax_liability:Actual finite nonstaff TAX_WITHHOLD authority and original financial-operation replay",
+      "locator": "Actual finite nonstaff TAX_WITHHOLD authority and original financial-operation replay",
+      "path": "governance/current_data_contracts.json",
+      "status": "active_public",
+      "symbol": "simulated_trading.current_owner_tax_liability",
       "target": ""
     },
     {
@@ -13772,6 +13782,16 @@
     {
       "category": "test_evidence",
       "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/component/simulated_trading/test_corporate_action_tax_liability_postgres.py:test_corporate_action_tax_liability_postgres:",
+      "locator": "",
+      "path": "tests/component/simulated_trading/test_corporate_action_tax_liability_postgres.py",
+      "status": "candidate-review",
+      "symbol": "test_corporate_action_tax_liability_postgres",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
       "id": "test_evidence:tests/component/simulated_trading/test_cost_basis_knowledge_migration.py:test_cost_basis_knowledge_migration:",
       "locator": "",
       "path": "tests/component/simulated_trading/test_cost_basis_knowledge_migration.py",
@@ -13887,6 +13907,16 @@
       "path": "tests/component/simulated_trading/test_owner_tax_assessment_scope_postgres.py",
       "status": "candidate-review",
       "symbol": "test_owner_tax_assessment_scope_postgres",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/component/simulated_trading/test_owner_tax_liability_scope_postgres.py:test_owner_tax_liability_scope_postgres:",
+      "locator": "",
+      "path": "tests/component/simulated_trading/test_owner_tax_liability_scope_postgres.py",
+      "status": "candidate-review",
+      "symbol": "test_owner_tax_liability_scope_postgres",
       "target": ""
     },
     {
@@ -14691,7 +14721,7 @@
   },
   "source_contract_counts": {
     "celery_tasks": 95,
-    "current_data_contracts": 115,
+    "current_data_contracts": 116,
     "legacy_entrypoints_and_wrappers": 0,
     "operational_governance_rules": 45,
     "runtime_config_keys": 52

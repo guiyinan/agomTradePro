@@ -19,3 +19,9 @@ from apps.simulated_trading.infrastructure.corporate_action_tax_assessment_model
 from apps.simulated_trading.infrastructure.corporate_action_tax_assessment_models import (
     CorporateActionTaxAssessmentHeaderModel as CorporateActionTaxAssessmentHeaderModel,
 )
+
+# Keep existing model registration order stable before adding the tax journal.
+# isort: split
+from apps.simulated_trading.infrastructure.corporate_action_tax_liability_models import (
+    CorporateActionTaxLiabilityOperationModel as CorporateActionTaxLiabilityOperationModel,
+)
