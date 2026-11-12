@@ -517,17 +517,24 @@ def test_disclosure_coverage_policy_is_optional_and_unseeded() -> None:
         definition.validate(None)
 
 
-def test_simulated_action_service_write_policy_is_optional_but_has_no_implicit_consent() -> None:
-    """Existing M1 profiles stay valid without enabling new owner service grants."""
+def test_simulated_dividend_tax_date_conventions_are_optional_typed_json() -> None:
+    """Register the explicit simulation rule without seeding or requiring it."""
+
     definition = next(
-        item
-        for item in DEFAULT_RUNTIME_DEFINITIONS
-        if item.key == "config_center.account.simulated_corporate_action_write_policies"
+        (
+            item
+            for item in DEFAULT_RUNTIME_DEFINITIONS
+            if item.key == "config_center.simulated_trading.dividend_tax_date_conventions"
+        ),
+        None,
     )
+    assert definition is not None, "feature missing: simulated tax-date convention definition"
+    assert definition.namespace == "config_center"
     assert definition.owner_app == "config_center"
     assert definition.value_type is RuntimeValueType.TYPED_JSON
     assert definition.criticality is RuntimeConfigCriticality.NORMAL
-    assert not definition.secret and definition.constraints == {}
+    assert definition.secret is False
+    assert definition.constraints == {}
     with pytest.raises(ValueError):
         definition.validate(None)
 

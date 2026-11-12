@@ -3495,6 +3495,9 @@
         "backtest": {
           "imports": 1
         },
+        "simulated_trading": {
+          "imports": 1
+        },
         "terminal": {
           "imports": 3
         }
@@ -11029,6 +11032,12 @@
             "system_audit_runtime_readiness_composition"
           ]
         },
+        "config_center": {
+          "imports": 1,
+          "target_layers": [
+            "application"
+          ]
+        },
         "data_center": {
           "imports": 78,
           "target_layers": [
@@ -12053,11 +12062,11 @@
       },
       "layers": {
         "application": 125,
-        "domain": 45,
+        "domain": 46,
         "infrastructure": 138,
         "interface": 35,
         "management": 7,
-        "root": 44
+        "root": 45
       },
       "orm_models": {
         "infrastructure/models.py": [

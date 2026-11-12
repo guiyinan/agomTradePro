@@ -9,7 +9,7 @@
       "celery_dispatch_edge": 18,
       "celery_task": 130,
       "compatibility_facade": 95,
-      "current_data_surface": 109,
+      "current_data_surface": 110,
       "dynamic_import_edge": 15,
       "management_command": 50,
       "management_command_edge": 65,
@@ -26,17 +26,17 @@
       "script": 20,
       "sdk": 57,
       "terminal_tui": 32,
-      "test_evidence": 134,
+      "test_evidence": 135,
       "workflow_step": 11
     },
     "by_status": {
-      "active_public": 912,
+      "active_public": 913,
       "adjacent_operational": 346,
-      "candidate-review": 53,
+      "candidate-review": 54,
       "compatibility": 139,
       "retired_blocked": 0
     },
-    "total": 1450
+    "total": 1452
   },
   "entries": [
     {
@@ -6007,6 +6007,16 @@
       "path": "governance/current_data_contracts.json",
       "status": "active_public",
       "symbol": "simulated_trading.close_snapshot_simulation_market",
+      "target": ""
+    },
+    {
+      "category": "current_data_surface",
+      "evidence": "governed current-data contract; source_files=2",
+      "id": "current_data_surface:governance/current_data_contracts.json:simulated_trading.configured_simulated_tax_date_convention:Explicit simulation-only tax-date hypothesis from one current Config Center account policy and published calendar; original trade/profile clocks retained, never real custody or posting authority",
+      "locator": "Explicit simulation-only tax-date hypothesis from one current Config Center account policy and published calendar; original trade/profile clocks retained, never real custody or posting authority",
+      "path": "governance/current_data_contracts.json",
+      "status": "active_public",
+      "symbol": "simulated_trading.configured_simulated_tax_date_convention",
       "target": ""
     },
     {
@@ -13812,6 +13822,16 @@
     {
       "category": "test_evidence",
       "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/component/simulated_trading/test_simulated_tax_date_convention_postgres.py:test_simulated_tax_date_convention_postgres:",
+      "locator": "",
+      "path": "tests/component/simulated_trading/test_simulated_tax_date_convention_postgres.py",
+      "status": "candidate-review",
+      "symbol": "test_simulated_tax_date_convention_postgres",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
       "id": "test_evidence:tests/component/test_ai_provider_plaintext_removal_migration.py:test_ai_provider_plaintext_removal_migration:",
       "locator": "",
       "path": "tests/component/test_ai_provider_plaintext_removal_migration.py",
@@ -14551,7 +14571,7 @@
   },
   "source_contract_counts": {
     "celery_tasks": 95,
-    "current_data_contracts": 109,
+    "current_data_contracts": 110,
     "legacy_entrypoints_and_wrappers": 0,
     "operational_governance_rules": 45,
     "runtime_config_keys": 50

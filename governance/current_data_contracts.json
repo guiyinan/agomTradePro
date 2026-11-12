@@ -14280,6 +14280,71 @@
         }
       ],
       "notes": "Publication/effective DATE/INSTANT/UNKNOWN and real response completion clocks are preserved. Byte integrity, configured-origin consistency, actual audit association and fresh capture do not prove legal currency, tax scope, date mapping, policy activation or financial authority. No implicit refresh and no current-policy pointer."
+    },
+    {
+      "id": "simulated_trading.configured_simulated_tax_date_convention",
+      "surface": "Explicit simulation-only tax-date hypothesis from one current Config Center account policy and published calendar; original trade/profile clocks retained, never real custody or posting authority",
+      "source_files": [
+        "apps/simulated_trading/domain/simulated_tax_date_convention.py",
+        "apps/simulated_trading/corporate_action_tax_date_convention_composition.py"
+      ],
+      "required_markers": {
+        "apps/simulated_trading/domain/simulated_tax_date_convention.py": [
+          "must_not_use_as_real_custody_proof",
+          "calendar.validate_for(as_of)",
+          "calendar.release_session(trade_session, offset)",
+          "trade_occurred_at.astimezone(UTC).isoformat()",
+          "observation_sha256"
+        ],
+        "apps/simulated_trading/corporate_action_tax_date_convention_composition.py": [
+          "known_at=evidence.known_at",
+          "policy.canonical_account_id == requested_canonical",
+          "valid_from > as_of_utc or as_of_utc >= valid_until",
+          "_validate_runtime_evidence"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "explicit_offsets_and_calendar",
+          "test_file": "tests/unit/simulated_trading/test_simulated_tax_date_convention.py",
+          "test_function": "test_explicit_separate_offsets_use_published_open_sessions"
+        },
+        {
+          "case": "real_scope_and_original_clock_rejection",
+          "test_file": "tests/unit/simulated_trading/test_simulated_tax_date_convention.py",
+          "test_function": "test_real_or_mismatched_scope_and_invalid_original_clocks_are_rejected"
+        },
+        {
+          "case": "reference_calendar_not_authority",
+          "test_file": "tests/unit/simulated_trading/test_simulated_tax_date_convention.py",
+          "test_function": "test_reference_only_calendar_cannot_supply_a_modeled_tax_date"
+        },
+        {
+          "case": "refresh_keeps_semantics",
+          "test_file": "tests/unit/simulated_trading/test_simulated_tax_date_convention.py",
+          "test_function": "test_read_refresh_changes_observation_hash_but_not_modeled_semantics"
+        },
+        {
+          "case": "exact_original_runtime_provenance",
+          "test_file": "tests/unit/simulated_trading/test_corporate_action_tax_date_convention_composition.py",
+          "test_function": "test_current_explicit_rule_preserves_runtime_provenance_and_server_known_at"
+        },
+        {
+          "case": "duplicate_scope_never_falls_back",
+          "test_file": "tests/unit/simulated_trading/test_corporate_action_tax_date_convention_composition.py",
+          "test_function": "test_duplicate_canonical_selector_blocks_before_scope_comparison"
+        },
+        {
+          "case": "missing_stale_future_rejected",
+          "test_file": "tests/unit/simulated_trading/test_corporate_action_tax_date_convention_composition.py",
+          "test_function": "test_runtime_evidence_must_be_current_aware_and_complete"
+        },
+        {
+          "case": "inactive_current_rule_blocks",
+          "test_file": "tests/unit/simulated_trading/test_corporate_action_tax_date_convention_composition.py",
+          "test_function": "test_disabled_or_inactive_rule_blocks_current_read"
+        }
+      ]
     }
   ]
 }
