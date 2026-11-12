@@ -48,7 +48,7 @@ _ACCOUNT_ID = 70
 _OWNER_ID = 17
 _SECURITY = "SYNTHETIC.SEC"
 _ASSET = "SYNTHETIC.ASSET"
-_ORDER_KEY = "synthetic-order-70"
+_ORDER_REFERENCE = "synthetic-order-70"
 _OCCURRED_AT = datetime(2026, 4, 8, 2, tzinfo=UTC)
 _KNOWN_AT = _OCCURRED_AT + timedelta(minutes=1)
 _RECORDED_AT = _OCCURRED_AT + timedelta(minutes=2)
@@ -88,7 +88,7 @@ def _source_pair() -> tuple[LocalSimulatedFillEventV1, OwnershipHistoryFillSourc
         reservation_id=117,
         account_id=_ACCOUNT_ID,
         user_id=_OWNER_ID,
-        order_idempotency_key=_ORDER_KEY,
+        order_idempotency_key=_ORDER_REFERENCE,
         intent_payload_hash="4" * 64,
         reservation_request_hash="5" * 64,
         plan_snapshot_hash="6" * 64,
@@ -126,7 +126,7 @@ def _source_pair() -> tuple[LocalSimulatedFillEventV1, OwnershipHistoryFillSourc
     return event, OwnershipHistoryFillSource(
         ownership_fill=fact,
         source_event=event,
-        order_idempotency_key=_ORDER_KEY,
+        order_idempotency_key=_ORDER_REFERENCE,
     )
 
 

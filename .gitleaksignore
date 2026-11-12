@@ -6,6 +6,8 @@
 # fingerprint-bound; any reappearance at another revision remains blocking.
 # The EVID-07 / DATA-15 entries below are immutable SHA-256 source-file
 # digests embedded in test evidence, not credentials.
+# Historical public synthetic order reference; the live fixture now uses a reference name.
+6a3efa9dd50817590eef6862c5216f8d20c0355f:tests/component/simulated_trading/test_corporate_action_tax_settlement_history_repository.py:generic-api-key:51
 b7a83dadb6db81aff0c22b3b813ad6e6da419ec8:docs/testing/data15-domain-checkpoint-2026-09-10.json:generic-api-key:204
 b7a83dadb6db81aff0c22b3b813ad6e6da419ec8:docs/testing/data15-domain-checkpoint-2026-09-10.json:generic-api-key:327
 b7a83dadb6db81aff0c22b3b813ad6e6da419ec8:docs/testing/data15-domain-closure-evidence-2026-09-10.json:generic-api-key:187

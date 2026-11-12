@@ -3,13 +3,13 @@
     "by_category": {
       "admin_surface": 16,
       "agent_skill": 3,
-      "application_consumer": 161,
+      "application_consumer": 162,
       "beat_schedule": 61,
       "capability_runtime": 25,
       "celery_dispatch_edge": 18,
       "celery_task": 130,
       "compatibility_facade": 95,
-      "current_data_surface": 111,
+      "current_data_surface": 112,
       "dynamic_import_edge": 15,
       "management_command": 50,
       "management_command_edge": 65,
@@ -26,17 +26,17 @@
       "script": 20,
       "sdk": 57,
       "terminal_tui": 32,
-      "test_evidence": 136,
+      "test_evidence": 137,
       "workflow_step": 11
     },
     "by_status": {
-      "active_public": 915,
+      "active_public": 917,
       "adjacent_operational": 346,
-      "candidate-review": 55,
+      "candidate-review": 56,
       "compatibility": 139,
       "retired_blocked": 0
     },
-    "total": 1455
+    "total": 1458
   },
   "entries": [
     {
@@ -1597,6 +1597,16 @@
       "path": "apps/simulated_trading/infrastructure/performance_repositories.py",
       "status": "active_public",
       "symbol": "get_price_bar_repository_port",
+      "target": ""
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/simulated_trading/infrastructure/portfolio_comparison_repository.py:get_asset_repository_port:semantic:get_asset_repository_port",
+      "locator": "semantic:get_asset_repository_port",
+      "path": "apps/simulated_trading/infrastructure/portfolio_comparison_repository.py",
+      "status": "active_public",
+      "symbol": "get_asset_repository_port",
       "target": ""
     },
     {
@@ -6057,6 +6067,16 @@
       "path": "governance/current_data_contracts.json",
       "status": "active_public",
       "symbol": "simulated_trading.current_reference_manual_trade",
+      "target": ""
+    },
+    {
+      "category": "current_data_surface",
+      "evidence": "governed current-data contract; source_files=3",
+      "id": "current_data_surface:governance/current_data_contracts.json:simulated_trading.current_simulated_tax_settlement_history:Read-only complete zero-origin V4 fill prefix mapped through explicitly approved simulated date rules and a current published calendar; no real custody or financial authority",
+      "locator": "Read-only complete zero-origin V4 fill prefix mapped through explicitly approved simulated date rules and a current published calendar; no real custody or financial authority",
+      "path": "governance/current_data_contracts.json",
+      "status": "active_public",
+      "symbol": "simulated_trading.current_simulated_tax_settlement_history",
       "target": ""
     },
     {
@@ -13862,6 +13882,16 @@
     {
       "category": "test_evidence",
       "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/component/simulated_trading/test_simulated_tax_history_native_postgres.py:test_simulated_tax_history_native_postgres:",
+      "locator": "",
+      "path": "tests/component/simulated_trading/test_simulated_tax_history_native_postgres.py",
+      "status": "candidate-review",
+      "symbol": "test_simulated_tax_history_native_postgres",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
       "id": "test_evidence:tests/component/test_ai_provider_plaintext_removal_migration.py:test_ai_provider_plaintext_removal_migration:",
       "locator": "",
       "path": "tests/component/test_ai_provider_plaintext_removal_migration.py",
@@ -14601,7 +14631,7 @@
   },
   "source_contract_counts": {
     "celery_tasks": 95,
-    "current_data_contracts": 111,
+    "current_data_contracts": 112,
     "legacy_entrypoints_and_wrappers": 0,
     "operational_governance_rules": 45,
     "runtime_config_keys": 51
