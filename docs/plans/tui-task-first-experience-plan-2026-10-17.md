@@ -565,3 +565,9 @@ untracked 语义在本批提交前后核对。
 登记以 `v269 / closure v80` 只完成 TUX-10 并更新 TUI 工作流下一门；TUI 工作流继续 active，保留真人与生产退出门。完整 ASH-02、execution focus / policy、其余 78 个单元及其他工作流与 Fee B 前像精确一致。两份原有用户测试的字节和 intent-to-add / untracked 语义在提交前已核对；提交后再次核对并交接。最终提交后显式交回 A 股窗口，不续领其他仓库施工。
 
 回滚仅针对本批提交及匹配 workbench / manifest / 模板静态资源版本，保留全部 A 股前置和既有业务记录；使用新的唯一 rollback 缓存参数，经官方构建 / 检查后核对实际资源请求。无数据库迁移或业务数据需回退，没有部署、付费运行时 AI、QMT 或真实交易；生产回滚演练未执行。
+
+### 11.11 TUX-11 双组合只读对比
+
+Owner 在 2026-11-12 明确批准登记独立事项、与 ASH-05 隔离并行开发并完成串行整合。TUX-11 复用现有账户、绩效、持仓与资产事实公开契约，让一个普通用户在同一 TUI 主任务中选择两个获准组合和共同区间，查看并排绩效、归一化净值曲线、超额收益、持仓重合与行业差异；缺失历史、未知行业和无权限对象必须显式呈现或拒绝，不能用零值替代。
+
+隔离副本固定为 `.tmp/portfolio-comparison-tux11`，使用独立 SQLite、缓存和浏览器资源。只实施组合对比专属 Application/Interface、必要 TUI metadata/runtime 接线、官方生成投影和直接相关测试；不修改账本、公司行为、ASH-05、生产配置、部署或交易权限。ASH-05 保持唯一 active repository 焦点，Kimi Code 负责 TUX-11 实现，ASH-05 Root 保留共享整合协调；共享 Source、投影和 Git 仅在短窗口串行使用。完成标准是同一集成候选通过定向 Application/API、权限与空态、metadata/runtime、架构/类型检查及实际浏览器 A/B 主任务，不以私有副本或单独组件通过代替整合交付。
