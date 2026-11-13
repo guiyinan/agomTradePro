@@ -10665,7 +10665,9 @@
         "apps/data_center/interface/calendar_publication_api_views.py",
         "apps/data_center/interface/calendar_publication_api_schema.py",
         "apps/data_center/interface/calendar_publication_presenters.py",
-        "apps/data_center/interface/calendar_publication_serializers.py"
+        "apps/data_center/interface/calendar_publication_serializers.py",
+        "apps/audit/application/calendar_publication_integrity.py",
+        "apps/audit/infrastructure/system_audit_event_outbox_coordinator.py"
       ],
       "required_markers": {
         "apps/data_center/domain/formal_exchange_calendar_publication.py": [
@@ -10743,6 +10745,13 @@
           "Unknown fields:",
           "Repeated query parameters:",
           "CurrentCalendarQuerySerializer"
+        ],
+        "apps/audit/application/calendar_publication_integrity.py": [
+          "with self._reader.caller_owned_readonly():"
+        ],
+        "apps/audit/infrastructure/system_audit_event_outbox_coordinator.py": [
+          "def caller_owned_readonly(",
+          "self._read_active = False"
         ]
       },
       "required_tests": [
@@ -10825,8 +10834,24 @@
           "case": "internal_cutoff_query_unchanged_in_one_default_outer_transaction",
           "test_file": "tests/unit/data_center/test_calendar_publication_operations_composition.py",
           "test_function": "test_read_current_calendar_at_uses_typed_cutoff_inside_one_default_transaction"
+        },
+        {
+          "case": "integrity_read_reuses_ambient_writer_without_new_capabilities",
+          "test_file": "tests/component/audit/test_system_audit_event_outbox_coordinator.py",
+          "test_function": "test_readonly_pair_read_joins_an_active_writer_without_reissuing_capabilities"
+        },
+        {
+          "case": "integrity_read_never_grants_append_and_resets_after_failure",
+          "test_file": "tests/component/audit/test_system_audit_event_outbox_coordinator.py",
+          "test_function": "test_readonly_scope_has_no_write_capability_and_resets_after_failure"
+        },
+        {
+          "case": "integrity_read_requires_one_outer_transaction",
+          "test_file": "tests/component/audit/test_system_audit_event_outbox_coordinator.py",
+          "test_function": "test_readonly_scope_requires_one_outer_transaction_and_refuses_nested_reads"
         }
-      ]
+      ],
+      "notes": "Current publication integrity joins the same-alias single outer transaction through a read-only scope, even when another audited operation already owns private Audit/Outbox append capabilities. It preserves the exact publication event/outbox selectors and locks, issues no new append capability or savepoint, and never extends source clocks, TTL, current policy or execution authority. Missing/corrupt halves remain blocking and are never repaired by a read."
     },
     {
       "id": "simulated_trading.current_published_calendar_reference",
@@ -14614,6 +14639,11 @@
           "case": "finite_grant_scope",
           "test_file": "tests/unit/simulated_trading/test_corporate_action_tax_owner_scope.py",
           "test_function": "test_grant_cannot_outlive_its_locked_owner_policy_scope"
+        },
+        {
+          "case": "actual_persisted_source_history_qualification_inside_owner_audit_uow",
+          "test_file": "tests/component/simulated_trading/test_current_simulated_tax_qualification_postgres.py",
+          "test_function": "test_current_tax_qualification_rebuilds_real_persisted_owner_facts"
         }
       ],
       "notes": "No fallback qualifier or real custody proof. Exact current source/body/policy/instrument/history reconstruction and same-alias outer PostgreSQL UOW; qualification and Owner permission are distinct. Origin is usable only inside the concrete locked verifier. Nonfinancial assessment only; financial withholding remains a separate explicit capability and journal contract."

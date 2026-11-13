@@ -86,6 +86,83 @@ def test_exact_retry_replays_without_duplicate_rows() -> None:
     assert SystemAuditOutboxModel._default_manager.count() == 1
 
 
+def test_readonly_pair_read_joins_an_active_writer_without_reissuing_capabilities() -> None:
+    from django.db import connection
+    from django.test.utils import CaptureQueriesContext
+
+    from apps.audit.infrastructure.system_audit_models import _UOW as event_uow
+    from apps.audit.infrastructure.system_audit_outbox_models import _UOW as outbox_uow
+
+    event = make_event()
+    writer = DjangoSystemAuditEventOutboxCoordinator()
+    AppendSystemAuditEventOutboxUseCase(writer).execute(
+        AppendSystemAuditEventOutboxCommand(
+            event=event, expected_predecessor_hash=None, recorded_at=event.recorded_at
+        )
+    )
+    reader = DjangoSystemAuditEventOutboxCoordinator()
+    with transaction.atomic(), writer.caller_owned_atomic():
+        tokens = event_uow.get(), outbox_uow.get()
+        with CaptureQueriesContext(connection) as queries:
+            with reader.caller_owned_readonly():
+                pair = reader.get_exact_outbox_winner_targeted(event)
+                assert pair is not None and pair.event == event
+                assert (event_uow.get(), outbox_uow.get()) == tokens
+            assert (event_uow.get(), outbox_uow.get()) == tokens
+        assert not any(
+            item["sql"]
+            .lstrip()
+            .upper()
+            .startswith(("INSERT", "UPDATE", "DELETE", "SAVEPOINT", "RELEASE", "COMMIT"))
+            for item in queries.captured_queries
+        )
+    assert event_uow.get() is None and outbox_uow.get() is None
+    assert SystemAuditEventModel._default_manager.count() == 1
+    assert SystemAuditOutboxModel._default_manager.count() == 1
+
+
+def test_readonly_scope_has_no_write_capability_and_resets_after_failure() -> None:
+    from apps.audit.application.system_audit_event_outbox import SystemAuditEventOutboxConflict
+    from apps.audit.infrastructure.system_audit_models import _UOW as event_uow
+    from apps.audit.infrastructure.system_audit_outbox_models import _UOW as outbox_uow
+
+    reader = DjangoSystemAuditEventOutboxCoordinator()
+    event = make_event()
+    with transaction.atomic():
+        with pytest.raises(RuntimeError, match="reader failed"):
+            with reader.caller_owned_readonly():
+                assert event_uow.get() is None and outbox_uow.get() is None
+                assert reader.get_exact_outbox_winner_targeted(event) is None
+                with pytest.raises(SystemAuditEventOutboxConflict):
+                    with reader.caller_owned_atomic():
+                        pytest.fail("read scope acquired append capabilities")
+                raise RuntimeError("reader failed")
+        with pytest.raises(SystemAuditEventOutboxConflict):
+            reader.get_exact_outbox_winner_targeted(event)
+        with reader.caller_owned_readonly():
+            assert reader.get_exact_outbox_winner_targeted(event) is None
+    assert SystemAuditEventModel._default_manager.count() == 0
+    assert SystemAuditOutboxModel._default_manager.count() == 0
+
+
+def test_readonly_scope_requires_one_outer_transaction_and_refuses_nested_reads() -> None:
+    from apps.audit.application.system_audit_event_outbox import SystemAuditEventOutboxConflict
+
+    reader = DjangoSystemAuditEventOutboxCoordinator()
+    with pytest.raises(SystemAuditEventOutboxConflict):
+        with reader.caller_owned_readonly():
+            pytest.fail("read scope acquired an absent transaction")
+    with transaction.atomic():
+        with transaction.atomic():
+            with pytest.raises(SystemAuditEventOutboxConflict):
+                with reader.caller_owned_readonly():
+                    pytest.fail("read scope accepted a savepoint")
+        with reader.caller_owned_readonly():
+            with pytest.raises(SystemAuditEventOutboxConflict):
+                with reader.caller_owned_readonly():
+                    pytest.fail("read scope nested")
+
+
 def test_outbox_failure_rolls_back_event_append(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

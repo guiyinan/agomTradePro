@@ -118,8 +118,8 @@ class CalendarPublicationAuditIntegrityReader(Protocol):
     def database_alias(self) -> str:
         """Return the alias used by the caller-owned publication transaction."""
 
-    def caller_owned_atomic(self) -> AbstractContextManager[None]:
-        """Join, but never create or commit, the caller's single outer transaction."""
+    def caller_owned_readonly(self) -> AbstractContextManager[None]:
+        """Join the single outer transaction without activating Audit append capabilities."""
 
     def lock_stream(self, stream_id: str) -> None:
         """Lock the one deterministic publication stream during exact verification."""
@@ -181,7 +181,7 @@ class VerifyPublishedCalendarPublicationIntegrityUseCase:
                 request_identity=detail.publication_id,
             )
             stream_id = calendar_publication_stream_id(detail.dataset_key, detail.exchange)
-            with self._reader.caller_owned_atomic():
+            with self._reader.caller_owned_readonly():
                 self._reader.lock_stream(stream_id)
                 event = self._reader.get_calendar_publication_winner_targeted(
                     event_id=event_id,

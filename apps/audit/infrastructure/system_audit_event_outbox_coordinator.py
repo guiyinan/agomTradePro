@@ -49,13 +49,14 @@ class DjangoSystemAuditEventOutboxCoordinator:
     outbox failure rolls back both writes together.
     """
 
-    __slots__ = ("_event_repository", "_outbox_repository", "_using", "_active")
+    __slots__ = ("_event_repository", "_outbox_repository", "_using", "_active", "_read_active")
 
     def __init__(self, *, using: str = "default") -> None:
         self._using = using
         self._event_repository = DjangoSystemAuditEventRepository(using=using)
         self._outbox_repository = DjangoSystemAuditOutboxRepository(using=using)
         self._active = False
+        self._read_active = False
 
     @property
     def database_alias(self) -> str:
@@ -67,7 +68,7 @@ class DjangoSystemAuditEventOutboxCoordinator:
     def atomic(self) -> Iterator[None]:
         """Open one non-nested transaction shared by both repositories."""
 
-        if self._active:
+        if self._active or self._read_active:
             raise SystemAuditEventOutboxConflict("event/outbox UOW cannot be nested")
         self._active = True
         try:
@@ -82,7 +83,7 @@ class DjangoSystemAuditEventOutboxCoordinator:
     def caller_owned_atomic(self) -> Iterator[None]:
         """Bind both append capabilities to an existing outer transaction."""
 
-        if self._active:
+        if self._active or self._read_active:
             raise SystemAuditEventOutboxConflict("event/outbox UOW cannot be nested")
         connection = connections[self._using]
         if not connection.in_atomic_block or connection.get_autocommit():
@@ -101,6 +102,33 @@ class DjangoSystemAuditEventOutboxCoordinator:
                     yield
         finally:
             self._active = False
+
+    @contextmanager
+    def caller_owned_readonly(self) -> Iterator[None]:
+        """Read exact pairs in the caller's outer transaction without append capabilities.
+
+        An independent writer may already own the private audit UOW on this
+        connection. This scope leaves those capabilities untouched and only
+        enables this coordinator's exact outbox selector; it opens no savepoint.
+        """
+
+        if self._read_active:
+            raise SystemAuditEventOutboxConflict("event/outbox read scopes cannot be nested")
+        connection = connections[self._using]
+        if not connection.in_atomic_block or connection.get_autocommit():
+            raise SystemAuditEventOutboxConflict(
+                "caller-owned event/outbox read requires an active transaction"
+            )
+        atomic_blocks = getattr(connection, "atomic_blocks", None)
+        if not isinstance(atomic_blocks, list) or len(atomic_blocks) != 1:
+            raise SystemAuditEventOutboxConflict(
+                "caller-owned event/outbox read requires the outermost transaction"
+            )
+        self._read_active = True
+        try:
+            yield
+        finally:
+            self._read_active = False
 
     def append_and_enqueue(
         self,
@@ -694,9 +722,9 @@ class DjangoSystemAuditEventOutboxCoordinator:
             raise SystemAuditEventOutboxConflict(
                 "exact outbox reads require a hash-valid event"
             ) from error
-        if not self._active:
+        if not self._active and not self._read_active:
             raise SystemAuditEventOutboxConflict(
-                "exact outbox winner reads require the caller-owned event/outbox UOW"
+                "exact outbox winner reads require a caller-owned event/outbox scope"
             )
         winners = self._outbox_repository.get_identity_winners_targeted((event,))
         record = winners.get(event.event_id)

@@ -108,6 +108,12 @@ class FakeCoordinator:
             self.outer_active = False
 
     @contextmanager
+    def caller_owned_readonly(self) -> Iterator[None]:
+        """Join the existing transaction for exact integrity reads."""
+        with self.caller_owned_atomic():
+            yield
+
+    @contextmanager
     def caller_owned_atomic(self) -> Iterator[None]:
         """Assert Audit joins the existing outer transaction without nesting."""
 

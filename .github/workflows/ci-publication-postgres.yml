@@ -15,6 +15,9 @@ on:
       - 'tests/component/simulated_trading/test_corporate_action_posting_postgres.py'
       - 'tests/component/simulated_trading/test_owner_granted_corporate_action_postgres.py'
       - 'tests/component/simulated_trading/test_corporate_action_tax_assessment_postgres.py'
+      - 'tests/component/simulated_trading/test_current_simulated_tax_qualification_postgres.py'
+      - 'tests/support/simulated_tax_model_native_sources.py'
+      - 'tests/support/simulated_tax_model_native_account.py'
       - 'tests/component/account/**'
       - 'tests/component/data_center/**'
       - 'tests/component/test_ai_provider_plaintext_removal_migration.py'
@@ -47,6 +50,9 @@ on:
       - 'tests/component/simulated_trading/test_corporate_action_posting_postgres.py'
       - 'tests/component/simulated_trading/test_owner_granted_corporate_action_postgres.py'
       - 'tests/component/simulated_trading/test_corporate_action_tax_assessment_postgres.py'
+      - 'tests/component/simulated_trading/test_current_simulated_tax_qualification_postgres.py'
+      - 'tests/support/simulated_tax_model_native_sources.py'
+      - 'tests/support/simulated_tax_model_native_account.py'
       - 'tests/component/account/**'
       - 'tests/component/data_center/**'
       - 'tests/component/test_ai_provider_plaintext_removal_migration.py'
@@ -89,6 +95,13 @@ jobs:
         ports: ['5432:5432']
         options: >-
           --health-cmd "pg_isready -U contract_test -d agom_release_rehearsal_ci"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+      redis:
+        image: redis@sha256:8b81dd37ff027bec4e516d41acfbe9fe2460070dc6d4a4570a2ac5b9d59df065
+        ports: ['6379:6379']
+        options: >-
+          --cpus 0.25 --memory 64m
+          --health-cmd "redis-cli ping"
           --health-interval 5s --health-timeout 5s --health-retries 12
     env:
       AGOM_EVID06_POSTGRES_TEST: '1'
@@ -143,6 +156,7 @@ jobs:
         env:
           DATABASE_URL: postgresql://contract_test:disposable_ci_only@127.0.0.1:5432/agom_release_rehearsal_ci
           AGOM_CRITICAL_TEST_DB_NAME: ash05_cash_posting_test
+          REDIS_URL: redis://127.0.0.1:6379/0
         run: >-
           python -m pytest
           tests/component/simulated_trading/test_corporate_action_posting_postgres.py::test_postgres_concurrent_entitlement_replay_writes_one_receivable
@@ -256,6 +270,7 @@ jobs:
           tests/component/simulated_trading/test_corporate_action_posting_repository.py::test_corrected_revision_blocks_duplicate_posting_but_allows_payment_and_full_replay
           tests/component/simulated_trading/test_corporate_action_posting_repository.py::test_current_source_head_does_not_repeat_an_existing_rights_no_effect_stage
           tests/component/simulated_trading/test_official_disclosure_action_qualification.py::test_exact_source_revision_and_gross_terms_are_qualified
+          tests/component/simulated_trading/test_current_simulated_tax_qualification_postgres.py::test_current_tax_qualification_rebuilds_real_persisted_owner_facts
           --ds=core.settings.critical_postgres_test
           --confcutdir=tests/component
           --create-db -q -o addopts='' --junitxml=ash05-cash-posting-postgres.xml

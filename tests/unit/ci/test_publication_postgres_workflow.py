@@ -687,6 +687,7 @@ def test_ash05_corporate_action_ledger_runs_on_isolated_migrated_postgres() -> N
         "tests/component/simulated_trading/test_corporate_action_posting_repository.py::test_corrected_revision_blocks_duplicate_posting_but_allows_payment_and_full_replay",
         "tests/component/simulated_trading/test_corporate_action_posting_repository.py::test_current_source_head_does_not_repeat_an_existing_rights_no_effect_stage",
         "tests/component/simulated_trading/test_official_disclosure_action_qualification.py::test_exact_source_revision_and_gross_terms_are_qualified",
+        "tests/component/simulated_trading/test_current_simulated_tax_qualification_postgres.py::test_current_tax_qualification_rebuilds_real_persisted_owner_facts",
     )
     assert step["env"]["DATABASE_URL"].endswith("/agom_release_rehearsal_ci")
     assert step["env"]["AGOM_CRITICAL_TEST_DB_NAME"] == "ash05_cash_posting_test"
@@ -698,6 +699,27 @@ def test_ash05_corporate_action_ledger_runs_on_isolated_migrated_postgres() -> N
     evidence_source, artifact_files = _evidence_gate_source()
     assert "'ash05-cash-posting-postgres.xml'" in evidence_source
     assert "ash05-cash-posting-postgres.xml" in artifact_files
+
+
+def test_ash05_full_qualifier_uses_a_bounded_real_redis_limiter() -> None:
+    """The real egress qualifier retains its Redis dependency in native CI."""
+    workflow = yaml.load(WORKFLOW_PATH.read_text(encoding="utf-8"), Loader=yaml.BaseLoader)
+    job = workflow["jobs"]["publication-postgres"]
+    redis = job["services"]["redis"]
+    assert re.fullmatch(r"redis@sha256:[0-9a-f]{64}", redis["image"])
+    assert redis["ports"] == ["6379:6379"]
+    assert "--cpus 0.25" in redis["options"]
+    assert "--memory 64m" in redis["options"]
+    assert "redis-cli ping" in redis["options"]
+    step = next(
+        step
+        for step in job["steps"]
+        if step.get("name") == "Exercise ASH-05 native corporate-action ledger"
+    )
+    endpoint = urlsplit(step["env"]["REDIS_URL"])
+    assert endpoint.scheme == "redis"
+    assert endpoint.hostname in {"127.0.0.1", "localhost", "::1"}
+    assert endpoint.port == 6379 and endpoint.path == "/0"
 
 
 def test_account_research_authority_step_checks_scope_and_exact_junit_identities() -> None:

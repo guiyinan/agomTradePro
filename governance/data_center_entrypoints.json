@@ -26,17 +26,17 @@
       "script": 20,
       "sdk": 57,
       "terminal_tui": 32,
-      "test_evidence": 141,
+      "test_evidence": 142,
       "workflow_step": 11
     },
     "by_status": {
       "active_public": 922,
       "adjacent_operational": 346,
-      "candidate-review": 60,
+      "candidate-review": 61,
       "compatibility": 139,
       "retired_blocked": 0
     },
-    "total": 1467
+    "total": 1468
   },
   "entries": [
     {
@@ -5481,7 +5481,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=13",
+      "evidence": "governed current-data contract; source_files=15",
       "id": "current_data_surface:governance/current_data_contracts.json:data_center.formal_calendar_current_pointer_contract:Exact-current calendar HTTP Session reference read, trusted preparation and storage; TUI and ordinary consumers remain separate; no source-observation or execution authority; internal typed cutoff composition preserves the exact supplied query in one default-alias outer transaction",
       "locator": "Exact-current calendar HTTP Session reference read, trusted preparation and storage; TUI and ordinary consumers remain separate; no source-observation or execution authority; internal typed cutoff composition preserves the exact supplied query in one default-alias outer transaction",
       "path": "governance/current_data_contracts.json",
@@ -13807,6 +13807,16 @@
       "path": "tests/component/simulated_trading/test_current_reference_binding_migration.py",
       "status": "candidate-review",
       "symbol": "test_current_reference_binding_migration",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/component/simulated_trading/test_current_simulated_tax_qualification_postgres.py:test_current_simulated_tax_qualification_postgres:",
+      "locator": "",
+      "path": "tests/component/simulated_trading/test_current_simulated_tax_qualification_postgres.py",
+      "status": "candidate-review",
+      "symbol": "test_current_simulated_tax_qualification_postgres",
       "target": ""
     },
     {

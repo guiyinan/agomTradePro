@@ -84,6 +84,12 @@ class FakeIntegrityReader:
         self.list_calls = 0
 
     @contextmanager
+    def caller_owned_readonly(self) -> Iterator[None]:
+        """Join the integrity-only transaction without issuing write authority."""
+        with self.caller_owned_atomic():
+            yield
+
+    @contextmanager
     def caller_owned_atomic(self) -> Iterator[None]:
         """Join one existing caller transaction without taking ownership."""
 

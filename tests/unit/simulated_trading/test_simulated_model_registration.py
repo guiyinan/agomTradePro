@@ -42,6 +42,7 @@ _EXPECTED_REGISTERED_MODEL_NAMES: tuple[str, ...] = (
     "AccountPositionValuationSnapshotModel",
     "CorporateActionTaxAssessmentHeaderModel",
     "CorporateActionTaxAssessmentAllocationModel",
+    "CorporateActionTaxLiabilityOperationModel",
 )
 
 _MOVED_MODELS: tuple[tuple[str, str], ...] = (
@@ -157,6 +158,19 @@ def test_simulated_models_keep_one_registered_identity() -> None:
         assert registered_model._meta.db_table == expected_table
         assert sum(model is registered_model for model in registry_models) == 1
         assert sum(model.__name__ == model_name for model in registry_models) == 1
+
+    liability_models = import_module(
+        "apps.simulated_trading.infrastructure.corporate_action_tax_liability_models"
+    )
+    liability = cast(
+        type[Model],
+        apps.get_model("simulated_trading", "CorporateActionTaxLiabilityOperationModel"),
+    )
+    assert public_models.CorporateActionTaxLiabilityOperationModel is liability
+    assert liability_models.CorporateActionTaxLiabilityOperationModel is liability
+    assert liability._meta.db_table == "sim_ca_tax_liability_operation"
+    assert sum(model is liability for model in registry_models) == 1
+    assert all(model.__name__ != "_TaxLiabilityImmutableModel" for model in registry_models)
 
     position_model = cast(type[Model], apps.get_model("simulated_trading", "PositionModel"))
     assert infrastructure_models.SimulatedPositionModel is position_model
