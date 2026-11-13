@@ -670,6 +670,7 @@ def current_order_reservation_book(
     target: SimulatedOrderReservationModel | None,
     security_id: str,
     asset_code: str,
+    tax_cash_unavailable: Decimal | None = Decimal("0"),
 ) -> OrderReservationBook:
     """Decode locked holds and current nullable balances into one Domain book."""
 
@@ -752,6 +753,7 @@ def current_order_reservation_book(
             withdrawable_cash=None,
             sellable_shares=sellable,
             reservations=reservations,
+            tax_cash_unavailable=tax_cash_unavailable,
         )
     except (ArithmeticError, AttributeError, TypeError, ValueError) as error:
         raise _state_error("locked reservation book failed Domain validation") from error

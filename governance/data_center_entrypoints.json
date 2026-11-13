@@ -26,17 +26,17 @@
       "script": 20,
       "sdk": 57,
       "terminal_tui": 32,
-      "test_evidence": 142,
+      "test_evidence": 143,
       "workflow_step": 11
     },
     "by_status": {
       "active_public": 922,
       "adjacent_operational": 346,
-      "candidate-review": 61,
+      "candidate-review": 62,
       "compatibility": 139,
       "retired_blocked": 0
     },
-    "total": 1468
+    "total": 1469
   },
   "entries": [
     {
@@ -6091,7 +6091,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=23",
+      "evidence": "governed current-data contract; source_files=26",
       "id": "current_data_surface:governance/current_data_contracts.json:simulated_trading.current_reference_manual_trade:Current-purpose V2 identity selection for normal simulated manual equity trades, Decision Rhythm simulated requests, and guarded automatic paper-ledger callbacks. Require exact active Config Center selection, pinned retained snapshot/mapping evidence and the existing settlement UoW. Automatic callbacks also bind the run date to the formal current exchange session and retain the exact historical price result. Unknown upstream clocks and restrictive source flags remain unchanged; this local-purpose consumer does not create provider qualification, historical PIT, generic decision-data qualification or live broker authority. Add the internal simulated order-reservation consumer. A reservation is a local resource commitment, not a simulated fill, trade, or execution authorization. It uses the existing current-purpose V2 preparation path and locked Risk V3/FeeV2/calendar revalidation; it does not define another market-source freshness policy. Local source_snapshot_at records the account-lock ledger capture, never market observed_at or available_at. Exact-key replay retains original sealed evidence without refreshing sources; cancellation is an owner-scoped local release without market-source dependencies. No HTTP/SDK/MCP or live execution activation. An explicit selector V2 may additionally bind the simulated asset type to the same source identity. V1 selector hashing and identity reads remain compatible. Classification preserves unknown upstream clocks and restrictive flags; classification alone is not execution qualification.",
       "locator": "Current-purpose V2 identity selection for normal simulated manual equity trades, Decision Rhythm simulated requests, and guarded automatic paper-ledger callbacks. Require exact active Config Center selection, pinned retained snapshot/mapping evidence and the existing settlement UoW. Automatic callbacks also bind the run date to the formal current exchange session and retain the exact historical price result. Unknown upstream clocks and restrictive source flags remain unchanged; this local-purpose consumer does not create provider qualification, historical PIT, generic decision-data qualification or live broker authority. Add the internal simulated order-reservation consumer. A reservation is a local resource commitment, not a simulated fill, trade, or execution authorization. It uses the existing current-purpose V2 preparation path and locked Risk V3/FeeV2/calendar revalidation; it does not define another market-source freshness policy. Local source_snapshot_at records the account-lock ledger capture, never market observed_at or available_at. Exact-key replay retains original sealed evidence without refreshing sources; cancellation is an owner-scoped local release without market-source dependencies. No HTTP/SDK/MCP or live execution activation. An explicit selector V2 may additionally bind the simulated asset type to the same source identity. V1 selector hashing and identity reads remain compatible. Classification preserves unknown upstream clocks and restrictive flags; classification alone is not execution qualification.",
       "path": "governance/current_data_contracts.json",
@@ -6201,7 +6201,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=11",
+      "evidence": "governed current-data contract; source_files=14",
       "id": "current_data_surface:governance/current_data_contracts.json:simulated_trading.owner_order_submission_market:Explicit Sina raw capture, source-clock-qualified paper market and owner preview/confirmation/readback; local simulated reservations only, immutable original recovery before current source reads; no broker authority",
       "locator": "Explicit Sina raw capture, source-clock-qualified paper market and owner preview/confirmation/readback; local simulated reservations only, immutable original recovery before current source reads; no broker authority",
       "path": "governance/current_data_contracts.json",
@@ -13777,6 +13777,16 @@
       "path": "tests/component/simulated_trading/test_corporate_action_tax_assessment_postgres.py",
       "status": "candidate-review",
       "symbol": "test_corporate_action_tax_assessment_postgres",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/component/simulated_trading/test_corporate_action_tax_balance_postgres.py:test_corporate_action_tax_balance_postgres:",
+      "locator": "",
+      "path": "tests/component/simulated_trading/test_corporate_action_tax_balance_postgres.py",
+      "status": "candidate-review",
+      "symbol": "test_corporate_action_tax_balance_postgres",
       "target": ""
     },
     {

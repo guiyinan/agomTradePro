@@ -7,7 +7,7 @@ sellable quantity only; total and pending T+1 position quantity are excluded.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from decimal import ROUND_HALF_EVEN, Decimal, InvalidOperation, localcontext
 from enum import StrEnum
@@ -501,6 +501,7 @@ class OrderReservationBook:
     withdrawable_cash: Decimal | None
     sellable_shares: Decimal | None
     reservations: tuple[OrderReservation, ...]
+    tax_cash_unavailable: Decimal | None = field(default=_ZERO_MONEY, kw_only=True)
 
     def __post_init__(self) -> None:
         """Validate exact source amounts, account-scoped keys, and over-holds."""
@@ -513,6 +514,12 @@ class OrderReservationBook:
             validate_ledger_money(self.withdrawable_cash, "withdrawable_cash", allow_zero=True)
         if self.sellable_shares is not None:
             validate_ledger_quantity(self.sellable_shares, "sellable_shares", allow_zero=True)
+        if self.tax_cash_unavailable is not None:
+            validate_ledger_money(
+                self.tax_cash_unavailable,
+                "tax_cash_unavailable",
+                allow_zero=True,
+            )
         _need(type(self.reservations) is tuple, "RESERVATION_BOOK_ROWS_INVALID")
         keys: set[str] = set()
         for row in self.reservations:
@@ -586,14 +593,28 @@ class OrderReservationBook:
 
     @property
     def available_cash(self) -> Decimal | None:
-        """Return known book cash minus active holds, or preserve unknown as None."""
+        """Return known book cash less active holds and known tax debt.
+
+        An omitted tax amount is the legacy no-debt case. Explicit unknown tax
+        debt keeps available cash unknown, and known debt never rewrites gross
+        book cash or the active order holds.
+        """
 
         self.__post_init__()
-        return (
-            None
-            if self.book_cash is None
-            else _subtract(self.book_cash, self.active_held_cash, _MONEY_SCALE, "available_cash")
+        if self.book_cash is None or self.tax_cash_unavailable is None:
+            return None
+        cash_after_active_holds = _subtract(
+            self.book_cash,
+            self.active_held_cash,
+            _MONEY_SCALE,
+            "available_cash",
         )
+        remaining_units = _units(
+            cash_after_active_holds,
+            _MONEY_SCALE,
+            "available_cash",
+        ) - _units(self.tax_cash_unavailable, _MONEY_SCALE, "tax_cash_unavailable")
+        return _decimal(max(remaining_units, 0), _MONEY_SCALE)
 
     @property
     def available_shares(self) -> Decimal | None:

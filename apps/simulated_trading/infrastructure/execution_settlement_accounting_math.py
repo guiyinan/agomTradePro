@@ -78,8 +78,10 @@ def _position_available_after_holds(
     )
 
 
-def _spendable_cash_after_holds(cash: Decimal, held_cash: Decimal) -> Decimal:
-    """Return owner cash available to ordinary trades after active BUY holds."""
+def _spendable_cash_after_holds(
+    cash: Decimal, held_cash: Decimal, *, tax_cash_unavailable: Decimal = Decimal("0")
+) -> Decimal:
+    """Protect active BUY holds and separately supplied verified unpaid taxes."""
 
     current_cash = validate_ledger_money(cash, "account.current_cash")
     held = validate_ledger_money(held_cash, "active_order_held_cash", allow_zero=True)
@@ -88,7 +90,9 @@ def _spendable_cash_after_holds(cash: Decimal, held_cash: Decimal) -> Decimal:
             "active order reservations exceed the locked account cash",
             code="ORDER_RESERVATION_STATE_INVALID",
         )
-    return _money_difference(current_cash, held, "spendable_cash_after_reservations")
+    free = _money_difference(current_cash, held, "spendable_cash_after_reservations")
+    tax = validate_ledger_money(tax_cash_unavailable, "tax_cash_unavailable", allow_zero=True)
+    return Decimal("0") if tax >= free else _money_difference(free, tax, "spendable_cash_after_tax")
 
 
 def _require_known_simulated_cash(*, cash_known: bool, reconciliation_status: str) -> None:

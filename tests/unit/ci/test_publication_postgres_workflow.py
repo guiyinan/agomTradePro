@@ -688,6 +688,11 @@ def test_ash05_corporate_action_ledger_runs_on_isolated_migrated_postgres() -> N
         "tests/component/simulated_trading/test_corporate_action_posting_repository.py::test_current_source_head_does_not_repeat_an_existing_rights_no_effect_stage",
         "tests/component/simulated_trading/test_official_disclosure_action_qualification.py::test_exact_source_revision_and_gross_terms_are_qualified",
         "tests/component/simulated_trading/test_current_simulated_tax_qualification_postgres.py::test_current_tax_qualification_rebuilds_real_persisted_owner_facts",
+        "tests/component/simulated_trading/test_corporate_action_tax_balance_postgres.py::test_native_readonly_debt_and_partial_collection_preserve_controlled_net_assets",
+        "tests/component/simulated_trading/test_corporate_action_tax_balance_postgres.py::test_native_new_unapplied_assessment_blocks_order_cash_without_any_repair",
+        "tests/component/simulated_trading/test_corporate_action_tax_balance_postgres.py::test_native_independent_dispositions_sum_and_cash_book_preserves_gross_cash",
+        "tests/component/simulated_trading/test_corporate_action_tax_balance_postgres.py::test_native_missing_original_tax_outbox_blocks_read_without_repair",
+        "tests/component/simulated_trading/test_corporate_action_tax_balance_postgres.py::test_native_new_cash_debits_cannot_spend_verified_tax",
     )
     assert step["env"]["DATABASE_URL"].endswith("/agom_release_rehearsal_ci")
     assert step["env"]["AGOM_CRITICAL_TEST_DB_NAME"] == "ash05_cash_posting_test"

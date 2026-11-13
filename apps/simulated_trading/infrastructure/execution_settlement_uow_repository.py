@@ -47,6 +47,9 @@ from apps.simulated_trading.domain.execution_settlement_uow import (
 from apps.simulated_trading.infrastructure.corporate_action_posting_models import (
     CorporateActionPostingModel,
 )
+from apps.simulated_trading.infrastructure.corporate_action_tax_balance_repository import (
+    read_locked_corporate_action_tax_payable,
+)
 from apps.simulated_trading.infrastructure.execution_settlement_stop_loss_threshold import (
     normalize_locked_stop_loss_pct,
 )
@@ -736,6 +739,14 @@ class DjangoSimulatedTradeExecutionRepository:
         )
         require_trade_fee_storage_range(fees)
         total_fees = fees.total_fee
+        if intent.side is SimulatedTradeSide.BUY or total_fees > amount:
+            spendable_cash = _spendable_cash_after_holds(
+                cash,
+                active_cash_held,
+                tax_cash_unavailable=read_locked_corporate_action_tax_payable(
+                    account=account, using=self._using
+                ),
+            )
         next_position: PositionModel | None = position
         if intent.side is SimulatedTradeSide.BUY:
             total_cost = _money_sum(amount, total_fees)

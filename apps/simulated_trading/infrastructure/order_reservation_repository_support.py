@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from decimal import Decimal
+
 from apps.simulated_trading.application.execution_settlement_uow import (
     SimulatedTradeAccountScopeUnavailable,
     SimulatedTradeExecutionBlocked,
@@ -10,7 +12,11 @@ from apps.simulated_trading.application.execution_settlement_uow import (
 from apps.simulated_trading.domain.execution_settlement_uow import SimulatedTradeIntent
 from apps.simulated_trading.domain.order_reservation import (
     OrderReservation,
+    OrderReservationBook,
     OrderReservationRequest,
+)
+from apps.simulated_trading.infrastructure.corporate_action_tax_balance_repository import (
+    read_locked_corporate_action_tax_payable,
 )
 from apps.simulated_trading.infrastructure.models import (
     PositionModel,
@@ -19,6 +25,7 @@ from apps.simulated_trading.infrastructure.models import (
     SimulatedTradeModel,
 )
 from apps.simulated_trading.infrastructure.order_reservation_codec import (
+    current_order_reservation_book,
     fee_policy_from_snapshot,
     validated_plan_snapshot,
 )
@@ -26,6 +33,7 @@ from apps.simulated_trading.infrastructure.order_reservation_sqlite_precision im
     PrecisionFamily,
     require_sqlite_values,
 )
+from core.exceptions import BusinessLogicError
 
 
 def require_exact_order_retry(
@@ -107,3 +115,37 @@ def validate_reservation_owner_row(
         or account.account_type != "simulated"
     ):
         raise SimulatedTradeAccountScopeUnavailable()
+
+
+def build_locked_tax_aware_reservation_book(
+    *,
+    account: SimulatedAccountModel,
+    position: PositionModel | None,
+    active_rows: list[SimulatedOrderReservationModel],
+    target: SimulatedOrderReservationModel | None,
+    security_id: str,
+    asset_code: str,
+    using: str,
+) -> OrderReservationBook:
+    """Join verified debt with the locked cash book without changing gross cash or holds."""
+    if type(account.user_id) is not int:
+        raise SimulatedTradeAccountScopeUnavailable()
+    tax_cash_unavailable: Decimal | None
+    try:
+        tax_cash_unavailable = read_locked_corporate_action_tax_payable(
+            account=account, using=using
+        )
+    except BusinessLogicError as error:
+        if error.code != "TAX_ASSESSMENT_NOT_APPLIED":
+            raise
+        tax_cash_unavailable = None
+    return current_order_reservation_book(
+        account=account,
+        owner_user_id=account.user_id,
+        position=position,
+        active_rows=active_rows,
+        target=target,
+        security_id=security_id,
+        asset_code=asset_code,
+        tax_cash_unavailable=tax_cash_unavailable,
+    )

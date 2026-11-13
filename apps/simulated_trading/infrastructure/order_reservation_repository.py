@@ -69,7 +69,6 @@ from apps.simulated_trading.infrastructure.models import (
 from apps.simulated_trading.infrastructure.order_reservation_codec import (
     JSONValue,
     canonical_snapshot,
-    current_order_reservation_book,
     decode_order_reservation,
     plan_snapshot_payload,
     require_stored_submission_market_purpose,
@@ -95,6 +94,7 @@ from apps.simulated_trading.infrastructure.order_reservation_identity_guard impo
     require_order_reservation_owner_key,
 )
 from apps.simulated_trading.infrastructure.order_reservation_repository_support import (
+    build_locked_tax_aware_reservation_book,
     require_exact_order_retry,
     require_locked_reservation_source_precision,
     validate_reservation_owner_row,
@@ -914,16 +914,14 @@ class DjangoSimulatedOrderReservationRepository:
     ) -> OrderReservationBook:
         """Build one exact current book without treating unknown balances as zero."""
 
-        if type(account.user_id) is not int:
-            raise SimulatedTradeAccountScopeUnavailable()
-        return current_order_reservation_book(
+        return build_locked_tax_aware_reservation_book(
             account=account,
-            owner_user_id=account.user_id,
             position=position,
             active_rows=active_rows,
             target=target,
             security_id=security_id,
             asset_code=asset_code,
+            using=self._using,
         )
 
     def _require_sqlite_values(

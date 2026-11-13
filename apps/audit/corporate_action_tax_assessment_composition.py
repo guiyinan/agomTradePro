@@ -29,6 +29,10 @@ class TaxAssessmentAuditCoordinatorPort(Protocol):
         """Bind existing private append capabilities to the outer transaction."""
         ...
 
+    def caller_owned_readonly(self) -> AbstractContextManager[None]:
+        """Read original pairs in the caller transaction without append capabilities."""
+        ...
+
     def lock_streams(self, stream_ids: tuple[str, ...]) -> None:
         """Lock streams in stable order before reading or appending."""
         ...

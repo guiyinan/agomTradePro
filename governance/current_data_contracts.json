@@ -11113,7 +11113,10 @@
         "apps/decision_rhythm/application/decision_execution_use_cases.py",
         "apps/decision_rhythm/composition.py",
         "apps/decision_rhythm/interface/serializers.py",
-        "apps/decision_rhythm/interface/workflow_api_views.py"
+        "apps/decision_rhythm/interface/workflow_api_views.py",
+        "apps/simulated_trading/infrastructure/corporate_action_tax_balance_repository.py",
+        "apps/simulated_trading/infrastructure/order_reservation_repository_support.py",
+        "apps/simulated_trading/domain/order_reservation.py"
       ],
       "required_markers": {
         "apps/config_center/application/runtime_public.py": [
@@ -11253,6 +11256,22 @@
           "permission_classes = (IsAuthenticated,)",
           "user_id=request.user.pk if type(request.user.pk) is int else None",
           "status.HTTP_409_CONFLICT"
+        ],
+        "apps/simulated_trading/infrastructure/corporate_action_tax_balance_repository.py": [
+          "def read_locked_corporate_action_tax_payable(",
+          "caller_owned_readonly()",
+          "code=\"TAX_ASSESSMENT_NOT_APPLIED\"",
+          "readback.verify_assessment(header, as_of=cutoff)",
+          "total += state.outstanding_amount"
+        ],
+        "apps/simulated_trading/infrastructure/order_reservation_repository_support.py": [
+          "def build_locked_tax_aware_reservation_book(",
+          "tax_cash_unavailable = None",
+          "tax_cash_unavailable=tax_cash_unavailable"
+        ],
+        "apps/simulated_trading/domain/order_reservation.py": [
+          "tax_cash_unavailable: Decimal | None",
+          "self.tax_cash_unavailable is None"
         ]
       },
       "required_tests": [
@@ -11455,9 +11474,34 @@
           "case": "exact_reserve_replay_after_discarded_response_and_instance_rebuild_keeps_one_hold",
           "test_file": "tests/component/simulated_trading/test_order_reservation_repository.py",
           "test_function": "test_exact_reserve_replay_after_use_case_rebuild_recovers_discarded_response"
+        },
+        {
+          "case": "readonly_debt_and_partial_collection_preserve_controlled_net_assets",
+          "test_file": "tests/component/simulated_trading/test_corporate_action_tax_balance_postgres.py",
+          "test_function": "test_native_readonly_debt_and_partial_collection_preserve_controlled_net_assets"
+        },
+        {
+          "case": "new_unapplied_assessment_blocks_order_cash_without_any_repair",
+          "test_file": "tests/component/simulated_trading/test_corporate_action_tax_balance_postgres.py",
+          "test_function": "test_native_new_unapplied_assessment_blocks_order_cash_without_any_repair"
+        },
+        {
+          "case": "independent_dispositions_sum_and_cash_book_preserves_gross_cash",
+          "test_file": "tests/component/simulated_trading/test_corporate_action_tax_balance_postgres.py",
+          "test_function": "test_native_independent_dispositions_sum_and_cash_book_preserves_gross_cash"
+        },
+        {
+          "case": "missing_original_tax_outbox_blocks_read_without_repair",
+          "test_file": "tests/component/simulated_trading/test_corporate_action_tax_balance_postgres.py",
+          "test_function": "test_native_missing_original_tax_outbox_blocks_read_without_repair"
+        },
+        {
+          "case": "new_cash_debits_cannot_spend_verified_tax",
+          "test_file": "tests/component/simulated_trading/test_corporate_action_tax_balance_postgres.py",
+          "test_function": "test_native_new_cash_debits_cannot_spend_verified_tax"
         }
       ],
-      "notes": "Existing native Config Center/source evidence and manual HTTP/UoW evidence retain their documented boundaries. Automatic bridge unit tests use typed source objects and a stub manual executor: they prove input/evidence contracts, not financial integration. The source record clocks and must_not_* flags are preserved. Automatic source-backed caller integration has a separate ASH03 test record. Historical daily prices remain historical reference inputs; neither manual nor automatic paper accounting proves quotes, intraday tradability, broker authority, legacy imported availability lineage, Owner acceptance or production readiness. Decision Rhythm now delegates simulated BUY/SELL to the same owner-scoped current-reference settlement caller with a request-ID-derived idempotency key. ASH-01 regression tests use synthetic identity, Risk, and calendar ports around the real Django ledger UoW; they do not qualify a production provider, historical holdings lineage, or broker execution."
+      "notes": "Existing native Config Center/source evidence and manual HTTP/UoW evidence retain their documented boundaries. Automatic bridge unit tests use typed source objects and a stub manual executor: they prove input/evidence contracts, not financial integration. The source record clocks and must_not_* flags are preserved. Automatic source-backed caller integration has a separate ASH03 test record. Historical daily prices remain historical reference inputs; neither manual nor automatic paper accounting proves quotes, intraday tradability, broker authority, legacy imported availability lineage, Owner acceptance or production readiness. Decision Rhythm now delegates simulated BUY/SELL to the same owner-scoped current-reference settlement caller with a request-ID-derived idempotency key. ASH-01 regression tests use synthetic identity, Risk, and calendar ports around the real Django ledger UoW; they do not qualify a production provider, historical holdings lineage, or broker execution. Accepted local unpaid tax is re-read under the physical account fence from every original assessment, financial chain and exact Audit/Outbox pair. It reduces new cash admission without rewriting gross cash or pre-existing holds. Unapplied assessments preserve unknown spendable cash; corrupt evidence blocks. Empty accepted local tax ledger does not establish source/event coverage. Local cutoff does not refresh source clocks, qualify raw-price marks or make legacy total_value a verified net asset value."
     },
     {
       "id": "simulated_trading.first_buy_initial_position_mark",
@@ -13285,7 +13329,10 @@
         "apps/simulated_trading/infrastructure/order_reservation_repository.py",
         "apps/simulated_trading/owner_order_submission_composition.py",
         "apps/simulated_trading/interface/owner_order_submission_views.py",
-        "apps/simulated_trading/application/owner_order_payloads.py"
+        "apps/simulated_trading/application/owner_order_payloads.py",
+        "apps/simulated_trading/infrastructure/corporate_action_tax_balance_repository.py",
+        "apps/simulated_trading/infrastructure/order_reservation_repository_support.py",
+        "apps/simulated_trading/domain/order_reservation.py"
       ],
       "required_markers": {
         "apps/data_center/domain/sina_quote_capture.py": [
@@ -13330,6 +13377,22 @@
           "result.expires_at",
           "result.token",
           "continuation"
+        ],
+        "apps/simulated_trading/infrastructure/corporate_action_tax_balance_repository.py": [
+          "def read_locked_corporate_action_tax_payable(",
+          "caller_owned_readonly()",
+          "code=\"TAX_ASSESSMENT_NOT_APPLIED\"",
+          "readback.verify_assessment(header, as_of=cutoff)",
+          "total += state.outstanding_amount"
+        ],
+        "apps/simulated_trading/infrastructure/order_reservation_repository_support.py": [
+          "def build_locked_tax_aware_reservation_book(",
+          "tax_cash_unavailable = None",
+          "tax_cash_unavailable=tax_cash_unavailable"
+        ],
+        "apps/simulated_trading/domain/order_reservation.py": [
+          "tax_cash_unavailable: Decimal | None",
+          "self.tax_cash_unavailable is None"
         ]
       },
       "required_tests": [
@@ -13367,9 +13430,34 @@
           "case": "preview_deadline_locked",
           "test_file": "tests/unit/simulated_trading/test_owner_order_submission.py",
           "test_function": "test_preview_deadline_is_rechecked_after_writer_lock_delay"
+        },
+        {
+          "case": "readonly_debt_and_partial_collection_preserve_controlled_net_assets",
+          "test_file": "tests/component/simulated_trading/test_corporate_action_tax_balance_postgres.py",
+          "test_function": "test_native_readonly_debt_and_partial_collection_preserve_controlled_net_assets"
+        },
+        {
+          "case": "new_unapplied_assessment_blocks_order_cash_without_any_repair",
+          "test_file": "tests/component/simulated_trading/test_corporate_action_tax_balance_postgres.py",
+          "test_function": "test_native_new_unapplied_assessment_blocks_order_cash_without_any_repair"
+        },
+        {
+          "case": "independent_dispositions_sum_and_cash_book_preserves_gross_cash",
+          "test_file": "tests/component/simulated_trading/test_corporate_action_tax_balance_postgres.py",
+          "test_function": "test_native_independent_dispositions_sum_and_cash_book_preserves_gross_cash"
+        },
+        {
+          "case": "missing_original_tax_outbox_blocks_read_without_repair",
+          "test_file": "tests/component/simulated_trading/test_corporate_action_tax_balance_postgres.py",
+          "test_function": "test_native_missing_original_tax_outbox_blocks_read_without_repair"
+        },
+        {
+          "case": "new_cash_debits_cannot_spend_verified_tax",
+          "test_file": "tests/component/simulated_trading/test_corporate_action_tax_balance_postgres.py",
+          "test_function": "test_native_new_cash_debits_cannot_spend_verified_tax"
         }
       ],
-      "notes": "Raw vendor clocks are not fetched_at and a parsed capture is not source qualification. Same-day, same-session-window, status mapping, explicit policy, real calendar/rule identities and TTL are mandatory. Paper-derived boundaries remain labeled; original restricted Publication contracts and live/broker eligibility are unchanged. Signed tokens are handed off privately; original GET readback needs only a current owner and a non-secret locator."
+      "notes": "Raw vendor clocks are not fetched_at and a parsed capture is not source qualification. Same-day, same-session-window, status mapping, explicit policy, real calendar/rule identities and TTL are mandatory. Paper-derived boundaries remain labeled; original restricted Publication contracts and live/broker eligibility are unchanged. Signed tokens are handed off privately; original GET readback needs only a current owner and a non-secret locator. Accepted local unpaid tax is re-read under the physical account fence from every original assessment, financial chain and exact Audit/Outbox pair. It reduces new cash admission without rewriting gross cash or pre-existing holds. Unapplied assessments preserve unknown spendable cash; corrupt evidence blocks. Empty accepted local tax ledger does not establish source/event coverage. Local cutoff does not refresh source clocks, qualify raw-price marks or make legacy total_value a verified net asset value."
     },
     {
       "id": "simulated_trading.historical_sellable_ledger_repair",

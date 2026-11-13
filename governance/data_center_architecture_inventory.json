@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 7123,
+    "current_surface_references": 7128,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -24135,6 +24135,10 @@
       "text": "source, activate a policy, prove current ownership, grant authority, or post a"
     },
     {
+      "path": "apps/simulated_trading/domain/corporate_action_tax_balance.py",
+      "text": "the real account owner, current holds and the raw-price position marks."
+    },
+    {
       "path": "apps/simulated_trading/domain/corporate_action_tax_liability.py",
       "text": "\"\"\"Current due-versus-collected status for one action disposition.\"\"\""
     },
@@ -24809,6 +24813,22 @@
     {
       "path": "apps/simulated_trading/infrastructure/corporate_action_tax_assessment_repository.py",
       "text": "\"\"\"Verify immutable historical material without claiming current tax eligibility."
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/corporate_action_tax_balance_repository.py",
+      "text": "\"The current tax assessment has not been applied\","
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/corporate_action_tax_balance_repository.py",
+      "text": "are re-read; current tax permission is neither required nor issued by a"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/corporate_action_tax_balance_repository.py",
+      "text": "raise _corrupt(\"Tax assessment has no unique complete current head\")"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/corporate_action_tax_balance_repository.py",
+      "text": "raise _corrupt(\"Tax assessment is outside the current owned local ledger\")"
     },
     {
       "path": "apps/simulated_trading/infrastructure/corporate_action_tax_liability_readback.py",
