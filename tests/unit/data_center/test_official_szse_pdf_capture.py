@@ -12,6 +12,7 @@ import requests
 from apps.data_center.domain.security_disclosure_event import SecurityDisclosureEventType
 from apps.data_center.infrastructure import official_szse_pdf_capture as capture_module
 from apps.data_center.infrastructure.official_szse_pdf_capture import (
+    CapturedOfficialSzsePdf,
     OfficialDisclosureCaptureError,
     OfficialSzsePdfBodyStore,
     capture_official_szse_pdf,
@@ -521,7 +522,8 @@ def test_share_delivery_and_sellable_dates_are_independent_explicit_facts(
     monkeypatch.setattr(requests, "get", lambda *a, **kw: _response(_BODY))
     captured = capture_official_szse_pdf(_URL)
     text = (
-        "证券代码：002727\n2026年半年度权益分派实施公告\n每10股转增4股，不派发现金红利。不涉及扣税情形。"
+        "证券代码：002727\n2026年半年度权益分派实施公告\n每10股转增4股，不派发现金红利。"
+        "本次转增资本公积金来源为公司股票发行溢价收入所形成的资本公积金，不涉及扣税情形。"
         "股权登记日为：2026年9月23日。除权除息日为：2026年9月24日。" + date_text
     )
     monkeypatch.setattr(
@@ -550,3 +552,147 @@ def test_notification_title_can_be_read_without_promoting_unknown_category(monke
     )
     assert title == "关于召开2026年第五次临时股东会的通知"
     assert kind is SecurityDisclosureEventType.UNKNOWN
+
+
+def _source_wording_capture(
+    monkeypatch: pytest.MonkeyPatch,
+    wording: str,
+    *,
+    title: str = "2026年权益分派实施公告",
+    distribution_dates: str = "股权登记日为：2026年6月3日。除权除息日为：2026年6月4日。\n",
+) -> CapturedOfficialSzsePdf:
+    """Use source-shaped text with explicit synthetic transport bytes."""
+    monkeypatch.setattr(requests, "get", lambda *args, **kwargs: _response(_BODY))
+    captured = capture_official_szse_pdf(_URL)
+    text = "证券代码：002727\n" + title + "\n" + distribution_dates + wording
+    monkeypatch.setattr(
+        capture_module,
+        "PdfReader",
+        lambda *args, **kwargs: SimpleNamespace(
+            pages=(SimpleNamespace(extract_text=lambda: text),)
+        ),
+    )
+    return captured
+
+
+@pytest.mark.parametrize(
+    "wording,expected",
+    [
+        ("每10股送红股2股。", SecurityDisclosureEventType.STOCK_DIVIDEND),
+        ("每10股派送红股2股。", SecurityDisclosureEventType.STOCK_DIVIDEND),
+        ("每10股派现金红利1元，每10股送红股2股。", SecurityDisclosureEventType.UNKNOWN),
+        ("每10股派现金红利1元，不送红股。", SecurityDisclosureEventType.CASH_DIVIDEND),
+        ("每10股转增2股，每10股送红股2股。", SecurityDisclosureEventType.UNKNOWN),
+    ],
+)
+def test_bonus_share_wording_cannot_be_dropped_from_a_cash_or_transfer_notice(
+    monkeypatch: pytest.MonkeyPatch, wording: str, expected: SecurityDisclosureEventType
+) -> None:
+    """Taxable red shares cannot silently disappear from a cash-only classification."""
+    captured = _source_wording_capture(monkeypatch, wording)
+    assert classify_szse_pdf_disclosure(captured, "002727")[1] is expected
+
+
+def test_source_direct_credit_wording_does_not_borrow_the_listing_day(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The official account-credit sentence and listing date are independent facts."""
+    captured = _source_wording_capture(
+        monkeypatch,
+        "每10股转增4股。本次转增股份将于2026年6月4日直接记入股东证券账户。"
+        "新增可流通股份上市日为：2026年6月5日。",
+    )
+    terms = extract_szse_distribution_terms(captured, "002727")
+    assert terms is not None
+    assert terms.share_delivery_date == date(2026, 6, 4)
+    assert terms.share_sellable_date == date(2026, 6, 5)
+
+
+@pytest.mark.parametrize(
+    "provenance",
+    [
+        "",
+        "本次转增资本公积金来源为其他资本公积金。",
+        "本次转增资本公积金来源并非股票发行溢价收入所形成的资本公积金。",
+    ],
+)
+def test_no_tax_claim_without_issuance_premium_provenance_stays_unknown(
+    monkeypatch: pytest.MonkeyPatch, provenance: str
+) -> None:
+    """A general no-tax phrase does not establish the source of capital reserve."""
+    captured = _source_wording_capture(
+        monkeypatch, "每10股转增4股。" + provenance + "不涉及扣税情形。"
+    )
+    terms = extract_szse_distribution_terms(captured, "002727")
+    assert terms is not None and terms.tax_treatment is None
+
+
+def test_issuance_premium_and_explicit_source_no_tax_statement_are_both_required(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Retain the issuer's exact declaration without claiming legal applicability."""
+    captured = _source_wording_capture(
+        monkeypatch,
+        "每10股转增4股。本次资本公积金转增股本的资本公积金来源为公司"
+        "股票发行溢价收入所形成的资本公积金，不涉及扣税情形。",
+    )
+    terms = extract_szse_distribution_terms(captured, "002727")
+    assert terms is not None and terms.tax_treatment == "not_applicable"
+
+
+def test_conflicting_direct_credit_and_named_credit_date_stays_unknown(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Two supported credit spellings must not hide a different announced date."""
+    captured = _source_wording_capture(
+        monkeypatch,
+        "每10股转增4股。新增股份到账日为：2026年6月4日。"
+        "本次转增股份将于2026年6月5日直接记入股东证券账户。"
+        "新增可流通股份上市日为：2026年6月5日。",
+    )
+    terms = extract_szse_distribution_terms(captured, "002727")
+    assert terms is not None and terms.share_delivery_date is None
+
+
+@pytest.mark.parametrize(
+    "origin",
+    [
+        "并非本次资本公积金来源为公司股票发行溢价收入所形成的资本公积金",
+        "本次并非资本公积金来源为公司股票发行溢价收入所形成的资本公积金",
+    ],
+)
+def test_negated_premium_origin_does_not_qualify_no_tax_statement(
+    monkeypatch: pytest.MonkeyPatch,
+    origin: str,
+) -> None:
+    """A negated reserve origin cannot qualify an otherwise positive tax phrase."""
+    captured = _source_wording_capture(
+        monkeypatch, "每10股转增4股。" + origin + "，不涉及扣税情形。"
+    )
+    terms = extract_szse_distribution_terms(captured, "002727")
+    assert terms is not None and terms.tax_treatment is None
+
+
+@pytest.mark.parametrize("complete", [True, False])
+def test_rights_result_category_requires_confirmed_complete_document(
+    monkeypatch: pytest.MonkeyPatch,
+    complete: bool,
+) -> None:
+    """A rights title alone cannot normalize a missing or conditional result."""
+    wording = (
+        "股权登记日2026年8月12日。按每10股配售4股，价格为人民币3.36元。"
+        "截至认购缴款结束日（2026年8月19日），本次配股发行成功。"
+        "本公告披露当日（2026年8月21日，R+7日）即为发行成功的除权基准日"
+        "（配股除权日），实际配股比例相当于每10股配售3.722702股。"
+    )
+    if not complete:
+        wording = wording.replace("本次配股发行成功", "若达到条件，本次配股发行成功")
+    captured = _source_wording_capture(
+        monkeypatch, wording, title="配股发行结果公告", distribution_dates=""
+    )
+    expected = (
+        SecurityDisclosureEventType.RIGHTS_ISSUE
+        if complete
+        else SecurityDisclosureEventType.UNKNOWN
+    )
+    assert classify_szse_pdf_disclosure(captured, "002727")[1] is expected

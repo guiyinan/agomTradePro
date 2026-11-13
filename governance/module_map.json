@@ -4161,7 +4161,7 @@
           "imports": 3
         },
         "simulated_trading": {
-          "imports": 88
+          "imports": 92
         },
         "strategy": {
           "imports": 1
@@ -5732,11 +5732,11 @@
       },
       "layers": {
         "application": 188,
-        "domain": 57,
-        "infrastructure": 245,
+        "domain": 58,
+        "infrastructure": 246,
         "interface": 32,
         "management": 42,
-        "root": 43
+        "root": 44
       },
       "orm_models": {
         "infrastructure/models.py": [
@@ -7903,7 +7903,7 @@
           "imports": 50
         },
         "simulated_trading": {
-          "imports": 43
+          "imports": 47
         },
         "strategy": {
           "imports": 1
@@ -11049,7 +11049,7 @@
           ]
         },
         "data_center": {
-          "imports": 88,
+          "imports": 92,
           "target_layers": [
             "application",
             "calendar_publication_operations_composition",
@@ -11059,6 +11059,7 @@
             "instrument_reference_snapshot_composition",
             "price_limit_publication_operations_composition",
             "qmt_bridge_composition",
+            "security_disclosure_body_composition",
             "security_disclosure_capture_composition",
             "statutory_source_capture_composition"
           ]
@@ -11070,7 +11071,7 @@
           ]
         },
         "portfolio": {
-          "imports": 43,
+          "imports": 47,
           "target_layers": [
             "application",
             "domain",
@@ -11224,6 +11225,20 @@
         ],
         "application/consumer_gateways.py": [
           "register_simulated_trading_consumer_gateways"
+        ],
+        "application/corporate_action_current_official_window.py": [
+          "CorporateActionCurrentOfficialWindowClock",
+          "CorporateActionCurrentOfficialWindowEvidence",
+          "CorporateActionCurrentOfficialWindowReader",
+          "CorporateActionCurrentOfficialWindowReason",
+          "ExchangeTimezoneEvidence",
+          "OriginalDisclosureBodyVerifier",
+          "VerifiedAccountOriginCalendar",
+          "VerifiedAccountOriginCalendarReader"
+        ],
+        "application/corporate_action_current_official_window_contracts.py": [
+          "OfficialWindowRuntimePolicyReader",
+          "TransitionPlanDisclosureRuntimePolicy"
         ],
         "application/corporate_action_posting.py": [
           "AuditedCorporateActionPostingRepositoryPort",
@@ -12114,12 +12129,12 @@
         ]
       },
       "layers": {
-        "application": 131,
+        "application": 133,
         "domain": 53,
         "infrastructure": 148,
         "interface": 37,
         "management": 7,
-        "root": 54
+        "root": 56
       },
       "orm_models": {
         "infrastructure/models.py": [

@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 7148,
+    "current_surface_references": 7176,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -22187,6 +22187,86 @@
       "text": "from apps.realtime.application.simulated_trading_gateway import ("
     },
     {
+      "path": "apps/simulated_trading/application/corporate_action_current_official_window.py",
+      "text": "\"\"\"Recheck active policy and latest complete SZSE proof without granting authority.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_current_official_window.py",
+      "text": "\"\"\"Require explicit, current-day policy and known Config Center provenance.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_current_official_window.py",
+      "text": "\"\"\"Require latest-to-exact complete proof with all listed members known at cutoff.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_current_official_window.py",
+      "text": "\"\"\"Return one trusted timezone-aware current time.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_current_official_window.py",
+      "text": "\"\"\"Stable outcomes for a read-only current-window prerequisite.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_current_official_window.py",
+      "text": "\"current\""
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_current_official_window.py",
+      "text": "for previous, current in ((initial, final), (final, metadata)):"
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_current_official_window.py",
+      "text": "freshness_status: Literal[\"current\", \"stale\", \"unknown\"] = \"unknown\""
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_current_official_window.py",
+      "text": "freshness_status=\"current\","
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_current_official_window.py",
+      "text": "if _policy_identity(previous.policy) != _policy_identity(current.policy):"
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_current_official_window.py",
+      "text": "if not _same_calendar(previous.calendar, current.calendar):"
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_current_official_window.py",
+      "text": "if previous.calendar.decision_on != current.calendar.decision_on:"
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_current_official_window.py",
+      "text": "if previous.snapshot != current.snapshot:"
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_current_official_window.py",
+      "text": "or previous.expires_at != current.expires_at"
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_current_official_window.py",
+      "text": "previous.selected_event != current.selected_event"
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_current_official_window.py",
+      "text": "raise ValueError(\"current official-window clocks are not ordered\")"
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_current_official_window.py",
+      "text": "raise ValueError(\"current official-window reader dependencies are invalid\")"
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_current_official_window.py",
+      "text": "raise ValueError(\"current official-window result status is inconsistent\")"
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_current_official_window.py",
+      "text": "raise ValueError(\"ready current official-window evidence is incomplete\")"
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_current_official_window_contracts.py",
+      "text": "\"\"\"Application-owned policy evidence contract for current disclosure windows.\"\"\""
+    },
+    {
       "path": "apps/simulated_trading/application/corporate_action_tax_assessment.py",
       "text": "Implementations must require explicit current tax-assessment permission"
     },
@@ -23725,6 +23805,38 @@
     {
       "path": "apps/simulated_trading/corporate_action_consent_composition.py",
       "text": "summary: str"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_current_official_window_composition.py",
+      "text": "\"\"\"Compose current official-window evidence from Account, Config Center, and Data Center.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_current_official_window_composition.py",
+      "text": "\"\"\"Compose the existing public policy, owner-origin, and latest-to-exact readers.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_current_official_window_composition.py",
+      "text": "\"\"\"Return the current aware application time.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_current_official_window_composition.py",
+      "text": "\"\"\"Use Django's timezone-aware clock for current-window start and finish checks.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_current_official_window_composition.py",
+      "text": "raise ValueError(\"current official-window database alias must be explicit\")"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_current_official_window_composition.py",
+      "text": "raise ValueError(\"current official-window runtime environment must be explicit\")"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_original_body_composition.py",
+      "text": "\"\"\"Bind every current-window member to its Data Center record and retained original.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_original_body_composition.py",
+      "text": "\"\"\"Bind the current-window member checks to one explicit database alias.\"\"\""
     },
     {
       "path": "apps/simulated_trading/corporate_action_owner_grant_gate.py",

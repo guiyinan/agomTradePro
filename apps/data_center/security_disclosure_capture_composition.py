@@ -36,6 +36,7 @@ from apps.data_center.infrastructure.official_szse_pdf_capture import (
     classify_szse_pdf_disclosure,
     extract_szse_distribution_dates,
     extract_szse_distribution_terms,
+    extract_szse_rights_completion,
 )
 from apps.data_center.infrastructure.security_disclosure_event_repository import (
     DjangoSecurityDisclosureEventRepository,
@@ -59,6 +60,9 @@ def capture_and_append_szse_disclosure(
         SecurityDisclosureEventType.STOCK_DIVIDEND,
     ):
         _, effective_on = extract_szse_distribution_dates(captured, source_security_code)
+    elif event_type is SecurityDisclosureEventType.RIGHTS_ISSUE:
+        rights = extract_szse_rights_completion(captured, source_security_code)
+        effective_on = rights.actual_ex_rights_date if rights else None
     body_store = OfficialSzsePdfBodyStore(body_store_root)
     body_store.retain(captured)
     event = SecurityDisclosureEvent.from_source_document(
@@ -312,6 +316,9 @@ def _capture_distribution_candidate(
             SecurityDisclosureEventType.STOCK_DIVIDEND,
         ):
             _, effective_on = extract_szse_distribution_dates(captured, asset_code[:6])
+        elif event_type is SecurityDisclosureEventType.RIGHTS_ISSUE:
+            rights = extract_szse_rights_completion(captured, asset_code[:6])
+            effective_on = rights.actual_ex_rights_date if rights else None
         body_store.retain(captured)
         event = SecurityDisclosureEvent.from_source_document(
             source=SecurityDisclosureSource.SZSE_OFFICIAL,

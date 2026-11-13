@@ -23,6 +23,11 @@ from apps.data_center.domain.security_disclosure_event import (
     SecurityDisclosureEventType,
     SzseDistributionTerms,
 )
+from apps.data_center.domain.szse_rights_terms import SzseRightsCompletionTerms
+from apps.data_center.infrastructure.official_szse_rights_terms import (
+    extract_szse_rights_completion_terms,
+    extract_szse_rights_offering_terms,
+)
 from core.exceptions import DataFetchError
 from shared.numeric import safe_float
 
@@ -43,8 +48,16 @@ _CASH_PER_TEN_POSTFIX = re.compile(
     r"每\s*10\s*股\s*派(?:发)?\s*([0-9]+(?:\.[0-9]+)?)\s*元\s*(?:人民币\s*)?现金"
 )
 _SHARES_PER_TEN = re.compile(r"每\s*10\s*股\s*转增\s*([0-9]+(?:\.[0-9]+)?)\s*股")
+_BONUS_SHARES_PER_TEN = re.compile(
+    r"每\s*10\s*股\s*(?:派送|送)\s*红股\s*([0-9]+(?:\.[0-9]+)?)\s*股"
+)
 _SHARE_DELIVERY_DATE = re.compile(
     r"(?:新增股份|转增股份|红股)(?:到账|登记到账|交付)日(?:为)?\s*[:：]\s*" + _CHINESE_DATE
+)
+_SHARE_DIRECT_CREDIT_DATE = re.compile(
+    r"(?:本次)?(?:转增股份|新增股份|红股)将于\s*"
+    + _CHINESE_DATE
+    + r"\s*直接记入股东(?:的)?证券账户"
 )
 _SHARE_SELLABLE_DATE = re.compile(
     r"(?:新增(?:可流通)?股份|转增股份|红股)(?:上市流通|上市交易|可售|上市)日(?:为)?\s*[:：]\s*"
@@ -364,6 +377,20 @@ def classify_szse_pdf_disclosure(
     if "权益分派实施的更正公告" in title:
         return title, SecurityDisclosureEventType.CORRECTION_NOTICE
     if "权益分派实施公告" not in title:
+        if (
+            title.endswith("配股发行结果公告")
+            and extract_szse_rights_completion_terms(
+                text, source_security_code=expected_security_code
+            )
+            is not None
+        ) or (
+            title.endswith("配股发行公告")
+            and extract_szse_rights_offering_terms(
+                text, source_security_code=expected_security_code
+            )
+            is not None
+        ):
+            return title, SecurityDisclosureEventType.RIGHTS_ISSUE
         known_type = _known_non_distribution_title(title, text, expected_listing_title)
         if known_type is not None:
             return title, known_type
@@ -375,8 +402,10 @@ def classify_szse_pdf_disclosure(
     cash = any(
         pattern.search(text) is not None for pattern in (_CASH_PER_TEN, _CASH_PER_TEN_POSTFIX)
     )
-    shares = bool(re.search(r"每\s*10\s*股\s*转增\s*[0-9]", text))
-    if cash == shares:
+    capital_transfer = _SHARES_PER_TEN.search(text) is not None
+    bonus_shares = _BONUS_SHARES_PER_TEN.search(text) is not None
+    shares = capital_transfer or bonus_shares
+    if cash == shares or (capital_transfer and bonus_shares):
         _LOGGER.warning(
             "SZSE PDF disclosure classification is ambiguous; source_document_id=%s",
             capture.source_document_id,
@@ -390,6 +419,19 @@ def classify_szse_pdf_disclosure(
             else SecurityDisclosureEventType.STOCK_DIVIDEND
         ),
     )
+
+
+def extract_szse_rights_completion(
+    capture: CapturedOfficialSzsePdf,
+    expected_security_code: str,
+) -> SzseRightsCompletionTerms | None:
+    """Read confirmed rights-result facts from an exact security-bound original PDF."""
+    verify_szse_pdf_security_code(capture, expected_security_code)
+    try:
+        text = "\n".join(page.extract_text() for page in PdfReader(BytesIO(capture.body)).pages)
+    except (OSError, TypeError, ValueError, KeyError, PdfReadError) as exc:
+        raise OfficialDisclosureCaptureError("SZSE rights result cannot be read") from exc
+    return extract_szse_rights_completion_terms(text, source_security_code=expected_security_code)
 
 
 def extract_szse_distribution_dates(
@@ -415,15 +457,41 @@ def extract_szse_distribution_dates(
     return unique_date(_RECORD_DATE), unique_date(_EX_DATE)
 
 
-def _unique_disclosed_share_date(text: str, pattern: re.Pattern[str]) -> date | None:
+def _unique_disclosed_share_date(text: str, patterns: tuple[re.Pattern[str], ...]) -> date | None:
     """Keep an explicit source date unknown when missing, conflicting or invalid."""
-    matches = set(pattern.findall(text))
-    if len(matches) != 1:
-        return None
-    try:
-        return date(*(int(part) for part in next(iter(matches))))
-    except ValueError:
-        return None
+    values: set[date] = set()
+    for pattern in patterns:
+        for parts in pattern.findall(text):
+            try:
+                values.add(date(*(int(part) for part in parts)))
+            except ValueError:
+                return None
+    return next(iter(values)) if len(values) == 1 else None
+
+
+def _declared_share_tax_treatment(text: str, *, is_capital_transfer: bool) -> str | None:
+    """Read an issuer's tax declaration without assigning legal or holder applicability."""
+    if not is_capital_transfer:
+        return (
+            "deferred_withholding"
+            if "暂不扣缴个人所得税" in text and "待个人转让股票时" in text
+            else None
+        )
+    compact = re.sub(r"\s+", "", text)
+    origin = re.compile(
+        r"本次[^。；;]{0,60}资本公积(?:金)?(?:的)?来源(?:于|为)"
+        r"(?:本公司|公司)?(?:股票发行溢价|股票溢价发行|股本溢价)"
+        r"(?:收入)?(?:所形成|形成)?(?:的)?资本公积(?:金)?"
+    )
+    for sentence in re.split(r"[。；;]", compact):
+        if origin.search(sentence) is None or "不涉及扣税情形" not in sentence:
+            continue
+        if re.search(r"(?:并非|不是|不能认定为|并不属于)[^。；;]{0,90}来源", sentence):
+            continue
+        if re.search(r"(?:并非|不是|不能认定为|并不属于)[^。；;]{0,12}不涉及扣税情形", sentence):
+            continue
+        return "not_applicable"
+    return None
 
 
 def extract_szse_distribution_terms(
@@ -464,7 +532,7 @@ def extract_szse_distribution_terms(
         return next(iter(values))
 
     cash_per_ten = unique_amount((_CASH_PER_TEN, _CASH_PER_TEN_POSTFIX))
-    shares_per_ten = unique_amount((_SHARES_PER_TEN,))
+    shares_per_ten = unique_amount((_SHARES_PER_TEN, _BONUS_SHARES_PER_TEN))
     if event_type is SecurityDisclosureEventType.CASH_DIVIDEND:
         payment_matches = set(_PAYMENT_DATE.findall(text))
         if cash_per_ten is None or shares_per_ten is not None or len(payment_matches) != 1:
@@ -488,8 +556,8 @@ def extract_szse_distribution_terms(
         )
     if shares_per_ten is None or cash_per_ten is not None:
         return None
-    delivery = _unique_disclosed_share_date(text, _SHARE_DELIVERY_DATE)
-    sellable = _unique_disclosed_share_date(text, _SHARE_SELLABLE_DATE)
+    delivery = _unique_disclosed_share_date(text, (_SHARE_DELIVERY_DATE, _SHARE_DIRECT_CREDIT_DATE))
+    sellable = _unique_disclosed_share_date(text, (_SHARE_SELLABLE_DATE,))
     if (
         (delivery is not None and delivery < ex_date)
         or (sellable is not None and sellable < ex_date)
@@ -502,7 +570,9 @@ def extract_szse_distribution_terms(
         payment_date=None,
         cash_per_ten=None,
         shares_per_ten=shares_per_ten,
-        tax_treatment="not_applicable" if "不涉及扣税情形" in text else None,
+        tax_treatment=_declared_share_tax_treatment(
+            text, is_capital_transfer=_SHARES_PER_TEN.search(text) is not None
+        ),
         share_delivery_date=delivery,
         share_sellable_date=sellable,
     )

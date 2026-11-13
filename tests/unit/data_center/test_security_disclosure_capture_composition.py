@@ -150,9 +150,14 @@ def test_distribution_window_returns_no_candidate_after_changed_final_listing(
     assert append_factory_called is False
 
 
+@pytest.mark.parametrize(
+    "action_type",
+    [SecurityDisclosureEventType.CASH_DIVIDEND, SecurityDisclosureEventType.RIGHTS_ISSUE],
+)
 def test_distribution_capture_visits_every_listed_pdf(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
+    action_type: SecurityDisclosureEventType,
 ) -> None:
     """A complete window candidate captures non-distribution listed documents too."""
 
@@ -245,7 +250,7 @@ def test_distribution_capture_visits_every_listed_pdf(
             (
                 SecurityDisclosureEventType.OTHER
                 if captured.source_document_id == entries[0].source_document_id
-                else SecurityDisclosureEventType.CASH_DIVIDEND
+                else action_type
             ),
         ),
     )
@@ -253,6 +258,23 @@ def test_distribution_capture_visits_every_listed_pdf(
         composition,
         "extract_szse_distribution_dates",
         lambda captured, security_code: (date(2026, 9, 23), date(2026, 9, 24)),
+    )
+    from decimal import Decimal
+
+    from apps.data_center.domain.szse_rights_terms import SzseRightsCompletionTerms
+
+    monkeypatch.setattr(
+        composition,
+        "extract_szse_rights_completion",
+        lambda captured, security_code: SzseRightsCompletionTerms(
+            source_security_code=security_code,
+            record_date=date(2026, 9, 23),
+            subscription_end_date=date(2026, 9, 24),
+            offered_rights_per_ten=Decimal("4"),
+            subscription_price_cny_per_share=Decimal("3.36"),
+            actual_aggregate_rights_per_ten=Decimal("3.722702"),
+            actual_ex_rights_date=date(2026, 9, 25),
+        ),
     )
 
     candidate = composition.capture_szse_distribution_window(
@@ -266,7 +288,12 @@ def test_distribution_capture_visits_every_listed_pdf(
     assert len(candidate.events) == len(entries)
     assert tuple(event.event_type for event, _ in candidate.events) == (
         SecurityDisclosureEventType.OTHER,
-        SecurityDisclosureEventType.CASH_DIVIDEND,
+        action_type,
+    )
+    assert candidate.events[1][0].effective_at == (
+        date(2026, 9, 25)
+        if action_type is SecurityDisclosureEventType.RIGHTS_ISSUE
+        else date(2026, 9, 24)
     )
 
 

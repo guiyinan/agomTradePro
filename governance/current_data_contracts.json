@@ -15011,6 +15011,60 @@
         }
       ],
       "notes": "New financial appends require actual current configured source/policy/instrument/history qualification and finite same-alias Owner V2 withholding grant plus required Audit/Outbox. Exact original retries retain old qualification observations and all journal/Audit/Outbox evidence; they still require current role/grant and cannot append another operation or alter cash. Real accounts remain excluded. New COLLECT_AVAILABLE also requires a unique full same-event, non-reversed simulated cash entitlement/payment pair with reached Shanghai payment date, exact original cash grants and Audit/Outbox. The proof is reread under the same outer owner transaction at entry and finalization. New V2 financial material retains that proof; old V1 bytes remain unchanged. Historical V2 readback uses the original operation recorded_at cutoff and verifies original immutable evidence without treating it as current authority. Stored repository Audit/Outbox clocks are retained facts, not independent database commit instants or refreshed official observation times. Missing/corrupt/unpaid proof blocks collection without financial or Audit writes. Recognition before payment is a separate accounting question; this cohort does not qualify current valuation or complete official coverage. Original payment history also enforces stable asset/security identity across revisions and ordered full receivable/payment/tax invariants. Six-place zero share deltas remain exact zero; cash precision stays the existing fifteen-digit cent contract. Existing typed SZ and SZSE namespaces both identify Shenzhen ownership without rewriting proof bytes. Retained Audit pairs verify only their own complete original stream prefix through the selected sequence, with a technical10000-event bound; oversized, missing or disconnected prefixes block rather than partially validate. No global cross-account scan or write capability is introduced. Explicit server-selected V3 is supported with matching current V3 policy/permission/terms and TAX_WITHHOLD; default remains V2, with its original three-capability ceiling. This does not waive source/history/paid-dividend proof, owner, expiry, original replay or final locked checks, and changes no retained V1/V2 financial material bytes. Native V3 fixture checks use actual nonstaff Session issuance, signed current V3 tax-only consent, retained prior assessment and full audited payment, and the actual financial journal; tax source facts remain explicitly synthetic, independently from real current source qualification."
+    },
+    {
+      "id": "simulated_trading.current_official_corporate_action_window",
+      "surface": "Finite original SZSE listing-window prerequisite with complete member-body reread; never financial or decision authority",
+      "source_files": [
+        "apps/simulated_trading/application/corporate_action_current_official_window.py",
+        "apps/simulated_trading/application/corporate_action_current_official_window_contracts.py",
+        "apps/simulated_trading/corporate_action_current_official_window_composition.py",
+        "apps/simulated_trading/corporate_action_original_body_composition.py",
+        "apps/data_center/security_disclosure_body_composition.py"
+      ],
+      "required_markers": {
+        "apps/simulated_trading/application/corporate_action_current_official_window.py": [
+          "must_not_use_for_decision: Literal[True] = True",
+          "window_evidence_only",
+          "verify_original_bodies=False",
+          "body_completed_at",
+          "freshness_status",
+          "reliability_status"
+        ],
+        "apps/simulated_trading/corporate_action_original_body_composition.py": [
+          "record.recorded_at != event.known_at",
+          "original.content_hash != event.manifest_sha256",
+          "verify_security_disclosure_original_body("
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "source_change_during_body_read",
+          "test_file": "tests/unit/simulated_trading/test_corporate_action_current_official_window.py",
+          "test_function": "test_read_current_rechecks_policy_and_snapshot_metadata_after_body_io"
+        },
+        {
+          "case": "completion_time_after_all_io",
+          "test_file": "tests/unit/simulated_trading/test_corporate_action_current_official_window.py",
+          "test_function": "test_read_current_checks_expiry_after_final_body_and_metadata_io"
+        },
+        {
+          "case": "backwards_clock_and_day",
+          "test_file": "tests/unit/simulated_trading/test_corporate_action_current_official_window.py",
+          "test_function": "test_read_current_rejects_future_or_backward_clock_and_day_rollover"
+        },
+        {
+          "case": "exact_original_record_and_clock",
+          "test_file": "tests/unit/simulated_trading/test_corporate_action_original_body_composition.py",
+          "test_function": "test_member_checks_exact_record_before_reading_original"
+        },
+        {
+          "case": "original_body_missing_corrupt_identity",
+          "test_file": "tests/unit/data_center/test_security_disclosure_body_composition.py",
+          "test_function": "test_original_body_reader_fails_closed"
+        }
+      ],
+      "notes": "Uses the existing explicitly configured disclosure policy and immutable zero-origin calendar. Expiry derives from original final listing verification plus the existing configured bounded TTL, never read/request time. Every member must be known and classified; partial/unknown windows block. Two full original-body passes are followed by a completion clock, one bounded metadata-only policy/snapshot reread, and a final completion clock. New revisions, policy/calendar changes, expiry/day rollover/backwards clocks block. Application owns a policy-evidence contract; composition copies existing canonical configured fields without new defaults. Public Data Center original-body services reopen retained bytes only, preserve original clocks and bind exact durable record/category/manifest/identity. No network or recapture, no financial authority, no tax applicability or legal qualification. Real official current windows, locked financial audit binding and ordinary-user journeys remain separate acceptance obligations."
     }
   ]
 }

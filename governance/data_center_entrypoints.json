@@ -9,7 +9,7 @@
       "celery_dispatch_edge": 18,
       "celery_task": 130,
       "compatibility_facade": 95,
-      "current_data_surface": 116,
+      "current_data_surface": 117,
       "dynamic_import_edge": 15,
       "management_command": 50,
       "management_command_edge": 65,
@@ -30,13 +30,13 @@
       "workflow_step": 11
     },
     "by_status": {
-      "active_public": 922,
+      "active_public": 923,
       "adjacent_operational": 346,
       "candidate-review": 64,
       "compatibility": 139,
       "retired_blocked": 0
     },
-    "total": 1471
+    "total": 1472
   },
   "entries": [
     {
@@ -6057,6 +6057,16 @@
       "path": "governance/current_data_contracts.json",
       "status": "active_public",
       "symbol": "simulated_trading.current_official_corporate_action_revision",
+      "target": ""
+    },
+    {
+      "category": "current_data_surface",
+      "evidence": "governed current-data contract; source_files=5",
+      "id": "current_data_surface:governance/current_data_contracts.json:simulated_trading.current_official_corporate_action_window:Finite original SZSE listing-window prerequisite with complete member-body reread; never financial or decision authority",
+      "locator": "Finite original SZSE listing-window prerequisite with complete member-body reread; never financial or decision authority",
+      "path": "governance/current_data_contracts.json",
+      "status": "active_public",
+      "symbol": "simulated_trading.current_official_corporate_action_window",
       "target": ""
     },
     {
@@ -14761,7 +14771,7 @@
   },
   "source_contract_counts": {
     "celery_tasks": 95,
-    "current_data_contracts": 116,
+    "current_data_contracts": 117,
     "legacy_entrypoints_and_wrappers": 0,
     "operational_governance_rules": 45,
     "runtime_config_keys": 52
