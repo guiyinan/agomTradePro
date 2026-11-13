@@ -803,6 +803,27 @@ def test_cash_corporate_action_rows_are_scope_checked_and_future_rows_are_not_ha
     assert first.history.source_revision_sha256 == second.history.source_revision_sha256
 
 
+def test_cash_entitlement_and_payment_do_not_revise_tax_ownership_facts() -> None:
+    """Audited zero-share cash stages cannot create a new FIFO/tax-history revision."""
+    request = _request()
+    original = build_simulated_tax_settlement_history(request)
+    entitlement = _cash_action()
+    payment = replace(
+        entitlement,
+        account_revision=2,
+        entry_id=43,
+        stage_key="posting:cash_payment",
+        stage=CorporateActionStage.CASH_PAYMENT,
+        stage_date=_COMPLETE_THROUGH,
+        evidence_sha256="e" * 64,
+    )
+    paid = build_simulated_tax_settlement_history(
+        replace(request, corporate_action_evidence=(entitlement, payment))
+    )
+    assert paid.history.source_revision_sha256 == original.history.source_revision_sha256
+    assert paid.history.settlement_days == original.history.settlement_days
+
+
 def test_negative_daily_net_is_rejected_after_fifo_record_position() -> None:
     request = _request()
     original = request.source_fills[4]

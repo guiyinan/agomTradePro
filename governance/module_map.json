@@ -43,7 +43,7 @@
           "imports": 1
         },
         "simulated_trading": {
-          "imports": 66
+          "imports": 70
         },
         "terminal": {
           "imports": 6
@@ -1135,7 +1135,7 @@
         "infrastructure": 154,
         "interface": 24,
         "management": 14,
-        "root": 30
+        "root": 31
       }
     },
     "agent_runtime": {
@@ -2387,7 +2387,7 @@
           "imports": 1
         },
         "simulated_trading": {
-          "imports": 22
+          "imports": 27
         },
         "terminal": {
           "imports": 2
@@ -2697,6 +2697,9 @@
           "record_audit_write_failure",
           "record_audit_write_success"
         ],
+        "application/retained_system_audit_pair.py": [
+          "RetainedSystemAuditPair"
+        ],
         "application/security_disclosure_audit.py": [
           "AppendSecurityDisclosureAuditObservationUseCase",
           "SecurityDisclosureAuditAppendResult",
@@ -2873,12 +2876,12 @@
         ]
       },
       "layers": {
-        "application": 41,
+        "application": 42,
         "domain": 12,
         "infrastructure": 28,
         "interface": 14,
         "management": 8,
-        "root": 9,
+        "root": 10,
         "templatetags": 2
       },
       "orm_models": {
@@ -4158,7 +4161,7 @@
           "imports": 3
         },
         "simulated_trading": {
-          "imports": 87
+          "imports": 88
         },
         "strategy": {
           "imports": 1
@@ -11005,7 +11008,7 @@
       },
       "depends_on": {
         "account": {
-          "imports": 66,
+          "imports": 70,
           "target_layers": [
             "application",
             "domain",
@@ -11015,6 +11018,7 @@
             "simulated_corporate_action_consent_composition",
             "simulated_corporate_action_consent_terms",
             "simulated_corporate_action_current_grant_composition",
+            "simulated_corporate_action_grant_history_composition",
             "simulated_corporate_action_policy_scope_composition",
             "simulated_corporate_action_write_issuance_composition"
           ]
@@ -11027,12 +11031,13 @@
           ]
         },
         "audit": {
-          "imports": 22,
+          "imports": 27,
           "target_layers": [
             "application",
             "corporate_action_tax_assessment_composition",
             "domain",
             "infrastructure",
+            "retained_system_audit_pair_composition",
             "security_disclosure_capture_composition",
             "system_audit_runtime_readiness_composition"
           ]
@@ -11044,7 +11049,7 @@
           ]
         },
         "data_center": {
-          "imports": 87,
+          "imports": 88,
           "target_layers": [
             "application",
             "calendar_publication_operations_composition",
@@ -11263,6 +11268,9 @@
           "TaxLiabilityAuditOrigin",
           "TaxLiabilityReplayRequest",
           "TaxLiabilityReplayTimestampVerifierPort"
+        ],
+        "application/corporate_action_tax_payment_basis.py": [
+          "SimulatedDividendPaymentBasis"
         ],
         "application/corporate_action_tax_policy.py": [
           "CorporateActionTaxPolicyDecodeError",
@@ -12106,9 +12114,9 @@
         ]
       },
       "layers": {
-        "application": 130,
-        "domain": 51,
-        "infrastructure": 147,
+        "application": 131,
+        "domain": 52,
+        "infrastructure": 148,
         "interface": 37,
         "management": 7,
         "root": 53

@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 7128,
+    "current_surface_references": 7146,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -4543,6 +4543,10 @@
       "text": "rechecks the same finite current grant before yielding back to the caller."
     },
     {
+      "path": "apps/account/simulated_corporate_action_grant_history_composition.py",
+      "text": "\"\"\"Return validated immutable grant history without issuing current permission."
+    },
+    {
       "path": "apps/account/simulated_corporate_action_policy_scope_composition.py",
       "text": "The unique current account row is selected before its owner and requested"
     },
@@ -6663,6 +6667,10 @@
       "text": "\"\"\"Validate the canonical runtime and exact current authority without writes.\"\"\""
     },
     {
+      "path": "apps/audit/application/retained_system_audit_pair.py",
+      "text": "\"\"\"Typed original Audit/Outbox evidence; retained clocks grant no current authority.\"\"\""
+    },
+    {
       "path": "apps/audit/application/security_disclosure_audit.py",
       "text": "\"\"\"Immutable, source-bound summary of one fully captured SZSE window.\"\"\""
     },
@@ -7429,6 +7437,30 @@
     {
       "path": "apps/audit/management/commands/validate_high_frequency_indicators.py",
       "text": "summary: ValidationResult = {"
+    },
+    {
+      "path": "apps/audit/retained_system_audit_pair_composition.py",
+      "text": "current = repository._restore(row)"
+    },
+    {
+      "path": "apps/audit/retained_system_audit_pair_composition.py",
+      "text": "current.scope != scope"
+    },
+    {
+      "path": "apps/audit/retained_system_audit_pair_composition.py",
+      "text": "or (previous is not None and current.recorded_at < previous.recorded_at)"
+    },
+    {
+      "path": "apps/audit/retained_system_audit_pair_composition.py",
+      "text": "or current.predecessor_hash != (previous.content_hash if previous is not None else None)"
+    },
+    {
+      "path": "apps/audit/retained_system_audit_pair_composition.py",
+      "text": "or current.sequence_no != sequence"
+    },
+    {
+      "path": "apps/audit/retained_system_audit_pair_composition.py",
+      "text": "previous = current"
     },
     {
       "path": "apps/audit/system_audit_runtime_readiness_composition.py",
@@ -22363,6 +22395,10 @@
       "text": "raise _blocked(\"new financial authority cannot outlive current tax qualification\")"
     },
     {
+      "path": "apps/simulated_trading/application/corporate_action_tax_payment_basis.py",
+      "text": "references. It grants no new authority; callers still check the current"
+    },
+    {
       "path": "apps/simulated_trading/application/corporate_action_tax_policy.py",
       "text": "current policy, or establish that a source identity/hash is genuine."
     },
@@ -24853,6 +24889,42 @@
     {
       "path": "apps/simulated_trading/infrastructure/corporate_action_tax_liability_writer.py",
       "text": "raise _blocked(\"Physical account no longer matches locked current source facts\")"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/corporate_action_tax_payment_basis_reader.py",
+      "text": "\"\"\"Re-read retained payment evidence without requiring current write consent.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/corporate_action_tax_payment_basis_reader.py",
+      "text": "\"\"\"Re-read the exact historical payment basis without requiring current consent.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/corporate_action_tax_payment_basis_reader.py",
+      "text": "\"\"\"Restore the exact cash-capable grant current when its Audit event was recorded.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/corporate_action_tax_payment_basis_reader.py",
+      "text": "\"\"\"Return current full-entitlement/payment proof under the caller's account fence."
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/corporate_action_tax_payment_basis_reader.py",
+      "text": "\"paid cash stages differ from the exact current assessment action and full quantity\""
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/corporate_action_tax_payment_basis_reader.py",
+      "text": "_blocked(\"cash posting is outside the current source revision\")"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/corporate_action_tax_payment_basis_reader.py",
+      "text": "_blocked(\"current action already contains an active tax-withholding stage\")"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/corporate_action_tax_payment_basis_reader.py",
+      "text": "_blocked(\"current action has no unique non-reversed cash entitlement/payment pair\")"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/corporate_action_tax_payment_basis_reader.py",
+      "text": "caller remains responsible for current tax-withholding authority."
     },
     {
       "path": "apps/simulated_trading/infrastructure/corporate_action_tax_settlement_history_repository.py",

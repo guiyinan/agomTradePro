@@ -22,6 +22,8 @@ from apps.account.simulated_corporate_action_write_issuance_composition import (
 from apps.audit.corporate_action_tax_assessment_composition import (
     build_tax_assessment_audit_coordinator,
 )
+from apps.audit.infrastructure.system_audit_models import SystemAuditEventModel
+from apps.audit.infrastructure.system_audit_outbox_models import SystemAuditOutboxModel
 from apps.simulated_trading.application.corporate_action_tax_liability import (
     TaxLiabilityAppendDisposition,
 )
@@ -59,6 +61,9 @@ from tests.support.account_authority_generation_flush import (
     preserve_account_authority_generation as preserve_account_authority_generation,
 )
 from tests.support.ash07_owner_account_authority import ASH07_OWNER_ACCEPTANCE_AVAILABLE_APPS
+from tests.support.simulated_tax_audited_cash_fixture import (
+    post_controlled_audited_dividend_and_refresh_owner_source,
+)
 
 pytestmark = [
     pytest.mark.skipif(
@@ -69,7 +74,7 @@ pytestmark = [
 ]
 
 
-def _financial_service(service, *, fail_exit=False):
+def _financial_service(service, *, fail_exit=False, paid=True):
     world = service.world
     candidate = _candidate(world)
     policy = replace(
@@ -79,8 +84,16 @@ def _financial_service(service, *, fail_exit=False):
             candidate.policy.bands[1],
         ),
     )
-    candidate = replace(candidate, policy=policy)
+    candidate = replace(
+        candidate,
+        action=replace(candidate.action, source_namespace="exchange_official_disclosure"),
+        policy=policy,
+    )
     assert candidate.calculation.withholding_amount > 0
+    if paid:
+        post_controlled_audited_dividend_and_refresh_owner_source(service, candidate)
+    else:
+        service.financial_cash_before = world.row.current_cash
     command = replace(
         _v2_command(world, selected=(Capability.TAX_ASSESS, Capability.TAX_WITHHOLD)),
         expected_predecessor_content_hash=service.grant.content_hash,
@@ -124,11 +137,41 @@ def _execute(service, candidate, use_case, *, operation="actual-withholding-1"):
     )
 
 
+def test_native_current_withholding_grant_cannot_collect_without_audited_payment(owner_service):
+    """Unrelated available cash and a valid grant do not prove this dividend was paid."""
+    service = owner_service
+    candidate, _, _, use_case = _financial_service(service, paid=False)
+    service.world.row.refresh_from_db()
+    original_cash = service.world.row.current_cash
+    original_updated_at = service.world.row.updated_at
+    before = (
+        Operation.objects.count(),
+        SystemAuditEventModel.objects.count(),
+        SystemAuditOutboxModel.objects.count(),
+    )
+    with pytest.raises(BusinessLogicError) as error:
+        _execute(service, candidate, use_case)
+    assert error.value.code == "SIMULATED_DIVIDEND_PAYMENT_BASIS_BLOCKED"
+    service.world.row.refresh_from_db()
+    assert service.world.row.current_cash == original_cash
+    assert service.world.row.updated_at == original_updated_at
+    assert before == (
+        Operation.objects.count(),
+        SystemAuditEventModel.objects.count(),
+        SystemAuditOutboxModel.objects.count(),
+    )
+
+
 def test_native_nonstaff_withholding_and_old_source_retry_preserve_original_evidence(owner_service):
     service = owner_service
     candidate, grant, qualifier, use_case = _financial_service(service)
     assert not service.world.user.is_staff and not service.world.user.is_superuser
     first = _execute(service, candidate, use_case)
+    assert first.payment_basis_reference is not None
+    assert first.payment_basis_reference.reference_id == (
+        f"simulated-dividend-payment-basis:{service.world.row.pk}:"
+        f"{service.dividend_payment_receipt.entry_id}"
+    )
     calls = qualifier.calls
     service.world.row.refresh_from_db()
     updated_at = service.world.row.updated_at
@@ -138,7 +181,10 @@ def test_native_nonstaff_withholding_and_old_source_retry_preserve_original_evid
     assert qualifier.calls == calls  # Original replay is read-only, not a new legal assessment.
     service.world.row.refresh_from_db()
     assert service.world.row.updated_at == updated_at
-    assert service.world.row.current_cash == 10000 - candidate.calculation.withholding_amount
+    assert (
+        service.world.row.current_cash
+        == service.financial_cash_before - candidate.calculation.withholding_amount
+    )
     assert Operation.objects.count() == 1
     assert grant.supports_capability(Capability.TAX_WITHHOLD)
 
@@ -174,7 +220,7 @@ def test_native_old_source_replay_cannot_authorize_a_different_financial_operati
     with pytest.raises(BusinessLogicError):
         _execute(service, candidate, use_case, operation="different-operation-with-old-source")
     service.world.row.refresh_from_db()
-    assert service.world.row.current_cash == 10000 + first.cash_delta
+    assert service.world.row.current_cash == service.financial_cash_before + first.cash_delta
     assert Operation.objects.count() == 1
 
 
@@ -184,7 +230,7 @@ def test_native_final_current_tax_change_rolls_back_all_financial_effects(owner_
     with pytest.raises(BusinessLogicError, match="qualification changed"):
         _execute(service, candidate, use_case)
     service.world.row.refresh_from_db()
-    assert service.world.row.current_cash == 10000
+    assert service.world.row.current_cash == service.financial_cash_before
     assert service.world.row.updated_at == service.world.source.row_updated_at
     assert Operation.objects.count() == 0
 
@@ -219,5 +265,5 @@ def test_native_assessment_only_current_grant_cannot_collect_tax(owner_service):
     with pytest.raises(BusinessLogicError):
         _execute(service, candidate, use_case)
     world.row.refresh_from_db()
-    assert world.row.current_cash == 10000
+    assert world.row.current_cash == service.financial_cash_before
     assert Operation.objects.count() == 0

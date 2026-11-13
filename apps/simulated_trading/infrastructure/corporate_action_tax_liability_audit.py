@@ -15,6 +15,9 @@ from apps.audit.domain.system_audit_event import (
     AuditWritePolicy,
     SystemAuditEvent,
 )
+from apps.simulated_trading.application.corporate_action_tax_payment_basis import (
+    SimulatedDividendPaymentBasis,
+)
 from apps.simulated_trading.domain.corporate_action_tax_liability import (
     TaxLiabilityOperationIdentity,
 )
@@ -48,6 +51,12 @@ def tax_liability_audit_stream_id(identity: TaxLiabilityOperationIdentity) -> st
     return f"simulated-tax-liability-stream:{tax_liability_scope_sha256(identity.scope)}"
 
 
+def tax_payment_basis_artifact_id(basis: SimulatedDividendPaymentBasis) -> str:
+    """Locate the exact original account payment behind a retained tax operation."""
+    basis.__post_init__()
+    return f"simulated-dividend-payment-basis:{basis.account_id}:{basis.payment_entry_id}"
+
+
 def build_tax_liability_audit_event(
     material: TaxLiabilityOperationMaterial,
     *,
@@ -78,6 +87,20 @@ def build_tax_liability_audit_event(
         material.cash_snapshot.observed_at
         if material.cash_snapshot is not None
         else material.physical_updated_before
+    )
+    basis = material.origin.payment_basis
+    payment_evidence = (
+        ()
+        if basis is None
+        else (
+            AuditEvidenceRef(
+                "simulated_trading",
+                "simulated_dividend_payment_basis",
+                tax_payment_basis_artifact_id(basis),
+                "v1",
+                basis.content_sha256,
+            ),
+        )
     )
     return SystemAuditEvent.create(
         event_id=artifact_id,
@@ -110,7 +133,7 @@ def build_tax_liability_audit_event(
                 "simulated_trading",
                 "tax_liability_operation",
                 artifact_id,
-                "v1",
+                "v1" if basis is None else "v2",
                 material.content_sha256,
             ),
             AuditEvidenceRef(
@@ -144,7 +167,8 @@ def build_tax_liability_audit_event(
                 lease.authority_grant_version,
                 lease.authority_grant_content_sha256,
             ),
-        ),
+        )
+        + payment_evidence,
         detail_schema=f"{TAX_LIABILITY_EVENT_TYPE}.v1",
         detail={
             "account_id": scope.account_id,
@@ -189,5 +213,6 @@ __all__ = [
     "TAX_LIABILITY_EVENT_TYPE",
     "build_tax_liability_audit_event",
     "tax_liability_audit_stream_id",
+    "tax_payment_basis_artifact_id",
     "tax_liability_operation_artifact_id",
 ]

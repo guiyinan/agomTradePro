@@ -6071,7 +6071,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=2",
+      "evidence": "governed current-data contract; source_files=7",
       "id": "current_data_surface:governance/current_data_contracts.json:simulated_trading.current_owner_tax_liability:Actual finite nonstaff TAX_WITHHOLD authority and original financial-operation replay",
       "locator": "Actual finite nonstaff TAX_WITHHOLD authority and original financial-operation replay",
       "path": "governance/current_data_contracts.json",

@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from typing import Protocol, runtime_checkable
 
+from apps.data_center.domain.security_disclosure_event import SecurityDisclosureExchange
 from apps.simulated_trading.application.execution_settlement_uow import (
     SimulatedTradeExecutionBlocked,
 )
@@ -18,6 +19,9 @@ from apps.simulated_trading.domain.corporate_action_posting import (
     CorporateActionKind,
     CorporateActionStage,
     CorporateActionStageRequest,
+)
+from apps.simulated_trading.domain.simulated_dividend_tax_policy_scope import (
+    SimulatedDividendTaxExchange,
 )
 from core.exceptions import BusinessLogicError
 
@@ -118,7 +122,8 @@ class CorporateActionOwnershipProofVerifier(HistoricalAccountOwnershipVerifierPr
             and proof.owner_user_id == request.owner_user_id
             and proof.security_id == request.security_id
             and proof.asset_code == request.asset_code
-            and proof.exchange == "SZSE"
+            and proof.exchange
+            in {SecurityDisclosureExchange.SZSE.value, SimulatedDividendTaxExchange.SZ.value}
             and proof.record_date == request.record_date
             and proof.ownership_snapshot_as_of_date == request.record_date
             and proof.ownership_snapshot_id == request.ownership_snapshot_id

@@ -16,6 +16,9 @@ from apps.simulated_trading.application.corporate_action_tax_liability import (
     _digest,
     _token,
 )
+from apps.simulated_trading.application.corporate_action_tax_payment_basis import (
+    SimulatedDividendPaymentBasis,
+)
 from apps.simulated_trading.application.corporate_action_tax_qualification import (
     CurrentTaxAssessmentQualification,
 )
@@ -40,6 +43,7 @@ class TaxLiabilityAuditOrigin:
     source_row_updated_at: datetime
     qualification: CurrentTaxAssessmentQualification
     write_mode: Literal["append", "exact_retry_only"]
+    payment_basis: SimulatedDividendPaymentBasis | None = None
 
     def __post_init__(self) -> None:
         """Bind actual qualification and source evidence to one financial owner scope."""
@@ -68,6 +72,13 @@ class TaxLiabilityAuditOrigin:
             self.lease.valid_until.astimezone(UTC) > self.qualification.valid_until.astimezone(UTC)
         ):
             raise _blocked("new financial authority cannot outlive current tax qualification")
+        if self.payment_basis is not None:
+            if (
+                type(self.payment_basis) is not SimulatedDividendPaymentBasis
+                or self.lease.cash_action is not TaxLiabilityCashAction.COLLECT_AVAILABLE
+            ):
+                raise _blocked("Only collection can retain a typed simulated payment basis")
+            self.payment_basis.__post_init__()
 
     @property
     def scope(self) -> AuditScopeRef:
@@ -106,6 +117,8 @@ class TaxLiabilityAuditOrigin:
                 environment=self.environment,
                 as_of=as_of,
             )
+        if self.payment_basis is not None:
+            self.payment_basis.verify_for(assessment, as_of=as_of)
 
 
 class AuditedTaxLiabilityScopeVerifierPort(CurrentTaxLiabilityScopeVerifierPort, Protocol):

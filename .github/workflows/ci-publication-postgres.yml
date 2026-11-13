@@ -253,6 +253,7 @@ jobs:
           tests/component/simulated_trading/test_corporate_action_tax_liability_postgres.py::test_native_concurrent_exact_operations_collect_only_once
           tests/component/simulated_trading/test_corporate_action_tax_liability_postgres.py::test_native_financial_journal_always_guard_blocks_raw_replica_mutations
           tests/component/simulated_trading/test_corporate_action_tax_liability_postgres.py::test_native_partial_dispositions_can_reuse_revision_labels_without_cross_readback
+          tests/component/simulated_trading/test_owner_tax_liability_scope_postgres.py::test_native_current_withholding_grant_cannot_collect_without_audited_payment
           tests/component/simulated_trading/test_owner_tax_liability_scope_postgres.py::test_native_nonstaff_withholding_and_old_source_retry_preserve_original_evidence
           tests/component/simulated_trading/test_owner_tax_liability_scope_postgres.py::test_native_withholding_retry_still_requires_current_consent_and_role
           tests/component/simulated_trading/test_owner_tax_liability_scope_postgres.py::test_native_old_source_replay_cannot_authorize_a_different_financial_operation
@@ -273,6 +274,8 @@ jobs:
           tests/component/simulated_trading/test_corporate_action_posting_repository.py::test_current_source_head_does_not_repeat_an_existing_rights_no_effect_stage
           tests/component/simulated_trading/test_official_disclosure_action_qualification.py::test_exact_source_revision_and_gross_terms_are_qualified
           tests/component/simulated_trading/test_current_simulated_tax_qualification_postgres.py::test_current_tax_qualification_rebuilds_real_persisted_owner_facts
+          tests/component/simulated_trading/test_current_simulated_tax_qualification_postgres.py::test_real_paid_cash_stage_keeps_exact_current_audit_and_withholding_grants
+          tests/component/simulated_trading/test_current_simulated_tax_qualification_postgres.py::test_tax_collection_requires_reached_audited_cash_payment
           tests/component/simulated_trading/test_corporate_action_tax_balance_postgres.py::test_native_readonly_debt_and_partial_collection_preserve_controlled_net_assets
           tests/component/simulated_trading/test_corporate_action_tax_balance_postgres.py::test_native_new_unapplied_assessment_blocks_order_cash_without_any_repair
           tests/component/simulated_trading/test_corporate_action_tax_balance_postgres.py::test_native_independent_dispositions_sum_and_cash_book_preserves_gross_cash

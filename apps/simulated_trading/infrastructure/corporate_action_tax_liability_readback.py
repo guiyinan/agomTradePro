@@ -35,6 +35,7 @@ from apps.simulated_trading.infrastructure.corporate_action_tax_liability_audit 
     build_tax_liability_audit_event,
     tax_liability_audit_stream_id,
     tax_liability_operation_artifact_id,
+    tax_payment_basis_artifact_id,
 )
 from apps.simulated_trading.infrastructure.corporate_action_tax_liability_codec import (
     decode_liability_state,
@@ -48,6 +49,9 @@ from apps.simulated_trading.infrastructure.corporate_action_tax_liability_eviden
 )
 from apps.simulated_trading.infrastructure.corporate_action_tax_liability_models import (
     CorporateActionTaxLiabilityOperationModel as Operation,
+)
+from apps.simulated_trading.infrastructure.corporate_action_tax_payment_basis_reader import (
+    verify_retained_simulated_dividend_payment_basis,
 )
 
 
@@ -189,6 +193,21 @@ class DjangoTaxLiabilityReadback:
             or header.withholding_amount_text != _decimal(state.assessed_amount)
         ):
             raise _blocked("Financial journal differs from its original persisted assessment")
+        basis = material.origin.payment_basis
+        if basis is not None:
+            if (
+                basis.source_revision_id != header.action_source_revision_id
+                or basis.source_revision_sha256 != header.action_source_revision_sha256
+                or basis.source_payload_sha256 != header.action_source_payload_sha256
+            ):
+                raise _blocked("Original paid basis differs from the assessed source revision")
+            verify_retained_simulated_dividend_payment_basis(
+                basis,
+                scope=scope,
+                using=self._using,
+                audit_scope=material.origin.scope,
+                as_of=material.recorded_at,
+            )
         expected_amounts = {
             "assessed_amount_text": state.assessed_amount,
             "net_collected_amount_text": state.net_collected_amount,
@@ -256,6 +275,13 @@ class DjangoTaxLiabilityReadback:
             ),
             audit_event=TaxLiabilityEvidenceReference(
                 event.event_id, event.event_version, event.content_hash
+            ),
+            payment_basis_reference=(
+                None
+                if basis is None
+                else TaxLiabilityEvidenceReference(
+                    tax_payment_basis_artifact_id(basis), "v1", basis.content_sha256
+                )
             ),
             outbox_record=TaxLiabilityEvidenceReference(
                 str(outbox.outbox_id), "v1", outbox.payload_hash

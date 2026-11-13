@@ -203,7 +203,8 @@ def test_cash_entitlement_does_not_treat_disclosure_as_legal_tax_rule() -> None:
     assert pseudo_rule.value.code == "CORPORATE_ACTION_TAX_TERMS_UNKNOWN"
 
 
-def test_ownership_proof_verifier_reads_and_compares_exact_record_date_scope() -> None:
+@pytest.mark.parametrize("exchange", ("SZSE", "SZ"))
+def test_ownership_proof_verifier_reads_and_compares_exact_record_date_scope(exchange: str) -> None:
     """A caller-supplied snapshot is accepted only when the persisted replay matches it."""
 
     request = _request(
@@ -211,7 +212,7 @@ def test_ownership_proof_verifier_reads_and_compares_exact_record_date_scope() -
         tax_rule_sha256=None,
         ownership_snapshot_observed_at=_QUALIFIED_AT,
     )
-    reader = _OwnershipProofReader(_ownership_proof())
+    reader = _OwnershipProofReader(_ownership_proof(exchange=exchange))
     verifier = CorporateActionOwnershipProofVerifier(reader)
 
     assert verifier.verify_ownership(request)
@@ -239,6 +240,9 @@ def test_ownership_proof_verifier_reads_and_compares_exact_record_date_scope() -
         ("eligible_quantity", Decimal("999.000000")),
         ("ownership_snapshot_observed_at", _OBSERVED_AT),
         ("exchange", "SSE"),
+        ("exchange", "SH"),
+        ("exchange", "BJ"),
+        ("exchange", "UNKNOWN"),
     ),
 )
 def test_ownership_proof_verifier_blocks_any_proof_scope_or_content_drift(

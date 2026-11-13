@@ -25,6 +25,9 @@ from apps.simulated_trading.application.corporate_action_tax_liability import (
 from apps.simulated_trading.application.corporate_action_tax_liability_authority import (
     TaxLiabilityAuditOrigin,
 )
+from apps.simulated_trading.application.corporate_action_tax_payment_basis import (
+    SimulatedDividendPaymentBasis,
+)
 from apps.simulated_trading.application.corporate_action_tax_qualification import (
     CurrentTaxAssessmentQualification,
 )
@@ -163,7 +166,7 @@ def _lease_payload(value: TaxLiabilityWriteLease) -> dict[str, object]:
 def _origin_payload(value: TaxLiabilityAuditOrigin) -> dict[str, object]:
     """Bind original account-source facts, qualification and actual financial grant."""
     value.__post_init__()
-    return {
+    payload: dict[str, object] = {
         "lease": _lease_payload(value.lease),
         "environment": value.environment,
         "account_source_id": value.account_source_id,
@@ -173,6 +176,9 @@ def _origin_payload(value: TaxLiabilityAuditOrigin) -> dict[str, object]:
         "qualification": _qualification_payload(value.qualification),
         "write_mode": value.write_mode,
     }
+    if value.payment_basis is not None:
+        payload["payment_basis"] = value.payment_basis.to_payload()
+    return payload
 
 
 @dataclass(frozen=True, slots=True)
@@ -238,6 +244,10 @@ class TaxLiabilityOperationMaterial:
             raise _blocked("financial operation differs from its original exact scope")
         recorded = _aware(self.recorded_at, field_name="operation recorded_at")
         lease.assert_live(as_of=recorded)
+        if self.origin.payment_basis is not None:
+            if self.origin.payment_basis.grant_account_id != lease.canonical_account_id:
+                raise _blocked("Original paid basis differs from the canonical account")
+            self.origin.payment_basis.verify_scope(lease.scope, as_of=recorded)
         if recorded.astimezone(UTC) >= self.origin.qualification.valid_until.astimezone(UTC):
             raise _blocked("new financial operation was not qualified at its original clock")
         before = _aware(self.physical_updated_before, field_name="physical revision before")
@@ -346,7 +356,11 @@ class TaxLiabilityOperationMaterial:
         self.__post_init__()
         snapshot = self.cash_snapshot
         return {
-            "schema": "simulated-tax-liability-material.v1",
+            "schema": (
+                "simulated-tax-liability-material.v1"
+                if self.origin.payment_basis is None
+                else "simulated-tax-liability-material.v2"
+            ),
             "cash_snapshot_provenance_json": self.cash_snapshot_provenance_json,
             "assessment_id": self.assessment_id,
             "identity_sha256": self.identity.request_sha256,
@@ -395,8 +409,10 @@ def decode_operation_material(
     """Restore exact historical context without refreshing its original authority clocks."""
     try:
         fields = _object(_read_document(payload, expected_sha256), _MATERIAL_FIELDS)
+        has_payment_basis = fields["schema"] == "simulated-tax-liability-material.v2"
         if (
-            fields["schema"] != "simulated-tax-liability-material.v1"
+            fields["schema"]
+            not in {"simulated-tax-liability-material.v1", "simulated-tax-liability-material.v2"}
             or fields["identity_sha256"] != identity.request_sha256
             or fields["state_sha256"] != transition.state_after.state_sha256
             or fields["transition_sha256"] != transition.transition_sha256
@@ -415,7 +431,8 @@ def decode_operation_material(
                     "qualification",
                     "write_mode",
                 }
-            ),
+            )
+            | (frozenset({"payment_basis"}) if has_payment_basis else frozenset()),
         )
         qualification_names = frozenset(
             {
@@ -523,6 +540,11 @@ def decode_operation_material(
             source_row_updated_at=_clock(origin_fields["source_row_updated_at"]),
             qualification=qualification,
             write_mode=cast(Literal["append", "exact_retry_only"], mode),
+            payment_basis=(
+                SimulatedDividendPaymentBasis.from_payload(origin_fields["payment_basis"])
+                if has_payment_basis
+                else None
+            ),
         )
         snapshot_fields = fields["cash_snapshot"]
         snapshot: TaxLiabilityFinancialSnapshot | None = None

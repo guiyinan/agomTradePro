@@ -436,6 +436,7 @@ class TaxLiabilityWriteReceipt:
     journal_entry: TaxLiabilityEvidenceReference
     audit_event: TaxLiabilityEvidenceReference
     outbox_record: TaxLiabilityEvidenceReference
+    payment_basis_reference: TaxLiabilityEvidenceReference | None = None
 
     def __post_init__(self) -> None:
         """Require one complete, stable operation result."""
@@ -473,6 +474,15 @@ class TaxLiabilityWriteReceipt:
             raise _blocked("liability receipt quantum is unsupported")
         if self.cash_action is not None and type(self.cash_action) is not TaxLiabilityCashAction:
             raise _blocked("liability receipt cash action is invalid")
+        if self.payment_basis_reference is not None:
+            if (
+                self.cash_action is not TaxLiabilityCashAction.COLLECT_AVAILABLE
+                or type(self.payment_basis_reference) is not TaxLiabilityEvidenceReference
+            ):
+                raise _blocked("Only collection can reference its original payment basis")
+            self.payment_basis_reference.__post_init__()
+            if self.payment_basis_reference.reference_version != "v1":
+                raise _blocked("The payment basis reference version is unsupported")
         if self.cash_action is None:
             if self.cash_snapshot_reference is not None:
                 raise _blocked("a no-cash operation cannot reference a cash snapshot")

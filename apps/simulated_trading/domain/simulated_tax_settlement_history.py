@@ -882,7 +882,12 @@ def _build_days(
     tuple[SimulatedTaxSettlementFillObservation, ...],
     str,
 ]:
-    """Build all open-session EOD rows and a stable source-fact revision hash."""
+    """Build EOD facts without treating zero-share cash posting as a FIFO revision.
+
+    The caller validates every action's scope and rejects unsupported ownership
+    changes first. Cash posting evidence remains in its immutable ledger/Audit
+    chain; it does not change the share quantities used by this tax history.
+    """
 
     grouped: dict[
         date, list[tuple[SimulatedTaxSettlementFillSource, SimulatedDividendTaxDateEvidence]]
@@ -923,7 +928,9 @@ def _build_days(
                 "evidence_sha256": action.evidence_sha256,
             }
             for action in request.corporate_action_evidence
-            if action.recorded_at <= request.as_of and action.stage_date <= request.complete_through
+            if action.recorded_at <= request.as_of
+            and action.stage_date <= request.complete_through
+            and (action.share_delta != _ZERO or action.share_receivable_delta != _ZERO)
         ],
     }
     source_revision_sha256 = _sha(source_payload)

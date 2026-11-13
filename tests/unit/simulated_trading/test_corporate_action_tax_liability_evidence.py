@@ -22,6 +22,9 @@ from apps.simulated_trading.domain.corporate_action_tax_liability import (
     TaxLiabilityCashRequest,
     plan_corporate_action_tax_liability,
 )
+from apps.simulated_trading.infrastructure.corporate_action_tax_liability_audit import (
+    build_tax_liability_audit_event,
+)
 from apps.simulated_trading.infrastructure.corporate_action_tax_liability_codec import (
     canonical_liability_json,
     tax_liability_scope_sha256,
@@ -39,6 +42,7 @@ from tests.unit.simulated_trading.test_corporate_action_tax_liability_applicatio
     _snapshot,
 )
 from tests.unit.simulated_trading.test_corporate_action_tax_liability_identity import _identity
+from tests.unit.simulated_trading.test_corporate_action_tax_payment_basis import _basis
 
 
 def _material():
@@ -134,6 +138,21 @@ def test_stored_financial_origin_round_trip_preserves_all_original_clocks_and_re
     assert restored.cash_snapshot.evidence == original.cash_snapshot.evidence
 
 
+def test_v1_financial_material_bytes_remain_exact_without_payment_basis():
+    """Existing immutable receipts must retain their original canonical identity."""
+    original = _material()
+    assert len(original.payload_json.encode()) == 3513
+    assert original.content_sha256 == (
+        "ddf56f05e238528e7244e46e39664407714d63f70dab957c2b0076a0bc5d309a"
+    )
+
+
+def test_untyped_payment_basis_cannot_enter_a_financial_origin():
+    """A JSON-like claim is not a verified typed payment basis."""
+    with pytest.raises(BusinessLogicError):
+        replace(_material().origin, payment_basis=object())
+
+
 @pytest.mark.parametrize(
     "changes",
     [
@@ -166,3 +185,55 @@ def test_rehashed_unknown_provenance_field_cannot_be_silently_ignored():
             identity=original.identity,
             transition=original.transition,
         )
+
+
+def _paid_material() -> TaxLiabilityOperationMaterial:
+    """Bind the synthetic full-account payment to the exact taxable source fixture."""
+    original = _material()
+    action = _taxable_assessment().action
+    basis = _basis(
+        source_revision_id=action.source_revision_id,
+        source_revision_sha256=action.source_revision_sha256,
+        source_payload_sha256=action.source_payload_sha256,
+        grant_account_id=original.origin.lease.canonical_account_id,
+    )
+    return replace(original, origin=replace(original.origin, payment_basis=basis))
+
+
+def test_v2_financial_material_round_trips_complete_original_paid_basis():
+    original = _paid_material()
+    assert json.loads(original.payload_json)["schema"] == "simulated-tax-liability-material.v2"
+    restored = decode_operation_material(
+        original.payload_json,
+        original.content_sha256,
+        identity=original.identity,
+        transition=original.transition,
+    )
+    assert restored == original
+    assert restored.origin.payment_basis == original.origin.payment_basis
+
+
+def test_paid_basis_for_another_canonical_account_cannot_enter_material():
+    original = _paid_material()
+    with pytest.raises(BusinessLogicError, match="canonical account"):
+        replace(
+            original,
+            origin=replace(
+                original.origin,
+                payment_basis=replace(original.origin.payment_basis, grant_account_id="other"),
+            ),
+        )
+
+
+def test_v1_audit_bytes_remain_exact_and_v2_links_the_complete_payment_proof():
+    legacy = build_tax_liability_audit_event(_material(), predecessor_hash=None)
+    assert legacy.content_hash == (
+        "c9793131f1f6fa57502822b881344e68bfd8dbe0838dff08545f0ed4d5b54239"
+    )
+    material = _paid_material()
+    event = build_tax_liability_audit_event(material, predecessor_hash=None)
+    refs = {ref.artifact_type: ref for ref in event.evidence_refs}
+    assert refs["tax_liability_operation"].artifact_version == "v2"
+    assert refs["simulated_dividend_payment_basis"].content_hash == (
+        material.origin.payment_basis.content_sha256
+    )

@@ -29,6 +29,7 @@ from apps.account.simulated_corporate_action_write_issuance_composition import (
     locked_simulated_action_trading_eligibility,
 )
 from apps.audit.corporate_action_tax_assessment_composition import TaxAssessmentAuditCoordinatorPort
+from apps.audit.domain.system_audit_event import AuditScopeRef
 from apps.simulated_trading.application.corporate_action_tax_liability import (
     TaxLiabilityWriteLease,
     _blocked,
@@ -37,6 +38,9 @@ from apps.simulated_trading.application.corporate_action_tax_liability import (
 from apps.simulated_trading.application.corporate_action_tax_liability_authority import (
     TaxLiabilityAuditOrigin,
     TaxLiabilityReplayRequest,
+)
+from apps.simulated_trading.application.corporate_action_tax_payment_basis import (
+    SimulatedDividendPaymentBasis,
 )
 from apps.simulated_trading.application.corporate_action_tax_qualification import (
     CurrentTaxAssessmentQualification,
@@ -70,6 +74,9 @@ from apps.simulated_trading.domain.simulated_dividend_tax_policy_scope import (
 from apps.simulated_trading.infrastructure.corporate_action_tax_liability_readback import (
     DjangoTaxLiabilityReadback,
     VerifiedTaxLiabilityOperation,
+)
+from apps.simulated_trading.infrastructure.corporate_action_tax_payment_basis_reader import (
+    read_locked_simulated_dividend_payment_basis,
 )
 
 
@@ -247,6 +254,23 @@ class DjangoTaxLiabilityOwnerScopeVerifier:
         active.origin.__post_init__()
         return active.origin
 
+    def _read_payment_basis(
+        self,
+        assessment: CorporateActionTaxAssessment,
+        *,
+        lease: TaxLiabilityWriteLease,
+        as_of: datetime,
+    ) -> SimulatedDividendPaymentBasis:
+        """Bind new collection to its exact audited simulated payment under owner locks."""
+        return read_locked_simulated_dividend_payment_basis(
+            assessment,
+            using=self._using,
+            canonical_account_namespace=self._selector.binding.account_namespace,
+            canonical_account_id=lease.canonical_account_id,
+            audit_scope=AuditScopeRef(lease.audit_tenant_id, lease.audit_owner_id),
+            as_of=as_of,
+        )
+
     @contextmanager
     def locked_current_scope(
         self,
@@ -378,6 +402,15 @@ class DjangoTaxLiabilityOwnerScopeVerifier:
                         source.row_updated_at,
                         qualification,
                         "exact_retry_only" if original is not None else "append",
+                        payment_basis=(
+                            original.material.origin.payment_basis
+                            if original is not None
+                            else (
+                                self._read_payment_basis(assessment, lease=lease, as_of=audit_at)
+                                if cash_action is TaxLiabilityCashAction.COLLECT_AVAILABLE
+                                else None
+                            )
+                        ),
                     )
                     origin.verify_for(
                         assessment,
@@ -404,6 +437,16 @@ class DjangoTaxLiabilityOwnerScopeVerifier:
                             if final_qualification != qualification:
                                 raise _blocked(
                                     "Current financial tax qualification changed before commit"
+                                )
+                            if (
+                                cash_action is TaxLiabilityCashAction.COLLECT_AVAILABLE
+                                and self._read_payment_basis(
+                                    assessment, lease=lease, as_of=final_at
+                                )
+                                != origin.payment_basis
+                            ):
+                                raise _blocked(
+                                    "Audited simulated payment basis changed before tax commit"
                                 )
                         elif self._replay.find(request) != original:
                             raise _blocked(

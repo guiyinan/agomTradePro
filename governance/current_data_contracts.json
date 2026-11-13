@@ -14572,7 +14572,8 @@
           "self.date_rule.convention_sha256 != history.settlement_date_rule_sha256",
           "source_revision_sha256",
           "history_identity_sha256",
-          "completion day has not ended at the history cutoff"
+          "completion day has not ended at the history cutoff",
+          "and (action.share_delta != _ZERO or action.share_receivable_delta != _ZERO)"
         ],
         "apps/simulated_trading/application/corporate_action_tax_settlement_history.py": [
           "selected.provenance.as_of != as_of",
@@ -14642,9 +14643,14 @@
           "case": "actual_persisted_source_history_and_current_rule",
           "test_file": "tests/component/simulated_trading/test_simulated_tax_history_native_postgres.py",
           "test_function": "test_native_simulated_history_uses_explicit_tax_dates_and_only_reads_persisted_sources"
+        },
+        {
+          "case": "cash_posting_is_not_new_ownership_or_fifo_facts",
+          "test_file": "tests/unit/simulated_trading/test_simulated_tax_settlement_history.py",
+          "test_function": "test_cash_entitlement_and_payment_do_not_revise_tax_ownership_facts"
         }
       ],
-      "notes": "The existing independent occurrence-date record-date ownership proof must agree with the explicitly modeled tax position. Every retained V4 receipt is rechecked against the exact local source event; unknown changes, transfers, share actions, missing sessions and negative positions block. The completion day must have ended in the published exchange timezone; unfinished or future dates cannot be filled with zero activity. Original source, fill, profile and calendar clocks remain distinct from read_at. A final nondecreasing aware server clock rechecks finite rule and calendar windows without restamping observations. Later facts beyond a target settlement prefix do not change its semantic identity; a refreshed observation changes only the observation manifest. Simulation rules cannot serve as real custody proof and this reader issues no tax grant or legal/persona/instrument qualification."
+      "notes": "The existing independent occurrence-date record-date ownership proof must agree with the explicitly modeled tax position. Every retained V4 receipt is rechecked against the exact local source event; unknown changes, transfers, share actions, missing sessions and negative positions block. The completion day must have ended in the published exchange timezone; unfinished or future dates cannot be filled with zero activity. Original source, fill, profile and calendar clocks remain distinct from read_at. A final nondecreasing aware server clock rechecks finite rule and calendar windows without restamping observations. Later facts beyond a target settlement prefix do not change its semantic identity; a refreshed observation changes only the observation manifest. Simulation rules cannot serve as real custody proof and this reader issues no tax grant or legal/persona/instrument qualification. Validated zero-share cash entitlement/payment stages do not change the FIFO ownership source revision; they retain their separate immutable ledger/Audit and collection payment-basis evidence. Every action still undergoes exact scope/type validation and unsupported share/rights changes remain blocked. No stored historical assessment/source hash is rewritten or translated; an existing current mismatch still blocks and requires an explicit valid transition."
     },
     {
       "id": "simulated_trading.current_explicit_dividend_tax_policy",
@@ -14762,19 +14768,49 @@
       "surface": "Actual finite nonstaff TAX_WITHHOLD authority and original financial-operation replay",
       "source_files": [
         "apps/simulated_trading/corporate_action_tax_liability_owner_scope_composition.py",
-        "apps/simulated_trading/corporate_action_write_scope_composition.py"
+        "apps/simulated_trading/corporate_action_write_scope_composition.py",
+        "apps/simulated_trading/infrastructure/corporate_action_tax_payment_basis_reader.py",
+        "apps/simulated_trading/infrastructure/corporate_action_tax_liability_readback.py",
+        "apps/simulated_trading/application/corporate_action_posting.py",
+        "apps/simulated_trading/domain/simulated_cash_posting_history.py",
+        "apps/audit/retained_system_audit_pair_composition.py"
       ],
       "required_markers": {
         "apps/simulated_trading/corporate_action_tax_liability_owner_scope_composition.py": [
           "required_capability=Capability.TAX_WITHHOLD",
           "final_qualification != qualification",
           "exact_retry_only",
-          "origin.verify_for("
+          "origin.verify_for(",
+          "!= origin.payment_basis"
         ],
         "apps/simulated_trading/corporate_action_write_scope_composition.py": [
           "assert_tax_source_timestamp_current_or_proven",
           "verify_exact_replay_timestamp",
           "row.current_cash != active.cash"
+        ],
+        "apps/simulated_trading/infrastructure/corporate_action_tax_payment_basis_reader.py": [
+          "read_locked_simulated_dividend_payment_basis",
+          "verify_retained_simulated_dividend_payment_basis",
+          "_require_outer_read_transaction(selected_alias)",
+          "code=_BLOCKED_CODE"
+        ],
+        "apps/simulated_trading/infrastructure/corporate_action_tax_liability_readback.py": [
+          "verify_retained_simulated_dividend_payment_basis(",
+          "as_of=material.recorded_at"
+        ],
+        "apps/simulated_trading/application/corporate_action_posting.py": [
+          "SecurityDisclosureExchange.SZSE.value",
+          "SimulatedDividendTaxExchange.SZ.value"
+        ],
+        "apps/simulated_trading/domain/simulated_cash_posting_history.py": [
+          "validate_simulated_cash_posting_history",
+          "asset identity changed across source revisions",
+          "cash payment does not settle the full outstanding receivable"
+        ],
+        "apps/audit/retained_system_audit_pair_composition.py": [
+          "_verify_original_stream_prefix(event, scope=scope, using=using)",
+          "original Audit prefix is disconnected",
+          "_MAX_RETAINED_STREAM_PREFIX = 10_000"
         ]
       },
       "required_tests": [
@@ -14797,9 +14833,44 @@
           "case": "late_qualification_rollback",
           "test_file": "tests/component/simulated_trading/test_owner_tax_liability_scope_postgres.py",
           "test_function": "test_native_final_current_tax_change_rolls_back_all_financial_effects"
+        },
+        {
+          "case": "valid_current_withholding_consent_cannot_substitute_for_paid_dividend",
+          "test_file": "tests/component/simulated_trading/test_owner_tax_liability_scope_postgres.py",
+          "test_function": "test_native_current_withholding_grant_cannot_collect_without_audited_payment"
+        },
+        {
+          "case": "actual_current_model_paid_cash_then_requalified_original_tax_assessment",
+          "test_file": "tests/component/simulated_trading/test_current_simulated_tax_qualification_postgres.py",
+          "test_function": "test_real_paid_cash_stage_keeps_exact_current_audit_and_withholding_grants"
+        },
+        {
+          "case": "actual_current_model_missing_and_unreached_payment_no_financial_effects",
+          "test_file": "tests/component/simulated_trading/test_current_simulated_tax_qualification_postgres.py",
+          "test_function": "test_tax_collection_requires_reached_audited_cash_payment"
+        },
+        {
+          "case": "cash_ownership_existing_namespace_compatibility",
+          "test_file": "tests/unit/simulated_trading/test_corporate_action_posting.py",
+          "test_function": "test_ownership_proof_verifier_reads_and_compares_exact_record_date_scope"
+        },
+        {
+          "case": "all_revision_cash_identity",
+          "test_file": "tests/unit/simulated_trading/test_corporate_action_tax_payment_basis_reader.py",
+          "test_function": "test_cash_event_history_rejects_asset_identity_change_in_a_successor"
+        },
+        {
+          "case": "orm_share_zero_is_not_cash_precision",
+          "test_file": "tests/unit/simulated_trading/test_simulated_cash_posting_history.py",
+          "test_function": "test_replays_orm_scale_zero_share_deltas_on_cash_rows"
+        },
+        {
+          "case": "original_scoped_audit_prefix",
+          "test_file": "tests/component/audit/test_retained_system_audit_pair.py",
+          "test_function": "test_retained_pair_accepts_its_complete_original_stream_prefix"
         }
       ],
-      "notes": "New financial appends require actual current configured source/policy/instrument/history qualification and finite same-alias Owner V2 withholding grant plus required Audit/Outbox. Exact original retries retain old qualification observations and all journal/Audit/Outbox evidence; they still require current role/grant and cannot append another operation or alter cash. Real accounts remain excluded."
+      "notes": "New financial appends require actual current configured source/policy/instrument/history qualification and finite same-alias Owner V2 withholding grant plus required Audit/Outbox. Exact original retries retain old qualification observations and all journal/Audit/Outbox evidence; they still require current role/grant and cannot append another operation or alter cash. Real accounts remain excluded. New COLLECT_AVAILABLE also requires a unique full same-event, non-reversed simulated cash entitlement/payment pair with reached Shanghai payment date, exact original cash grants and Audit/Outbox. The proof is reread under the same outer owner transaction at entry and finalization. New V2 financial material retains that proof; old V1 bytes remain unchanged. Historical V2 readback uses the original operation recorded_at cutoff and verifies original immutable evidence without treating it as current authority. Stored repository Audit/Outbox clocks are retained facts, not independent database commit instants or refreshed official observation times. Missing/corrupt/unpaid proof blocks collection without financial or Audit writes. Recognition before payment is a separate accounting question; this cohort does not qualify current valuation or complete official coverage. Original payment history also enforces stable asset/security identity across revisions and ordered full receivable/payment/tax invariants. Six-place zero share deltas remain exact zero; cash precision stays the existing fifteen-digit cent contract. Existing typed SZ and SZSE namespaces both identify Shenzhen ownership without rewriting proof bytes. Retained Audit pairs verify only their own complete original stream prefix through the selected sequence, with a technical10000-event bound; oversized, missing or disconnected prefixes block rather than partially validate. No global cross-account scan or write capability is introduced."
     }
   ]
 }
