@@ -36,7 +36,12 @@ _CHINESE_DATE = r"([0-9]{4})\s*年\s*([0-9]{1,2})\s*月\s*([0-9]{1,2})\s*日"
 _RECORD_DATE = re.compile(r"股权登记日为\s*[:：]\s*" + _CHINESE_DATE)
 _EX_DATE = re.compile(r"(?:除权日（除息日）|除权除息日)为\s*[:：]\s*" + _CHINESE_DATE)
 _PAYMENT_DATE = re.compile(r"现金红利将于\s*" + _CHINESE_DATE)
-_CASH_PER_TEN = re.compile(r"每\s*10\s*股\s*派发现金(?:红利|股利)\s*([0-9]+(?:\.[0-9]+)?)\s*元")
+_CASH_PER_TEN = re.compile(
+    r"每\s*10\s*股\s*派(?:发)?现金(?:红利|股利)\s*([0-9]+(?:\.[0-9]+)?)\s*元"
+)
+_CASH_PER_TEN_POSTFIX = re.compile(
+    r"每\s*10\s*股\s*派(?:发)?\s*([0-9]+(?:\.[0-9]+)?)\s*元\s*(?:人民币\s*)?现金"
+)
 _SHARES_PER_TEN = re.compile(r"每\s*10\s*股\s*转增\s*([0-9]+(?:\.[0-9]+)?)\s*股")
 _DISCLOSURE_TITLE_SUFFIXES = ("公告（更正后）", "更正公告", "公告", "法律意见书", "法律意见")
 _LOGGER = logging.getLogger(__name__)
@@ -353,7 +358,9 @@ def classify_szse_pdf_disclosure(
             capture.source_document_id,
         )
         return title, SecurityDisclosureEventType.UNKNOWN
-    cash = bool(re.search(r"每\s*10\s*股\s*派发现金(?:红利|股利)\s*[0-9]", text))
+    cash = any(
+        pattern.search(text) is not None for pattern in (_CASH_PER_TEN, _CASH_PER_TEN_POSTFIX)
+    )
     shares = bool(re.search(r"每\s*10\s*股\s*转增\s*[0-9]", text))
     if cash == shares:
         _LOGGER.warning(
@@ -416,18 +423,23 @@ def extract_szse_distribution_terms(
     except (OSError, TypeError, ValueError, KeyError, PdfReadError) as exc:
         raise OfficialDisclosureCaptureError("SZSE PDF economic terms cannot be read") from exc
 
-    def unique_amount(pattern: re.Pattern[str]) -> Decimal | None:
-        values = set(pattern.findall(text))
+    def unique_amount(patterns: tuple[re.Pattern[str], ...]) -> Decimal | None:
+        """Require all supported gross spellings to agree as exact positive Decimals."""
+        values: set[Decimal] = set()
+        for pattern in patterns:
+            for raw in pattern.findall(text):
+                if safe_float(raw) is None:
+                    return None
+                amount = Decimal(raw)
+                if not amount.is_finite() or amount <= 0:
+                    return None
+                values.add(amount)
         if len(values) != 1:
             return None
-        raw = next(iter(values))
-        if safe_float(raw) is None:
-            return None
-        amount = Decimal(raw)
-        return amount if amount.is_finite() and amount > 0 else None
+        return next(iter(values))
 
-    cash_per_ten = unique_amount(_CASH_PER_TEN)
-    shares_per_ten = unique_amount(_SHARES_PER_TEN)
+    cash_per_ten = unique_amount((_CASH_PER_TEN, _CASH_PER_TEN_POSTFIX))
+    shares_per_ten = unique_amount((_SHARES_PER_TEN,))
     if event_type is SecurityDisclosureEventType.CASH_DIVIDEND:
         payment_matches = set(_PAYMENT_DATE.findall(text))
         if cash_per_ten is None or shares_per_ten is not None or len(payment_matches) != 1:

@@ -1,6 +1,7 @@
 """Official PDF transport and immutable body retention boundaries."""
 
 from datetime import date
+from decimal import Decimal
 from io import BytesIO
 from pathlib import Path
 from types import SimpleNamespace
@@ -16,6 +17,7 @@ from apps.data_center.infrastructure.official_szse_pdf_capture import (
     capture_official_szse_pdf,
     classify_szse_pdf_disclosure,
     extract_szse_distribution_dates,
+    extract_szse_distribution_terms,
     verify_szse_pdf_security_code,
 )
 
@@ -180,6 +182,8 @@ def test_conflicting_first_page_code_cannot_be_overridden_by_issuer_name(
         ("每10股派发现金红利2元，不以公积金转增股本", SecurityDisclosureEventType.CASH_DIVIDEND),
         ("每10股转增4股，不派发现金红利", SecurityDisclosureEventType.STOCK_DIVIDEND),
         ("每10股派发现金红利2元，每10股转增4股", SecurityDisclosureEventType.UNKNOWN),
+        ("每10股派现金红利2元，每10股转增4股", SecurityDisclosureEventType.UNKNOWN),
+        ("每10股派2元人民币现金，每10股转增4股", SecurityDisclosureEventType.UNKNOWN),
     ],
 )
 def test_ambiguous_corporate_action_stays_unknown(
@@ -421,3 +425,75 @@ def test_distribution_dates_preserve_source_date_precision(
         date(2026, 9, 23),
         date(2026, 9, 24),
     )
+
+
+@pytest.mark.parametrize("phrase", ["派现金红利", "派发现金红利", "派现金股利", "派发现金股利"])
+def test_exact_cash_payout_wording_preserves_gross_terms_and_source_dates(
+    monkeypatch: pytest.MonkeyPatch, phrase: str
+) -> None:
+    """The observed official '派现金' variant means the same exact gross cash stage."""
+    monkeypatch.setattr(requests, "get", lambda *args, **kwargs: _response(_BODY))
+    capture = capture_official_szse_pdf(_URL)
+    text = (
+        "证券代码：002727\n2026年半年度权益分派实施公告\n"
+        f"每10股{phrase}1.00元（含税）。\n"
+        "股权登记日为：2026年11月12日，除权除息日为：2026年11月13日。\n"
+        "现金红利将于2026年11月13日派发。暂不扣缴个人所得税，待个人转让股票时计算。"
+    )
+    monkeypatch.setattr(
+        capture_module,
+        "PdfReader",
+        lambda *args, **kwargs: SimpleNamespace(
+            pages=(SimpleNamespace(extract_text=lambda: text),)
+        ),
+    )
+    _, kind = classify_szse_pdf_disclosure(capture, "002727")
+    assert kind is SecurityDisclosureEventType.CASH_DIVIDEND
+    terms = extract_szse_distribution_terms(capture, "002727")
+    assert terms is not None
+    assert terms.cash_per_ten == Decimal("1.00")
+    assert terms.shares_per_ten is None
+    assert terms.record_date == date(2026, 11, 12)
+    assert terms.ex_date == terms.payment_date == date(2026, 11, 13)
+    assert terms.tax_treatment == "deferred_withholding"
+
+
+@pytest.mark.parametrize(
+    ("cash_text", "expected"),
+    [
+        ("每10股派1.000000元人民币现金（含税）", Decimal("1.00")),
+        (
+            "原方案每10股派现金红利1.00元；本次每10股派1.000000元人民币现金（含税）",
+            Decimal("1.00"),
+        ),
+        (
+            "原方案每10股派现金红利2.00元；本次每10股派1.000000元人民币现金（含税）",
+            None,
+        ),
+    ],
+)
+def test_postfix_cash_wording_cannot_hide_a_conflicting_earlier_proposal(
+    monkeypatch: pytest.MonkeyPatch, cash_text: str, expected: Decimal | None
+) -> None:
+    """A prior proposal cannot substitute for a different implementation amount."""
+    monkeypatch.setattr(requests, "get", lambda *args, **kwargs: _response(_BODY))
+    capture = capture_official_szse_pdf(_URL)
+    text = (
+        "证券代码：002727\n2026年半年度权益分派实施公告\n"
+        f"{cash_text}。\n"
+        "股权登记日为：2026年11月12日，除权除息日为：2026年11月13日。\n"
+        "现金红利将于2026年11月13日派发。暂不扣缴个人所得税，待个人转让股票时计算。"
+    )
+    monkeypatch.setattr(
+        capture_module,
+        "PdfReader",
+        lambda *args, **kwargs: SimpleNamespace(
+            pages=(SimpleNamespace(extract_text=lambda: text),)
+        ),
+    )
+    terms = extract_szse_distribution_terms(capture, "002727")
+    if expected is None:
+        assert terms is None
+    else:
+        assert terms is not None
+        assert terms.cash_per_ten == expected

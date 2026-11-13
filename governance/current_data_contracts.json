@@ -14501,7 +14501,8 @@
       "id": "simulated_trading.current_official_corporate_action_revision",
       "surface": "Exact retained official disclosure correction lineage at an explicit verification cutoff; no complete-market coverage or tax eligibility claim",
       "source_files": [
-        "apps/simulated_trading/official_disclosure_action_composition.py"
+        "apps/simulated_trading/official_disclosure_action_composition.py",
+        "apps/data_center/infrastructure/official_szse_pdf_capture.py"
       ],
       "required_markers": {
         "apps/simulated_trading/official_disclosure_action_composition.py": [
@@ -14511,6 +14512,11 @@
           "parent.recorded_at > known_cutoff",
           "event.first_seen_at != request.source_observed_at",
           "read_verified_szse_distribution(event, body_store_root=self._body_store_root)"
+        ],
+        "apps/data_center/infrastructure/official_szse_pdf_capture.py": [
+          "_CASH_PER_TEN_POSTFIX",
+          "cash_per_ten = unique_amount((_CASH_PER_TEN, _CASH_PER_TEN_POSTFIX))",
+          "def extract_szse_distribution_terms("
         ]
       },
       "required_tests": [
@@ -14533,9 +14539,24 @@
           "case": "tax_native_event_body_digest_gross_terms_and_lineage",
           "test_file": "tests/unit/simulated_trading/test_corporate_action_cash_revision_composition.py",
           "test_function": "test_tax_action_uses_actual_current_record_body_terms_and_complete_logical_lineage"
+        },
+        {
+          "case": "exact_cash_wording_shared_by_classification_and_gross_terms",
+          "test_file": "tests/unit/data_center/test_official_szse_pdf_capture.py",
+          "test_function": "test_exact_cash_payout_wording_preserves_gross_terms_and_source_dates"
+        },
+        {
+          "case": "mixed_cash_and_share_wording_remains_unknown",
+          "test_file": "tests/unit/data_center/test_official_szse_pdf_capture.py",
+          "test_function": "test_ambiguous_corporate_action_stays_unknown"
+        },
+        {
+          "case": "postfix_cash_and_earlier_proposal_must_agree",
+          "test_file": "tests/unit/data_center/test_official_szse_pdf_capture.py",
+          "test_function": "test_postfix_cash_wording_cannot_hide_a_conflicting_earlier_proposal"
         }
       ],
-      "notes": "The logical source_event_id remains the lineage root, while source_record_id identifies the actual retained current disclosure. Unique complete known parents, no forks/cycles and no currently known successor are required. Keep native first_seen_at and persistence clocks; verification time never refreshes source clocks. Missing body, lineage or economics returns false. Current event selection does not prove listing-window completeness, market freshness, legal eligibility, real custody or owner write permission; those remain independent fail-closed contracts."
+      "notes": "The logical source_event_id remains the lineage root, while source_record_id identifies the actual retained current disclosure. Unique complete known parents, no forks/cycles and no currently known successor are required. Keep native first_seen_at and persistence clocks; verification time never refreshes source clocks. Missing body, lineage or economics returns false. Current event selection does not prove listing-window completeness, market freshness, legal eligibility, real custody or owner write permission; those remain independent fail-closed contracts. The source-observed literal cash wording variants 派现金/派发现金 use one exact amount pattern for both classification and terms; simultaneous cash/share distributions remain UNKNOWN. This parser fix does not qualify other unknown listing documents or change any source clocks/coverage. Prefix and postfix cash terms across proposal/implementation paragraphs must agree numerically without rounding; equivalent decimal spellings do not conflict, different known amounts block terms. Net amounts without an explicit cash marker do not overwrite gross terms."
     },
     {
       "id": "simulated_trading.current_simulated_tax_settlement_history",

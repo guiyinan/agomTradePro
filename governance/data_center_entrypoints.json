@@ -6051,7 +6051,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=1",
+      "evidence": "governed current-data contract; source_files=2",
       "id": "current_data_surface:governance/current_data_contracts.json:simulated_trading.current_official_corporate_action_revision:Exact retained official disclosure correction lineage at an explicit verification cutoff; no complete-market coverage or tax eligibility claim",
       "locator": "Exact retained official disclosure correction lineage at an explicit verification cutoff; no complete-market coverage or tax eligibility claim",
       "path": "governance/current_data_contracts.json",
