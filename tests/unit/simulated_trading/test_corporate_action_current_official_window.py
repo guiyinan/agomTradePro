@@ -171,7 +171,7 @@ def _policy(as_of: datetime = _NOW) -> TransitionPlanDisclosureRuntimePolicy:
         source_id="szse_official",
         start_on=_WINDOW_START,
         end_on=as_of.astimezone(ZoneInfo("Asia/Shanghai")).date(),
-        body_store_root=Path("D:/synthetic/official-pdf-store"),
+        body_store_root=Path(__file__).resolve().parent / "synthetic-official-pdf-store",
         lease_policy=TransitionPlanEventCoverageLeasePolicy(
             policy_version="szse-window-v1",
             ttl=timedelta(seconds=60),

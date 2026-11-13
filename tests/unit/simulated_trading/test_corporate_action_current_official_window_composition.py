@@ -174,7 +174,7 @@ def test_configured_policy_adapter_copies_exact_application_evidence() -> None:
         source_id="szse_official",
         start_on=date(2026, 10, 1),
         end_on=date(2026, 11, 13),
-        body_store_root=Path("D:/synthetic/official-pdf-store"),
+        body_store_root=Path(__file__).resolve().parent / "synthetic-official-pdf-store",
         lease_policy=TransitionPlanEventCoverageLeasePolicy(
             policy_version="szse-window-v1",
             ttl=timedelta(seconds=60),
