@@ -8,7 +8,7 @@ from typing import NoReturn, TypeAlias
 from zoneinfo import ZoneInfo
 
 from django.db import DEFAULT_DB_ALIAS, transaction
-from django.db.models import Max
+from django.db.models import Max, Q
 from django.utils import timezone
 
 from apps.simulated_trading.application.corporate_action_posting import (
@@ -39,6 +39,7 @@ from apps.simulated_trading.infrastructure.order_reservation_guard import (
 from apps.simulated_trading.infrastructure.simulated_account_trade_models import (
     PositionModel,
     SimulatedAccountModel,
+    SimulatedTradeModel,
 )
 
 _ZERO_MONEY = Decimal("0.00")
@@ -278,6 +279,7 @@ class DjangoCorporateActionPostingRepository(CorporateActionPostingRepositoryPro
                     code="CORPORATE_ACTION_ACTIVE_RESERVATION",
                 ) from error
             planned = self._plan_entries(requests, event_rows)
+            self._reject_spent_share_correction(planned)
             account_revision = (
                 CorporateActionPostingModel._base_manager.using(self._using)
                 .filter(account_id=first.account_id)
@@ -365,12 +367,28 @@ class DjangoCorporateActionPostingRepository(CorporateActionPostingRepositoryPro
                             "CORPORATE_ACTION_TAX_BASIS_INSUFFICIENT",
                         )
                 if request.stage is CorporateActionStage.SHARE_DELIVERY:
+                    if (
+                        request.entry_kind is not CorporateActionEntryKind.REVERSAL
+                        and event_share_receivable != -delta.share_receivable
+                    ):
+                        _blocked(
+                            "share delivery must settle the full event receivable",
+                            "CORPORATE_ACTION_SHARE_RECEIVABLE_NOT_FULLY_SETTLED",
+                        )
                     if event_share_receivable < -delta.share_receivable:
                         _blocked(
                             "share delivery exceeds this event's posted entitlement",
                             "CORPORATE_ACTION_SHARE_RECEIVABLE_INSUFFICIENT",
                         )
                 if request.stage is CorporateActionStage.SHARE_SELLABLE_RELEASE:
+                    if (
+                        request.entry_kind is not CorporateActionEntryKind.REVERSAL
+                        and event_shares_delivered - event_shares_released != delta.available_shares
+                    ):
+                        _blocked(
+                            "sellable release must unlock all outstanding delivered event shares",
+                            "CORPORATE_ACTION_SELLABLE_NOT_FULLY_RELEASED",
+                        )
                     if event_shares_delivered - event_shares_released < delta.available_shares:
                         _blocked(
                             "sellable release exceeds this event's delivered shares",
@@ -547,11 +565,11 @@ class DjangoCorporateActionPostingRepository(CorporateActionPostingRepositoryPro
             )
         return tuple(receipts)
 
-    def _verify_qualified_inputs(
+    def assert_current_sources(
         self,
         requests: tuple[CorporateActionStageRequest, ...],
     ) -> None:
-        """Fail closed until local source and historical-state verifiers are wired."""
+        """Recheck source facts for new writes inside the caller's locked transaction."""
 
         if self._source_qualifier is None:
             _blocked(
@@ -564,6 +582,15 @@ class DjangoCorporateActionPostingRepository(CorporateActionPostingRepositoryPro
                     "corporate-action source or terms did not pass qualification",
                     "CORPORATE_ACTION_SOURCE_UNQUALIFIED",
                 )
+
+    def _verify_qualified_inputs(
+        self,
+        requests: tuple[CorporateActionStageRequest, ...],
+    ) -> None:
+        """Fail closed until source, historical ownership and tax verifiers are wired."""
+
+        self.assert_current_sources(requests)
+        for request in requests:
             needs_ownership = (
                 request.stage
                 in {
@@ -750,6 +777,41 @@ class DjangoCorporateActionPostingRepository(CorporateActionPostingRepositoryPro
                 delta = calculate_corporate_action_delta(request)
             planned.append(_PlannedEntry(request=request, reverses=target, delta=delta))
         return planned
+
+    def _reject_spent_share_correction(self, planned: list[_PlannedEntry]) -> None:
+        """Reject a new delivery reversal after any retained sale could consume its shares.
+
+        The caller holds the same account lock used by trade settlement. Neither
+        current quantity nor backdated execution dates prove the shares unspent.
+        Both durable creation and execution instants matter for delayed fills.
+        Exact historical replay returns before this new-write-only check.
+        """
+        deliveries = [
+            entry.reverses
+            for entry in planned
+            if entry.reverses is not None
+            and entry.request.stage is CorporateActionStage.SHARE_DELIVERY
+            and entry.reverses.share_delta > 0
+        ]
+        if not deliveries:
+            return
+        first = deliveries[0]
+        cutoff = min(row.created_at for row in deliveries)
+        if (
+            SimulatedTradeModel._base_manager.using(self._using)
+            .filter(
+                Q(created_at__gte=cutoff) | Q(execution_time__gte=cutoff),
+                account_id=first.account_id,
+                asset_code=first.asset_code,
+                action="sell",
+                status="executed",
+            )
+            .exists()
+        ):
+            _blocked(
+                "delivered shares may have been sold; an automatic correction is unsafe",
+                "CORPORATE_ACTION_DELIVERED_SHARES_SPENT",
+            )
 
     def _lock_position_if_needed(
         self,

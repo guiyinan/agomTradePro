@@ -26,17 +26,17 @@
       "script": 20,
       "sdk": 57,
       "terminal_tui": 32,
-      "test_evidence": 143,
+      "test_evidence": 145,
       "workflow_step": 11
     },
     "by_status": {
       "active_public": 922,
       "adjacent_operational": 346,
-      "candidate-review": 62,
+      "candidate-review": 64,
       "compatibility": 139,
       "retired_blocked": 0
     },
-    "total": 1469
+    "total": 1471
   },
   "entries": [
     {
@@ -5181,7 +5181,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=9",
+      "evidence": "governed current-data contract; source_files=10",
       "id": "current_data_surface:governance/current_data_contracts.json:account.simulated_corporate_action_owner_write_grant:Finite explicit non-staff owner consent and current service-write permission for one simulated account; not market-data freshness or staff Audit reading",
       "locator": "Finite explicit non-staff owner consent and current service-write permission for one simulated account; not market-data freshness or staff Audit reading",
       "path": "governance/current_data_contracts.json",
@@ -6071,7 +6071,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=7",
+      "evidence": "governed current-data contract; source_files=8",
       "id": "current_data_surface:governance/current_data_contracts.json:simulated_trading.current_owner_tax_liability:Actual finite nonstaff TAX_WITHHOLD authority and original financial-operation replay",
       "locator": "Actual finite nonstaff TAX_WITHHOLD authority and original financial-operation replay",
       "path": "governance/current_data_contracts.json",
@@ -13922,6 +13922,16 @@
     {
       "category": "test_evidence",
       "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/component/simulated_trading/test_owner_granted_share_corporate_action_postgres.py:test_owner_granted_share_corporate_action_postgres:",
+      "locator": "",
+      "path": "tests/component/simulated_trading/test_owner_granted_share_corporate_action_postgres.py",
+      "status": "candidate-review",
+      "symbol": "test_owner_granted_share_corporate_action_postgres",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
       "id": "test_evidence:tests/component/simulated_trading/test_owner_tax_assessment_scope_postgres.py:test_owner_tax_assessment_scope_postgres:",
       "locator": "",
       "path": "tests/component/simulated_trading/test_owner_tax_assessment_scope_postgres.py",
@@ -13937,6 +13947,16 @@
       "path": "tests/component/simulated_trading/test_owner_tax_liability_scope_postgres.py",
       "status": "candidate-review",
       "symbol": "test_owner_tax_liability_scope_postgres",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/component/simulated_trading/test_owner_tax_v3_scope_postgres.py:test_owner_tax_v3_scope_postgres:",
+      "locator": "",
+      "path": "tests/component/simulated_trading/test_owner_tax_v3_scope_postgres.py",
+      "status": "candidate-review",
+      "symbol": "test_owner_tax_v3_scope_postgres",
       "target": ""
     },
     {

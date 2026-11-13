@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal, localcontext
+from fractions import Fraction
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 from django.db import DatabaseError
 from django.utils import timezone
@@ -183,6 +185,17 @@ def szse_action_qualification_sha256(
         "shares_per_ten": str(terms.shares_per_ten) if terms.shares_per_ten else None,
         "tax_treatment": terms.tax_treatment,
     }
+    if terms.share_delivery_date is not None or terms.share_sellable_date is not None:
+        payload.update(
+            {
+                "share_delivery_date": (
+                    terms.share_delivery_date.isoformat() if terms.share_delivery_date else None
+                ),
+                "share_sellable_date": (
+                    terms.share_sellable_date.isoformat() if terms.share_sellable_date else None
+                ),
+            }
+        )
     return hashlib.sha256(
         json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
     ).hexdigest()
@@ -269,6 +282,12 @@ class VerifiedSzseActionSourceQualifier(CorporateActionSourceQualificationVerifi
             verification_at = timezone.now()
             if request.qualified_at > verification_at:
                 return False
+            if (
+                request.action_kind is CorporateActionKind.SHARE_DISTRIBUTION
+                and request.stage_date
+                > verification_at.astimezone(ZoneInfo("Asia/Shanghai")).date()
+            ):
+                return False
             facts = self._reader.execute(
                 SecurityDisclosureEventReadScope(
                     as_of=verification_at,
@@ -337,17 +356,37 @@ class VerifiedSzseActionSourceQualifier(CorporateActionSourceQualificationVerifi
             if (
                 event.event_type is not SecurityDisclosureEventType.STOCK_DIVIDEND
                 or terms.shares_per_ten is None
-                or request.tax_treatment != terms.tax_treatment
             ):
+                return False
+            if request.entry_kind is CorporateActionEntryKind.REVERSAL:
+                return (
+                    request.supersedes_revision_id is not None
+                    and event.supersedes_source_revision_id == request.supersedes_revision_id
+                    and request.tax_treatment is None
+                )
+            if request.tax_treatment != terms.tax_treatment:
                 return False
             if request.stage is CorporateActionStage.SHARE_ENTITLEMENT:
                 return (
                     request.eligible_quantity is not None
-                    and request.share_amount
-                    == request.eligible_quantity * terms.shares_per_ten / Decimal("10")
+                    and request.share_amount is not None
+                    and request.odd_lot_policy == "whole_shares"
+                    and Fraction(request.share_amount) * 10
+                    == Fraction(request.eligible_quantity) * Fraction(terms.shares_per_ten)
                 )
-            return request.stage in (
-                CorporateActionStage.SHARE_DELIVERY,
-                CorporateActionStage.SHARE_SELLABLE_RELEASE,
-            )
+            if (
+                terms.tax_treatment != "not_applicable"
+                or type(terms.share_delivery_date) is not date
+                or type(terms.share_sellable_date) is not date
+                or terms.share_delivery_date < terms.ex_date
+                or terms.share_sellable_date < terms.share_delivery_date
+                or request.sellable_date != terms.share_sellable_date
+                or request.odd_lot_policy != "whole_shares"
+            ):
+                return False
+            if request.stage is CorporateActionStage.SHARE_DELIVERY:
+                return request.stage_date == terms.share_delivery_date
+            if request.stage is CorporateActionStage.SHARE_SELLABLE_RELEASE:
+                return request.stage_date >= terms.share_sellable_date
+            return False
         return False

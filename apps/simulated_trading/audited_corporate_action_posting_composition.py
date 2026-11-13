@@ -57,10 +57,14 @@ from apps.simulated_trading.corporate_action_write_scope_composition import (
 )
 from apps.simulated_trading.domain.corporate_action_posting import (
     CorporateActionEntryKind,
+    CorporateActionInputValidationError,
     CorporateActionKind,
     CorporateActionStage,
     CorporateActionStageRequest,
     calculate_corporate_action_delta,
+)
+from apps.simulated_trading.domain.corporate_action_share_revision import (
+    plan_corporate_action_share_revision,
 )
 from apps.simulated_trading.infrastructure.corporate_action_posting_models import (
     CorporateActionPostingModel,
@@ -208,6 +212,54 @@ def _restore_cash_revision_receipt_order(
             code="CORPORATE_ACTION_AUDIT_IDENTITY_CONFLICT",
         )
     return tuple(receipts_by_stage_key[request.stage_key] for request in requests)
+
+
+def _is_cash_revision(requests: tuple[CorporateActionStageRequest, ...]) -> bool:
+    """Select the unchanged historical cash normalization by its first exact family."""
+
+    return (
+        type(requests) is tuple
+        and bool(requests)
+        and type(requests[0]) is CorporateActionStageRequest
+        and requests[0].action_kind is CorporateActionKind.CASH_DIVIDEND
+    )
+
+
+def _prepare_audited_revision_requests(
+    requests: tuple[CorporateActionStageRequest, ...],
+) -> tuple[tuple[CorporateActionStageRequest, ...], CorporateActionStageRequest]:
+    """Keep cash on its original planner and normalize only share or rights batches."""
+
+    if _is_cash_revision(requests):
+        return _prepare_cash_revision_requests(requests)
+    try:
+        plan = plan_corporate_action_share_revision(requests)
+    except CorporateActionInputValidationError as error:
+        raise CorporateActionPostingBlockedError(str(error), code=error.code) from error
+    return plan.requests, plan.gate_anchor
+
+
+def _restore_audited_revision_receipt_order(
+    requests: tuple[CorporateActionStageRequest, ...],
+    receipts: tuple[CorporateActionPostingReceipt, ...],
+) -> tuple[CorporateActionPostingReceipt, ...]:
+    """Restore the original request order while retaining cash's exact old check path."""
+
+    if _is_cash_revision(requests):
+        return _restore_cash_revision_receipt_order(requests, receipts)
+    try:
+        plan = plan_corporate_action_share_revision(requests)
+    except CorporateActionInputValidationError as error:
+        raise CorporateActionPostingBlockedError(str(error), code=error.code) from error
+    receipts_by_stage_key = {receipt.stage_key: receipt for receipt in receipts}
+    if len(receipts_by_stage_key) != len(receipts) or set(receipts_by_stage_key) != set(
+        plan.caller_stage_keys
+    ):
+        raise CorporateActionPostingBlockedError(
+            "share revision receipts do not match the submitted stage keys",
+            code="CORPORATE_ACTION_AUDIT_IDENTITY_CONFLICT",
+        )
+    return tuple(receipts_by_stage_key[stage_key] for stage_key in plan.caller_stage_keys)
 
 
 def _ledger_row_matches_request(
@@ -478,7 +530,7 @@ class _DjangoCorporateActionReplayTimestampVerifier(CorporateActionSourceTimesta
             or self.coordinator.database_alias != self.using
         ):
             raise ValueError("replay verifier scope is invalid")
-        ordered, representative = _prepare_cash_revision_requests(self.requests)
+        ordered, representative = _prepare_audited_revision_requests(self.requests)
         if ordered != self.requests or representative is not self.representative:
             raise ValueError("replay verifier request tuple is not its captured canonical tuple")
 
@@ -632,9 +684,9 @@ class DjangoAuditedCorporateActionPostingRepository(AuditedCorporateActionPostin
         self,
         requests: tuple[CorporateActionStageRequest, ...],
     ) -> tuple[CorporateActionPostingReceipt, ...]:
-        """Atomically append one cash stage or a complete audited cash correction batch."""
+        """Append one supported audited action or one complete correction batch."""
 
-        ordered_requests, representative = _prepare_cash_revision_requests(requests)
+        ordered_requests, representative = _prepare_audited_revision_requests(requests)
         replay_verifier = _DjangoCorporateActionReplayTimestampVerifier(
             coordinator=self._coordinator,
             posting=self._posting,
@@ -654,7 +706,7 @@ class DjangoAuditedCorporateActionPostingRepository(AuditedCorporateActionPostin
                     ordered_requests,
                     authority=authority,
                 )
-                return _restore_cash_revision_receipt_order(requests, receipts)
+                return _restore_audited_revision_receipt_order(requests, receipts)
 
     def _post_revision_in_atomic(
         self,
@@ -728,6 +780,8 @@ class DjangoAuditedCorporateActionPostingRepository(AuditedCorporateActionPostin
                     "corporate-action Audit writer substituted the event",
                     code="CORPORATE_ACTION_AUDIT_IDENTITY_CONFLICT",
                 )
+        if any(not receipt.replayed for receipt in receipts):
+            self._posting.assert_current_sources(requests)
         if self._assert_current_authority(authority) != authority:
             raise CorporateActionPostingBlockedError(
                 "Audit authority changed before corporate-action commit",

@@ -27,6 +27,8 @@ from apps.account.domain.simulated_corporate_action_write_grant import (
     SIMULATED_CORPORATE_ACTION_WRITE_GRANT_SCHEMA,
     SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_PERMISSION,
     SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA,
+    SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_PERMISSION,
+    SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA,
     SimulatedCorporateActionWriteGrant,
     SimulatedCorporateActionWriteGrantSelector,
 )
@@ -67,12 +69,15 @@ from core.exceptions import AuthorizationError
 
 @dataclass(frozen=True, slots=True)
 class OwnerGrantedCorporateActionAuthority:
-    """Exact current owner grant and Audit scope used by one write transaction."""
+    """Exact current owner grant, operation capability and Audit scope for one UOW."""
 
     user_id: int
     scope: AuditScopeRef
     grant: SimulatedCorporateActionWriteGrant
     authority_valid_until: datetime
+    required_capability: SimulatedCorporateActionWriteCapability = (
+        SimulatedCorporateActionWriteCapability.CASH_STAGE_WRITE
+    )
 
     def __post_init__(self) -> None:
         """Require the scope and finite cutoff to derive from the exact grant."""
@@ -92,22 +97,42 @@ class OwnerGrantedCorporateActionAuthority:
                 tenant_id=self.grant.binding.tenant_id,
                 owner_id=self.grant.binding.owner_id,
             )
+            or type(self.required_capability) is not SimulatedCorporateActionWriteCapability
             or self.grant.schema
             not in {
                 SIMULATED_CORPORATE_ACTION_WRITE_GRANT_SCHEMA,
                 SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA,
+                SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA,
             }
             or (
                 self.grant.schema == SIMULATED_CORPORATE_ACTION_WRITE_GRANT_SCHEMA
-                and self.grant.permission != SIMULATED_CORPORATE_ACTION_STAGE_WRITE_PERMISSION
+                and (
+                    self.grant.permission != SIMULATED_CORPORATE_ACTION_STAGE_WRITE_PERMISSION
+                    or self.required_capability
+                    is not SimulatedCorporateActionWriteCapability.CASH_STAGE_WRITE
+                )
             )
             or (
                 self.grant.schema == SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA
-                and self.grant.permission != SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_PERMISSION
+                and (
+                    self.grant.permission != SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_PERMISSION
+                    or self.required_capability
+                    is not SimulatedCorporateActionWriteCapability.CASH_STAGE_WRITE
+                )
             )
-            or not self.grant.supports_capability(
-                SimulatedCorporateActionWriteCapability.CASH_STAGE_WRITE
+            or (
+                self.grant.schema == SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA
+                and (
+                    self.grant.permission != SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_PERMISSION
+                    or self.required_capability
+                    not in {
+                        SimulatedCorporateActionWriteCapability.CASH_STAGE_WRITE,
+                        SimulatedCorporateActionWriteCapability.SHARE_STAGE_WRITE,
+                        SimulatedCorporateActionWriteCapability.RIGHTS_NOT_EXERCISED,
+                    }
+                )
             )
+            or not self.grant.supports_capability(self.required_capability)
             or self.grant.service_actor_id != SIMULATED_CORPORATE_ACTION_SERVICE_ACTOR_ID
         ):
             raise ValueError("owner-granted Audit scope differs from the exact Account grant")
@@ -164,6 +189,7 @@ class DjangoCorporateActionOwnerGrantGate:
         if type(expected_grant_schema) is not str or expected_grant_schema not in {
             SIMULATED_CORPORATE_ACTION_WRITE_GRANT_SCHEMA,
             SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA,
+            SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA,
         }:
             raise CorporateActionPostingBlockedError(
                 "owner-grant schema is unsupported",
@@ -219,15 +245,14 @@ class DjangoCorporateActionOwnerGrantGate:
         *,
         grant: SimulatedCorporateActionWriteGrant,
         scope: LockedSimulatedCorporateActionWriteScope,
+        required_capability: SimulatedCorporateActionWriteCapability,
     ) -> bool:
-        """Require the exact server-selected schema and cash capability subset."""
+        """Require the exact server schema and selected capability in policy scope."""
 
         if (
             grant.schema != self._expected_grant_schema
             or scope.grant_schema != self._expected_grant_schema
-            or not grant.supports_capability(
-                SimulatedCorporateActionWriteCapability.CASH_STAGE_WRITE
-            )
+            or not grant.supports_capability(required_capability)
         ):
             return False
         if self._expected_grant_schema == SIMULATED_CORPORATE_ACTION_WRITE_GRANT_SCHEMA:
@@ -250,8 +275,10 @@ class DjangoCorporateActionOwnerGrantGate:
             and grant.terms_sha256 == scope.terms_sha256
         )
 
-    def _require_request(self, request: CorporateActionStageRequest) -> None:
-        """Accept only one ordinary cash-dividend posting for the server owner selector."""
+    def _require_request(
+        self, request: CorporateActionStageRequest
+    ) -> SimulatedCorporateActionWriteCapability:
+        """Bind one exact ordinary stage to its schema-specific owner capability."""
 
         if type(request) is not CorporateActionStageRequest:
             raise self._block(
@@ -264,15 +291,47 @@ class DjangoCorporateActionOwnerGrantGate:
             raise self._block(
                 "owner-grant request is invalid", code="CORPORATE_ACTION_INPUT_INVALID"
             ) from error
-        if (
-            request.action_kind is not CorporateActionKind.CASH_DIVIDEND
-            or request.stage
-            not in {CorporateActionStage.CASH_ENTITLEMENT, CorporateActionStage.CASH_PAYMENT}
-            or request.entry_kind
-            not in {CorporateActionEntryKind.POSTING, CorporateActionEntryKind.SUCCESSOR}
+        ordinary_entry = request.entry_kind in {
+            CorporateActionEntryKind.POSTING,
+            CorporateActionEntryKind.SUCCESSOR,
+        }
+        cash_stage = (
+            request.action_kind is CorporateActionKind.CASH_DIVIDEND
+            and request.stage
+            in {CorporateActionStage.CASH_ENTITLEMENT, CorporateActionStage.CASH_PAYMENT}
+            and ordinary_entry
+        )
+        if self._expected_grant_schema in {
+            SIMULATED_CORPORATE_ACTION_WRITE_GRANT_SCHEMA,
+            SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA,
+        }:
+            required_capability = (
+                SimulatedCorporateActionWriteCapability.CASH_STAGE_WRITE if cash_stage else None
+            )
+        elif cash_stage:
+            required_capability = SimulatedCorporateActionWriteCapability.CASH_STAGE_WRITE
+        elif (
+            request.action_kind is CorporateActionKind.SHARE_DISTRIBUTION
+            and request.stage
+            in {
+                CorporateActionStage.SHARE_ENTITLEMENT,
+                CorporateActionStage.SHARE_DELIVERY,
+                CorporateActionStage.SHARE_SELLABLE_RELEASE,
+            }
+            and ordinary_entry
         ):
+            required_capability = SimulatedCorporateActionWriteCapability.SHARE_STAGE_WRITE
+        elif (
+            request.action_kind is CorporateActionKind.RIGHTS_ISSUE
+            and request.stage is CorporateActionStage.RIGHTS_NOT_EXERCISED
+            and request.entry_kind is CorporateActionEntryKind.NO_EFFECT
+        ):
+            required_capability = SimulatedCorporateActionWriteCapability.RIGHTS_NOT_EXERCISED
+        else:
+            required_capability = None
+        if required_capability is None:
             raise self._block(
-                "owner-grant gate accepts one ordinary cash posting stage",
+                "owner-grant schema does not authorize this exact action stage",
                 code="CORPORATE_ACTION_STAGE_UNSUPPORTED",
             )
         if request.owner_user_id != self._selector.binding.owner_user_id:
@@ -280,6 +339,7 @@ class DjangoCorporateActionOwnerGrantGate:
                 "owner-grant account differs from the locked owner",
                 code="CORPORATE_ACTION_ACCOUNT_SCOPE_INVALID",
             )
+        return required_capability
 
     def _read_audit_lease(self, *, as_of: datetime) -> SystemAuditAuthorityLease:
         """Require global transactional-Outbox readiness without borrowing staff scope."""
@@ -360,7 +420,7 @@ class DjangoCorporateActionOwnerGrantGate:
             with locked_current_simulated_corporate_action_write_grant(
                 selector=authority.grant.selector,
                 using=self._using,
-                required_capability=SimulatedCorporateActionWriteCapability.CASH_STAGE_WRITE,
+                required_capability=authority.required_capability,
             ) as current_grant:
                 if current_grant != authority.grant:
                     raise self._block(
@@ -435,7 +495,7 @@ class DjangoCorporateActionOwnerGrantGate:
                 "source timestamp replay verifier is invalid",
                 code="CORPORATE_ACTION_WRITE_AUTHORITY_UNAVAILABLE",
             )
-        self._require_request(request)
+        required_capability = self._require_request(request)
         try:
             connection = connections[self._using]
             if (
@@ -496,9 +556,7 @@ class DjangoCorporateActionOwnerGrantGate:
                         with locked_current_simulated_corporate_action_write_grant(
                             selector=self._selector,
                             using=self._using,
-                            required_capability=(
-                                SimulatedCorporateActionWriteCapability.CASH_STAGE_WRITE
-                            ),
+                            required_capability=required_capability,
                         ) as grant:
                             if type(grant) is not SimulatedCorporateActionWriteGrant:
                                 raise self._block(
@@ -512,6 +570,7 @@ class DjangoCorporateActionOwnerGrantGate:
                                 or not self._grant_matches_locked_scope(
                                     grant=grant,
                                     scope=scope,
+                                    required_capability=required_capability,
                                 )
                                 or grant.valid_until > scope.valid_until
                                 or not grant.is_active_at(now)
@@ -543,6 +602,7 @@ class DjangoCorporateActionOwnerGrantGate:
                                 ),
                                 grant=grant,
                                 authority_valid_until=valid_until,
+                                required_capability=required_capability,
                             )
                             state = _ActiveAuthority(
                                 authority=authority,

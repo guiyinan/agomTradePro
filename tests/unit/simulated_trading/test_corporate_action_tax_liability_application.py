@@ -14,7 +14,9 @@ from apps.account.domain.simulated_corporate_action_write_capabilities import (
 )
 from apps.account.domain.simulated_corporate_action_write_grant import (
     SIMULATED_CORPORATE_ACTION_SERVICE_ACTOR_ID,
+    SIMULATED_CORPORATE_ACTION_WRITE_GRANT_SCHEMA,
     SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA,
+    SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA,
 )
 from apps.simulated_trading.application import corporate_action_tax_liability as liability_app
 from apps.simulated_trading.application.corporate_action_tax_assessment import (
@@ -590,6 +592,32 @@ def test_v2_withholding_lease_requires_explicit_withhold_capability() -> None:
         replace(lease, grant_schema=SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA + "-wrong")
     with pytest.raises(BusinessLogicError):
         replace(lease, currency="USD")
+
+
+def test_withholding_lease_accepts_v3_but_keeps_v2_capability_boundary() -> None:
+    assessment = _taxable_assessment()
+    v2_lease = _lease(assessment)
+    v3_capabilities = tuple(
+        sorted(
+            (Capability.TAX_WITHHOLD, Capability.SHARE_STAGE_WRITE),
+            key=lambda capability: capability.value,
+        )
+    )
+
+    v3_lease = replace(
+        v2_lease,
+        grant_schema=SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA,
+        capabilities=v3_capabilities,
+    )
+    assert v3_lease.grant_schema == SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA
+    assert Capability.TAX_WITHHOLD in v3_lease.capabilities
+
+    with pytest.raises(BusinessLogicError):
+        replace(v2_lease, capabilities=v3_capabilities)
+    with pytest.raises(BusinessLogicError):
+        replace(v3_lease, capabilities=(Capability.TAX_ASSESS,))
+    with pytest.raises(BusinessLogicError):
+        replace(v2_lease, grant_schema=SIMULATED_CORPORATE_ACTION_WRITE_GRANT_SCHEMA)
 
 
 def test_exact_cash_operation_retry_returns_original_snapshot_after_balance_changes() -> None:

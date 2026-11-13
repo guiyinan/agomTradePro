@@ -497,3 +497,56 @@ def test_postfix_cash_wording_cannot_hide_a_conflicting_earlier_proposal(
     else:
         assert terms is not None
         assert terms.cash_per_ten == expected
+
+
+@pytest.mark.parametrize(
+    ("date_text", "delivery", "sellable"),
+    [
+        (
+            "新增股份到账日为：2026年9月24日。新增可流通股份上市日为：2026年9月25日。",
+            date(2026, 9, 24),
+            date(2026, 9, 25),
+        ),
+        ("", None, None),
+        (
+            "新增股份到账日为：2026年9月24日。新增股份到账日为：2026年9月25日。新增股份上市日为：2026年9月25日。",
+            None,
+            date(2026, 9, 25),
+        ),
+    ],
+)
+def test_share_delivery_and_sellable_dates_are_independent_explicit_facts(
+    monkeypatch, date_text, delivery, sellable
+):
+    monkeypatch.setattr(requests, "get", lambda *a, **kw: _response(_BODY))
+    captured = capture_official_szse_pdf(_URL)
+    text = (
+        "证券代码：002727\n2026年半年度权益分派实施公告\n每10股转增4股，不派发现金红利。不涉及扣税情形。"
+        "股权登记日为：2026年9月23日。除权除息日为：2026年9月24日。" + date_text
+    )
+    monkeypatch.setattr(
+        capture_module,
+        "PdfReader",
+        lambda *a, **kw: SimpleNamespace(pages=(SimpleNamespace(extract_text=lambda: text),)),
+    )
+    terms = extract_szse_distribution_terms(captured, "002727")
+    assert terms is not None
+    assert terms.share_delivery_date == delivery
+    assert terms.share_sellable_date == sellable
+    assert terms.tax_treatment == "not_applicable"
+
+
+def test_notification_title_can_be_read_without_promoting_unknown_category(monkeypatch):
+    monkeypatch.setattr(requests, "get", lambda *a, **kw: _response(_BODY))
+    captured = capture_official_szse_pdf(_URL)
+    text = "证券代码：002727\n关于召开2026年第五次临时股东会的通知\n会议时间及投票方式。"
+    monkeypatch.setattr(
+        capture_module,
+        "PdfReader",
+        lambda *a, **kw: SimpleNamespace(pages=(SimpleNamespace(extract_text=lambda: text),)),
+    )
+    title, kind = classify_szse_pdf_disclosure(
+        captured, "002727", expected_listing_title="一心堂：关于召开2026年第五次临时股东会的通知"
+    )
+    assert title == "关于召开2026年第五次临时股东会的通知"
+    assert kind is SecurityDisclosureEventType.UNKNOWN

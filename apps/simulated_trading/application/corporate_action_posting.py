@@ -90,17 +90,31 @@ class CorporateActionOwnershipProofVerifier(HistoricalAccountOwnershipVerifierPr
         self._reader = reader
 
     def verify_ownership(self, request: CorporateActionStageRequest) -> bool:
-        """Accept only a cash entitlement whose complete proof matches every identity."""
+        """Accept only supported entitlement or no-exercise rows with an exact proof."""
 
+        if type(request) is not CorporateActionStageRequest:
+            return False
+        ordinary_entry = request.entry_kind in {
+            CorporateActionEntryKind.POSTING,
+            CorporateActionEntryKind.SUCCESSOR,
+        }
+        supported_entitlement = ordinary_entry and (
+            (
+                request.action_kind is CorporateActionKind.CASH_DIVIDEND
+                and request.stage is CorporateActionStage.CASH_ENTITLEMENT
+            )
+            or (
+                request.action_kind is CorporateActionKind.SHARE_DISTRIBUTION
+                and request.stage is CorporateActionStage.SHARE_ENTITLEMENT
+            )
+        )
+        supported_unexercised_rights = (
+            request.action_kind is CorporateActionKind.RIGHTS_ISSUE
+            and request.stage is CorporateActionStage.RIGHTS_NOT_EXERCISED
+            and request.entry_kind is CorporateActionEntryKind.NO_EFFECT
+        )
         if (
-            type(request) is not CorporateActionStageRequest
-            or request.action_kind is not CorporateActionKind.CASH_DIVIDEND
-            or request.stage is not CorporateActionStage.CASH_ENTITLEMENT
-            or request.entry_kind
-            not in {
-                CorporateActionEntryKind.POSTING,
-                CorporateActionEntryKind.SUCCESSOR,
-            }
+            not (supported_entitlement or supported_unexercised_rights)
             or request.ownership_snapshot_observed_at != request.qualified_at
         ):
             return False

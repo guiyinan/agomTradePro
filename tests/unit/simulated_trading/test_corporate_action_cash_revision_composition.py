@@ -710,3 +710,202 @@ def test_cash_revision_builder_wires_general_stage_use_case_to_audited_port(
     assert factory.environment == "development"
     assert factory.owner_grant_gate is not None
     assert captured["using"] == "default"
+
+
+def _share_delivery_source_fixture():
+    event = replace(_lineage()[0].event, event_type=SecurityDisclosureEventType.STOCK_DIVIDEND)
+    terms = SzseDistributionTerms(
+        record_date=_RECORD_DATE,
+        ex_date=_EX_DATE,
+        payment_date=None,
+        cash_per_ten=None,
+        shares_per_ten=Decimal("1.00"),
+        tax_treatment="not_applicable",
+        share_delivery_date=_EX_DATE,
+        share_sellable_date=_PAYMENT_DATE,
+    )
+    request = replace(
+        _stage_request(
+            event,
+            logical_event_id=event.source_event_id,
+            terms=terms,
+            entry_kind=CorporateActionEntryKind.POSTING,
+            stage=CorporateActionStage.CASH_ENTITLEMENT,
+        ),
+        action_kind=CorporateActionKind.SHARE_DISTRIBUTION,
+        stage=CorporateActionStage.SHARE_DELIVERY,
+        stage_date=_EX_DATE,
+        cash_amount=None,
+        share_amount=Decimal("100"),
+        payment_date=None,
+        sellable_date=_PAYMENT_DATE,
+        odd_lot_policy="whole_shares",
+        ownership_snapshot_id=None,
+        ownership_snapshot_sha256=None,
+        ownership_snapshot_as_of_date=None,
+        ownership_snapshot_observed_at=None,
+        eligible_quantity=None,
+        entitlement_calculation_sha256=None,
+    )
+    return event, terms, request
+
+
+@pytest.mark.parametrize(
+    "defect", ["missing_delivery", "missing_sellable", "wrong_sellable", "unqualified_tax"]
+)
+def test_share_credit_requires_exact_independent_source_dates_and_tax(defect):
+    event, terms, request = _share_delivery_source_fixture()
+    assert official.VerifiedSzseActionSourceQualifier._matches_terms(request, event, terms)
+    if defect == "missing_delivery":
+        terms = replace(terms, share_delivery_date=None)
+    elif defect == "missing_sellable":
+        terms = replace(terms, share_sellable_date=None)
+    elif defect == "wrong_sellable":
+        request = replace(request, sellable_date=_PAYMENT_DATE + timedelta(days=1))
+    else:
+        terms = replace(terms, tax_treatment="deferred_withholding")
+        request = replace(request, tax_treatment="deferred_withholding")
+    request = replace(
+        request, qualification_sha256=official.szse_action_qualification_sha256(event, terms)
+    )
+    assert not official.VerifiedSzseActionSourceQualifier._matches_terms(request, event, terms)
+
+
+def test_share_qualification_digest_binds_both_independent_dates():
+    event, terms, request = _share_delivery_source_fixture()
+    original = official.szse_action_qualification_sha256(event, terms)
+    assert original != official.szse_action_qualification_sha256(
+        event, replace(terms, share_delivery_date=_EX_DATE + timedelta(days=1))
+    )
+    assert original != official.szse_action_qualification_sha256(
+        event, replace(terms, share_sellable_date=_PAYMENT_DATE + timedelta(days=1))
+    )
+
+
+def test_official_share_delivery_cannot_be_dated_after_shanghai_today(monkeypatch):
+    event, terms, request = _share_delivery_source_fixture()
+    delivery = _T3.date() + timedelta(days=1)
+    sellable = delivery + timedelta(days=1)
+    terms = replace(terms, share_delivery_date=delivery, share_sellable_date=sellable)
+    request = replace(
+        request,
+        stage_date=delivery,
+        sellable_date=sellable,
+        qualification_sha256=official.szse_action_qualification_sha256(event, terms),
+    )
+    persisted = PersistedSecurityDisclosureEvent(
+        event=event, recorded_at=_T0 + timedelta(seconds=1)
+    )
+    monkeypatch.setattr(
+        official,
+        "make_security_disclosure_event_reader",
+        lambda **kw: _DisclosureReader((persisted,)),
+    )
+    monkeypatch.setattr(official, "read_verified_szse_distribution", lambda *a, **kw: terms)
+    monkeypatch.setattr(official.timezone, "now", lambda: _T3)
+    qualifier = official.VerifiedSzseActionSourceQualifier(body_store_root=Path("."))
+    assert not qualifier.verify_source(request)
+
+
+@pytest.mark.parametrize(
+    "defect", ["delivery_before_ex", "sellable_before_delivery", "late_delivery", "early_release"]
+)
+def test_share_stage_cannot_invent_or_reorder_the_official_dates(defect):
+    """A known date is not permission to shift delivery or unlock shares early."""
+    event, terms, request = _share_delivery_source_fixture()
+    if defect == "delivery_before_ex":
+        terms = replace(terms, share_delivery_date=_EX_DATE - timedelta(days=1))
+    elif defect == "sellable_before_delivery":
+        terms = replace(terms, share_sellable_date=_EX_DATE - timedelta(days=1))
+    elif defect == "late_delivery":
+        request = replace(request, stage_date=_EX_DATE + timedelta(days=1))
+    else:
+        request = replace(
+            request,
+            stage=CorporateActionStage.SHARE_SELLABLE_RELEASE,
+            stage_date=_EX_DATE,
+            sellable_date=_EX_DATE,
+        )
+    request = replace(
+        request, qualification_sha256=official.szse_action_qualification_sha256(event, terms)
+    )
+    assert not official.VerifiedSzseActionSourceQualifier._matches_terms(request, event, terms)
+
+
+def test_share_release_uses_the_independent_announced_sellable_day():
+    """The unlock is separate from delivery and does not grant registry rounding."""
+    event, terms, request = _share_delivery_source_fixture()
+    release = replace(
+        request, stage=CorporateActionStage.SHARE_SELLABLE_RELEASE, stage_date=_PAYMENT_DATE
+    )
+    assert official.VerifiedSzseActionSourceQualifier._matches_terms(release, event, terms)
+    assert not official.VerifiedSzseActionSourceQualifier._matches_terms(
+        replace(
+            release, odd_lot_policy="registry_final_quantity", odd_lot_confirmation_sha256="a" * 64
+        ),
+        event,
+        terms,
+    )
+
+
+def test_share_entitlement_needs_exact_record_date_quantity_without_guessed_rounding():
+    """Missing future delivery dates do not prevent exact whole-share receivable evidence."""
+    event, terms, delivery = _share_delivery_source_fixture()
+    terms = replace(terms, share_delivery_date=None, share_sellable_date=None)
+    original = _stage_request(
+        event,
+        logical_event_id=event.source_event_id,
+        terms=terms,
+        entry_kind=CorporateActionEntryKind.POSTING,
+        stage=CorporateActionStage.CASH_ENTITLEMENT,
+    )
+    entitlement = replace(
+        original,
+        action_kind=CorporateActionKind.SHARE_DISTRIBUTION,
+        stage=CorporateActionStage.SHARE_ENTITLEMENT,
+        cash_amount=None,
+        share_amount=Decimal("100.000000"),
+        odd_lot_policy="whole_shares",
+        qualification_sha256=official.szse_action_qualification_sha256(event, terms),
+    )
+    assert official.VerifiedSzseActionSourceQualifier._matches_terms(entitlement, event, terms)
+    assert not official.VerifiedSzseActionSourceQualifier._matches_terms(
+        replace(entitlement, eligible_quantity=Decimal("999.999999")), event, terms
+    )
+    assert not official.VerifiedSzseActionSourceQualifier._matches_terms(
+        replace(
+            entitlement,
+            odd_lot_policy="registry_final_quantity",
+            odd_lot_confirmation_sha256="a" * 64,
+        ),
+        event,
+        terms,
+    )
+
+
+def test_official_share_clock_uses_shanghai_day_not_utc_day(monkeypatch):
+    """A Shanghai midnight delivery is reached while UTC remains on the previous day."""
+    event, terms, request = _share_delivery_source_fixture()
+    reached_at = datetime(2026, 11, 10, 16, 0, tzinfo=UTC)
+    delivery_on = date(2026, 11, 11)
+    terms = replace(terms, share_delivery_date=delivery_on, share_sellable_date=delivery_on)
+    request = replace(
+        request,
+        stage_date=delivery_on,
+        sellable_date=delivery_on,
+        qualification_sha256=official.szse_action_qualification_sha256(event, terms),
+    )
+    persisted = PersistedSecurityDisclosureEvent(
+        event=event, recorded_at=_T0 + timedelta(seconds=1)
+    )
+    monkeypatch.setattr(
+        official,
+        "make_security_disclosure_event_reader",
+        lambda **kw: _DisclosureReader((persisted,)),
+    )
+    monkeypatch.setattr(official, "read_verified_szse_distribution", lambda *a, **kw: terms)
+    monkeypatch.setattr(official.timezone, "now", lambda: reached_at)
+    qualifier = official.VerifiedSzseActionSourceQualifier(body_store_root=Path("."))
+    assert qualifier.verify_source(request)
+    monkeypatch.setattr(official.timezone, "now", lambda: reached_at - timedelta(microseconds=1))
+    assert not qualifier.verify_source(request)

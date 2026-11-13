@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 7147,
+    "current_surface_references": 7148,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -22236,7 +22236,7 @@
     },
     {
       "path": "apps/simulated_trading/application/corporate_action_tax_liability.py",
-      "text": "\"\"\"Hold current owner, physical source, V2 TAX_WITHHOLD grant, and Audit scope locks.\"\"\""
+      "text": "\"\"\"Hold current owner, source, selected V2/V3 TAX_WITHHOLD grant, and Audit locks.\"\"\""
     },
     {
       "path": "apps/simulated_trading/application/corporate_action_tax_liability.py",
@@ -23591,6 +23591,10 @@
       "text": "raise _blocked(\"Financial UOW, current authority and Audit aliases must agree\")"
     },
     {
+      "path": "apps/simulated_trading/audited_share_corporate_action_posting_composition.py",
+      "text": "The supplied source and ownership verifiers must prove the current share-action"
+    },
+    {
       "path": "apps/simulated_trading/close_snapshot_submission_composition.py",
       "text": "\"\"\"Retain original source clocks while rechecking all current financial bindings.\"\"\""
     },
@@ -23724,7 +23728,7 @@
     },
     {
       "path": "apps/simulated_trading/corporate_action_owner_grant_gate.py",
-      "text": "\"\"\"Exact current owner grant and Audit scope used by one write transaction.\"\"\""
+      "text": "\"\"\"Exact current owner grant, operation capability and Audit scope for one UOW.\"\"\""
     },
     {
       "path": "apps/simulated_trading/corporate_action_owner_grant_gate.py",
@@ -23836,14 +23840,6 @@
     },
     {
       "path": "apps/simulated_trading/corporate_action_tax_liability_owner_scope_composition.py",
-      "text": "\"\"\"Require explicit current V2 withholding policy, terms, owner and signed grant.\"\"\""
-    },
-    {
-      "path": "apps/simulated_trading/corporate_action_tax_liability_owner_scope_composition.py",
-      "text": "\"\"\"Require explicit server-selected current authority and tax qualification.\"\"\""
-    },
-    {
-      "path": "apps/simulated_trading/corporate_action_tax_liability_owner_scope_composition.py",
       "text": "\"\"\"Return the single current-authority and financial-write database alias.\"\"\""
     },
     {
@@ -23872,7 +23868,7 @@
     },
     {
       "path": "apps/simulated_trading/corporate_action_tax_owner_scope_composition.py",
-      "text": "\"\"\"Match physical owner, exact current V2 policy, and authenticated grant facts.\"\"\""
+      "text": "\"\"\"Reject wrong owner, schema, or tax capability before reading the current grant.\"\"\""
     },
     {
       "path": "apps/simulated_trading/corporate_action_tax_owner_scope_composition.py",
@@ -24165,6 +24161,10 @@
     {
       "path": "apps/simulated_trading/domain/corporate_action_posting.py",
       "text": "\"settlement stages must reference their ledger entitlement, not current holdings\""
+    },
+    {
+      "path": "apps/simulated_trading/domain/corporate_action_share_revision.py",
+      "text": "complete current predecessor set before writing any row."
     },
     {
       "path": "apps/simulated_trading/domain/corporate_action_statutory_tax_terms.py",
@@ -24849,6 +24849,10 @@
     {
       "path": "apps/simulated_trading/infrastructure/corporate_action_posting_repository.py",
       "text": "\"stages on the current source version cannot claim a correction predecessor\","
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/corporate_action_posting_repository.py",
+      "text": "current quantity nor backdated execution dates prove the shares unspent."
     },
     {
       "path": "apps/simulated_trading/infrastructure/corporate_action_tax_assessment_repository.py",

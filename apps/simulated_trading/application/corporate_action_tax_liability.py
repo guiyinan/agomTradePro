@@ -21,6 +21,7 @@ from apps.account.domain.simulated_corporate_action_write_capabilities import (
 from apps.account.domain.simulated_corporate_action_write_grant import (
     SIMULATED_CORPORATE_ACTION_SERVICE_ACTOR_ID,
     SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA,
+    SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA,
 )
 from apps.simulated_trading.application.corporate_action_tax_assessment import (
     TaxAssessmentAppendDisposition,
@@ -49,6 +50,13 @@ from core.exceptions import BusinessLogicError
 
 _WITHHOLD_PERMISSION = SimulatedCorporateActionWriteCapability.TAX_WITHHOLD.value
 _ACCOUNT_NAMESPACE = "account"
+_V2_CAPABILITIES = frozenset(
+    {
+        SimulatedCorporateActionWriteCapability.CASH_STAGE_WRITE,
+        SimulatedCorporateActionWriteCapability.TAX_ASSESS,
+        SimulatedCorporateActionWriteCapability.TAX_WITHHOLD,
+    }
+)
 
 
 class TaxLiabilityAppendDisposition(StrEnum):
@@ -248,7 +256,11 @@ class TaxLiabilityWriteLease:
             raise _blocked("current withholding lease has an invalid cash action")
         if (
             self.permission != _WITHHOLD_PERMISSION
-            or self.grant_schema != SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA
+            or self.grant_schema
+            not in (
+                SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA,
+                SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA,
+            )
             or type(self.capabilities) is not tuple
             or not self.capabilities
             or any(
@@ -258,10 +270,14 @@ class TaxLiabilityWriteLease:
             or tuple(sorted(set(self.capabilities), key=lambda item: item.value))
             != self.capabilities
             or SimulatedCorporateActionWriteCapability.TAX_WITHHOLD not in self.capabilities
+            or (
+                self.grant_schema == SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA
+                and any(capability not in _V2_CAPABILITIES for capability in self.capabilities)
+            )
             or self.service_actor_id != SIMULATED_CORPORATE_ACTION_SERVICE_ACTOR_ID
         ):
             raise _blocked(
-                "an explicit V2 tax-withholding grant is required",
+                "an explicit versioned tax-withholding grant is required",
                 "TAX_LIABILITY_AUTHORITY_BLOCKED",
             )
         _token(self.grant_schema, field_name="grant_schema")
@@ -572,7 +588,7 @@ class TaxLiabilityCurrentState:
 
 
 class CurrentTaxLiabilityScopeVerifierPort(Protocol):
-    """Hold current owner, physical source, V2 TAX_WITHHOLD grant, and Audit scope locks."""
+    """Hold current owner, source, selected V2/V3 TAX_WITHHOLD grant, and Audit locks."""
 
     @property
     def database_alias(self) -> str:

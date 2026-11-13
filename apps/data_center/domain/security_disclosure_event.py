@@ -26,6 +26,8 @@ class SzseDistributionTerms:
     cash_per_ten: Decimal | None
     shares_per_ten: Decimal | None
     tax_treatment: str | None
+    share_delivery_date: date | None = None
+    share_sellable_date: date | None = None
 
 
 class SecurityDisclosureExchange(StrEnum):

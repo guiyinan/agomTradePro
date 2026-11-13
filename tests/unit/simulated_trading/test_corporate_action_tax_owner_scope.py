@@ -20,6 +20,8 @@ from apps.account.domain.simulated_corporate_action_write_grant import (
     SIMULATED_CORPORATE_ACTION_WRITE_GRANT_SCHEMA,
     SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_PERMISSION,
     SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA,
+    SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_PERMISSION,
+    SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA,
     SimulatedCorporateActionWriteGrant,
     SimulatedCorporateActionWriteGrantBinding,
 )
@@ -27,6 +29,9 @@ from apps.audit.application.system_audit_authority_renewal_guard import (
     SystemAuditAuthorityLease,
 )
 from apps.audit.domain.system_audit_event import AuditScopeRef, AuditWritePolicy
+from apps.simulated_trading import (
+    corporate_action_tax_liability_owner_scope_composition as liability_owner_scope,
+)
 from apps.simulated_trading import corporate_action_tax_owner_scope_composition as owner_scope
 from apps.simulated_trading.application.corporate_action_tax_qualification import (
     CurrentTaxAssessmentQualification,
@@ -34,6 +39,9 @@ from apps.simulated_trading.application.corporate_action_tax_qualification impor
 from apps.simulated_trading.audited_corporate_action_tax_assessment_composition import (
     AuditedTaxAssessmentScopeVerifierPort,
     TaxAssessmentAuditOrigin,
+)
+from apps.simulated_trading.corporate_action_tax_liability_owner_scope_composition import (
+    DjangoTaxLiabilityOwnerScopeVerifier,
 )
 from apps.simulated_trading.corporate_action_tax_owner_scope_composition import (
     DjangoTaxAssessmentOwnerScopeVerifier,
@@ -83,6 +91,8 @@ def _grant(
     terms_sha256: str | None = _TERMS_SHA,
 ) -> SimulatedCorporateActionWriteGrant:
     is_v2 = schema == SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA
+    is_v3 = schema == SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA
+    is_versioned = is_v2 or is_v3
     return SimulatedCorporateActionWriteGrant(
         grant_id="synthetic-current-grant",
         grant_version="grant-v2",
@@ -100,13 +110,17 @@ def _grant(
         permission=(
             SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_PERMISSION
             if is_v2
-            else SIMULATED_CORPORATE_ACTION_STAGE_WRITE_PERMISSION
+            else (
+                SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_PERMISSION
+                if is_v3
+                else SIMULATED_CORPORATE_ACTION_STAGE_WRITE_PERMISSION
+            )
         ),
         service_actor_id=SIMULATED_CORPORATE_ACTION_SERVICE_ACTOR_ID,
         schema=schema,
-        capabilities=capabilities if is_v2 else None,
-        terms_version=terms_version if is_v2 else None,
-        terms_sha256=terms_sha256 if is_v2 else None,
+        capabilities=capabilities if is_versioned else None,
+        terms_version=terms_version if is_versioned else None,
+        terms_sha256=terms_sha256 if is_versioned else None,
     )
 
 
@@ -130,6 +144,11 @@ def _locked_scope(
         selected_capabilities = _ordered_capabilities(
             Capability.CASH_STAGE_WRITE, Capability.TAX_ASSESS
         )
+    elif (
+        selected_capabilities is None
+        and selected_schema == SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA
+    ):
+        selected_capabilities = (Capability.TAX_ASSESS,)
     return LockedSimulatedCorporateActionWriteScope(
         physical_account_id=(
             assessment.account_id if physical_account_id is None else physical_account_id
@@ -243,6 +262,7 @@ def _harness(
     grant_results: tuple[object, ...] | None = None,
     audit_results: tuple[SystemAuditAuthorityLease | object, ...] | None = None,
     clock_values: tuple[datetime, ...] = (_NOW,),
+    expected_grant_schema: str = SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA,
 ) -> tuple[DjangoTaxAssessmentOwnerScopeVerifier, CorporateActionTaxAssessment, dict[str, object]]:
     selected_assessment = _assessment() if assessment is None else assessment
     selected_grant = _grant(selected_assessment) if grant is None else grant
@@ -349,6 +369,7 @@ def _harness(
         qualification_provider=qualification_provider,
         using="default",
         environment="development",
+        expected_grant_schema=expected_grant_schema,
     )
     calls["qualification_provider"] = qualification_provider
     return verifier, selected_assessment, calls
@@ -414,6 +435,286 @@ def test_owner_tax_assessment_requires_explicit_v2_tax_capability_and_yields_exa
     assert len(provider.calls) == 2
     with pytest.raises(BusinessLogicError):
         verifier.get_locked_audit_origin()
+
+
+def test_owner_tax_assessment_uses_explicit_v3_scope_and_tax_assess_capability(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    assessment = _assessment()
+    capabilities = (Capability.TAX_ASSESS,)
+    grant = _grant(
+        assessment,
+        schema=SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA,
+        capabilities=capabilities,
+    )
+    verifier, _, calls = _harness(
+        monkeypatch,
+        assessment=assessment,
+        grant=grant,
+        locked_scope=_locked_scope(assessment, grant, capabilities=capabilities),
+        expected_grant_schema=SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA,
+    )
+
+    with verifier.locked_current_scope(
+        assessment,
+        actor_user_id=assessment.owner_user_id,
+        using="default",
+    ) as lease:
+        assert lease.permission == Capability.TAX_ASSESS.value
+        assert verifier.get_locked_audit_origin().grant_content_sha256 == grant.content_hash
+
+    scope_calls = calls["scope"]
+    assert isinstance(scope_calls, list)
+    assert (
+        scope_calls[0]["expected_grant_schema"] == SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA
+    )
+    grant_calls = calls["grant"]
+    assert isinstance(grant_calls, list) and len(grant_calls) == 2
+
+
+def test_owner_tax_assessment_does_not_infer_v3_selection_or_tax_capability(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    assessment = _assessment()
+    v3_share_only = _grant(
+        assessment,
+        schema=SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA,
+        capabilities=(Capability.SHARE_STAGE_WRITE,),
+    )
+    verifier, _, calls = _harness(
+        monkeypatch,
+        assessment=assessment,
+        grant=v3_share_only,
+        locked_scope=_locked_scope(
+            assessment, v3_share_only, capabilities=(Capability.SHARE_STAGE_WRITE,)
+        ),
+        expected_grant_schema=SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA,
+    )
+    with pytest.raises(BusinessLogicError):
+        with verifier.locked_current_scope(
+            assessment,
+            actor_user_id=assessment.owner_user_id,
+            using="default",
+        ):
+            pass
+    assert calls["grant"] == []
+
+    v2 = _grant(assessment)
+    v3_selected_verifier, _, v2_calls = _harness(
+        monkeypatch,
+        assessment=assessment,
+        grant=v2,
+        expected_grant_schema=SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA,
+    )
+    with pytest.raises(BusinessLogicError):
+        with v3_selected_verifier.locked_current_scope(
+            assessment,
+            actor_user_id=assessment.owner_user_id,
+            using="default",
+        ):
+            pass
+    assert v2_calls["grant"] == []
+
+    v3 = _grant(
+        assessment,
+        schema=SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA,
+        capabilities=(Capability.TAX_ASSESS,),
+    )
+    wrong_terms_scope = _locked_scope(
+        assessment,
+        v3,
+        capabilities=(Capability.TAX_ASSESS,),
+        terms_sha256="f" * 64,
+    )
+    terms_verifier, _, terms_calls = _harness(
+        monkeypatch,
+        assessment=assessment,
+        grant=v3,
+        locked_scope=wrong_terms_scope,
+        expected_grant_schema=SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA,
+    )
+    with pytest.raises(BusinessLogicError):
+        with terms_verifier.locked_current_scope(
+            assessment,
+            actor_user_id=assessment.owner_user_id,
+            using="default",
+        ):
+            pass
+    term_grant_calls = terms_calls["grant"]
+    qualification_provider = terms_calls["qualification_provider"]
+    assert isinstance(term_grant_calls, list) and len(term_grant_calls) == 1
+    assert isinstance(qualification_provider, _QualificationProvider)
+    assert qualification_provider.calls == []
+
+
+def test_tax_scope_verifiers_reject_v1_as_an_expected_schema(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with pytest.raises(BusinessLogicError):
+        _harness(monkeypatch, expected_grant_schema=SIMULATED_CORPORATE_ACTION_WRITE_GRANT_SCHEMA)
+
+
+def test_v3_liability_grant_requires_matching_schema_and_tax_withhold_capability() -> None:
+    assessment = _assessment()
+    capabilities = (Capability.TAX_WITHHOLD,)
+    grant = _grant(
+        assessment,
+        schema=SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA,
+        capabilities=capabilities,
+    )
+    scope = _locked_scope(assessment, grant, capabilities=capabilities)
+
+    liability_owner_scope._verify_grant(
+        scope=scope,
+        grant=grant,
+        selector=grant.selector,
+        assessment=assessment,
+        as_of=_NOW,
+        expected_grant_schema=SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA,
+    )
+    with pytest.raises(BusinessLogicError):
+        liability_owner_scope._verify_grant(
+            scope=scope,
+            grant=grant,
+            selector=grant.selector,
+            assessment=assessment,
+            as_of=_NOW,
+            expected_grant_schema=SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA,
+        )
+
+    v3_share_only = _grant(
+        assessment,
+        schema=SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA,
+        capabilities=(Capability.SHARE_STAGE_WRITE,),
+    )
+    with pytest.raises(BusinessLogicError):
+        liability_owner_scope._verify_grant(
+            scope=_locked_scope(
+                assessment, v3_share_only, capabilities=(Capability.SHARE_STAGE_WRITE,)
+            ),
+            grant=v3_share_only,
+            selector=v3_share_only.selector,
+            assessment=assessment,
+            as_of=_NOW,
+            expected_grant_schema=SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA,
+        )
+
+    wrong_terms_scope = _locked_scope(
+        assessment,
+        grant,
+        capabilities=capabilities,
+        terms_sha256="f" * 64,
+    )
+    with pytest.raises(BusinessLogicError):
+        liability_owner_scope._verify_grant(
+            scope=wrong_terms_scope,
+            grant=grant,
+            selector=grant.selector,
+            assessment=assessment,
+            as_of=_NOW,
+            expected_grant_schema=SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA,
+        )
+
+
+@pytest.mark.parametrize(
+    "expected_grant_schema",
+    (
+        SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA,
+        SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA,
+    ),
+)
+def test_tax_liability_verifier_passes_selected_schema_to_account_locker(
+    monkeypatch: pytest.MonkeyPatch,
+    expected_grant_schema: str,
+) -> None:
+    assessment = _assessment()
+    selected_grant = _grant(assessment)
+    provider = _QualificationProvider((_qualification(assessment, grant=selected_grant),))
+
+    class _Audit:
+        database_alias = "default"
+
+    locker = DjangoSimulatedCorporateActionWriteScopeLocker(
+        database_alias="default", runtime_environment="development"
+    )
+    if expected_grant_schema == SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA:
+        verifier = DjangoTaxLiabilityOwnerScopeVerifier(
+            selector=selected_grant.selector,
+            scope_locker=locker,
+            qualification_provider=provider,
+            audit=_Audit(),
+            using="default",
+            environment="development",
+            expected_grant_schema=expected_grant_schema,
+        )
+    else:
+        verifier = DjangoTaxLiabilityOwnerScopeVerifier(
+            selector=selected_grant.selector,
+            scope_locker=locker,
+            qualification_provider=provider,
+            audit=_Audit(),
+            using="default",
+            environment="development",
+        )
+    requested_schemas: list[str] = []
+
+    class _StopAtScope(Exception):
+        pass
+
+    @contextmanager
+    def eligibility(*, user_id: int, using: str) -> Iterator[None]:
+        assert user_id == assessment.owner_user_id
+        assert using == "default"
+        yield
+
+    def stop_at_scope(
+        selected_locker: DjangoSimulatedCorporateActionWriteScopeLocker,
+        **kwargs: object,
+    ) -> object:
+        assert selected_locker is locker
+        requested_schemas.append(str(kwargs["expected_grant_schema"]))
+        raise _StopAtScope
+
+    monkeypatch.setattr(liability_owner_scope, "_require_outer_read_committed", lambda **_: None)
+    monkeypatch.setattr(
+        liability_owner_scope, "locked_simulated_action_trading_eligibility", eligibility
+    )
+    monkeypatch.setattr(
+        DjangoSimulatedCorporateActionWriteScopeLocker, "lock_owned_scope", stop_at_scope
+    )
+    with pytest.raises(_StopAtScope):
+        with verifier.locked_current_scope(
+            assessment,
+            actor_user_id=assessment.owner_user_id,
+            using="default",
+            operation_id="v3-selection-probe-v1",
+            cash_action=None,
+        ):
+            pass
+
+    assert requested_schemas == [expected_grant_schema]
+
+
+def test_tax_liability_verifier_rejects_v1_schema_selection() -> None:
+    assessment = _assessment()
+    grant = _grant(assessment)
+    provider = _QualificationProvider((_qualification(assessment, grant=grant),))
+
+    class _Audit:
+        database_alias = "default"
+
+    with pytest.raises(BusinessLogicError):
+        DjangoTaxLiabilityOwnerScopeVerifier(
+            selector=grant.selector,
+            scope_locker=DjangoSimulatedCorporateActionWriteScopeLocker(
+                database_alias="default", runtime_environment="development"
+            ),
+            qualification_provider=provider,
+            audit=_Audit(),
+            using="default",
+            environment="development",
+            expected_grant_schema=SIMULATED_CORPORATE_ACTION_WRITE_GRANT_SCHEMA,
+        )
 
 
 def test_grant_cannot_outlive_its_locked_owner_policy_scope(

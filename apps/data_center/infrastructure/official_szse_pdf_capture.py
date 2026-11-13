@@ -43,7 +43,21 @@ _CASH_PER_TEN_POSTFIX = re.compile(
     r"每\s*10\s*股\s*派(?:发)?\s*([0-9]+(?:\.[0-9]+)?)\s*元\s*(?:人民币\s*)?现金"
 )
 _SHARES_PER_TEN = re.compile(r"每\s*10\s*股\s*转增\s*([0-9]+(?:\.[0-9]+)?)\s*股")
-_DISCLOSURE_TITLE_SUFFIXES = ("公告（更正后）", "更正公告", "公告", "法律意见书", "法律意见")
+_SHARE_DELIVERY_DATE = re.compile(
+    r"(?:新增股份|转增股份|红股)(?:到账|登记到账|交付)日(?:为)?\s*[:：]\s*" + _CHINESE_DATE
+)
+_SHARE_SELLABLE_DATE = re.compile(
+    r"(?:新增(?:可流通)?股份|转增股份|红股)(?:上市流通|上市交易|可售|上市)日(?:为)?\s*[:：]\s*"
+    + _CHINESE_DATE
+)
+_DISCLOSURE_TITLE_SUFFIXES = (
+    "公告（更正后）",
+    "更正公告",
+    "公告",
+    "法律意见书",
+    "法律意见",
+    "通知",
+)
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -401,6 +415,17 @@ def extract_szse_distribution_dates(
     return unique_date(_RECORD_DATE), unique_date(_EX_DATE)
 
 
+def _unique_disclosed_share_date(text: str, pattern: re.Pattern[str]) -> date | None:
+    """Keep an explicit source date unknown when missing, conflicting or invalid."""
+    matches = set(pattern.findall(text))
+    if len(matches) != 1:
+        return None
+    try:
+        return date(*(int(part) for part in next(iter(matches))))
+    except ValueError:
+        return None
+
+
 def extract_szse_distribution_terms(
     capture: CapturedOfficialSzsePdf, expected_security_code: str
 ) -> SzseDistributionTerms | None:
@@ -463,6 +488,14 @@ def extract_szse_distribution_terms(
         )
     if shares_per_ten is None or cash_per_ten is not None:
         return None
+    delivery = _unique_disclosed_share_date(text, _SHARE_DELIVERY_DATE)
+    sellable = _unique_disclosed_share_date(text, _SHARE_SELLABLE_DATE)
+    if (
+        (delivery is not None and delivery < ex_date)
+        or (sellable is not None and sellable < ex_date)
+        or (delivery is not None and sellable is not None and sellable < delivery)
+    ):
+        return None
     return SzseDistributionTerms(
         record_date=record_date,
         ex_date=ex_date,
@@ -470,6 +503,8 @@ def extract_szse_distribution_terms(
         cash_per_ten=None,
         shares_per_ten=shares_per_ten,
         tax_treatment="not_applicable" if "不涉及扣税情形" in text else None,
+        share_delivery_date=delivery,
+        share_sellable_date=sellable,
     )
 
 

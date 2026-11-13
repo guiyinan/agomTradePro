@@ -12115,11 +12115,11 @@
       },
       "layers": {
         "application": 131,
-        "domain": 52,
+        "domain": 53,
         "infrastructure": 148,
         "interface": 37,
         "management": 7,
-        "root": 53
+        "root": 54
       },
       "orm_models": {
         "infrastructure/models.py": [

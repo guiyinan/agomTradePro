@@ -22,6 +22,8 @@ from apps.account.domain.simulated_corporate_action_write_grant import (
     SIMULATED_CORPORATE_ACTION_SERVICE_ACTOR_ID,
     SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_PERMISSION,
     SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA,
+    SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_PERMISSION,
+    SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA,
     SimulatedCorporateActionWriteGrant,
     SimulatedCorporateActionWriteGrantSelector,
 )
@@ -84,6 +86,16 @@ def _server_now() -> datetime:
     return _utc(timezone.now(), field_name="server clock")
 
 
+def _permission_for_schema(expected_grant_schema: str) -> str:
+    """Return only the exact V2 or V3 capability-bundle marker."""
+
+    if expected_grant_schema == SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA:
+        return SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_PERMISSION
+    if expected_grant_schema == SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA:
+        return SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_PERMISSION
+    raise _blocked("tax assessment requires an explicit V2 or V3 grant schema")
+
+
 def _require_outer_read_committed(*, using: str) -> None:
     """Require the caller's outer PostgreSQL READ COMMITTED transaction."""
 
@@ -133,10 +145,12 @@ def _require_exact_scope_and_grant(
     selector: SimulatedCorporateActionWriteGrantSelector,
     locked_scope: LockedSimulatedCorporateActionWriteScope,
     grant: SimulatedCorporateActionWriteGrant,
+    expected_grant_schema: str,
     as_of: datetime,
 ) -> None:
-    """Match physical owner, exact current V2 policy, and authenticated grant facts."""
+    """Match the selected version's policy, permission, owner, and grant facts."""
 
+    expected_permission = _permission_for_schema(expected_grant_schema)
     if type(locked_scope) is not LockedSimulatedCorporateActionWriteScope:
         raise _blocked("locked physical and policy scope is untyped")
     locked_scope.__post_init__()
@@ -154,13 +168,13 @@ def _require_exact_scope_and_grant(
         or binding.account_namespace != "simulated"
         or binding.owner_user_id != assessment.owner_user_id
         or actor_user_id != assessment.owner_user_id
-        or locked_scope.grant_schema != SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA
+        or locked_scope.grant_schema != expected_grant_schema
         or locked_scope.capabilities is None
         or SimulatedCorporateActionWriteCapability.TAX_ASSESS not in locked_scope.capabilities
         or grant.selector != selector
         or grant.binding != binding
-        or grant.schema != SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA
-        or grant.permission != SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_PERMISSION
+        or grant.schema != expected_grant_schema
+        or grant.permission != expected_permission
         or grant.service_actor_id != SIMULATED_CORPORATE_ACTION_SERVICE_ACTOR_ID
         or grant.capabilities is None
         or not all(capability in locked_scope.capabilities for capability in grant.capabilities)
@@ -251,9 +265,11 @@ class DjangoTaxAssessmentOwnerScopeVerifier(AuditedTaxAssessmentScopeVerifierPor
         qualification_provider: CurrentTaxAssessmentQualificationPort,
         using: str,
         environment: str,
+        expected_grant_schema: str = SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA,
     ) -> None:
-        """Require a server-selected grant, concrete Account locker and real provider."""
+        """Require server-selected grant schema, concrete Account locker and provider."""
 
+        _permission_for_schema(expected_grant_schema)
         if type(selector) is not SimulatedCorporateActionWriteGrantSelector:
             raise _blocked("a server-selected current grant selector is required")
         selector.__post_init__()
@@ -280,6 +296,7 @@ class DjangoTaxAssessmentOwnerScopeVerifier(AuditedTaxAssessmentScopeVerifierPor
         self._qualification_provider = qualification_provider
         self._using = using
         self._environment = environment
+        self._expected_grant_schema = expected_grant_schema
 
     @property
     def database_alias(self) -> str:
@@ -331,13 +348,14 @@ class DjangoTaxAssessmentOwnerScopeVerifier(AuditedTaxAssessmentScopeVerifierPor
                 owner_user_id=actor_user_id,
                 expected_binding=self._selector.binding,
                 request=None,
-                expected_grant_schema=SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA,
+                expected_grant_schema=self._expected_grant_schema,
             ) as locked_scope:
                 _require_exact_scope_shape(
                     locked_scope=locked_scope,
                     assessment=assessment,
                     selector=self._selector,
                     actor_user_id=actor_user_id,
+                    expected_grant_schema=self._expected_grant_schema,
                 )
                 with locked_current_simulated_corporate_action_write_grant(
                     selector=self._selector,
@@ -351,6 +369,7 @@ class DjangoTaxAssessmentOwnerScopeVerifier(AuditedTaxAssessmentScopeVerifierPor
                         selector=self._selector,
                         locked_scope=locked_scope,
                         grant=grant,
+                        expected_grant_schema=self._expected_grant_schema,
                         as_of=entry_now,
                     )
                     qualification = self._qualification_provider.read_current(
@@ -463,9 +482,11 @@ def _require_exact_scope_shape(
     assessment: CorporateActionTaxAssessment,
     selector: SimulatedCorporateActionWriteGrantSelector,
     actor_user_id: int,
+    expected_grant_schema: str,
 ) -> None:
-    """Reject wrong physical owner or configured V1/cash-only scope before grant read."""
+    """Reject wrong owner, schema, or tax capability before reading the current grant."""
 
+    _permission_for_schema(expected_grant_schema)
     if type(locked_scope) is not LockedSimulatedCorporateActionWriteScope:
         raise _blocked("locked Account scope is untyped")
     locked_scope.__post_init__()
@@ -474,7 +495,7 @@ def _require_exact_scope_shape(
         or locked_scope.binding != selector.binding
         or selector.binding.owner_user_id != assessment.owner_user_id
         or actor_user_id != assessment.owner_user_id
-        or locked_scope.grant_schema != SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA
+        or locked_scope.grant_schema != expected_grant_schema
         or locked_scope.capabilities is None
         or SimulatedCorporateActionWriteCapability.TAX_ASSESS not in locked_scope.capabilities
     ):

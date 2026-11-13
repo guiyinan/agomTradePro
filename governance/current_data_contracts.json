@@ -14248,7 +14248,8 @@
         "apps/account/simulated_corporate_action_consent_composition.py",
         "apps/simulated_trading/corporate_action_consent_composition.py",
         "apps/simulated_trading/infrastructure/simulated_account_row_source_v2_repository.py",
-        "apps/simulated_trading/audited_corporate_action_posting_composition.py"
+        "apps/simulated_trading/audited_corporate_action_posting_composition.py",
+        "apps/simulated_trading/infrastructure/corporate_action_posting_repository.py"
       ],
       "required_markers": {
         "apps/account/simulated_corporate_action_write_issuance_composition.py": [
@@ -14275,7 +14276,10 @@
         ],
         "apps/simulated_trading/corporate_action_owner_grant_gate.py": [
           "atomic_authority",
-          "locked_simulated_action_trading_eligibility"
+          "locked_simulated_action_trading_eligibility",
+          "required_capability: SimulatedCorporateActionWriteCapability",
+          "SimulatedCorporateActionWriteCapability.SHARE_STAGE_WRITE",
+          "SimulatedCorporateActionWriteCapability.RIGHTS_NOT_EXERCISED"
         ],
         "apps/simulated_trading/corporate_action_write_scope_composition.py": [
           "not source.is_current_at(now)",
@@ -14305,7 +14309,15 @@
           "self.posting._resolve_exact_replay(self.requests, list(event_rows))",
           "source_namespace=request.source_namespace,",
           "delta = _delta_for_reversal(reversal_target)",
-          "winner.predecessor_hash != previous_winner.content_hash"
+          "winner.predecessor_hash != previous_winner.content_hash",
+          "self._posting.assert_current_sources(requests)"
+        ],
+        "apps/simulated_trading/infrastructure/corporate_action_posting_repository.py": [
+          "self._reject_spent_share_correction(planned)",
+          "Q(created_at__gte=cutoff) | Q(execution_time__gte=cutoff)",
+          "CORPORATE_ACTION_DELIVERED_SHARES_SPENT",
+          "CORPORATE_ACTION_SHARE_RECEIVABLE_NOT_FULLY_SETTLED",
+          "CORPORATE_ACTION_SELLABLE_NOT_FULLY_RELEASED"
         ]
       },
       "required_tests": [
@@ -14418,9 +14430,29 @@
           "case": "native_v3_http_terms_change_denial",
           "test_file": "tests/component/account/test_simulated_corporate_action_consent_capabilities_http.py",
           "test_function": "test_native_http_v3_changed_policy_terms_block_prepared_confirmation"
+        },
+        {
+          "case": "final_source_invalidates_new_write_not_original_replay",
+          "test_file": "tests/unit/simulated_trading/test_corporate_action_posting_source_recheck.py",
+          "test_function": "test_audited_new_writes_recheck_source_after_audit_but_exact_replay_does_not"
+        },
+        {
+          "case": "spent_shares_cannot_be_corrected_from_positive_current_balance",
+          "test_file": "tests/component/simulated_trading/test_corporate_action_share_correction_guard.py",
+          "test_function": "test_share_correction_blocks_any_later_executed_sale_before_writes"
+        },
+        {
+          "case": "unrelated_trade_and_later_readonly_replay",
+          "test_file": "tests/component/simulated_trading/test_corporate_action_share_correction_guard.py",
+          "test_function": "test_share_correction_allows_unrelated_trades_and_preserves_exact_replay"
+        },
+        {
+          "case": "full_share_delivery_and_unlock_not_partial",
+          "test_file": "tests/component/simulated_trading/test_corporate_action_share_correction_guard.py",
+          "test_function": "test_share_stage_must_settle_the_full_event_quantity"
         }
       ],
-      "notes": "Real Session/CSRF, current trading RBAC, locked physical ownership and exact canonical source/runtime policy, signed exact current grant and immutable revocation remain independent gates, rechecked before commit. Source clocks never become request clocks. V1 cash and V2 cash/assessment/withholding keep original bytes and powers. Explicit V3 has independent share-stage and rights-not-exercised capabilities, distinct policy/content/issuer/consent/token domains and pinned V3 terms; V2 cannot inherit these powers. Current-head capability reading does not itself post money or shares or qualify official/date/history facts. No default V3 activation. Only explicit current-head capability is admitted; historical metadata is for withdrawal/proof and never current authority. Unknown historical terms/key or policy loss cannot prevent authenticated withdrawal. Existing exact cash correction and financial retry require complete original namespace/source/ledger/Audit/Outbox facts and preserve every current permission gate. Operational V3 audited share/rights posting, current complete official windows and ordinary-user browser goldens remain separate pending work."
+      "notes": "Real Session/CSRF, current trading RBAC, locked physical ownership and exact canonical source/runtime policy, signed exact current grant and immutable revocation remain independent gates, rechecked before commit. Source clocks never become request clocks. V1 cash and V2 cash/assessment/withholding keep original bytes and powers. Explicit V3 has independent share-stage and rights-not-exercised capabilities, distinct policy/content/issuer/consent/token domains and pinned V3 terms; V2 cannot inherit these powers. Current-head capability reading does not itself post money or shares or qualify official/date/history facts. No default V3 activation. Only explicit current-head capability is admitted; historical metadata is for withdrawal/proof and never current authority. Unknown historical terms/key or policy loss cannot prevent authenticated withdrawal. Existing exact cash correction and financial retry require complete original namespace/source/ledger/Audit/Outbox facts and preserve every current permission gate. Operational V3 audited share/rights posting, current complete official windows and ordinary-user browser goldens remain separate pending work. Explicit V3 SHARE_STAGE_WRITE and RIGHTS_NOT_EXERCISED capabilities are independent. Share corrections unwind/reapply complete matching stages in dependency order and preserve caller receipt order; actual repository verifies immediate predecessor membership. Under the account lock, a new delivery reversal is rejected after any same-asset executed sale whose durable creation or execution instant reaches the original delivery creation instant. Current positive quantity and a backdated execution_date do not waive that fence. Exact retained replay stays read-only and requires current owner/grant/Audit evidence. New financial writes recheck current source after Audit append, before commit; original replay does not gain new current-source authority. New ordinary delivery must settle the full event share receivable and release must unlock the full outstanding delivered event quantity. Unique stage identity cannot strand a partial amount. Immediate-predecessor reversals still derive their exact inverse from retained immutable rows."
     },
     {
       "id": "data_center.configured_statutory_bundle_evidence",
@@ -14557,12 +14589,20 @@
           "if child_counts.get(selected_identity, 0) != 0:",
           "parent.recorded_at > known_cutoff",
           "event.first_seen_at != request.source_observed_at",
-          "read_verified_szse_distribution(event, body_store_root=self._body_store_root)"
+          "read_verified_szse_distribution(event, body_store_root=self._body_store_root)",
+          "\"share_delivery_date\": (",
+          "\"share_sellable_date\": (",
+          "request.odd_lot_policy == \"whole_shares\"",
+          "Fraction(request.share_amount) * 10",
+          "terms.share_sellable_date < terms.share_delivery_date",
+          "terms.tax_treatment != \"not_applicable\""
         ],
         "apps/data_center/infrastructure/official_szse_pdf_capture.py": [
           "_CASH_PER_TEN_POSTFIX",
           "cash_per_ten = unique_amount((_CASH_PER_TEN, _CASH_PER_TEN_POSTFIX))",
-          "def extract_szse_distribution_terms("
+          "def extract_szse_distribution_terms(",
+          "_SHARE_DELIVERY_DATE",
+          "_SHARE_SELLABLE_DATE"
         ]
       },
       "required_tests": [
@@ -14600,9 +14640,24 @@
           "case": "postfix_cash_and_earlier_proposal_must_agree",
           "test_file": "tests/unit/data_center/test_official_szse_pdf_capture.py",
           "test_function": "test_postfix_cash_wording_cannot_hide_a_conflicting_earlier_proposal"
+        },
+        {
+          "case": "independent_source_delivery_and_sellable_dates",
+          "test_file": "tests/unit/simulated_trading/test_corporate_action_cash_revision_composition.py",
+          "test_function": "test_share_credit_requires_exact_independent_source_dates_and_tax"
+        },
+        {
+          "case": "exact_share_record_quantity_no_registry_guess",
+          "test_file": "tests/unit/simulated_trading/test_corporate_action_cash_revision_composition.py",
+          "test_function": "test_share_entitlement_needs_exact_record_date_quantity_without_guessed_rounding"
+        },
+        {
+          "case": "shanghai_midnight_not_utc_day",
+          "test_file": "tests/unit/simulated_trading/test_corporate_action_cash_revision_composition.py",
+          "test_function": "test_official_share_clock_uses_shanghai_day_not_utc_day"
         }
       ],
-      "notes": "The logical source_event_id remains the lineage root, while source_record_id identifies the actual retained current disclosure. Unique complete known parents, no forks/cycles and no currently known successor are required. Keep native first_seen_at and persistence clocks; verification time never refreshes source clocks. Missing body, lineage or economics returns false. Current event selection does not prove listing-window completeness, market freshness, legal eligibility, real custody or owner write permission; those remain independent fail-closed contracts. The source-observed literal cash wording variants 派现金/派发现金 use one exact amount pattern for both classification and terms; simultaneous cash/share distributions remain UNKNOWN. This parser fix does not qualify other unknown listing documents or change any source clocks/coverage. Prefix and postfix cash terms across proposal/implementation paragraphs must agree numerically without rounding; equivalent decimal spellings do not conflict, different known amounts block terms. Net amounts without an explicit cash marker do not overwrite gross terms."
+      "notes": "The logical source_event_id remains the lineage root, while source_record_id identifies the actual retained current disclosure. Unique complete known parents, no forks/cycles and no currently known successor are required. Keep native first_seen_at and persistence clocks; verification time never refreshes source clocks. Missing body, lineage or economics returns false. Current event selection does not prove listing-window completeness, market freshness, legal eligibility, real custody or owner write permission; those remain independent fail-closed contracts. The source-observed literal cash wording variants 派现金/派发现金 use one exact amount pattern for both classification and terms; simultaneous cash/share distributions remain UNKNOWN. This parser fix does not qualify other unknown listing documents or change any source clocks/coverage. Prefix and postfix cash terms across proposal/implementation paragraphs must agree numerically without rounding; equivalent decimal spellings do not conflict, different known amounts block terms. Net amounts without an explicit cash marker do not overwrite gross terms. Share delivery and sellable dates are separate explicit retained source facts, hashed into qualification when present; old cash/absent-date material bytes stay unchanged. Exact whole-share entitlement uses rational arithmetic. No inferred delivery/unlock date, registry rounding, or taxable-bonus delivery without qualified tax evidence. Shanghai current day bounds new share stage dates. Unknown notifications remain UNKNOWN; title mismatches are not normalized away."
     },
     {
       "id": "simulated_trading.current_simulated_tax_settlement_history",
@@ -14782,7 +14837,9 @@
         "apps/simulated_trading/corporate_action_tax_owner_scope_composition.py": [
           "class DjangoTaxAssessmentOwnerScopeVerifier",
           "required_capability=SimulatedCorporateActionWriteCapability.TAX_ASSESS",
-          "_ACTIVE_AUDIT_ORIGIN"
+          "_ACTIVE_AUDIT_ORIGIN",
+          "expected_grant_schema=self._expected_grant_schema",
+          "SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_PERMISSION"
         ]
       },
       "required_tests": [
@@ -14805,9 +14862,19 @@
           "case": "actual_persisted_source_history_qualification_inside_owner_audit_uow",
           "test_file": "tests/component/simulated_trading/test_current_simulated_tax_qualification_postgres.py",
           "test_function": "test_current_tax_qualification_rebuilds_real_persisted_owner_facts"
+        },
+        {
+          "case": "explicit_server_selected_v3_assessment",
+          "test_file": "tests/unit/simulated_trading/test_corporate_action_tax_owner_scope.py",
+          "test_function": "test_owner_tax_assessment_uses_explicit_v3_scope_and_tax_assess_capability"
+        },
+        {
+          "case": "no_implicit_v3_or_tax_power",
+          "test_file": "tests/unit/simulated_trading/test_corporate_action_tax_owner_scope.py",
+          "test_function": "test_owner_tax_assessment_does_not_infer_v3_selection_or_tax_capability"
         }
       ],
-      "notes": "No fallback qualifier or real custody proof. Exact current source/body/policy/instrument/history reconstruction and same-alias outer PostgreSQL UOW; qualification and Owner permission are distinct. Origin is usable only inside the concrete locked verifier. Nonfinancial assessment only; financial withholding remains a separate explicit capability and journal contract."
+      "notes": "No fallback qualifier or real custody proof. Exact current source/body/policy/instrument/history reconstruction and same-alias outer PostgreSQL UOW; qualification and Owner permission are distinct. Origin is usable only inside the concrete locked verifier. Nonfinancial assessment only; financial withholding remains a separate explicit capability and journal contract. The server may explicitly select V3; default remains V2. Matching schema-specific policy/permission/current grant/terms and explicit TAX_ASSESS are required at the same locked boundary. V1 remains denied and V3 share consent alone is not tax consent."
     },
     {
       "id": "simulated_trading.current_owner_tax_liability",
@@ -14819,7 +14886,8 @@
         "apps/simulated_trading/infrastructure/corporate_action_tax_liability_readback.py",
         "apps/simulated_trading/application/corporate_action_posting.py",
         "apps/simulated_trading/domain/simulated_cash_posting_history.py",
-        "apps/audit/retained_system_audit_pair_composition.py"
+        "apps/audit/retained_system_audit_pair_composition.py",
+        "apps/simulated_trading/application/corporate_action_tax_liability.py"
       ],
       "required_markers": {
         "apps/simulated_trading/corporate_action_tax_liability_owner_scope_composition.py": [
@@ -14827,7 +14895,9 @@
           "final_qualification != qualification",
           "exact_retry_only",
           "origin.verify_for(",
-          "!= origin.payment_basis"
+          "!= origin.payment_basis",
+          "expected_grant_schema=self._expected_grant_schema",
+          "SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_PERMISSION"
         ],
         "apps/simulated_trading/corporate_action_write_scope_composition.py": [
           "assert_tax_source_timestamp_current_or_proven",
@@ -14857,6 +14927,10 @@
           "_verify_original_stream_prefix(event, scope=scope, using=using)",
           "original Audit prefix is disconnected",
           "_MAX_RETAINED_STREAM_PREFIX = 10_000"
+        ],
+        "apps/simulated_trading/application/corporate_action_tax_liability.py": [
+          "_V2_CAPABILITIES",
+          "SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA"
         ]
       },
       "required_tests": [
@@ -14914,9 +14988,29 @@
           "case": "original_scoped_audit_prefix",
           "test_file": "tests/component/audit/test_retained_system_audit_pair.py",
           "test_function": "test_retained_pair_accepts_its_complete_original_stream_prefix"
+        },
+        {
+          "case": "v3_withholding_independent_from_share_rights",
+          "test_file": "tests/unit/simulated_trading/test_corporate_action_tax_owner_scope.py",
+          "test_function": "test_v3_liability_grant_requires_matching_schema_and_tax_withhold_capability"
+        },
+        {
+          "case": "v2_lease_never_inherits_v3_powers",
+          "test_file": "tests/unit/simulated_trading/test_corporate_action_tax_liability_application.py",
+          "test_function": "test_withholding_lease_accepts_v3_but_keeps_v2_capability_boundary"
+        },
+        {
+          "case": "v3_paid_tax_collection_replays_original_then_requires_current_authority",
+          "test_file": "tests/component/simulated_trading/test_owner_tax_v3_scope_postgres.py",
+          "test_function": "test_native_v3_paid_tax_collection_replays_original_then_requires_current_authority"
+        },
+        {
+          "case": "v3_current_tax_grant_cannot_collect_an_unpaid_dividend",
+          "test_file": "tests/component/simulated_trading/test_owner_tax_v3_scope_postgres.py",
+          "test_function": "test_native_v3_current_tax_grant_cannot_collect_an_unpaid_dividend"
         }
       ],
-      "notes": "New financial appends require actual current configured source/policy/instrument/history qualification and finite same-alias Owner V2 withholding grant plus required Audit/Outbox. Exact original retries retain old qualification observations and all journal/Audit/Outbox evidence; they still require current role/grant and cannot append another operation or alter cash. Real accounts remain excluded. New COLLECT_AVAILABLE also requires a unique full same-event, non-reversed simulated cash entitlement/payment pair with reached Shanghai payment date, exact original cash grants and Audit/Outbox. The proof is reread under the same outer owner transaction at entry and finalization. New V2 financial material retains that proof; old V1 bytes remain unchanged. Historical V2 readback uses the original operation recorded_at cutoff and verifies original immutable evidence without treating it as current authority. Stored repository Audit/Outbox clocks are retained facts, not independent database commit instants or refreshed official observation times. Missing/corrupt/unpaid proof blocks collection without financial or Audit writes. Recognition before payment is a separate accounting question; this cohort does not qualify current valuation or complete official coverage. Original payment history also enforces stable asset/security identity across revisions and ordered full receivable/payment/tax invariants. Six-place zero share deltas remain exact zero; cash precision stays the existing fifteen-digit cent contract. Existing typed SZ and SZSE namespaces both identify Shenzhen ownership without rewriting proof bytes. Retained Audit pairs verify only their own complete original stream prefix through the selected sequence, with a technical10000-event bound; oversized, missing or disconnected prefixes block rather than partially validate. No global cross-account scan or write capability is introduced."
+      "notes": "New financial appends require actual current configured source/policy/instrument/history qualification and finite same-alias Owner V2 withholding grant plus required Audit/Outbox. Exact original retries retain old qualification observations and all journal/Audit/Outbox evidence; they still require current role/grant and cannot append another operation or alter cash. Real accounts remain excluded. New COLLECT_AVAILABLE also requires a unique full same-event, non-reversed simulated cash entitlement/payment pair with reached Shanghai payment date, exact original cash grants and Audit/Outbox. The proof is reread under the same outer owner transaction at entry and finalization. New V2 financial material retains that proof; old V1 bytes remain unchanged. Historical V2 readback uses the original operation recorded_at cutoff and verifies original immutable evidence without treating it as current authority. Stored repository Audit/Outbox clocks are retained facts, not independent database commit instants or refreshed official observation times. Missing/corrupt/unpaid proof blocks collection without financial or Audit writes. Recognition before payment is a separate accounting question; this cohort does not qualify current valuation or complete official coverage. Original payment history also enforces stable asset/security identity across revisions and ordered full receivable/payment/tax invariants. Six-place zero share deltas remain exact zero; cash precision stays the existing fifteen-digit cent contract. Existing typed SZ and SZSE namespaces both identify Shenzhen ownership without rewriting proof bytes. Retained Audit pairs verify only their own complete original stream prefix through the selected sequence, with a technical10000-event bound; oversized, missing or disconnected prefixes block rather than partially validate. No global cross-account scan or write capability is introduced. Explicit server-selected V3 is supported with matching current V3 policy/permission/terms and TAX_WITHHOLD; default remains V2, with its original three-capability ceiling. This does not waive source/history/paid-dividend proof, owner, expiry, original replay or final locked checks, and changes no retained V1/V2 financial material bytes. Native V3 fixture checks use actual nonstaff Session issuance, signed current V3 tax-only consent, retained prior assessment and full audited payment, and the actual financial journal; tax source facts remain explicitly synthetic, independently from real current source qualification."
     }
   ]
 }

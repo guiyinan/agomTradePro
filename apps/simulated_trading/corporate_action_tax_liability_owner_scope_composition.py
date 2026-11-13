@@ -19,6 +19,8 @@ from apps.account.domain.simulated_corporate_action_write_grant import (
     SIMULATED_CORPORATE_ACTION_SERVICE_ACTOR_ID,
     SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_PERMISSION,
     SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA,
+    SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_PERMISSION,
+    SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA,
     SimulatedCorporateActionWriteGrant,
     SimulatedCorporateActionWriteGrantSelector,
 )
@@ -176,8 +178,15 @@ def _verify_grant(
     selector: SimulatedCorporateActionWriteGrantSelector,
     assessment: CorporateActionTaxAssessment,
     as_of: datetime,
+    expected_grant_schema: str,
 ) -> None:
-    """Require explicit current V2 withholding policy, terms, owner and signed grant."""
+    """Require selected-version withholding policy, terms, owner, and signed grant."""
+    if expected_grant_schema == SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA:
+        expected_permission = SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_PERMISSION
+    elif expected_grant_schema == SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA:
+        expected_permission = SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_PERMISSION
+    else:
+        raise _blocked("Financial tax scope requires an explicit V2 or V3 grant schema")
     scope.__post_init__()
     grant.__post_init__()
     binding = selector.binding
@@ -186,13 +195,13 @@ def _verify_grant(
         or scope.binding != binding
         or binding.account_namespace != "simulated"
         or binding.owner_user_id != assessment.owner_user_id
-        or scope.grant_schema != SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA
+        or scope.grant_schema != expected_grant_schema
         or scope.capabilities is None
         or Capability.TAX_WITHHOLD not in scope.capabilities
         or grant.selector != selector
         or grant.binding != binding
-        or grant.schema != SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA
-        or grant.permission != SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_PERMISSION
+        or grant.schema != expected_grant_schema
+        or grant.permission != expected_permission
         or grant.service_actor_id != SIMULATED_CORPORATE_ACTION_SERVICE_ACTOR_ID
         or grant.capabilities is None
         or not all(cap in scope.capabilities for cap in grant.capabilities)
@@ -217,8 +226,14 @@ class DjangoTaxLiabilityOwnerScopeVerifier:
         audit: TaxAssessmentAuditCoordinatorPort,
         using: str,
         environment: str,
+        expected_grant_schema: str = SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA,
     ) -> None:
-        """Require explicit server-selected current authority and tax qualification."""
+        """Require an explicit schema selection, owner authority, and tax qualification."""
+        if expected_grant_schema not in (
+            SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA,
+            SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA,
+        ):
+            raise _blocked("Financial tax scope requires an explicit V2 or V3 grant schema")
         if (
             type(selector) is not SimulatedCorporateActionWriteGrantSelector
             or type(scope_locker) is not DjangoSimulatedCorporateActionWriteScopeLocker
@@ -238,6 +253,7 @@ class DjangoTaxLiabilityOwnerScopeVerifier:
             qualification_provider,
         )
         self._using, self._environment = using, environment
+        self._expected_grant_schema = expected_grant_schema
         self._replay = _ExactFinancialReplay(using=using, audit=audit)
 
     @property
@@ -302,7 +318,7 @@ class DjangoTaxLiabilityOwnerScopeVerifier:
                 physical_account_id=assessment.account_id,
                 owner_user_id=actor_user_id,
                 expected_binding=self._selector.binding,
-                expected_grant_schema=SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA,
+                expected_grant_schema=self._expected_grant_schema,
                 tax_replay_request=request,
             ) as locked_scope:
                 with locked_current_simulated_corporate_action_write_grant(
@@ -317,6 +333,7 @@ class DjangoTaxLiabilityOwnerScopeVerifier:
                         selector=self._selector,
                         assessment=assessment,
                         as_of=entry_at,
+                        expected_grant_schema=self._expected_grant_schema,
                     )
                     self._locker.assert_tax_source_timestamp_current_or_proven(
                         request=request, verifier=self._replay

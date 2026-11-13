@@ -105,6 +105,177 @@ def _payment_request(**overrides: object) -> CorporateActionStageRequest:
     )
 
 
+def _share_entitlement_request(
+    entry_kind: CorporateActionEntryKind = CorporateActionEntryKind.POSTING,
+) -> CorporateActionStageRequest:
+    """Build one valid share entitlement with exact persisted ownership proof terms."""
+
+    revision_values: dict[str, object] = {}
+    if entry_kind is CorporateActionEntryKind.SUCCESSOR:
+        revision_values["supersedes_revision_id"] = "sha256:notice-v0"
+    return _request(
+        action_kind=CorporateActionKind.SHARE_DISTRIBUTION,
+        stage=CorporateActionStage.SHARE_ENTITLEMENT,
+        entry_kind=entry_kind,
+        cash_amount=None,
+        share_amount=Decimal("40.000000"),
+        tax_treatment="not_applicable",
+        tax_rule_id=None,
+        tax_rule_sha256=None,
+        odd_lot_policy="whole_shares",
+        ownership_snapshot_observed_at=_QUALIFIED_AT,
+        **revision_values,
+    )
+
+
+def _rights_no_effect_request() -> CorporateActionStageRequest:
+    """Build one exact no-exercise rights row with the same retained snapshot proof."""
+
+    return _request(
+        action_kind=CorporateActionKind.RIGHTS_ISSUE,
+        stage=CorporateActionStage.RIGHTS_NOT_EXERCISED,
+        entry_kind=CorporateActionEntryKind.NO_EFFECT,
+        cash_amount=None,
+        share_amount=None,
+        tax_treatment=None,
+        tax_rule_id=None,
+        tax_rule_sha256=None,
+        rights_terms_sha256="f" * 64,
+        rights_election="not_exercised",
+        ownership_snapshot_observed_at=_QUALIFIED_AT,
+    )
+
+
+def _share_delivery_request() -> CorporateActionStageRequest:
+    """Build a well-formed delivery request for the entitlement-only gate negative."""
+
+    return _request(
+        action_kind=CorporateActionKind.SHARE_DISTRIBUTION,
+        stage=CorporateActionStage.SHARE_DELIVERY,
+        cash_amount=None,
+        share_amount=Decimal("40.000000"),
+        tax_treatment="not_applicable",
+        tax_rule_id=None,
+        tax_rule_sha256=None,
+        ownership_snapshot_id=None,
+        ownership_snapshot_sha256=None,
+        ownership_snapshot_as_of_date=None,
+        ownership_snapshot_observed_at=None,
+        eligible_quantity=None,
+        entitlement_calculation_sha256=None,
+        odd_lot_policy="whole_shares",
+        sellable_date=date(2026, 9, 25),
+    )
+
+
+def _share_release_request() -> CorporateActionStageRequest:
+    """Build a reached sellable-release request for the entitlement-only gate negative."""
+
+    return _request(
+        action_kind=CorporateActionKind.SHARE_DISTRIBUTION,
+        stage=CorporateActionStage.SHARE_SELLABLE_RELEASE,
+        stage_date=date(2026, 9, 25),
+        cash_amount=None,
+        share_amount=Decimal("40.000000"),
+        tax_treatment="not_applicable",
+        tax_rule_id=None,
+        tax_rule_sha256=None,
+        ownership_snapshot_id=None,
+        ownership_snapshot_sha256=None,
+        ownership_snapshot_as_of_date=None,
+        ownership_snapshot_observed_at=None,
+        eligible_quantity=None,
+        entitlement_calculation_sha256=None,
+        odd_lot_policy="whole_shares",
+        sellable_date=date(2026, 9, 25),
+    )
+
+
+def _share_entitlement_reversal_request() -> CorporateActionStageRequest:
+    """Build a valid reversal whose stage must not qualify as an ownership entry."""
+
+    return _request(
+        action_kind=CorporateActionKind.SHARE_DISTRIBUTION,
+        stage=CorporateActionStage.SHARE_ENTITLEMENT,
+        entry_kind=CorporateActionEntryKind.REVERSAL,
+        source_revision_id="sha256:notice-v2",
+        supersedes_revision_id="sha256:notice-v1",
+        reversal_of_entry_id=101,
+        cash_amount=None,
+        share_amount=None,
+        tax_treatment=None,
+        tax_rule_id=None,
+        tax_rule_sha256=None,
+        ownership_snapshot_id=None,
+        ownership_snapshot_sha256=None,
+        ownership_snapshot_as_of_date=None,
+        ownership_snapshot_observed_at=None,
+        eligible_quantity=None,
+        entitlement_calculation_sha256=None,
+        odd_lot_policy=None,
+        odd_lot_confirmation_sha256=None,
+    )
+
+
+def _rights_posting_request(
+    entry_kind: CorporateActionEntryKind = CorporateActionEntryKind.POSTING,
+) -> CorporateActionStageRequest:
+    """Build a domain-valid non-NO_EFFECT rights row that the proof gate must deny."""
+
+    revision_values: dict[str, object] = {}
+    if entry_kind is CorporateActionEntryKind.SUCCESSOR:
+        revision_values["supersedes_revision_id"] = "sha256:notice-v0"
+    return _request(
+        action_kind=CorporateActionKind.RIGHTS_ISSUE,
+        stage=CorporateActionStage.RIGHTS_NOT_EXERCISED,
+        entry_kind=entry_kind,
+        cash_amount=None,
+        share_amount=Decimal("40.000000"),
+        tax_treatment="not_applicable",
+        tax_rule_id=None,
+        tax_rule_sha256=None,
+        ownership_snapshot_id=None,
+        ownership_snapshot_sha256=None,
+        ownership_snapshot_as_of_date=None,
+        ownership_snapshot_observed_at=None,
+        eligible_quantity=None,
+        entitlement_calculation_sha256=None,
+        odd_lot_policy="whole_shares",
+        **revision_values,
+    )
+
+
+def _tax_withholding_request() -> CorporateActionStageRequest:
+    """Build a valid legacy tax stage that ownership proof must not authorize."""
+
+    return _request(
+        stage=CorporateActionStage.TAX_WITHHOLDING,
+        stage_date=date(2026, 10, 20),
+        cash_amount=Decimal("5.00"),
+        tax_treatment="deferred_withholding",
+        tax_rule_id="tax-rule:2026",
+        tax_rule_sha256="a" * 64,
+        tax_basis_record_id="assessment:disposition-1",
+        tax_basis_sha256="b" * 64,
+        ownership_snapshot_id=None,
+        ownership_snapshot_sha256=None,
+        ownership_snapshot_as_of_date=None,
+        ownership_snapshot_observed_at=None,
+        eligible_quantity=None,
+        entitlement_calculation_sha256=None,
+    )
+
+
+def _ownership_request_for_family(family: str) -> CorporateActionStageRequest:
+    """Return a request family accepted by the record-date proof reader contract."""
+
+    if family == "share":
+        return _share_entitlement_request()
+    if family == "rights":
+        return _rights_no_effect_request()
+    raise AssertionError(f"unknown ownership request family: {family}")
+
+
 def _ownership_proof(**overrides: object) -> RecordDateOwnershipProof:
     """Build one exact account- and record-date-scoped replay proof."""
 
@@ -204,13 +375,25 @@ def test_cash_entitlement_does_not_treat_disclosure_as_legal_tax_rule() -> None:
 
 
 @pytest.mark.parametrize("exchange", ("SZSE", "SZ"))
-def test_ownership_proof_verifier_reads_and_compares_exact_record_date_scope(exchange: str) -> None:
+@pytest.mark.parametrize(
+    "entry_kind",
+    (CorporateActionEntryKind.POSTING, CorporateActionEntryKind.SUCCESSOR),
+)
+def test_ownership_proof_verifier_reads_and_compares_exact_record_date_scope(
+    exchange: str,
+    entry_kind: CorporateActionEntryKind,
+) -> None:
     """A caller-supplied snapshot is accepted only when the persisted replay matches it."""
 
+    revision_values: dict[str, object] = {}
+    if entry_kind is CorporateActionEntryKind.SUCCESSOR:
+        revision_values["supersedes_revision_id"] = "sha256:notice-v0"
     request = _request(
         tax_rule_id=None,
         tax_rule_sha256=None,
         ownership_snapshot_observed_at=_QUALIFIED_AT,
+        entry_kind=entry_kind,
+        **revision_values,
     )
     reader = _OwnershipProofReader(_ownership_proof(exchange=exchange))
     verifier = CorporateActionOwnershipProofVerifier(reader)
@@ -224,6 +407,100 @@ def test_ownership_proof_verifier_reads_and_compares_exact_record_date_scope(exc
         "record_date": request.record_date,
         "evidence_cutoff_at": request.qualified_at,
     }
+
+
+@pytest.mark.parametrize("exchange", ("SZSE", "SZ"))
+@pytest.mark.parametrize(
+    "entry_kind",
+    (CorporateActionEntryKind.POSTING, CorporateActionEntryKind.SUCCESSOR),
+)
+def test_ownership_proof_verifier_accepts_exact_share_entitlement_scope(
+    exchange: str,
+    entry_kind: CorporateActionEntryKind,
+) -> None:
+    """A share entitlement can use an exact record-date proof on an ordinary revision."""
+
+    request = _share_entitlement_request(entry_kind)
+    reader = _OwnershipProofReader(_ownership_proof(exchange=exchange))
+
+    assert CorporateActionOwnershipProofVerifier(reader).verify_ownership(request)
+    assert reader.scope == {
+        "account_id": request.account_id,
+        "owner_user_id": request.owner_user_id,
+        "security_id": request.security_id,
+        "asset_code": request.asset_code,
+        "record_date": request.record_date,
+        "evidence_cutoff_at": request.qualified_at,
+    }
+
+
+@pytest.mark.parametrize("exchange", ("SZSE", "SZ"))
+def test_ownership_proof_verifier_accepts_only_the_exact_unexercised_rights_row(
+    exchange: str,
+) -> None:
+    """A no-exercise rights row can bind to the same exact retained ownership scope."""
+
+    request = _rights_no_effect_request()
+    reader = _OwnershipProofReader(_ownership_proof(exchange=exchange))
+
+    assert CorporateActionOwnershipProofVerifier(reader).verify_ownership(request)
+    assert reader.scope == {
+        "account_id": request.account_id,
+        "owner_user_id": request.owner_user_id,
+        "security_id": request.security_id,
+        "asset_code": request.asset_code,
+        "record_date": request.record_date,
+        "evidence_cutoff_at": request.qualified_at,
+    }
+
+
+@pytest.mark.parametrize("family", ("share", "rights"))
+@pytest.mark.parametrize(
+    ("proof_field", "changed_value"),
+    (
+        ("account_id", 12),
+        ("owner_user_id", 22),
+        ("security_id", "301237.SZ"),
+        ("asset_code", "301237.SZ"),
+        ("record_date", date(2026, 9, 24)),
+        ("ownership_snapshot_as_of_date", date(2026, 9, 24)),
+        ("ownership_snapshot_id", "other-snapshot"),
+        ("ownership_snapshot_sha256", "9" * 64),
+        ("eligible_quantity", Decimal("999.000000")),
+        ("ownership_snapshot_observed_at", _OBSERVED_AT),
+        ("exchange", "SSE"),
+        ("exchange", "SH"),
+        ("exchange", "BJ"),
+        ("exchange", "UNKNOWN"),
+    ),
+)
+def test_ownership_proof_verifier_rejects_share_and_rights_proof_drift(
+    family: str,
+    proof_field: str,
+    changed_value: object,
+) -> None:
+    """Every supported family still requires exact identity, quantity, clock, and seal."""
+
+    request = _ownership_request_for_family(family)
+    proof = replace(_ownership_proof(), **{proof_field: changed_value})
+    reader = _OwnershipProofReader(proof)
+
+    assert not CorporateActionOwnershipProofVerifier(reader).verify_ownership(request)
+    assert reader.scope is not None
+
+
+@pytest.mark.parametrize("family", ("share", "rights"))
+def test_ownership_proof_verifier_rejects_request_identity_drift_for_new_families(
+    family: str,
+) -> None:
+    """A persisted proof cannot authorize a request that changes its owner identity."""
+
+    request = _ownership_request_for_family(family)
+    reader = _OwnershipProofReader(_ownership_proof())
+
+    assert not CorporateActionOwnershipProofVerifier(reader).verify_ownership(
+        replace(request, owner_user_id=22)
+    )
 
 
 @pytest.mark.parametrize(
@@ -290,6 +567,38 @@ def test_ownership_proof_verifier_requires_snapshot_clock_to_equal_qualified_cut
     )
     reader = _OwnershipProofReader(_ownership_proof())
     assert not CorporateActionOwnershipProofVerifier(reader).verify_ownership(request)
+    assert reader.scope is None
+
+
+@pytest.mark.parametrize(
+    "candidate_request",
+    (
+        _payment_request(),
+        _share_delivery_request(),
+        _share_release_request(),
+        _share_entitlement_reversal_request(),
+        _tax_withholding_request(),
+        _rights_posting_request(),
+        _rights_posting_request(CorporateActionEntryKind.SUCCESSOR),
+    ),
+    ids=(
+        "cash-payment",
+        "share-delivery",
+        "share-release",
+        "share-reversal",
+        "tax",
+        "rights-posting",
+        "rights-successor",
+    ),
+)
+def test_ownership_proof_verifier_rejects_non_entitlement_stages_before_reading(
+    candidate_request: CorporateActionStageRequest,
+) -> None:
+    """Payments, deliveries, releases, reversals, tax, and rights exercise are not proof grants."""
+
+    reader = _OwnershipProofReader(_ownership_proof())
+
+    assert not CorporateActionOwnershipProofVerifier(reader).verify_ownership(candidate_request)
     assert reader.scope is None
 
 

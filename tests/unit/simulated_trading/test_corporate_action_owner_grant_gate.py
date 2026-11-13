@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from contextlib import contextmanager
-from datetime import timedelta
+from dataclasses import replace
+from datetime import date, timedelta
+from decimal import Decimal
 from typing import cast
 
 import pytest
@@ -18,6 +20,7 @@ from apps.account.domain.simulated_corporate_action_write_capabilities import (
 from apps.account.domain.simulated_corporate_action_write_grant import (
     SIMULATED_CORPORATE_ACTION_WRITE_GRANT_SCHEMA,
     SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA,
+    SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA,
     SimulatedCorporateActionWriteGrant,
     SimulatedCorporateActionWriteGrantSelector,
 )
@@ -40,14 +43,183 @@ from apps.simulated_trading.corporate_action_write_scope_composition import (
     CorporateActionSourceTimestampReplayVerifier,
     DjangoSimulatedCorporateActionWriteScopeLocker,
 )
-from apps.simulated_trading.domain.corporate_action_posting import CorporateActionStageRequest
+from apps.simulated_trading.domain.corporate_action_posting import (
+    CorporateActionEntryKind,
+    CorporateActionKind,
+    CorporateActionStage,
+    CorporateActionStageRequest,
+)
 from tests.unit.account.test_simulated_corporate_action_write_grant import (
     _AT,
     _grant,
     _grant_v2,
+    _grant_v3,
     _selector,
 )
 from tests.unit.simulated_trading.test_corporate_action_posting import _request
+
+
+def _share_request(
+    stage: CorporateActionStage,
+    *,
+    entry_kind: CorporateActionEntryKind = CorporateActionEntryKind.POSTING,
+) -> CorporateActionStageRequest:
+    """Build one valid share-distribution stage for the selected ordinary entry."""
+
+    stage_date = (
+        date(2026, 9, 25)
+        if stage is CorporateActionStage.SHARE_SELLABLE_RELEASE
+        else date(2026, 9, 24)
+    )
+    overrides: dict[str, object] = {
+        "action_kind": CorporateActionKind.SHARE_DISTRIBUTION,
+        "stage": stage,
+        "entry_kind": entry_kind,
+        "source_revision_id": "sha256:share-v1",
+        "cash_amount": None,
+        "share_amount": Decimal("40.000000"),
+        "tax_treatment": "not_applicable",
+        "tax_rule_id": None,
+        "tax_rule_sha256": None,
+        "odd_lot_policy": "whole_shares",
+        "odd_lot_confirmation_sha256": None,
+        "stage_date": stage_date,
+        "sellable_date": (
+            date(2026, 9, 25)
+            if stage
+            in {
+                CorporateActionStage.SHARE_DELIVERY,
+                CorporateActionStage.SHARE_SELLABLE_RELEASE,
+            }
+            else None
+        ),
+    }
+    if stage is not CorporateActionStage.SHARE_ENTITLEMENT:
+        overrides.update(
+            {
+                "ownership_snapshot_id": None,
+                "ownership_snapshot_sha256": None,
+                "ownership_snapshot_as_of_date": None,
+                "ownership_snapshot_observed_at": None,
+                "eligible_quantity": None,
+                "entitlement_calculation_sha256": None,
+            }
+        )
+    if entry_kind is CorporateActionEntryKind.SUCCESSOR:
+        overrides.update(
+            {
+                "source_revision_id": "sha256:share-v2",
+                "supersedes_revision_id": "sha256:share-v1",
+            }
+        )
+    elif entry_kind is CorporateActionEntryKind.REVERSAL:
+        overrides.update(
+            {
+                "source_revision_id": "sha256:share-v2",
+                "supersedes_revision_id": "sha256:share-v1",
+                "reversal_of_entry_id": 12,
+                "cash_amount": None,
+                "share_amount": None,
+                "tax_treatment": None,
+                "tax_rule_id": None,
+                "tax_rule_sha256": None,
+                "tax_basis_record_id": None,
+                "tax_basis_sha256": None,
+                "ownership_snapshot_id": None,
+                "ownership_snapshot_sha256": None,
+                "ownership_snapshot_as_of_date": None,
+                "ownership_snapshot_observed_at": None,
+                "eligible_quantity": None,
+                "entitlement_calculation_sha256": None,
+                "rights_terms_sha256": None,
+                "rights_election": None,
+                "odd_lot_policy": None,
+                "odd_lot_confirmation_sha256": None,
+            }
+        )
+    return _request(**overrides)
+
+
+def _rights_no_effect_request() -> CorporateActionStageRequest:
+    """Build a valid no-exercise rights row with no monetary or share delivery."""
+
+    return _request(
+        action_kind=CorporateActionKind.RIGHTS_ISSUE,
+        stage=CorporateActionStage.RIGHTS_NOT_EXERCISED,
+        entry_kind=CorporateActionEntryKind.NO_EFFECT,
+        cash_amount=None,
+        share_amount=None,
+        tax_treatment=None,
+        tax_rule_id=None,
+        tax_rule_sha256=None,
+        rights_terms_sha256="f" * 64,
+        rights_election="not_exercised",
+    )
+
+
+def _tax_withholding_request() -> CorporateActionStageRequest:
+    """Build a valid but owner-gate-unsupported legacy tax withholding row."""
+
+    return _request(
+        stage=CorporateActionStage.TAX_WITHHOLDING,
+        stage_date=date(2026, 10, 20),
+        tax_rule_id="tax-rule-v1",
+        tax_rule_sha256="f" * 64,
+        tax_basis_record_id="assessment:disposition-1",
+        tax_basis_sha256="e" * 64,
+        ownership_snapshot_id=None,
+        ownership_snapshot_sha256=None,
+        ownership_snapshot_as_of_date=None,
+        ownership_snapshot_observed_at=None,
+        eligible_quantity=None,
+        entitlement_calculation_sha256=None,
+    )
+
+
+def _cash_payment_request() -> CorporateActionStageRequest:
+    """Build the legacy cash payment stage without entitlement-only proof fields."""
+
+    return _request(
+        stage=CorporateActionStage.CASH_PAYMENT,
+        stage_date=date(2026, 9, 24),
+        payment_date=date(2026, 9, 24),
+        ownership_snapshot_id=None,
+        ownership_snapshot_sha256=None,
+        ownership_snapshot_as_of_date=None,
+        ownership_snapshot_observed_at=None,
+        eligible_quantity=None,
+        entitlement_calculation_sha256=None,
+    )
+
+
+def _rights_reversal_request() -> CorporateActionStageRequest:
+    """Build a well-formed correction reversal that the gate must not authorize."""
+
+    return _request(
+        action_kind=CorporateActionKind.RIGHTS_ISSUE,
+        stage=CorporateActionStage.RIGHTS_NOT_EXERCISED,
+        entry_kind=CorporateActionEntryKind.REVERSAL,
+        source_revision_id="sha256:rights-v2",
+        supersedes_revision_id="sha256:rights-v1",
+        reversal_of_entry_id=12,
+        cash_amount=None,
+        share_amount=None,
+        tax_treatment=None,
+        tax_rule_id=None,
+        tax_rule_sha256=None,
+        tax_basis_record_id=None,
+        tax_basis_sha256=None,
+        ownership_snapshot_id=None,
+        ownership_snapshot_sha256=None,
+        ownership_snapshot_as_of_date=None,
+        ownership_snapshot_observed_at=None,
+        eligible_quantity=None,
+        entitlement_calculation_sha256=None,
+        rights_terms_sha256=None,
+        rights_election=None,
+        odd_lot_policy=None,
+        odd_lot_confirmation_sha256=None,
+    )
 
 
 class _ReplayVerifier(CorporateActionSourceTimestampReplayVerifier):
@@ -121,6 +293,10 @@ def owner_gate_world(monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureReq
     )
     scope_terms_sha256 = cast(
         str | None, configuration.get("scope_terms_sha256", grant.terms_sha256)
+    )
+    expected_required_capability = cast(
+        Capability,
+        configuration.get("required_capability", Capability.CASH_STAGE_WRITE),
     )
     selector: SimulatedCorporateActionWriteGrantSelector = _selector(grant)
     connection = _Connection()
@@ -209,7 +385,7 @@ def owner_gate_world(monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureReq
     ) -> Iterator[SimulatedCorporateActionWriteGrant]:
         assert connection.in_atomic_block and not connection.autocommit
         assert selector == grant.selector and using == "default"
-        assert required_capability is Capability.CASH_STAGE_WRITE
+        assert required_capability is expected_required_capability
         order.append("grant-enter")
         try:
             yield grant
@@ -376,7 +552,7 @@ def test_invalid_alias_or_scope_locker_is_rejected_at_construction(
         )
 
 
-@pytest.mark.parametrize("schema", [None, "account.simulated_corporate_action_write_grant.v3"])
+@pytest.mark.parametrize("schema", [None, "account.simulated_corporate_action_write_grant.v4"])
 def test_gate_requires_an_exact_server_selected_grant_schema(schema: object) -> None:
     grant = _grant()
     with pytest.raises(CorporateActionPostingBlockedError):
@@ -718,3 +894,361 @@ def test_v2_cash_grant_is_rechecked_after_the_write_body(owner_gate_world, monke
 
     assert calls >= 2
     assert connection.autocommit and not connection.in_atomic_block
+
+
+@pytest.mark.parametrize(
+    "owner_gate_world,request_value,required_capability",
+    [
+        (
+            {
+                "grant": _grant_v3(
+                    capabilities=(Capability.SHARE_STAGE_WRITE,),
+                    recorded_at=_AT,
+                    supersedes_content_hash="f" * 64,
+                ),
+                "expected_grant_schema": SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA,
+                "required_capability": Capability.SHARE_STAGE_WRITE,
+            },
+            _share_request(CorporateActionStage.SHARE_ENTITLEMENT),
+            Capability.SHARE_STAGE_WRITE,
+        ),
+        (
+            {
+                "grant": _grant_v3(
+                    capabilities=(Capability.SHARE_STAGE_WRITE,),
+                    recorded_at=_AT,
+                    supersedes_content_hash="f" * 64,
+                ),
+                "expected_grant_schema": SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA,
+                "required_capability": Capability.SHARE_STAGE_WRITE,
+            },
+            _share_request(
+                CorporateActionStage.SHARE_ENTITLEMENT,
+                entry_kind=CorporateActionEntryKind.SUCCESSOR,
+            ),
+            Capability.SHARE_STAGE_WRITE,
+        ),
+        (
+            {
+                "grant": _grant_v3(
+                    capabilities=(Capability.SHARE_STAGE_WRITE,),
+                    recorded_at=_AT,
+                    supersedes_content_hash="f" * 64,
+                ),
+                "expected_grant_schema": SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA,
+                "required_capability": Capability.SHARE_STAGE_WRITE,
+            },
+            _share_request(
+                CorporateActionStage.SHARE_DELIVERY,
+                entry_kind=CorporateActionEntryKind.SUCCESSOR,
+            ),
+            Capability.SHARE_STAGE_WRITE,
+        ),
+        (
+            {
+                "grant": _grant_v3(
+                    capabilities=(Capability.SHARE_STAGE_WRITE,),
+                    recorded_at=_AT,
+                    supersedes_content_hash="f" * 64,
+                ),
+                "expected_grant_schema": SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA,
+                "required_capability": Capability.SHARE_STAGE_WRITE,
+            },
+            _share_request(CorporateActionStage.SHARE_DELIVERY),
+            Capability.SHARE_STAGE_WRITE,
+        ),
+        (
+            {
+                "grant": _grant_v3(
+                    capabilities=(Capability.SHARE_STAGE_WRITE,),
+                    recorded_at=_AT,
+                    supersedes_content_hash="f" * 64,
+                ),
+                "expected_grant_schema": SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA,
+                "required_capability": Capability.SHARE_STAGE_WRITE,
+            },
+            _share_request(CorporateActionStage.SHARE_SELLABLE_RELEASE),
+            Capability.SHARE_STAGE_WRITE,
+        ),
+        (
+            {
+                "grant": _grant_v3(
+                    capabilities=(Capability.SHARE_STAGE_WRITE,),
+                    recorded_at=_AT,
+                    supersedes_content_hash="f" * 64,
+                ),
+                "expected_grant_schema": SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA,
+                "required_capability": Capability.SHARE_STAGE_WRITE,
+            },
+            _share_request(
+                CorporateActionStage.SHARE_SELLABLE_RELEASE,
+                entry_kind=CorporateActionEntryKind.SUCCESSOR,
+            ),
+            Capability.SHARE_STAGE_WRITE,
+        ),
+        (
+            {
+                "grant": _grant_v3(
+                    capabilities=(Capability.RIGHTS_NOT_EXERCISED,),
+                    recorded_at=_AT,
+                    supersedes_content_hash="f" * 64,
+                ),
+                "expected_grant_schema": SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA,
+                "required_capability": Capability.RIGHTS_NOT_EXERCISED,
+            },
+            _rights_no_effect_request(),
+            Capability.RIGHTS_NOT_EXERCISED,
+        ),
+        (
+            {
+                "grant": _grant_v3(
+                    capabilities=(Capability.CASH_STAGE_WRITE,),
+                    recorded_at=_AT,
+                    supersedes_content_hash="f" * 64,
+                ),
+                "expected_grant_schema": SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA,
+                "required_capability": Capability.CASH_STAGE_WRITE,
+            },
+            _request(),
+            Capability.CASH_STAGE_WRITE,
+        ),
+        (
+            {
+                "grant": _grant_v3(
+                    capabilities=(Capability.CASH_STAGE_WRITE,),
+                    recorded_at=_AT,
+                    supersedes_content_hash="f" * 64,
+                ),
+                "expected_grant_schema": SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA,
+                "required_capability": Capability.CASH_STAGE_WRITE,
+            },
+            _cash_payment_request(),
+            Capability.CASH_STAGE_WRITE,
+        ),
+    ],
+    indirect=["owner_gate_world"],
+)
+def test_v3_gate_routes_exact_stage_to_independent_capability(
+    owner_gate_world,
+    request_value: CorporateActionStageRequest,
+    required_capability: Capability,
+) -> None:
+    """Bind each supported V3 request to its capability at entry and commit."""
+
+    gate, grant, _, order, _ = owner_gate_world
+    request = replace(request_value, owner_user_id=grant.binding.owner_user_id)
+
+    with gate.atomic_authority(request) as authority:
+        assert authority.grant == grant
+        assert authority.required_capability is required_capability
+
+    assert order.count("grant-enter") == 2
+
+
+@pytest.mark.parametrize(
+    "owner_gate_world,request_value",
+    [
+        (
+            {
+                "grant": _grant(recorded_at=_AT),
+                "expected_grant_schema": SIMULATED_CORPORATE_ACTION_WRITE_GRANT_SCHEMA,
+            },
+            _share_request(CorporateActionStage.SHARE_ENTITLEMENT),
+        ),
+        (
+            {
+                "grant": _grant_v2(
+                    capabilities=(Capability.CASH_STAGE_WRITE,),
+                    recorded_at=_AT,
+                    supersedes_content_hash=None,
+                ),
+                "expected_grant_schema": SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA,
+            },
+            _share_request(CorporateActionStage.SHARE_DELIVERY),
+        ),
+        (
+            {
+                "grant": _grant(recorded_at=_AT),
+                "expected_grant_schema": SIMULATED_CORPORATE_ACTION_WRITE_GRANT_SCHEMA,
+            },
+            _rights_no_effect_request(),
+        ),
+        (
+            {
+                "grant": _grant_v2(
+                    capabilities=(Capability.CASH_STAGE_WRITE,),
+                    recorded_at=_AT,
+                    supersedes_content_hash=None,
+                ),
+                "expected_grant_schema": SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA,
+            },
+            _rights_no_effect_request(),
+        ),
+        (
+            {
+                "grant": _grant(recorded_at=_AT),
+                "expected_grant_schema": SIMULATED_CORPORATE_ACTION_WRITE_GRANT_SCHEMA,
+            },
+            _tax_withholding_request(),
+        ),
+        (
+            {
+                "grant": _grant_v2(
+                    capabilities=(Capability.CASH_STAGE_WRITE,),
+                    recorded_at=_AT,
+                    supersedes_content_hash=None,
+                ),
+                "expected_grant_schema": SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA,
+            },
+            _tax_withholding_request(),
+        ),
+    ],
+    indirect=["owner_gate_world"],
+)
+def test_v1_and_v2_remain_cash_only(owner_gate_world, request_value) -> None:
+    """Legacy grant schemas cannot enter newly introduced share or rights paths."""
+
+    gate, _, connection, order, _ = owner_gate_world
+    grant = owner_gate_world[1]
+    request_value = replace(request_value, owner_user_id=grant.binding.owner_user_id)
+    with pytest.raises(CorporateActionPostingBlockedError) as blocked:
+        with gate.atomic_authority(request_value):
+            pytest.fail("legacy grant entered a V3-only posting family")
+    assert blocked.value.code == "CORPORATE_ACTION_STAGE_UNSUPPORTED"
+    assert connection.autocommit and not connection.in_atomic_block
+    assert order == []
+
+
+@pytest.mark.parametrize(
+    "owner_gate_world,request_value",
+    [
+        (
+            {
+                "grant": _grant(recorded_at=_AT),
+                "expected_grant_schema": SIMULATED_CORPORATE_ACTION_WRITE_GRANT_SCHEMA,
+            },
+            _request(),
+        ),
+        (
+            {
+                "grant": _grant(recorded_at=_AT),
+                "expected_grant_schema": SIMULATED_CORPORATE_ACTION_WRITE_GRANT_SCHEMA,
+            },
+            _cash_payment_request(),
+        ),
+        (
+            {
+                "grant": _grant_v2(
+                    capabilities=(Capability.CASH_STAGE_WRITE,),
+                    recorded_at=_AT,
+                    supersedes_content_hash=None,
+                ),
+                "expected_grant_schema": SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA,
+            },
+            _request(),
+        ),
+        (
+            {
+                "grant": _grant_v2(
+                    capabilities=(Capability.CASH_STAGE_WRITE,),
+                    recorded_at=_AT,
+                    supersedes_content_hash=None,
+                ),
+                "expected_grant_schema": SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA,
+            },
+            _cash_payment_request(),
+        ),
+    ],
+    indirect=["owner_gate_world"],
+)
+def test_v1_and_v2_keep_cash_entitlement_and_payment_authority(
+    owner_gate_world, request_value: CorporateActionStageRequest
+) -> None:
+    """The capability addition preserves both historical cash stage routes."""
+
+    gate, grant, _, order, _ = owner_gate_world
+    request = replace(request_value, owner_user_id=grant.binding.owner_user_id)
+    with gate.atomic_authority(request) as authority:
+        assert authority.required_capability is Capability.CASH_STAGE_WRITE
+        assert authority.grant == grant
+    assert order.count("grant-enter") == 2
+
+
+@pytest.mark.parametrize(
+    "owner_gate_world,request_value",
+    [
+        (
+            {
+                "grant": _grant_v3(
+                    capabilities=(Capability.RIGHTS_NOT_EXERCISED,),
+                    recorded_at=_AT,
+                    supersedes_content_hash="f" * 64,
+                ),
+                "expected_grant_schema": SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA,
+                "required_capability": Capability.SHARE_STAGE_WRITE,
+            },
+            _share_request(CorporateActionStage.SHARE_ENTITLEMENT),
+        ),
+        (
+            {
+                "grant": _grant_v3(
+                    capabilities=(Capability.SHARE_STAGE_WRITE,),
+                    recorded_at=_AT,
+                    supersedes_content_hash="f" * 64,
+                ),
+                "expected_grant_schema": SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA,
+                "required_capability": Capability.RIGHTS_NOT_EXERCISED,
+            },
+            _rights_no_effect_request(),
+        ),
+    ],
+    indirect=["owner_gate_world"],
+)
+def test_v3_capability_cannot_cross_request_families(owner_gate_world, request_value) -> None:
+    """The selected current-grant capability must match the request family exactly."""
+
+    gate, _, connection, order, _ = owner_gate_world
+    grant = owner_gate_world[1]
+    request_value = replace(request_value, owner_user_id=grant.binding.owner_user_id)
+    with pytest.raises(CorporateActionPostingBlockedError):
+        with gate.atomic_authority(request_value):
+            pytest.fail("a different V3 capability entered this operation")
+    assert connection.autocommit and not connection.in_atomic_block
+    assert order.count("grant-enter") == 1
+
+
+@pytest.mark.parametrize(
+    "request_value",
+    [
+        _tax_withholding_request(),
+        _share_request(
+            CorporateActionStage.SHARE_ENTITLEMENT, entry_kind=CorporateActionEntryKind.REVERSAL
+        ),
+        _rights_reversal_request(),
+    ],
+)
+@pytest.mark.parametrize(
+    "owner_gate_world",
+    [
+        {
+            "grant": _grant_v3(
+                capabilities=(Capability.CASH_STAGE_WRITE,),
+                recorded_at=_AT,
+                supersedes_content_hash="f" * 64,
+            ),
+            "expected_grant_schema": SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA,
+        }
+    ],
+    indirect=True,
+)
+def test_v3_gate_rejects_legacy_tax_and_nonordinary_share_rows(
+    owner_gate_world, request_value: CorporateActionStageRequest
+) -> None:
+    """V3 stage authority excludes tax and correction reversals in this gate."""
+
+    gate, _, connection, order, _ = owner_gate_world
+    with pytest.raises(CorporateActionPostingBlockedError):
+        with gate.atomic_authority(request_value):
+            pytest.fail("unsupported V3 operation reached the locked write body")
+    assert connection.autocommit and not connection.in_atomic_block
+    assert order == []
