@@ -301,3 +301,30 @@ def test_token_echo_remains_rejected_in_expanded_result() -> None:
     assert view["outcome"] == "blocked"
     assert view["blocking_reason"] == "simulated_action_consent_response_invalid"
     assert "secret-token" not in repr(view)
+
+
+@pytest.mark.parametrize("schema_v3", [True, False])
+def test_share_and_decline_display_requires_explicit_v3_schema(schema_v3):
+    from apps.account.domain.simulated_corporate_action_write_grant import (
+        SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA,
+    )
+
+    payload = _v2_response()
+    payload.update(
+        grant_schema=SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA if schema_v3 else _V2_SCHEMA,
+        selected_capabilities=[
+            "simulated.corporate_action_rights.not_exercised",
+            "simulated.corporate_action_share.stage_write",
+        ],
+        capability_labels=["不参与本次配股", "模拟送股及转增权益、交付与可售解禁"],
+        terms_version="simulated-corporate-action-owner-terms.v3",
+    )
+    view = _project(CORPORATE_ACTION_CONSENT_PREPARE_ACTION_KEY, payload)
+    assert view["outcome"] == ("success" if schema_v3 else "blocked")
+    if schema_v3:
+        values = _field_values(view)
+        assert "不参与本次配股" in values["selected_capabilities"]
+        assert "转增" in values["selected_capabilities"]
+        assert "不会认购、缴款或下单" in view["business_summary"]
+        assert SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA not in repr(view)
+        assert "simulated.corporate_action_share" not in repr(view)

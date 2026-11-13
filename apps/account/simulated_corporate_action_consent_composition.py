@@ -28,6 +28,7 @@ from apps.account.domain.simulated_corporate_action_write_capabilities import (
 from apps.account.domain.simulated_corporate_action_write_grant import (
     SIMULATED_CORPORATE_ACTION_WRITE_GRANT_SCHEMA,
     SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA,
+    SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA,
     SimulatedCorporateActionWriteGrant,
     SimulatedCorporateActionWriteGrantBinding,
     SimulatedCorporateActionWriteGrantRecord,
@@ -50,6 +51,7 @@ from core.exceptions import AuthenticationError
 
 _CONSENT_PURPOSE_V1 = "account.simulated-action-consent-preparation.v1"
 _CONSENT_PURPOSE_V2 = "account.simulated-action-consent-preparation.v2"
+_CONSENT_PURPOSE_V3 = "account.simulated-action-consent-preparation.v3"
 _CONSENT_FIELDS_V1 = frozenset(
     {
         "grant_id",
@@ -161,6 +163,11 @@ def _unpack_consent_token(token: object) -> tuple[dict[str, object], str]:
         raise SimulatedCorporateActionWriteGrantUnavailable(
             "owner consent preparation token is invalid or unavailable"
         )
+    if token.startswith("v3."):
+        return (
+            _unpack(token[3:], purpose=_CONSENT_PURPOSE_V3),
+            SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA,
+        )
     if token.startswith("v2."):
         return (
             _unpack(token[3:], purpose=_CONSENT_PURPOSE_V2),
@@ -211,13 +218,16 @@ def prepare_simulated_action_consent_token(
     }
     if command.grant_schema == SIMULATED_CORPORATE_ACTION_WRITE_GRANT_SCHEMA:
         return _pack(payload, purpose=_CONSENT_PURPOSE_V1)
-    if command.grant_schema != SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA:
+    if command.grant_schema not in {
+        SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA,
+        SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA,
+    }:
         raise SimulatedCorporateActionWriteGrantUnavailable(
             "owner consent preparation schema is unsupported"
         )
     if command.capabilities is None:
         raise SimulatedCorporateActionWriteGrantUnavailable(
-            "V2 consent preparation capabilities are missing"
+            "versioned consent preparation capabilities are missing"
         )
     capabilities = validate_simulated_corporate_action_write_capabilities(command.capabilities)
     payload.update(
@@ -228,6 +238,8 @@ def prepare_simulated_action_consent_token(
             "terms_sha256": command.terms_sha256,
         }
     )
+    if command.grant_schema == SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA:
+        return "v3." + _pack(payload, purpose=_CONSENT_PURPOSE_V3)
     return "v2." + _pack(payload, purpose=_CONSENT_PURPOSE_V2)
 
 
@@ -244,7 +256,11 @@ def restore_simulated_action_consent_token(
     try:
         expected_fields = (
             _CONSENT_FIELDS_V2
-            if grant_schema == SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA
+            if grant_schema
+            in {
+                SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA,
+                SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA,
+            }
             else _CONSENT_FIELDS_V1
         )
         if set(value) != expected_fields:
@@ -253,8 +269,11 @@ def restore_simulated_action_consent_token(
         capabilities = None
         terms_version = None
         terms_sha256 = None
-        if grant_schema == SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA:
-            if _text(value["grant_schema"]) != SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA:
+        if grant_schema in {
+            SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA,
+            SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA,
+        }:
+            if _text(value["grant_schema"]) != grant_schema:
                 raise ValueError("consent preparation grant schema is invalid")
             capabilities = _restore_capabilities(value["capabilities"])
             terms_version = _text(value["terms_version"])

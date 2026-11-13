@@ -33,7 +33,7 @@ _PHYSICAL_ID = 41
 _OWNER_ID = 7
 _CANONICAL_ID = "canonical-simulated-41"
 _TERMS_SHA256 = "6ee0ad13d2e0b9cff885bfdf9d1e0e2ccb837c0943bf2cab6cf90d8410031165"
-_ALL_CAPABILITIES = tuple(sorted(Capability, key=lambda item: item.value))
+_ALL_CAPABILITIES = (Capability.TAX_ASSESS, Capability.TAX_WITHHOLD, Capability.CASH_STAGE_WRITE)
 _ASSESS = (Capability.TAX_ASSESS,)
 V1_SCHEMA = grant_domain.SIMULATED_CORPORATE_ACTION_WRITE_GRANT_SCHEMA
 V2_SCHEMA = grant_domain.SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA
@@ -901,3 +901,115 @@ def test_successful_v2_confirmation_receipt_uses_actual_issued_scope(
     assert payload["capability_labels"] == ["模拟税额评估"]
     assert payload["terms_sha256"] == _TERMS_SHA256
     assert "模拟税额评估" in payload["summary"]
+
+
+def _v3_policy(*, capabilities=None):
+    import hashlib
+
+    from apps.account import simulated_corporate_action_consent_terms as terms
+
+    return _policy(
+        schema=grant_domain.SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA,
+        capabilities=capabilities or tuple(sorted(Capability, key=lambda item: item.value)),
+        terms_version=terms.SIMULATED_CORPORATE_ACTION_OWNER_TERMS_V3,
+        terms_sha256=hashlib.sha256(
+            terms._canonical_document_json_v3().encode("utf-8")
+        ).hexdigest(),
+    )
+
+
+def _v3_grant(policy, *, known_terms=True):
+    return replace(
+        _grant(
+            _binding(_v2_policy(), _Source()),
+            schema=V2_SCHEMA,
+            capabilities=_ASSESS,
+            terms_version=SIMULATED_CORPORATE_ACTION_OWNER_TERMS_V2,
+            terms_sha256=_TERMS_SHA256,
+        ),
+        schema=grant_domain.SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA,
+        permission=grant_domain.SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_PERMISSION,
+        binding=_binding(policy, _Source()),
+        capabilities=(Capability.SHARE_STAGE_WRITE,),
+        terms_version=policy.terms_version if known_terms else "obsolete-terms-v3",
+        terms_sha256=policy.terms_sha256,
+        identity_hash="",
+        content_hash="",
+    )
+
+
+def test_v3_discovery_prepares_only_explicit_share_and_rights_choices(monkeypatch):
+    policy = _v3_policy()
+    harness = _install_harness(monkeypatch, policy=policy)
+    selected = (Capability.RIGHTS_NOT_EXERCISED, Capability.SHARE_STAGE_WRITE)
+    payload = _prepare_discovered(selected)
+    assert payload["outcome"] == "success"
+    assert payload["consent_status"] == "awaiting_confirmation"
+    assert payload["grant_schema"] == policy.grant_schema
+    assert payload["selected_capabilities"] == [item.value for item in selected]
+    assert payload["terms_version"] == policy.terms_version
+    assert payload["terms_sha256"] == policy.terms_sha256
+    assert len(payload["capability_labels"]) == 2
+    assert harness.commands[0].capabilities == selected
+    assert harness.commands[0].grant_schema == policy.grant_schema
+    assert payload["must_not_execute"] is True
+
+
+def test_v3_selection_outside_locked_policy_remains_blocked(monkeypatch):
+    _install_harness(monkeypatch, policy=_v3_policy(capabilities=(Capability.SHARE_STAGE_WRITE,)))
+    payload = _prepare_discovered((Capability.RIGHTS_NOT_EXERCISED,))
+    assert payload["outcome"] == "blocked"
+    assert payload["consent_token"] is None
+    assert payload["blocking_reason"] == "simulated_action_consent_capability_not_permitted"
+
+
+def test_default_read_of_v3_preserves_exact_scope_without_downgrade(monkeypatch):
+    policy = _v3_policy()
+    grant = _v3_grant(policy)
+    harness = _install_harness(monkeypatch, policy=policy, grant=grant)
+    payload = _prepare()
+    assert payload["outcome"] == "success"
+    assert payload["grant_schema"] == grant.schema
+    assert payload["selected_capabilities"] == [Capability.SHARE_STAGE_WRITE.value]
+    assert payload["withdrawal_token"]
+    assert payload["consent_token"] is None
+    assert not harness.commands
+
+
+@pytest.mark.parametrize("known_terms", [True, False])
+def test_v3_withdrawal_keeps_scope_even_when_original_terms_unavailable(monkeypatch, known_terms):
+    grant = _v3_grant(_v3_policy(), known_terms=known_terms)
+    monkeypatch.setattr(
+        consent, "restore_simulated_action_withdrawal_token", lambda *a, **kw: grant.selector
+    )
+    monkeypatch.setattr(
+        consent, "read_exact_simulated_action_withdrawal_metadata", lambda **kw: grant
+    )
+    revoked = []
+    monkeypatch.setattr(
+        consent,
+        "revoke_authenticated_simulated_corporate_action_grant",
+        lambda *a, **kw: revoked.append(kw["selector"]),
+    )
+    payload = consent.withdraw_owner_simulated_action_consent(
+        _request(), account_id=_PHYSICAL_ID, withdrawal_token="original", confirmed=True
+    )
+    assert revoked == [grant.selector]
+    assert payload["consent_status"] == "revoked"
+    assert payload["grant_schema"] == grant.schema
+    assert payload["selected_capabilities"] == [Capability.SHARE_STAGE_WRITE.value]
+    assert bool(payload["terms_text"]) is known_terms
+    assert payload["must_not_execute"] is True
+
+
+def test_v3_preparation_cannot_offer_the_known_v2_document(monkeypatch):
+    policy = replace(
+        _v3_policy(),
+        terms_version=SIMULATED_CORPORATE_ACTION_OWNER_TERMS_V2,
+        terms_sha256=_TERMS_SHA256,
+    )
+    harness = _install_harness(monkeypatch, policy=policy)
+    payload = _prepare_discovered((Capability.SHARE_STAGE_WRITE,))
+    assert payload["outcome"] == "blocked"
+    assert payload["consent_token"] is None
+    assert not harness.commands

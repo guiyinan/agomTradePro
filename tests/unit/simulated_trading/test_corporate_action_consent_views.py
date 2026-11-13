@@ -234,3 +234,71 @@ def test_capability_preparation_rejects_partial_coerced_empty_or_extra_choices(m
     response.render()
     assert response.status_code == 400
     assert response.headers["Content-Type"].startswith("application/json")
+
+
+def test_v3_five_literal_choices_keep_independent_share_and_decline_scope(monkeypatch):
+    calls = []
+    monkeypatch.setattr(
+        views,
+        "prepare_owner_simulated_action_consent",
+        lambda request, **kwargs: calls.append(kwargs)
+        or {
+            "account_id": 41,
+            "outcome": "blocked",
+            "consent_token": None,
+            "withdrawal_token": None,
+        },
+    )
+    body = {
+        "cash_dividend": False,
+        "tax_assessment": False,
+        "tax_withholding": False,
+        "share_distribution": True,
+        "rights_not_exercised": True,
+    }
+    request = APIRequestFactory().post("/prepare/", body, format="json")
+    force_authenticate(request, user=SimpleNamespace(pk=81, is_authenticated=True))
+    response = views.SimulatedActionConsentPreparationAPIView.as_view()(request, account_id=41)
+    response.render()
+    assert response.status_code == 200
+    assert response.headers["Content-Type"].startswith("application/json")
+    assert calls == [
+        {
+            "account_id": 41,
+            "grant_schema": None,
+            "requested_capabilities": (
+                Capability.RIGHTS_NOT_EXERCISED,
+                Capability.SHARE_STAGE_WRITE,
+            ),
+        }
+    ]
+
+
+@pytest.mark.parametrize("defect", ["partial", "coerced", "empty", "extra"])
+def test_v3_choices_reject_partial_coerced_empty_or_extra_fields(monkeypatch, defect):
+    monkeypatch.setattr(
+        views,
+        "prepare_owner_simulated_action_consent",
+        lambda *a, **kw: pytest.fail("Invalid choice reached preparation"),
+    )
+    body = {
+        "cash_dividend": False,
+        "tax_assessment": False,
+        "tax_withholding": False,
+        "share_distribution": True,
+        "rights_not_exercised": False,
+    }
+    if defect == "partial":
+        del body["rights_not_exercised"]
+    elif defect == "coerced":
+        body["share_distribution"] = "true"
+    elif defect == "empty":
+        body["share_distribution"] = False
+    else:
+        body["rights_exercise"] = True
+    request = APIRequestFactory().post("/prepare/", body, format="json")
+    force_authenticate(request, user=SimpleNamespace(pk=81, is_authenticated=True))
+    response = views.SimulatedActionConsentPreparationAPIView.as_view()(request, account_id=41)
+    response.render()
+    assert response.status_code == 400
+    assert response.headers["Content-Type"].startswith("application/json")

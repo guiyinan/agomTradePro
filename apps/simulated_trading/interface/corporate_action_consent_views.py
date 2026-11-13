@@ -80,18 +80,21 @@ class SimulatedActionWithdrawalRequestSerializer(_ConsentInputSerializer):
 
 
 class SimulatedActionConsentPreparationRequestSerializer(serializers.Serializer[dict[str, Any]]):
-    """Accept the legacy empty body or three explicit literal capability choices."""
+    """Accept legacy choices or five explicit literal capability choices."""
 
     cash_dividend = serializers.BooleanField(required=False)
     tax_assessment = serializers.BooleanField(required=False)
     tax_withholding = serializers.BooleanField(required=False)
+    share_distribution = serializers.BooleanField(required=False)
+    rights_not_exercised = serializers.BooleanField(required=False)
 
     def to_internal_value(self, data: Any) -> dict[str, Any]:
         """Reject partial, coerced, unknown or empty capability selections."""
         if not isinstance(data, Mapping):
             raise serializers.ValidationError({"non_field_errors": ["请选择本次授权范围。"]})
         if data and (
-            set(data) != set(self.fields)
+            set(data)
+            not in ({"cash_dividend", "tax_assessment", "tax_withholding"}, set(self.fields))
             or any(type(value) is not bool for value in data.values())
             or not any(value is True for value in data.values())
         ):
@@ -108,11 +111,13 @@ def _selected_preparation_capabilities(
     if not values:
         return None
     fields = (
+        ("rights_not_exercised", SimulatedCorporateActionWriteCapability.RIGHTS_NOT_EXERCISED),
+        ("share_distribution", SimulatedCorporateActionWriteCapability.SHARE_STAGE_WRITE),
         ("tax_assessment", SimulatedCorporateActionWriteCapability.TAX_ASSESS),
         ("tax_withholding", SimulatedCorporateActionWriteCapability.TAX_WITHHOLD),
         ("cash_dividend", SimulatedCorporateActionWriteCapability.CASH_STAGE_WRITE),
     )
-    return tuple(capability for key, capability in fields if values[key] is True)
+    return tuple(capability for key, capability in fields if values.get(key) is True)
 
 
 class SimulatedActionConsentResponseSerializer(serializers.Serializer[dict[str, object]]):

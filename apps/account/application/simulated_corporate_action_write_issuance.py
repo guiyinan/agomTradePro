@@ -14,7 +14,16 @@ from apps.account.domain.simulated_corporate_action_write_capabilities import (
 from apps.account.domain.simulated_corporate_action_write_grant import (
     SIMULATED_CORPORATE_ACTION_WRITE_GRANT_SCHEMA,
     SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA,
+    SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA,
     SimulatedCorporateActionWriteGrantBinding,
+)
+
+_V2_CAPABILITIES = frozenset(
+    {
+        SimulatedCorporateActionWriteCapability.CASH_STAGE_WRITE,
+        SimulatedCorporateActionWriteCapability.TAX_ASSESS,
+        SimulatedCorporateActionWriteCapability.TAX_WITHHOLD,
+    }
 )
 
 
@@ -32,11 +41,21 @@ def _validate_grant_terms(
         if any(value is not None for value in (capabilities, terms_version, terms_sha256)):
             raise ValueError("V1 grant scope cannot contain V2 rights or terms")
         return
-    if grant_schema != SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA:
+    if grant_schema not in {
+        SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA,
+        SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA,
+    }:
         raise ValueError("grant scope schema is unsupported")
+    version_label = (
+        "V2" if grant_schema == SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA else "V3"
+    )
     if capabilities is None:
-        raise ValueError("V2 grant scope capabilities are required")
+        raise ValueError(f"{version_label} grant scope capabilities are required")
     validate_simulated_corporate_action_write_capabilities(capabilities)
+    if grant_schema == SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA and any(
+        capability not in _V2_CAPABILITIES for capability in capabilities
+    ):
+        raise ValueError("V2 grant scope cannot contain V3 capabilities")
     if (
         type(terms_version) is not str
         or not terms_version
@@ -44,13 +63,13 @@ def _validate_grant_terms(
         or len(terms_version) > 192
         or any(character.isspace() for character in terms_version)
     ):
-        raise ValueError("V2 grant scope terms version is invalid")
+        raise ValueError(f"{version_label} grant scope terms version is invalid")
     if (
         type(terms_sha256) is not str
         or len(terms_sha256) != 64
         or any(character not in "0123456789abcdef" for character in terms_sha256)
     ):
-        raise ValueError("V2 grant scope terms digest is invalid")
+        raise ValueError(f"{version_label} grant scope terms digest is invalid")
 
 
 @dataclass(frozen=True, slots=True)
@@ -159,6 +178,6 @@ class SimulatedCorporateActionWriteScopeLocker(Protocol):
         """Revalidate exact current physical/source/policy facts before and after yield.
 
         Legacy callers select the cash-only V1 grant schema unless they explicitly
-        request the complete V2 scope.
+        request the V2 or V3 capability scope.
         """
         ...

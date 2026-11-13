@@ -142,6 +142,8 @@ RUNTIME_CORPORATE_ACTION_CONSENT_ACTIONS: tuple[dict[str, Any], ...] = (
             _capability_choice_field("cash_dividend", "现金分红模拟权益与支付日模拟到账"),
             _capability_choice_field("tax_assessment", "股息红利税额评估与证据留存"),
             _capability_choice_field("tax_withholding", "股息红利模拟扣税与欠税记录"),
+            _capability_choice_field("share_distribution", "模拟送股及转增权益、交付与可售解禁"),
+            _capability_choice_field("rights_not_exercised", "记录不参与本次配股"),
         ],
         result_continuation={
             "target_action_key": CORPORATE_ACTION_CONSENT_CONFIRM_ACTION_KEY,

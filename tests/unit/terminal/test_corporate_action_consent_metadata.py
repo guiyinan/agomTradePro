@@ -151,8 +151,16 @@ def test_actions_use_two_session_bound_result_to_confirmation_flows() -> None:
         "cash_dividend",
         "tax_assessment",
         "tax_withholding",
+        "share_distribution",
+        "rights_not_exercised",
     }
-    for key in ("cash_dividend", "tax_assessment", "tax_withholding"):
+    for key in (
+        "cash_dividend",
+        "tax_assessment",
+        "tax_withholding",
+        "share_distribution",
+        "rights_not_exercised",
+    ):
         assert choice_fields[key]["input_type"] == "checkbox"
         assert choice_fields[key]["value_type"] == "boolean"
         assert choice_fields[key]["required"] is False

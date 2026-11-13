@@ -14254,17 +14254,24 @@
         "apps/account/simulated_corporate_action_write_issuance_composition.py": [
           "before_commit=final_issuance_check",
           "locked_simulated_action_trading_eligibility",
-          "seal.verify(existing)"
+          "seal.verify(existing)",
+          "_require_pinned_v3_terms",
+          "account.simulated-action-owner-consent.v3"
         ],
         "apps/account/simulated_corporate_action_policy_scope_composition.py": [
           "read_current_simulated_action_write_policy",
           "snapshot.resolved_values.get(SIMULATED_ACTION_WRITE_POLICY_KEY) != evidence.value",
-          "locked_runtime_environment"
+          "locked_runtime_environment",
+          "SIMULATED_ACTION_WRITE_POLICY_SCHEMA_V3",
+          "V2 policy cannot include V3 capabilities"
         ],
         "apps/account/simulated_corporate_action_current_grant_composition.py": [
           "locked_current_simulated_corporate_action_write_grant",
           "IN SHARE MODE NOWAIT",
-          "SimulatedCorporateActionWriteCapability.TAX_ASSESS"
+          "SimulatedCorporateActionWriteCapability.TAX_ASSESS",
+          "_has_known_v3_terms",
+          "SimulatedCorporateActionWriteCapability.SHARE_STAGE_WRITE",
+          "SimulatedCorporateActionWriteCapability.RIGHTS_NOT_EXERCISED"
         ],
         "apps/simulated_trading/corporate_action_owner_grant_gate.py": [
           "atomic_authority",
@@ -14278,12 +14285,16 @@
           "restore_simulated_action_consent_token",
           "read_current_simulated_action_consent_metadata",
           "read_latest_simulated_action_withdrawal_metadata",
-          "read_authenticated_withdrawal_session_deadline"
+          "read_authenticated_withdrawal_session_deadline",
+          "_CONSENT_PURPOSE_V3",
+          "token.startswith(\"v3.\")"
         ],
         "apps/simulated_trading/corporate_action_consent_composition.py": [
           "source.observed_at.isoformat()",
           "simulated_action_account_source_refresh_required",
-          "prepare_owner_simulated_action_withdrawal"
+          "prepare_owner_simulated_action_withdrawal",
+          "_require_schema_consent_terms",
+          "SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA"
         ],
         "apps/simulated_trading/infrastructure/simulated_account_row_source_v2_repository.py": [
           "def get_physical_account_heads(",
@@ -14372,9 +14383,44 @@
           "case": "native_explicit_assessment_without_cash_fallback",
           "test_file": "tests/component/simulated_trading/test_owner_granted_corporate_action_capabilities_postgres.py",
           "test_function": "test_native_tax_only_v2_current_head_denies_cash_without_v1_fallback"
+        },
+        {
+          "case": "v3_distinct_current_capabilities",
+          "test_file": "tests/unit/account/test_simulated_corporate_action_current_grant.py",
+          "test_function": "test_v3_share_and_rights_capabilities_are_independently_readable"
+        },
+        {
+          "case": "v2_cannot_borrow_new_capabilities",
+          "test_file": "tests/unit/account/test_simulated_corporate_action_current_grant.py",
+          "test_function": "test_v2_current_head_cannot_authorize_v3_capabilities"
+        },
+        {
+          "case": "native_v3_full_explicit_authority",
+          "test_file": "tests/component/account/test_simulated_corporate_action_capability_issuance_postgres.py",
+          "test_function": "test_native_v3_full_grant_is_exactly_retried_and_reads_all_five_capabilities"
+        },
+        {
+          "case": "native_v3_current_credential_and_terms_denial",
+          "test_file": "tests/component/account/test_simulated_corporate_action_capability_issuance_postgres.py",
+          "test_function": "test_native_v3_csrf_foreign_owner_or_changed_terms_cannot_append"
+        },
+        {
+          "case": "native_v3_withdrawal_after_key_and_policy_loss",
+          "test_file": "tests/component/account/test_simulated_corporate_action_capability_issuance_postgres.py",
+          "test_function": "test_native_v3_owner_can_withdraw_after_role_policy_and_issuer_key_loss"
+        },
+        {
+          "case": "native_v3_real_http_selected_scope",
+          "test_file": "tests/component/account/test_simulated_corporate_action_consent_capabilities_http.py",
+          "test_function": "test_native_http_v3_selected_share_rights_consent_reads_exact_capabilities_and_withdraws"
+        },
+        {
+          "case": "native_v3_http_terms_change_denial",
+          "test_file": "tests/component/account/test_simulated_corporate_action_consent_capabilities_http.py",
+          "test_function": "test_native_http_v3_changed_policy_terms_block_prepared_confirmation"
         }
       ],
-      "notes": "Server clocks never replace source observed_at or policy lineage. A public content hash is not issuer proof. Real Session/CSRF, current trading RBAC, locked physical owner, exact canonical source and explicit runtime policy, signed exact current grant and immutable revocation are independent gates. Historical withdrawal metadata is never current authority. Scope discovery retains expired heads and conflicting mappings. A financial retry may waive only the initial physical updated_at comparison after exact ledger, same-grant Audit and Outbox proof; every current authorization gate remains required. Current official disclosure coverage and ordinary TUI end-to-end acceptance remain separate. Correction timestamp replay requires the full original reversal/successor set, exact namespace, matched predecessor inverse effects, and all contiguous same-grant Audit/Outbox pairs. Later ordinary payment is outside correction membership; partial correction is never timestamp proof. The current-head reader also admits an explicitly server-selected TAX_ASSESS requirement on a matching V2 grant. Cash remains the default requirement; V1 grants cannot authorize tax assessment, and withholding reads remain unsupported. Reading the grant does not qualify tax law/persona/instrument/date/history or authorize financial withholding."
+      "notes": "Real Session/CSRF, current trading RBAC, locked physical ownership and exact canonical source/runtime policy, signed exact current grant and immutable revocation remain independent gates, rechecked before commit. Source clocks never become request clocks. V1 cash and V2 cash/assessment/withholding keep original bytes and powers. Explicit V3 has independent share-stage and rights-not-exercised capabilities, distinct policy/content/issuer/consent/token domains and pinned V3 terms; V2 cannot inherit these powers. Current-head capability reading does not itself post money or shares or qualify official/date/history facts. No default V3 activation. Only explicit current-head capability is admitted; historical metadata is for withdrawal/proof and never current authority. Unknown historical terms/key or policy loss cannot prevent authenticated withdrawal. Existing exact cash correction and financial retry require complete original namespace/source/ledger/Audit/Outbox facts and preserve every current permission gate. Operational V3 audited share/rights posting, current complete official windows and ordinary-user browser goldens remain separate pending work."
     },
     {
       "id": "data_center.configured_statutory_bundle_evidence",

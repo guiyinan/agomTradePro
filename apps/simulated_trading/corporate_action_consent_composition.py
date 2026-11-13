@@ -23,6 +23,7 @@ from apps.account.domain.simulated_corporate_action_write_grant import (
     SIMULATED_CORPORATE_ACTION_SERVICE_ACTOR_ID,
     SIMULATED_CORPORATE_ACTION_WRITE_GRANT_SCHEMA,
     SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA,
+    SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA,
     SimulatedCorporateActionWriteGrant,
     SimulatedCorporateActionWriteGrantBinding,
 )
@@ -36,6 +37,8 @@ from apps.account.simulated_corporate_action_consent_composition import (
     restore_simulated_action_withdrawal_token,
 )
 from apps.account.simulated_corporate_action_consent_terms import (
+    SIMULATED_CORPORATE_ACTION_OWNER_TERMS_V2,
+    SIMULATED_CORPORATE_ACTION_OWNER_TERMS_V3,
     SimulatedCorporateActionConsentTerms,
     require_simulated_corporate_action_consent_terms,
 )
@@ -65,6 +68,13 @@ from apps.simulated_trading.infrastructure.simulated_account_trade_models import
     SimulatedAccountModel,
 )
 from core.exceptions import AuthorizationError, ConfigurationError
+
+_VERSIONED_GRANT_SCHEMAS = frozenset(
+    {
+        SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA,
+        SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA,
+    }
+)
 
 
 class SimulatedActionConsentPayload(TypedDict):
@@ -145,7 +155,7 @@ def _requested_capabilities(
         if requested is not None:
             raise ValueError("V1 consent cannot select V2 capabilities")
         return None
-    if grant_schema != SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA or requested is None:
+    if grant_schema not in _VERSIONED_GRANT_SCHEMAS or requested is None:
         raise ValueError("V2 consent requires an explicit supported capability set")
     try:
         return validate_simulated_corporate_action_write_capabilities(requested)
@@ -153,7 +163,22 @@ def _requested_capabilities(
         raise ValueError("V2 consent capability set is invalid") from error
 
 
-def _v2_display_fields(
+def _require_schema_consent_terms(
+    *, grant_schema: str, terms_version: str, terms_sha256: str
+) -> SimulatedCorporateActionConsentTerms:
+    """Require the pinned document offered for the exact capability protocol."""
+    terms = require_simulated_corporate_action_consent_terms(terms_version, terms_sha256)
+    expected_version = (
+        SIMULATED_CORPORATE_ACTION_OWNER_TERMS_V3
+        if grant_schema == SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA
+        else SIMULATED_CORPORATE_ACTION_OWNER_TERMS_V2
+    )
+    if grant_schema not in _VERSIONED_GRANT_SCHEMAS or terms.version != expected_version:
+        raise ConfigurationError("consent document does not match the exact grant schema")
+    return terms
+
+
+def _versioned_display_fields(
     *,
     capabilities: tuple[SimulatedCorporateActionWriteCapability, ...],
     terms: SimulatedCorporateActionConsentTerms,
@@ -175,17 +200,18 @@ def _v2_display_fields(
     return [item.value for item in selected], selected_labels, text
 
 
-def _apply_v2_display(
+def _apply_versioned_display(
     payload: SimulatedActionConsentPayload,
     *,
+    grant_schema: str,
     capabilities: tuple[SimulatedCorporateActionWriteCapability, ...],
     terms: SimulatedCorporateActionConsentTerms,
 ) -> None:
     """Attach complete offered terms and a separately selected capability subset."""
-    codes, labels, text = _v2_display_fields(capabilities=capabilities, terms=terms)
+    codes, labels, text = _versioned_display_fields(capabilities=capabilities, terms=terms)
     payload.update(
         {
-            "grant_schema": SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA,
+            "grant_schema": grant_schema,
             "selected_capabilities": codes,
             "capability_labels": labels,
             "terms_version": terms.version,
@@ -195,16 +221,16 @@ def _apply_v2_display(
     )
 
 
-def _active_v2_summary(labels: list[str]) -> str:
+def _active_versioned_summary(labels: list[str]) -> str:
     """Describe the exact active V2 capability selection without protocol codes."""
     return f"已有有限期的模拟授权，所选能力包括：{'、'.join(labels)}；可随时撤销。"
 
 
-def _apply_historical_v2_display(
+def _apply_historical_versioned_display(
     payload: SimulatedActionConsentPayload, *, grant: SimulatedCorporateActionWriteGrant
 ) -> None:
     """Preserve withdrawal scope even when its old terms are no longer readable."""
-    if grant.schema != SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA:
+    if grant.schema not in _VERSIONED_GRANT_SCHEMAS:
         return
     if grant.capabilities is None:
         raise SimulatedCorporateActionWriteGrantUnavailable(
@@ -215,17 +241,21 @@ def _apply_historical_v2_display(
     if grant.terms_version is None or grant.terms_sha256 is None:
         return
     try:
-        terms = require_simulated_corporate_action_consent_terms(
-            grant.terms_version, grant.terms_sha256
+        terms = _require_schema_consent_terms(
+            grant_schema=grant.schema,
+            terms_version=grant.terms_version,
+            terms_sha256=grant.terms_sha256,
         )
     except ConfigurationError:
         return
-    _apply_v2_display(payload, capabilities=grant.capabilities, terms=terms)
+    _apply_versioned_display(
+        payload, grant_schema=grant.schema, capabilities=grant.capabilities, terms=terms
+    )
 
 
 def _scope_block_summary(payload: SimulatedActionConsentPayload, message: str) -> str:
     """Retain an existing V2 grant's human-readable scope in blocked responses."""
-    if payload["grant_schema"] != SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA:
+    if payload["grant_schema"] not in _VERSIONED_GRANT_SCHEMAS:
         return message
     labels = payload["capability_labels"]
     if labels:
@@ -255,7 +285,7 @@ def _apply_active_grant_payload(
             ),
         }
     )
-    if grant.schema != SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA:
+    if grant.schema not in _VERSIONED_GRANT_SCHEMAS:
         return
     if grant.capabilities is None:
         raise SimulatedCorporateActionWriteGrantUnavailable(
@@ -273,8 +303,10 @@ def _apply_active_grant_payload(
         )
         return
     try:
-        terms = require_simulated_corporate_action_consent_terms(
-            grant.terms_version, grant.terms_sha256
+        terms = _require_schema_consent_terms(
+            grant_schema=grant.schema,
+            terms_version=grant.terms_version,
+            terms_sha256=grant.terms_sha256,
         )
     except ConfigurationError:
         payload.update(
@@ -285,8 +317,10 @@ def _apply_active_grant_payload(
             }
         )
         return
-    _apply_v2_display(payload, capabilities=grant.capabilities, terms=terms)
-    payload["summary"] = _active_v2_summary(payload["capability_labels"])
+    _apply_versioned_display(
+        payload, grant_schema=grant.schema, capabilities=grant.capabilities, terms=terms
+    )
+    payload["summary"] = _active_versioned_summary(payload["capability_labels"])
 
 
 def _same_grant_owner_chain(
@@ -395,9 +429,9 @@ def prepare_owner_simulated_action_consent(
                     grant=grant,
                     physical_account_id=account_id,
                 )
-            active_v2_status_read = (
+            active_versioned_status_read = (
                 grant is not None
-                and grant.schema == SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA
+                and grant.schema in _VERSIONED_GRANT_SCHEMAS
                 and grant_schema == SIMULATED_CORPORATE_ACTION_WRITE_GRANT_SCHEMA
             )
             if not eligible:
@@ -425,7 +459,7 @@ def prepare_owner_simulated_action_consent(
                 )
                 return payload
             policy_schema = (
-                grant.schema if active_v2_status_read and grant is not None else grant_schema
+                grant.schema if active_versioned_status_read and grant is not None else grant_schema
             )
             policy = read_current_simulated_action_write_policy(
                 canonical_account_id=source.account_id,
@@ -454,7 +488,7 @@ def prepare_owner_simulated_action_consent(
                     return payload
                 command_capabilities = None
             terms: SimulatedCorporateActionConsentTerms | None = None
-            if active_v2_status_read:
+            if active_versioned_status_read:
                 if (
                     grant is None
                     or grant.capabilities is None
@@ -464,9 +498,10 @@ def prepare_owner_simulated_action_consent(
                 ):
                     raise ValueError("current V2 grant and policy terms are required")
                 try:
-                    terms = require_simulated_corporate_action_consent_terms(
-                        policy.terms_version,
-                        policy.terms_sha256,
+                    terms = _require_schema_consent_terms(
+                        grant_schema=selected_grant_schema,
+                        terms_version=policy.terms_version,
+                        terms_sha256=policy.terms_sha256,
                     )
                 except ConfigurationError:
                     payload["outcome"] = "blocked"
@@ -475,7 +510,7 @@ def prepare_owner_simulated_action_consent(
                         payload, "授权条款版本无法核对，当前授权不能用于新增操作。"
                     )
                     return payload
-            elif selected_grant_schema == SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA:
+            elif selected_grant_schema in _VERSIONED_GRANT_SCHEMAS:
                 if selected_capabilities is None or policy.capabilities is None:
                     raise ValueError("V2 policy and explicit capability selection are required")
                 if not set(selected_capabilities).issubset(policy.capabilities):
@@ -488,9 +523,10 @@ def prepare_owner_simulated_action_consent(
                 if policy.terms_version is None or policy.terms_sha256 is None:
                     raise ValueError("V2 service policy terms are missing")
                 try:
-                    terms = require_simulated_corporate_action_consent_terms(
-                        policy.terms_version,
-                        policy.terms_sha256,
+                    terms = _require_schema_consent_terms(
+                        grant_schema=selected_grant_schema,
+                        terms_version=policy.terms_version,
+                        terms_sha256=policy.terms_sha256,
                     )
                 except ConfigurationError:
                     payload["outcome"] = "blocked"
@@ -512,7 +548,7 @@ def prepare_owner_simulated_action_consent(
                 policy_version=policy.policy_version,
                 policy_content_hash=policy.content_hash,
             )
-            if active_v2_status_read:
+            if active_versioned_status_read:
                 if (
                     grant is None
                     or grant.capabilities is None
@@ -536,8 +572,7 @@ def prepare_owner_simulated_action_consent(
                     and (
                         selected_grant_schema == SIMULATED_CORPORATE_ACTION_WRITE_GRANT_SCHEMA
                         or (
-                            selected_grant_schema
-                            == SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA
+                            selected_grant_schema in _VERSIONED_GRANT_SCHEMAS
                             and grant.capabilities == selected_capabilities
                             and terms is not None
                             and grant.terms_version == terms.version
@@ -551,6 +586,16 @@ def prepare_owner_simulated_action_consent(
                     payload["outcome"] = "blocked"
                     payload["blocking_reason"] = "simulated_action_consent_basis_changed"
                     payload["summary"] = "该授权所依据的资料已更新，请撤销后重新核对并明确同意。"
+                    return payload
+                if (
+                    grant.schema == SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA
+                    and selected_grant_schema != SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA
+                ):
+                    payload["outcome"] = "blocked"
+                    payload["blocking_reason"] = "simulated_action_consent_basis_changed"
+                    payload["summary"] = _scope_block_summary(
+                        payload, "当前政策版本低于原授权，请先核对政策；仍可撤回已有授权。"
+                    )
                     return payload
                 if not _same_grant_owner_chain(grant, binding):
                     payload["outcome"] = "blocked"
@@ -580,11 +625,12 @@ def prepare_owner_simulated_action_consent(
                 terms_sha256=terms.sha256 if terms is not None else None,
             )
             consent_token = prepare_simulated_action_consent_token(command, as_of=as_of)
-            if selected_grant_schema == SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA:
+            if selected_grant_schema in _VERSIONED_GRANT_SCHEMAS:
                 if selected_capabilities is None or terms is None:
                     raise ValueError("V2 consent document is unavailable")
-                _apply_v2_display(
+                _apply_versioned_display(
                     payload,
+                    grant_schema=selected_grant_schema,
                     capabilities=selected_capabilities,
                     terms=terms,
                 )
@@ -712,7 +758,7 @@ def prepare_owner_simulated_action_withdrawal(
                 ),
             }
         )
-        _apply_historical_v2_display(payload, grant=grant)
+        _apply_historical_versioned_display(payload, grant=grant)
         return payload
 
 
@@ -728,15 +774,16 @@ def confirm_owner_simulated_action_consent(
         as_of=timezone.now(),
     )
     terms: SimulatedCorporateActionConsentTerms | None = None
-    if command.grant_schema == SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA:
+    if command.grant_schema in _VERSIONED_GRANT_SCHEMAS:
         if command.terms_version is None or command.terms_sha256 is None:
             raise SimulatedCorporateActionWriteGrantUnavailable(
                 "confirmed V2 consent has no exact terms identity"
             )
         try:
-            terms = require_simulated_corporate_action_consent_terms(
-                command.terms_version,
-                command.terms_sha256,
+            terms = _require_schema_consent_terms(
+                grant_schema=command.grant_schema,
+                terms_version=command.terms_version,
+                terms_sha256=command.terms_sha256,
             )
         except ConfigurationError as error:
             raise SimulatedCorporateActionWriteGrantUnavailable(
@@ -767,7 +814,7 @@ def confirm_owner_simulated_action_consent(
         )
     payload = _empty(account_id)
     summary = "现金分红模拟入账授权已保存；本次操作仅保存授权。"
-    if grant.schema == SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA:
+    if grant.schema in _VERSIONED_GRANT_SCHEMAS:
         if grant.capabilities is None:
             raise SimulatedCorporateActionWriteGrantUnavailable(
                 "issued V2 grant has no explicit capabilities"
@@ -776,7 +823,9 @@ def confirm_owner_simulated_action_consent(
             raise SimulatedCorporateActionWriteGrantUnavailable(
                 "confirmed V2 consent terms are unavailable"
             )
-        _apply_v2_display(payload, capabilities=grant.capabilities, terms=terms)
+        _apply_versioned_display(
+            payload, grant_schema=grant.schema, capabilities=grant.capabilities, terms=terms
+        )
         summary = (
             "所选模拟能力授权已保存："
             f"{'、'.join(payload['capability_labels'])}。本次操作仅保存授权；可随时撤销。"
@@ -830,5 +879,5 @@ def withdraw_owner_simulated_action_consent(
             "grant_content_hash": selector.content_hash,
         }
     )
-    _apply_historical_v2_display(payload, grant=grant)
+    _apply_historical_versioned_display(payload, grant=grant)
     return payload

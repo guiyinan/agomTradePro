@@ -28,6 +28,8 @@ from apps.account.domain.simulated_corporate_action_write_grant import (
     SIMULATED_CORPORATE_ACTION_STAGE_WRITE_PERMISSION,
     SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_PERMISSION,
     SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA,
+    SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_PERMISSION,
+    SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA,
     SimulatedCorporateActionWriteGrant,
     SimulatedCorporateActionWriteGrantRevocation,
     SimulatedCorporateActionWriteGrantSelector,
@@ -42,7 +44,11 @@ from apps.account.infrastructure.simulated_corporate_action_write_grant_reposito
 from apps.account.infrastructure.simulated_corporate_action_write_grant_seal import (
     SimulatedCorporateActionWriteGrantSeal,
 )
-from core.exceptions import AuthenticationError, AuthorizationError
+from apps.account.simulated_corporate_action_consent_terms import (
+    SIMULATED_CORPORATE_ACTION_OWNER_TERMS_V3,
+    require_simulated_corporate_action_consent_terms,
+)
+from core.exceptions import AuthenticationError, AuthorizationError, ConfigurationError
 
 
 @contextmanager
@@ -87,6 +93,35 @@ class _IssueClock:
         return self.instant
 
 
+def _require_pinned_v3_terms(
+    *,
+    grant_schema: str,
+    terms_version: str | None,
+    terms_sha256: str | None,
+) -> None:
+    """Require V3 grants to name the exact reviewed share-and-rights terms."""
+    if grant_schema != SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA:
+        return
+    if (
+        type(terms_version) is not str
+        or terms_version != SIMULATED_CORPORATE_ACTION_OWNER_TERMS_V3
+        or type(terms_sha256) is not str
+    ):
+        raise SimulatedCorporateActionWriteGrantUnavailable(
+            "V3 simulated service consent requires the pinned V3 terms"
+        )
+    try:
+        terms = require_simulated_corporate_action_consent_terms(terms_version, terms_sha256)
+    except ConfigurationError as error:
+        raise SimulatedCorporateActionWriteGrantUnavailable(
+            "V3 simulated service consent terms are unavailable"
+        ) from error
+    if terms.version != SIMULATED_CORPORATE_ACTION_OWNER_TERMS_V3:
+        raise SimulatedCorporateActionWriteGrantUnavailable(
+            "V3 simulated service consent requires the pinned V3 terms"
+        )
+
+
 def _session_consent_authenticator(request: Request) -> SessionAuthentication:
     """Require an explicit mutating request and the actual CSRF-enforcing backend."""
     if not isinstance(request, Request):
@@ -115,6 +150,11 @@ def issue_authenticated_simulated_corporate_action_grant(
     if type(command) is not SimulatedCorporateActionGrantConsent:
         raise SimulatedCorporateActionWriteGrantUnavailable("grant consent type is invalid")
     command.__post_init__()
+    _require_pinned_v3_terms(
+        grant_schema=command.grant_schema,
+        terms_version=command.terms_version,
+        terms_sha256=command.terms_sha256,
+    )
     authenticator = _session_consent_authenticator(request)
     if (
         not using
@@ -182,7 +222,11 @@ def issue_authenticated_simulated_corporate_action_grant(
                 or scope.terms_version != command.terms_version
                 or scope.terms_sha256 != command.terms_sha256
                 or (
-                    command.grant_schema == SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA
+                    command.grant_schema
+                    in {
+                        SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA,
+                        SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA,
+                    }
                     and (
                         scope.capabilities is None
                         or command.capabilities is None
@@ -255,6 +299,22 @@ def issue_authenticated_simulated_corporate_action_grant(
                     }
                 )
                 consent_version = "2"
+            elif command.grant_schema == SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA:
+                if command.capabilities is None:
+                    raise SimulatedCorporateActionWriteGrantUnavailable(
+                        "V3 consent capabilities are missing"
+                    )
+                consent_facts.update(
+                    {
+                        "schema": "account.simulated-action-owner-consent.v3",
+                        "grant_schema": command.grant_schema,
+                        "capabilities": [capability.value for capability in command.capabilities],
+                        "terms_version": command.terms_version,
+                        "terms_sha256": command.terms_sha256,
+                        "predecessor_content_hash": command.expected_predecessor_content_hash,
+                    }
+                )
+                consent_version = "3"
             consent_hash = hashlib.sha256(
                 json.dumps(
                     consent_facts,
@@ -280,9 +340,14 @@ def issue_authenticated_simulated_corporate_action_grant(
                     valid_until=command.valid_until,
                     supersedes_content_hash=command.expected_predecessor_content_hash,
                     permission=(
-                        SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_PERMISSION
-                        if command.grant_schema == SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA
-                        else SIMULATED_CORPORATE_ACTION_STAGE_WRITE_PERMISSION
+                        SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_PERMISSION
+                        if command.grant_schema == SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA
+                        else (
+                            SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_PERMISSION
+                            if command.grant_schema
+                            == SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA
+                            else SIMULATED_CORPORATE_ACTION_STAGE_WRITE_PERMISSION
+                        )
                     ),
                     schema=command.grant_schema,
                     capabilities=command.capabilities,

@@ -12,6 +12,7 @@ from apps.account.domain.simulated_corporate_action_write_capabilities import (
 from core.exceptions import ConfigurationError
 
 SIMULATED_CORPORATE_ACTION_OWNER_TERMS_V2 = "simulated-corporate-action-owner-terms.v2"
+SIMULATED_CORPORATE_ACTION_OWNER_TERMS_V3 = "simulated-corporate-action-owner-terms.v3"
 _TERMS_DOMAIN = "agomtradepro.account.corporate-action-owner-consent"
 _TERMS_SCHEMA = "account.corporate-action-owner-terms.v1"
 _INTRODUCTION = (
@@ -50,6 +51,24 @@ _CAPABILITIES = (
         description="允许按已声明的现金分红条款模拟应得权益与模拟到账。",
     ),
 )
+_CAPABILITIES_V3 = (
+    *_CAPABILITIES,
+    SimulatedCorporateActionConsentCapabilityTerms(
+        code=SimulatedCorporateActionWriteCapability.SHARE_STAGE_WRITE.value,
+        title="模拟送股及转增权益、交付与可售解禁",
+        description=(
+            "允许服务仅在来源、登记日持仓、送股或转增数量与可售日期均经核验后，记录模拟送股或转增权益、"
+            "股份交付、可售解禁及完整更正。"
+        ),
+    ),
+    SimulatedCorporateActionConsentCapabilityTerms(
+        code=SimulatedCorporateActionWriteCapability.RIGHTS_NOT_EXERCISED.value,
+        title="记录不参与本次配股",
+        description=(
+            "仅允许记录经来源与登记日持仓核验的本次配股未行权事实；不授权认购、缴款、行权、下单或真实账户操作。"
+        ),
+    ),
+)
 
 
 def _canonical_document_json() -> str:
@@ -74,6 +93,28 @@ def _canonical_document_json() -> str:
     )
 
 
+def _canonical_document_json_v3() -> str:
+    """Serialize the V3 document without changing the pinned V2 bytes."""
+    payload: dict[str, object] = {
+        "domain": _TERMS_DOMAIN,
+        "schema_version": _TERMS_SCHEMA,
+        "version": SIMULATED_CORPORATE_ACTION_OWNER_TERMS_V3,
+        "introduction": _INTRODUCTION,
+        "capabilities": [
+            {"code": item.code, "title": item.title, "description": item.description}
+            for item in _CAPABILITIES_V3
+        ],
+        "general_limits": list(_GENERAL_LIMITS),
+    }
+    return json.dumps(
+        payload,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    )
+
+
 @dataclass(frozen=True, slots=True)
 class SimulatedCorporateActionConsentTerms:
     """Immutable whole consent document and its canonical content digest."""
@@ -86,15 +127,21 @@ class SimulatedCorporateActionConsentTerms:
     sha256: str
 
     def __post_init__(self) -> None:
-        """Reject objects that do not exactly represent the pinned V2 document."""
-        if (
-            type(self.version) is not str
-            or self.version != SIMULATED_CORPORATE_ACTION_OWNER_TERMS_V2
-        ):
-            raise ValueError("consent terms version is not the pinned V2 version")
+        """Reject objects that do not exactly represent one pinned consent document."""
+        if type(self.version) is not str:
+            raise TypeError("consent terms version must be a string")
+        expected_capabilities: tuple[SimulatedCorporateActionConsentCapabilityTerms, ...]
+        if self.version == SIMULATED_CORPORATE_ACTION_OWNER_TERMS_V2:
+            expected_capabilities = _CAPABILITIES
+            expected_json = _canonical_document_json()
+        elif self.version == SIMULATED_CORPORATE_ACTION_OWNER_TERMS_V3:
+            expected_capabilities = _CAPABILITIES_V3
+            expected_json = _canonical_document_json_v3()
+        else:
+            raise ValueError("consent terms version is unsupported")
         if type(self.introduction) is not str or self.introduction != _INTRODUCTION:
             raise ValueError("consent terms introduction does not match the pinned document")
-        if type(self.capabilities) is not tuple or self.capabilities != _CAPABILITIES:
+        if type(self.capabilities) is not tuple or self.capabilities != expected_capabilities:
             raise ValueError("consent capability terms do not match the pinned document")
         if any(
             type(item) is not SimulatedCorporateActionConsentCapabilityTerms
@@ -105,7 +152,6 @@ class SimulatedCorporateActionConsentTerms:
             raise ValueError("consent limits do not match the pinned document")
         if any(type(item) is not str for item in self.general_limits):
             raise TypeError("consent limits must be strings")
-        expected_json = _canonical_document_json()
         if type(self.canonical_json) is not str or self.canonical_json != expected_json:
             raise ValueError("consent canonical JSON does not match the pinned document")
         expected_sha256 = hashlib.sha256(expected_json.encode("utf-8")).hexdigest()
@@ -117,23 +163,32 @@ def require_simulated_corporate_action_consent_terms(
     configured_version: str,
     configured_sha256: str,
 ) -> SimulatedCorporateActionConsentTerms:
-    """Return the pinned V2 document only when explicit configuration matches it."""
-    canonical_json = _canonical_document_json()
+    """Return a pinned V2 or V3 document only when its exact hash is configured."""
+    if type(configured_version) is not str or type(configured_sha256) is not str:
+        raise ConfigurationError(
+            "simulated corporate-action consent terms configuration is unknown or mismatched"
+        )
+    capabilities: tuple[SimulatedCorporateActionConsentCapabilityTerms, ...]
+    if configured_version == SIMULATED_CORPORATE_ACTION_OWNER_TERMS_V2:
+        capabilities = _CAPABILITIES
+        canonical_json = _canonical_document_json()
+    elif configured_version == SIMULATED_CORPORATE_ACTION_OWNER_TERMS_V3:
+        capabilities = _CAPABILITIES_V3
+        canonical_json = _canonical_document_json_v3()
+    else:
+        raise ConfigurationError(
+            "simulated corporate-action consent terms configuration is unknown or mismatched"
+        )
     computed_sha256 = hashlib.sha256(canonical_json.encode("utf-8")).hexdigest()
-    if (
-        type(configured_version) is not str
-        or type(configured_sha256) is not str
-        or configured_version != SIMULATED_CORPORATE_ACTION_OWNER_TERMS_V2
-        or configured_sha256 != computed_sha256
-    ):
+    if configured_sha256 != computed_sha256:
         raise ConfigurationError(
             "simulated corporate-action consent terms configuration is unknown or mismatched"
         )
 
     return SimulatedCorporateActionConsentTerms(
-        version=SIMULATED_CORPORATE_ACTION_OWNER_TERMS_V2,
+        version=configured_version,
         introduction=_INTRODUCTION,
-        capabilities=_CAPABILITIES,
+        capabilities=capabilities,
         general_limits=_GENERAL_LIMITS,
         canonical_json=canonical_json,
         sha256=computed_sha256,
@@ -142,6 +197,7 @@ def require_simulated_corporate_action_consent_terms(
 
 __all__ = [
     "SIMULATED_CORPORATE_ACTION_OWNER_TERMS_V2",
+    "SIMULATED_CORPORATE_ACTION_OWNER_TERMS_V3",
     "SimulatedCorporateActionConsentCapabilityTerms",
     "SimulatedCorporateActionConsentTerms",
     "require_simulated_corporate_action_consent_terms",

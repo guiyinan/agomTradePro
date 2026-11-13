@@ -21,6 +21,7 @@ from tests.unit.account.test_simulated_corporate_action_write_grant import (
     _binding,
     _grant,
     _grant_v2,
+    _grant_v3,
     _revocation,
 )
 
@@ -67,9 +68,42 @@ def test_v2_capabilities_use_a_versioned_mac_and_reject_public_hash_resealing(
 
     assert issued.issuer_evidence_version == "2"
     assert seal.verify(issued)
+    assert issued.issuer_evidence_hash == (
+        "d310d7fed5324945048196c448fbbf35753b240ede45d1899e668bce51d78c23"
+    )
     forged = replace(
         issued,
         capabilities=(SimulatedCorporateActionWriteCapability.TAX_ASSESS,),
+        identity_hash="",
+        content_hash="",
+    )
+    assert not seal.verify(forged)
+
+
+def test_v3_share_permissions_use_a_distinct_issuer_mac_contract(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _key(monkeypatch)
+    seal = seals.SimulatedCorporateActionWriteGrantSeal()
+    grant = _grant_v3(
+        capabilities=(
+            SimulatedCorporateActionWriteCapability.RIGHTS_NOT_EXERCISED,
+            SimulatedCorporateActionWriteCapability.SHARE_STAGE_WRITE,
+        ),
+        supersedes_content_hash="e" * 64,
+    )
+
+    issued = seal.seal(grant)
+
+    assert issued.issuer_evidence_version == "3"
+    assert seal.verify(issued)
+    assert issued.issuer_evidence_hash == (
+        "bf91e813d8ac2d9a1769e93c5d477896e5e80447b853265c52ceb1d0facdeba0"
+    )
+    assert seal.seal(issued) == issued
+    forged = replace(
+        issued,
+        capabilities=(SimulatedCorporateActionWriteCapability.RIGHTS_NOT_EXERCISED,),
         identity_hash="",
         content_hash="",
     )

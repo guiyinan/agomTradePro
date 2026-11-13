@@ -18,17 +18,23 @@ from apps.account.domain.simulated_corporate_action_write_grant import (
     SIMULATED_CORPORATE_ACTION_WRITE_GRANT_SCHEMA,
     SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_PERMISSION,
     SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA,
+    SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_PERMISSION,
+    SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA,
     SimulatedCorporateActionWriteGrant,
     SimulatedCorporateActionWriteGrantBinding,
     SimulatedCorporateActionWriteGrantCurrent,
     SimulatedCorporateActionWriteGrantRevocation,
     SimulatedCorporateActionWriteGrantSelector,
 )
+from apps.account.simulated_corporate_action_consent_terms import (
+    SIMULATED_CORPORATE_ACTION_OWNER_TERMS_V3,
+)
 
 _AT = datetime(2026, 11, 11, 10, 0, tzinfo=UTC)
 _A = "a" * 64
 _B = "b" * 64
 _C = "c" * 64
+_V3_TERMS_SHA256 = "b625c087151f8e580ca48cdfa4dac6a2bded6bb8c7413fe6629c4b3ebc6bdbc4"
 
 
 def _binding(**changes: object) -> SimulatedCorporateActionWriteGrantBinding:
@@ -71,10 +77,14 @@ def _grant(
         grant_version=grant_version,
         binding=binding or _binding(),
         consent_evidence_id="consent-1",
-        consent_evidence_version="1",
+        consent_evidence_version=(
+            "3" if schema == SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA else "1"
+        ),
         consent_evidence_hash=_A,
         issuer_evidence_id="issuer-1",
-        issuer_evidence_version="1",
+        issuer_evidence_version=(
+            "3" if schema == SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA else "1"
+        ),
         issuer_evidence_hash=issuer_hash,
         consented_at=recorded_at - timedelta(minutes=2),
         issued_at=recorded_at - timedelta(minutes=1),
@@ -82,9 +92,13 @@ def _grant(
         valid_until=valid_until,
         supersedes_content_hash=supersedes_content_hash,
         permission=(
-            SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_PERMISSION
-            if schema == SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA
-            else current_grant.SIMULATED_CORPORATE_ACTION_STAGE_WRITE_PERMISSION
+            SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_PERMISSION
+            if schema == SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA
+            else (
+                SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_PERMISSION
+                if schema == SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA
+                else current_grant.SIMULATED_CORPORATE_ACTION_STAGE_WRITE_PERMISSION
+            )
         ),
         schema=schema,
         capabilities=capabilities,
@@ -111,6 +125,30 @@ def _v2_grant(
         capabilities=tuple(sorted(capabilities, key=lambda item: item.value)),
         terms_version="owner-terms-v2",
         terms_sha256=_B,
+    )
+
+
+def _v3_grant(
+    *,
+    capabilities: tuple[Capability, ...],
+    grant_version: str = "v3",
+    recorded_at: datetime = _AT,
+    valid_until: datetime = _AT + timedelta(hours=1),
+    issuer_hash: str = _C,
+    terms_version: str = SIMULATED_CORPORATE_ACTION_OWNER_TERMS_V3,
+    terms_sha256: str = _V3_TERMS_SHA256,
+) -> SimulatedCorporateActionWriteGrant:
+    """Build one explicit V3 share/rights-capable grant for current-head tests."""
+
+    return _grant(
+        grant_version=grant_version,
+        recorded_at=recorded_at,
+        valid_until=valid_until,
+        issuer_hash=issuer_hash,
+        schema=SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA,
+        capabilities=tuple(sorted(capabilities, key=lambda item: item.value)),
+        terms_version=terms_version,
+        terms_sha256=terms_sha256,
     )
 
 
@@ -437,6 +475,87 @@ def test_v2_grant_with_explicit_cash_capability_is_accepted(
     ) as observed:
         assert observed == grant
     assert len(tuple(sql for sql in connection.sql if sql.startswith("LOCK TABLE"))) == 2
+
+
+@pytest.mark.parametrize(
+    "capability",
+    [Capability.SHARE_STAGE_WRITE, Capability.RIGHTS_NOT_EXERCISED],
+)
+def test_v3_share_and_rights_capabilities_are_independently_readable(
+    monkeypatch: pytest.MonkeyPatch,
+    capability: Capability,
+) -> None:
+    grant = _v3_grant(capabilities=(capability,))
+    connection, _ = _install_reader(monkeypatch, grant=grant)
+
+    with current_grant.locked_current_simulated_corporate_action_write_grant(
+        selector=_selector(grant), using="default", required_capability=capability
+    ) as observed:
+        assert observed == grant
+
+    assert len(tuple(sql for sql in connection.sql if sql.startswith("LOCK TABLE"))) == 2
+
+
+@pytest.mark.parametrize(
+    ("granted", "requested"),
+    [
+        (Capability.SHARE_STAGE_WRITE, Capability.RIGHTS_NOT_EXERCISED),
+        (Capability.RIGHTS_NOT_EXERCISED, Capability.SHARE_STAGE_WRITE),
+    ],
+)
+def test_v3_current_head_never_borrows_the_other_new_capability(
+    monkeypatch: pytest.MonkeyPatch,
+    granted: Capability,
+    requested: Capability,
+) -> None:
+    grant = _v3_grant(capabilities=(granted,))
+    _, repository = _install_reader(monkeypatch, grant=grant)
+
+    with pytest.raises(SimulatedCorporateActionWriteGrantUnavailable):
+        with current_grant.locked_current_simulated_corporate_action_write_grant(
+            selector=_selector(grant), using="default", required_capability=requested
+        ):
+            pytest.fail("V3 capabilities are independent explicit permissions")
+
+    assert len(repository.scope_calls) == 1
+
+
+@pytest.mark.parametrize(
+    "capability",
+    [Capability.SHARE_STAGE_WRITE, Capability.RIGHTS_NOT_EXERCISED],
+)
+def test_v3_current_head_rejects_unknown_pinned_terms(
+    monkeypatch: pytest.MonkeyPatch,
+    capability: Capability,
+) -> None:
+    grant = _v3_grant(capabilities=(capability,), terms_version="unknown-v3-terms")
+    _install_reader(monkeypatch, grant=grant)
+
+    with pytest.raises(SimulatedCorporateActionWriteGrantUnavailable):
+        with current_grant.locked_current_simulated_corporate_action_write_grant(
+            selector=_selector(grant), using="default", required_capability=capability
+        ):
+            pytest.fail("unknown V3 consent terms cannot authorize current writes")
+
+
+@pytest.mark.parametrize(
+    "capability",
+    [Capability.SHARE_STAGE_WRITE, Capability.RIGHTS_NOT_EXERCISED],
+)
+def test_v2_current_head_cannot_authorize_v3_capabilities(
+    monkeypatch: pytest.MonkeyPatch,
+    capability: Capability,
+) -> None:
+    grant = _v2_grant(capabilities=(Capability.CASH_STAGE_WRITE,))
+    _, repository = _install_reader(monkeypatch, grant=grant)
+
+    with pytest.raises(SimulatedCorporateActionWriteGrantUnavailable):
+        with current_grant.locked_current_simulated_corporate_action_write_grant(
+            selector=_selector(grant), using="default", required_capability=capability
+        ):
+            pytest.fail("V2 must not acquire V3 share or rights powers")
+
+    assert len(repository.scope_calls) == 1
 
 
 @pytest.mark.parametrize(

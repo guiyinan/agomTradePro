@@ -20,6 +20,8 @@ from apps.account.domain.simulated_corporate_action_write_grant import (
     SIMULATED_CORPORATE_ACTION_WRITE_GRANT_SCHEMA,
     SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_PERMISSION,
     SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA,
+    SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_PERMISSION,
+    SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA,
 )
 from apps.config_center.domain.runtime_config import (
     RuntimeConfigProfile,
@@ -138,6 +140,24 @@ def _v2_item(
     }
 
 
+def _v3_item(
+    item: dict[str, object],
+    *,
+    capabilities: list[str],
+    terms_version: str,
+    terms_sha256: str,
+) -> dict[str, object]:
+    """Build one explicit V3 policy row without adding capability defaults."""
+
+    return {
+        **item,
+        "permission": SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_PERMISSION,
+        "capabilities": capabilities,
+        "terms_version": terms_version,
+        "terms_sha256": terms_sha256,
+    }
+
+
 def _v2_capabilities(
     *values: SimulatedCorporateActionWriteCapability,
 ) -> list[str]:
@@ -215,7 +235,7 @@ def test_v2_policy_requires_explicit_schema_and_fails_closed_for_legacy_readers(
             pytest.fail("legacy locked callers must not accept V2 policy")
 
 
-@pytest.mark.parametrize("version", ["v1", "v2"])
+@pytest.mark.parametrize("version", ["v1", "v2", "v3"])
 def test_read_discovery_can_select_the_single_current_policy_without_a_schema(
     policy_world, version: str
 ):
@@ -224,7 +244,7 @@ def test_read_discovery_can_select_the_single_current_policy_without_a_schema(
         row = item
         schema_version = "simulated-corporate-action-write-policies.v1"
         expected = SIMULATED_CORPORATE_ACTION_WRITE_GRANT_SCHEMA
-    else:
+    elif version == "v2":
         row = _v2_item(
             item,
             capabilities=_v2_capabilities(SimulatedCorporateActionWriteCapability.TAX_ASSESS),
@@ -233,6 +253,15 @@ def test_read_discovery_can_select_the_single_current_policy_without_a_schema(
         )
         schema_version = "simulated-corporate-action-write-policies.v2"
         expected = SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA
+    else:
+        row = _v3_item(
+            item,
+            capabilities=[SimulatedCorporateActionWriteCapability.SHARE_STAGE_WRITE.value],
+            terms_version="owner-terms-v3",
+            terms_sha256="c" * 64,
+        )
+        schema_version = "simulated-corporate-action-write-policies.v3"
+        expected = SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA
     binding, _, _, _ = install([row], schema_version=schema_version)
 
     result = policies.read_current_simulated_action_write_policy(
@@ -245,6 +274,76 @@ def test_read_discovery_can_select_the_single_current_policy_without_a_schema(
 
     assert result.grant_schema == expected
     assert result.owner_user_id == binding.owner_user_id
+
+
+def test_v3_policy_parses_explicit_new_capabilities_and_old_policy_rejects_them(policy_world):
+    item, install = policy_world
+    new_capabilities = sorted(
+        (
+            SimulatedCorporateActionWriteCapability.SHARE_STAGE_WRITE.value,
+            SimulatedCorporateActionWriteCapability.RIGHTS_NOT_EXERCISED.value,
+            SimulatedCorporateActionWriteCapability.CASH_STAGE_WRITE.value,
+        )
+    )
+    row = _v3_item(
+        item,
+        capabilities=new_capabilities,
+        terms_version="owner-terms-v3",
+        terms_sha256="c" * 64,
+    )
+    binding, _, _, _ = install([row], schema_version="simulated-corporate-action-write-policies.v3")
+
+    result = policies.read_current_simulated_action_write_policy(
+        canonical_account_id=binding.account_id,
+        owner_user_id=binding.owner_user_id,
+        environment="development",
+        as_of=_AT,
+        expected_grant_schema=SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA,
+    )
+    assert result.grant_schema == SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA
+    assert result.capabilities == tuple(
+        SimulatedCorporateActionWriteCapability(value) for value in new_capabilities
+    )
+    assert result.terms_version == "owner-terms-v3"
+
+    v2_row = _v2_item(
+        item,
+        capabilities=sorted(
+            (
+                SimulatedCorporateActionWriteCapability.SHARE_STAGE_WRITE.value,
+                SimulatedCorporateActionWriteCapability.TAX_ASSESS.value,
+            )
+        ),
+        terms_version="owner-terms-v2",
+        terms_sha256="b" * 64,
+    )
+    old_binding, _, _, _ = install(
+        [v2_row], schema_version="simulated-corporate-action-write-policies.v2"
+    )
+    with pytest.raises(ValueError, match="V2 policy cannot include V3 capabilities"):
+        policies._read_policy(
+            binding=old_binding,
+            environment="development",
+            as_of=_AT,
+            expected_grant_schema=SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA,
+        )
+
+    v1_row = {
+        **item,
+        "capabilities": [SimulatedCorporateActionWriteCapability.SHARE_STAGE_WRITE.value],
+        "terms_version": "owner-terms-v3",
+        "terms_sha256": "c" * 64,
+    }
+    v1_binding, _, _, _ = install(
+        [v1_row], schema_version="simulated-corporate-action-write-policies.v1"
+    )
+    with pytest.raises(ValueError, match="service policy identity is invalid"):
+        policies._read_policy(
+            binding=v1_binding,
+            environment="development",
+            as_of=_AT,
+            expected_grant_schema=SIMULATED_CORPORATE_ACTION_WRITE_GRANT_SCHEMA,
+        )
 
 
 def test_read_and_write_policy_paths_do_not_share_schema_discovery(policy_world):

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 
@@ -19,6 +21,8 @@ from apps.account.domain.simulated_corporate_action_write_grant import (
     SIMULATED_CORPORATE_ACTION_STAGE_WRITE_PERMISSION,
     SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_PERMISSION,
     SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA,
+    SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_PERMISSION,
+    SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA,
     SimulatedCorporateActionWriteGrant,
     SimulatedCorporateActionWriteGrantBinding,
     SimulatedCorporateActionWriteGrantCurrent,
@@ -115,6 +119,42 @@ def _grant_v2(
         permission=SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_PERMISSION,
         service_actor_id=service_actor_id,
         schema=SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA,
+        capabilities=capabilities,
+        terms_version=terms_version,
+        terms_sha256=terms_sha256,
+    )
+
+
+def _grant_v3(
+    *,
+    capabilities: tuple[SimulatedCorporateActionWriteCapability, ...],
+    grant_id: str = "sim-corp-action-grant-41",
+    grant_version: str = "grant-v3",
+    recorded_at: datetime = _AT + timedelta(hours=2),
+    supersedes_content_hash: str,
+    binding: SimulatedCorporateActionWriteGrantBinding | None = None,
+    terms_version: str = "owner-terms-v3",
+    terms_sha256: str = _HASH_C,
+) -> SimulatedCorporateActionWriteGrant:
+    """Build one V3 capability bundle with explicit terms and chain predecessor."""
+
+    return SimulatedCorporateActionWriteGrant(
+        grant_id=grant_id,
+        grant_version=grant_version,
+        binding=binding or _binding(),
+        consent_evidence_id="consent-v3-41",
+        consent_evidence_version=terms_version,
+        consent_evidence_hash=terms_sha256,
+        issuer_evidence_id="issuer-v3-41",
+        issuer_evidence_version="issuer-v3",
+        issuer_evidence_hash=_HASH_A,
+        consented_at=recorded_at - timedelta(minutes=2),
+        issued_at=recorded_at - timedelta(minutes=1),
+        recorded_at=recorded_at,
+        valid_until=recorded_at + timedelta(hours=2),
+        supersedes_content_hash=supersedes_content_hash,
+        permission=SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_PERMISSION,
+        schema=SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA,
         capabilities=capabilities,
         terms_version=terms_version,
         terms_sha256=terms_sha256,
@@ -288,6 +328,109 @@ def test_v2_grant_rejects_missing_or_invalid_capability_and_terms_fields() -> No
             SimulatedCorporateActionWriteGrant(**(values | invalid))  # type: ignore[arg-type]
 
 
+@pytest.mark.parametrize(
+    "capability",
+    (
+        SimulatedCorporateActionWriteCapability.SHARE_STAGE_WRITE,
+        SimulatedCorporateActionWriteCapability.RIGHTS_NOT_EXERCISED,
+    ),
+)
+def test_v2_grant_cannot_claim_new_v3_capabilities(
+    capability: SimulatedCorporateActionWriteCapability,
+) -> None:
+    predecessor = _grant()
+    capabilities = tuple(
+        sorted(
+            (SimulatedCorporateActionWriteCapability.TAX_ASSESS, capability),
+            key=lambda item: item.value,
+        )
+    )
+
+    with pytest.raises(ValueError, match="V2 grant cannot include V3 capabilities"):
+        _grant_v2(capabilities=capabilities, supersedes_content_hash=predecessor.content_hash)
+
+
+def test_v3_grant_binds_new_capabilities_and_uses_its_own_content_hash_domain() -> None:
+    predecessor = _grant_v2(
+        capabilities=(SimulatedCorporateActionWriteCapability.CASH_STAGE_WRITE,),
+        recorded_at=_AT + timedelta(hours=1),
+        supersedes_content_hash=_grant().content_hash,
+    )
+    capabilities = tuple(
+        sorted(
+            (
+                SimulatedCorporateActionWriteCapability.SHARE_STAGE_WRITE,
+                SimulatedCorporateActionWriteCapability.RIGHTS_NOT_EXERCISED,
+                SimulatedCorporateActionWriteCapability.CASH_STAGE_WRITE,
+            ),
+            key=lambda item: item.value,
+        )
+    )
+    grant = _grant_v3(
+        capabilities=capabilities,
+        supersedes_content_hash=predecessor.content_hash,
+    )
+
+    assert grant.schema == SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA
+    assert grant.permission == SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_PERMISSION
+    assert grant.identity_hash == predecessor.identity_hash
+    assert grant.supports_capability(SimulatedCorporateActionWriteCapability.SHARE_STAGE_WRITE)
+    assert grant.supports_capability(SimulatedCorporateActionWriteCapability.RIGHTS_NOT_EXERCISED)
+    assert not grant.supports_capability(SimulatedCorporateActionWriteCapability.TAX_WITHHOLD)
+    payload = grant.to_payload()
+    assert payload["capabilities"] == [item.value for item in capabilities]
+    assert payload["terms_version"] == "owner-terms-v3"
+    assert payload["terms_sha256"] == _HASH_C
+    hash_payload = {
+        key: value for key, value in payload.items() if key not in {"identity_hash", "content_hash"}
+    }
+    expected_hash = hashlib.sha256(
+        json.dumps(
+            {
+                "domain": "account.simulated-corporate-action-write-grant.v3/content",
+                "payload": hash_payload,
+            },
+            allow_nan=False,
+            ensure_ascii=False,
+            separators=(",", ":"),
+            sort_keys=True,
+        ).encode("utf-8")
+    ).hexdigest()
+    assert grant.content_hash == expected_hash
+
+
+def test_successor_schema_may_advance_to_v3_but_never_downgrade() -> None:
+    v1 = _grant()
+    v2 = _grant_v2(
+        capabilities=(SimulatedCorporateActionWriteCapability.CASH_STAGE_WRITE,),
+        recorded_at=_AT + timedelta(hours=1),
+        supersedes_content_hash=v1.content_hash,
+    )
+    v3 = _grant_v3(
+        capabilities=(SimulatedCorporateActionWriteCapability.SHARE_STAGE_WRITE,),
+        recorded_at=_AT + timedelta(hours=2),
+        supersedes_content_hash=v2.content_hash,
+    )
+    v3_from_v1 = _grant_v3(
+        capabilities=(SimulatedCorporateActionWriteCapability.SHARE_STAGE_WRITE,),
+        grant_version="grant-v3-from-v1",
+        recorded_at=_AT + timedelta(minutes=30),
+        supersedes_content_hash=v1.content_hash,
+    )
+    v3_next = _grant_v3(
+        capabilities=(SimulatedCorporateActionWriteCapability.RIGHTS_NOT_EXERCISED,),
+        grant_version="grant-v3-next",
+        recorded_at=_AT + timedelta(hours=3),
+        supersedes_content_hash=v3.content_hash,
+    )
+
+    validate_simulated_corporate_action_write_grant_successor(v1, v3_from_v1)
+    validate_simulated_corporate_action_write_grant_successor(v2, v3)
+    validate_simulated_corporate_action_write_grant_successor(v3, v3_next)
+    with pytest.raises(ValueError, match="downgrade"):
+        validate_simulated_corporate_action_write_grant_successor(v3, v2)
+
+
 def test_successor_allows_confirmed_v1_to_v2_and_source_policy_refresh_only_in_same_owner_chain():
     predecessor = _grant()
     refreshed = _binding(
@@ -398,7 +541,7 @@ def test_grant_fact_hashes_schema_and_v1_payload_are_fail_closed() -> None:
             grant,
             capabilities=(SimulatedCorporateActionWriteCapability.TAX_ASSESS,),
         )
-    with pytest.raises(ValueError, match="schema is fixed"):
+    with pytest.raises(ValueError, match="V3 grant permission marker is fixed"):
         replace(grant, schema="account.simulated_corporate_action_write_grant.v3")
     with pytest.raises(ValueError, match="exact positive integer"):
         _binding(owner_user_id=True)

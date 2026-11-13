@@ -25,6 +25,8 @@ from apps.account.domain.simulated_corporate_action_write_grant import (
     SIMULATED_CORPORATE_ACTION_WRITE_GRANT_SCHEMA,
     SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_PERMISSION,
     SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA,
+    SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_PERMISSION,
+    SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA,
     SimulatedCorporateActionWriteGrantBinding,
 )
 from apps.config_center.runtime_environment_lock_composition import locked_runtime_environment
@@ -42,6 +44,7 @@ SIMULATED_ACTION_WRITE_POLICY_KEY = (
 )
 SIMULATED_ACTION_WRITE_POLICY_SCHEMA_V1 = "simulated-corporate-action-write-policies.v1"
 SIMULATED_ACTION_WRITE_POLICY_SCHEMA_V2 = "simulated-corporate-action-write-policies.v2"
+SIMULATED_ACTION_WRITE_POLICY_SCHEMA_V3 = "simulated-corporate-action-write-policies.v3"
 _FIELDS = frozenset(
     {
         "policy_id",
@@ -58,6 +61,14 @@ _FIELDS = frozenset(
     }
 )
 _V2_FIELDS = _FIELDS | frozenset({"capabilities", "terms_version", "terms_sha256"})
+_V3_FIELDS = _V2_FIELDS
+_V2_CAPABILITIES = frozenset(
+    {
+        SimulatedCorporateActionWriteCapability.CASH_STAGE_WRITE,
+        SimulatedCorporateActionWriteCapability.TAX_ASSESS,
+        SimulatedCorporateActionWriteCapability.TAX_WITHHOLD,
+    }
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -107,10 +118,11 @@ def _aware_text(value: object) -> datetime:
 
 
 def _require_grant_schema(value: object) -> str:
-    """Accept only the two explicitly supported grant schemas."""
+    """Accept only the explicitly supported grant schemas."""
     if type(value) is not str or value not in {
         SIMULATED_CORPORATE_ACTION_WRITE_GRANT_SCHEMA,
         SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA,
+        SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA,
     }:
         raise ValueError("expected grant schema is unsupported")
     return value
@@ -248,6 +260,10 @@ def read_current_simulated_action_write_policy(
         grant_schema = SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA
         expected_fields = _V2_FIELDS
         expected_permission = SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_PERMISSION
+    elif config_schema == SIMULATED_ACTION_WRITE_POLICY_SCHEMA_V3:
+        grant_schema = SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA
+        expected_fields = _V3_FIELDS
+        expected_permission = SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_PERMISSION
     else:
         raise ValueError("service policy schema version is unsupported")
     policies: list[ConfiguredSimulatedActionWritePolicy] = []
@@ -290,8 +306,15 @@ def read_current_simulated_action_write_policy(
         capabilities: tuple[SimulatedCorporateActionWriteCapability, ...] | None = None
         terms_version: str | None = None
         terms_sha256: str | None = None
-        if grant_schema == SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA:
+        if grant_schema in {
+            SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA,
+            SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA,
+        }:
             capabilities = _decode_capabilities(item["capabilities"])
+            if grant_schema == SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA and any(
+                capability not in _V2_CAPABILITIES for capability in capabilities
+            ):
+                raise ValueError("V2 policy cannot include V3 capabilities")
             terms_version, terms_sha256 = _decode_terms(item["terms_version"], item["terms_sha256"])
         fingerprint = _hash(
             {
@@ -376,8 +399,8 @@ def locked_simulated_action_owner_policy(
 ) -> Iterator[ConfiguredSimulatedActionWritePolicy]:
     """Hold the activation fence and recheck the expected policy schema before exit.
 
-    Callers default to the V1 cash policy. Requesting V2 is explicit and does not
-    itself issue a grant or authorize a financial operation.
+    Callers default to the V1 cash policy. Requesting V2 or V3 is explicit and
+    does not itself issue a grant or authorize a financial operation.
     """
     binding.__post_init__()
     if canonical_namespace != "account":

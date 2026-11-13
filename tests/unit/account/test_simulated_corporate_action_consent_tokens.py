@@ -405,3 +405,75 @@ def test_rotating_the_server_key_invalidates_a_preparation_token(monkeypatch):
             confirmed=True,
             as_of=_AT,
         )
+
+
+def _v3_command():
+    from apps.account import simulated_corporate_action_consent_terms as terms
+    from apps.account.domain.simulated_corporate_action_write_grant import (
+        SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA,
+    )
+
+    document = terms._canonical_document_json_v3()
+    return replace(
+        _command(),
+        grant_schema=SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA,
+        capabilities=(
+            SimulatedCorporateActionWriteCapability.RIGHTS_NOT_EXERCISED,
+            SimulatedCorporateActionWriteCapability.SHARE_STAGE_WRITE,
+        ),
+        terms_version=terms.SIMULATED_CORPORATE_ACTION_OWNER_TERMS_V3,
+        terms_sha256=hashlib.sha256(document.encode("utf-8")).hexdigest(),
+    )
+
+
+def test_v3_preparation_roundtrips_explicit_share_and_decline_only(monkeypatch):
+    _key(monkeypatch)
+    command = _v3_command()
+    token = tokens.prepare_simulated_action_consent_token(command, as_of=_AT)
+    assert token.startswith("v3.")
+    assert (
+        tokens.restore_simulated_action_consent_token(
+            token,
+            owner_user_id=command.expected_binding.owner_user_id,
+            physical_account_id=command.physical_account_id,
+            confirmed=True,
+            as_of=_AT,
+        )
+        == command
+    )
+    for substituted in (token[3:], "v2." + token[3:], "v4." + token[3:]):
+        with pytest.raises(SimulatedCorporateActionWriteGrantUnavailable):
+            tokens.restore_simulated_action_consent_token(
+                substituted,
+                owner_user_id=command.expected_binding.owner_user_id,
+                physical_account_id=command.physical_account_id,
+                confirmed=True,
+                as_of=_AT,
+            )
+
+
+@pytest.mark.parametrize("defect", ["owner", "account", "unconfirmed", "expired", "future", "seal"])
+def test_v3_preparation_still_binds_owner_account_confirmation_and_clock(monkeypatch, defect):
+    _key(monkeypatch)
+    command = _v3_command()
+    token = tokens.prepare_simulated_action_consent_token(command, as_of=_AT)
+    kwargs = {
+        "owner_user_id": command.expected_binding.owner_user_id,
+        "physical_account_id": command.physical_account_id,
+        "confirmed": True,
+        "as_of": _AT,
+    }
+    if defect == "owner":
+        kwargs["owner_user_id"] += 1
+    elif defect == "account":
+        kwargs["physical_account_id"] += 1
+    elif defect == "unconfirmed":
+        kwargs["confirmed"] = False
+    elif defect == "expired":
+        kwargs["as_of"] = command.valid_until
+    elif defect == "future":
+        kwargs["as_of"] = _AT - timedelta(seconds=1)
+    else:
+        token = token[:-1] + ("0" if token[-1] != "0" else "1")
+    with pytest.raises(SimulatedCorporateActionWriteGrantUnavailable):
+        tokens.restore_simulated_action_consent_token(token, **kwargs)

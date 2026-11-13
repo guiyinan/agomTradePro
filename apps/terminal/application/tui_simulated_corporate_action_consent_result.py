@@ -16,6 +16,9 @@ from apps.account.domain.simulated_corporate_action_write_grant import (
 from apps.account.domain.simulated_corporate_action_write_grant import (
     SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA as _V2_GRANT_SCHEMA,
 )
+from apps.account.domain.simulated_corporate_action_write_grant import (
+    SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA as _V3_GRANT_SCHEMA,
+)
 
 CORPORATE_ACTION_CONSENT_PREPARE_ACTION_KEY = "simulated-trading.corporate-action-consent-prepare"
 CORPORATE_ACTION_CONSENT_CONFIRM_ACTION_KEY = "simulated-trading.corporate-action-consent-confirm"
@@ -70,6 +73,9 @@ _CAPABILITY_CODES = tuple(
     )
 )
 _TERMS_VERSION_PATTERN = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,191}\Z")
+_CAPABILITY_CODES_V3 = tuple(
+    sorted(capability.value for capability in SimulatedCorporateActionWriteCapability)
+)
 _TERMS_SHA256_PATTERN = re.compile(r"[0-9a-f]{64}\Z")
 _SIMULATION_NOTICE = (
     "现金分红模拟权益和支付日模拟到账均为模拟结果。此操作只保存或撤回授权，"
@@ -78,6 +84,10 @@ _SIMULATION_NOTICE = (
 _V2_SIMULATION_NOTICE = (
     "现金分红模拟权益和支付日模拟到账均为模拟结果。本次操作只保存或撤回所选授权；"
     "现在不会评估税额、扣缴模拟资金、模拟入账或下单，也不证明银行已经到账。"
+)
+_V3_SIMULATION_NOTICE = (
+    "本次操作只保存或撤回所选模拟授权；现在不会评估税额、扣税、入账或改变可售股份，"
+    "不会认购、缴款或下单，也不会操作真实账户。"
 )
 _OUTCOME_TEXT: dict[str, str] = {"success": "已完成", "noop": "无需变更", "blocked": "当前受阻"}
 _CONSENT_STATUS_TEXT: dict[str, str] = {
@@ -251,7 +261,7 @@ def _valid_capability_terms_fields(
             grant_schema is not None
             and (
                 type(grant_schema) is not str
-                or grant_schema not in {_V1_GRANT_SCHEMA, _V2_GRANT_SCHEMA}
+                or grant_schema not in {_V1_GRANT_SCHEMA, _V2_GRANT_SCHEMA, _V3_GRANT_SCHEMA}
             )
         )
         or type(selected) is not list
@@ -263,7 +273,8 @@ def _valid_capability_terms_fields(
         return False
     selected_values = cast(list[object], selected)
     label_values = cast(list[object], labels)
-    if any(type(item) is not str or item not in _CAPABILITY_CODES for item in selected_values):
+    allowed_codes = _CAPABILITY_CODES_V3 if grant_schema == _V3_GRANT_SCHEMA else _CAPABILITY_CODES
+    if any(type(item) is not str or item not in allowed_codes for item in selected_values):
         return False
     selected_codes = tuple(cast(str, item) for item in selected_values)
     if selected_codes != tuple(sorted(set(selected_codes))):
@@ -419,8 +430,12 @@ def project_simulated_corporate_action_consent_result(
         _field("blocking_reason", "阻断原因", blocking_reason),
     ]
     business_notice = _SIMULATION_NOTICE
-    if response["grant_schema"] == _V2_GRANT_SCHEMA:
-        business_notice = _V2_SIMULATION_NOTICE
+    if response["grant_schema"] in {_V2_GRANT_SCHEMA, _V3_GRANT_SCHEMA}:
+        business_notice = (
+            _V3_SIMULATION_NOTICE
+            if response["grant_schema"] == _V3_GRANT_SCHEMA
+            else _V2_SIMULATION_NOTICE
+        )
         labels = response["capability_labels"]
         if labels:
             fields.append(_field("selected_capabilities", "所选模拟能力", "、".join(labels)))

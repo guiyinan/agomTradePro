@@ -25,6 +25,12 @@ SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA = (
 SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_PERMISSION = (
     "simulated_corporate_action_capability_bundle"
 )
+SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA = (
+    "account.simulated_corporate_action_write_grant.v3"
+)
+SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_PERMISSION = (
+    "simulated_corporate_action_capability_bundle_v3"
+)
 SIMULATED_CORPORATE_ACTION_WRITE_GRANT_REVOCATION_SCHEMA = (
     "account.simulated_corporate_action_write_grant.revocation.v1"
 )
@@ -32,6 +38,7 @@ SIMULATED_CORPORATE_ACTION_WRITE_GRANT_REVOCATION_SCHEMA = (
 _GRANT_IDENTITY_HASH_DOMAIN = "account.simulated-corporate-action-write-grant.v1/identity"
 _GRANT_CONTENT_HASH_DOMAIN = "account.simulated-corporate-action-write-grant.v1/content"
 _GRANT_V2_CONTENT_HASH_DOMAIN = "account.simulated-corporate-action-write-grant.v2/content"
+_GRANT_V3_CONTENT_HASH_DOMAIN = "account.simulated-corporate-action-write-grant.v3/content"
 _REVOCATION_IDENTITY_HASH_DOMAIN = (
     "account.simulated-corporate-action-write-grant-revocation.v1/identity"
 )
@@ -235,6 +242,15 @@ class SimulatedCorporateActionWriteGrant:
             if self.capabilities is None:
                 raise ValueError("V2 grant capabilities are required")
             validate_simulated_corporate_action_write_capabilities(self.capabilities)
+            v2_capabilities = frozenset(
+                {
+                    SimulatedCorporateActionWriteCapability.CASH_STAGE_WRITE,
+                    SimulatedCorporateActionWriteCapability.TAX_ASSESS,
+                    SimulatedCorporateActionWriteCapability.TAX_WITHHOLD,
+                }
+            )
+            if any(capability not in v2_capabilities for capability in self.capabilities):
+                raise ValueError("V2 grant cannot include V3 capabilities")
             if self.terms_version is None:
                 raise ValueError("V2 grant terms_version is required")
             _token(self.terms_version, "terms_version")
@@ -242,6 +258,19 @@ class SimulatedCorporateActionWriteGrant:
                 raise ValueError("V2 grant terms_sha256 is required")
             _digest(self.terms_sha256, "terms_sha256")
             content_domain = _GRANT_V2_CONTENT_HASH_DOMAIN
+        elif self.schema == SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA:
+            if self.permission != SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_PERMISSION:
+                raise ValueError("V3 grant permission marker is fixed")
+            if self.capabilities is None:
+                raise ValueError("V3 grant capabilities are required")
+            validate_simulated_corporate_action_write_capabilities(self.capabilities)
+            if self.terms_version is None:
+                raise ValueError("V3 grant terms_version is required")
+            _token(self.terms_version, "terms_version")
+            if self.terms_sha256 is None:
+                raise ValueError("V3 grant terms_sha256 is required")
+            _digest(self.terms_sha256, "terms_sha256")
+            content_domain = _GRANT_V3_CONTENT_HASH_DOMAIN
         else:
             raise ValueError("grant schema is fixed")
         for name in (
@@ -288,13 +317,13 @@ class SimulatedCorporateActionWriteGrant:
 
     @property
     def effective_capabilities(self) -> tuple[SimulatedCorporateActionWriteCapability, ...]:
-        """Return the explicit V2 set or the fixed legacy cash capability for V1."""
+        """Return explicit versioned capabilities or the fixed legacy cash capability."""
 
         self.__post_init__()
         if self.schema == SIMULATED_CORPORATE_ACTION_WRITE_GRANT_SCHEMA:
             return (SimulatedCorporateActionWriteCapability.CASH_STAGE_WRITE,)
         if self.capabilities is None:
-            raise ValueError("V2 grant capabilities are required")
+            raise ValueError("versioned grant capabilities are required")
         return validate_simulated_corporate_action_write_capabilities(self.capabilities)
 
     def supports_capability(self, capability: SimulatedCorporateActionWriteCapability) -> bool:
@@ -319,8 +348,8 @@ class SimulatedCorporateActionWriteGrant:
 
         return {
             "grant_id": self.grant_id,
-            # Chain identity is version-neutral: V2 changes the content marker, not the
-            # owner/account chain identity established by the original V1 contract.
+            # Chain identity is version-neutral: V2 and V3 change content markers while
+            # preserving the owner/account chain identity established by V1.
             "permission": SIMULATED_CORPORATE_ACTION_STAGE_WRITE_PERMISSION,
             "service_actor_id": self.service_actor_id,
             "account_namespace": self.binding.account_namespace,
@@ -352,9 +381,12 @@ class SimulatedCorporateActionWriteGrant:
             "valid_until": _utc_text(self.valid_until),
             "supersedes_content_hash": self.supersedes_content_hash,
         }
-        if self.schema == SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA:
+        if self.schema in {
+            SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA,
+            SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA,
+        }:
             if self.capabilities is None or self.terms_version is None or self.terms_sha256 is None:
-                raise ValueError("V2 grant capabilities and terms are required")
+                raise ValueError("versioned grant capabilities and terms are required")
             capabilities = validate_simulated_corporate_action_write_capabilities(self.capabilities)
             payload.update(
                 {
@@ -532,10 +564,12 @@ def validate_simulated_corporate_action_write_grant_successor(
 
     predecessor.__post_init__()
     successor.__post_init__()
-    if (
-        predecessor.schema == SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA
-        and successor.schema != SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA
-    ):
+    schema_rank = {
+        SIMULATED_CORPORATE_ACTION_WRITE_GRANT_SCHEMA: 1,
+        SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA: 2,
+        SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA: 3,
+    }
+    if schema_rank[successor.schema] < schema_rank[predecessor.schema]:
         raise ValueError("successor grant schema downgrade is forbidden")
     if successor.grant_id != predecessor.grant_id:
         raise ValueError("successor grant_id differs from its predecessor")
@@ -592,6 +626,8 @@ __all__ = [
     "SIMULATED_CORPORATE_ACTION_WRITE_GRANT_SCHEMA",
     "SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_PERMISSION",
     "SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA",
+    "SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_PERMISSION",
+    "SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA",
     "SimulatedCorporateActionWriteGrant",
     "SimulatedCorporateActionWriteGrantBinding",
     "SimulatedCorporateActionWriteGrantCurrent",

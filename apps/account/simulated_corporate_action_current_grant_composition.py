@@ -23,6 +23,8 @@ from apps.account.domain.simulated_corporate_action_write_grant import (
     SIMULATED_CORPORATE_ACTION_WRITE_GRANT_SCHEMA,
     SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_PERMISSION,
     SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA,
+    SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_PERMISSION,
+    SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA,
     SimulatedCorporateActionWriteGrant,
     SimulatedCorporateActionWriteGrantCurrent,
     SimulatedCorporateActionWriteGrantSelector,
@@ -37,6 +39,11 @@ from apps.account.infrastructure.simulated_corporate_action_write_grant_reposito
 from apps.account.infrastructure.simulated_corporate_action_write_grant_seal import (
     SimulatedCorporateActionWriteGrantSeal,
 )
+from apps.account.simulated_corporate_action_consent_terms import (
+    SIMULATED_CORPORATE_ACTION_OWNER_TERMS_V3,
+    require_simulated_corporate_action_consent_terms,
+)
+from core.exceptions import ConfigurationError
 
 
 def _require_transaction(*, using: str) -> BaseDatabaseWrapper:
@@ -91,6 +98,24 @@ def _lock_grant_tables(connection: BaseDatabaseWrapper) -> None:
         ) from error
 
 
+def _has_known_v3_terms(grant: SimulatedCorporateActionWriteGrant) -> bool:
+    """Require V3 authority to retain the exact pinned V3 owner-consent document."""
+    if grant.schema != SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA:
+        return True
+    if (
+        grant.terms_version != SIMULATED_CORPORATE_ACTION_OWNER_TERMS_V3
+        or grant.terms_sha256 is None
+    ):
+        return False
+    try:
+        terms = require_simulated_corporate_action_consent_terms(
+            grant.terms_version, grant.terms_sha256
+        )
+    except ConfigurationError:
+        return False
+    return terms.version == SIMULATED_CORPORATE_ACTION_OWNER_TERMS_V3
+
+
 def _read_exact_current_grant(
     *,
     selector: SimulatedCorporateActionWriteGrantSelector,
@@ -126,6 +151,7 @@ def _read_exact_current_grant(
         selector.__post_init__()
         is_active = current.is_active_at(as_of)
         supports_required_capability = grant.supports_capability(required_capability)
+        has_known_v3_terms = _has_known_v3_terms(grant)
     except (TypeError, ValueError) as error:
         raise SimulatedCorporateActionWriteGrantUnavailable(
             "simulated write grant current record is invalid"
@@ -144,13 +170,19 @@ def _read_exact_current_grant(
             grant.schema == SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA
             and grant.permission != SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_PERMISSION
         )
+        or (
+            grant.schema == SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA
+            and grant.permission != SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_PERMISSION
+        )
         or grant.schema
         not in {
             SIMULATED_CORPORATE_ACTION_WRITE_GRANT_SCHEMA,
             SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA,
+            SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA,
         }
         or grant.service_actor_id != SIMULATED_CORPORATE_ACTION_SERVICE_ACTOR_ID
         or not supports_required_capability
+        or not has_known_v3_terms
         or not is_active
         or not seal.verify(grant)
     ):
@@ -174,8 +206,9 @@ def locked_current_simulated_corporate_action_write_grant(
     This composition never searches historical records. It locks both append-only
     grant ledgers before reading scope state, verifies the current server MAC and
     rechecks the same finite current grant before yielding back to the caller.
-    Assessment reads require the explicit V2 assessment capability. The caller
-    must separately qualify physical ownership, current policy and tax inputs.
+    V2 assessment and withholding reads, and V3 share or rights-decline reads,
+    require the exact selected capability. The caller must separately qualify
+    physical ownership, current policy and the operation's source facts.
     """
 
     if type(required_capability) is not SimulatedCorporateActionWriteCapability or (
@@ -184,6 +217,8 @@ def locked_current_simulated_corporate_action_write_grant(
             SimulatedCorporateActionWriteCapability.CASH_STAGE_WRITE,
             SimulatedCorporateActionWriteCapability.TAX_ASSESS,
             SimulatedCorporateActionWriteCapability.TAX_WITHHOLD,
+            SimulatedCorporateActionWriteCapability.SHARE_STAGE_WRITE,
+            SimulatedCorporateActionWriteCapability.RIGHTS_NOT_EXERCISED,
         }
     ):
         raise SimulatedCorporateActionWriteGrantUnavailable(

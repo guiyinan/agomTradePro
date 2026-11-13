@@ -14,12 +14,14 @@ from apps.account.domain.simulated_corporate_action_write_capabilities import (
 )
 from apps.account.simulated_corporate_action_consent_terms import (
     SIMULATED_CORPORATE_ACTION_OWNER_TERMS_V2,
+    SIMULATED_CORPORATE_ACTION_OWNER_TERMS_V3,
     SimulatedCorporateActionConsentTerms,
     require_simulated_corporate_action_consent_terms,
 )
 from core.exceptions import ConfigurationError
 
 _GOLDEN_TERMS_SHA256 = "6ee0ad13d2e0b9cff885bfdf9d1e0e2ccb837c0943bf2cab6cf90d8410031165"
+_GOLDEN_TERMS_V3_SHA256 = "b625c087151f8e580ca48cdfa4dac6a2bded6bb8c7413fe6629c4b3ebc6bdbc4"
 
 
 def _terms() -> SimulatedCorporateActionConsentTerms:
@@ -35,8 +37,10 @@ def test_terms_document_is_frozen_canonical_and_pins_all_three_capabilities() ->
 
     assert terms.version == "simulated-corporate-action-owner-terms.v2"
     capabilities_by_code = {item.code: item for item in terms.capabilities}
-    assert tuple(item.code for item in terms.capabilities) == tuple(
-        sorted(capability.value for capability in SimulatedCorporateActionWriteCapability)
+    assert tuple(item.code for item in terms.capabilities) == (
+        SimulatedCorporateActionWriteCapability.TAX_ASSESS.value,
+        SimulatedCorporateActionWriteCapability.TAX_WITHHOLD.value,
+        SimulatedCorporateActionWriteCapability.CASH_STAGE_WRITE.value,
     )
     assert len(terms.capabilities) == 3
     assert all(item.title and item.description for item in terms.capabilities)
@@ -88,12 +92,40 @@ def test_terms_document_is_frozen_canonical_and_pins_all_three_capabilities() ->
         terms.capabilities[0].title = "changed"  # type: ignore[misc]
 
 
+def test_v3_terms_add_only_explicit_share_and_rights_decline_scopes() -> None:
+    terms = require_simulated_corporate_action_consent_terms(
+        configured_version=SIMULATED_CORPORATE_ACTION_OWNER_TERMS_V3,
+        configured_sha256=_GOLDEN_TERMS_V3_SHA256,
+    )
+
+    capabilities_by_code = {item.code: item for item in terms.capabilities}
+    assert terms.version == SIMULATED_CORPORATE_ACTION_OWNER_TERMS_V3
+    assert terms.sha256 == _GOLDEN_TERMS_V3_SHA256
+    assert set(capabilities_by_code) == {
+        capability.value for capability in SimulatedCorporateActionWriteCapability
+    }
+    assert len(terms.capabilities) == 5
+    assert (
+        "权益"
+        in capabilities_by_code[
+            SimulatedCorporateActionWriteCapability.SHARE_STAGE_WRITE.value
+        ].description
+    )
+    rights_description = capabilities_by_code[
+        SimulatedCorporateActionWriteCapability.RIGHTS_NOT_EXERCISED.value
+    ].description
+    assert "未行权事实" in rights_description
+    assert "下单" in rights_description
+
+
 @pytest.mark.parametrize(
     ("version", "digest"),
     (
         ("simulated-corporate-action-owner-terms.v1", _GOLDEN_TERMS_SHA256),
         (SIMULATED_CORPORATE_ACTION_OWNER_TERMS_V2, "0" * 64),
         (SIMULATED_CORPORATE_ACTION_OWNER_TERMS_V2, _GOLDEN_TERMS_SHA256.upper()),
+        (SIMULATED_CORPORATE_ACTION_OWNER_TERMS_V3, "0" * 64),
+        (SIMULATED_CORPORATE_ACTION_OWNER_TERMS_V3, _GOLDEN_TERMS_SHA256),
         ("", _GOLDEN_TERMS_SHA256),
         (SIMULATED_CORPORATE_ACTION_OWNER_TERMS_V2, "not-a-sha256"),
     ),

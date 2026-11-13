@@ -19,6 +19,7 @@ from apps.account.application.simulated_corporate_action_write_grant import (
 from apps.account.domain.simulated_corporate_action_write_grant import (
     SIMULATED_CORPORATE_ACTION_WRITE_GRANT_SCHEMA,
     SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA,
+    SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA,
     SimulatedCorporateActionWriteGrant,
     SimulatedCorporateActionWriteGrantRevocation,
 )
@@ -27,9 +28,11 @@ from shared.config.secrets import get_secrets
 _ISSUER_ID = "account.session-authenticated-simulated-action-owner"
 _ISSUER_VERSION = "1"
 _ISSUER_V2_VERSION = "2"
+_ISSUER_V3_VERSION = "3"
 _KEY_DOMAIN = b"account.simulated-corporate-action-owner-issuer.v1/key"
 _CONTENT_DOMAIN = "account.simulated-corporate-action-owner-issuer.v1/grant"
 _CONTENT_V2_DOMAIN = "account.simulated-corporate-action-owner-issuer.v2/grant"
+_CONTENT_V3_DOMAIN = "account.simulated-corporate-action-owner-issuer.v3/grant"
 _REVOCATION_DOMAIN = "account.simulated-corporate-action-owner-issuer.v1/revocation"
 
 
@@ -40,6 +43,8 @@ def _grant_seal_contract(grant: SimulatedCorporateActionWriteGrant) -> tuple[str
         return _ISSUER_VERSION, _CONTENT_DOMAIN
     if grant.schema == SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA:
         return _ISSUER_V2_VERSION, _CONTENT_V2_DOMAIN
+    if grant.schema == SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA:
+        return _ISSUER_V3_VERSION, _CONTENT_V3_DOMAIN
     raise SimulatedCorporateActionWriteGrantUnavailable(
         "simulated action issuer grant schema is unsupported"
     )

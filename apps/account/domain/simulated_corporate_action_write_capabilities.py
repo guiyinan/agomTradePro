@@ -10,6 +10,8 @@ class SimulatedCorporateActionWriteCapability(StrEnum):
     """One independently granted simulated corporate-action write operation."""
 
     CASH_STAGE_WRITE = "simulated_corporate_action_stage_write"
+    SHARE_STAGE_WRITE = "simulated.corporate_action_share.stage_write"
+    RIGHTS_NOT_EXERCISED = "simulated.corporate_action_rights.not_exercised"
     TAX_ASSESS = "simulated.corporate_action_tax.assess"
     TAX_WITHHOLD = "simulated.corporate_action_tax.withhold"
 

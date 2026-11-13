@@ -233,6 +233,11 @@ jobs:
           tests/component/account/test_simulated_corporate_action_consent_capabilities_http.py::test_native_http_selected_capabilities_replace_same_chain_and_withdraw_after_policy_loss
           tests/component/account/test_simulated_corporate_action_consent_capabilities_http.py::test_native_http_current_policy_change_blocks_prepared_capability_confirmation
           tests/component/account/test_simulated_corporate_action_consent_capabilities_http.py::test_native_http_unknown_historical_terms_can_still_be_withdrawn
+          tests/component/account/test_simulated_corporate_action_capability_issuance_postgres.py::test_native_v3_full_grant_is_exactly_retried_and_reads_all_five_capabilities
+          tests/component/account/test_simulated_corporate_action_capability_issuance_postgres.py::test_native_v3_csrf_foreign_owner_or_changed_terms_cannot_append
+          tests/component/account/test_simulated_corporate_action_capability_issuance_postgres.py::test_native_v3_owner_can_withdraw_after_role_policy_and_issuer_key_loss
+          tests/component/account/test_simulated_corporate_action_consent_capabilities_http.py::test_native_http_v3_selected_share_rights_consent_reads_exact_capabilities_and_withdraws
+          tests/component/account/test_simulated_corporate_action_consent_capabilities_http.py::test_native_http_v3_changed_policy_terms_block_prepared_confirmation
           tests/component/simulated_trading/test_owner_granted_corporate_action_capabilities_postgres.py::test_native_v2_cash_grant_posts_replays_and_withdrawal_blocks
           tests/component/simulated_trading/test_owner_granted_corporate_action_capabilities_postgres.py::test_native_tax_only_v2_current_head_denies_cash_without_v1_fallback
           tests/component/simulated_trading/test_corporate_action_posting_repository.py::test_correction_replay_requires_complete_set_and_survives_later_payment

@@ -22,6 +22,8 @@ from apps.account.domain.simulated_corporate_action_write_grant import (
     SIMULATED_CORPORATE_ACTION_WRITE_GRANT_SCHEMA,
     SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_PERMISSION,
     SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA,
+    SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_PERMISSION,
+    SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA,
 )
 from shared.infrastructure.django_append_only import AppendOnlyManager
 
@@ -256,6 +258,15 @@ class SimulatedCorporateActionWriteGrantModel(_SimulatedCorporateActionWriteGran
                         terms_sha256__isnull=False,
                         terms_sha256__regex=r"^[0-9a-f]{64}$",
                     )
+                    | models.Q(
+                        schema=SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA,
+                        permission=SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_PERMISSION,
+                        capabilities__isnull=False,
+                        terms_version__isnull=False,
+                        terms_version__gt="",
+                        terms_sha256__isnull=False,
+                        terms_sha256__regex=r"^[0-9a-f]{64}$",
+                    )
                 ),
                 name="acct_scawg_fixed_ck",
             ),
@@ -283,7 +294,7 @@ class SimulatedCorporateActionWriteGrantModel(_SimulatedCorporateActionWriteGran
         ]
 
     def clean(self) -> None:
-        """Require null V2 columns for V1 and exact canonical capability facts for V2."""
+        """Require the schema-specific canonical capability and terms facts."""
 
         super().clean()
         if self.schema == SIMULATED_CORPORATE_ACTION_WRITE_GRANT_SCHEMA:
@@ -294,6 +305,38 @@ class SimulatedCorporateActionWriteGrantModel(_SimulatedCorporateActionWriteGran
                 or self.terms_sha256 is not None
             ):
                 raise ValidationError("V1 grant rows must keep all V2 columns null.")
+            return
+        if self.schema == SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA:
+            if self.permission != SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_PERMISSION:
+                raise ValidationError("V3 grant permission marker is invalid.")
+            if type(self.capabilities) is not list or not self.capabilities:
+                raise ValidationError("V3 grant capabilities must be a nonempty JSON array.")
+            v3_capability_values: list[SimulatedCorporateActionWriteCapability] = []
+            for value in self.capabilities:
+                if type(value) is not str:
+                    raise ValidationError("V3 grant capabilities must contain exact strings.")
+                try:
+                    v3_capability_values.append(SimulatedCorporateActionWriteCapability(value))
+                except ValueError as error:
+                    raise ValidationError("V3 grant capability is unknown.") from error
+            try:
+                validate_simulated_corporate_action_write_capabilities(tuple(v3_capability_values))
+            except (TypeError, ValueError) as error:
+                raise ValidationError("V3 grant capabilities are not canonical.") from error
+            if (
+                type(self.terms_version) is not str
+                or not self.terms_version
+                or self.terms_version.strip() != self.terms_version
+                or len(self.terms_version) > 192
+                or any(character.isspace() for character in self.terms_version)
+            ):
+                raise ValidationError("V3 grant terms version is invalid.")
+            if (
+                type(self.terms_sha256) is not str
+                or len(self.terms_sha256) != 64
+                or any(character not in "0123456789abcdef" for character in self.terms_sha256)
+            ):
+                raise ValidationError("V3 grant terms digest is invalid.")
             return
         if self.schema != SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA:
             raise ValidationError("simulated write grant schema is unsupported.")
@@ -313,6 +356,15 @@ class SimulatedCorporateActionWriteGrantModel(_SimulatedCorporateActionWriteGran
             validate_simulated_corporate_action_write_capabilities(tuple(capability_values))
         except (TypeError, ValueError) as error:
             raise ValidationError("V2 grant capabilities are not canonical.") from error
+        v2_capabilities = frozenset(
+            {
+                SimulatedCorporateActionWriteCapability.CASH_STAGE_WRITE,
+                SimulatedCorporateActionWriteCapability.TAX_ASSESS,
+                SimulatedCorporateActionWriteCapability.TAX_WITHHOLD,
+            }
+        )
+        if any(capability not in v2_capabilities for capability in capability_values):
+            raise ValidationError("V2 grant cannot include V3 capabilities.")
         if (
             type(self.terms_version) is not str
             or not self.terms_version

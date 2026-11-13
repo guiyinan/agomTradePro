@@ -46,7 +46,7 @@
           "imports": 70
         },
         "terminal": {
-          "imports": 6
+          "imports": 7
         }
       },
       "depends_on": {
@@ -12574,7 +12574,7 @@
     "terminal": {
       "depends_on": {
         "account": {
-          "imports": 6,
+          "imports": 7,
           "target_layers": [
             "application",
             "domain"

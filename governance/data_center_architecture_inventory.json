@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 7146,
+    "current_surface_references": 7147,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -4528,15 +4528,15 @@
     },
     {
       "path": "apps/account/simulated_corporate_action_current_grant_composition.py",
-      "text": "must separately qualify physical ownership, current policy and tax inputs."
-    },
-    {
-      "path": "apps/account/simulated_corporate_action_current_grant_composition.py",
       "text": "or current.grant != grant"
     },
     {
       "path": "apps/account/simulated_corporate_action_current_grant_composition.py",
       "text": "or current.selector != selector"
+    },
+    {
+      "path": "apps/account/simulated_corporate_action_current_grant_composition.py",
+      "text": "physical ownership, current policy and the operation's source facts."
     },
     {
       "path": "apps/account/simulated_corporate_action_current_grant_composition.py",
@@ -23644,7 +23644,11 @@
     },
     {
       "path": "apps/simulated_trading/corporate_action_consent_composition.py",
-      "text": "payload[\"summary\"] = _active_v2_summary(payload[\"capability_labels\"])"
+      "text": "payload[\"summary\"] = _active_versioned_summary(payload[\"capability_labels\"])"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_consent_composition.py",
+      "text": "payload[\"summary\"] = _scope_block_summary("
     },
     {
       "path": "apps/simulated_trading/corporate_action_consent_composition.py",

@@ -30,10 +30,17 @@ from apps.account.domain.simulated_corporate_action_write_capabilities import (
 from apps.account.domain.simulated_corporate_action_write_grant import (
     SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_PERMISSION,
     SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V2_SCHEMA,
+    SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_PERMISSION,
+    SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA,
 )
 from apps.account.infrastructure import simulated_corporate_action_write_grant_seal as seals
+from apps.account.simulated_corporate_action_consent_terms import (
+    SIMULATED_CORPORATE_ACTION_OWNER_TERMS_V3,
+)
 from core.exceptions import AuthenticationError
 from tests.unit.account.test_simulated_corporate_action_write_grant import _AT, _binding, _grant
+
+_V3_TERMS_SHA256 = "b625c087151f8e580ca48cdfa4dac6a2bded6bb8c7413fe6629c4b3ebc6bdbc4"
 
 
 @pytest.fixture
@@ -199,6 +206,65 @@ def _v2_consent_hash(command: SimulatedCorporateActionGrantConsent, *, now: date
     ).hexdigest()
 
 
+def _v3_command_and_scope(
+    command: SimulatedCorporateActionGrantConsent,
+    scope: LockedSimulatedCorporateActionWriteScope,
+    *,
+    permitted_capabilities: tuple[SimulatedCorporateActionWriteCapability, ...],
+    selected_capabilities: tuple[SimulatedCorporateActionWriteCapability, ...],
+) -> tuple[SimulatedCorporateActionGrantConsent, LockedSimulatedCorporateActionWriteScope]:
+    """Build a V3 command using only the pinned V3 terms and a separate policy scope."""
+
+    permitted = validate_simulated_corporate_action_write_capabilities(
+        tuple(sorted(permitted_capabilities, key=lambda item: item.value))
+    )
+    selected = validate_simulated_corporate_action_write_capabilities(
+        tuple(sorted(selected_capabilities, key=lambda item: item.value))
+    )
+    return (
+        replace(
+            command,
+            grant_schema=SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA,
+            capabilities=selected,
+            terms_version=SIMULATED_CORPORATE_ACTION_OWNER_TERMS_V3,
+            terms_sha256=_V3_TERMS_SHA256,
+        ),
+        replace(
+            scope,
+            grant_schema=SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA,
+            capabilities=permitted,
+            terms_version=SIMULATED_CORPORATE_ACTION_OWNER_TERMS_V3,
+            terms_sha256=_V3_TERMS_SHA256,
+        ),
+    )
+
+
+def _v3_consent_hash(command: SimulatedCorporateActionGrantConsent, *, now: datetime) -> str:
+    """Recompute the exact V3 owner-consent facts independently of issuer code."""
+
+    assert command.capabilities is not None
+    payload = {
+        "schema": "account.simulated-action-owner-consent.v3",
+        "actor_id": "django-user:81",
+        "grant_id": command.grant_id,
+        "grant_version": command.grant_version,
+        "physical_account_id": command.physical_account_id,
+        "binding": command.expected_binding.to_payload(),
+        "consented_at": now.isoformat(),
+        "valid_until": command.valid_until.isoformat(),
+        "grant_schema": command.grant_schema,
+        "capabilities": [capability.value for capability in command.capabilities],
+        "terms_version": command.terms_version,
+        "terms_sha256": command.terms_sha256,
+        "predecessor_content_hash": command.expected_predecessor_content_hash,
+    }
+    return hashlib.sha256(
+        json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode(
+            "utf-8"
+        )
+    ).hexdigest()
+
+
 def test_explicit_owner_consent_is_sealed_and_exact_retry_reuses_current_grant(issuer):
     request, command, locker, state = issuer
     grant = issuance.issue_authenticated_simulated_corporate_action_grant(
@@ -270,6 +336,96 @@ def test_v2_consent_narrows_policy_capabilities_and_binds_v1_predecessor(issuer,
         == grant
     )
     assert state.appended == [v1_grant, grant]
+
+
+def test_v3_consent_is_pinned_distinct_and_replays_a_v1_head(issuer, monkeypatch):
+    request, v1_command, locker, state = issuer
+    v1_grant = issuance.issue_authenticated_simulated_corporate_action_grant(
+        request, command=v1_command, scope_locker=locker, using="default"
+    )
+    v3_command, v3_scope = _v3_command_and_scope(
+        v1_command,
+        state.scope,
+        permitted_capabilities=tuple(SimulatedCorporateActionWriteCapability),
+        selected_capabilities=(
+            SimulatedCorporateActionWriteCapability.SHARE_STAGE_WRITE,
+            SimulatedCorporateActionWriteCapability.RIGHTS_NOT_EXERCISED,
+        ),
+    )
+    now = _AT + timedelta(seconds=1)
+    monkeypatch.setattr(issuance, "timezone", SimpleNamespace(now=lambda: now))
+    v3_command = replace(
+        v3_command,
+        grant_version="3",
+        expected_predecessor_content_hash=v1_grant.content_hash,
+    )
+    state.scope = v3_scope
+
+    grant = issuance.issue_authenticated_simulated_corporate_action_grant(
+        request, command=v3_command, scope_locker=locker, using="default"
+    )
+
+    assert grant.schema == SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA
+    assert grant.permission == SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_PERMISSION
+    assert grant.capabilities == v3_command.capabilities
+    assert grant.terms_version == SIMULATED_CORPORATE_ACTION_OWNER_TERMS_V3
+    assert grant.terms_sha256 == _V3_TERMS_SHA256
+    assert grant.supersedes_content_hash == v1_grant.content_hash
+    assert grant.identity_hash == v1_grant.identity_hash
+    assert grant.issuer_evidence_version == "3"
+    assert grant.consent_evidence_version == "3"
+    assert grant.consent_evidence_hash == _v3_consent_hash(v3_command, now=now)
+    assert seals.SimulatedCorporateActionWriteGrantSeal().verify(grant)
+    assert (
+        issuance.issue_authenticated_simulated_corporate_action_grant(
+            request, command=v3_command, scope_locker=locker, using="default"
+        )
+        == grant
+    )
+    assert state.appended == [v1_grant, grant]
+
+
+@pytest.mark.parametrize(
+    ("terms_version", "terms_sha256"),
+    [
+        (SIMULATED_CORPORATE_ACTION_OWNER_TERMS_V3, "b" * 64),
+        ("custom-v3-terms", _V3_TERMS_SHA256),
+    ],
+)
+def test_v3_issuance_rejects_unpinned_or_mismatched_terms(
+    issuer, terms_version: str, terms_sha256: str
+):
+    request, command, locker, state = issuer
+    v3_command, state.scope = _v3_command_and_scope(
+        command,
+        state.scope,
+        permitted_capabilities=(SimulatedCorporateActionWriteCapability.SHARE_STAGE_WRITE,),
+        selected_capabilities=(SimulatedCorporateActionWriteCapability.SHARE_STAGE_WRITE,),
+    )
+    changed = replace(v3_command, terms_version=terms_version, terms_sha256=terms_sha256)
+    state.scope = replace(state.scope, terms_version=terms_version, terms_sha256=terms_sha256)
+
+    with pytest.raises(SimulatedCorporateActionWriteGrantUnavailable):
+        issuance.issue_authenticated_simulated_corporate_action_grant(
+            request, command=changed, scope_locker=locker, using="default"
+        )
+    assert not state.appended
+
+
+def test_v3_consent_cannot_exceed_current_locked_policy(issuer):
+    request, command, locker, state = issuer
+    v3_command, state.scope = _v3_command_and_scope(
+        command,
+        state.scope,
+        permitted_capabilities=(SimulatedCorporateActionWriteCapability.RIGHTS_NOT_EXERCISED,),
+        selected_capabilities=(SimulatedCorporateActionWriteCapability.SHARE_STAGE_WRITE,),
+    )
+
+    with pytest.raises(SimulatedCorporateActionWriteGrantUnavailable):
+        issuance.issue_authenticated_simulated_corporate_action_grant(
+            request, command=v3_command, scope_locker=locker, using="default"
+        )
+    assert not state.appended
 
 
 def test_v2_command_cannot_select_capability_outside_the_locked_policy(issuer):
@@ -382,6 +538,24 @@ def test_consent_and_locked_scope_reject_implicit_or_malformed_v2_fields(issuer)
         replace(v2_scope, terms_sha256=None)
     with pytest.raises(ValueError, match="V1"):
         replace(v2_scope, grant_schema="account.simulated_corporate_action_write_grant.v1")
+
+
+def test_v2_consent_and_locked_scope_reject_v3_capabilities(issuer):
+    _, command, _, state = issuer
+    v2_command, v2_scope = _v2_command_and_scope(
+        command,
+        state.scope,
+        permitted_capabilities=(SimulatedCorporateActionWriteCapability.CASH_STAGE_WRITE,),
+        selected_capabilities=(SimulatedCorporateActionWriteCapability.CASH_STAGE_WRITE,),
+        terms_version="custom-v2-terms",
+        terms_sha256="b" * 64,
+    )
+    with pytest.raises(ValueError, match="V2"):
+        replace(
+            v2_command, capabilities=(SimulatedCorporateActionWriteCapability.SHARE_STAGE_WRITE,)
+        )
+    with pytest.raises(ValueError, match="V2"):
+        replace(v2_scope, capabilities=(SimulatedCorporateActionWriteCapability.SHARE_STAGE_WRITE,))
 
 
 @pytest.mark.parametrize("authentication", [None, TokenAuthentication()])

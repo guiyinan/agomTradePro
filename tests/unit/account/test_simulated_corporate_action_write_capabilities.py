@@ -20,6 +20,24 @@ def test_capability_set_requires_sorted_unique_explicit_enum_values() -> None:
     assert validate_simulated_corporate_action_write_capabilities(values) == values
 
 
+def test_new_share_and_rights_capabilities_are_explicit_known_values() -> None:
+    values = tuple(
+        sorted(
+            (
+                SimulatedCorporateActionWriteCapability.SHARE_STAGE_WRITE,
+                SimulatedCorporateActionWriteCapability.RIGHTS_NOT_EXERCISED,
+            ),
+            key=lambda capability: capability.value,
+        )
+    )
+
+    assert tuple(item.value for item in values) == (
+        "simulated.corporate_action_rights.not_exercised",
+        "simulated.corporate_action_share.stage_write",
+    )
+    assert validate_simulated_corporate_action_write_capabilities(values) == values
+
+
 @pytest.mark.parametrize(
     "values",
     (
