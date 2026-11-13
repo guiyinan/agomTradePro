@@ -123,6 +123,7 @@ def persist_auto_uow_formal_calendar(
     timezone_name: str,
     advance_clock: Callable[[], None] | None = None,
     live_clock: bool = False,
+    require_current_open_session: bool = True,
 ) -> FormalCalendarFixture:
     """Persist and reread a complete formal test calendar at the selected cutoff.
 
@@ -135,13 +136,17 @@ def persist_auto_uow_formal_calendar(
     clocks advance within the following second. Publication is four seconds early,
     and ``advance_clock`` moves audit reads to the explicit execution cutoff. The
     opt-in ``live_clock`` path creates a synthetic weekday calendar and retains
-    actual system timestamps without freezing or advancing the clock.
+    actual system timestamps without freezing or advancing the clock. Historical
+    tax journeys may explicitly opt out of requiring an open current session;
+    their synthetic fills still use published open dates and real current clocks.
     """
 
     if connection.vendor != "postgresql":
         raise RuntimeError("the formal calendar publication fixture requires PostgreSQL")
     if type(live_clock) is not bool:
         raise TypeError("live_clock must be an exact boolean")
+    if type(require_current_open_session) is not bool:
+        raise TypeError("require_current_open_session must be an exact boolean")
     if not live_clock and advance_clock is None:
         raise ValueError("the fixed-clock calendar path requires advance_clock")
     if type(as_of) is not datetime or as_of.utcoffset() is None:
@@ -165,7 +170,7 @@ def persist_auto_uow_formal_calendar(
 
     if live_clock:
         exchange_today = django_timezone.now().astimezone(exchange_timezone).date()
-        coverage_start = exchange_today - timedelta(days=7)
+        coverage_start = _previous_weekday(exchange_today - timedelta(days=7))
         coverage_end = exchange_today + timedelta(days=14)
     else:
         _require_fixture_clocks_frozen()
@@ -326,7 +331,16 @@ def persist_auto_uow_formal_calendar(
     if evidence.publication is None or evidence.publication.timezone_name != timezone_name:
         raise AssertionError("formal publication does not retain the active exchange timezone")
 
-    market_session = evidence.current_open_session(as_of)
+    if require_current_open_session:
+        market_session = evidence.current_open_session(as_of)
+    else:
+        # This is a historical fixture locator, never execution permission for today.
+        cutoff_date = as_of.astimezone(exchange_timezone).date()
+        market_session = max(
+            day.calendar_date
+            for day in evidence.snapshot.days
+            if day.is_open and day.calendar_date <= cutoff_date
+        )
     next_open_session = evidence.release_session(market_session, 1)
     expected_next_open = next(
         day for day in expected_dates if day > market_session and day.weekday() < 5

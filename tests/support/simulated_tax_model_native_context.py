@@ -1006,6 +1006,8 @@ def _build_current_tax_qualification_context(
     try:
         with isolated_task_channels():
             anchor_date = actual.astimezone(ZoneInfo(_TIMEZONE)).date() - timedelta(days=7)
+            while anchor_date.weekday() >= 5:
+                anchor_date -= timedelta(days=1)
             anchor_at = datetime.combine(
                 anchor_date, time(9, 0), tzinfo=ZoneInfo(_TIMEZONE)
             ).astimezone(UTC)
@@ -1037,6 +1039,7 @@ def _build_current_tax_qualification_context(
                 exchange=_EXCHANGE,
                 timezone_name=_TIMEZONE,
                 live_clock=True,
+                require_current_open_session=False,
             )
             open_dates = tuple(row.calendar_date for row in calendar.snapshot.days if row.is_open)
             assert len(open_dates) >= 5
