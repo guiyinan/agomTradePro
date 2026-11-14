@@ -533,3 +533,16 @@ def test_storable_fee_with_unrepresentable_average_cost_blocks_without_writes(
             use_case.execute(intent)
         assert blocked.value.code == "SIMULATED_TRADE_EXECUTION_BLOCKED"
         assert _financial_snapshot(account.pk) == before
+
+
+@pytest.fixture(autouse=True)
+def _explicit_no_corporate_action_tax_scenario(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Declare no modeled tax in this isolated fee/matcher storage fixture.
+
+    Actual ASH05 owner financial and balance goldens use real coverage readers.
+    """
+    from tests.support.synthetic_trade_tax_coverage import (
+        install_synthetic_trade_tax_compositions,
+    )
+
+    install_synthetic_trade_tax_compositions(monkeypatch)

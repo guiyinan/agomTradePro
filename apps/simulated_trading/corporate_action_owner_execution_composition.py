@@ -279,12 +279,14 @@ class DeferredOwnerShareCapitalTaxQualification:
         canonical_account_id: str,
         prepared: ShareCapitalTaxQualificationProof | None = None,
         prepared_requests: tuple[CorporateActionStageRequest, ...] = (),
+        prepared_reference: CorporateActionStageRequest | None = None,
     ) -> None:
         """Retain server-selected owner scope and optional original preview comparison."""
         self._environment = environment
         self._canonical_account_id = canonical_account_id
         self._prepared = prepared
         self._prepared_requests = prepared_requests
+        self._prepared_reference = prepared_reference
 
     def read_current(
         self, request: CorporateActionStageRequest, *, as_of: datetime
@@ -309,13 +311,27 @@ class DeferredOwnerShareCapitalTaxQualification:
         proof = reader.read_current(
             request, canonical_account_id=self._canonical_account_id, as_of=as_of
         )
-        if self._prepared is not None and (
-            request not in self._prepared_requests
-            or proof.preparation_identity_sha256 != self._prepared.preparation_identity_sha256
-        ):
-            raise BusinessLogicError(
-                "送转模拟模型已变化，请重新准备。", code="SHARE_CAPITAL_TAX_PREVIEW_CHANGED"
+        if self._prepared is not None:
+            reference = self._prepared_reference
+            if request not in self._prepared_requests or reference not in self._prepared_requests:
+                raise BusinessLogicError(
+                    "送转模拟模型已变化，请重新准备。", code="SHARE_CAPITAL_TAX_PREVIEW_CHANGED"
+                )
+            assert reference is not None
+            # The instrument fingerprint includes the exact stage query. Recheck
+            # the sealed preview anchor as itself; the requested stage retains
+            # its own complete proof and exact sealed-batch membership above.
+            current_anchor = (
+                proof
+                if request == reference
+                else reader.read_current(
+                    reference, canonical_account_id=self._canonical_account_id, as_of=timezone.now()
+                )
             )
+            if current_anchor.selection_sha256 != self._prepared.selection_sha256:
+                raise BusinessLogicError(
+                    "送转模拟模型已变化，请重新准备。", code="SHARE_CAPITAL_TAX_PREVIEW_CHANGED"
+                )
         return proof
 
 
@@ -406,6 +422,7 @@ def execute_owner_corporate_action_intent(
             canonical_account_id=intent.selector.binding.account_id,
             prepared=intent.share_tax_proof,
             prepared_requests=intent.requests,
+            prepared_reference=intent.source_reference,
         ),
     )
     repository = DjangoAuditedCorporateActionPostingRepositoryFactory(

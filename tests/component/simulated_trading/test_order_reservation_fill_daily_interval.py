@@ -206,7 +206,7 @@ def test_daily_interval_fill_persists_receipt_and_replays_without_live_readers(
     result = use_case.execute(_command(event))
 
     assert result.replayed is False
-    assert len(reader.calls) == 2
+    assert len(reader.calls) == 3
     trade = SimulatedTradeModel.objects.get(pk=result.trade_id)
     receipt = SimulatedOrderFillReceiptModel.objects.select_related(
         "reservation__account",

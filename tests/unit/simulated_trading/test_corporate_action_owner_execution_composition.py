@@ -10,6 +10,7 @@ from apps.account.domain.simulated_corporate_action_write_grant import (
     SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA,
 )
 from apps.simulated_trading import corporate_action_owner_execution_composition as execution
+from apps.simulated_trading.domain.corporate_action_posting import CorporateActionEntryKind
 from apps.simulated_trading.domain.corporate_action_tax_liability import TaxLiabilityCashAction
 from core.exceptions import BusinessLogicError
 from tests.unit.simulated_trading.test_corporate_action_owner_intent_codec import _intent
@@ -45,6 +46,7 @@ def test_prepared_share_model_accepts_only_the_sealed_request_and_same_current_s
         canonical_account_id=proof.query.canonical_account_id,
         prepared=proof,
         prepared_requests=(request,),
+        prepared_reference=request,
     )
     assert reader.read_current(request, as_of=_NOW) == proof
     with pytest.raises(BusinessLogicError):
@@ -52,6 +54,72 @@ def test_prepared_share_model_accepts_only_the_sealed_request_and_same_current_s
     current[0] = replace(proof, configuration_identity_sha256="e" * 64)
     with pytest.raises(BusinessLogicError):
         reader.read_current(request, as_of=_NOW)
+
+
+@pytest.mark.parametrize("changed_anchor", (False, True))
+def test_sealed_correction_rechecks_exact_anchor_and_each_stage_proof(monkeypatch, changed_anchor):
+    monkeypatch.setattr(execution.timezone, "now", lambda: _NOW)
+    anchor_proof, anchor = _proof(), _request()
+    reversal = replace(
+        anchor,
+        entry_kind=CorporateActionEntryKind.REVERSAL,
+        supersedes_revision_id="previous-source-revision",
+        reversal_of_entry_id=1,
+        tax_treatment=None,
+        share_amount=None,
+        odd_lot_policy=None,
+    )
+    query = replace(anchor_proof.query, entry_kind=CorporateActionEntryKind.REVERSAL)
+    stage_proof = replace(
+        anchor_proof,
+        query=query,
+        model=replace(anchor_proof.model, query_semantic_sha256=query.semantic_sha256),
+        instrument_semantic_sha256="a" * 64,
+    )
+    stage_proof.verify_for(reversal, as_of=_NOW)
+    monkeypatch.setattr(
+        execution,
+        "read_owner_corporate_action_workflow_runtime",
+        lambda **kwargs: SimpleNamespace(
+            statutory_provider_id=1,
+            statutory_body_store_root=Path("synthetic"),
+            deployment_region="test",
+        ),
+    )
+    monkeypatch.setattr(
+        execution, "read_current_owner_action_pdf_root", lambda **kwargs: Path("synthetic")
+    )
+    calls = []
+
+    def current(request, **kwargs):
+        calls.append(request)
+        if request == reversal:
+            return stage_proof
+        assert request == anchor
+        return (
+            replace(anchor_proof, configuration_identity_sha256="e" * 64)
+            if changed_anchor
+            else anchor_proof
+        )
+
+    monkeypatch.setattr(
+        execution,
+        "DjangoCurrentShareCapitalTaxQualificationReader",
+        lambda **kwargs: SimpleNamespace(read_current=current),
+    )
+    reader = execution.DeferredOwnerShareCapitalTaxQualification(
+        environment="test",
+        canonical_account_id=anchor_proof.query.canonical_account_id,
+        prepared=anchor_proof,
+        prepared_requests=(reversal, anchor),
+        prepared_reference=anchor,
+    )
+    if changed_anchor:
+        with pytest.raises(BusinessLogicError, match="送转模拟模型"):
+            reader.read_current(reversal, as_of=_NOW)
+    else:
+        assert reader.read_current(reversal, as_of=_NOW) == stage_proof
+    assert calls == [reversal, anchor]
 
 
 def test_public_share_write_requires_independent_full_model_before_any_financial_factory(

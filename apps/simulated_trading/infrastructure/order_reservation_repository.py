@@ -80,7 +80,6 @@ from apps.simulated_trading.infrastructure.order_reservation_codec import (
     decode_order_reservation,
     plan_snapshot_payload,
     require_stored_submission_market_purpose,
-    snapshot_digest,
     stored_submission_market_purpose,
     validated_plan_snapshot,
 )
@@ -103,10 +102,10 @@ from apps.simulated_trading.infrastructure.order_reservation_identity_guard impo
 )
 from apps.simulated_trading.infrastructure.order_reservation_repository_support import (
     build_locked_tax_aware_reservation_book,
+    persist_order_reservation_model,
     require_exact_order_retry,
     require_locked_reservation_source_precision,
     validate_reservation_owner_row,
-    validate_reservation_storage_text,
 )
 from apps.simulated_trading.infrastructure.transition_plan_reservation_history import (
     require_final_transition_plan_lease,
@@ -999,91 +998,20 @@ class DjangoSimulatedOrderReservationRepository:
     ) -> SimulatedOrderReservationModel:
         """Persist the prepared order and initial hold with one database write."""
 
-        validate_reservation_storage_text(intent)
-        if (
-            type(account.pk) is not int
-            or type(account.user_id) is not int
-            or account.pk != intent.account_id
-            or account.user_id != intent.user_id
-        ):
-            raise SimulatedTradeAccountScopeUnavailable()
-        schedule = fee_policy.fee_schedule_v1
-        self._require_sqlite_values(
-            (
-                ("quantity", reservation.quantity, "quantity"),
-                ("limit_price", reservation.limit_price, "price"),
-                ("notional", reservation.notional, "money"),
-                ("fee_estimate", reservation.fee_estimate, "money"),
-                ("fee_budget", reservation.fee_budget, "money"),
-                ("commission_estimate", fee_breakdown.commission, "money"),
-                ("transfer_fee_estimate", fee_breakdown.transfer_fee, "money"),
-                ("stamp_duty_estimate", fee_breakdown.stamp_duty, "money"),
-                ("slippage_estimate", fee_breakdown.slippage, "money"),
-                ("cash_reserved", reservation.cash_reserved, "money"),
-                ("shares_reserved", reservation.shares_reserved, "quantity"),
-                ("filled_quantity", reservation.filled_quantity, "quantity"),
-                ("cash_consumed", reservation.cash_consumed, "money"),
-                ("shares_consumed", reservation.shares_consumed, "quantity"),
-                ("cash_released", reservation.cash_released, "money"),
-                ("shares_released", reservation.shares_released, "quantity"),
-                ("source_book_cash", book_cash, "money"),
-                ("source_sellable_quantity", sellable_shares, "quantity"),
-            )
-        )
-        row = SimulatedOrderReservationModel(
+        return persist_order_reservation_model(
+            using=self._using,
+            validate_values=self._require_sqlite_values,
             account=account,
-            owner_user_id=intent.user_id,
-            idempotency_key=intent.idempotency_key,
-            intent_payload_hash=intent.request_payload_hash,
-            reservation_request_hash=reservation.identity.request_payload_hash,
-            security_id=intent.security_id,
-            asset_code=intent.asset_code,
-            asset_name=intent.asset_name,
-            side=reservation.side.value,
-            asset_type=intent.asset_type,
-            market=intent.market,
-            board=intent.board,
-            quantity=reservation.quantity,
-            limit_price=reservation.limit_price,
-            notional=reservation.notional,
-            fee_estimate=reservation.fee_estimate,
-            fee_budget=reservation.fee_budget,
-            commission_estimate=fee_breakdown.commission,
-            transfer_fee_estimate=fee_breakdown.transfer_fee,
-            stamp_duty_estimate=fee_breakdown.stamp_duty,
-            slippage_estimate=fee_breakdown.slippage,
-            cash_reserved=reservation.cash_reserved,
-            shares_reserved=reservation.shares_reserved,
-            filled_quantity=reservation.filled_quantity,
-            cash_consumed=reservation.cash_consumed,
-            shares_consumed=reservation.shares_consumed,
-            cash_released=reservation.cash_released,
-            shares_released=reservation.shares_released,
-            fee_policy_id=fee_policy.policy_id,
-            fee_policy_version=fee_policy.policy_version,
-            fee_config_id=schedule.config_id,
-            fee_policy_hash=fee_policy.content_hash,
-            plan_snapshot_version=1,
-            plan_snapshot=cast(dict[str, object], plan_snapshot),
-            plan_snapshot_hash=snapshot_digest(plan_snapshot),
-            source_book_cash=book_cash,
-            source_sellable_quantity=sellable_shares,
+            intent=intent,
+            reservation=reservation,
+            fee_policy=fee_policy,
+            fee_breakdown=fee_breakdown,
+            plan_snapshot=plan_snapshot,
+            book_cash=book_cash,
+            sellable_shares=sellable_shares,
             source_snapshot_at=source_snapshot_at,
-            market_session=plan.market_session,
-            settlement_lag_sessions=plan.settlement_lag_sessions,
-            settlement_release_date=plan.settlement_release_date,
-            reserved_at=reservation.reserved_at,
-            status=reservation.status.value,
-            cancelled_at=None,
+            plan=plan,
         )
-        row.save(using=self._using, force_insert=True)
-        if type(row.pk) is not int or row.pk <= 0:
-            raise SimulatedTradeExecutionBlocked(
-                "database did not return the new reservation identity",
-                code="ORDER_RESERVATION_STORAGE_UNKNOWN",
-            )
-        row.refresh_from_db(using=self._using)
-        return row
 
 
 __all__: tuple[str, ...] = ("DjangoSimulatedOrderReservationRepository",)

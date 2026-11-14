@@ -1214,3 +1214,16 @@ def test_produced_partial_event_survives_apply_failure_then_replays_and_cancels(
             rows.reservation.cash_released,
             rows.reservation.shares_released,
         ) == terminal_state
+
+
+@pytest.fixture(autouse=True)
+def _explicit_no_corporate_action_tax_scenario(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Declare no modeled tax in this isolated fee/matcher storage fixture.
+
+    Actual ASH05 owner financial and balance goldens use real coverage readers.
+    """
+    from tests.support.synthetic_trade_tax_coverage import (
+        install_synthetic_trade_tax_compositions,
+    )
+
+    install_synthetic_trade_tax_compositions(monkeypatch)

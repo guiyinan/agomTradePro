@@ -116,9 +116,8 @@ def install_synthetic_trade_tax_compositions(monkeypatch: pytest.MonkeyPatch) ->
     have no corporate-action eligibility inputs. ASH05 financial, balance, NAV
     and current official-window goldens do not use this opt-in fixture.
     """
+    import apps.simulated_trading.corporate_action_tax_cash_coverage_composition as coverage
     import apps.simulated_trading.execution_settlement_composition as execution
-    import apps.simulated_trading.local_daily_match_composition as match
-    import apps.simulated_trading.owner_order_submission_composition as owner
 
     install_synthetic_trade_tax_coverage(monkeypatch)
     reader = SyntheticTradeTaxCoverage()
@@ -132,5 +131,5 @@ def install_synthetic_trade_tax_compositions(monkeypatch: pytest.MonkeyPatch) ->
         return reader
 
     monkeypatch.setattr(execution, "build_configured_tax_cash_coverage_reader", build)
-    monkeypatch.setattr(owner, "build_configured_tax_cash_coverage_reader", build)
-    monkeypatch.setattr(match, "DjangoCorporateActionTaxCashCoverageReader", build)
+    # Owner and Match import these providers lazily from their actual roots.
+    monkeypatch.setattr(coverage, "DjangoCorporateActionTaxCashCoverageReader", build)

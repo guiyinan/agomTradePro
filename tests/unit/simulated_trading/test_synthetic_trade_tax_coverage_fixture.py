@@ -13,8 +13,24 @@ from apps.simulated_trading.infrastructure.order_reservation_repository import (
 )
 from tests.support.synthetic_trade_tax_coverage import (
     SyntheticTradeTaxCoverage,
+    install_synthetic_trade_tax_compositions,
     install_synthetic_trade_tax_coverage,
 )
+
+
+def test_composition_fixture_installs_at_the_actual_lazy_import_roots(monkeypatch):
+    import apps.simulated_trading.corporate_action_tax_cash_coverage_composition as coverage
+    import apps.simulated_trading.execution_settlement_composition as execution
+
+    install_synthetic_trade_tax_compositions(monkeypatch)
+    reader = execution.build_configured_tax_cash_coverage_reader(using="default")
+    assert isinstance(reader, SyntheticTradeTaxCoverage)
+    assert (
+        coverage.DjangoCorporateActionTaxCashCoverageReader(
+            runtime_environment="synthetic-isolated-trade", using="default"
+        )
+        is reader
+    )
 
 
 @pytest.mark.parametrize(

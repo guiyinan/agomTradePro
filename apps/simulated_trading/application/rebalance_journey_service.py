@@ -19,11 +19,13 @@ from apps.portfolio.application.transition_plan_lifecycle import (
     RequestTransitionPlanRevisionReview,
     RequestTransitionPlanRevisionReviewUseCase,
     TransitionPlanRevisionAuthorizer,
+    TransitionPlanRevisionBlocked,
     TransitionPlanRevisionClock,
     TransitionPlanRevisionPreparationProvider,
     TransitionPlanRevisionRepository,
     TransitionPlanRevisionRequest,
     TransitionPlanRevisionUnavailable,
+    require_transition_plan_event_review_clear,
 )
 from apps.portfolio.domain.transition_plan_revision import TransitionPlanRevision
 from apps.risk_center.application.portfolio_risk_serialization import portfolio_risk_content_hash
@@ -170,7 +172,9 @@ class RebalanceJourneyApplication:
                 )
             )
             return self._envelope(command, successor)
-        result = self._envelope(command, revision)
+        result = self._envelope(
+            command, revision, require_current_events=command.action == "preview_order"
+        )
         if command.action == "preview_order":
             self._authorizer.require_write(
                 actor_user_id=command.user_id, account_id=command.account_id
@@ -222,7 +226,11 @@ class RebalanceJourneyApplication:
         )
 
     def _envelope(
-        self, command: RebalanceJourneyCommand, revision: TransitionPlanRevision
+        self,
+        command: RebalanceJourneyCommand,
+        revision: TransitionPlanRevision,
+        *,
+        require_current_events: bool = False,
     ) -> dict[str, object]:
         now = self._clock.now()
         head = self._repository.get_family_head(
@@ -244,6 +252,17 @@ class RebalanceJourneyApplication:
             and revision.plan.status
             in {"DRAFT", "READY_FOR_APPROVAL", "APPROVAL_PENDING", "APPROVED"}
         )
+        event_review_blocking_reason: str | None = None
+        if usable_context:
+            try:
+                require_transition_plan_event_review_clear(
+                    revision, as_of=now, validator=self._event_review_validator
+                )
+            except TransitionPlanRevisionBlocked as error:
+                if require_current_events and writable:
+                    raise
+                usable_context = False
+                event_review_blocking_reason = error.code
         progress = self._progress_reader.read(
             user_id=command.user_id, account_id=command.account_id, revision=revision
         )
@@ -255,6 +274,7 @@ class RebalanceJourneyApplication:
                 "status": revision.plan.status,
                 "staff_approval_is_execution_authority": False,
                 "must_not_execute": True,
+                "event_review_blocking_reason": event_review_blocking_reason,
             },
             "progress": progress,
             "capabilities": {

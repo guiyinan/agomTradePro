@@ -403,3 +403,17 @@ def test_entitlement_getter_rejects_physical_row_version_changed_after_coverage(
     account.updated_at += timedelta(seconds=1)
     with pytest.raises(BusinessLogicError):
         reader.read_current_entitlement_coverage(proof, using="default")
+
+
+def test_coverage_logs_only_stable_failure_metadata(context, monkeypatch, caplog):
+    reader, account, _ = context
+
+    def fail(**kwargs):
+        raise BusinessLogicError("OPAQUE_SECRET_DO_NOT_LOG", code="TAX_TEST_UNVERIFIED")
+
+    monkeypatch.setattr(composition, "read_locked_corporate_action_tax_payable", fail)
+    result, _ = reader._read(account=account, codes=())
+    assert result.coverage_status is TaxCashCoverageStatus.UNKNOWN
+    assert "accepted_tax_payable" in caplog.text
+    assert "TAX_TEST_UNVERIFIED" in caplog.text
+    assert "OPAQUE_SECRET" not in caplog.text

@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
+import re
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from decimal import Decimal
@@ -111,6 +113,7 @@ from apps.simulated_trading.infrastructure.simulated_account_trade_models import
 from core.exceptions import AgomTradeProException, BusinessLogicError
 
 _MAX_ASSETS = 2_000
+_logger = logging.getLogger(__name__)
 _MAX_EVENTS = 10_000
 _COVERAGE_FAILURES: tuple[type[Exception], ...] = (
     AgomTradeProException,
@@ -461,6 +464,7 @@ class DjangoCorporateActionTaxCashCoverageReader:
         epochs: list[object] = [source.content_hash]
         reasons: list[TaxCashCoverageReason] = []
         debt: Decimal | None = None
+        phase = "retained_postings"
         try:
             original_ledger = read_locked_owner_corporate_action_posting_state(
                 account=account,
@@ -469,12 +473,14 @@ class DjangoCorporateActionTaxCashCoverageReader:
                 using=self._using,
             )
             epochs.append(original_ledger.audit_receipts)
+            phase = "accepted_tax_payable"
             debt = read_locked_corporate_action_tax_payable(
                 account=account, using=self._using, as_of=timezone.now()
             )
             ownership = build_corporate_action_ownership_history_repository(
                 runtime_environment=self._environment, using=self._using
             )
+            phase = "ownership_origin"
             if codes:
                 origin = ownership.read_verified_zero_origin_calendar(
                     account_id=account.pk,
@@ -504,6 +510,7 @@ class DjangoCorporateActionTaxCashCoverageReader:
                     raise _blocked()
                 epochs.append(("verified-zero-origin-at", origin_at))
             for code in codes:
+                phase = "instrument_classification"
                 classification_reader: CurrentReferenceClassificationReader = (
                     build_current_reference_classification_reader(
                         runtime_environment=self._environment
@@ -523,13 +530,31 @@ class DjangoCorporateActionTaxCashCoverageReader:
                         as_of=timezone.now(),
                     )
                 )
+                phase = "current_asset_exposure"
                 asset_epoch, asset_known, asset_deadline = self._cover_asset(
                     account=account, canonical_account_id=source.account_id, code=code
                 )
                 epochs.append((code, classification_epoch, asset_epoch))
                 known = max(known, classification_known, asset_known)
                 deadline = min(deadline, classification_deadline, asset_deadline)
-        except _COVERAGE_FAILURES:
+        except _COVERAGE_FAILURES as error:
+            code_value: object = getattr(error, "code", None)
+            safe_code = (
+                code_value
+                if isinstance(code_value, str) and re.fullmatch(r"[A-Z0-9_]{1,100}", code_value)
+                else "UNSPECIFIED"
+            )
+            failure_trace = error.__traceback__
+            while failure_trace is not None and failure_trace.tb_next is not None:
+                failure_trace = failure_trace.tb_next
+            _logger.warning(
+                "Simulated tax coverage blocked: phase=%s failure_type=%s reason_code=%s site=%s:%s",
+                phase,
+                type(error).__name__,
+                safe_code,
+                failure_trace.tb_frame.f_code.co_name if failure_trace is not None else "unknown",
+                failure_trace.tb_lineno if failure_trace is not None else 0,
+            )
             reasons.append(TaxCashCoverageReason.HISTORY_UNVERIFIED)
         checked = timezone.now()
         if checked < started or not known <= checked < deadline:
