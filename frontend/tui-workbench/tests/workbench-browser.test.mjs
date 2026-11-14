@@ -1349,10 +1349,20 @@ function makeFeeCorrectionContinuationScreen() {
     };
 }
 
-test("plan row preview keeps confirmation inside its result panel and on the same exact handoff", async () => {
+for (const entry of ["row", "header"]) {
+test(`plan ${entry} preview keeps confirmation inside its result panel and on the same exact handoff`, async () => {
     const screenSpec = makeRebalancePlanRowContinuationScreen();
     const source = screenSpec.actions.find(item => item.key === "rebalance-plan.preview-order");
     const target = screenSpec.actions.find(item => item.key === "rebalance-plan.order-confirm");
+    if (entry === "header") {
+        const grid = screenSpec.screen.dashboard_panels[0];
+        grid.row_actions = [];
+        screenSpec.screen.dashboard_panels[1].action_key = source.key;
+        source.task_tier = "support";
+        source.fields.forEach(field => {
+            if (Object.hasOwn(screenSpec.syntheticRow, field.key)) field.default = screenSpec.syntheticRow[field.key];
+        });
+    }
     const token = "synthetic-plan-preview-token";
     const { browser, page } = await openHarness("https://app.test/?screen=test.dashboard", {
         catalog: experienceCatalog, dashboardScreen: screenSpec, waitForInitialRows: false,
@@ -1362,7 +1372,7 @@ test("plan row preview keeps confirmation inside its result panel and on the sam
     const sourceRequests = [];
     const targetRequests = [];
     try {
-        await page.locator('[data-dashboard-panel="plan-order-grid"] [data-dashboard-row-action]').waitFor({ state: "visible" });
+        await page.locator('[data-dashboard-panel="plan-order-grid"] tbody tr').waitFor({ state: "visible" });
         await page.route("**/actions/rebalance-plan.preview-order/run/", async route => {
             const request = route.request();
             const body = request.postDataJSON();
@@ -1403,7 +1413,9 @@ test("plan row preview keeps confirmation inside its result panel and on the sam
             }) });
         });
 
-        await page.locator('[data-dashboard-panel="plan-order-grid"] [data-dashboard-row-action]').click();
+        await page.locator(entry === "header"
+            ? '[data-dashboard-panel="plan-order-preview"] button.tui-dashboard-open'
+            : '[data-dashboard-panel="plan-order-grid"] [data-dashboard-row-action]').click();
         const previewForm = page.locator('form[data-action-ui-key="rebalance-plan.preview-order"]');
         await previewForm.waitFor({ state: "visible" });
         await previewForm.locator('[name="quantity"]').fill("10");
@@ -1435,6 +1447,7 @@ test("plan row preview keeps confirmation inside its result panel and on the sam
         assert.equal(targetRequests[1].body.params.preview_token, token);
     } finally { await browser.close(); }
 });
+}
 
 test("unknown plan-order confirmation offers only same-key readback in the active result panel", async () => {
     const screenSpec = makeRebalancePlanRowContinuationScreen();

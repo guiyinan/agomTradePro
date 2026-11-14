@@ -53,11 +53,17 @@ function targetedContinuationContextIsCurrent(action, context, actions) {
             && descriptor.result_panel_key === panelKey
             && !descriptor.refresh_panel_key
         )));
+    const hasDeclaredSourceTask = (state.screen?.screen?.dashboard_panels || [])
+        .some(sourcePanel => (
+            sourcePanel.action_key === source?.key
+            && (sourcePanel.result_panel_key || sourcePanel.key) === panelKey
+            && !sourcePanel.refresh_panel_key
+        ));
     if (!source || !panel || !container
         || screenKey !== String(context.screenKey || "")
         || screenKey !== String(action.screen_key || "")
         || String(source.screen_key || "") !== screenKey
-        || !hasDeclaredSourceRow
+        || (!hasDeclaredSourceRow && !hasDeclaredSourceTask)
         || container.dashboardResultActionKey !== String(context.panelActionKey || "")) {
         return false;
     }
