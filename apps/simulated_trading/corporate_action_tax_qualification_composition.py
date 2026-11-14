@@ -391,6 +391,7 @@ class DjangoCurrentSimulatedTaxQualificationProvider(CurrentTaxAssessmentQualifi
             policy=configured.candidate.tax_policy,
             statutory_source_bundle=statutory.source_bundle,
             simulated_tax_date_observation=history.observation,
+            semantic_schema_version=2,
         )
         observation = history.observation
         deadline = min(

@@ -339,6 +339,7 @@ def _semantic_payload(
     statutory_source_bundle: TaxAssessmentStatutorySourceBundle,
     bridge: DeferredDividendTaxSettlementBridgeResult,
     calculation: DeferredTaxCalculation,
+    semantic_schema_version: int,
 ) -> dict[str, object]:
     """Build semantic facts independent of capture and ownership observation clocks."""
 
@@ -349,8 +350,12 @@ def _semantic_payload(
     prefix_days = tuple(
         day for day in history.settlement_days if day.settlement_date <= target_settlement_date
     )
-    return {
-        "schema": _SCHEMA,
+    payload: dict[str, object] = {
+        "schema": (
+            _SCHEMA
+            if semantic_schema_version == 1
+            else "corporate-action-deferred-tax-assessment.v2"
+        ),
         "assessment_scope": {
             "account_id": history.account_id,
             "owner_user_id": history.owner_user_id,
@@ -406,8 +411,14 @@ def _semantic_payload(
                     field_name="record_date_end_exclusive",
                 ),
                 "eligible_quantity": _share_text(proof.eligible_quantity),
-                "cutoff_policy_id": proof.cutoff_policy_id,
-                "cutoff_policy_sha256": proof.cutoff_policy_sha256,
+                **(
+                    {
+                        "cutoff_policy_id": proof.cutoff_policy_id,
+                        "cutoff_policy_sha256": proof.cutoff_policy_sha256,
+                    }
+                    if semantic_schema_version == 1
+                    else {}
+                ),
             },
             "zero_origin_anchor": {
                 "anchor_id": anchor.anchor_id,
@@ -439,6 +450,7 @@ def _semantic_payload(
             "withholding_amount": _decimal_text(calculation.withholding_amount),
         },
     }
+    return payload
 
 
 def _observation_manifest(
@@ -448,6 +460,7 @@ def _observation_manifest(
     calculation: DeferredTaxCalculation,
     statutory_source_bundle: TaxAssessmentStatutorySourceBundle,
     simulated_tax_date_observation: SimulatedTaxSettlementHistoryObservation | None,
+    semantic_schema_version: int,
 ) -> dict[str, object]:
     """Retain actual ownership/source capture observations and legacy evidence hashes."""
 
@@ -478,6 +491,14 @@ def _observation_manifest(
             "record_date_end_exclusive": _instant_text(
                 proof.record_date_end_exclusive,
                 field_name="record_date_end_exclusive",
+            ),
+            **(
+                {
+                    "cutoff_policy_id": proof.cutoff_policy_id,
+                    "cutoff_policy_sha256": proof.cutoff_policy_sha256,
+                }
+                if semantic_schema_version == 2
+                else {}
             ),
         },
         "opening_anchor_observation": {
@@ -525,6 +546,7 @@ class CorporateActionTaxAssessment:
     policy: DeferredDividendTaxPolicy
     statutory_source_bundle: TaxAssessmentStatutorySourceBundle
     simulated_tax_date_observation: SimulatedTaxSettlementHistoryObservation | None = None
+    semantic_schema_version: int = 1
     bridge: DeferredDividendTaxSettlementBridgeResult = field(init=False)
     calculation: DeferredTaxCalculation = field(init=False)
     semantic_payload_json: str = field(init=False)
@@ -534,6 +556,12 @@ class CorporateActionTaxAssessment:
 
     def __post_init__(self) -> None:
         """Validate all bound inputs, run the existing calculator, and derive hashes."""
+
+        if type(self.semantic_schema_version) is not int or self.semantic_schema_version not in (
+            1,
+            2,
+        ):
+            raise DeferredDividendTaxValidationError("assessment semantic schema is unsupported")
 
         _require_utf8_token(self.assessment_revision_id, "assessment_revision_id", 192)
         if self.supersedes_assessment_revision_id is not None:
@@ -617,6 +645,7 @@ class CorporateActionTaxAssessment:
             statutory_source_bundle=self.statutory_source_bundle,
             bridge=bridge,
             calculation=calculation,
+            semantic_schema_version=self.semantic_schema_version,
         )
         observation_payload = _observation_manifest(
             history=self.history,
@@ -624,6 +653,7 @@ class CorporateActionTaxAssessment:
             calculation=calculation,
             statutory_source_bundle=self.statutory_source_bundle,
             simulated_tax_date_observation=self.simulated_tax_date_observation,
+            semantic_schema_version=self.semantic_schema_version,
         )
         semantic_json = _canonical_json(semantic_payload)
         observation_json = _canonical_json(observation_payload)
@@ -674,6 +704,7 @@ class CorporateActionTaxAssessment:
             policy=self.policy,
             statutory_source_bundle=self.statutory_source_bundle,
             simulated_tax_date_observation=self.simulated_tax_date_observation,
+            semantic_schema_version=self.semantic_schema_version,
         )
         if (
             rebuilt.bridge != self.bridge

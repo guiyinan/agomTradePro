@@ -14,6 +14,7 @@ from dataclasses import dataclass, replace
 from datetime import datetime, timedelta
 from decimal import Decimal
 from hashlib import sha256
+from typing import Protocol
 from zoneinfo import ZoneInfo
 
 import pytest
@@ -72,8 +73,12 @@ from apps.simulated_trading.domain.execution_settlement_uow import SimulatedTrad
 from apps.simulated_trading.domain.order_reservation_fill_settlement import (
     build_order_fill_settlement_proof,
 )
+from apps.simulated_trading.execution_current_reference_composition import (
+    get_simulated_execution_runtime_environment,
+)
 from apps.simulated_trading.infrastructure.models import (
     PositionModel,
+    SimulatedAccountModel,
     SimulatedOrderReservationModel,
     SimulatedTradeModel,
 )
@@ -95,6 +100,9 @@ from apps.simulated_trading.infrastructure.transition_plan_execution_history_rep
 )
 from apps.simulated_trading.owner_order_submission_composition import (
     build_owner_order_submission_use_case,
+)
+from apps.simulated_trading.transition_plan_event_review_composition import (
+    build_configured_transition_plan_event_review_validator,
 )
 from apps.simulated_trading.transition_plan_journey_composition import (
     build_transition_plan_exact_reader,
@@ -140,8 +148,20 @@ from tests.support.ash03_auto_calendar_clock_v2 import (
     advance_auto_uow_fixture_read_clock,
 )
 from tests.support.native_postgres_database import assert_native_postgres_test_database
+from tests.support.synthetic_trade_tax_coverage import install_synthetic_trade_tax_compositions
 
 pytestmark = pytest.mark.django_db(transaction=True)
+
+
+@pytest.fixture(autouse=True)
+def _isolated_no_corporate_action_tax_scenario(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep older plan/market tests on their explicit synthetic no-tax input.
+
+    Current event policy and classification remain real. ASH05 owner financial
+    and cash/NAV goldens never import this fixture or receive this synthetic port.
+    """
+    install_synthetic_trade_tax_compositions(monkeypatch)
+
 
 _HASH_A = "a" * 64
 _HASH_B = "b" * 64
@@ -193,10 +213,18 @@ def _policy_binding(
     )
 
 
+class _PlanAccountContext(Protocol):
+    """Only the actual owner/account fields consumed by the synthetic plan factory."""
+
+    account: SimulatedAccountModel
+    owner_id: int
+
+
 def _build_revision(
     *,
-    context: _QualifiedCallerContext,
+    context: _PlanAccountContext,
     position_quantity: Decimal,
+    order_quantity: int = 300,
     prepared_at: datetime = AS_OF,
     expires_at: datetime | None = None,
     estimated_fee: Decimal = Decimal("0"),
@@ -391,7 +419,7 @@ def _build_revision(
             OrderDraft(
                 asset_code=ASSET_CODE,
                 side="sell",
-                quantity=300,
+                quantity=order_quantity,
                 reference_price=reference_price,
                 estimated_fee=estimated_fee,
                 status="DRAFT",
@@ -399,7 +427,7 @@ def _build_revision(
         ),
         constraints=(),
         cash_before=cash,
-        cash_after=cash + Decimal("30000") - estimated_fee,
+        cash_after=cash + Decimal(order_quantity) * reference_price - estimated_fee,
         status="DRAFT",
         metadata={"planning_policy_version": "not_applicable"},
     )
@@ -445,7 +473,12 @@ def _persist_revision(context: _QualifiedCallerContext) -> TransitionPlanRevisio
         context=context,
         position_quantity=Decimal(position.quantity),
     )
-    saved = DjangoTransitionPlanRevisionRepository(using="default").append_initial(
+    saved = DjangoTransitionPlanRevisionRepository(
+        using="default",
+        event_review_validator=build_configured_transition_plan_event_review_validator(
+            runtime_environment=get_simulated_execution_runtime_environment(), using="default"
+        ),
+    ).append_initial(
         revision,
         idempotency_key=revision.plan.idempotency_key,
     )
@@ -506,6 +539,9 @@ def _plan_services(
     clock = _FixedClock(AS_OF)
     exact_reader = build_transition_plan_exact_reader(using="default")
     guard = build_transition_plan_locked_guard(
+        event_review_validator=build_configured_transition_plan_event_review_validator(
+            runtime_environment=get_simulated_execution_runtime_environment(), using="default"
+        ),
         using="default",
         current_policy_pins_validator=_PinnedPolicyReader(_current_synthetic_policy_hashes()),
     )
@@ -557,7 +593,12 @@ def _read_progress(
     exact_reader = build_transition_plan_exact_reader(using="default")
     return GetTransitionPlanExecutionProgressUseCase(
         revision_reader=exact_reader,
-        family_head_reader=DjangoTransitionPlanRevisionRepository(using="default"),
+        family_head_reader=DjangoTransitionPlanRevisionRepository(
+            using="default",
+            event_review_validator=build_configured_transition_plan_event_review_validator(
+                runtime_environment=get_simulated_execution_runtime_environment(), using="default"
+            ),
+        ),
         history_reader=DjangoTransitionPlanExecutionHistoryRepository(using="default"),
         resource_reader=DjangoRebalanceResourceSnapshotRepository(using="default"),
         clock=_FixedClock(as_of),
@@ -866,6 +907,9 @@ def test_native_plan_context_rejects_foreign_account_expiry_and_policy_drift_wit
     assert expired.value.code == "TRANSITION_PLAN_EXPIRED"
 
     changed_guard = build_transition_plan_locked_guard(
+        event_review_validator=build_configured_transition_plan_event_review_validator(
+            runtime_environment=get_simulated_execution_runtime_environment(), using="default"
+        ),
         using="default",
         current_policy_pins_validator=_PinnedPolicyReader(
             (
@@ -895,6 +939,9 @@ def test_native_plan_context_rejects_foreign_account_expiry_and_policy_drift_wit
             market_purpose="local_simulation_only",
         )
     valid_guard = build_transition_plan_locked_guard(
+        event_review_validator=build_configured_transition_plan_event_review_validator(
+            runtime_environment=get_simulated_execution_runtime_environment(), using="default"
+        ),
         using="default",
         current_policy_pins_validator=_PinnedPolicyReader(_current_synthetic_policy_hashes()),
     )
@@ -956,7 +1003,11 @@ def test_native_locked_guard_reuses_one_outer_transaction_for_policy_validation(
         observed_depths=depths,
     )
     guard = build_transition_plan_locked_guard(
-        using="default", current_policy_pins_validator=policy_reader
+        event_review_validator=build_configured_transition_plan_event_review_validator(
+            runtime_environment=get_simulated_execution_runtime_environment(), using="default"
+        ),
+        using="default",
+        current_policy_pins_validator=policy_reader,
     )
     binding = revision.orders[0].to_execution_binding(
         revision.identity,

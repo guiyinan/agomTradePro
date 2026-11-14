@@ -191,6 +191,9 @@ from apps.simulated_trading.owner_order_submission_composition import (
     SINA_SUBMISSION_POLICIES_KEY,
     build_owner_order_submission_use_case,
 )
+from apps.simulated_trading.transition_plan_event_review_composition import (
+    build_configured_transition_plan_event_review_validator,
+)
 from apps.simulated_trading.transition_plan_journey_composition import (
     build_journey_current_policy_pins_validator,
     build_transition_plan_exact_reader,
@@ -231,6 +234,7 @@ from tests.support.ash03_auto_uow_fixture import (
 )
 from tests.support.ash03_auto_uow_fixture import _runtime_public_write_clock as _write_clock
 from tests.support.native_postgres_database import assert_native_postgres_test_database
+from tests.support.synthetic_trade_tax_coverage import install_synthetic_trade_tax_compositions
 from tests.unit.data_center.test_tushare_provider_response_capture import (
     _Response,
     _Session,
@@ -246,6 +250,17 @@ qualified_caller_context = auto_fixtures.qualified_caller_context
 public_order_context = owner_fixtures.public_order_context
 
 pytestmark = pytest.mark.django_db(transaction=True)
+
+
+@pytest.fixture(autouse=True)
+def _isolated_no_corporate_action_tax_scenario(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep older plan/market tests on their explicit synthetic no-tax input.
+
+    Current event policy and classification remain real. ASH05 owner financial
+    and cash/NAV goldens never import this fixture or receive this synthetic port.
+    """
+    install_synthetic_trade_tax_compositions(monkeypatch)
+
 
 _BUY_ASSET_CODE = "601398.SH"
 _BUY_SOURCE_CODE = "601398.SH"
@@ -1120,6 +1135,9 @@ def _order_services(*, revision: TransitionPlanRevision):
 
     validator = build_journey_current_policy_pins_validator(using="default")
     guard = build_transition_plan_locked_guard(
+        event_review_validator=build_configured_transition_plan_event_review_validator(
+            runtime_environment=get_simulated_execution_runtime_environment(), using="default"
+        ),
         using="default",
         current_policy_pins_validator=validator,
     )
@@ -1130,7 +1148,12 @@ def _order_services(*, revision: TransitionPlanRevision):
     preview_service = PreviewTransitionPlanOrderUseCase(
         revision_reader=build_transition_plan_exact_reader(using="default"),
         order_submission=order_service,
-        clock=DjangoTransitionPlanRevisionRepository(using="default"),
+        clock=DjangoTransitionPlanRevisionRepository(
+            using="default",
+            event_review_validator=build_configured_transition_plan_event_review_validator(
+                runtime_environment=get_simulated_execution_runtime_environment(), using="default"
+            ),
+        ),
     )
     return order_service, preview_service
 
@@ -1237,7 +1260,12 @@ def test_real_preview_partial_sell_funds_only_actual_successor_buy(
         using="default",
     )
     reads.diagnostic_root = tmp_path
-    repository = DjangoTransitionPlanRevisionRepository(using="default")
+    repository = DjangoTransitionPlanRevisionRepository(
+        using="default",
+        event_review_validator=build_configured_transition_plan_event_review_validator(
+            runtime_environment=get_simulated_execution_runtime_environment(), using="default"
+        ),
+    )
     provider = PortfolioJourneyPreparationProvider(
         reads,
         target_weights=_TARGET_WEIGHTS,
@@ -1447,7 +1475,12 @@ def test_real_preview_partial_sell_funds_only_actual_successor_buy(
     assert "BUY_DEPENDS_ON_SETTLED_SALES" not in successor_buy.reason_codes
     assert successor.plan.as_of_time == successor.basis.portfolio_snapshot_as_of
     assert initial.identity.revision_hash != successor.identity.revision_hash
-    initial_readback = DjangoTransitionPlanRevisionRepository(using="default").get_exact(
+    initial_readback = DjangoTransitionPlanRevisionRepository(
+        using="default",
+        event_review_validator=build_configured_transition_plan_event_review_validator(
+            runtime_environment=get_simulated_execution_runtime_environment(), using="default"
+        ),
+    ).get_exact(
         plan_id=initial.identity.plan_id,
         version=initial.identity.version,
         expected_revision_hash=initial.identity.revision_hash,

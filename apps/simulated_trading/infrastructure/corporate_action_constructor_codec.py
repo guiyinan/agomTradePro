@@ -12,6 +12,9 @@ from typing import Literal, Union, cast, get_args, get_origin, get_type_hints
 from uuid import UUID
 
 from apps.audit.domain.system_audit_event import JSONValue
+from apps.simulated_trading.domain.corporate_action_tax_assessment import (
+    CorporateActionTaxAssessment,
+)
 
 _MAX_DEPTH = 64
 
@@ -39,6 +42,11 @@ def encode_corporate_action_constructor(value: object, *, depth: int = 0) -> JSO
             )
             for field in fields(value)
             if field.init
+            and not (
+                type(value) is CorporateActionTaxAssessment
+                and field.name == "semantic_schema_version"
+                and value.semantic_schema_version == 1
+            )
         }
     raise ValueError("unsupported intent constructor value")
 
@@ -102,6 +110,14 @@ def restore_corporate_action_constructor(
         return expected(value)
     if isinstance(expected, type) and is_dataclass(expected):
         names = {field.name for field in fields(expected) if field.init}
+        if (
+            expected is CorporateActionTaxAssessment
+            and type(value) is dict
+            and set(value) == names - {"semantic_schema_version"}
+        ):
+            # Only the exact historical assessment shape may omit this field.
+            # Encoding version 1 still emits its original constructor bytes.
+            value = {**value, "semantic_schema_version": 1}
         if type(value) is not dict or set(value) != names:
             raise ValueError("intent constructor fields differ")
         hints = get_type_hints(expected)

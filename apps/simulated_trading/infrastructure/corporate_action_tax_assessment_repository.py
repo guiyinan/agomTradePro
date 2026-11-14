@@ -593,11 +593,10 @@ class DjangoCorporateActionTaxAssessmentRepository:
         semantic = read_material(header.semantic_payload_json, header.semantic_sha256)
         read_material(header.observation_manifest_json, header.observation_manifest_sha256)
         calculation = read_material(header.calculation_payload_json, header.calculation_sha256)
-        if semantic.get(
-            "schema"
-        ) != "corporate-action-deferred-tax-assessment.v1" or calculation != semantic.get(
-            "calculation"
-        ):
+        if semantic.get("schema") not in {
+            "corporate-action-deferred-tax-assessment.v1",
+            "corporate-action-deferred-tax-assessment.v2",
+        } or calculation != semantic.get("calculation"):
             raise _blocked("Historical assessment schema or calculation differs.")
 
         def component(name: str) -> dict[str, object]:

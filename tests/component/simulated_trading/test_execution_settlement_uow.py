@@ -108,6 +108,7 @@ from core.integration.backtest_simulated_settlement import (
     SimulatedSettlementBacktestAdapter,
 )
 from tests.support.isolated_schema import isolated_schema
+from tests.support.synthetic_trade_tax_coverage import install_synthetic_trade_tax_coverage
 
 pytestmark = pytest.mark.django_db(
     transaction=True,
@@ -254,9 +255,10 @@ class _MissingFeePolicyReader:
 
 
 @pytest.fixture
-def ledger(request: pytest.FixtureRequest) -> object:
+def ledger(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> object:
     """Create the local ledger tables; pytest-django owns migrated-row cleanup."""
 
+    install_synthetic_trade_tax_coverage(monkeypatch)
     user_model = get_user_model()
     with isolated_schema(
         (
@@ -1662,19 +1664,26 @@ def test_alpha_backtest_quotes_match_readonly_then_ordinary_uow_apply(
             self.quotes.append(quote)
             return quote
 
-    monday_cutoff = datetime(2026, 10, 19, 2, 0, tzinfo=UTC)
     evidence = _calendar(
         as_of=AS_OF,
         open_dates={date(2026, 10, 16), date(2026, 10, 19), date(2026, 10, 20), date(2026, 10, 21)},
     )
     settlement_repository = DjangoSimulatedTradeExecutionRepository(using="default")
+
+    class _BacktestClock:
+        cutoff: datetime = AS_OF
+
+        def now(self) -> datetime:
+            return self.cutoff
+
+    backtest_clock = _BacktestClock()
     ordinary_uow = ExecuteSettlementBoundSimulatedTradeUseCase(
         rule_reader=_RuleReader(_bundle(as_of=AS_OF, lag=1)),
         identity_reader=_IdentityReader(),
         calendar_reader=_CalendarReader(evidence),
         fee_policy_reader=settlement_repository,
         repository=settlement_repository,
-        clock=_SequenceClock((AS_OF, monday_cutoff)),
+        clock=backtest_clock,
     )
     scope = BacktestSettlementScope(
         account_id=account.pk,
@@ -1762,9 +1771,10 @@ def test_alpha_backtest_quotes_match_readonly_then_ordinary_uow_apply(
             reason=scope.reason,
             signal_id=scope.signal_id,
         )
-        receipt = ordinary_uow.execute(
-            intent, as_of=_CutoffResolver().cutoff_for(request.trade_date)
-        )
+        # Each backtest operation has one explicit cutoff; source rechecks may
+        # read that same clock repeatedly without advancing to the next trade.
+        backtest_clock.cutoff = _CutoffResolver().cutoff_for(request.trade_date)
+        receipt = ordinary_uow.execute(intent, as_of=backtest_clock.cutoff)
         receipts.append(receipt)
         trade = SimulatedTradeModel.objects.get(pk=receipt.trade_id)
 

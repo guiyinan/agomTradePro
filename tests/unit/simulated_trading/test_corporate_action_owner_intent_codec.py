@@ -11,7 +11,14 @@ import pytest
 from apps.simulated_trading.application.corporate_action_owner_intent import (
     OwnerCorporateActionPreparedIntent,
 )
+from apps.simulated_trading.domain.corporate_action_tax_assessment import (
+    CorporateActionTaxAssessment,
+)
 from apps.simulated_trading.infrastructure import corporate_action_owner_intent_codec as codec
+from apps.simulated_trading.infrastructure.corporate_action_constructor_codec import (
+    encode_corporate_action_constructor,
+    restore_corporate_action_constructor,
+)
 from core.exceptions import BusinessLogicError
 from tests.unit.account.test_simulated_corporate_action_write_grant import _binding, _grant
 from tests.unit.simulated_trading.test_corporate_action_current_official_window import (
@@ -22,6 +29,22 @@ from tests.unit.simulated_trading.test_corporate_action_tax_assessment import (
     _assessment,
     _simulated_tax_date_observation,
 )
+
+
+@pytest.mark.parametrize("version", (1, 2))
+def test_assessment_constructor_preserves_historical_shape_and_explicit_v2(version):
+    assessment = replace(_assessment(), semantic_schema_version=version)
+    payload = encode_corporate_action_constructor(assessment)
+    assert isinstance(payload, dict)
+    assert ("semantic_schema_version" in payload) is (version == 2)
+    restored = restore_corporate_action_constructor(payload, CorporateActionTaxAssessment)
+    assert restored == assessment
+    assert encode_corporate_action_constructor(restored) == payload
+    for invalid in (0, 3, True, None, "2"):
+        with pytest.raises((ValueError, TypeError)):
+            restore_corporate_action_constructor(
+                {**payload, "semantic_schema_version": invalid}, CorporateActionTaxAssessment
+            )
 
 
 def _intent(*, tax: bool = False, simulated: bool = False) -> OwnerCorporateActionPreparedIntent:

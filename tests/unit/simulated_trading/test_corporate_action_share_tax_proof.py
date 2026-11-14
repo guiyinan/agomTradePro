@@ -8,6 +8,7 @@ import pytest
 from apps.simulated_trading.application.corporate_action_share_tax_proof import (
     ShareCapitalTaxQualificationProof,
 )
+from apps.simulated_trading.domain.corporate_action_posting import CorporateActionEntryKind
 from apps.simulated_trading.infrastructure.corporate_action_constructor_codec import (
     encode_corporate_action_constructor,
     restore_corporate_action_constructor,
@@ -76,6 +77,47 @@ def test_original_complete_model_constructor_roundtrip_keeps_actual_clocks_and_t
     assert restored.model.source_terms == proof.model.source_terms
     assert restored.simulation_only is True
     assert restored.must_not_use_for_real_tax_decision is True
+
+
+def test_reversal_model_proof_binds_exact_request_without_inventing_tax_treatment():
+    request = replace(
+        _request(),
+        entry_kind=CorporateActionEntryKind.REVERSAL,
+        supersedes_revision_id="previous-source-revision",
+        reversal_of_entry_id=1,
+        tax_treatment=None,
+        share_amount=None,
+        odd_lot_policy=None,
+    )
+    query = replace(_query(), entry_kind=CorporateActionEntryKind.REVERSAL)
+    proof = replace(
+        _proof(), query=query, model=replace(_model(), query_semantic_sha256=query.semantic_sha256)
+    )
+    proof.verify_for(request, as_of=_NOW)
+    with pytest.raises(BusinessLogicError):
+        proof.verify_for(_request(), as_of=_NOW)
+
+
+def test_same_preparation_comparison_preserves_model_and_source_bindings():
+    original = _proof()
+    query = replace(original.query, entry_kind=CorporateActionEntryKind.REVERSAL)
+    reversal = replace(
+        original,
+        query=query,
+        model=replace(original.model, query_semantic_sha256=query.semantic_sha256),
+    )
+    assert reversal.preparation_identity_sha256 == original.preparation_identity_sha256
+    assert (
+        replace(reversal, configuration_identity_sha256="e" * 64).preparation_identity_sha256
+        != original.preparation_identity_sha256
+    )
+    changed_query = replace(query, source_payload_sha256="e" * 64)
+    changed = replace(
+        reversal,
+        query=changed_query,
+        model=replace(reversal.model, query_semantic_sha256=changed_query.semantic_sha256),
+    )
+    assert changed.preparation_identity_sha256 != original.preparation_identity_sha256
 
 
 def test_native_instrument_digests_keep_their_original_prefixed_representation():

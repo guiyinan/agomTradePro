@@ -75,6 +75,7 @@ from tests.component.simulated_trading.test_order_reservation_fill_row_reader im
     _reader_rows,
 )
 from tests.component.simulated_trading.test_order_reservation_repository import _Harness
+from tests.support.synthetic_trade_tax_coverage import install_synthetic_trade_tax_coverage
 
 
 @dataclass(frozen=True, slots=True)
@@ -124,6 +125,7 @@ def isolated_ownership_ledger(
 ) -> Iterator[AbstractBaseUser]:
     """Use pytest's migrated disposable database for account-creation checks."""
 
+    install_synthetic_trade_tax_coverage(monkeypatch)
     del transactional_db
     monkeypatch.setenv("AGOMTRADEPRO_DISABLE_USER_PROVISIONING_SIGNALS", "1")
     user = get_user_model().objects.create_user(

@@ -318,7 +318,8 @@ def test_sell_with_fee_covered_by_proceeds_needs_no_cash_even_at_low_decimal_pre
     assert row.fee_estimate == Decimal("3.02")
     assert row.cash_reserved == Decimal("0.00")
     assert row.shares_reserved == Decimal("100.000000")
-    assert result.book.available_cash == Decimal("0.00")
+    assert result.book.available_cash is None
+    assert result.book.tax_cash_unavailable is None
 
 
 def test_sell_fee_deficit_is_blocked_when_zero_cash_cannot_cover_it(
@@ -592,7 +593,10 @@ def test_exact_reserve_replay_after_use_case_rebuild_recovers_discarded_response
         retained_reservation
     )
     assert replay.book.active_held_cash == retained_held_cash
-    assert replay.book.available_cash == retained_available_cash
+    # An exact retry restores the immutable hold without renewing tax coverage.
+    assert retained_available_cash is not None
+    assert replay.book.available_cash is None
+    assert replay.book.tax_cash_unavailable is None
     assert len(replay.book.reservations) == 1
     persisted = SimulatedOrderReservationModel.objects.get(
         account_id=reservation_harness.account.pk,

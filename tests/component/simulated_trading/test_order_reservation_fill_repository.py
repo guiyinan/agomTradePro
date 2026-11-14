@@ -539,7 +539,7 @@ def test_buy_fill_writes_trade_receipt_position_and_reservation_atomically(
     receipt = SimulatedOrderFillReceiptModel.objects.get(trade=trade)
     account = SimulatedAccountModel.objects.get(pk=reservation_harness.account.pk)
     assert result.replayed is False
-    assert (reader.calls and len(reader.calls)) == 1
+    assert (reader.calls and len(reader.calls)) == 2
     assert reservation.filled_quantity == Decimal("10.000000")
     assert trade.quantity == Decimal("10.000000")
     assert receipt.source_event_id == rows.event.source_event_id
@@ -1702,10 +1702,13 @@ def test_two_persisted_fills_validate_fee_prefix_and_replay_first_event_read_onl
     assert second_result.reservation.status.value == "cancelled"
     assert second_result.reservation.filled_quantity == Decimal("30.030000")
     rows.reservation.refresh_from_db()
-    assert len(reader.calls) == 2
-    assert tuple(call[1] for call in reader.calls) == (
-        first_event.source_event_id,
-        second_event.source_event_id,
+    # Cash-debit coverage performs I/O and requires a source reread for BUY.
+    # A SELL fully funded by its own proceeds does not request that coverage.
+    reads_per_fill = 2 if side is SimulatedTradeSide.BUY else 1
+    assert tuple(call[1] for call in reader.calls) == tuple(
+        event.source_event_id
+        for event in (first_event, second_event)
+        for _ in range(reads_per_fill)
     )
 
     receipt_rows = tuple(
@@ -1996,7 +1999,7 @@ def test_writer_accepts_source_exchange_distinct_from_rule_market(
 
     trade = SimulatedTradeModel.objects.get(account=reservation_harness.account)
     assert result.replayed is False
-    assert len(reader.calls) == 1
+    assert len(reader.calls) == 2
     assert trade.settlement_market == "SH"
     assert trade.settlement_exchange == "SSE"
 
@@ -2168,7 +2171,7 @@ def test_writer_accepts_current_reference_v3_plan_with_restricted_nested_v1_sour
     trade = SimulatedTradeModel.objects.get(account=reservation_harness.account)
     receipt = SimulatedOrderFillReceiptModel.objects.get(trade=trade)
     assert result.replayed is False
-    assert reader.calls == [(event.source_namespace, event.source_event_id, _READ_CUTOFF)]
+    assert reader.calls == [(event.source_namespace, event.source_event_id, _READ_CUTOFF)] * 2
     assert reservation.filled_quantity == Decimal("10.000000")
     assert trade.quantity == Decimal("10.000000")
     assert receipt.fill_sequence == 1
@@ -2335,7 +2338,7 @@ def test_sqlite_precision_guard_rejects_post_fill_overflow_before_first_write(
         with pytest.raises(SimulatedTradeExecutionBlocked) as blocked:
             _invoke(repository, rows.event, rows.proof, clock=_FixedClock(_READ_CUTOFF))
         assert blocked.value.code == "ORDER_RESERVATION_STORAGE_PRECISION_UNSUPPORTED"
-        assert len(reader.calls) == 1
+        assert len(reader.calls) == 2
         assert _ledger_counts(reservation_harness.account) == before
         rows.reservation.refresh_from_db()
         assert (
@@ -2350,7 +2353,7 @@ def test_sqlite_precision_guard_rejects_post_fill_overflow_before_first_write(
         assert connection.vendor == "postgresql"
         result = _invoke(repository, rows.event, rows.proof, clock=_FixedClock(_READ_CUTOFF))
         assert result.replayed is False
-        assert len(reader.calls) == 1
+        assert len(reader.calls) == 2
         position.refresh_from_db()
         assert position.quantity == Decimal("1000000009.999999")
 
@@ -2647,7 +2650,7 @@ def test_first_buy_without_position_creates_marked_v2_position_and_proof_driven_
     )
 
     assert result.replayed is False
-    assert len(event_reader.calls) == 1
+    assert len(event_reader.calls) == 2
     assert mark_reader.calls == [
         (
             rows.event.security_id,
@@ -3063,7 +3066,7 @@ def test_initial_position_save_exception_rolls_back_the_complete_first_buy(
 
     assert insert_attempts == 1
     assert len(mark_reader.calls) == 1
-    assert len(event_reader.calls) == 1
+    assert len(event_reader.calls) == 2
     assert _ledger_counts(reservation_harness.account) == counts_before
     assert _account_financial_state(reservation_harness.account) == account_before
     assert PositionModel.objects.filter(account=reservation_harness.account).count() == 0
@@ -3161,7 +3164,7 @@ def test_position_insert_constraint_failure_rolls_back_first_buy_atomically(
     assert "account_id" in constraint_message
     assert "null" in constraint_message
     assert len(mark_reader.calls) == 1
-    assert len(event_reader.calls) == 1
+    assert len(event_reader.calls) == 2
     assert _ledger_counts(reservation_harness.account) == counts_before
     assert _account_financial_state(reservation_harness.account) == account_before
     assert PositionModel.objects.filter(account=reservation_harness.account).count() == 0

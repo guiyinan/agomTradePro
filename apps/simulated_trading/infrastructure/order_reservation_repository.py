@@ -216,7 +216,7 @@ class DjangoSimulatedOrderReservationRepository:
             )
             now = self._execution._now(clock)
             plan.calendar_evidence.validate_for(now)
-            tax_coverage = self._read_tax_coverage(intent)
+            tax_coverage = self._read_tax_coverage(plan)
             now = self._execution._now(clock)
             plan.calendar_evidence.validate_for(now)
             book = self._current_book(
@@ -518,7 +518,7 @@ class DjangoSimulatedOrderReservationRepository:
                     intent.account_id,
                     intent.asset_code,
                 )
-                tax_coverage = self._read_tax_coverage(intent)
+                tax_coverage = self._read_tax_coverage(plan)
                 v4_chains = lock_v4_pending_fill_chains(
                     account=account,
                     asset_code=intent.asset_code,
@@ -939,8 +939,10 @@ class DjangoSimulatedOrderReservationRepository:
 
         return decode_order_reservation(row)
 
-    def _read_tax_coverage(self, intent: SimulatedTradeIntent) -> TaxCashCoverageSnapshot | None:
-        if intent.side is not SimulatedTradeSide.BUY:
+    def _read_tax_coverage(self, plan: ReservationPlan) -> TaxCashCoverageSnapshot | None:
+        """Cover BUY funding and any SELL fee deficit before reserving account cash."""
+        intent = plan.intent
+        if intent.side is SimulatedTradeSide.SELL and plan.fee_breakdown.total_fee <= plan.amount:
             return None
         return require_current_tax_cash_coverage(
             reader=self._tax_cash_coverage_reader,

@@ -17,7 +17,10 @@ from apps.simulated_trading.application.corporate_action_share_tax_model import 
     _token,
     _utc,
 )
-from apps.simulated_trading.domain.corporate_action_posting import CorporateActionStageRequest
+from apps.simulated_trading.domain.corporate_action_posting import (
+    CorporateActionEntryKind,
+    CorporateActionStageRequest,
+)
 
 
 def _instrument_reference_digest(value: object, field_name: str) -> str:
@@ -110,8 +113,36 @@ class ShareCapitalTaxQualificationProof:
         )
         if any(getattr(self.query, left) != getattr(request, right) for left, right in pairs):
             raise _invalid("share model proof differs from the exact posting request")
-        if request.tax_treatment != "not_applicable":
+        if request.tax_treatment != (
+            None if request.entry_kind is CorporateActionEntryKind.REVERSAL else "not_applicable"
+        ):
             raise _invalid("the explicit stock-premium model cannot qualify another tax treatment")
+
+    @property
+    def preparation_identity_sha256(self) -> str:
+        """Compare model/source selection across separately verified sealed batch stages.
+
+        Each stage still requires its own exact proof and normal verification.
+        Only stage, entry kind and stage date vary within the confirmed batch;
+        every source, account, configuration, model and original deadline remains pinned.
+        """
+        self.__post_init__()
+        payload = asdict(self)
+        del payload["checked_at"]
+        del payload["model"]["checked_at"]
+        del payload["model"]["query_semantic_sha256"]
+        for name in ("stage", "entry_kind", "stage_date"):
+            del payload["query"][name]
+        return hashlib.sha256(
+            json.dumps(
+                payload,
+                sort_keys=True,
+                separators=(",", ":"),
+                default=_original_scalar,
+                ensure_ascii=False,
+                allow_nan=False,
+            ).encode()
+        ).hexdigest()
 
     @property
     def selection_sha256(self) -> str:

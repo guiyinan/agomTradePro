@@ -1,6 +1,7 @@
 """Composition-only synthetic commands never stand in for native owner authority."""
 
 from dataclasses import replace
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -13,6 +14,44 @@ from apps.simulated_trading.domain.corporate_action_tax_liability import TaxLiab
 from core.exceptions import BusinessLogicError
 from tests.unit.simulated_trading.test_corporate_action_owner_intent_codec import _intent
 from tests.unit.simulated_trading.test_corporate_action_posting import _share_delivery_request
+from tests.unit.simulated_trading.test_corporate_action_share_tax_model import _NOW
+from tests.unit.simulated_trading.test_corporate_action_share_tax_proof import _proof, _request
+
+
+def test_prepared_share_model_accepts_only_the_sealed_request_and_same_current_selection(
+    monkeypatch,
+):
+    proof, request = _proof(), _request()
+    monkeypatch.setattr(
+        execution,
+        "read_owner_corporate_action_workflow_runtime",
+        lambda **kwargs: SimpleNamespace(
+            statutory_provider_id=1,
+            statutory_body_store_root=Path("synthetic"),
+            deployment_region="test",
+        ),
+    )
+    monkeypatch.setattr(
+        execution, "read_current_owner_action_pdf_root", lambda **kwargs: Path("synthetic")
+    )
+    current = [proof]
+    monkeypatch.setattr(
+        execution,
+        "DjangoCurrentShareCapitalTaxQualificationReader",
+        lambda **kwargs: SimpleNamespace(read_current=lambda *a, **k: current[0]),
+    )
+    reader = execution.DeferredOwnerShareCapitalTaxQualification(
+        environment="test",
+        canonical_account_id=proof.query.canonical_account_id,
+        prepared=proof,
+        prepared_requests=(request,),
+    )
+    assert reader.read_current(request, as_of=_NOW) == proof
+    with pytest.raises(BusinessLogicError):
+        reader.read_current(replace(request, asset_name="unsealed change"), as_of=_NOW)
+    current[0] = replace(proof, configuration_identity_sha256="e" * 64)
+    with pytest.raises(BusinessLogicError):
+        reader.read_current(request, as_of=_NOW)
 
 
 def test_public_share_write_requires_independent_full_model_before_any_financial_factory(

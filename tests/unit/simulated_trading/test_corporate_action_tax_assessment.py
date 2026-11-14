@@ -338,10 +338,44 @@ def test_semantic_hash_ignores_reobservation_but_manifest_retains_observation() 
     assert first.semantic_sha256 == second.semantic_sha256
     assert first.semantic_payload_json == second.semantic_payload_json
     assert first.observation_manifest_sha256 != second.observation_manifest_sha256
+
     assert "synthetic-ownership-proof-1" in first.observation_manifest_json
     assert "synthetic-ownership-proof-2" in second.observation_manifest_json
     assert str(UUID("22222222-2222-4222-8222-222222222222")) in second.observation_manifest_json
     assert "ownership_snapshot_sha256" not in first.semantic_payload_json
+
+
+def test_v2_timezone_provenance_refresh_preserves_tax_semantics_and_originals() -> None:
+    """An unrelated profile activation changes proof provenance, not tax facts."""
+    first = replace(_assessment(), semantic_schema_version=2)
+    changed_proof = replace(
+        first.history.record_date_ownership_proof,
+        cutoff_policy_id="refreshed-profile-timezone-proof",
+        cutoff_policy_sha256="e" * 64,
+    )
+    second = replace(
+        first, history=replace(first.history, record_date_ownership_proof=changed_proof)
+    )
+    assert first.semantic_sha256 == second.semantic_sha256
+    assert first.observation_manifest_sha256 != second.observation_manifest_sha256
+    assert "refreshed-profile-timezone-proof" in second.observation_manifest_json
+    assert second.verify_integrity() == second
+    # Historical v1 assessment bytes and its stricter original identity remain valid.
+    legacy = _assessment()
+    assert legacy.semantic_schema_version == 1
+    assert replace(legacy, history=second.history).semantic_sha256 != legacy.semantic_sha256
+
+
+def test_v2_timezone_change_still_changes_tax_semantics() -> None:
+    first = replace(_assessment(), semantic_schema_version=2)
+    proof = first.history.record_date_ownership_proof
+    changed = replace(
+        proof,
+        exchange_timezone_name="Asia/Tokyo",
+        record_date_end_exclusive=proof.record_date_end_exclusive - timedelta(hours=1),
+    )
+    second = replace(first, history=replace(first.history, record_date_ownership_proof=changed))
+    assert second.semantic_sha256 != first.semantic_sha256
 
 
 def test_simulated_date_runtime_observation_changes_only_the_observation_manifest() -> None:
