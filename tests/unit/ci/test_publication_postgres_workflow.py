@@ -579,6 +579,7 @@ def test_ash05_corporate_action_ledger_runs_on_isolated_migrated_postgres() -> N
         "tests/component/simulated_trading/test_corporate_action_posting_postgres.py::test_postgres_concurrent_entitlement_replay_writes_one_receivable",
         "tests/component/simulated_trading/test_corporate_action_posting_postgres.py::test_postgres_payment_waits_for_szse_date_and_settles_exact_receivable",
         "tests/component/simulated_trading/test_corporate_action_posting_postgres.py::test_postgres_audited_cash_payment_commits_and_replays_with_one_audit_pair",
+        "tests/component/simulated_trading/test_corporate_action_posting_postgres.py::test_postgres_active_order_hold_blocks_new_audited_stage_but_not_exact_replay",
         "tests/component/simulated_trading/test_owner_granted_corporate_action_postgres.py::test_native_nonstaff_owner_stage_commits_exact_grant_audit_and_replays",
         "tests/component/simulated_trading/test_owner_granted_corporate_action_postgres.py::test_native_owner_withdrawal_blocks_stage_and_its_exact_replay",
         "tests/component/simulated_trading/test_owner_granted_corporate_action_postgres.py::test_native_owner_authority_failure_rolls_back_financial_audit_and_outbox",
