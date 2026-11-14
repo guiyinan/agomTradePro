@@ -1170,6 +1170,16 @@
           "empty_message": "进入“模拟下单”填写本人模拟账户和订单意图。"
         },
         {
+          "key": "corporate-actions-entry",
+          "title": "处理模拟账户公司行为",
+          "kind": "detail",
+          "target_screen": "execution.corporate-actions",
+          "user_priority": "p1",
+          "presentation_semantic": "next_step",
+          "note": "进入专用任务，先核对来源时间、资金与持仓、待办事件和审计回执；每项操作单独准备并确认。",
+          "empty_message": "打开公司行为任务并选择本人模拟账户。"
+        },
+        {
           "key": "simulated-account-stop-loss-check",
           "title": "本次模拟止损检查",
           "kind": "detail",
@@ -1233,22 +1243,6 @@
             {
               "action_key": "simulated-trading.inspection-notification",
               "label_template": "查看 {account_name} 的巡检通知",
-              "param_map": {
-                "account_id": "account_id"
-              },
-              "result_panel_key": "simulated-account-workspace"
-            },
-            {
-              "action_key": "simulated-trading.corporate-action-consent-prepare",
-              "label_template": "核对 {account_name} 的模拟公司行为授权",
-              "param_map": {
-                "account_id": "account_id"
-              },
-              "result_panel_key": "simulated-account-workspace"
-            },
-            {
-              "action_key": "simulated-trading.corporate-action-consent-withdraw-prepare",
-              "label_template": "撤回 {account_name} 的模拟公司行为授权",
               "param_map": {
                 "account_id": "account_id"
               },
@@ -1421,6 +1415,148 @@
           "user_priority": "p1",
           "presentation_semantic": "supporting_list",
           "empty_message": "本地 Agent 尚未连接。"
+        }
+      ]
+    },
+    {
+      "key": "execution.corporate-actions",
+      "label": "公司行为",
+      "module_key": "daily-decisions",
+      "group": "daily",
+      "audience": "authenticated",
+      "summary": "核对本人模拟账户的公司行为来源、应收资金与股份、待办操作和审计回执。",
+      "view_type": "status",
+      "status": "online",
+      "chrome_mode": "immersive",
+      "entry_mode": "dashboard",
+      "dashboard_layout": "task_flow",
+      "default_action_key": "simulated-trading.corporate-action-workflow-read",
+      "sources": [
+        "execution.corporate-actions"
+      ],
+      "user_experience": {
+        "journey": "dashboard",
+        "primary_task": "选择本人模拟账户，逐项核对和办理有证据支持的公司行为。",
+        "primary_outcome": "查看账户资金与持仓、来源时点、可办理事件、审计回执和明确阻断；每次只提交单项确认。",
+        "empty_state_hint": "先选择本人模拟账户并读取当前来源；未知金额保持空值。",
+        "next_step_hint": "确认来源与事件完整后再准备一项操作；没有明确授权或来源证据时停止并查看阻断原因。"
+      },
+      "business_context": {
+        "objective": "在本人模拟账户中核对公司行为事实并按独立授权逐项办理。",
+        "decision_output": "现金、应收分红、股份、应收股份、税额、当前来源时间、待办事件、审计回执与阻断原因。",
+        "checkpoints": [
+          "本人模拟账户和当前授权",
+          "来源观测时间与资料完整性",
+          "账面资金、可用资金、净资产及未知金额",
+          "待办公司行为事件及其记录日和生效日",
+          "独立授权和单项操作确认",
+          "审计回执及更正历史"
+        ]
+      },
+      "dashboard_panels": [
+        {
+          "key": "corporate-action-workflow-summary",
+          "title": "账户资金、持仓与来源状态",
+          "kind": "detail",
+          "action_key": "simulated-trading.corporate-action-workflow-read",
+          "user_priority": "p0",
+          "presentation_semantic": "primary_status",
+          "empty_message": "选择本人模拟账户后读取当前摘要。",
+          "error_message": "读取未完成；没有可用于操作的当前账户结果。"
+        },
+        {
+          "key": "corporate-action-workflow-events",
+          "title": "当前来源事件与下一步",
+          "kind": "datagrid",
+          "action_key": "simulated-trading.corporate-action-workflow-events",
+          "user_priority": "p0",
+          "presentation_semantic": "primary_list",
+          "empty_message": "当前来源没有可展示的完整事件。",
+          "columns": [
+            {"key": "event_id", "label": "事件编号"},
+            {"key": "asset_code", "label": "标的"},
+            {"key": "title", "label": "事件"},
+            {"key": "event_type", "label": "类型"},
+            {"key": "record_date", "label": "登记日"},
+            {"key": "effective_date", "label": "生效日"},
+            {"key": "source_observed_at", "label": "来源时间"},
+            {"key": "status", "label": "状态"},
+            {"key": "blocking_reason", "label": "阻断原因"}
+          ],
+          "hidden_columns": ["account_id"],
+          "row_actions": [
+            {
+              "action_key": "simulated-trading.corporate-action-workflow-prepare",
+              "label_template": "准备 {title}",
+              "param_map": {
+                "account_id": "account_id",
+                "event_id": "event_id"
+              },
+              "result_panel_key": "corporate-action-workflow-result"
+            }
+          ]
+        },
+        {
+          "key": "corporate-action-workflow-audit-receipts",
+          "title": "模拟账本与审计回执",
+          "kind": "datagrid",
+          "action_key": "simulated-trading.corporate-action-workflow-audit-receipts",
+          "user_priority": "p1",
+          "presentation_semantic": "primary_list",
+          "empty_message": "当前账户没有可展示的公司行为回执。",
+          "columns": [
+            {"key": "receipt_id", "label": "回执编号"},
+            {"key": "recorded_at", "label": "记录时间"},
+            {"key": "asset_code", "label": "标的"},
+            {"key": "stage_label", "label": "操作阶段"},
+            {"key": "cash_delta", "label": "现金变化"},
+            {"key": "share_delta", "label": "股份变化"},
+            {"key": "summary", "label": "说明"}
+          ]
+        },
+        {
+          "key": "corporate-action-workflow-prepare",
+          "title": "准备单项操作",
+          "kind": "detail",
+          "action_key": "simulated-trading.corporate-action-workflow-prepare",
+          "user_priority": "p1",
+          "presentation_semantic": "next_step",
+          "empty_message": "选择事件后明确操作类型；此步骤只准备、不提交。"
+        },
+        {
+          "key": "corporate-action-workflow-refresh",
+          "title": "刷新账户与官方资料",
+          "kind": "detail",
+          "action_key": "simulated-trading.corporate-action-workflow-refresh",
+          "user_priority": "p1",
+          "presentation_semantic": "next_step",
+          "empty_message": "确认后先刷新本人账户资料，再刷新相关证券的官方公告窗口；分别查看结果，不改变资金或持仓。"
+        },
+        {
+          "key": "corporate-action-consent-result",
+          "title": "公司行为授权回执",
+          "kind": "detail",
+          "action_key": "simulated-trading.corporate-action-consent-prepare",
+          "user_priority": "p2",
+          "presentation_semantic": "supporting_detail",
+          "empty_message": "授权只按用户明确选择的能力保存，不会自动办理账本。"
+        },
+        {
+          "key": "corporate-action-withdrawal-result",
+          "title": "授权撤回回执",
+          "kind": "detail",
+          "action_key": "simulated-trading.corporate-action-consent-withdraw-prepare",
+          "user_priority": "p2",
+          "presentation_semantic": "supporting_detail",
+          "empty_message": "撤回授权不会调整现金、持仓或既有审计回执。"
+        },
+        {
+          "key": "corporate-action-workflow-result",
+          "title": "本次单项操作回执",
+          "kind": "detail",
+          "user_priority": "p1",
+          "presentation_semantic": "supporting_detail",
+          "empty_message": "准备或确认一项操作后，在此核对结果和阻断原因。"
         }
       ]
     },

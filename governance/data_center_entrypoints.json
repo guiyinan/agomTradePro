@@ -9,7 +9,7 @@
       "celery_dispatch_edge": 18,
       "celery_task": 130,
       "compatibility_facade": 95,
-      "current_data_surface": 117,
+      "current_data_surface": 120,
       "dynamic_import_edge": 15,
       "management_command": 50,
       "management_command_edge": 65,
@@ -26,17 +26,17 @@
       "script": 20,
       "sdk": 57,
       "terminal_tui": 32,
-      "test_evidence": 146,
+      "test_evidence": 151,
       "workflow_step": 11
     },
     "by_status": {
-      "active_public": 923,
+      "active_public": 926,
       "adjacent_operational": 346,
-      "candidate-review": 65,
+      "candidate-review": 70,
       "compatibility": 139,
       "retired_blocked": 0
     },
-    "total": 1473
+    "total": 1481
   },
   "entries": [
     {
@@ -5291,7 +5291,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=5",
+      "evidence": "governed current-data contract; source_files=7",
       "id": "current_data_surface:governance/current_data_contracts.json:config_center.active_public_snapshot_integrity:Current runtime public values require exact active profile/public snapshot integrity; secret reads, active validation and successor inheritance additionally verify persisted values against the separate full profile hash, including inside the activation transaction; explicit internal as_of reads additionally bind the current profile full-values public projection and four aware knowledge clocks at the cutoff, without historical fallback; omitted/None reads retain existing semantics",
       "locator": "Current runtime public values require exact active profile/public snapshot integrity; secret reads, active validation and successor inheritance additionally verify persisted values against the separate full profile hash, including inside the activation transaction; explicit internal as_of reads additionally bind the current profile full-values public projection and four aware knowledge clocks at the cutoff, without historical fallback; omitted/None reads retain existing semantics",
       "path": "governance/current_data_contracts.json",
@@ -6031,12 +6031,32 @@
     },
     {
       "category": "current_data_surface",
+      "evidence": "governed current-data contract; source_files=2",
+      "id": "current_data_surface:governance/current_data_contracts.json:simulated_trading.corporate_action_current_raw_nav_mark:Explicitly configured current raw daily close proof for simulated corporate-action NAV",
+      "locator": "Explicitly configured current raw daily close proof for simulated corporate-action NAV",
+      "path": "governance/current_data_contracts.json",
+      "status": "active_public",
+      "symbol": "simulated_trading.corporate_action_current_raw_nav_mark",
+      "target": ""
+    },
+    {
+      "category": "current_data_surface",
       "evidence": "governed current-data contract; source_files=10",
       "id": "current_data_surface:governance/current_data_contracts.json:simulated_trading.corporate_action_price_basis_and_nav:Account-scoped simulated price refresh, settlement and cash-dividend net value",
       "locator": "Account-scoped simulated price refresh, settlement and cash-dividend net value",
       "path": "governance/current_data_contracts.json",
       "status": "active_public",
       "symbol": "simulated_trading.corporate_action_price_basis_and_nav",
+      "target": ""
+    },
+    {
+      "category": "current_data_surface",
+      "evidence": "governed current-data contract; source_files=3",
+      "id": "current_data_surface:governance/current_data_contracts.json:simulated_trading.corporate_action_tax_cash_coverage:Locked owner cash admission coverage and independent entitlement witness",
+      "locator": "Locked owner cash admission coverage and independent entitlement witness",
+      "path": "governance/current_data_contracts.json",
+      "status": "active_public",
+      "symbol": "simulated_trading.corporate_action_tax_cash_coverage",
       "target": ""
     },
     {
@@ -6061,7 +6081,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=5",
+      "evidence": "governed current-data contract; source_files=6",
       "id": "current_data_surface:governance/current_data_contracts.json:simulated_trading.current_official_corporate_action_window:Finite original SZSE listing-window prerequisite with complete member-body reread; never financial or decision authority",
       "locator": "Finite original SZSE listing-window prerequisite with complete member-body reread; never financial or decision authority",
       "path": "governance/current_data_contracts.json",
@@ -6071,7 +6091,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=2",
+      "evidence": "governed current-data contract; source_files=5",
       "id": "current_data_surface:governance/current_data_contracts.json:simulated_trading.current_owner_tax_assessment_model:Rebuilt simulated assessment identity and independent finite Owner TAX_ASSESS fence",
       "locator": "Rebuilt simulated assessment identity and independent finite Owner TAX_ASSESS fence",
       "path": "governance/current_data_contracts.json",
@@ -6207,6 +6227,16 @@
       "path": "governance/current_data_contracts.json",
       "status": "active_public",
       "symbol": "simulated_trading.local_daily_match_qualification",
+      "target": ""
+    },
+    {
+      "category": "current_data_surface",
+      "evidence": "governed current-data contract; source_files=6",
+      "id": "current_data_surface:governance/current_data_contracts.json:simulated_trading.owner_corporate_action_workflow:Ordinary owner retained-event discovery, sealed preparation, explicit financial confirmation and independent original receipt readback",
+      "locator": "Ordinary owner retained-event discovery, sealed preparation, explicit financial confirmation and independent original receipt readback",
+      "path": "governance/current_data_contracts.json",
+      "status": "active_public",
+      "symbol": "simulated_trading.owner_corporate_action_workflow",
       "target": ""
     },
     {
@@ -13772,11 +13802,51 @@
     {
       "category": "test_evidence",
       "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/component/simulated_trading/test_corporate_action_account_refresh_postgres.py:test_corporate_action_account_refresh_postgres:",
+      "locator": "",
+      "path": "tests/component/simulated_trading/test_corporate_action_account_refresh_postgres.py",
+      "status": "candidate-review",
+      "symbol": "test_corporate_action_account_refresh_postgres",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/component/simulated_trading/test_corporate_action_cash_coverage_postgres.py:test_corporate_action_cash_coverage_postgres:",
+      "locator": "",
+      "path": "tests/component/simulated_trading/test_corporate_action_cash_coverage_postgres.py",
+      "status": "candidate-review",
+      "symbol": "test_corporate_action_cash_coverage_postgres",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/component/simulated_trading/test_corporate_action_owner_workflow_http_postgres.py:test_corporate_action_owner_workflow_http_postgres:",
+      "locator": "",
+      "path": "tests/component/simulated_trading/test_corporate_action_owner_workflow_http_postgres.py",
+      "status": "candidate-review",
+      "symbol": "test_corporate_action_owner_workflow_http_postgres",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
       "id": "test_evidence:tests/component/simulated_trading/test_corporate_action_posting_postgres.py:test_corporate_action_posting_postgres:",
       "locator": "",
       "path": "tests/component/simulated_trading/test_corporate_action_posting_postgres.py",
       "status": "candidate-review",
       "symbol": "test_corporate_action_posting_postgres",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/component/simulated_trading/test_corporate_action_share_window_model_postgres.py:test_corporate_action_share_window_model_postgres:",
+      "locator": "",
+      "path": "tests/component/simulated_trading/test_corporate_action_share_window_model_postgres.py",
+      "status": "candidate-review",
+      "symbol": "test_corporate_action_share_window_model_postgres",
       "target": ""
     },
     {
@@ -13817,6 +13887,16 @@
       "path": "tests/component/simulated_trading/test_cost_basis_knowledge_migration.py",
       "status": "candidate-review",
       "symbol": "test_cost_basis_knowledge_migration",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/component/simulated_trading/test_current_official_owner_window_postgres.py:test_current_official_owner_window_postgres:",
+      "locator": "",
+      "path": "tests/component/simulated_trading/test_current_official_owner_window_postgres.py",
+      "status": "candidate-review",
+      "symbol": "test_current_official_owner_window_postgres",
       "target": ""
     },
     {
@@ -14781,7 +14861,7 @@
   },
   "source_contract_counts": {
     "celery_tasks": 95,
-    "current_data_contracts": 117,
+    "current_data_contracts": 120,
     "legacy_entrypoints_and_wrappers": 0,
     "operational_governance_rules": 45,
     "runtime_config_keys": 52

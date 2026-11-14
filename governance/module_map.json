@@ -43,7 +43,7 @@
           "imports": 1
         },
         "simulated_trading": {
-          "imports": 70
+          "imports": 87
         },
         "terminal": {
           "imports": 7
@@ -2387,7 +2387,7 @@
           "imports": 1
         },
         "simulated_trading": {
-          "imports": 27
+          "imports": 46
         },
         "terminal": {
           "imports": 2
@@ -4165,7 +4165,7 @@
           "imports": 3
         },
         "simulated_trading": {
-          "imports": 92
+          "imports": 133
         },
         "strategy": {
           "imports": 1
@@ -7907,7 +7907,7 @@
           "imports": 50
         },
         "simulated_trading": {
-          "imports": 47
+          "imports": 50
         },
         "strategy": {
           "imports": 1
@@ -9692,7 +9692,7 @@
           "imports": 2
         },
         "simulated_trading": {
-          "imports": 143
+          "imports": 145
         }
       },
       "depends_on": {
@@ -11012,9 +11012,10 @@
       },
       "depends_on": {
         "account": {
-          "imports": 70,
+          "imports": 87,
           "target_layers": [
             "application",
+            "canonical_creation_composition",
             "domain",
             "historical_position_source_composition",
             "infrastructure",
@@ -11035,7 +11036,7 @@
           ]
         },
         "audit": {
-          "imports": 27,
+          "imports": 46,
           "target_layers": [
             "application",
             "corporate_action_tax_assessment_composition",
@@ -11053,7 +11054,7 @@
           ]
         },
         "data_center": {
-          "imports": 92,
+          "imports": 133,
           "target_layers": [
             "application",
             "calendar_publication_operations_composition",
@@ -11075,7 +11076,7 @@
           ]
         },
         "portfolio": {
-          "imports": 47,
+          "imports": 50,
           "target_layers": [
             "application",
             "domain",
@@ -11101,7 +11102,7 @@
           ]
         },
         "risk_center": {
-          "imports": 143,
+          "imports": 145,
           "target_layers": [
             "application",
             "domain",
@@ -11231,18 +11232,44 @@
           "register_simulated_trading_consumer_gateways"
         ],
         "application/corporate_action_current_official_window.py": [
+          "CorporateActionCurrentOfficialWindowReader"
+        ],
+        "application/corporate_action_current_official_window_contracts.py": [
+          "OfficialWindowRuntimePolicyReader",
+          "TransitionPlanDisclosureRuntimePolicy"
+        ],
+        "application/corporate_action_nav_mark.py": [
+          "SimulatedCorporateActionNavRawMarkContractError",
+          "SimulatedCorporateActionNavRawMarkPolicyBinding",
+          "SimulatedCorporateActionNavRawMarkPolicyReader",
+          "SimulatedCorporateActionNavRawMarkProof",
+          "SimulatedCorporateActionNavRawMarkQuery",
+          "SimulatedCorporateActionNavRawMarkReader"
+        ],
+        "application/corporate_action_official_window_evidence.py": [
           "CorporateActionCurrentOfficialWindowClock",
           "CorporateActionCurrentOfficialWindowEvidence",
-          "CorporateActionCurrentOfficialWindowReader",
           "CorporateActionCurrentOfficialWindowReason",
           "ExchangeTimezoneEvidence",
           "OriginalDisclosureBodyVerifier",
           "VerifiedAccountOriginCalendar",
           "VerifiedAccountOriginCalendarReader"
         ],
-        "application/corporate_action_current_official_window_contracts.py": [
-          "OfficialWindowRuntimePolicyReader",
-          "TransitionPlanDisclosureRuntimePolicy"
+        "application/corporate_action_official_window_scope.py": [
+          "CorporateActionOfficialWindowScope",
+          "CorporateActionOfficialWindowScopeEvidence"
+        ],
+        "application/corporate_action_owner_intent.py": [
+          "OwnerCorporateActionPreparedIntent"
+        ],
+        "application/corporate_action_owner_posting_read.py": [
+          "OwnerCorporateActionActivePostingHead",
+          "OwnerCorporateActionPostingReadPort"
+        ],
+        "application/corporate_action_owner_revision_preview.py": [
+          "OwnerCorporateActionRevisionPreview",
+          "OwnerCorporateActionRevisionPreviewRow",
+          "build_owner_corporate_action_revision_preview"
         ],
         "application/corporate_action_posting.py": [
           "AuditedCorporateActionPostingRepositoryPort",
@@ -11260,15 +11287,34 @@
           "PostCorporateActionStageUseCase",
           "RecordDateOwnershipProofReaderProtocol"
         ],
+        "application/corporate_action_share_tax_model.py": [
+          "CurrentShareCapitalTaxModel",
+          "CurrentShareCapitalTaxModelPort",
+          "ShareCapitalTaxModelQuery",
+          "ShareCapitalTaxSourceReference"
+        ],
+        "application/corporate_action_share_tax_proof.py": [
+          "ShareCapitalTaxQualificationProof"
+        ],
         "application/corporate_action_tax_assessment.py": [
           "CorporateActionTaxAssessmentUseCase",
           "CurrentTaxAssessmentScopeVerifierPort",
+          "ReplayAwareTaxAssessmentScopeVerifierPort",
           "TaxAssessmentAppendDisposition",
           "TaxAssessmentAtomicUnitOfWorkPort",
           "TaxAssessmentAtomicWriterPort",
           "TaxAssessmentClockPort",
+          "TaxAssessmentExactReplayEvidence",
+          "TaxAssessmentExactReplayProbePort",
           "TaxAssessmentWriteLease",
           "TaxAssessmentWriteReceipt"
+        ],
+        "application/corporate_action_tax_cash_coverage.py": [
+          "CorporateActionTaxCashCoverageReader",
+          "TaxCashCoverageQuery",
+          "TaxCashCoverageReason",
+          "TaxCashCoverageSnapshot",
+          "TaxCashCoverageStatus"
         ],
         "application/corporate_action_tax_liability.py": [
           "CorporateActionTaxLiabilityUseCase",
@@ -11311,6 +11357,12 @@
           "SimulatedTaxSettlementHistoryQuery",
           "TaxSettlementHistoryClock",
           "TaxSettlementHistoryInputReader"
+        ],
+        "application/corporate_action_tax_window_proof.py": [
+          "CorporateActionTaxWindowProof"
+        ],
+        "application/corporate_action_window_policy_provenance.py": [
+          "CorporateActionWindowPolicyProvenance"
         ],
         "application/current_account_ownership.py": [
           "CurrentAccountOwnership",
@@ -12067,6 +12119,11 @@
       },
       "http_routes": {
         "interface/api_urls.py": [
+          "accounts/<int:account_id>/corporate-actions/events/",
+          "accounts/<int:account_id>/corporate-actions/prepare/",
+          "accounts/<int:account_id>/corporate-actions/confirm/",
+          "accounts/<int:account_id>/corporate-actions/refresh/",
+          "accounts/<int:account_id>/corporate-actions/",
           "accounts/<int:account_id>/corporate-action-consent/prepare/",
           "accounts/<int:account_id>/corporate-action-consent/withdraw/prepare/",
           "accounts/<int:account_id>/corporate-action-consent/",
@@ -12133,12 +12190,12 @@
         ]
       },
       "layers": {
-        "application": 133,
-        "domain": 53,
-        "infrastructure": 148,
-        "interface": 37,
+        "application": 144,
+        "domain": 56,
+        "infrastructure": 154,
+        "interface": 39,
         "management": 7,
-        "root": 56
+        "root": 84
       },
       "orm_models": {
         "infrastructure/models.py": [
@@ -13040,7 +13097,7 @@
       "layers": {
         "application": 61,
         "domain": 5,
-        "infrastructure": 100,
+        "infrastructure": 101,
         "interface": 9,
         "management": 7,
         "root": 4

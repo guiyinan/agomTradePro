@@ -18,8 +18,8 @@ from apps.terminal.application.tui_simulated_corporate_action_consent_result imp
     CORPORATE_ACTION_CONSENT_WITHDRAW_PREPARE_ACTION_KEY,
     project_simulated_corporate_action_consent_result,
 )
-from apps.terminal.infrastructure.tui_metadata_runtime_injection_corporate_action_consent import (
-    RUNTIME_CORPORATE_ACTION_CONSENT_ACTIONS,
+from apps.terminal.infrastructure.tui_metadata_runtime_injection_corporate_action_workflow import (
+    RUNTIME_CORPORATE_ACTION_WORKFLOW_ACTIONS,
 )
 
 _BASE_ENDPOINT = "/api/simulated-trading/accounts/<int:account_id>/corporate-action-consent/"
@@ -31,15 +31,17 @@ def test_published_runtime_metadata_accepts_the_complete_consent_dashboard() -> 
 
     payload = PublishedTuiMetadataRepository()._load_published_file()
     keys = {action["key"] for action in payload["actions"]}
-    assert {action["key"] for action in RUNTIME_CORPORATE_ACTION_CONSENT_ACTIONS} <= keys
+    consent_keys = {
+        "simulated-trading.corporate-action-consent-prepare",
+        "simulated-trading.corporate-action-consent-confirm",
+        "simulated-trading.corporate-action-consent-withdraw-prepare",
+        "simulated-trading.corporate-action-consent-withdraw",
+    }
+    assert consent_keys <= keys
 
 
-def test_account_dashboard_rows_reach_both_owner_preparation_tasks() -> None:
-    """Both session previews must be reachable from the selected owner's row."""
-    from apps.terminal.application.tui_metadata import (
-        _validate_dashboard_collection_actionability,
-    )
-
+def test_account_screen_links_to_the_dedicated_company_action_task() -> None:
+    """The account screen has one task entry; consent choices live in that workspace."""
     architecture = json.loads(
         Path("config/tui/ia/tui_information_architecture.v1.json").read_text(encoding="utf-8")
     )
@@ -48,31 +50,15 @@ def test_account_dashboard_rows_reach_both_owner_preparation_tasks() -> None:
     )
     panel = next(item for item in screen["dashboard_panels"] if item["key"] == "simulated-accounts")
     assert panel["row_actions"][0]["action_key"] == "simulated-trading.account-detail"
-    actions = {str(action["key"]): action for action in RUNTIME_CORPORATE_ACTION_CONSENT_ACTIONS}
-    actions["simulated-trading.accounts"] = {
-        "key": "simulated-trading.accounts",
-        "screen_key": "execution.accounts",
-        "method": "GET",
-        "endpoint": "/api/simulated-trading/accounts/",
-    }
-    _validate_dashboard_collection_actionability(screen=screen, action_by_key=actions)
-    _validate_result_continuations(
-        actions=list(RUNTIME_CORPORATE_ACTION_CONSENT_ACTIONS),
-        screens=[screen],
-        action_by_key=actions,
-    )
-    for key in (
+    consent_keys = {
         CORPORATE_ACTION_CONSENT_PREPARE_ACTION_KEY,
         CORPORATE_ACTION_CONSENT_WITHDRAW_PREPARE_ACTION_KEY,
-    ):
-        descriptor = next(item for item in panel["row_actions"] if item["action_key"] == key)
-        assert descriptor["param_map"] == {"account_id": "account_id"}
-        assert descriptor["result_panel_key"] == "simulated-account-workspace"
-        account_field = next(
-            field for field in actions[key]["fields"] if field["key"] == "account_id"
-        )
-        assert account_field["binding"] == "body"
-        assert account_field["input_type"] == "number"
+    }
+    assert not consent_keys.intersection(item["action_key"] for item in panel["row_actions"])
+    navigation = next(
+        item for item in screen["dashboard_panels"] if item["key"] == "corporate-actions-entry"
+    )
+    assert navigation["target_screen"] == "execution.corporate-actions"
 
 
 def _response() -> dict[str, object]:
@@ -118,8 +104,16 @@ def _action_fields(action: dict[str, object]) -> dict[str, dict[str, object]]:
 
 
 def test_actions_use_two_session_bound_result_to_confirmation_flows() -> None:
+    consent_keys = {
+        CORPORATE_ACTION_CONSENT_PREPARE_ACTION_KEY,
+        CORPORATE_ACTION_CONSENT_CONFIRM_ACTION_KEY,
+        CORPORATE_ACTION_CONSENT_WITHDRAW_PREPARE_ACTION_KEY,
+        CORPORATE_ACTION_CONSENT_WITHDRAW_ACTION_KEY,
+    }
     actions = {
-        cast(str, action["key"]): action for action in RUNTIME_CORPORATE_ACTION_CONSENT_ACTIONS
+        cast(str, action["key"]): action
+        for action in RUNTIME_CORPORATE_ACTION_WORKFLOW_ACTIONS
+        if action["key"] in consent_keys
     }
     assert set(actions) == {
         CORPORATE_ACTION_CONSENT_PREPARE_ACTION_KEY,
@@ -130,7 +124,7 @@ def test_actions_use_two_session_bound_result_to_confirmation_flows() -> None:
     assert len(actions) == 4
 
     for action in actions.values():
-        assert action["screen_key"] == "execution.accounts"
+        assert action["screen_key"] == "execution.corporate-actions"
         assert action["session_auth_required"] is True
         assert action["raw_debug"] is False
         assert action["method"] == "POST"
@@ -222,8 +216,20 @@ def test_actions_use_two_session_bound_result_to_confirmation_flows() -> None:
         assert cast(dict[str, object], options[0])["value"] == ""
 
     _validate_result_continuations(
-        actions=list(RUNTIME_CORPORATE_ACTION_CONSENT_ACTIONS),
-        screens=[],
+        actions=[
+            action
+            for action in RUNTIME_CORPORATE_ACTION_WORKFLOW_ACTIONS
+            if action["key"] in consent_keys
+        ],
+        screens=[
+            item
+            for item in json.loads(
+                Path("config/tui/ia/tui_information_architecture.v1.json").read_text(
+                    encoding="utf-8"
+                )
+            )["published_screens"]
+            if item["key"] == "execution.corporate-actions"
+        ],
         action_by_key=actions,
     )
 

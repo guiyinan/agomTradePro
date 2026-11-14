@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 7181,
+    "current_surface_references": 7416,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -8429,6 +8429,10 @@
     {
       "path": "apps/config_center/application/runtime_definition_reconcile.py",
       "text": "user_impact=\"Missing or invalid candidates block tax consumers; configuration does not prove current law, custody or owner consent.\","
+    },
+    {
+      "path": "apps/config_center/application/runtime_definition_reconcile.py",
+      "text": "user_impact=\"Missing routing blocks tax workflow preparation; no configured value proves source qualification, current law or owner consent.\","
     },
     {
       "path": "apps/config_center/application/runtime_definition_reconcile.py",
@@ -17040,6 +17044,10 @@
     },
     {
       "path": "apps/portfolio/application/transition_plan_lifecycle.py",
+      "text": "\"\"\"Require the current event policy to assess every plan before review or reservation.\"\"\""
+    },
+    {
+      "path": "apps/portfolio/application/transition_plan_lifecycle.py",
       "text": "\"\"\"Resolve current account read/write authority without exposing ORM models.\"\"\""
     },
     {
@@ -17057,6 +17065,10 @@
     {
       "path": "apps/portfolio/application/transition_plan_lifecycle.py",
       "text": "\"only the current family revision can enter review\""
+    },
+    {
+      "path": "apps/portfolio/application/transition_plan_lifecycle.py",
+      "text": "\"plan cannot be revalidated because its current event policy reader is unavailable\","
     },
     {
       "path": "apps/portfolio/application/transition_plan_order_reader.py",
@@ -17440,6 +17452,10 @@
     },
     {
       "path": "apps/portfolio/infrastructure/transition_plan_revision_repository.py",
+      "text": "\"\"\"Reject a plan whose current event evidence is missing, changed, or expired.\"\"\""
+    },
+    {
+      "path": "apps/portfolio/infrastructure/transition_plan_revision_repository.py",
       "text": "\"\"\"Require current policy pins; the ordinary Owner order chain checks cash and live risk.\"\"\""
     },
     {
@@ -17481,10 +17497,6 @@
     {
       "path": "apps/portfolio/infrastructure/transition_plan_revision_repository.py",
       "text": "if current.identity.owner_user_id != owner_user_id:"
-    },
-    {
-      "path": "apps/portfolio/infrastructure/transition_plan_revision_repository.py",
-      "text": "if has_transition_plan_event_bindings(current.basis.source_bindings):"
     },
     {
       "path": "apps/portfolio/infrastructure/transition_plan_revision_repository.py",
@@ -22216,23 +22228,11 @@
     },
     {
       "path": "apps/simulated_trading/application/corporate_action_current_official_window.py",
-      "text": "\"\"\"Return one trusted timezone-aware current time.\"\"\""
-    },
-    {
-      "path": "apps/simulated_trading/application/corporate_action_current_official_window.py",
-      "text": "\"\"\"Stable outcomes for a read-only current-window prerequisite.\"\"\""
-    },
-    {
-      "path": "apps/simulated_trading/application/corporate_action_current_official_window.py",
-      "text": "\"current\""
+      "text": "\"\"\"Share all original-body, latest-proof, current-day and final-clock checks.\"\"\""
     },
     {
       "path": "apps/simulated_trading/application/corporate_action_current_official_window.py",
       "text": "for previous, current in ((initial, final), (final, metadata)):"
-    },
-    {
-      "path": "apps/simulated_trading/application/corporate_action_current_official_window.py",
-      "text": "freshness_status: Literal[\"current\", \"stale\", \"unknown\"] = \"unknown\""
     },
     {
       "path": "apps/simulated_trading/application/corporate_action_current_official_window.py",
@@ -22264,23 +22264,119 @@
     },
     {
       "path": "apps/simulated_trading/application/corporate_action_current_official_window.py",
-      "text": "raise ValueError(\"current official-window clocks are not ordered\")"
-    },
-    {
-      "path": "apps/simulated_trading/application/corporate_action_current_official_window.py",
       "text": "raise ValueError(\"current official-window reader dependencies are invalid\")"
     },
     {
       "path": "apps/simulated_trading/application/corporate_action_current_official_window.py",
-      "text": "raise ValueError(\"current official-window result status is inconsistent\")"
-    },
-    {
-      "path": "apps/simulated_trading/application/corporate_action_current_official_window.py",
-      "text": "raise ValueError(\"ready current official-window evidence is incomplete\")"
+      "text": "raise ValueError(\"financial current-window evidence requires an actual selected event\")"
     },
     {
       "path": "apps/simulated_trading/application/corporate_action_current_official_window_contracts.py",
       "text": "\"\"\"Application-owned policy evidence contract for current disclosure windows.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_nav_mark.py",
+      "text": "\"\"\"Bind the policy profile and exact security to current classification.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_nav_mark.py",
+      "text": "\"\"\"Raised when a current raw mark contract is malformed, stale, or unbound.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_nav_mark.py",
+      "text": "\"\"\"Read one owner- and instrument-bound current raw mark.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_nav_mark.py",
+      "text": "\"\"\"Read the explicit current NAV raw-mark policy and runtime proof.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_nav_mark.py",
+      "text": "\"\"\"Return current raw-price evidence or ``None`` without fallback values.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_nav_mark.py",
+      "text": "\"\"\"Return the current fully bound policy at this cutoff, if configured.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_nav_mark.py",
+      "text": "\"raw mark classification differs from current policy or request scope\""
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_nav_mark.py",
+      "text": "freshness_status: Literal[\"current\"] = \"current\""
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_nav_mark.py",
+      "text": "if type(self.freshness_status) is not str or self.freshness_status != \"current\":"
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_official_window_evidence.py",
+      "text": "\"\"\"Return one trusted timezone-aware current time.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_official_window_evidence.py",
+      "text": "\"\"\"Stable outcomes for a read-only current-window prerequisite.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_official_window_evidence.py",
+      "text": "\"current\""
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_official_window_evidence.py",
+      "text": "\"ready current window requires full immutable configuration provenance\""
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_official_window_evidence.py",
+      "text": "freshness_status: Literal[\"current\", \"stale\", \"unknown\"] = \"unknown\""
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_official_window_evidence.py",
+      "text": "raise ValueError(\"current official-window clocks are not ordered\")"
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_official_window_evidence.py",
+      "text": "raise ValueError(\"current official-window result status is inconsistent\")"
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_official_window_evidence.py",
+      "text": "raise ValueError(\"ready current official-window evidence is incomplete\")"
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_owner_posting_read.py",
+      "text": "\"\"\"One current event head after complete account Audit/Outbox and Domain replay.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_owner_posting_read.py",
+      "text": "\"\"\"Read one fully verified, current-source active stage set without writing.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_owner_revision_preview.py",
+      "text": "_invalid(\"active owner entry is not one exact current stage\")"
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_share_tax_model.py",
+      "text": "The model binds one simulated scenario to source text and current configured"
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_share_tax_model.py",
+      "text": "\"\"\"Finite current-config model for one simulated personal-shareholder scope."
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_share_tax_model.py",
+      "text": "\"\"\"Read one current explicitly configured simulated share-tax model.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_share_tax_model.py",
+      "text": "raise _invalid(\"current model differs from the exact selected source and account scope\")"
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_share_tax_model.py",
+      "text": "raise _invalid(\"current model is not known and valid for the selected cutoff\")"
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_share_tax_proof.py",
+      "text": "Current instrument readers compare these values with the actual native"
     },
     {
       "path": "apps/simulated_trading/application/corporate_action_tax_assessment.py",
@@ -22292,11 +22388,23 @@
     },
     {
       "path": "apps/simulated_trading/application/corporate_action_tax_assessment.py",
+      "text": "\"\"\"Bind verified original material to this exact owner request and current scope.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_tax_assessment.py",
+      "text": "\"\"\"Hold current authority and classify only a fully verified original retry.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_tax_assessment.py",
       "text": "\"\"\"Hold exact current-scope locks and recheck the tax-specific lease on exit."
     },
     {
       "path": "apps/simulated_trading/application/corporate_action_tax_assessment.py",
       "text": "\"\"\"Lock and reverify current source, policy, date, physical owner, and tax grant.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_tax_assessment.py",
+      "text": "\"\"\"Read and fully verify one exact current assessment head inside its owner UOW.\"\"\""
     },
     {
       "path": "apps/simulated_trading/application/corporate_action_tax_assessment.py",
@@ -22309,6 +22417,10 @@
     {
       "path": "apps/simulated_trading/application/corporate_action_tax_assessment.py",
       "text": "composition must provide locked current-source/policy/date/owner checks and an"
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_tax_cash_coverage.py",
+      "text": "\"\"\"Require the exact current owner and original finite complete-coverage lease.\"\"\""
     },
     {
       "path": "apps/simulated_trading/application/corporate_action_tax_liability.py",
@@ -22557,6 +22669,10 @@
     {
       "path": "apps/simulated_trading/application/corporate_action_tax_settlement_history.py",
       "text": "raise BusinessLogicError(\"current simulated tax date rule is untyped\")"
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_window_policy_provenance.py",
+      "text": "raise ValueError(\"exact current-window policy is required\")"
     },
     {
       "path": "apps/simulated_trading/application/current_account_ownership.py",
@@ -23636,7 +23752,15 @@
     },
     {
       "path": "apps/simulated_trading/audited_corporate_action_posting_composition.py",
+      "text": "\"current official-window deadline is missing\","
+    },
+    {
+      "path": "apps/simulated_trading/audited_corporate_action_posting_composition.py",
       "text": "current = self._owner_grant_gate.assert_live(as_of=timezone.now())"
+    },
+    {
+      "path": "apps/simulated_trading/audited_corporate_action_posting_composition.py",
+      "text": "current = self._window_gate.assert_unchanged(request, original)"
     },
     {
       "path": "apps/simulated_trading/audited_corporate_action_posting_composition.py",
@@ -23645,6 +23769,10 @@
     {
       "path": "apps/simulated_trading/audited_corporate_action_posting_composition.py",
       "text": "return current"
+    },
+    {
+      "path": "apps/simulated_trading/audited_corporate_action_posting_composition.py",
+      "text": "self._bind_window_deadline(current)"
     },
     {
       "path": "apps/simulated_trading/audited_corporate_action_tax_assessment_composition.py",
@@ -23675,6 +23803,14 @@
       "text": "raise _blocked(\"Assessment, current authority and Audit must use one alias.\")"
     },
     {
+      "path": "apps/simulated_trading/audited_corporate_action_tax_assessment_composition.py",
+      "text": "raise _blocked(\"The retained assessment lineage is not the current Audit head\")"
+    },
+    {
+      "path": "apps/simulated_trading/audited_corporate_action_tax_assessment_composition.py",
+      "text": "raise _blocked(\"The retained lineage differs from the current owner Audit scope\")"
+    },
+    {
       "path": "apps/simulated_trading/audited_corporate_action_tax_liability_composition.py",
       "text": "\"\"\"Compose financial writes only with an explicit current tax-withholding verifier.\"\"\""
     },
@@ -23697,6 +23833,26 @@
     {
       "path": "apps/simulated_trading/close_snapshot_submission_composition.py",
       "text": "\"\"\"Run the existing ASH-03 evaluation on exact current finance and capture evidence.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_account_refresh_composition.py",
+      "text": "raise _blocked(\"refreshed account evidence is not current within its TTL\")"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_account_refresh_composition.py",
+      "text": "raise _blocked(\"the current SourceV2 head is unavailable\")"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_account_refresh_composition.py",
+      "text": "raise _blocked(\"the current raw owner head is unavailable\")"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_configuration_composition.py",
+      "text": "\"\"\"Bind every immutable field while excluding only this read's current check time.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_configuration_composition.py",
+      "text": "\"\"\"Reuse the owner's repeated current read and verify the actual full snapshot hash.\"\"\""
     },
     {
       "path": "apps/simulated_trading/corporate_action_consent_composition.py",
@@ -23823,6 +23979,22 @@
       "text": "summary: str"
     },
     {
+      "path": "apps/simulated_trading/corporate_action_current_entitlement_coverage.py",
+      "text": "\"\"\"Require one original current entitlement matching current body and closed-date quantity."
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_current_entitlement_coverage.py",
+      "text": "\"\"\"Separate current recognized rights from complete simulated tax exposure.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_current_entitlement_coverage.py",
+      "text": "\"schema\": \"simulated-current-entitlement-coverage.v1\","
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_current_entitlement_coverage.py",
+      "text": "and qualifies the complete current official window. No missing receivable"
+    },
+    {
       "path": "apps/simulated_trading/corporate_action_current_official_window_composition.py",
       "text": "\"\"\"Compose current official-window evidence from Account, Config Center, and Data Center.\"\"\""
     },
@@ -23847,12 +24019,216 @@
       "text": "raise ValueError(\"current official-window runtime environment must be explicit\")"
     },
     {
+      "path": "apps/simulated_trading/corporate_action_nav_mark_composition.py",
+      "text": "\"\"\"Compose purpose-specific current raw-price inputs for company-action simulation valuation.\"\"\""
+    },
+    {
       "path": "apps/simulated_trading/corporate_action_original_body_composition.py",
       "text": "\"\"\"Bind every current-window member to its Data Center record and retained original.\"\"\""
     },
     {
       "path": "apps/simulated_trading/corporate_action_original_body_composition.py",
       "text": "\"\"\"Bind the current-window member checks to one explicit database alias.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_account_composition.py",
+      "text": ") as current:"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_account_composition.py",
+      "text": "Preparation requires current row evidence. Confirmation deliberately leaves"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_account_composition.py",
+      "text": "\"\"\"Keep historical owner reads independent of current seal availability.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_account_composition.py",
+      "text": "if current != grant:"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_account_composition.py",
+      "text": "the original receipt and still checks current owner, role and consent."
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_account_composition.py",
+      "text": "validate current role, grant, mapping and source. This preflight deliberately"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_balance_composition.py",
+      "text": "current = reader.read_current_mark(original.query)"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_balance_composition.py",
+      "text": "current"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_balance_composition.py",
+      "text": "current, original=original"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_balance_composition.py",
+      "text": "may remain known. No current permission is required for historical receipts."
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_confirmation_window.py",
+      "text": "The executor must still verify every original body, current window, owner,"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_confirmation_window.py",
+      "text": "current owner's exact original consent and server-selected security only."
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_confirmation_window.py",
+      "text": "its own current window; its assessment and original Audit proof stay sealed."
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_event_composition.py",
+      "text": "\"\"\"Build exact read-only requests from the current official event and account history."
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_event_composition.py",
+      "text": "\"current official source or owner account evidence is unavailable\","
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_event_composition.py",
+      "text": "\"tax source facts do not match the retained current disclosure\","
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_event_composition.py",
+      "text": "\"the current disclosure is not a supported cash or stock distribution\","
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_event_composition.py",
+      "text": "\"the prepared stage does not match current retained source facts\","
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_event_composition.py",
+      "text": "\"the prospective cash entitlement does not match current retained source facts\","
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_event_composition.py",
+      "text": "event = chain.current.event"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_event_composition.py",
+      "text": "registry allocations, or establish current-window authority. Its caller must keep"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_event_composition.py",
+      "text": "the independent current-window, owner-consent, audited-posting, and tax fences."
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_event_history_composition.py",
+      "text": "\"\"\"Read a complete, current owner corporate-action stage head without writes.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_event_history_composition.py",
+      "text": "\"\"\"Return current active entries after full account audit and Domain history replay."
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_event_history_composition.py",
+      "text": "\"a canonical owner and current-source scope is required for correction replay\","
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_event_history_composition.py",
+      "text": "\"the current disclosure is newer than the verified ledger head; correction is required\","
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_event_history_composition.py",
+      "text": "\"the current simulated account does not match the correction owner\","
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_event_history_composition.py",
+      "text": "and requires the retained head to equal the selected current disclosure."
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_event_support.py",
+      "text": "\"\"\"Bind a V4 rule market through its current typed source-exchange crosswalk.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_event_support.py",
+      "text": "\"\"\"One complete, unbranched public source lineage and its selected latest revision.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_event_support.py",
+      "text": "\"\"\"Raised when current retained source or owner ledger facts cannot form a request.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_event_support.py",
+      "text": "\"\"\"Read and validate owner-bound current corporate-action evidence.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_event_support.py",
+      "text": "\"\"\"Read one current owner-bound simulated account from its owning app model.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_event_support.py",
+      "text": "\"\"\"Require one complete, cutoff-known, unbranched source lineage and current leaf.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_event_support.py",
+      "text": "\"current source revision is not bound to its original body hash\","
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_event_support.py",
+      "text": "\"current source was not known at the requested cutoff\","
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_event_support.py",
+      "text": "\"event posting row does not match the current official action scope\","
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_event_support.py",
+      "text": "\"record-date ownership replay does not match the current owner scope\","
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_event_support.py",
+      "text": "\"requested event is missing or ambiguous in current source history\","
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_event_support.py",
+      "text": "\"source lineage does not have one exact current revision\","
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_event_support.py",
+      "text": "current: PersistedSecurityDisclosureEvent"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_event_support.py",
+      "text": "current_revision = chain.current.event.source_revision_id"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_event_support.py",
+      "text": "max(event.first_seen_at, chain.current.recorded_at)"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_event_support.py",
+      "text": "or source_qualified_at < chain.current.recorded_at"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_event_support.py",
+      "text": "return _CurrentEventChain(root=root, current=current_record, members=members)"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_execution_composition.py",
+      "text": "\"\"\"Bind a server-selected runtime environment without reading current sources.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_execution_composition.py",
+      "text": "\"\"\"Defer optional routing reads until a new operation actually needs current facts.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_execution_composition.py",
+      "text": "\"\"\"Dispatch exact server-prepared facts with explicit V3 locks and current verification.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_execution_composition.py",
+      "text": "\"\"\"Rebuild real current facts inside the established tax authority transaction.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_execution_composition.py",
+      "text": "\"\"\"Resolve actual current model routing only after financial replay detection.\"\"\""
     },
     {
       "path": "apps/simulated_trading/corporate_action_owner_grant_gate.py",
@@ -23887,6 +24263,234 @@
       "text": "\"current owner, source, policy or grant cannot authorize this posting\","
     },
     {
+      "path": "apps/simulated_trading/corporate_action_owner_ledger_composition.py",
+      "text": "The caller authenticates the current owner before passing the concrete row."
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_ledger_composition.py",
+      "text": "\"\"\"Validate historical scope at the original clock, without current permission semantics.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_ledger_composition.py",
+      "text": "\"summary\": \"原始账本、分项授权与审计回执已核对。\","
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_ledger_composition.py",
+      "text": "current-window completeness and independent raw marks remain separate."
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_revision_composition.py",
+      "text": "\"\"\"Build full current-source ordinary postings for exactly the active stage set.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_revision_composition.py",
+      "text": "\"\"\"Prepare complete current-source owner corrections without financial writes.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_revision_composition.py",
+      "text": "\"current source or complete original owner history is unavailable\","
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_revision_composition.py",
+      "text": "\"one or more full replacement stages fail current source qualification\","
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_revision_composition.py",
+      "text": "\"the complete current stage set cannot be rebuilt from qualified source facts\","
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_revision_composition.py",
+      "text": "\"the current disclosure is not the direct successor of the active ledger source\","
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_revision_composition.py",
+      "text": "\"the current full cash entitlement is unavailable\","
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_revision_composition.py",
+      "text": "\"the current full share entitlement is unavailable\","
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_revision_composition.py",
+      "text": "\"the current source event does not match the requested correction family\","
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_revision_composition.py",
+      "text": "event = chain.current.event"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_revision_composition.py",
+      "text": "posting; current owner consent, source window, spend, grant, and Audit gates"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_tax_prepare_composition.py",
+      "text": "Recognition and collection require the retained current semantic facts;"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_tax_prepare_composition.py",
+      "text": "\"\"\"Prepare an exact current disposition while preserving the retained assessment lineage.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_tax_prepare_composition.py",
+      "text": "neither may silently assess, choose a latest sale or create another chain."
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_tax_readback.py",
+      "text": "These immutable historical receipts neither establish current statutory"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_tax_readback.py",
+      "text": "\"\"\"Read original owner tax assessment and financial receipts without current permission.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_tax_readback.py",
+      "text": "\"summary\": ("
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_tax_readback.py",
+      "text": "\"summary\": \"原始评估与审计回执已核对；评估本身没有扣款。\","
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_workflow_composition.py",
+      "text": "\"\"\"Verify real original bodies and the complete current window before previewing.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_workflow_composition.py",
+      "text": "\"summary\": \"账户权属证据已刷新；官方事件资料尚未完整刷新，请核对阻断原因后重试。\","
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_workflow_composition.py",
+      "text": "\"summary\": _preparation_summary("
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_workflow_composition.py",
+      "text": "\"summary\": summary + \" 余额与详细审计回执请通过读取账户回执单独核对。\","
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_workflow_composition.py",
+      "text": "account_id=account_id, summary=_committed_summary(receipt)"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_workflow_composition.py",
+      "text": "def _committed_owner_workflow_payload(*, account_id: int, summary: str) -> dict[str, JSONValue]:"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_workflow_composition.py",
+      "text": "payload[\"summary\"] = ("
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_workflow_composition.py",
+      "text": "payload[\"summary\"] = \"本次尚未办理。\" + next_step"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_workflow_composition.py",
+      "text": "payload[\"summary\"] = summary + ("
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_workflow_composition.py",
+      "text": "summary + \" 当前余额与详细审计读回暂不可用，请保留本回执并重新读取；不要重复新建办理。\""
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_workflow_composition.py",
+      "text": "summary: str,"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_workflow_composition.py",
+      "text": "summary=\"账户权属证据与所请求官方资料已刷新；本次没有新增财务分录。\","
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_workflow_composition.py",
+      "text": "{\"outcome\": \"noop\", \"summary\": \"已取消，本次没有刷新。\", \"blocking_reason\": None}"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_workflow_composition.py",
+      "text": "{\"outcome\": \"noop\", \"summary\": \"已取消，本次没有办理。\", \"blocking_reason\": None}"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_workflow_readback.py",
+      "text": ").current.event"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_workflow_readback.py",
+      "text": "This discovery result grants no current-window or financial qualification."
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_workflow_readback.py",
+      "text": "\"\"\"Present retained source facts without claiming current-window completeness.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_workflow_readback.py",
+      "text": "\"summary\": \"公告资料已留存，请选择一项操作核对；余额与原始财务回执请单独读取。\","
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_workflow_readback.py",
+      "text": "\"summary\": \"请核对本人模拟账户、分项授权与官方资料后再办理。\","
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_workflow_readback.py",
+      "text": "result[\"summary\"] = ("
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_workflow_readback.py",
+      "text": "result[\"summary\"] = ("
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_share_tax_instrument_qualification.py",
+      "text": "\"\"\"Original source locator and current-model fingerprint, never real tax eligibility.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_share_tax_model_composition.py",
+      "text": "configured.configuration.identity_sha256 != latest.configuration.identity_sha256"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_share_tax_model_composition.py",
+      "text": "if finished < checked or finished < latest.configuration.checked_at:"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_share_tax_model_composition.py",
+      "text": "latest = read_share_capital_tax_policy_for_stage("
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_share_tax_model_composition.py",
+      "text": "or configured.model_rule_sha256 != latest.model_rule_sha256"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_share_tax_policy_composition.py",
+      "text": "\"\"\"Select exactly one fully declared current model without seeding or inference.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_assessment_window_composition.py",
+      "text": "\"\"\"Verify original source selectors and expiry without loading current sources.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_cash_coverage_composition.py",
+      "text": "\"\"\"Reopen current original sources after writes, without renewing the original lease."
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_cash_coverage_composition.py",
+      "text": "\"\"\"Require actual current source coverage, closed histories and applied assessments."
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_cash_coverage_composition.py",
+      "text": "current, epoch = self._read("
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_cash_coverage_composition.py",
+      "text": "current.query != snapshot.query"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_cash_coverage_composition.py",
+      "text": "event = chain.current.event"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_cash_coverage_composition.py",
+      "text": "or current.coverage_status is not TaxCashCoverageStatus.COMPLETE"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_cash_coverage_composition.py",
+      "text": "or current.tax_cash_unavailable != snapshot.tax_cash_unavailable"
+    },
+    {
       "path": "apps/simulated_trading/corporate_action_tax_date_convention_composition.py",
       "text": "\"\"\"Read one explicit simulation-only tax-date rule from current Config Center evidence.\"\"\""
     },
@@ -23909,6 +24513,22 @@
     {
       "path": "apps/simulated_trading/corporate_action_tax_date_convention_composition.py",
       "text": "raise _invalid(\"policies\", \"current canonical row does not match physical account owner\")"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_exposure_history_composition.py",
+      "text": "\"\"\"Complete explicit-date history plus original current-model/source witnesses."
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_exposure_history_composition.py",
+      "text": "current = read_current_simulated_dividend_tax_policy("
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_exposure_history_composition.py",
+      "text": "not _same_policy(configured, current)"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_exposure_history_composition.py",
+      "text": "scope=current.candidate,"
     },
     {
       "path": "apps/simulated_trading/corporate_action_tax_instrument_qualification.py",
@@ -24004,6 +24624,10 @@
     },
     {
       "path": "apps/simulated_trading/corporate_action_tax_owner_scope_composition.py",
+      "text": "\"assessment has neither current nor retained window evidence\""
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_owner_scope_composition.py",
       "text": "raise _blocked(\"a server-selected current grant selector is required\")"
     },
     {
@@ -24041,6 +24665,10 @@
     {
       "path": "apps/simulated_trading/corporate_action_tax_owner_scope_composition.py",
       "text": "raise _blocked(\"final current qualification result is untyped\")"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_tax_owner_scope_composition.py",
+      "text": "raise _blocked(\"new assessment has no current qualification\")"
     },
     {
       "path": "apps/simulated_trading/corporate_action_tax_policy_composition.py",
@@ -24231,6 +24859,90 @@
       "text": "raise _blocked(\"exact current candidate and retained source evidence are required\")"
     },
     {
+      "path": "apps/simulated_trading/corporate_action_window_audit_composition.py",
+      "text": "\"\"\"Bind the server-composed current-window reader, never a client payload.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_window_audit_composition.py",
+      "text": "\"\"\"Capture original current-window evidence while the account lock is held.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_window_audit_composition.py",
+      "text": "\"\"\"Check a current window inside the owner transaction and again before commit.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_window_audit_composition.py",
+      "text": "\"\"\"Restore original complete model proof without asking for current sources or consent.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_window_audit_composition.py",
+      "text": "\"\"\"Retain finite current-window proof inside an audited financial transaction.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_window_audit_composition.py",
+      "text": "\"\"\"Validate original Audit proof at its original clock, without granting current use.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_window_audit_composition.py",
+      "text": "current = self.read_entry_evidence(request)"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_window_audit_composition.py",
+      "text": "current.checked_at is None"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_window_audit_composition.py",
+      "text": "current.share_tax_proof is None"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_window_audit_composition.py",
+      "text": "current_for_comparison = current"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_window_audit_composition.py",
+      "text": "current_for_comparison = replace(current, share_tax_proof=original.share_tax_proof)"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_window_audit_composition.py",
+      "text": "f\"current official-window evidence blocked: {evidence.reason_code.value}\""
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_window_audit_composition.py",
+      "text": "freshness_status=\"current\","
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_window_audit_composition.py",
+      "text": "not a later current-window lease or independent permission to write money."
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_window_audit_composition.py",
+      "text": "or current.checked_at < original.checked_at"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_window_audit_composition.py",
+      "text": "or current.share_tax_proof.selection_sha256"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_window_audit_composition.py",
+      "text": "raise _blocked(\"current official-window evidence changed before financial commit\")"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_window_audit_composition.py",
+      "text": "raise _blocked(\"current official-window evidence is unavailable or changed\") from error"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_window_audit_composition.py",
+      "text": "raise _blocked(\"current official-window reader returned an untyped result\")"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_window_audit_composition.py",
+      "text": "raise _blocked(\"current share model changed before financial commit\")"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_window_audit_composition.py",
+      "text": "return current"
+    },
+    {
       "path": "apps/simulated_trading/corporate_action_write_scope_composition.py",
       "text": "\"\"\"Join current physical ownership with Account policy evidence on one alias.\"\"\""
     },
@@ -24265,6 +24977,66 @@
     {
       "path": "apps/simulated_trading/domain/close_snapshot_execution_market_audit_validation.py",
       "text": "or latest != quote.last_price"
+    },
+    {
+      "path": "apps/simulated_trading/domain/corporate_action_capital_tax_terms.py",
+      "text": "They do not establish current law, a document's current legal effect, holder"
+    },
+    {
+      "path": "apps/simulated_trading/domain/corporate_action_capital_tax_terms.py",
+      "text": "This value reports only what the retained texts state. It has no current"
+    },
+    {
+      "path": "apps/simulated_trading/domain/corporate_action_owner_revision.py",
+      "text": "POSTING templates already built from current source and record-date evidence."
+    },
+    {
+      "path": "apps/simulated_trading/domain/corporate_action_owner_revision.py",
+      "text": "The caller must supply every current-event ledger row from its separately"
+    },
+    {
+      "path": "apps/simulated_trading/domain/corporate_action_owner_revision.py",
+      "text": "\"\"\"Bind one exact active predecessor to a current-source zero-economics reversal.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/domain/corporate_action_owner_revision.py",
+      "text": "\"\"\"Build a complete current-source reverse-and-successor batch without writing."
+    },
+    {
+      "path": "apps/simulated_trading/domain/corporate_action_owner_revision.py",
+      "text": "\"\"\"One read-only current-event ledger fact with its exact Domain request and delta.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/domain/corporate_action_owner_revision.py",
+      "text": "\"\"\"Replay every source revision and correction to its exact current active stage set.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/domain/corporate_action_owner_revision.py",
+      "text": "\"\"\"Require one exact current-source POSTING template for every active stage.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/domain/corporate_action_owner_revision.py",
+      "text": "\"\"\"Turn one current source template into its direct-predecessor successor.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/domain/corporate_action_owner_revision.py",
+      "text": "_invalid(\"all current stages must preserve one exact full source quantity\")"
+    },
+    {
+      "path": "apps/simulated_trading/domain/corporate_action_owner_revision.py",
+      "text": "_invalid(\"ordinary posting is outside the complete current source head\")"
+    },
+    {
+      "path": "apps/simulated_trading/domain/corporate_action_owner_revision.py",
+      "text": "_invalid(\"replacement must contain the exact complete current active stage set\")"
+    },
+    {
+      "path": "apps/simulated_trading/domain/corporate_action_owner_revision.py",
+      "text": "_invalid(\"replacement stages do not share one exact current-source revision\")"
+    },
+    {
+      "path": "apps/simulated_trading/domain/corporate_action_owner_revision.py",
+      "text": "_invalid(\"replacement stages or current date are invalid\", \"CORPORATE_ACTION_INPUT_INVALID\")"
     },
     {
       "path": "apps/simulated_trading/domain/corporate_action_ownership_history.py",
@@ -24880,6 +25652,10 @@
     },
     {
       "path": "apps/simulated_trading/execution_settlement_composition.py",
+      "text": "\"\"\"Compose actual current tax coverage lazily, without reading or activating sources.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/execution_settlement_composition.py",
       "text": "\"\"\"Compose an exact-current calendar reader from explicit owner scopes."
     },
     {
@@ -24959,6 +25735,42 @@
       "text": "\"\"\"Read exact current owner rows while the caller holds the user's lock.\"\"\""
     },
     {
+      "path": "apps/simulated_trading/infrastructure/corporate_action_nav_mark_reader.py",
+      "text": "\"\"\"Double-read current policy and source evidence before returning one raw mark."
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/corporate_action_nav_mark_reader.py",
+      "text": "\"\"\"Read an exact current daily close as a simulation-only raw NAV mark.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/corporate_action_nav_mark_reader.py",
+      "text": "\"\"\"Resolve the latest closed session only from the complete published calendar.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/corporate_action_nav_mark_reader.py",
+      "text": "\"\"\"Return a still-current raw mark or ``None`` after any failed fence.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/corporate_action_nav_mark_reader.py",
+      "text": "\"\"\"Return the current aware clock without consulting caller input.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/corporate_action_nav_mark_reader.py",
+      "text": "\"raw mark current classification is unavailable\""
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/corporate_action_nav_mark_reader.py",
+      "text": "\"raw mark current policy is unavailable\""
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/corporate_action_nav_mark_reader.py",
+      "text": "\"raw mark daily price source is not current\""
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/corporate_action_owner_intent_codec.py",
+      "text": "financial permission: every execution still requires the current locked grant."
+    },
+    {
       "path": "apps/simulated_trading/infrastructure/corporate_action_posting_repository.py",
       "text": ".aggregate(latest=Max(\"account_revision\"))[\"latest\"]"
     },
@@ -24984,7 +25796,27 @@
     },
     {
       "path": "apps/simulated_trading/infrastructure/corporate_action_tax_assessment_repository.py",
+      "text": "\"\"\"Read a fully matching locked current head without appending any material.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/corporate_action_tax_assessment_repository.py",
       "text": "\"\"\"Verify immutable historical material without claiming current tax eligibility."
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/corporate_action_tax_assessment_repository.py",
+      "text": "current = roots[0]"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/corporate_action_tax_assessment_repository.py",
+      "text": "current = rows_by_id[child_ids[0]]"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/corporate_action_tax_assessment_repository.py",
+      "text": "current_id = recorded_id(current)"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/corporate_action_tax_assessment_repository.py",
+      "text": "lineage.append(current)"
     },
     {
       "path": "apps/simulated_trading/infrastructure/corporate_action_tax_balance_repository.py",
@@ -25001,6 +25833,10 @@
     {
       "path": "apps/simulated_trading/infrastructure/corporate_action_tax_balance_repository.py",
       "text": "raise _corrupt(\"Tax assessment is outside the current owned local ledger\")"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/corporate_action_tax_cash_admission.py",
+      "text": "\"\"\"Read exact current account coverage; absent debt rows alone never clear admission."
     },
     {
       "path": "apps/simulated_trading/infrastructure/corporate_action_tax_liability_readback.py",
@@ -25487,6 +26323,14 @@
       "text": "\"\"\"Read one reservation only from its current account-owner scope.\"\"\""
     },
     {
+      "path": "apps/simulated_trading/infrastructure/order_reservation_repository_support.py",
+      "text": "Historical retry and cancellation do not need current source access and may"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/order_reservation_repository_support.py",
+      "text": "\"\"\"Publish spendable cash only with independently complete current tax coverage."
+    },
+    {
       "path": "apps/simulated_trading/infrastructure/owner_order_operation_targets.py",
       "text": "\"\"\"Lock current owner scope and decode the original retained order facts.\"\"\""
     },
@@ -25699,6 +26543,10 @@
       "text": "while current.source.content_hash not in visited:"
     },
     {
+      "path": "apps/simulated_trading/infrastructure/statutory_capital_tax_parser.py",
+      "text": "or current qualification. The caller must compare ``body_sha256`` with the"
+    },
+    {
       "path": "apps/simulated_trading/infrastructure/statutory_dividend_tax_parser.py",
       "text": "configured official-source scope and current applicability. This grammar"
     },
@@ -25809,6 +26657,38 @@
     {
       "path": "apps/simulated_trading/interface/corporate_action_consent_views.py",
       "text": "summary = serializers.CharField()"
+    },
+    {
+      "path": "apps/simulated_trading/interface/corporate_action_workflow_serializers.py",
+      "text": "\"\"\"Publish only the safe source dates, identity, status, and blocking summary.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/interface/corporate_action_workflow_serializers.py",
+      "text": "summary = serializers.CharField(allow_blank=True)"
+    },
+    {
+      "path": "apps/simulated_trading/interface/corporate_action_workflow_serializers.py",
+      "text": "summary = serializers.CharField(allow_blank=True)"
+    },
+    {
+      "path": "apps/simulated_trading/interface/corporate_action_workflow_views.py",
+      "text": "\"\"\"Read one account's owner-scoped cash, share, tax, event, and audit summary.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/interface/corporate_action_workflow_views.py",
+      "text": "\"\"\"Read the current workflow without accepting client-provided account facts.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/interface/corporate_action_workflow_views.py",
+      "text": "\"summary\": \"已取消，本次没有办理公司行为或刷新账户证据。\","
+    },
+    {
+      "path": "apps/simulated_trading/interface/corporate_action_workflow_views.py",
+      "text": "\"summary\": message,"
+    },
+    {
+      "path": "apps/simulated_trading/interface/corporate_action_workflow_views.py",
+      "text": "for key in (\"outcome\", \"summary\", \"freshness_status\", \"reliability_status\"):"
     },
     {
       "path": "apps/simulated_trading/interface/fee_correction_policy_views.py",
@@ -26103,6 +26983,14 @@
       "text": "if len(roots) != 1 or roots[0] is not current:"
     },
     {
+      "path": "apps/simulated_trading/official_rights_action_composition.py",
+      "text": "Current complete-window evidence, historical account ownership and the"
+    },
+    {
+      "path": "apps/simulated_trading/official_rights_action_composition.py",
+      "text": "\"\"\"Require current original result, reached dates and exact no-exercise identity."
+    },
+    {
       "path": "apps/simulated_trading/order_history_composition.py",
       "text": "\"\"\"Return the current timezone-aware application clock.\"\"\""
     },
@@ -26192,6 +27080,10 @@
     },
     {
       "path": "apps/simulated_trading/transition_plan_event_review_composition.py",
+      "text": "\"\"\"Bind current policy/classification evidence and database-only event readers.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/transition_plan_event_review_composition.py",
       "text": "\"\"\"Compose current account policy and Data Center latest-to-exact DB readers.\"\"\""
     },
     {
@@ -26204,7 +27096,51 @@
     },
     {
       "path": "apps/simulated_trading/transition_plan_event_review_composition.py",
+      "text": "\"\"\"Require typed current classification for the exact security and asset code.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/transition_plan_event_review_composition.py",
+      "text": "\"\"\"Return the stable no-change result only after current evidence proves no scope.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/transition_plan_event_review_composition.py",
       "text": "\"\"\"Revalidate an event-bound plan against current official policy and durable facts.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/transition_plan_event_review_composition.py",
+      "text": "\"\"\"Review a legacy plan from current Config Center and classification evidence.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/transition_plan_event_review_composition.py",
+      "text": "comparable = replace(original, identity_evidence=identity, read_at=current.read_at)"
+    },
+    {
+      "path": "apps/simulated_trading/transition_plan_event_review_composition.py",
+      "text": "current = self._classification_reader.resolve_simulated_instrument_classification("
+    },
+    {
+      "path": "apps/simulated_trading/transition_plan_event_review_composition.py",
+      "text": "current,"
+    },
+    {
+      "path": "apps/simulated_trading/transition_plan_event_review_composition.py",
+      "text": "current: SimulatedInstrumentClassificationEvidenceV1,"
+    },
+    {
+      "path": "apps/simulated_trading/transition_plan_event_review_composition.py",
+      "text": "or current is None"
+    },
+    {
+      "path": "apps/simulated_trading/transition_plan_event_review_composition.py",
+      "text": "or not _same_classification(original, current)"
+    },
+    {
+      "path": "apps/simulated_trading/transition_plan_event_review_composition.py",
+      "text": "return comparable.to_payload() == current.to_payload()"
+    },
+    {
+      "path": "apps/simulated_trading/transition_plan_event_review_composition.py",
+      "text": "selected_at=current.identity_evidence.selection.selected_at,"
     },
     {
       "path": "apps/simulated_trading/transition_plan_journey_composition.py",
@@ -27589,6 +28525,10 @@
     {
       "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_cli.py",
       "text": "\"summary\": \"从 TUI 直接进入命令行式 AI 交互、会话和授权指令入口。\","
+    },
+    {
+      "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_corporate_action_workflow.py",
+      "text": "{\"key\": \"summary\", \"label\": \"说明\"},"
     },
     {
       "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_dashboard_alpha.py",

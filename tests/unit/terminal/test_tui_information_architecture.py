@@ -26,6 +26,7 @@ EXPECTED_AUTHENTICATED_SCREEN_KEYS = {
     "command-center.decision-flow",
     "research.signals",
     "execution.accounts",
+    "execution.corporate-actions",
     "simulated-trading.order-entry",
     "macro-regime.strategy",
     "execution.audit",
@@ -72,7 +73,6 @@ EXPECTED_TASK_ACTION_OWNERS = {
 
 
 class _StaticMetadataRepository:
-
     def __init__(self, payload: dict) -> None:
 
         self.payload = payload
@@ -111,7 +111,7 @@ def test_tui_ia_registry_is_the_complete_screen_routing_source() -> None:
 
     assert [group["key"] for group in registry["groups"]] == ["daily", "research", "system"]
 
-    assert len(registry["published_screens"]) == 12
+    assert len(registry["published_screens"]) == 13
 
     assert len(registry["runtime_screens"]) == 22
 
@@ -121,7 +121,7 @@ def test_tui_ia_registry_is_the_complete_screen_routing_source() -> None:
 
     assert len(registry["workflow"]) == 8
 
-    assert sum(len(screen["sources"]) for screen in registry["published_screens"]) == 37
+    assert sum(len(screen["sources"]) for screen in registry["published_screens"]) == 38
 
     runtime_source_pairs = [
         (source, screen["key"])
@@ -289,7 +289,6 @@ def test_runtime_screen_registry_publishes_complete_user_experience_contract() -
     assert set(runtime_screens) <= set(normalized_screens)
 
     for key, screen in runtime_screens.items():
-
         assert screen["summary"]
 
         assert screen["view_type"] in {"detail", "datagrid", "status", "chart"}
@@ -336,7 +335,6 @@ def test_daily_task_screens_keep_single_task_and_runtime_action_ownership() -> N
     primary_tasks = set()
 
     for screen_key, default_action_key in expected_screens.items():
-
         screen = screens[screen_key]
 
         assert screen["audience"] == "authenticated"
@@ -366,7 +364,6 @@ def test_daily_task_screens_keep_single_task_and_runtime_action_ownership() -> N
     assert len(primary_tasks) == len(expected_screens)
 
     for action_key, owner_screen_key in EXPECTED_TASK_ACTION_OWNERS.items():
-
         action = actions[action_key]
 
         assert action["screen_key"] == owner_screen_key
@@ -606,7 +603,6 @@ def test_published_screens_define_panel_and_action_density_contracts() -> None:
     task_group_limit = registry["action_density"]["task_group_limit"]
 
     for screen in payload["screens"]:
-
         p0_panels = [
             panel
             for panel in screen.get("dashboard_panels", [])
@@ -614,7 +610,6 @@ def test_published_screens_define_panel_and_action_density_contracts() -> None:
         ]
 
         if screen["key"] != "command-center.overview":
-
             assert len(p0_panels) <= 2
 
         assert screen["action_density"]["primary_operation_limit"] <= 12

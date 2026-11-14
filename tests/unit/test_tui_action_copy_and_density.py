@@ -195,8 +195,8 @@ def test_real_tui_sources_close_copy_reference_and_density_debt() -> None:
         key: runtime_actions[key]["screen_key"] for key in expected_task_action_owners
     } == expected_task_action_owners
     assert report.runtime_action_count == len(runtime["actions"])
-    assert report.published_action_count == 413
-    assert report.published_screen_count == 12
+    assert report.published_action_count == len(published["actions"])
+    assert report.published_screen_count == 13
     assert report.route_action_count == 338
     assert report.exposed_route_action_count == 0
     assert report.boilerplate_description_count == 0

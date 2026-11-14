@@ -196,7 +196,7 @@ def _readiness_monitor_payload():
                     "version": "2026.07",
                     "schema_version": "tui-metadata.v3",
                     "modules": 12,
-                    "screens": 37,
+                    "screens": 38,
                     "actions": 180,
                     "default_screen": "command-center.overview",
                     "coverage_summary": {},
@@ -682,7 +682,7 @@ def test_readiness_monitor_json_returns_daily_gate(client, staff_user):
     assert payload["data_coverage"]["domains"]["price"]["covered_count"] == 304
     assert payload["data_coverage"]["universe_quality"]["board_counts"]["bse"] == 200
     assert payload["operator_surfaces"]["ai_capability"]["mcp_tools"]["total"] == 365
-    assert payload["operator_surfaces"]["terminal"]["tui_metadata"]["screens"] == 37
+    assert payload["operator_surfaces"]["terminal"]["tui_metadata"]["screens"] == 38
     mock_context.assert_called_once_with(strict_runtime=True)
 
 

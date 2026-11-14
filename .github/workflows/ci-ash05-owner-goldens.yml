@@ -1,0 +1,131 @@
+name: ASH05 ordinary owner goldens
+
+on:
+  push:
+    branches: ['dev/next-development']
+    paths:
+      - '.github/workflows/ci-ash05-owner-goldens.yml'
+      - 'apps/simulated_trading/**'
+      - 'apps/account/**'
+      - 'apps/audit/**'
+      - 'apps/config_center/**'
+      - 'apps/terminal/**'
+      - 'core/integration/config_center_runtime.py'
+      - 'config/tui/**'
+      - 'frontend/tui-workbench/**'
+      - 'tests/component/simulated_trading/**'
+      - 'tests/support/ash05_*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ash05-owner-goldens-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ordinary-owner:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: ash05_owner_goldens_source_ci
+          POSTGRES_USER: owner_contract
+          POSTGRES_PASSWORD: disposable_ci_only
+        ports: ['5432:5432']
+        options: >-
+          --cpus 1 --memory 512m
+          --health-cmd "pg_isready -U owner_contract -d ash05_owner_goldens_source_ci"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+      redis:
+        image: redis@sha256:8b81dd37ff027bec4e516d41acfbe9fe2460070dc6d4a4570a2ac5b9d59df065
+        ports: ['6379:6379']
+        options: >-
+          --cpus 0.25 --memory 64m
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+    env:
+      DJANGO_SETTINGS_MODULE: core.settings.critical_postgres_test
+      DATABASE_URL: postgresql://owner_contract:disposable_ci_only@127.0.0.1:5432/ash05_owner_goldens_source_ci
+      AGOM_CRITICAL_TEST_DB_NAME: ash05_owner_goldens_test_ci
+      REDIS_URL: redis://127.0.0.1:6379/0
+      ASH05_SQL_BUDGET_DIR: artifacts/ash05-owner-service-20261111/ci-owner-sql
+      ASH05_BROWSER_EVIDENCE_DIR: artifacts/ash05-owner-service-20261111/ci-owner-screenshots
+      ASH05_LIVE_CURRENT_OFFICIAL_WINDOW: '1'
+      ASH05_LIVE_OFFICIAL_EVIDENCE_DIR: artifacts/ash05-owner-service-20261111/ci-owner-official
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+          cache: pip
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install declared dependencies and pinned browser tools
+        run: |
+          python -m pip install -r requirements-dev.txt
+          python -m pip install -e sdk/ 'pytest==8.3.4' 'playwright==1.57.0' 'pytest-playwright==0.7.2'
+          npm ci
+          python -m playwright install --with-deps chromium
+      - name: Build the checked-out TUI runtime
+        run: node scripts/build-tui-runtime.mjs
+      - name: Exercise ordinary owner journeys on isolated migrated PostgreSQL
+        run: >-
+          python -m pytest
+          tests/component/simulated_trading/test_corporate_action_account_refresh_postgres.py
+          tests/component/simulated_trading/test_corporate_action_share_window_model_postgres.py
+          tests/component/simulated_trading/test_corporate_action_cash_coverage_postgres.py
+          tests/component/simulated_trading/test_corporate_action_owner_workflow_http_postgres.py
+          tests/component/simulated_trading/test_corporate_action_owner_workflow_tui_browser.py
+          tests/component/simulated_trading/test_current_official_owner_window_postgres.py
+          --confcutdir=tests/component --create-db -q --tb=short -o addopts=''
+          --junitxml=ash05-owner-goldens.xml
+      - name: Reject missing, failed or skipped golden journeys
+        if: always()
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from xml.etree import ElementTree
+
+          expected = {
+              'test_actual_owner_refresh_advances_three_ledgers_and_can_consent_v3',
+              'test_actual_final_row_drift_rolls_back_all_refresh_heads',
+              'test_actual_foreign_owner_cannot_refresh_any_head',
+              'test_native_full_share_model_original_audit_survives_source_loss_and_withdrawal',
+              'test_native_changed_share_model_rolls_back_ledger_position_and_audit',
+              'test_public_empty_asset_owner_coverage_and_synthetic_unknown_blocks_buy_reservation',
+              'test_native_outer_source_lock_scope_survives_nested_rollback_and_excludes_writers',
+              'test_nonstaff_owner_completes_audited_cash_payment_and_tax_with_exact_retries',
+              'test_unreached_payment_date_and_missing_paid_basis_never_debit_the_owner',
+              'test_nonstaff_owner_records_rights_no_effect_after_confirmed_source_dates',
+              'test_nonstaff_owner_completes_audited_share_entitlement_delivery_and_sellable_release',
+              'test_nonstaff_owner_corrects_paid_cash_as_one_audited_batch_before_tax',
+              'test_nonstaff_owner_corrects_share_entitlement_then_delivers_current_head',
+              'test_nonstaff_owner_completes_cash_payment_and_tax_from_the_tui',
+              'test_nonstaff_owner_completes_share_entitlement_delivery_and_release_from_the_tui',
+              'test_nonstaff_owner_records_rights_no_effect_from_the_tui',
+              'test_prepared_owner_intent_is_blocked_after_tui_withdrawal',
+              'test_current_owner_window_reads_live_complete_empty_official_coverage',
+          }
+          path = Path('ash05-owner-goldens.xml')
+          assert path.is_file(), 'Missing ordinary-owner JUnit original'
+          cases = ElementTree.parse(path).findall('.//testcase')
+          assert cases and all(not any(c.find(tag) is not None for tag in ('failure', 'error', 'skipped')) for c in cases)
+          observed = {(c.get('name') or '').split('[', 1)[0] for c in cases}
+          assert expected <= observed, f'Missing journeys: {sorted(expected-observed)}'
+          print(f'Executed all {len(expected)} mandatory ordinary-owner journeys without skip/failure/error')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ash05-owner-goldens-${{ github.sha }}
+          if-no-files-found: error
+          retention-days: 14
+          path: |
+            ash05-owner-goldens.xml
+            artifacts/ash05-owner-service-20261111/ci-owner-*/**

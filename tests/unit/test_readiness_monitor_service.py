@@ -341,7 +341,7 @@ def _stub_operator_surfaces(monkeypatch) -> None:
                 "version": "2026.07",
                 "schema_version": "tui-metadata.v3",
                 "modules": 12,
-                "screens": 37,
+                "screens": 38,
                 "actions": 180,
                 "default_screen": "command-center.overview",
                 "coverage_summary": {},

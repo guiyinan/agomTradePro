@@ -23,6 +23,12 @@ _SCOPED_ACCOUNT_ACTIONS: frozenset[str] = frozenset(
         "simulated-trading.corporate-action-consent-confirm",
         "simulated-trading.corporate-action-consent-withdraw-prepare",
         "simulated-trading.corporate-action-consent-withdraw",
+        "simulated-trading.corporate-action-workflow-read",
+        "simulated-trading.corporate-action-workflow-events",
+        "simulated-trading.corporate-action-workflow-audit-receipts",
+        "simulated-trading.corporate-action-workflow-prepare",
+        "simulated-trading.corporate-action-workflow-confirm",
+        "simulated-trading.corporate-action-workflow-refresh",
     }
 )
 
@@ -40,7 +46,7 @@ def continuation_public_account_fields(
     continuation_input: Mapping[str, object],
     requested_params: Mapping[str, object] | None,
 ) -> frozenset[str] | None:
-    """Treat only a three-way verified consent account path as public, never its credential.
+    """Treat only a verified owner path as public, never its protected credential.
 
     A public account ID may equal an ordinary grant version. It is not a secret
     preparation token, but must match request, response and continuation exactly
@@ -49,6 +55,7 @@ def continuation_public_account_fields(
     if action_key not in {
         "simulated-trading.corporate-action-consent-prepare",
         "simulated-trading.corporate-action-consent-withdraw-prepare",
+        "simulated-trading.corporate-action-workflow-prepare",
     }:
         return frozenset()
     account_id = payload.get("account_id")

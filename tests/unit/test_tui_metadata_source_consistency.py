@@ -68,9 +68,15 @@ def test_real_tui_sources_have_consistent_published_screen_ownership() -> None:
     runtime_screen_keys = {screen["key"] for screen in runtime["screens"]}
     assert runtime_screen_keys == expected_runtime_screen_keys
     assert len(runtime["screens"]) == len(runtime_screen_keys)
-    assert report.published_screen_count == 12
+    assert report.published_screen_count == 13
     assert report.runtime_screen_count == len(expected_runtime_screen_keys)
-    assert report.published_action_count == 413
+    assert report.published_action_count == len(published["actions"])
+    workflow_keys = {
+        action["key"]
+        for action in published["actions"]
+        if str(action["key"]).startswith("simulated-trading.corporate-action-workflow-")
+    }
+    assert len(workflow_keys) == 6
     assert report.runtime_action_count >= report.published_action_count
 
 
