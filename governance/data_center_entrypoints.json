@@ -26,17 +26,17 @@
       "script": 20,
       "sdk": 57,
       "terminal_tui": 32,
-      "test_evidence": 145,
+      "test_evidence": 146,
       "workflow_step": 11
     },
     "by_status": {
       "active_public": 923,
       "adjacent_operational": 346,
-      "candidate-review": 64,
+      "candidate-review": 65,
       "compatibility": 139,
       "retired_blocked": 0
     },
-    "total": 1472
+    "total": 1473
   },
   "entries": [
     {
@@ -14297,6 +14297,16 @@
       "path": "tests/unit/core/test_cross_app_read_ports.py",
       "status": "active_public",
       "symbol": "test_cross_app_read_ports",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/unit/core/test_runtime_snapshot_evidence_bridge.py:test_runtime_snapshot_evidence_bridge:",
+      "locator": "",
+      "path": "tests/unit/core/test_runtime_snapshot_evidence_bridge.py",
+      "status": "candidate-review",
+      "symbol": "test_runtime_snapshot_evidence_bridge",
       "target": ""
     },
     {
