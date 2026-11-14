@@ -4,6 +4,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
+from types import SimpleNamespace
 from uuid import UUID
 
 import pytest
@@ -94,6 +95,7 @@ class _Verifier:
         self.lease = lease
         self.clock = clock
         self.calls = 0
+        self.replay_probe: object | None = None
         self.advance_to_expiry_on_exit = False
 
     @contextmanager
@@ -103,8 +105,10 @@ class _Verifier:
         *,
         actor_user_id: int,
         using: str,
+        replay_probe: object | None = None,
     ) -> Iterator[TaxAssessmentWriteLease]:
         self.calls += 1
+        self.replay_probe = replay_probe
         assert type(assessment) is CorporateActionTaxAssessment
         assert actor_user_id == assessment.owner_user_id
         assert using == self.database_alias
@@ -120,6 +124,10 @@ class _Writer:
         self.events = events
         self.fail_audit = False
         self.result: TaxAssessmentWriteReceipt | None = None
+
+    def find_exact_replay(self, assessment, *, actor_user_id, audit_scope, as_of):
+        del assessment, actor_user_id, audit_scope, as_of
+        return None
 
     def append_with_audit_outbox(
         self,
@@ -199,6 +207,7 @@ def test_write_requires_owner_tax_scope_and_commits_audit_outbox_with_assessment
     assert receipt.semantic_sha256 == assessment.semantic_sha256
     assert receipt.disposition is TaxAssessmentAppendDisposition.STORED
     assert verifier.calls == 1
+    assert verifier.replay_probe is None
     assert uow.events == [
         "atomic-enter",
         "append-header-allocations-audit-outbox",
@@ -382,3 +391,50 @@ def test_expiry_is_checked_after_final_integrity_recalculation(
 def test_application_tokens_reject_unencodable_utf8() -> None:
     with pytest.raises(BusinessLogicError, match="invalid"):
         application_module._token("\ud800", field_name="test")
+
+
+def test_legacy_scope_signature_remains_usable_without_replay_keyword() -> None:
+    assessment = _assessment()
+    clock = _Clock()
+    uow = _AtomicUnitOfWork()
+    calls = []
+
+    class LegacyScope:
+        database_alias = _ALIAS
+
+        @contextmanager
+        def locked_current_scope(self, value, *, actor_user_id, using):
+            calls.append((value, actor_user_id, using))
+            yield _lease(value)
+
+    use_case = CorporateActionTaxAssessmentUseCase(
+        scope_verifier=LegacyScope(), unit_of_work=uow, clock=clock, using=_ALIAS
+    )
+    receipt = use_case.execute(assessment, actor_user_id=assessment.owner_user_id)
+    assert receipt.disposition is TaxAssessmentAppendDisposition.STORED
+    assert calls == [(assessment, assessment.owner_user_id, _ALIAS)]
+
+
+def test_replay_capability_is_used_only_with_a_distinct_scope_and_probe() -> None:
+    assessment = _assessment()
+    clock = _Clock()
+    uow = _AtomicUnitOfWork()
+
+    class ReplayAwareScope(_Verifier):
+        def locked_current_scope_with_replay(self, value, *, actor_user_id, using, replay_probe):
+            return self.locked_current_scope(
+                value, actor_user_id=actor_user_id, using=using, replay_probe=replay_probe
+            )
+
+    verifier = ReplayAwareScope(_lease(assessment), clock=clock)
+    use_case = CorporateActionTaxAssessmentUseCase(
+        scope_verifier=verifier, unit_of_work=uow, clock=clock, using=_ALIAS
+    )
+    use_case.execute(assessment, actor_user_id=assessment.owner_user_id)
+    assert verifier.replay_probe is uow.writer
+
+    append_only = SimpleNamespace(append_with_audit_outbox=uow.writer.append_with_audit_outbox)
+    uow.writer = append_only
+    verifier.replay_probe = None
+    use_case.execute(assessment, actor_user_id=assessment.owner_user_id)
+    assert verifier.replay_probe is None

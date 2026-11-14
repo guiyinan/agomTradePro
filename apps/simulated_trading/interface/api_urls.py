@@ -9,6 +9,13 @@ from .corporate_action_consent_views import (
     SimulatedActionConsentWithdrawalAPIView,
     SimulatedActionWithdrawalPreparationAPIView,
 )
+from .corporate_action_workflow_views import (
+    OwnerCorporateActionWorkflowConfirmAPIView,
+    OwnerCorporateActionWorkflowEventsAPIView,
+    OwnerCorporateActionWorkflowPrepareAPIView,
+    OwnerCorporateActionWorkflowReadAPIView,
+    OwnerCorporateActionWorkflowRefreshAPIView,
+)
 from .fee_correction_policy_views import FeeCorrectionPolicyAPIView
 from .fee_correction_views import (
     FeeCorrectionAPIView,
@@ -78,6 +85,31 @@ app_name = "simulated_trading_api"
 
 urlpatterns = [
     path(
+        "accounts/<int:account_id>/corporate-actions/events/",
+        OwnerCorporateActionWorkflowEventsAPIView.as_view(),
+        name="corporate-action-workflow-events",
+    ),
+    path(
+        "accounts/<int:account_id>/corporate-actions/prepare/",
+        OwnerCorporateActionWorkflowPrepareAPIView.as_view(),
+        name="corporate-action-workflow-prepare",
+    ),
+    path(
+        "accounts/<int:account_id>/corporate-actions/confirm/",
+        OwnerCorporateActionWorkflowConfirmAPIView.as_view(),
+        name="corporate-action-workflow-confirm",
+    ),
+    path(
+        "accounts/<int:account_id>/corporate-actions/refresh/",
+        OwnerCorporateActionWorkflowRefreshAPIView.as_view(),
+        name="corporate-action-workflow-refresh",
+    ),
+    path(
+        "accounts/<int:account_id>/corporate-actions/",
+        OwnerCorporateActionWorkflowReadAPIView.as_view(),
+        name="corporate-action-workflow-read",
+    ),
+    path(
         "accounts/<int:account_id>/corporate-action-consent/prepare/",
         SimulatedActionConsentPreparationAPIView.as_view(),
         name="corporate-action-consent-prepare",
@@ -139,6 +171,11 @@ urlpatterns = [
                 "module": "simulated-trading",
                 "endpoints": [
                     "/api/simulated-trading/portfolio-comparison/",
+                    "/api/simulated-trading/accounts/{account_id}/corporate-actions/",
+                    "/api/simulated-trading/accounts/{account_id}/corporate-actions/events/",
+                    "/api/simulated-trading/accounts/{account_id}/corporate-actions/prepare/",
+                    "/api/simulated-trading/accounts/{account_id}/corporate-actions/confirm/",
+                    "/api/simulated-trading/accounts/{account_id}/corporate-actions/refresh/",
                     "/api/simulated-trading/accounts/",
                     "/api/simulated-trading/accounts/batch-delete/",
                     "/api/simulated-trading/accounts/{account_id}/",

@@ -652,6 +652,38 @@ def test_commit_deadline_is_rechecked_after_inner_lock_contexts_exit(
     assert connection.autocommit and not connection.in_atomic_block
 
 
+def test_window_deadline_is_rechecked_after_owner_contexts_exit(
+    monkeypatch: pytest.MonkeyPatch,
+    owner_gate_world,
+) -> None:
+    """An otherwise live grant cannot outlast the source window at outer commit."""
+    gate, grant, connection, _, _ = owner_gate_world
+    request = _request(account_id=11, owner_user_id=grant.binding.owner_user_id)
+    started = _AT + timedelta(minutes=1)
+    current_time = [started]
+    monkeypatch.setattr(gate_module.timezone, "now", lambda: current_time[0])
+
+    @contextmanager
+    def expire_window_after_role_recheck(*, user_id: int, using: str) -> Iterator[None]:
+        assert user_id == grant.binding.owner_user_id and using == "default"
+        try:
+            yield
+        finally:
+            current_time[0] = started + timedelta(seconds=11)
+
+    monkeypatch.setattr(
+        gate_module, "locked_simulated_action_trading_eligibility", expire_window_after_role_recheck
+    )
+    with pytest.raises(CorporateActionPostingBlockedError) as captured:
+        with gate.atomic_authority(request):
+            gate.bind_current_window_commit_deadline(
+                checked_at=started,
+                valid_until=started + timedelta(seconds=10),
+            )
+    assert captured.value.code == "CORPORATE_ACTION_CURRENT_OFFICIAL_WINDOW_BLOCKED"
+    assert connection.autocommit and not connection.in_atomic_block
+
+
 def test_owner_audit_event_binds_the_exact_account_grant_for_replay() -> None:
     grant = _grant()
     scope = AuditScopeRef(tenant_id=grant.binding.tenant_id, owner_id=grant.binding.owner_id)

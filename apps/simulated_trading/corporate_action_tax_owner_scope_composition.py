@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
-from contextlib import contextmanager
+from contextlib import AbstractContextManager, contextmanager
 from contextvars import ContextVar, Token
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -41,6 +41,8 @@ from apps.audit.system_audit_runtime_readiness_composition import (
     read_system_audit_runtime_readiness,
 )
 from apps.simulated_trading.application.corporate_action_tax_assessment import (
+    TaxAssessmentExactReplayEvidence,
+    TaxAssessmentExactReplayProbePort,
     TaxAssessmentWriteLease,
 )
 from apps.simulated_trading.application.corporate_action_tax_qualification import (
@@ -314,6 +316,19 @@ class DjangoTaxAssessmentOwnerScopeVerifier(AuditedTaxAssessmentScopeVerifierPor
         active.origin.__post_init__()
         return active.origin
 
+    def locked_current_scope_with_replay(
+        self,
+        assessment: CorporateActionTaxAssessment,
+        *,
+        actor_user_id: int,
+        using: str,
+        replay_probe: TaxAssessmentExactReplayProbePort,
+    ) -> AbstractContextManager[TaxAssessmentWriteLease]:
+        """Enable complete original replay through the explicit optional scope port."""
+        return self.locked_current_scope(
+            assessment, actor_user_id=actor_user_id, using=using, replay_probe=replay_probe
+        )
+
     @contextmanager
     def locked_current_scope(
         self,
@@ -321,6 +336,7 @@ class DjangoTaxAssessmentOwnerScopeVerifier(AuditedTaxAssessmentScopeVerifierPor
         *,
         actor_user_id: int,
         using: str,
+        replay_probe: TaxAssessmentExactReplayProbePort | None = None,
     ) -> Iterator[TaxAssessmentWriteLease]:
         """Hold RBAC, physical/source/policy, current grant and Audit checks in the caller UOW."""
 
@@ -331,6 +347,10 @@ class DjangoTaxAssessmentOwnerScopeVerifier(AuditedTaxAssessmentScopeVerifierPor
             raise _blocked("assessment must use the exact typed Domain contract")
         if type(actor_user_id) is not int or actor_user_id <= 0:
             raise _blocked("an authenticated owner identity is required")
+        if replay_probe is not None and not isinstance(
+            replay_probe, TaxAssessmentExactReplayProbePort
+        ):
+            raise _blocked("an explicit retained-assessment replay reader is required")
         try:
             assessment.verify_integrity()
         except DeferredDividendTaxValidationError as error:
@@ -372,33 +392,69 @@ class DjangoTaxAssessmentOwnerScopeVerifier(AuditedTaxAssessmentScopeVerifierPor
                         expected_grant_schema=self._expected_grant_schema,
                         as_of=entry_now,
                     )
-                    qualification = self._qualification_provider.read_current(
-                        assessment,
-                        canonical_account_id=self._selector.binding.account_id,
-                        environment=self._environment,
-                        using=using,
-                        as_of=entry_now,
+                    audit_scope = AuditScopeRef(
+                        self._selector.binding.tenant_id, self._selector.binding.owner_id
                     )
-                    if type(qualification) is not CurrentTaxAssessmentQualification:
-                        raise _blocked("current qualification result is untyped")
-                    qualification.verify_for(
-                        assessment,
-                        canonical_account_id=self._selector.binding.account_id,
-                        environment=self._environment,
-                        as_of=entry_now,
-                    )
+                    qualification: CurrentTaxAssessmentQualification | None = None
+                    qualification_at: datetime | None = None
+                    replay_evidence: TaxAssessmentExactReplayEvidence | None = None
+                    probe_at = _server_now()
+                    if probe_at < entry_now:
+                        raise _blocked("server clock moved backwards before assessment replay")
+                    if replay_probe is not None:
+                        candidate = replay_probe.find_exact_replay(
+                            assessment,
+                            actor_user_id=actor_user_id,
+                            audit_scope=audit_scope,
+                            as_of=probe_at,
+                        )
+                        if candidate is not None:
+                            if type(candidate) is not TaxAssessmentExactReplayEvidence:
+                                raise _blocked("retained assessment replay evidence is untyped")
+                            if candidate.official_window_proof is not None:
+                                candidate.verify_for(
+                                    assessment,
+                                    audit_scope=audit_scope,
+                                    canonical_account_id=self._selector.binding.account_id,
+                                    environment=self._environment,
+                                    as_of=probe_at,
+                                )
+                                replay_evidence = candidate
+                    if replay_evidence is None:
+                        qualification_at = _server_now()
+                        if qualification_at < probe_at:
+                            raise _blocked("server clock moved backwards before qualification")
+                        qualification = self._qualification_provider.read_current(
+                            assessment,
+                            canonical_account_id=self._selector.binding.account_id,
+                            environment=self._environment,
+                            using=using,
+                            as_of=qualification_at,
+                        )
+                        if type(qualification) is not CurrentTaxAssessmentQualification:
+                            raise _blocked("current qualification result is untyped")
+                        qualification.verify_for(
+                            assessment,
+                            canonical_account_id=self._selector.binding.account_id,
+                            environment=self._environment,
+                            as_of=qualification_at,
+                        )
                     audit_now = _server_now()
-                    if audit_now < entry_now:
-                        raise _blocked("server clock moved backwards during tax qualification")
+                    last_entry_read = probe_at if qualification_at is None else qualification_at
+                    if audit_now < last_entry_read:
+                        raise _blocked("server clock moved backwards during tax scope checks")
                     audit_lease = _require_audit_lease(
                         environment=self._environment, using=using, as_of=audit_now
                     )
-                    deadlines = (
+                    deadlines = [
                         _utc(locked_scope.valid_until, field_name="locked scope valid_until"),
                         _utc(grant.valid_until, field_name="grant valid_until"),
-                        _utc(qualification.valid_until, field_name="qualification valid_until"),
                         _utc(audit_lease.valid_until, field_name="Audit valid_until"),
-                    )
+                    ]
+                    if qualification is not None:
+                        deadlines.append(
+                            _utc(qualification.valid_until, field_name="qualification valid_until")
+                        )
                     fixed_deadline = min(deadlines)
                     if fixed_deadline <= audit_now:
                         raise _blocked(
@@ -413,13 +469,22 @@ class DjangoTaxAssessmentOwnerScopeVerifier(AuditedTaxAssessmentScopeVerifierPor
                         valid_until=fixed_deadline,
                         as_of=audit_now,
                     )
+                    if qualification is not None:
+                        selected_window_proof = qualification.official_window_proof
+                    elif replay_evidence is not None:
+                        selected_window_proof = replay_evidence.official_window_proof
+                    else:
+                        raise _blocked(
+                            "assessment has neither current nor retained window evidence"
+                        )
                     origin = TaxAssessmentAuditOrigin(
                         lease=lease,
-                        scope=AuditScopeRef(
-                            self._selector.binding.tenant_id, self._selector.binding.owner_id
-                        ),
+                        scope=audit_scope,
                         grant_content_sha256=grant.content_hash,
                         write_policy=AuditWritePolicy.TRANSACTIONAL_OUTBOX,
+                        official_window_proof=selected_window_proof,
+                        write_mode=("append" if replay_evidence is None else "exact_retry_only"),
+                        replay_evidence=replay_evidence,
                     )
                     origin.__post_init__()
                     token: Token[_ActiveAuditOrigin | None] = _ACTIVE_AUDIT_ORIGIN.set(
@@ -433,23 +498,50 @@ class DjangoTaxAssessmentOwnerScopeVerifier(AuditedTaxAssessmentScopeVerifierPor
         final_qualification_at = _server_now()
         if final_qualification_at < audit_now:
             raise _blocked("server clock moved backwards before final tax qualification")
-        current_qualification = self._qualification_provider.read_current(
-            assessment,
-            canonical_account_id=self._selector.binding.account_id,
-            environment=self._environment,
-            using=using,
-            as_of=final_qualification_at,
-        )
-        if type(current_qualification) is not CurrentTaxAssessmentQualification:
-            raise _blocked("final current qualification result is untyped")
-        current_qualification.verify_for(
-            assessment,
-            canonical_account_id=self._selector.binding.account_id,
-            environment=self._environment,
-            as_of=final_qualification_at,
-        )
-        if current_qualification != qualification:
-            raise _blocked("current tax qualification changed before transaction exit")
+        if replay_evidence is None:
+            if qualification is None:
+                raise _blocked("new assessment has no current qualification")
+            current_qualification = self._qualification_provider.read_current(
+                assessment,
+                canonical_account_id=self._selector.binding.account_id,
+                environment=self._environment,
+                using=using,
+                as_of=final_qualification_at,
+            )
+            if type(current_qualification) is not CurrentTaxAssessmentQualification:
+                raise _blocked("final current qualification result is untyped")
+            current_qualification.verify_for(
+                assessment,
+                canonical_account_id=self._selector.binding.account_id,
+                environment=self._environment,
+                as_of=final_qualification_at,
+            )
+            if current_qualification != qualification:
+                raise _blocked("current tax qualification changed before transaction exit")
+        else:
+            if replay_probe is None:
+                raise _blocked("exact assessment retry has no retained replay reader")
+            current_replay = replay_probe.find_exact_replay(
+                assessment,
+                actor_user_id=actor_user_id,
+                audit_scope=AuditScopeRef(
+                    self._selector.binding.tenant_id, self._selector.binding.owner_id
+                ),
+                as_of=final_qualification_at,
+            )
+            if type(current_replay) is not TaxAssessmentExactReplayEvidence:
+                raise _blocked("original assessment replay disappeared before transaction exit")
+            current_replay.verify_for(
+                assessment,
+                audit_scope=AuditScopeRef(
+                    self._selector.binding.tenant_id, self._selector.binding.owner_id
+                ),
+                canonical_account_id=self._selector.binding.account_id,
+                environment=self._environment,
+                as_of=final_qualification_at,
+            )
+            if current_replay != replay_evidence:
+                raise _blocked("original assessment replay changed before transaction exit")
 
         with locked_current_simulated_corporate_action_write_grant(
             selector=self._selector,

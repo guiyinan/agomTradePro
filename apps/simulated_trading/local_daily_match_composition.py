@@ -171,6 +171,10 @@ def build_apply_local_daily_match_with_calendar(
             code="LOCAL_DAILY_MATCH_ALIAS_MISMATCH",
         )
     event_reader = DjangoLocalDailyMatchEventReader(using=using)
+    from apps.simulated_trading.corporate_action_tax_cash_coverage_composition import (
+        DjangoCorporateActionTaxCashCoverageReader,
+    )
+
     return ApplySimulatedOrderFillUseCase(
         repository=DjangoSimulatedOrderFillRepository(
             using=using,
@@ -181,6 +185,9 @@ def build_apply_local_daily_match_with_calendar(
                 calendar_reader=calendar_reader,
             ),
             current_calendar_reader=calendar_reader,
+            tax_cash_coverage_reader=DjangoCorporateActionTaxCashCoverageReader(
+                runtime_environment=runtime_environment, using=using
+            ),
         ),
         clock=clock,
         source_binding=LocalSimulatedFillSourceBinding(

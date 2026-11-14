@@ -15,11 +15,13 @@ from apps.config_center.domain.runtime_config import (
     RuntimeConfigSnapshot,
     RuntimeProfileStatus,
 )
+from apps.simulated_trading import transition_plan_disclosure_runtime_policy as policy_module
 from apps.simulated_trading.transition_plan_disclosure_runtime_policy import (
     DISCLOSURE_COVERAGE_POLICY_KEY,
     ConfiguredTransitionPlanDisclosureRuntimePolicyReader,
     RuntimeDisclosurePolicyEvidence,
 )
+from core.integration.config_center_runtime import ActiveRuntimeSnapshotEvidence
 
 AS_OF = datetime(2026, 11, 11, 12, 0, tzinfo=UTC)
 DECISION_ON = date(2026, 11, 11)
@@ -398,3 +400,60 @@ def test_policy_reader_construction_does_not_read_config_center() -> None:
 
     assert reader
     assert stub.requests == []
+
+
+def test_default_policy_uses_one_full_owner_bundle_at_each_actual_cutoff(monkeypatch) -> None:
+    """Use one fresh owner read operation rather than recursively reopening scalar facades."""
+    profile, snapshot = _runtime_pair(_policy_payload())
+    bundle = ActiveRuntimeSnapshotEvidence(
+        environment="development",
+        definition_keys=(DISCLOSURE_COVERAGE_POLICY_KEY,),
+        profile=profile,
+        snapshot=snapshot,
+        as_of=AS_OF,
+    )
+    calls = []
+
+    def read(**kwargs):
+        calls.append(kwargs)
+        return bundle
+
+    monkeypatch.setattr(policy_module, "get_active_runtime_snapshot_evidence", read)
+    reader = ConfiguredTransitionPlanDisclosureRuntimePolicyReader(
+        runtime_environment="development"
+    )
+    result = reader.read_policy(
+        decision_on=DECISION_ON,
+        earliest_required_on=EARLIEST_REQUIRED_ON,
+        as_of=AS_OF,
+    )
+    assert result is not None
+    assert result.profile_id == profile.profile_id
+    assert result.snapshot_id == snapshot.snapshot_id
+    assert calls == [
+        {
+            "environment": "development",
+            "definition_keys": (DISCLOSURE_COVERAGE_POLICY_KEY,),
+            "as_of": AS_OF,
+        }
+    ]
+
+
+def test_missing_current_owner_bundle_has_no_scalar_or_previous_policy_fallback(
+    monkeypatch,
+) -> None:
+    """An unavailable full bundle cannot qualify a configured-looking legacy value."""
+    monkeypatch.setattr(
+        policy_module, "get_active_runtime_snapshot_evidence", lambda **kwargs: None
+    )
+    reader = ConfiguredTransitionPlanDisclosureRuntimePolicyReader(
+        runtime_environment="development"
+    )
+    assert (
+        reader.read_policy(
+            decision_on=DECISION_ON,
+            earliest_required_on=EARLIEST_REQUIRED_ON,
+            as_of=AS_OF,
+        )
+        is None
+    )

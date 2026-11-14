@@ -20,6 +20,13 @@ from apps.data_center.infrastructure.official_szse_pdf_capture import (
 )
 
 
+def security_disclosure_window_pdf_store_root(body_store_root: Path) -> Path:
+    """Resolve the Data Center-owned PDF subdirectory of an official window capture."""
+    if not isinstance(body_store_root, Path):
+        raise OfficialDisclosureCaptureError("window store root must be an explicit Path")
+    return body_store_root / "pdf"
+
+
 def _read_original_capture(
     event: SecurityDisclosureEvent,
     *,

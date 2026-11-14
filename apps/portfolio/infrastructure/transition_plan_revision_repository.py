@@ -28,7 +28,6 @@ from apps.portfolio.application.transition_plan_lifecycle import (
     derive_transition_plan_review_artifact_identity,
     require_transition_plan_event_review_clear,
 )
-from apps.portfolio.domain.transition_plan_event_review import has_transition_plan_event_bindings
 from apps.portfolio.domain.transition_plan_integrity import (
     canonical_transition_plan_payload_v1,
     transition_plan_content_hash_v1,
@@ -302,29 +301,28 @@ class DjangoTransitionPlanRevisionRepository:
                     plan_version=revision.identity.version,
                 )
             )
-            if row.status == "APPROVAL_PENDING":
-                if row.approval_request_id != review_subject_id:
-                    raise TransitionPlanRevisionConflict("review request has another first winner")
-                return current
-            if row.status not in {"DRAFT", "READY_FOR_APPROVAL"}:
+            pending_retry = row.status == "APPROVAL_PENDING"
+            if pending_retry and row.approval_request_id != review_subject_id:
+                raise TransitionPlanRevisionConflict("review request has another first winner")
+            if not pending_retry and row.status not in {"DRAFT", "READY_FOR_APPROVAL"}:
                 raise TransitionPlanRevisionConflict("plan status cannot enter staff review")
-            decision_at = requested_at
-            if has_transition_plan_event_bindings(current.basis.source_bindings):
-                decision_at = self.now()
-                if decision_at < requested_at:
-                    raise TransitionPlanRevisionBlocked(
-                        "review persistence clock preceded its validated request"
-                    )
-                require_transition_plan_event_review_clear(
-                    current,
-                    as_of=decision_at,
-                    validator=self._event_review_validator,
+            decision_at = self.now()
+            if decision_at < requested_at:
+                raise TransitionPlanRevisionBlocked(
+                    "review persistence clock preceded its validated request"
                 )
+            require_transition_plan_event_review_clear(
+                current,
+                as_of=decision_at,
+                validator=self._event_review_validator,
+            )
             if row.expires_at is None or row.expires_at <= decision_at:
                 raise BusinessLogicError(
                     message="expired plan revisions cannot enter staff review",
                     code="TRANSITION_PLAN_REVISION_EXPIRED",
                 )
+            if pending_retry:
+                return current
             row.status = "APPROVAL_PENDING"
             row.approval_request_id = review_subject_id
             row.save(update_fields=["status", "approval_request_id", "updated_at"])
@@ -334,10 +332,8 @@ class DjangoTransitionPlanRevisionRepository:
             return refreshed
 
     def _require_event_lease_before_insert(self, revision: TransitionPlanRevision) -> None:
-        """Reject an event-bound plan whose proof changes or expires before its insert."""
+        """Reject a plan whose current event evidence is missing, changed, or expired."""
 
-        if not has_transition_plan_event_bindings(revision.basis.source_bindings):
-            return
         write_at = self.now()
         if write_at < revision.identity.recorded_at or write_at >= revision.identity.valid_until:
             raise TransitionPlanRevisionBlocked(

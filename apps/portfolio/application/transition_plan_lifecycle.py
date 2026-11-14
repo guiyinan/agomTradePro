@@ -14,7 +14,6 @@ from apps.portfolio.application.transition_plan_event_review import (
 from apps.portfolio.domain.transition_plan_event_review import (
     TransitionPlanEventReviewAssessment,
     TransitionPlanEventReviewState,
-    has_transition_plan_event_bindings,
 )
 from apps.portfolio.domain.transition_plan_revision import (
     ObservationPrecision,
@@ -574,13 +573,11 @@ def require_transition_plan_event_review_clear(
     as_of: datetime,
     validator: TransitionPlanEventReviewValidator | None,
 ) -> None:
-    """Fail closed for explicitly event-bound plans before review or reservation proceeds."""
+    """Require the current event policy to assess every plan before review or reservation."""
 
-    if not has_transition_plan_event_bindings(revision.basis.source_bindings):
-        return
     if validator is None:
         raise TransitionPlanRevisionBlocked(
-            "event-sensitive plan cannot be revalidated because its source reader is unavailable",
+            "plan cannot be revalidated because its current event policy reader is unavailable",
             code="TRANSITION_PLAN_EVENT_REVIEW_UNAVAILABLE",
         )
     assessment = validator.assess(revision, as_of=as_of)

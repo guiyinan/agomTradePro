@@ -6,7 +6,9 @@ from django.db import DatabaseError
 from django.utils.connection import ConnectionDoesNotExist
 
 from apps.audit.application.retained_system_audit_pair import RetainedSystemAuditPair
+from apps.audit.application.system_audit_composition import SystemAuditCompositionUnavailable
 from apps.audit.application.system_audit_event_outbox import (
+    SystemAuditEventOutboxConflict,
     SystemAuditEventOutboxCorruption,
     SystemAuditEventOutboxUnavailable,
 )
@@ -29,6 +31,21 @@ from apps.audit.infrastructure.system_audit_repository import (
 )
 
 _MAX_RETAINED_STREAM_PREFIX = 10_000
+
+# Consumers can preserve an already committed receipt when an independent
+# historical read fails, without importing Audit persistence implementations.
+RETAINED_SYSTEM_AUDIT_READ_FAILURES: tuple[type[Exception], ...] = (
+    SystemAuditCompositionUnavailable,
+    SystemAuditEventOutboxConflict,
+    SystemAuditEventOutboxCorruption,
+    SystemAuditEventOutboxUnavailable,
+    SystemAuditConflict,
+    SystemAuditCorruption,
+    SystemAuditUnavailable,
+    SystemAuditOutboxConflict,
+    SystemAuditOutboxCorruption,
+    SystemAuditOutboxUnavailable,
+)
 
 
 def _verify_original_stream_prefix(
@@ -149,4 +166,4 @@ def read_retained_system_audit_pair(
         raise SystemAuditEventOutboxUnavailable("retained pair storage is unavailable") from error
 
 
-__all__ = ("read_retained_system_audit_pair",)
+__all__ = ("RETAINED_SYSTEM_AUDIT_READ_FAILURES", "read_retained_system_audit_pair")

@@ -8783,7 +8783,9 @@
         "apps/config_center/application/runtime_config.py",
         "apps/config_center/application/runtime_public.py",
         "apps/config_center/infrastructure/runtime_config_repositories.py",
-        "core/integration/system_audit_runtime_config.py"
+        "core/integration/system_audit_runtime_config.py",
+        "apps/config_center/application/runtime_snapshot_evidence.py",
+        "core/integration/config_center_runtime.py"
       ],
       "required_markers": {
         "apps/config_center/domain/runtime_config.py": [
@@ -8817,6 +8819,17 @@
         "core/integration/system_audit_runtime_config.py": [
           "hash_public_runtime_projection(snapshot.resolved_values)",
           "snapshot_hash_mismatch"
+        ],
+        "apps/config_center/application/runtime_snapshot_evidence.py": [
+          "def read_active_runtime_snapshot_evidence(",
+          "verify_runtime_profile_values(profile, values)",
+          "hash_public_runtime_projection(snapshot_values)",
+          "not _same_read(first, final)"
+        ],
+        "core/integration/config_center_runtime.py": [
+          "class ActiveRuntimeSnapshotEvidence:",
+          "self.profile.status != \"active\"",
+          "class RuntimeSnapshotEvidenceReadPort(Protocol):"
         ]
       },
       "required_tests": [
@@ -8929,6 +8942,26 @@
           "case": "omitted_and_none_cutoff_keep_legacy_behavior",
           "test_file": "tests/unit/config_center/test_runtime_public.py",
           "test_function": "test_legacy_runtime_getter_and_explicit_none_keep_current_semantics"
+        },
+        {
+          "case": "bundled_read_binds_separate_full_public_hashes",
+          "test_file": "tests/unit/config_center/test_runtime_snapshot_evidence.py",
+          "test_function": "test_snapshot_evidence_binds_full_profile_and_public_snapshot_without_secrets"
+        },
+        {
+          "case": "bundled_read_rejects_same_value_successor",
+          "test_file": "tests/unit/config_center/test_runtime_snapshot_evidence.py",
+          "test_function": "test_same_value_successor_is_not_silently_accepted"
+        },
+        {
+          "case": "bundled_read_rejects_same_identity_value_row_drift",
+          "test_file": "tests/unit/config_center/test_runtime_snapshot_evidence.py",
+          "test_function": "test_same_profile_id_value_row_drift_fails_the_full_content_hash"
+        },
+        {
+          "case": "bundled_read_remains_fresh_and_detached",
+          "test_file": "tests/unit/config_center/test_runtime_snapshot_evidence.py",
+          "test_function": "test_snapshot_evidence_is_fresh_on_every_call_and_detaches_mutable_values"
         }
       ]
     },
@@ -11266,7 +11299,7 @@
         ],
         "apps/simulated_trading/infrastructure/order_reservation_repository_support.py": [
           "def build_locked_tax_aware_reservation_book(",
-          "tax_cash_unavailable = None",
+          "tax_cash_unavailable: Decimal | None = None",
           "tax_cash_unavailable=tax_cash_unavailable"
         ],
         "apps/simulated_trading/domain/order_reservation.py": [
@@ -13387,7 +13420,7 @@
         ],
         "apps/simulated_trading/infrastructure/order_reservation_repository_support.py": [
           "def build_locked_tax_aware_reservation_book(",
-          "tax_cash_unavailable = None",
+          "tax_cash_unavailable: Decimal | None = None",
           "tax_cash_unavailable=tax_cash_unavailable"
         ],
         "apps/simulated_trading/domain/order_reservation.py": [
@@ -14825,7 +14858,10 @@
       "surface": "Rebuilt simulated assessment identity and independent finite Owner TAX_ASSESS fence",
       "source_files": [
         "apps/simulated_trading/corporate_action_tax_qualification_composition.py",
-        "apps/simulated_trading/corporate_action_tax_owner_scope_composition.py"
+        "apps/simulated_trading/corporate_action_tax_owner_scope_composition.py",
+        "apps/simulated_trading/application/corporate_action_tax_assessment.py",
+        "apps/simulated_trading/audited_corporate_action_tax_assessment_composition.py",
+        "apps/simulated_trading/infrastructure/corporate_action_tax_assessment_repository.py"
       ],
       "required_markers": {
         "apps/simulated_trading/corporate_action_tax_qualification_composition.py": [
@@ -14840,6 +14876,22 @@
           "_ACTIVE_AUDIT_ORIGIN",
           "expected_grant_schema=self._expected_grant_schema",
           "SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_PERMISSION"
+        ],
+        "apps/simulated_trading/application/corporate_action_tax_assessment.py": [
+          "class ReplayAwareTaxAssessmentScopeVerifierPort",
+          "locked_current_scope_with_replay",
+          "class TaxAssessmentExactReplayEvidence"
+        ],
+        "apps/simulated_trading/audited_corporate_action_tax_assessment_composition.py": [
+          "write_mode == \"exact_retry_only\"",
+          "read_locked_assessment_lineage(assessment)",
+          "sequence_no=sequence_no",
+          "audit_head != previous"
+        ],
+        "apps/simulated_trading/infrastructure/corporate_action_tax_assessment_repository.py": [
+          "def read_locked_assessment_lineage(",
+          "self.verify_retained_integrity(row)",
+          "len(visited) != len(rows)"
         ]
       },
       "required_tests": [
@@ -14872,9 +14924,29 @@
           "case": "no_implicit_v3_or_tax_power",
           "test_file": "tests/unit/simulated_trading/test_corporate_action_tax_owner_scope.py",
           "test_function": "test_owner_tax_assessment_does_not_infer_v3_selection_or_tax_capability"
+        },
+        {
+          "case": "historical_exact_pair_keeps_live_authority",
+          "test_file": "tests/unit/simulated_trading/test_corporate_action_tax_owner_scope.py",
+          "test_function": "test_complete_exact_replay_skips_current_qualification_but_rechecks_live_authority"
+        },
+        {
+          "case": "revoked_grant_or_changed_original_blocks_retry",
+          "test_file": "tests/unit/simulated_trading/test_corporate_action_tax_owner_scope.py",
+          "test_function": "test_exact_replay_rechecks_original_evidence_and_current_grant_on_exit"
+        },
+        {
+          "case": "all_original_audit_links_required",
+          "test_file": "tests/unit/simulated_trading/test_corporate_action_tax_assessment_replay.py",
+          "test_function": "test_exact_retry_requires_every_original_audit_link"
+        },
+        {
+          "case": "damaged_earlier_header_blocks_semantic_change",
+          "test_file": "tests/unit/simulated_trading/test_tax_assessment_replay_lineage.py",
+          "test_function": "test_damaged_non_head_predecessor_blocks_even_when_head_semantic_differs"
         }
       ],
-      "notes": "No fallback qualifier or real custody proof. Exact current source/body/policy/instrument/history reconstruction and same-alias outer PostgreSQL UOW; qualification and Owner permission are distinct. Origin is usable only inside the concrete locked verifier. Nonfinancial assessment only; financial withholding remains a separate explicit capability and journal contract. The server may explicitly select V3; default remains V2. Matching schema-specific policy/permission/current grant/terms and explicit TAX_ASSESS are required at the same locked boundary. V1 remains denied and V3 share consent alone is not tax consent."
+      "notes": "No fallback qualifier or real custody proof. Exact current source/body/policy/instrument/history reconstruction and same-alias outer PostgreSQL UOW; qualification and Owner permission are distinct. Origin is usable only inside the concrete locked verifier. Nonfinancial assessment only; financial withholding remains a separate explicit capability and journal contract. The server may explicitly select V3; default remains V2. Matching schema-specific policy/permission/current grant/terms and explicit TAX_ASSESS are required at the same locked boundary. V1 remains denied and V3 share consent alone is not tax consent. Exact retries may reuse the original finite official-window proof solely after full locked retained ledger/Audit/Outbox lineage verification. They use an explicit read-only mode that cannot append. Current owner/role/grant/global Audit and final-clock fences remain; missing legacy proof requires the ordinary current qualifier. Original proof and lease bytes are not refreshed. Distinct optional scope capability preserves legacy adapters without catching implementation TypeError."
     },
     {
       "id": "simulated_trading.current_owner_tax_liability",
@@ -15020,12 +15092,11 @@
         "apps/simulated_trading/application/corporate_action_current_official_window_contracts.py",
         "apps/simulated_trading/corporate_action_current_official_window_composition.py",
         "apps/simulated_trading/corporate_action_original_body_composition.py",
-        "apps/data_center/security_disclosure_body_composition.py"
+        "apps/data_center/security_disclosure_body_composition.py",
+        "apps/simulated_trading/application/corporate_action_official_window_evidence.py"
       ],
       "required_markers": {
         "apps/simulated_trading/application/corporate_action_current_official_window.py": [
-          "must_not_use_for_decision: Literal[True] = True",
-          "window_evidence_only",
           "verify_original_bodies=False",
           "body_completed_at",
           "freshness_status",
@@ -15035,6 +15106,10 @@
           "record.recorded_at != event.known_at",
           "original.content_hash != event.manifest_sha256",
           "verify_security_disclosure_original_body("
+        ],
+        "apps/simulated_trading/application/corporate_action_official_window_evidence.py": [
+          "must_not_use_for_decision: Literal[True] = True",
+          "window_evidence_only"
         ]
       },
       "required_tests": [
@@ -15065,6 +15140,216 @@
         }
       ],
       "notes": "Uses the existing explicitly configured disclosure policy and immutable zero-origin calendar. Expiry derives from original final listing verification plus the existing configured bounded TTL, never read/request time. Every member must be known and classified; partial/unknown windows block. Two full original-body passes are followed by a completion clock, one bounded metadata-only policy/snapshot reread, and a final completion clock. New revisions, policy/calendar changes, expiry/day rollover/backwards clocks block. Application owns a policy-evidence contract; composition copies existing canonical configured fields without new defaults. Public Data Center original-body services reopen retained bytes only, preserve original clocks and bind exact durable record/category/manifest/identity. No network or recapture, no financial authority, no tax applicability or legal qualification. Real official current windows, locked financial audit binding and ordinary-user journeys remain separate acceptance obligations."
+    },
+    {
+      "id": "simulated_trading.owner_corporate_action_workflow",
+      "surface": "Ordinary owner retained-event discovery, sealed preparation, explicit financial confirmation and independent original receipt readback",
+      "source_files": [
+        "apps/simulated_trading/corporate_action_owner_workflow_composition.py",
+        "apps/simulated_trading/corporate_action_owner_workflow_readback.py",
+        "apps/simulated_trading/corporate_action_owner_revision_composition.py",
+        "apps/simulated_trading/application/corporate_action_owner_revision_preview.py",
+        "apps/simulated_trading/corporate_action_owner_event_history_composition.py",
+        "apps/simulated_trading/application/corporate_action_owner_posting_read.py"
+      ],
+      "required_markers": {
+        "apps/simulated_trading/corporate_action_owner_workflow_composition.py": [
+          "def read_owner_corporate_action_events(",
+          "read_owner_workflow_source_payload(account)",
+          "prepared.source_reference.source_observed_at.isoformat()",
+          "restore_owner_corporate_action_intent",
+          "correction_mode == \"correct_existing\"",
+          "revision_preview.prepared_batch.requests != prepared.requests",
+          "canonical_account_id=account.source.account_id"
+        ],
+        "apps/simulated_trading/corporate_action_owner_workflow_readback.py": [
+          "\"freshness_status\": \"not_qualified\"",
+          "\"must_not_use_for_decision\": True",
+          "event.first_seen_at.isoformat()",
+          "CORPORATE_ACTION_BALANCE_READBACK_PENDING"
+        ],
+        "apps/simulated_trading/corporate_action_owner_revision_composition.py": [
+          "def prepare_owner_official_corporate_action_revision(",
+          "proof.ownership_snapshot_observed_at != as_of",
+          "CORPORATE_ACTION_OWNER_TAX_REVISION_UNSUPPORTED"
+        ],
+        "apps/simulated_trading/application/corporate_action_owner_revision_preview.py": [
+          "class OwnerCorporateActionRevisionPreview:",
+          "row.signed_delta != _inverse(target.delta)",
+          "_active_entries"
+        ],
+        "apps/simulated_trading/corporate_action_owner_event_history_composition.py": [
+          "read_locked_owner_corporate_action_revision_history(",
+          "retained_head_revision_id != source_revision_id",
+          "read_owner_corporate_action_revision_head("
+        ],
+        "apps/simulated_trading/application/corporate_action_owner_posting_read.py": [
+          "class OwnerCorporateActionActivePostingHead:",
+          "entry.delta != calculate_corporate_action_delta(request)"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "discovery_keeps_unknown_balances_and_source_clock",
+          "test_file": "tests/unit/simulated_trading/test_corporate_action_owner_source_discovery.py",
+          "test_function": "test_discovery_preserves_original_source_clock_and_unknown_balances"
+        },
+        {
+          "case": "preparation_expiry_after_source_io",
+          "test_file": "tests/unit/simulated_trading/test_corporate_action_owner_workflow_composition.py",
+          "test_function": "test_prepare_blocks_when_clock_expires_during_original_source_reads"
+        },
+        {
+          "case": "original_intent_financial_gate_replay",
+          "test_file": "tests/unit/simulated_trading/test_corporate_action_owner_workflow_composition.py",
+          "test_function": "test_confirm_preserves_exact_original_intent_and_leaves_replay_to_financial_gate"
+        },
+        {
+          "case": "owner_checked_before_disclosure",
+          "test_file": "tests/unit/simulated_trading/test_corporate_action_owner_workflow_composition.py",
+          "test_function": "test_confirm_denied_physical_owner_never_opens_token_or_financial_path"
+        },
+        {
+          "case": "explicit_full_batch_not_ordinary_fallback",
+          "test_file": "tests/unit/simulated_trading/test_corporate_action_owner_workflow_composition.py",
+          "test_function": "test_explicit_correction_seals_the_complete_previewed_batch"
+        },
+        {
+          "case": "original_source_still_needs_explicit_correction",
+          "test_file": "tests/unit/simulated_trading/test_corporate_action_owner_event_history_composition.py",
+          "test_function": "test_new_current_source_without_matching_ledger_head_requires_explicit_correction"
+        },
+        {
+          "case": "reconstructed_preview_checks_original_inverse",
+          "test_file": "tests/unit/simulated_trading/test_corporate_action_owner_revision_preview.py",
+          "test_function": "test_preview_rejects_a_replaced_reversal_row_with_a_finite_but_wrong_delta"
+        },
+        {
+          "case": "active_head_canonical_delta",
+          "test_file": "tests/unit/simulated_trading/test_corporate_action_owner_event_history_composition.py",
+          "test_function": "test_active_head_dto_rejects_changed_delta_with_unchanged_request"
+        }
+      ],
+      "notes": "Retained choices and successful transport are not source completeness, usable balances or authority. Discovery preserves unknowns and original clocks. Explicit refresh is separate; sealed server facts bind exact owner/session/source/policy/time. Confirmation delegates fresh permission and exact replay to the financial writer. Minimal committed acknowledgement avoids treating optional postcommit readback as rollback. No real-account, production-source or tax/legal qualification is implied. Source correction is a separate explicit preparation mode: the complete inverse-and-successor preview must exactly equal the sealed batch and retain original active entries to validate all five deltas. No automatic correction fallback. Ordinary continuation after correction requires complete same-account Audit/Outbox and Domain replay, exact canonical owner and current disclosed head. A newer source still blocks until explicitly corrected. Ownership proofs must match the trusted preparation cutoff without retimestamping observations. Existing modern tax journals keep correction/refund unsupported and blocked. Unit registration does not constitute native/browser or production qualification."
+    },
+    {
+      "id": "simulated_trading.corporate_action_current_raw_nav_mark",
+      "surface": "Explicitly configured current raw daily close proof for simulated corporate-action NAV",
+      "source_files": [
+        "apps/simulated_trading/application/corporate_action_nav_mark.py",
+        "apps/simulated_trading/infrastructure/corporate_action_nav_mark_reader.py"
+      ],
+      "required_markers": {
+        "apps/simulated_trading/application/corporate_action_nav_mark.py": [
+          "source_observed_at",
+          "must_not_use_for_decision: Literal[True] = True",
+          "self.valid_until != expected_deadline"
+        ],
+        "apps/simulated_trading/infrastructure/corporate_action_nav_mark_reader.py": [
+          "if not self._same_selected_evidence(first, final):",
+          "if checked_at >= deadline:",
+          "final.classification.validate_at(as_of=checked_at)"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "raw_close_original_unknown_vendor_clock",
+          "test_file": "tests/unit/simulated_trading/test_corporate_action_nav_mark_reader.py",
+          "test_function": "test_reader_returns_exact_raw_close_and_preserves_unknown_source_observation"
+        },
+        {
+          "case": "final_source_io_expiry",
+          "test_file": "tests/unit/simulated_trading/test_corporate_action_nav_mark_reader.py",
+          "test_function": "test_reader_rejects_expiry_that_occurs_during_final_source_io"
+        },
+        {
+          "case": "current_publication_change",
+          "test_file": "tests/unit/simulated_trading/test_corporate_action_nav_mark_reader.py",
+          "test_function": "test_reader_rejects_changed_current_price_publication_on_final_read"
+        },
+        {
+          "case": "old_session_not_current",
+          "test_file": "tests/unit/simulated_trading/test_corporate_action_nav_mark_reader.py",
+          "test_function": "test_retained_proof_rejects_old_session_when_later_session_has_closed"
+        }
+      ],
+      "notes": "Raw daily close is restricted to explicit price basis, currency, exact security classification, configured policy, current calendar and original published evidence. Double reads and final completion clock bind one finite original session deadline. Unknown vendor observation stays null. This mark alone does not prove account NAV, complete rights/tax exposure, spendability or trading permission; no legacy position price fallback."
+    },
+    {
+      "id": "simulated_trading.corporate_action_tax_cash_coverage",
+      "surface": "Locked owner cash admission coverage and independent entitlement witness",
+      "source_files": [
+        "apps/simulated_trading/application/corporate_action_tax_cash_coverage.py",
+        "apps/simulated_trading/corporate_action_tax_cash_coverage_composition.py",
+        "apps/simulated_trading/infrastructure/corporate_action_ownership_history_repository.py"
+      ],
+      "required_markers": {
+        "apps/simulated_trading/application/corporate_action_tax_cash_coverage.py": [
+          "UNKNOWN = \"unknown\"",
+          "if self.coverage_status is not TaxCashCoverageStatus.COMPLETE:",
+          "must_not_use_for_decision: Literal[True] = True"
+        ],
+        "apps/simulated_trading/corporate_action_tax_cash_coverage_composition.py": [
+          "class DjangoCorporateActionTaxCashCoverageReader",
+          "source.valid_until",
+          "read_current_entitlement_coverage",
+          "_classification_source_identity(",
+          "origin_at = ownership.read_verified_zero_origin_at(",
+          "classification_deadline"
+        ],
+        "apps/simulated_trading/infrastructure/corporate_action_ownership_history_repository.py": [
+          "def read_verified_zero_origin_at(",
+          "_anchor_matches_account(existing=anchor, account=account)"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "zero_debt_not_complete_history",
+          "test_file": "tests/unit/simulated_trading/test_corporate_action_tax_cash_coverage_composition.py",
+          "test_function": "test_zero_accepted_debt_requires_independent_event_history_coverage"
+        },
+        {
+          "case": "source_epoch_changed",
+          "test_file": "tests/unit/simulated_trading/test_corporate_action_tax_cash_coverage_composition.py",
+          "test_function": "test_final_source_epoch_change_blocks_even_with_same_debt"
+        },
+        {
+          "case": "source_io_cannot_renew_deadline",
+          "test_file": "tests/unit/simulated_trading/test_corporate_action_tax_cash_coverage_composition.py",
+          "test_function": "test_source_io_expiry_cannot_renew_original_coverage"
+        },
+        {
+          "case": "empty_still_requires_verified_origin",
+          "test_file": "tests/unit/simulated_trading/test_corporate_action_tax_cash_coverage_composition.py",
+          "test_function": "test_empty_asset_universe_still_requires_verified_zero_origin"
+        },
+        {
+          "case": "tax_complete_not_entitlement_complete",
+          "test_file": "tests/unit/simulated_trading/test_corporate_action_tax_cash_coverage_composition.py",
+          "test_function": "test_tax_complete_without_independent_entitlement_witness_cannot_publish_rights"
+        },
+        {
+          "case": "empty_no_arbitrary_calendar",
+          "test_file": "tests/unit/simulated_trading/test_corporate_action_tax_cash_coverage_composition.py",
+          "test_function": "test_empty_asset_universe_uses_anchor_without_exchange_calendar"
+        },
+        {
+          "case": "missing_classification_unknown",
+          "test_file": "tests/unit/simulated_trading/test_corporate_action_tax_cash_coverage_composition.py",
+          "test_function": "test_nonempty_coverage_requires_explicit_szse_classification"
+        },
+        {
+          "case": "classification_changed",
+          "test_file": "tests/unit/simulated_trading/test_corporate_action_tax_cash_coverage_composition.py",
+          "test_function": "test_final_classification_change_invalidates_the_original_epoch"
+        },
+        {
+          "case": "local_clock_not_source_refresh",
+          "test_file": "tests/unit/simulated_trading/test_corporate_action_tax_cash_coverage_composition.py",
+          "test_function": "test_local_classification_reread_clocks_do_not_change_original_source_epoch"
+        }
+      ],
+      "notes": "Accepted unpaid debt zero is distinct from complete modeled exposure. Unknown coverage keeps spendable cash unknown. Reads require the actual account transaction and independent immutable origin/source/window/history/model evidence, preserve the original finite deadline, and recheck physical/source epochs and exact write witnesses. No implicit assessment, collection, consent or default not-applicable classification. Actual consumer and ordinary-user native acceptance remain separate from registration. Empty asset universes retain exact immutable account-origin verification without an arbitrary exchange calendar. Nonempty coverage requires exact current typed classification with the SZSE/SZ crosswalk, original source/selector/profile identity and original finite expiry. Only local reread clocks are omitted from epoch comparison; no asset type or US not-applicable default is introduced."
     }
   ]
 }

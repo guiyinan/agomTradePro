@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import replace
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from types import TracebackType
 
 import pytest
@@ -33,8 +33,14 @@ from apps.simulated_trading import (
     corporate_action_tax_liability_owner_scope_composition as liability_owner_scope,
 )
 from apps.simulated_trading import corporate_action_tax_owner_scope_composition as owner_scope
+from apps.simulated_trading.application.corporate_action_tax_assessment import (
+    TaxAssessmentExactReplayEvidence,
+)
 from apps.simulated_trading.application.corporate_action_tax_qualification import (
     CurrentTaxAssessmentQualification,
+)
+from apps.simulated_trading.application.corporate_action_tax_window_proof import (
+    CorporateActionTaxWindowProof,
 )
 from apps.simulated_trading.audited_corporate_action_tax_assessment_composition import (
     AuditedTaxAssessmentScopeVerifierPort,
@@ -53,10 +59,114 @@ from apps.simulated_trading.domain.corporate_action_tax_assessment import (
     CorporateActionTaxAssessment,
 )
 from core.exceptions import BusinessLogicError
+from tests.unit.simulated_trading.test_corporate_action_current_official_window import (
+    _request,
+)
 from tests.unit.simulated_trading.test_corporate_action_tax_assessment import _assessment
+from tests.unit.simulated_trading.test_corporate_action_window_audit_composition import (
+    _evidence,
+)
 
 _NOW = datetime(2026, 11, 12, 12, 0, tzinfo=UTC)
 _TERMS_SHA = "d" * 64
+
+
+def _szse_assessment() -> CorporateActionTaxAssessment:
+    """Build a synthetic SZSE assessment aligned with the official-window contract."""
+    base = _assessment()
+    asset_code = "000001.SZ"
+    history = base.history
+    ownership = replace(
+        history.record_date_ownership_proof,
+        asset_code=asset_code,
+        security_id=asset_code,
+    )
+    days = tuple(
+        replace(row, asset_code=asset_code, security_id=asset_code)
+        for row in history.settlement_days
+    )
+    history = replace(
+        history,
+        asset_code=asset_code,
+        security_id=asset_code,
+        record_date_ownership_proof=ownership,
+        settlement_days=days,
+    )
+    action = replace(
+        base.action,
+        asset_code=asset_code,
+        security_id=asset_code,
+        source_namespace="exchange_official_disclosure",
+        source_record_id="synthetic-szse-record-1",
+        source_event_id="synthetic-szse-event-1",
+        source_revision_id="synthetic-szse-revision-1",
+        source_revision_sha256="c" * 64,
+        source_payload_sha256="d" * 64,
+        effective_date=date(2026, 11, 2),
+    )
+    return _assessment(action=action, history=history)
+
+
+def _window_proof(
+    assessment: CorporateActionTaxAssessment,
+    *,
+    canonical_account_id: str,
+    environment: str,
+    checked_at: datetime,
+) -> CorporateActionTaxWindowProof:
+    """Build synthetic current-window originals at one exact scope and clock."""
+    action = assessment.action
+    request = replace(
+        _request(),
+        account_id=assessment.account_id,
+        owner_user_id=assessment.owner_user_id,
+        asset_code=action.asset_code,
+        security_id=action.security_id,
+        source_namespace=action.source_namespace,
+        source_record_id=action.source_record_id,
+        source_event_id=action.source_event_id,
+        source_revision_id=action.source_revision_id,
+        source_payload_sha256=action.source_payload_sha256,
+        source_observed_at=checked_at - timedelta(seconds=10),
+        qualified_at=checked_at - timedelta(seconds=2),
+        posted_at=checked_at - timedelta(seconds=1),
+        record_date=action.record_date,
+        ownership_snapshot_as_of_date=action.record_date,
+        ownership_snapshot_observed_at=checked_at - timedelta(seconds=20),
+        effective_date=action.effective_date,
+    )
+    original = _evidence()
+    provenance = replace(
+        original.policy_provenance,
+        runtime_environment=environment,
+        known_at=checked_at - timedelta(days=2),
+        effective_at=checked_at - timedelta(days=1),
+    )
+    window = replace(
+        original,
+        account_id=assessment.account_id,
+        owner_user_id=assessment.owner_user_id,
+        asset_code=action.asset_code,
+        security_id=action.security_id,
+        source_record_id=action.source_record_id,
+        source_revision_id=action.source_revision_id,
+        source_payload_sha256=action.source_payload_sha256,
+        source_observed_at=request.source_observed_at,
+        original_first_observed_at=checked_at - timedelta(seconds=9),
+        original_listing_verified_at=checked_at - timedelta(seconds=8),
+        original_proof_recorded_at=checked_at - timedelta(seconds=7),
+        checked_at=checked_at,
+        expires_at=checked_at + timedelta(seconds=60),
+        runtime_environment=environment,
+        selected_event_sha256=action.source_revision_sha256,
+        policy_provenance=provenance,
+    )
+    return CorporateActionTaxWindowProof(
+        assessment.semantic_sha256,
+        canonical_account_id,
+        request,
+        window,
+    )
 
 
 def _ordered_capabilities(
@@ -185,6 +295,62 @@ def _qualification(
         runtime_snapshot_sha256="2" * 64,
         valid_until=valid_until,
     )
+
+
+def _replay_evidence(
+    assessment: CorporateActionTaxAssessment,
+    *,
+    grant: SimulatedCorporateActionWriteGrant,
+    proof: CorporateActionTaxWindowProof | None = None,
+) -> TaxAssessmentExactReplayEvidence:
+    """Build immutable original-row/Audit references for controlled replay tests."""
+    digest = "a" * 64
+    return TaxAssessmentExactReplayEvidence(
+        assessment_revision_id=assessment.assessment_revision_id,
+        idempotency_key=assessment.calculation.idempotency_key,
+        semantic_sha256=assessment.semantic_sha256,
+        observation_manifest_sha256=assessment.observation_manifest_sha256,
+        recorded_at=(
+            proof.evidence.checked_at + timedelta(seconds=1)
+            if proof is not None
+            else _NOW - timedelta(seconds=30)
+        ),
+        audit_scope=AuditScopeRef(grant.binding.tenant_id, grant.binding.owner_id),
+        audit_event_id="synthetic-assessment-audit-event",
+        audit_content_sha256=digest,
+        outbox_id="synthetic-assessment-outbox-row",
+        outbox_payload_sha256=digest,
+        official_window_proof=proof,
+    )
+
+
+class _ReplayProbe:
+    """Controlled complete-replay result source for owner-scope behavior tests."""
+
+    def __init__(self, results: tuple[object, ...]) -> None:
+        self.results = results
+        self.calls: list[dict[str, object]] = []
+
+    def find_exact_replay(
+        self,
+        assessment: CorporateActionTaxAssessment,
+        *,
+        actor_user_id: int,
+        audit_scope: AuditScopeRef,
+        as_of: datetime,
+    ) -> TaxAssessmentExactReplayEvidence | None:
+        self.calls.append(
+            {
+                "assessment": assessment,
+                "actor_user_id": actor_user_id,
+                "audit_scope": audit_scope,
+                "as_of": as_of,
+            }
+        )
+        result = self.results[min(len(self.calls) - 1, len(self.results) - 1)]
+        if isinstance(result, BaseException):
+            raise result
+        return result  # type: ignore[return-value]
 
 
 class _QualificationProvider:
@@ -435,6 +601,117 @@ def test_owner_tax_assessment_requires_explicit_v2_tax_capability_and_yields_exa
     assert len(provider.calls) == 2
     with pytest.raises(BusinessLogicError):
         verifier.get_locked_audit_origin()
+
+
+def test_complete_exact_replay_skips_current_qualification_but_rechecks_live_authority(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    assessment = _szse_assessment()
+    grant = _grant(assessment)
+    proof = _window_proof(
+        assessment,
+        canonical_account_id=grant.binding.account_id,
+        environment="development",
+        checked_at=_NOW - timedelta(seconds=2),
+    )
+    evidence = _replay_evidence(assessment, grant=grant, proof=proof)
+    verifier, _, calls = _harness(monkeypatch, assessment=assessment, grant=grant)
+    probe = _ReplayProbe((evidence, evidence))
+
+    with verifier.locked_current_scope(
+        assessment,
+        actor_user_id=assessment.owner_user_id,
+        using="default",
+        replay_probe=probe,
+    ) as lease:
+        origin = verifier.get_locked_audit_origin()
+        assert origin.write_mode == "exact_retry_only"
+        assert origin.replay_evidence == evidence
+        assert lease.valid_until == _NOW + timedelta(minutes=7)
+
+    provider = calls["qualification_provider"]
+    assert isinstance(provider, _QualificationProvider)
+    assert provider.calls == []
+    assert len(probe.calls) == 2
+    assert len(calls["grant"]) == 2
+    assert len(calls["audit"]) == 2
+
+
+def test_exact_replay_rechecks_original_evidence_and_current_grant_on_exit(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    assessment = _szse_assessment()
+    grant = _grant(assessment)
+    proof = _window_proof(
+        assessment,
+        canonical_account_id=grant.binding.account_id,
+        environment="development",
+        checked_at=_NOW - timedelta(seconds=2),
+    )
+    evidence = _replay_evidence(assessment, grant=grant, proof=proof)
+    changed = replace(
+        evidence,
+        audit_content_sha256="b" * 64,
+        outbox_payload_sha256="b" * 64,
+    )
+    verifier, _, calls = _harness(monkeypatch, assessment=assessment, grant=grant)
+    probe = _ReplayProbe((evidence, changed))
+
+    with pytest.raises(BusinessLogicError, match="changed before transaction exit"):
+        with verifier.locked_current_scope(
+            assessment,
+            actor_user_id=assessment.owner_user_id,
+            using="default",
+            replay_probe=probe,
+        ):
+            verifier.get_locked_audit_origin()
+
+    provider = calls["qualification_provider"]
+    assert isinstance(provider, _QualificationProvider)
+    assert provider.calls == []
+    assert len(probe.calls) == 2
+
+    verifier2, _, calls2 = _harness(
+        monkeypatch,
+        assessment=assessment,
+        grant=grant,
+        grant_results=(grant, BusinessLogicError("current grant was revoked")),
+    )
+    with pytest.raises(BusinessLogicError, match="revoked"):
+        with verifier2.locked_current_scope(
+            assessment,
+            actor_user_id=assessment.owner_user_id,
+            using="default",
+            replay_probe=_ReplayProbe((evidence, evidence)),
+        ):
+            verifier2.get_locked_audit_origin()
+    provider2 = calls2["qualification_provider"]
+    assert isinstance(provider2, _QualificationProvider)
+    assert provider2.calls == []
+
+
+def test_legacy_exact_replay_without_window_proof_runs_current_qualification(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    assessment = _assessment()
+    grant = _grant(assessment)
+    evidence = _replay_evidence(assessment, grant=grant)
+    verifier, _, calls = _harness(monkeypatch, assessment=assessment, grant=grant)
+
+    with verifier.locked_current_scope(
+        assessment,
+        actor_user_id=assessment.owner_user_id,
+        using="default",
+        replay_probe=_ReplayProbe((evidence, evidence)),
+    ) as lease:
+        origin = verifier.get_locked_audit_origin()
+        assert origin.write_mode == "append"
+        assert origin.replay_evidence is None
+        assert lease.valid_until == _NOW + timedelta(minutes=5)
+
+    provider = calls["qualification_provider"]
+    assert isinstance(provider, _QualificationProvider)
+    assert len(provider.calls) == 2
 
 
 def test_owner_tax_assessment_uses_explicit_v3_scope_and_tax_assess_capability(

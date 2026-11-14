@@ -18,11 +18,10 @@ from apps.portfolio.domain.transition_plan_event_review import (
 )
 from core.exceptions import AgomTradeProException
 from core.integration.config_center_runtime import (
+    ActiveRuntimeSnapshotEvidence,
     RuntimeConfigProfileRead,
     RuntimeConfigSnapshotRead,
-    get_active_runtime_profile,
-    get_active_runtime_value,
-    get_latest_runtime_snapshot,
+    get_active_runtime_snapshot_evidence,
 )
 
 DISCLOSURE_COVERAGE_POLICY_KEY = "config_center.market.simulated_disclosure_coverage_policy"
@@ -107,7 +106,7 @@ class TransitionPlanDisclosureRuntimePolicy:
 
 
 class ConfigCenterDisclosurePolicyEvidenceReader:
-    """Read a stable active Config Center value through its public runtime facade."""
+    """Read fresh complete Config Center provenance without nested scalar rereads."""
 
     def read_active_evidence(
         self,
@@ -116,8 +115,11 @@ class ConfigCenterDisclosurePolicyEvidenceReader:
         definition_key: str,
         as_of: datetime,
     ) -> RuntimeDisclosurePolicyEvidence | None:
-        """Return one unchanged active profile/snapshot/value tuple at the exact cutoff."""
+        """Use the owner's repeated full-hash bundle at this exact cutoff.
 
+        Each call performs fresh canonical reads. The official-window reader's
+        independent final policy and source comparisons remain authoritative.
+        """
         if (
             not _is_token(runtime_environment)
             or definition_key != DISCLOSURE_COVERAGE_POLICY_KEY
@@ -125,42 +127,28 @@ class ConfigCenterDisclosurePolicyEvidenceReader:
         ):
             return None
         try:
-            profile_before = get_active_runtime_profile(runtime_environment)
-            if not isinstance(profile_before, RuntimeConfigProfileRead):
-                return None
-            snapshot_before = get_latest_runtime_snapshot(profile_before.profile_key)
-            if not isinstance(snapshot_before, RuntimeConfigSnapshotRead):
-                return None
-            value_before = get_active_runtime_value(
+            bundle = get_active_runtime_snapshot_evidence(
                 environment=runtime_environment,
-                definition_key=definition_key,
+                definition_keys=(definition_key,),
                 as_of=as_of,
             )
-            profile_after = get_active_runtime_profile(runtime_environment)
-            if not isinstance(profile_after, RuntimeConfigProfileRead):
+            if type(bundle) is not ActiveRuntimeSnapshotEvidence:
                 return None
-            snapshot_after = get_latest_runtime_snapshot(profile_after.profile_key)
-            if not isinstance(snapshot_after, RuntimeConfigSnapshotRead):
-                return None
-            value_after = get_active_runtime_value(
-                environment=runtime_environment,
-                definition_key=definition_key,
-                as_of=as_of,
-            )
             if (
-                profile_before != profile_after
-                or snapshot_before != snapshot_after
-                or value_before is None
-                or value_before != value_after
-                or snapshot_after.resolved_values.get(definition_key) != value_after
+                bundle.environment != runtime_environment
+                or bundle.definition_keys != (definition_key,)
+                or bundle.as_of != as_of
             ):
+                return None
+            value = bundle.snapshot.resolved_values.get(definition_key)
+            if value is None:
                 return None
             return RuntimeDisclosurePolicyEvidence(
                 runtime_environment=runtime_environment,
                 definition_key=definition_key,
-                value=value_after,
-                profile=profile_after,
-                snapshot=snapshot_after,
+                value=value,
+                profile=bundle.profile,
+                snapshot=bundle.snapshot,
                 read_at=as_of,
             )
         except (

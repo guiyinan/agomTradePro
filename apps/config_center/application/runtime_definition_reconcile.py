@@ -14,6 +14,16 @@ from apps.config_center.domain.runtime_config import (
 
 DEFAULT_RUNTIME_DEFINITIONS: tuple[RuntimeConfigDefinition, ...] = (
     RuntimeConfigDefinition(
+        key="config_center.simulated_trading.corporate_action_workflow_runtime",
+        namespace="config_center",
+        owner_app="config_center",
+        value_type=RuntimeValueType.TYPED_JSON,
+        criticality=RuntimeConfigCriticality.NORMAL,
+        reload_mode=RuntimeConfigReloadMode.NEXT_TASK,
+        description="Explicit calendar dataset, statutory provider, body store and deployment routing for the ordinary-owner company-action workflow.",
+        user_impact="Missing routing blocks tax workflow preparation; no configured value proves source qualification, current law or owner consent.",
+    ),
+    RuntimeConfigDefinition(
         key="config_center.simulated_trading.dividend_tax_policies",
         namespace="config_center",
         owner_app="config_center",
@@ -531,6 +541,26 @@ DEFAULT_RUNTIME_DEFINITIONS: tuple[RuntimeConfigDefinition, ...] = (
         reload_mode=RuntimeConfigReloadMode.NEXT_TASK,
         description="Optional explicit published-price policy for initial simulated position marks.",
         user_impact="Binds source, purpose and observation-based expiry; absence blocks initial position marks.",
+    ),
+    RuntimeConfigDefinition(
+        key="config_center.simulated_trading.share_capital_tax_models",
+        namespace="config_center",
+        owner_app="config_center",
+        value_type=RuntimeValueType.TYPED_JSON,
+        criticality=RuntimeConfigCriticality.NORMAL,
+        reload_mode=RuntimeConfigReloadMode.NEXT_TASK,
+        description="Optional exact-account and security share-capital simulation model declarations.",
+        user_impact="Requires explicit simulated persona, source pair, retained instrument and finite model windows; absence blocks share settlement and never proves real tax eligibility.",
+    ),
+    RuntimeConfigDefinition(
+        key="config_center.simulated_trading.corporate_action_nav_raw_mark_policy",
+        namespace="config_center",
+        owner_app="config_center",
+        value_type=RuntimeValueType.TYPED_JSON,
+        criticality=RuntimeConfigCriticality.NORMAL,
+        reload_mode=RuntimeConfigReloadMode.NEXT_TASK,
+        description="Optional explicit raw-price policy for corporate-action simulation valuation.",
+        user_impact="Separately binds raw daily publication and observation-based expiry; provides no source completeness, tax coverage or financial permission.",
     ),
     RuntimeConfigDefinition(
         key="config_center.market.simulated_disclosure_coverage_policy",

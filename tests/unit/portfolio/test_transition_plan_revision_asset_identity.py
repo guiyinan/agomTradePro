@@ -102,6 +102,22 @@ _HASH_B = "b" * 64
 _HASH_C = "c" * 64
 
 
+class _VerifiedUnchangedEventReview:
+    """Represent a current validator's result after it proves the scope unaffected."""
+
+    def assess(
+        self, revision: TransitionPlanRevision, *, as_of: datetime
+    ) -> TransitionPlanEventReviewAssessment:
+        """Return unchanged for the exact owner account at this test's current cutoff."""
+
+        assert revision.identity.account_id == 17
+        assert as_of == _NOW
+        return TransitionPlanEventReviewAssessment(
+            state=TransitionPlanEventReviewState.UNCHANGED,
+            reason_code="EVENTS_UNCHANGED",
+        )
+
+
 class _EventSnapshotReader:
     """Serve exact immutable source snapshots at controlled point-in-time cutoffs."""
 
@@ -1170,6 +1186,7 @@ def test_owner_review_request_only_enters_pending_state_and_never_issues_authori
         repository=repository,
         authorizer=_LifecycleAuthorizer(),
         clock=_LifecycleClock(),
+        event_review_validator=_VerifiedUnchangedEventReview(),
     )
 
     submission = use_case.execute(
@@ -1786,8 +1803,8 @@ def test_configured_event_review_blocks_changed_profile_before_latest_proof_read
     assert len(snapshot_reader.requests) == reads_before_change
 
 
-def test_unrelated_owner_review_still_works_without_event_reader() -> None:
-    """An unrelated source-bound revision remains reviewable without event infrastructure."""
+def test_unrelated_owner_review_still_works_with_explicit_current_event_result() -> None:
+    """A current no-scope review result keeps the existing owner lifecycle."""
 
     revision = _revision()
     repository = _LifecycleRepository()
@@ -1796,6 +1813,7 @@ def test_unrelated_owner_review_still_works_without_event_reader() -> None:
         repository=repository,
         authorizer=_LifecycleAuthorizer(),
         clock=_LifecycleClock(),
+        event_review_validator=_VerifiedUnchangedEventReview(),
     )
 
     use_case.execute(
@@ -1866,6 +1884,7 @@ def test_owner_manual_guard_accepts_exact_unapproved_revision_without_staff_rece
     policy_reader = _PolicyPinReader()
     guard = DjangoTransitionPlanLockedActionGuard(
         current_policy_pins_validator=policy_reader,
+        event_review_validator=_VerifiedUnchangedEventReview(),
     )
     monkeypatch.setattr(
         guard._repository, "_locked_account_revisions", lambda account_id: (revision,)

@@ -42,6 +42,9 @@ from apps.data_center.infrastructure.security_disclosure_event_repository import
     DjangoSecurityDisclosureEventRepository,
     DjangoSecurityDisclosureListingCoverageRepository,
 )
+from apps.data_center.security_disclosure_body_composition import (
+    security_disclosure_window_pdf_store_root,
+)
 
 
 def capture_and_append_szse_disclosure(
@@ -267,7 +270,9 @@ def _capture_distribution_candidate(
         end_on=request.end_on,
         body_store_root=request.body_store_root / "listing",
     )
-    body_store = OfficialSzsePdfBodyStore(request.body_store_root / "pdf")
+    body_store = OfficialSzsePdfBodyStore(
+        security_disclosure_window_pdf_store_root(request.body_store_root)
+    )
     latest_by_title: dict[str, SecurityDisclosureEvent] = {}
     captured_events: list[tuple[SecurityDisclosureEvent, bytes]] = []
     listed_entries = sorted(

@@ -14,6 +14,10 @@ from apps.portfolio.application.transition_plan_lifecycle import (
     TransitionPlanOrderExecutionBinding,
 )
 from apps.risk_center.domain.execution_settlement_v3 import ExecutionSettlementBundleV3
+from apps.simulated_trading.application.corporate_action_tax_cash_coverage import (
+    CorporateActionTaxCashCoverageReader,
+    TaxCashCoverageSnapshot,
+)
 from apps.simulated_trading.application.execution_settlement_uow import (
     SimulatedTradeAccountScopeUnavailable,
     SimulatedTradeExecutionBlocked,
@@ -56,6 +60,10 @@ from apps.simulated_trading.domain.order_reservation import (
     OrderReservationResult,
     OrderReservationStatus,
     reserve_order,
+)
+from apps.simulated_trading.infrastructure.corporate_action_tax_cash_admission import (
+    assert_tax_cash_coverage_before_commit,
+    require_current_tax_cash_coverage,
 )
 from apps.simulated_trading.infrastructure.local_daily_match_repository import (
     require_no_pending_local_daily_match,
@@ -159,16 +167,20 @@ class DjangoSimulatedOrderReservationRepository:
         submission_guard: SimulatedOrderSubmissionGuard | None = None,
         portfolio_risk_guard: PortfolioRiskLockedOrderGuard | None = None,
         transition_plan_guard: TransitionPlanLockedActionGuard | None = None,
+        tax_cash_coverage_reader: CorporateActionTaxCashCoverageReader | None = None,
     ) -> None:
         """Bind all reservation writes and reads to one explicit database alias."""
 
         if type(using) is not str or not using or using.strip() != using:
             raise ValueError("using must be a nonempty database alias")
         self._using = using
-        self._execution = DjangoSimulatedTradeExecutionRepository(using=using)
+        self._execution = DjangoSimulatedTradeExecutionRepository(
+            using=using, tax_cash_coverage_reader=tax_cash_coverage_reader
+        )
         self._submission_guard = submission_guard
         self._portfolio_risk_guard = portfolio_risk_guard
         self._transition_plan_guard = transition_plan_guard
+        self._tax_cash_coverage_reader = tax_cash_coverage_reader
 
     def require_owned_active_account(self, *, account_id: int, user_id: int) -> None:
         """Authorize a new preview before any outbound source capture occurs."""
@@ -204,6 +216,9 @@ class DjangoSimulatedOrderReservationRepository:
             )
             now = self._execution._now(clock)
             plan.calendar_evidence.validate_for(now)
+            tax_coverage = self._read_tax_coverage(intent)
+            now = self._execution._now(clock)
+            plan.calendar_evidence.validate_for(now)
             book = self._current_book(
                 account=account,
                 position=position,
@@ -211,6 +226,7 @@ class DjangoSimulatedOrderReservationRepository:
                 target=None,
                 security_id=intent.security_id,
                 asset_code=intent.asset_code,
+                tax_coverage=tax_coverage,
             )
             if position is None:
                 if pending:
@@ -502,6 +518,7 @@ class DjangoSimulatedOrderReservationRepository:
                     intent.account_id,
                     intent.asset_code,
                 )
+                tax_coverage = self._read_tax_coverage(intent)
                 v4_chains = lock_v4_pending_fill_chains(
                     account=account,
                     asset_code=intent.asset_code,
@@ -533,6 +550,7 @@ class DjangoSimulatedOrderReservationRepository:
                     target=None,
                     security_id=intent.security_id,
                     asset_code=intent.asset_code,
+                    tax_coverage=tax_coverage,
                 )
                 pending_scope = self._execution._pending_scope_for_rows(pending_rows)
                 now = self._execution._now(clock)
@@ -632,6 +650,7 @@ class DjangoSimulatedOrderReservationRepository:
                     target=None,
                     security_id=intent.security_id,
                     asset_code=intent.asset_code,
+                    tax_coverage=tax_coverage,
                 )
                 held_shares = book.active_held_shares
                 locked_position: tuple[Decimal, Decimal] | None = None
@@ -719,6 +738,23 @@ class DjangoSimulatedOrderReservationRepository:
                     read_clock=lambda: self._execution._now(clock),
                 )
                 persisted = self._decode_model(row)
+                if tax_coverage is not None:
+                    assert_tax_cash_coverage_before_commit(
+                        reader=self._tax_cash_coverage_reader,
+                        snapshot=tax_coverage,
+                        using=self._using,
+                    )
+                    _validate_reservation_plan_bundle_binding(
+                        plan, execution_bundle, self._execution._now(clock), reservation_locked=True
+                    )
+                    require_final_transition_plan_lease(
+                        binding=transition_plan_binding,
+                        guard=transition_plan_guard,
+                        recorded_at=transition_plan_recorded_at,
+                        intent=intent,
+                        initial_now=now,
+                        read_clock=lambda: self._execution._now(clock),
+                    )
                 persisted_book = self._current_book(
                     account=account,
                     position=position,
@@ -726,6 +762,7 @@ class DjangoSimulatedOrderReservationRepository:
                     target=None,
                     security_id=intent.security_id,
                     asset_code=intent.asset_code,
+                    tax_coverage=tax_coverage,
                 )
                 return OrderReservationResult(
                     book=persisted_book,
@@ -902,6 +939,16 @@ class DjangoSimulatedOrderReservationRepository:
 
         return decode_order_reservation(row)
 
+    def _read_tax_coverage(self, intent: SimulatedTradeIntent) -> TaxCashCoverageSnapshot | None:
+        if intent.side is not SimulatedTradeSide.BUY:
+            return None
+        return require_current_tax_cash_coverage(
+            reader=self._tax_cash_coverage_reader,
+            physical_account_id=intent.account_id,
+            owner_user_id=intent.user_id,
+            using=self._using,
+        )
+
     def _current_book(
         self,
         *,
@@ -911,6 +958,7 @@ class DjangoSimulatedOrderReservationRepository:
         target: SimulatedOrderReservationModel | None,
         security_id: str,
         asset_code: str,
+        tax_coverage: TaxCashCoverageSnapshot | None = None,
     ) -> OrderReservationBook:
         """Build one exact current book without treating unknown balances as zero."""
 
@@ -922,6 +970,7 @@ class DjangoSimulatedOrderReservationRepository:
             security_id=security_id,
             asset_code=asset_code,
             using=self._using,
+            tax_coverage=tax_coverage,
         )
 
     def _require_sqlite_values(

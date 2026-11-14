@@ -125,6 +125,181 @@ class DjangoCorporateActionTaxAssessmentRepository:
             raise _blocked("An explicit assessment database alias is required.")
         self._using = using
 
+    def read_locked_assessment_lineage(
+        self, assessment: CorporateActionTaxAssessment
+    ) -> tuple[Header, ...]:
+        """Return the fully verified revision chain for this locked idempotency stream.
+
+        The caller owns a READ COMMITTED transaction. The physical account and
+        every header in the stream are locked before scope, parent links,
+        clocks, and immutable retained material are checked. No history outside
+        this account and idempotency key is treated as part of the chain.
+        """
+        connection = connections[self._using]
+        if not connection.in_atomic_block:
+            raise _blocked("Assessment replay checks require the caller-owned atomic UOW.")
+        if connection.vendor == "postgresql":
+            with connection.cursor() as cursor:
+                cursor.execute("SHOW transaction_isolation")
+                if cursor.fetchone() != ("read committed",):
+                    raise _blocked("Assessment replay checks require PostgreSQL READ COMMITTED.")
+        assessment.verify_integrity()
+        account = (
+            SimulatedAccountModel._default_manager.using(self._using)
+            .select_for_update()
+            .filter(pk=assessment.account_id)
+            .first()
+        )
+        if account is None or account.user_id != assessment.owner_user_id:
+            raise _blocked(
+                "The exact physical account owner is required.", "TAX_ASSESSMENT_OWNER_REQUIRED"
+            )
+        action = assessment.action
+        if (
+            Header._default_manager.using(self._using)
+            .filter(
+                account_id=assessment.account_id,
+                security_id=assessment.security_id,
+                source_namespace=action.source_namespace,
+                source_event_id=action.source_event_id,
+            )
+            .exclude(corporate_action_id=action.corporate_action_id)
+            .exists()
+        ):
+            raise _blocked(
+                "Native action identity is already bound to another canonical action.",
+                "TAX_ASSESSMENT_ACTION_ALIAS_CONFLICT",
+            )
+        rows = tuple(
+            Header._default_manager.using(self._using)
+            .select_for_update()
+            .filter(
+                account_id=assessment.account_id,
+                idempotency_key=assessment.calculation.idempotency_key,
+            )
+            .order_by("id")
+        )
+        if not rows:
+            return ()
+
+        expected_scope = (
+            assessment.account_id,
+            assessment.owner_user_id,
+            assessment.asset_code,
+            assessment.security_id,
+            action.corporate_action_id,
+            assessment.history.record_date,
+            assessment.target_settlement_date,
+            assessment.calculation.disposition_id,
+            assessment.calculation.idempotency_key,
+        )
+        rows_by_id: dict[int, Header] = {}
+        rows_by_revision: dict[str, Header] = {}
+        children_by_parent: dict[int, list[int]] = {}
+        roots: list[Header] = []
+        for row in rows:
+            row_id = recorded_id(row)
+            revision_id = row.assessment_revision_id
+            parent_id = row.__dict__.get("supersedes_id")
+            parent_revision_id = row.supersedes_assessment_revision_id
+            if (
+                row_id in rows_by_id
+                or type(revision_id) is not str
+                or not revision_id
+                or revision_id in rows_by_revision
+            ):
+                raise _blocked("Assessment stream contains duplicate or invalid row identities.")
+            actual_scope = (
+                row.account_id,
+                row.owner_user_id,
+                row.asset_code,
+                row.security_id,
+                row.corporate_action_id,
+                row.record_date,
+                row.settlement_date,
+                row.disposition_id,
+                row.idempotency_key,
+            )
+            if actual_scope != expected_scope:
+                raise _blocked("Assessment stream crosses an owner, asset or settlement scope.")
+            rows_by_id[row_id] = row
+            rows_by_revision[revision_id] = row
+            if parent_id is None:
+                if parent_revision_id is not None:
+                    raise _blocked("Assessment predecessor id and revision reference disagree.")
+                roots.append(row)
+                continue
+            if type(parent_id) is not int or parent_id <= 0 or type(parent_revision_id) is not str:
+                raise _blocked("Assessment predecessor reference is invalid or incomplete.")
+            children_by_parent.setdefault(parent_id, []).append(row_id)
+
+        if len(roots) != 1:
+            raise _blocked("Assessment stream does not have exactly one retained lineage root.")
+        for row in rows:
+            parent_id = row.__dict__.get("supersedes_id")
+            parent_revision_id = row.supersedes_assessment_revision_id
+            if parent_id is None:
+                continue
+            parent = rows_by_id.get(cast(int, parent_id))
+            if parent is None or parent.assessment_revision_id != parent_revision_id:
+                raise _blocked("Assessment predecessor is absent or references another revision.")
+            if len(children_by_parent.get(cast(int, parent_id), ())) != 1:
+                raise _blocked("Assessment stream branches from a retained revision.")
+
+        lineage: list[Header] = []
+        visited: set[int] = set()
+        current = roots[0]
+        while True:
+            current_id = recorded_id(current)
+            if current_id in visited:
+                raise _blocked("Assessment stream contains a revision cycle.")
+            visited.add(current_id)
+            lineage.append(current)
+            child_ids = children_by_parent.get(current_id, [])
+            if not child_ids:
+                break
+            if len(child_ids) != 1:
+                raise _blocked("Assessment stream branches from a retained revision.")
+            current = rows_by_id[child_ids[0]]
+        if len(visited) != len(rows):
+            raise _blocked("Assessment stream contains a cycle or disconnected revision.")
+
+        previous_recorded_at: datetime | None = None
+        for row in lineage:
+            recorded_at = row.recorded_at
+            if (
+                type(recorded_at) is not datetime
+                or recorded_at.tzinfo is None
+                or recorded_at.utcoffset() is None
+            ):
+                raise _blocked("Assessment lineage contains a missing or naive recording clock.")
+            try:
+                recorded_at_utc = recorded_at.astimezone(UTC)
+            except (OverflowError, ValueError) as error:
+                raise _blocked(
+                    "Assessment lineage recording clock is not representable."
+                ) from error
+            if previous_recorded_at is not None and recorded_at_utc < previous_recorded_at:
+                raise _blocked("Assessment lineage recording clocks move backwards.")
+            previous_recorded_at = recorded_at_utc
+
+        for row in lineage:
+            self.verify_retained_integrity(row)
+        return tuple(lineage)
+
+    def find_exact_semantic_head(
+        self, assessment: CorporateActionTaxAssessment
+    ) -> StoredTaxAssessment | None:
+        """Read a fully matching locked current head without appending any material."""
+        lineage = self.read_locked_assessment_lineage(assessment)
+        if not lineage:
+            return None
+        head = lineage[-1]
+        if head.semantic_sha256 != assessment.semantic_sha256:
+            return None
+        self.verify_stored(head, assessment)
+        return StoredTaxAssessment(head, True)
+
     def append_locked(
         self,
         assessment: CorporateActionTaxAssessment,

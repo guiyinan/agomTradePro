@@ -48,6 +48,10 @@ from apps.simulated_trading.infrastructure.corporate_action_tax_liability_codec 
     canonical_liability_json,
     tax_liability_scope_sha256,
 )
+from apps.simulated_trading.infrastructure.corporate_action_tax_window_codec import (
+    decode_corporate_action_tax_window_proof,
+    encode_corporate_action_tax_window_proof,
+)
 
 _MATERIAL_FIELDS = frozenset(
     {
@@ -116,7 +120,7 @@ def _reference_payload(reference: TaxLiabilityEvidenceReference) -> dict[str, ob
 def _qualification_payload(value: CurrentTaxAssessmentQualification) -> dict[str, object]:
     """Retain the actual verifier result and immutable runtime profile/snapshot pointers."""
     value.__post_init__()
-    return {
+    payload: dict[str, object] = {
         "assessment_semantic_sha256": value.assessment_semantic_sha256,
         "account_id": value.account_id,
         "owner_user_id": value.owner_user_id,
@@ -130,6 +134,11 @@ def _qualification_payload(value: CurrentTaxAssessmentQualification) -> dict[str
         "runtime_snapshot_sha256": value.runtime_snapshot_sha256,
         "valid_until": _instant(value.valid_until),
     }
+    if value.official_window_proof is not None:
+        payload["official_window_proof"] = encode_corporate_action_tax_window_proof(
+            value.official_window_proof
+        )
+    return payload
 
 
 def _lease_payload(value: TaxLiabilityWriteLease) -> dict[str, object]:
@@ -250,6 +259,18 @@ class TaxLiabilityOperationMaterial:
             self.origin.payment_basis.verify_scope(lease.scope, as_of=recorded)
         if recorded.astimezone(UTC) >= self.origin.qualification.valid_until.astimezone(UTC):
             raise _blocked("new financial operation was not qualified at its original clock")
+        window = self.origin.qualification.official_window_proof
+        if window is not None:
+            window.assert_recorded_at(recorded)
+            source = window.source_reference
+            if (
+                source.asset_code != lease.scope.asset_code
+                or source.security_id != lease.scope.security_id
+                or source.source_namespace != lease.scope.source_namespace
+                or source.source_event_id != lease.scope.logical_source_event_id
+                or source.record_date != lease.scope.record_date
+            ):
+                raise _blocked("original official window differs from its financial disposition")
         before = _aware(self.physical_updated_before, field_name="physical revision before")
         after = _aware(self.physical_updated_after, field_name="physical revision after")
         if before > after or after > recorded or self.origin.source_row_updated_at != before:
@@ -357,9 +378,13 @@ class TaxLiabilityOperationMaterial:
         snapshot = self.cash_snapshot
         return {
             "schema": (
-                "simulated-tax-liability-material.v1"
-                if self.origin.payment_basis is None
-                else "simulated-tax-liability-material.v2"
+                "simulated-tax-liability-material.v3"
+                if self.origin.qualification.official_window_proof is not None
+                else (
+                    "simulated-tax-liability-material.v1"
+                    if self.origin.payment_basis is None
+                    else "simulated-tax-liability-material.v2"
+                )
             ),
             "cash_snapshot_provenance_json": self.cash_snapshot_provenance_json,
             "assessment_id": self.assessment_id,
@@ -409,10 +434,18 @@ def decode_operation_material(
     """Restore exact historical context without refreshing its original authority clocks."""
     try:
         fields = _object(_read_document(payload, expected_sha256), _MATERIAL_FIELDS)
-        has_payment_basis = fields["schema"] == "simulated-tax-liability-material.v2"
+        has_window = fields["schema"] == "simulated-tax-liability-material.v3"
+        raw_origin = fields["origin"]
+        has_payment_basis = fields["schema"] == "simulated-tax-liability-material.v2" or (
+            has_window and type(raw_origin) is dict and "payment_basis" in raw_origin
+        )
         if (
             fields["schema"]
-            not in {"simulated-tax-liability-material.v1", "simulated-tax-liability-material.v2"}
+            not in {
+                "simulated-tax-liability-material.v1",
+                "simulated-tax-liability-material.v2",
+                "simulated-tax-liability-material.v3",
+            }
             or fields["identity_sha256"] != identity.request_sha256
             or fields["state_sha256"] != transition.state_after.state_sha256
             or fields["transition_sha256"] != transition.transition_sha256
@@ -450,7 +483,11 @@ def decode_operation_material(
                 "valid_until",
             }
         )
-        q = _object(origin_fields["qualification"], qualification_names)
+        q = _object(
+            origin_fields["qualification"],
+            qualification_names
+            | (frozenset({"official_window_proof"}) if has_window else frozenset()),
+        )
         qualification = CurrentTaxAssessmentQualification(
             assessment_semantic_sha256=_text(q["assessment_semantic_sha256"]),
             account_id=_integer(q["account_id"]),
@@ -464,6 +501,11 @@ def decode_operation_material(
             runtime_snapshot_id=_text(q["runtime_snapshot_id"]),
             runtime_snapshot_sha256=_text(q["runtime_snapshot_sha256"]),
             valid_until=_clock(q["valid_until"]),
+            official_window_proof=(
+                decode_corporate_action_tax_window_proof(q["official_window_proof"])
+                if has_window
+                else None
+            ),
         )
         lease_names = frozenset(
             {

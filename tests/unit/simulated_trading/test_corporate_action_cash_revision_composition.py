@@ -663,9 +663,12 @@ def test_cash_revision_builder_wires_general_stage_use_case_to_audited_port(
             return ()
 
     class _Factory:
-        def __init__(self, *, environment: str, owner_grant_gate: object) -> None:
+        def __init__(
+            self, *, environment: str, owner_grant_gate: object, window_gate: object | None = None
+        ) -> None:
             self.environment = environment
             self.owner_grant_gate = owner_grant_gate
+            self.window_gate = window_gate
 
     repository = _Repository()
     captured: dict[str, object] = {}
@@ -709,6 +712,7 @@ def test_cash_revision_builder_wires_general_stage_use_case_to_audited_port(
     assert type(factory) is _Factory
     assert factory.environment == "development"
     assert factory.owner_grant_gate is not None
+    assert factory.window_gate is None
     assert captured["using"] == "default"
 
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar, Token
@@ -65,6 +66,8 @@ from apps.simulated_trading.domain.corporate_action_posting import (
     CorporateActionStageRequest,
 )
 from core.exceptions import AuthorizationError
+
+_logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True, slots=True)
@@ -152,6 +155,7 @@ class _ActiveAuthority:
     authority: OwnerGrantedCorporateActionAuthority
     request: CorporateActionStageRequest
     replay_timestamp_verifier: CorporateActionSourceTimestampReplayVerifier | None
+    window_commit_bounds: list[tuple[datetime, datetime]]
 
 
 _ACTIVE_AUTHORITY: ContextVar[tuple[object, _ActiveAuthority] | None] = ContextVar(
@@ -238,6 +242,7 @@ class DjangoCorporateActionOwnerGrantGate:
     def _block(self, message: str, *, code: str) -> CorporateActionPostingBlockedError:
         """Construct one stable posting-domain failure without leaking authority data."""
 
+        _logger.warning("Corporate-action authority blocked (%s): %s", code, message)
         return CorporateActionPostingBlockedError(message, code=code)
 
     def _grant_matches_locked_scope(
@@ -413,7 +418,41 @@ class DjangoCorporateActionOwnerGrantGate:
         self._read_audit_lease(as_of=checked_at)
         return authority
 
-    def _assert_commit_deadline(self, *, authority: OwnerGrantedCorporateActionAuthority) -> None:
+    def bind_current_window_commit_deadline(
+        self,
+        *,
+        checked_at: datetime,
+        valid_until: datetime,
+    ) -> None:
+        """Only shorten the active transaction with an original source-window deadline."""
+        active = _ACTIVE_AUTHORITY.get()
+        now = timezone.now()
+        if (
+            active is None
+            or active[0] is not self
+            or type(checked_at) is not datetime
+            or type(valid_until) is not datetime
+            or checked_at.tzinfo is None
+            or checked_at.utcoffset() is None
+            or valid_until.tzinfo is None
+            or valid_until.utcoffset() is None
+            or type(now) is not datetime
+            or now.tzinfo is None
+            or now.utcoffset() is None
+            or not checked_at <= now < valid_until
+        ):
+            raise self._block(
+                "source-window deadline is invalid or outside its owner transaction",
+                code="CORPORATE_ACTION_CURRENT_OFFICIAL_WINDOW_BLOCKED",
+            )
+        active[1].window_commit_bounds.append((checked_at, valid_until))
+
+    def _assert_commit_deadline(
+        self,
+        *,
+        authority: OwnerGrantedCorporateActionAuthority,
+        window_commit_bounds: tuple[tuple[datetime, datetime], ...] = (),
+    ) -> None:
         """Recheck current grant, fixed cutoff, and Audit readiness after lock contexts exit."""
 
         try:
@@ -439,6 +478,14 @@ class DjangoCorporateActionOwnerGrantGate:
             raise self._block(
                 "owner-grant final commit clock is invalid",
                 code="CORPORATE_ACTION_WRITE_AUTHORITY_UNAVAILABLE",
+            )
+        if any(
+            not checked_at <= commit_time < valid_until
+            for checked_at, valid_until in window_commit_bounds
+        ):
+            raise self._block(
+                "source window expired or its clock moved backwards before transaction commit",
+                code="CORPORATE_ACTION_CURRENT_OFFICIAL_WINDOW_BLOCKED",
             )
         if (
             commit_time >= authority.authority_valid_until
@@ -513,6 +560,7 @@ class DjangoCorporateActionOwnerGrantGate:
                 code="CORPORATE_ACTION_WRITE_AUTHORITY_UNAVAILABLE",
             ) from error
 
+        window_commit_bounds: list[tuple[datetime, datetime]] = []
         try:
             with transaction.atomic(using=self._using):
                 with connection.cursor() as cursor:
@@ -608,6 +656,7 @@ class DjangoCorporateActionOwnerGrantGate:
                                 authority=authority,
                                 request=request,
                                 replay_timestamp_verifier=replay_timestamp_verifier,
+                                window_commit_bounds=window_commit_bounds,
                             )
                             token: Token[tuple[object, _ActiveAuthority] | None] = (
                                 _ACTIVE_AUTHORITY.set((self, state))
@@ -618,7 +667,10 @@ class DjangoCorporateActionOwnerGrantGate:
                                 self.assert_live(as_of=timezone.now())
                             finally:
                                 _ACTIVE_AUTHORITY.reset(token)
-                self._assert_commit_deadline(authority=authority)
+                self._assert_commit_deadline(
+                    authority=authority,
+                    window_commit_bounds=tuple(window_commit_bounds),
+                )
         except (
             SimulatedCorporateActionWriteGrantUnavailable,
             SimulatedAccountRowSourceV2Conflict,
@@ -626,11 +678,18 @@ class DjangoCorporateActionOwnerGrantGate:
             SimulatedAccountRowSourceV2Unavailable,
             AuthorizationError,
         ) as error:
+            _logger.warning(
+                "Corporate-action authority participant unavailable: %s", type(error).__name__
+            )
             raise self._block(
                 "current owner, source, policy or grant cannot authorize this posting",
                 code="CORPORATE_ACTION_WRITE_AUTHORITY_UNAVAILABLE",
             ) from error
         except (DatabaseError, ConnectionDoesNotExist) as error:
+            _logger.warning(
+                "Corporate-action authority database participant unavailable: %s",
+                type(error).__name__,
+            )
             raise self._block(
                 "owner-grant write transaction is unavailable",
                 code="CORPORATE_ACTION_WRITE_AUTHORITY_UNAVAILABLE",

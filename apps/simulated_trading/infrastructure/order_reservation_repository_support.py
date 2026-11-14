@@ -4,6 +4,11 @@ from __future__ import annotations
 
 from decimal import Decimal
 
+from django.utils import timezone
+
+from apps.simulated_trading.application.corporate_action_tax_cash_coverage import (
+    TaxCashCoverageSnapshot,
+)
 from apps.simulated_trading.application.execution_settlement_uow import (
     SimulatedTradeAccountScopeUnavailable,
     SimulatedTradeExecutionBlocked,
@@ -14,9 +19,6 @@ from apps.simulated_trading.domain.order_reservation import (
     OrderReservation,
     OrderReservationBook,
     OrderReservationRequest,
-)
-from apps.simulated_trading.infrastructure.corporate_action_tax_balance_repository import (
-    read_locked_corporate_action_tax_payable,
 )
 from apps.simulated_trading.infrastructure.models import (
     PositionModel,
@@ -33,7 +35,6 @@ from apps.simulated_trading.infrastructure.order_reservation_sqlite_precision im
     PrecisionFamily,
     require_sqlite_values,
 )
-from core.exceptions import BusinessLogicError
 
 
 def require_exact_order_retry(
@@ -126,19 +127,25 @@ def build_locked_tax_aware_reservation_book(
     security_id: str,
     asset_code: str,
     using: str,
+    tax_coverage: TaxCashCoverageSnapshot | None = None,
 ) -> OrderReservationBook:
-    """Join verified debt with the locked cash book without changing gross cash or holds."""
+    """Publish spendable cash only with independently complete current tax coverage.
+
+    Historical retry and cancellation do not need current source access and may
+    retain an unknown spendable balance while returning their original result.
+    """
     if type(account.user_id) is not int:
         raise SimulatedTradeAccountScopeUnavailable()
-    tax_cash_unavailable: Decimal | None
-    try:
-        tax_cash_unavailable = read_locked_corporate_action_tax_payable(
-            account=account, using=using
-        )
-    except BusinessLogicError as error:
-        if error.code != "TAX_ASSESSMENT_NOT_APPLIED":
-            raise
-        tax_cash_unavailable = None
+    tax_cash_unavailable: Decimal | None = None
+    if tax_coverage is not None:
+        tax_coverage.verify_for(tax_coverage.query, as_of=timezone.now())
+        if (
+            tax_coverage.query.physical_account_id != account.pk
+            or tax_coverage.query.owner_user_id != account.user_id
+        ):
+            raise SimulatedTradeAccountScopeUnavailable()
+        tax_cash_unavailable = tax_coverage.tax_cash_unavailable
+    del using
     return current_order_reservation_book(
         account=account,
         owner_user_id=account.user_id,

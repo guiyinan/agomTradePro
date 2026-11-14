@@ -6,6 +6,9 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Protocol, runtime_checkable
 
+from apps.simulated_trading.application.corporate_action_tax_window_proof import (
+    CorporateActionTaxWindowProof,
+)
 from apps.simulated_trading.domain.corporate_action_deferred_tax import (
     DeferredDividendTaxValidationError,
 )
@@ -79,6 +82,7 @@ class CurrentTaxAssessmentQualification:
     runtime_snapshot_id: str
     runtime_snapshot_sha256: str
     valid_until: datetime
+    official_window_proof: CorporateActionTaxWindowProof | None = None
 
     def __post_init__(self) -> None:
         """Validate the explicit assessment, owner and runtime evidence binding."""
@@ -97,6 +101,21 @@ class CurrentTaxAssessmentQualification:
         _token(self.runtime_snapshot_id, field_name="runtime_snapshot_id")
         _digest(self.runtime_snapshot_sha256, field_name="runtime_snapshot_sha256")
         _utc(self.valid_until, field_name="valid_until")
+        proof = self.official_window_proof
+        if proof is not None:
+            if type(proof) is not CorporateActionTaxWindowProof:
+                raise BusinessLogicError("tax window proof is untyped")
+            proof.__post_init__()
+            if (
+                proof.assessment_semantic_sha256 != self.assessment_semantic_sha256
+                or proof.canonical_account_id != self.canonical_account_id
+                or proof.source_reference.account_id != self.account_id
+                or proof.source_reference.owner_user_id != self.owner_user_id
+                or proof.evidence.runtime_environment != self.environment
+                or proof.evidence.expires_at is None
+                or self.valid_until > proof.evidence.expires_at
+            ):
+                raise BusinessLogicError("tax qualification differs from its original window")
 
     def verify_for(
         self,
@@ -134,6 +153,10 @@ class CurrentTaxAssessmentQualification:
         if cutoff >= _utc(self.valid_until, field_name="valid_until"):
             raise BusinessLogicError(
                 "current tax qualification is expired", code="TAX_QUALIFICATION_EXPIRED"
+            )
+        if self.official_window_proof is not None:
+            self.official_window_proof.verify_for_assessment(
+                assessment, canonical_account_id=canonical_account_id, environment=environment
             )
 
 

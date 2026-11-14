@@ -101,7 +101,7 @@ def test_member_checks_exact_record_before_reading_original(
 
     def verify(event: SecurityDisclosureEvent, *, body_store_root: Path) -> bool:
         bodies.append(event)
-        assert event == record.event and body_store_root == tmp_path
+        assert event == record.event and body_store_root == tmp_path / "pdf"
         return failure != "body"
 
     monkeypatch.setattr(composition, "make_security_disclosure_event_reader", build)
@@ -118,3 +118,36 @@ def test_member_checks_exact_record_before_reading_original(
         )
     ]
     assert len(bodies) == (1 if failure in {None, "body"} else 0)
+
+
+def test_window_member_reopens_the_actual_capture_pdf_subdirectory(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Exercise actual retained bytes/layout, with only PDF security extraction stubbed."""
+    from apps.data_center import security_disclosure_body_composition as bodies
+    from apps.data_center.infrastructure.official_szse_pdf_capture import (
+        CapturedOfficialSzsePdf,
+        OfficialSzsePdfBodyStore,
+    )
+
+    record, revision = _facts()
+    body = b"%PDF-1.4\nbody\n%%EOF"
+    event = record.event
+    window_root = tmp_path / "window"
+    OfficialSzsePdfBodyStore(window_root / "pdf").retain(
+        CapturedOfficialSzsePdf(
+            event.source_url,
+            event.source_event_id,
+            event.first_seen_at,
+            event.source_body_sha256,
+            body,
+        )
+    )
+    reader = _Reader((record,))
+    monkeypatch.setattr(
+        composition, "make_security_disclosure_event_reader", lambda **kwargs: reader
+    )
+    monkeypatch.setattr(bodies, "verify_szse_pdf_security_code", lambda capture, code: code)
+    verifier = composition.DataCenterCorporateActionOriginalBodyVerifier(using="qa")
+    assert verifier.verify_original_body(event=revision, body_store_root=window_root)

@@ -913,11 +913,18 @@ class _GuardedRepositoryFactory:
         self, *, guard: SimulatedOrderSubmissionGuard
     ) -> DjangoSimulatedOrderReservationRepository:
         """Keep the public commit on the guarded default-alias writer."""
+        from apps.simulated_trading.execution_settlement_composition import (
+            build_configured_tax_cash_coverage_reader,
+        )
+
         return DjangoSimulatedOrderReservationRepository(
             using=DEFAULT_DB_ALIAS,
             submission_guard=guard,
             portfolio_risk_guard=ConfiguredPortfolioRiskLockedOrderGuard(using=DEFAULT_DB_ALIAS),
             transition_plan_guard=self._transition_plan_guard,
+            tax_cash_coverage_reader=build_configured_tax_cash_coverage_reader(
+                using=DEFAULT_DB_ALIAS
+            ),
         )
 
 
@@ -934,6 +941,10 @@ def build_owner_order_submission_use_case(
 
         transition_plan_guard = build_configured_transition_plan_guard(using=DEFAULT_DB_ALIAS)
     environment = _runtime_environment_from_settings_module()
+    from apps.simulated_trading.execution_settlement_composition import (
+        build_configured_tax_cash_coverage_reader,
+    )
+
     clock = _ServerUTCClock()
     identities = build_current_reference_identity_reader(runtime_environment=environment)
     calendar = build_configured_execution_calendar_reader(
@@ -956,6 +967,9 @@ def build_owner_order_submission_use_case(
             using=DEFAULT_DB_ALIAS,
             portfolio_risk_guard=ConfiguredPortfolioRiskLockedOrderGuard(using=DEFAULT_DB_ALIAS),
             transition_plan_guard=transition_plan_guard,
+            tax_cash_coverage_reader=build_configured_tax_cash_coverage_reader(
+                using=DEFAULT_DB_ALIAS
+            ),
         ),
         repository_factory=_GuardedRepositoryFactory(transition_plan_guard),
         market_factory=PurposeOrderMarketFactory(

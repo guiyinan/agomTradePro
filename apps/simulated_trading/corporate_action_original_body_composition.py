@@ -12,6 +12,7 @@ from apps.data_center.domain.security_disclosure_event import (
     SecurityDisclosureSource,
 )
 from apps.data_center.security_disclosure_body_composition import (
+    security_disclosure_window_pdf_store_root,
     verify_security_disclosure_original_body,
 )
 from apps.data_center.security_disclosure_capture_composition import (
@@ -76,7 +77,7 @@ class DataCenterCorporateActionOriginalBodyVerifier:
                 return False
             return verify_security_disclosure_original_body(
                 original,
-                body_store_root=body_store_root,
+                body_store_root=security_disclosure_window_pdf_store_root(body_store_root),
             )
         except (AgomTradeProException, DatabaseError, OSError, TypeError, ValueError):
             return False

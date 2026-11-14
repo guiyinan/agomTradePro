@@ -6,11 +6,12 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Protocol, cast, runtime_checkable
+from typing import Literal, Protocol, cast, runtime_checkable
 
 from django.db import connections, transaction
 from django.utils import timezone
 
+from apps.audit.application.system_audit_event_outbox import ExactSystemAuditOutboxWinner
 from apps.audit.corporate_action_tax_assessment_composition import (
     TaxAssessmentAuditCoordinatorPort,
     build_tax_assessment_audit_coordinator,
@@ -33,8 +34,16 @@ from apps.simulated_trading.application.corporate_action_tax_assessment import (
     TaxAssessmentAppendDisposition,
     TaxAssessmentAtomicWriterPort,
     TaxAssessmentClockPort,
+    TaxAssessmentExactReplayEvidence,
     TaxAssessmentWriteLease,
     TaxAssessmentWriteReceipt,
+)
+from apps.simulated_trading.application.corporate_action_tax_window_proof import (
+    CorporateActionTaxWindowProof,
+)
+from apps.simulated_trading.corporate_action_tax_assessment_window_composition import (
+    assert_tax_assessment_window_header,
+    read_retained_tax_assessment_window_proof,
 )
 from apps.simulated_trading.domain.corporate_action_tax_assessment import (
     CorporateActionTaxAssessment,
@@ -44,11 +53,15 @@ from apps.simulated_trading.infrastructure.corporate_action_tax_assessment_model
 )
 from apps.simulated_trading.infrastructure.corporate_action_tax_assessment_repository import (
     DjangoCorporateActionTaxAssessmentRepository,
+    StoredTaxAssessment,
     TaxAssessmentPersistedAuthority,
     canonical_json,
     material_sha256,
     read_material,
     recorded_id,
+)
+from apps.simulated_trading.infrastructure.corporate_action_tax_window_codec import (
+    encode_corporate_action_tax_window_proof,
 )
 from core.exceptions import BusinessLogicError
 
@@ -74,6 +87,9 @@ class TaxAssessmentAuditOrigin:
     scope: AuditScopeRef
     grant_content_sha256: str
     write_policy: AuditWritePolicy
+    official_window_proof: CorporateActionTaxWindowProof | None = None
+    write_mode: Literal["append", "exact_retry_only"] = "append"
+    replay_evidence: TaxAssessmentExactReplayEvidence | None = None
 
     def __post_init__(self) -> None:
         """Require the exact typed lease, original grant seal and transactional policy."""
@@ -81,6 +97,43 @@ class TaxAssessmentAuditOrigin:
             raise _blocked("A typed locked tax authority and Audit scope are required.")
         self.lease.__post_init__()
         self.scope.__post_init__()
+        if self.official_window_proof is not None:
+            proof = self.official_window_proof
+            proof.__post_init__()
+            if (
+                proof.source_reference.account_id != self.lease.account_id
+                or proof.source_reference.owner_user_id != self.lease.owner_user_id
+                or proof.source_reference.asset_code != self.lease.asset_code
+                or proof.source_reference.security_id != self.lease.security_id
+                or proof.source_reference.source_namespace != self.lease.action_source_namespace
+                or proof.source_reference.source_record_id != self.lease.action_source_record_id
+                or proof.source_reference.source_event_id != self.lease.action_source_event_id
+                or proof.source_reference.source_revision_id != self.lease.action_source_revision_id
+                or proof.source_reference.source_payload_sha256
+                != self.lease.action_source_payload_sha256
+                or proof.evidence.selected_event_sha256 != self.lease.action_source_revision_sha256
+                or proof.source_reference.record_date != self.lease.record_date
+                or proof.evidence.expires_at is None
+                or (
+                    self.write_mode == "append"
+                    and self.lease.valid_until > proof.evidence.expires_at
+                )
+            ):
+                raise _blocked("Assessment origin differs from its exact official window")
+        if self.write_mode not in {"append", "exact_retry_only"}:
+            raise _blocked("Assessment Audit origin has an unknown write mode")
+        if self.write_mode == "append" and self.replay_evidence is not None:
+            raise _blocked("An append origin cannot carry historical replay evidence")
+        if self.write_mode == "exact_retry_only":
+            evidence = self.replay_evidence
+            if (
+                type(evidence) is not TaxAssessmentExactReplayEvidence
+                or self.official_window_proof is None
+                or evidence.semantic_sha256 != self.official_window_proof.assessment_semantic_sha256
+                or evidence.audit_scope != self.scope
+                or evidence.official_window_proof != self.official_window_proof
+            ):
+                raise _blocked("Read-only retry origin lacks its exact retained original")
         if self.write_policy is not AuditWritePolicy.TRANSACTIONAL_OUTBOX:
             raise _blocked("Tax assessments require transactional Audit/Outbox policy.")
         TaxAssessmentPersistedAuthority(
@@ -128,8 +181,36 @@ def _stream_id(header: Header) -> str:
     return f"simulated-tax-assessment-stream:{header.idempotency_key}"
 
 
+def _replay_evidence(
+    header: Header,
+    winner: SystemAuditEvent,
+    outbox: ExactSystemAuditOutboxWinner,
+    proof: CorporateActionTaxWindowProof | None,
+) -> TaxAssessmentExactReplayEvidence:
+    """Project locked originals into a typed marker that grants no write authority."""
+    if outbox.event != winner:
+        raise _blocked("Assessment replay Outbox does not contain its Audit winner")
+    return TaxAssessmentExactReplayEvidence(
+        assessment_revision_id=header.assessment_revision_id,
+        idempotency_key=header.idempotency_key,
+        semantic_sha256=header.semantic_sha256,
+        observation_manifest_sha256=header.observation_manifest_sha256,
+        recorded_at=header.recorded_at,
+        audit_scope=AuditScopeRef(header.audit_tenant_id, header.audit_owner_id),
+        audit_event_id=winner.event_id,
+        audit_content_sha256=winner.content_hash,
+        outbox_id=str(outbox.outbox_id),
+        outbox_payload_sha256=outbox.payload_hash,
+        official_window_proof=proof,
+    )
+
+
 def _build_event(
-    header: Header, *, sequence_no: int, predecessor_hash: str | None
+    header: Header,
+    *,
+    sequence_no: int,
+    predecessor_hash: str | None,
+    official_window_proof: CorporateActionTaxWindowProof | None = None,
 ) -> SystemAuditEvent:
     """Build only concise references to the complete retained professional evidence."""
     manifest = read_material(header.observation_manifest_json, header.observation_manifest_sha256)
@@ -137,6 +218,8 @@ def _build_event(
     if type(proof) is not dict or type(proof.get("ownership_snapshot_observed_at")) is not str:
         raise _blocked("Original ownership observation material is incomplete.")
     observed_at = datetime.fromisoformat(proof["ownership_snapshot_observed_at"])
+    if official_window_proof is not None:
+        assert_tax_assessment_window_header(official_window_proof, header)
     return SystemAuditEvent.create(
         event_id=_event_id(header),
         event_version="1",
@@ -214,6 +297,15 @@ def _build_event(
             "grant_id": header.authority_grant_id,
             "grant_version": header.authority_grant_version,
             "nonfinancial_assessment_only": True,
+            **(
+                {
+                    "current_official_window": encode_corporate_action_tax_window_proof(
+                        official_window_proof
+                    )
+                }
+                if official_window_proof is not None
+                else {}
+            ),
         },
         stream_id=_stream_id(header),
         sequence_no=sequence_no,
@@ -262,6 +354,80 @@ class DjangoTaxAssessmentAtomicUnitOfWork:
         finally:
             self._active = False
 
+    def find_exact_replay(
+        self,
+        assessment: CorporateActionTaxAssessment,
+        *,
+        actor_user_id: int,
+        audit_scope: AuditScopeRef,
+        as_of: datetime,
+    ) -> TaxAssessmentExactReplayEvidence | None:
+        """Verify the complete immutable header and Audit/Outbox lineage before retry."""
+        if (
+            not self._active
+            or not connections[self._using].in_atomic_block
+            or type(assessment) is not CorporateActionTaxAssessment
+            or type(actor_user_id) is not int
+            or actor_user_id <= 0
+            or actor_user_id != assessment.owner_user_id
+            or type(audit_scope) is not AuditScopeRef
+            or type(as_of) is not datetime
+            or as_of.tzinfo is None
+            or as_of.utcoffset() is None
+        ):
+            raise _blocked("Exact assessment replay requires the active owner UOW")
+        lineage = self._repository.read_locked_assessment_lineage(assessment)
+        if not lineage:
+            return None
+        stream_id = _stream_id(lineage[-1])
+        self._audit.lock_streams((stream_id,))
+        previous: SystemAuditEvent | None = None
+        retained: TaxAssessmentExactReplayEvidence | None = None
+        for sequence_no, header in enumerate(lineage, start=1):
+            if (
+                (header.audit_tenant_id, header.audit_owner_id)
+                != (audit_scope.tenant_id, audit_scope.owner_id)
+                or _stream_id(header) != stream_id
+                or header.recorded_at > as_of
+            ):
+                raise _blocked("The retained lineage differs from the current owner Audit scope")
+            winner = self._audit.get_winner_targeted(
+                event_id=_event_id(header), event_version="1", as_of=as_of, lock=True
+            )
+            if type(winner) is not SystemAuditEvent:
+                raise _blocked("The assessment lineage has no original Audit winner")
+            proof = read_retained_tax_assessment_window_proof(header, winner)
+            expected = _build_event(
+                header,
+                sequence_no=sequence_no,
+                predecessor_hash=None if previous is None else previous.content_hash,
+                official_window_proof=proof,
+            )
+            outbox = self._audit.get_exact_outbox_winner_targeted(winner)
+            if winner != expected or outbox is None or outbox.event != expected:
+                raise _blocked(
+                    "The original assessment Audit/Outbox lineage is incomplete or changed"
+                )
+            retained = _replay_evidence(header, winner, outbox, proof)
+            previous = winner
+        audit_head = self._audit.get_current_head_targeted(
+            stream_id=stream_id,
+            as_of=as_of,
+            scope=audit_scope,
+            lock=True,
+        )
+        if audit_head != previous:
+            raise _blocked("The retained assessment lineage is not the current Audit head")
+        if lineage[-1].semantic_sha256 != assessment.semantic_sha256:
+            return None
+        self._repository.verify_stored(lineage[-1], assessment)
+        if retained is None or retained.official_window_proof is None:
+            # Legacy material remains readable and can still pass through the
+            # current qualifier, but it cannot stand in for a retained window
+            # proof when deciding to skip that current-source check.
+            return None
+        return retained
+
     def append_with_audit_outbox(
         self, assessment: CorporateActionTaxAssessment, *, actor_user_id: int
     ) -> TaxAssessmentWriteReceipt:
@@ -277,14 +443,21 @@ class DjangoTaxAssessmentAtomicUnitOfWork:
         origin.lease.verify_for(
             assessment, actor_user_id=actor_user_id, using=self._using, as_of=now
         )
-        authority = TaxAssessmentPersistedAuthority(
-            origin.lease.authority_grant_id,
-            origin.lease.authority_grant_version,
-            origin.grant_content_sha256,
-            origin.scope.tenant_id,
-            origin.scope.owner_id,
-        )
-        result = self._repository.append_locked(assessment, authority=authority, recorded_at=now)
+        if origin.write_mode == "exact_retry_only":
+            result = self._repository.find_exact_semantic_head(assessment)
+            if type(result) is not StoredTaxAssessment or result.replayed is not True:
+                raise _blocked("A read-only exact retry cannot append a new assessment header")
+        else:
+            authority = TaxAssessmentPersistedAuthority(
+                origin.lease.authority_grant_id,
+                origin.lease.authority_grant_version,
+                origin.grant_content_sha256,
+                origin.scope.tenant_id,
+                origin.scope.owner_id,
+            )
+            result = self._repository.append_locked(
+                assessment, authority=authority, recorded_at=now
+            )
         header = result.header
         if (header.audit_tenant_id, header.audit_owner_id) != (
             origin.scope.tenant_id,
@@ -300,14 +473,35 @@ class DjangoTaxAssessmentAtomicUnitOfWork:
                 raise _blocked(
                     "Original assessment Audit evidence is missing; it cannot be synthesized."
                 )
+            proof = read_retained_tax_assessment_window_proof(header, winner)
             expected = _build_event(
-                header, sequence_no=winner.sequence_no, predecessor_hash=winner.predecessor_hash
+                header,
+                sequence_no=winner.sequence_no,
+                predecessor_hash=winner.predecessor_hash,
+                official_window_proof=proof,
             )
             outbox = self._audit.get_exact_outbox_winner_targeted(winner)
-            if winner != expected or outbox is None or outbox.event != expected:
+            audit_head = self._audit.get_current_head_targeted(
+                stream_id=_stream_id(header),
+                as_of=now,
+                scope=origin.scope,
+                lock=True,
+            )
+            if (
+                winner != expected
+                or audit_head != winner
+                or outbox is None
+                or outbox.event != expected
+            ):
                 raise _blocked(
                     "Original assessment Audit/Outbox evidence is incomplete or different."
                 )
+            replay_evidence = _replay_evidence(header, winner, outbox, proof)
+            if (
+                origin.write_mode == "exact_retry_only"
+                and replay_evidence != origin.replay_evidence
+            ):
+                raise _blocked("The exact assessment replay changed after its locked preflight")
             disposition = TaxAssessmentAppendDisposition.EXACT_RETRY
         else:
             if winner is not None:
@@ -334,6 +528,7 @@ class DjangoTaxAssessmentAtomicUnitOfWork:
                 header,
                 sequence_no=head.sequence_no + 1 if head else 1,
                 predecessor_hash=head.content_hash if head else None,
+                official_window_proof=origin.official_window_proof,
             )
             if self._audit.get_exact_outbox_winner_targeted(event) is not None:
                 raise _blocked(

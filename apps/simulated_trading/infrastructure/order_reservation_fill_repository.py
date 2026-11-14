@@ -16,6 +16,9 @@ from decimal import Decimal, localcontext
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import DEFAULT_DB_ALIAS, DatabaseError, models, transaction
 
+from apps.simulated_trading.application.corporate_action_tax_cash_coverage import (
+    CorporateActionTaxCashCoverageReader,
+)
 from apps.simulated_trading.application.execution_settlement_uow import (
     PublishedExecutionCalendarReader,
     SimulatedTradeAccountScopeUnavailable,
@@ -65,6 +68,10 @@ from apps.simulated_trading.domain.order_reservation_fill import (
 )
 from apps.simulated_trading.domain.order_reservation_fill_settlement import (
     OrderFillSettlementProof,
+)
+from apps.simulated_trading.infrastructure.corporate_action_tax_cash_admission import (
+    assert_tax_cash_coverage_before_commit,
+    require_current_tax_cash_coverage,
 )
 from apps.simulated_trading.infrastructure.execution_settlement_accounting_math import (
     _allocate_sale_cost_basis,
@@ -201,6 +208,7 @@ class DjangoSimulatedOrderFillRepository:
         initial_position_mark_reader: InitialPositionMarkReader | None = None,
         current_calendar_reader: PublishedExecutionCalendarReader | None = None,
         portfolio_risk_guard: PortfolioRiskLockedFillGuard | None = None,
+        tax_cash_coverage_reader: CorporateActionTaxCashCoverageReader | None = None,
         using: str = DEFAULT_DB_ALIAS,
     ) -> None:
         """Select the database and explicitly configured event, mark and current-calendar readers.
@@ -218,6 +226,7 @@ class DjangoSimulatedOrderFillRepository:
         self._initial_position_mark_reader = initial_position_mark_reader
         self._current_calendar_reader = current_calendar_reader
         self._portfolio_risk_guard = portfolio_risk_guard
+        self._tax_cash_coverage_reader = tax_cash_coverage_reader
         self._request_reader = DjangoSimulatedOrderFillRequestReader(using=using)
 
     def resolve_fill_request(
@@ -520,6 +529,7 @@ class DjangoSimulatedOrderFillRepository:
                     current_calendar=current_calendar,
                     now=now,
                     current_session=current_session,
+                    clock=clock,
                 )
                 return result
         except (SimulatedTradeExecutionBlocked, SimulatedTradeIdempotencyConflict):
@@ -629,6 +639,7 @@ class DjangoSimulatedOrderFillRepository:
         current_calendar: ExecutionCalendarEvidence,
         now: datetime,
         current_session: date,
+        clock: SimulatedTradeExecutionClock,
     ) -> SimulatedOrderFillResult:
         """Prepare the exact ledger transition, then persist it inside the caller transaction."""
 
@@ -699,6 +710,50 @@ class DjangoSimulatedOrderFillRepository:
             "other_order_held_shares",
             allow_zero=True,
         )
+        tax_coverage = None
+        debit = (
+            _money_sum(economics.gross_amount, economics.incremental_fees.total_fee)
+            if economics.side is SimulatedTradeSide.BUY
+            else economics.incremental_fees.total_fee - economics.gross_amount
+        )
+        if debit > 0:
+            tax_coverage = require_current_tax_cash_coverage(
+                reader=self._tax_cash_coverage_reader,
+                physical_account_id=event.account_id,
+                owner_user_id=event.user_id,
+                using=self._using,
+            )
+            unavailable = tax_coverage.tax_cash_unavailable
+            if (
+                unavailable is None
+                or _spendable_cash_after_holds(
+                    current_cash, other_cash, tax_cash_unavailable=unavailable
+                )
+                < debit
+            ):
+                raise _blocked(
+                    "ORDER_TAX_CASH_BALANCE_INSUFFICIENT",
+                    "可支出现金不足以覆盖成交及已核对的模拟税款责任",
+                )
+            now = _aware_now(clock)
+            if initial_position_mark is not None and now >= initial_position_mark.valid_until:
+                raise _blocked(
+                    "INITIAL_POSITION_MARK_INVALID", "模拟税务核对后首次持仓估值证明已到期"
+                )
+            current_calendar.validate_for(now)
+            if current_calendar.current_open_session(now) != current_session:
+                raise _blocked("SIMULATED_FILL_CALENDAR_INVALID", "模拟税务核对后交易日已变化")
+            _validate_new_event(
+                event,
+                using=self._using,
+                reservation_row=reservation_row,
+                chain=chain,
+                proof=proof,
+                now=now,
+                identity_as_of=identity_as_of,
+                expected_event_payload_hash=event.event_payload_hash,
+            )
+            self._reread_source_event(event=event, now=now)
         own_remaining_cash_before = chain.reservation.remaining_cash
         own_remaining_shares_before = chain.reservation.remaining_shares
         if own_remaining_cash_before > active_cash or own_remaining_shares_before > active_shares:
@@ -1025,6 +1080,32 @@ class DjangoSimulatedOrderFillRepository:
         reservation_id = reservation_row.pk
         if type(trade_id) is not int or type(reservation_id) is not int:
             raise _blocked("SIMULATED_FILL_WRITE_INVALID", "成交或订单数据库标识不可验证")
+        if tax_coverage is not None:
+            assert_tax_cash_coverage_before_commit(
+                reader=self._tax_cash_coverage_reader,
+                snapshot=tax_coverage,
+                using=self._using,
+                expected_account_updated_at=account.updated_at,
+            )
+            final_clock = _aware_now(clock)
+            current_calendar.validate_for(final_clock)
+            if current_calendar.current_open_session(final_clock) != current_session or (
+                initial_position_mark is not None
+                and final_clock >= initial_position_mark.valid_until
+            ):
+                raise _blocked(
+                    "SIMULATED_FILL_CALENDAR_INVALID", "最终提交前交易日或首次持仓估值证明已变化"
+                )
+            _validate_new_event(
+                event,
+                using=self._using,
+                reservation_row=reservation_row,
+                chain=chain,
+                proof=proof,
+                now=final_clock,
+                identity_as_of=identity_as_of,
+                expected_event_payload_hash=event.event_payload_hash,
+            )
         return SimulatedOrderFillResult(
             reservation_id=reservation_id,
             source_namespace=event.source_namespace,

@@ -11,8 +11,12 @@ from contextlib import AbstractContextManager
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from enum import StrEnum
-from typing import Protocol
+from typing import Protocol, runtime_checkable
 
+from apps.audit.domain.system_audit_event import AuditScopeRef
+from apps.simulated_trading.application.corporate_action_tax_window_proof import (
+    CorporateActionTaxWindowProof,
+)
 from apps.simulated_trading.domain.corporate_action_deferred_tax import (
     DeferredDividendTaxValidationError,
 )
@@ -89,6 +93,88 @@ class TaxAssessmentWriteReceipt:
                 or any(character not in "0123456789abcdef" for character in digest)
             ):
                 raise BusinessLogicError("assessment receipt digest is invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class TaxAssessmentExactReplayEvidence:
+    """Complete original retained identity used only to classify a read-only retry."""
+
+    assessment_revision_id: str
+    idempotency_key: str
+    semantic_sha256: str
+    observation_manifest_sha256: str
+    recorded_at: datetime
+    audit_scope: AuditScopeRef
+    audit_event_id: str
+    audit_content_sha256: str
+    outbox_id: str
+    outbox_payload_sha256: str
+    official_window_proof: CorporateActionTaxWindowProof | None = None
+
+    def __post_init__(self) -> None:
+        """Validate stable references without treating this history as authority."""
+
+        _token(self.assessment_revision_id, field_name="assessment_revision_id")
+        _token(self.idempotency_key, field_name="idempotency_key", limit=64)
+        _token(self.audit_event_id, field_name="audit_event_id")
+        _token(self.outbox_id, field_name="outbox_id", limit=64)
+        _require_aware(self.recorded_at, field_name="original assessment recorded_at")
+        if type(self.audit_scope) is not AuditScopeRef:
+            raise BusinessLogicError("assessment replay Audit scope is untyped")
+        self.audit_scope.__post_init__()
+        for digest in (
+            self.semantic_sha256,
+            self.observation_manifest_sha256,
+            self.audit_content_sha256,
+            self.outbox_payload_sha256,
+        ):
+            if (
+                type(digest) is not str
+                or len(digest) != 64
+                or any(character not in "0123456789abcdef" for character in digest)
+            ):
+                raise BusinessLogicError("assessment replay contains an invalid digest")
+        if self.audit_content_sha256 != self.outbox_payload_sha256:
+            raise BusinessLogicError("assessment replay Audit and Outbox hashes differ")
+        if self.official_window_proof is not None:
+            if type(self.official_window_proof) is not CorporateActionTaxWindowProof:
+                raise BusinessLogicError("assessment replay window proof is untyped")
+            self.official_window_proof.__post_init__()
+            self.official_window_proof.assert_recorded_at(self.recorded_at)
+
+    def verify_for(
+        self,
+        assessment: CorporateActionTaxAssessment,
+        *,
+        audit_scope: AuditScopeRef,
+        canonical_account_id: str,
+        environment: str,
+        as_of: datetime,
+    ) -> None:
+        """Bind verified original material to this exact owner request and current scope."""
+
+        self.__post_init__()
+        _require_aware(as_of, field_name="assessment replay clock")
+        if type(assessment) is not CorporateActionTaxAssessment:
+            raise BusinessLogicError("a typed assessment is required for exact replay")
+        assessment.verify_integrity()
+        if (
+            self.idempotency_key != assessment.calculation.idempotency_key
+            or self.semantic_sha256 != assessment.semantic_sha256
+            or self.audit_scope != audit_scope
+            or self.recorded_at.astimezone(UTC) > as_of.astimezone(UTC)
+        ):
+            raise BusinessLogicError(
+                "retained assessment differs from the exact replay request",
+                code="TAX_ASSESSMENT_REPLAY_MISMATCH",
+            )
+        proof = self.official_window_proof
+        if proof is not None:
+            proof.verify_for_assessment(
+                assessment,
+                canonical_account_id=canonical_account_id,
+                environment=environment,
+            )
 
 
 @dataclass(frozen=True, slots=True)
@@ -278,6 +364,37 @@ class CurrentTaxAssessmentScopeVerifierPort(Protocol):
         """
 
 
+@runtime_checkable
+class TaxAssessmentExactReplayProbePort(Protocol):
+    """Read and fully verify one exact current assessment head inside its owner UOW."""
+
+    def find_exact_replay(
+        self,
+        assessment: CorporateActionTaxAssessment,
+        *,
+        actor_user_id: int,
+        audit_scope: AuditScopeRef,
+        as_of: datetime,
+    ) -> TaxAssessmentExactReplayEvidence | None:
+        """Return complete original Header/Audit/Outbox evidence, or no exact head."""
+
+
+@runtime_checkable
+class ReplayAwareTaxAssessmentScopeVerifierPort(CurrentTaxAssessmentScopeVerifierPort, Protocol):
+    """Opt into retained-original checks without changing legacy scope signatures."""
+
+    def locked_current_scope_with_replay(
+        self,
+        assessment: CorporateActionTaxAssessment,
+        *,
+        actor_user_id: int,
+        using: str,
+        replay_probe: TaxAssessmentExactReplayProbePort,
+    ) -> AbstractContextManager[TaxAssessmentWriteLease]:
+        """Hold current authority and classify only a fully verified original retry."""
+        ...
+
+
 class TaxAssessmentAtomicWriterPort(Protocol):
     """Append immutable assessment rows and their Audit event/Outbox record."""
 
@@ -359,11 +476,20 @@ class CorporateActionTaxAssessmentUseCase:
             )
 
         with self._unit_of_work.atomic(using=self._using) as writer:
-            with self._scope_verifier.locked_current_scope(
-                assessment,
-                actor_user_id=actor_user_id,
-                using=self._using,
-            ) as lease:
+            if isinstance(
+                self._scope_verifier, ReplayAwareTaxAssessmentScopeVerifierPort
+            ) and isinstance(writer, TaxAssessmentExactReplayProbePort):
+                scope = self._scope_verifier.locked_current_scope_with_replay(
+                    assessment,
+                    actor_user_id=actor_user_id,
+                    using=self._using,
+                    replay_probe=writer,
+                )
+            else:
+                scope = self._scope_verifier.locked_current_scope(
+                    assessment, actor_user_id=actor_user_id, using=self._using
+                )
+            with scope as lease:
                 if type(lease) is not TaxAssessmentWriteLease:
                     raise BusinessLogicError("locked tax authority lease is untyped")
                 lease.verify_for(
@@ -402,6 +528,9 @@ class CorporateActionTaxAssessmentUseCase:
 __all__ = [
     "CorporateActionTaxAssessmentUseCase",
     "CurrentTaxAssessmentScopeVerifierPort",
+    "ReplayAwareTaxAssessmentScopeVerifierPort",
+    "TaxAssessmentExactReplayEvidence",
+    "TaxAssessmentExactReplayProbePort",
     "TaxAssessmentAppendDisposition",
     "TaxAssessmentAtomicUnitOfWorkPort",
     "TaxAssessmentAtomicWriterPort",

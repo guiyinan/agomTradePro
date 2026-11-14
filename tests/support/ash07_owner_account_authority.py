@@ -25,6 +25,12 @@ from apps.account.application.account_actor_authority_raw_source_publisher_v3 im
     AccountActorAuthorityRawSourcePublicationReceiptV3,
     AccountActorAuthorityRawSourceSelectorV3,
 )
+from apps.account.application.account_actor_authority_request_reader import (
+    CanonicalAccountActorAuthorityRequestReader,
+)
+from apps.account.application.account_owner_assignment_actor_authority_source_v3 import (
+    GetCurrentAccountOwnerAssignmentActorAuthoritySourceV3,
+)
 from apps.account.application.account_owner_assignment_actor_authority_v3 import (
     AuthenticatedAccountPrincipalV3,
 )
@@ -55,9 +61,15 @@ from apps.account.application.owner_tenant_authority_v3 import (
 from apps.account.application.physical_account_row_observation_v2 import (
     CapturePhysicalAccountRowObservationV2Command,
 )
+from apps.account.application.single_owner_actor_authority import (
+    CurrentSingleOwnerParticipantsProvider,
+)
 from apps.account.canonical_creation_composition import build_canonical_account_creation_stages
 from apps.account.domain.account_owner_assignment_evidence import (
     AccountOwnerAssignmentActor,
+)
+from apps.account.domain.account_owner_assignment_evidence_v5 import (
+    AccountOwnerAssignmentEvidenceV5,
 )
 from apps.account.domain.account_owner_assignment_provenance_receipt_v5 import (
     AccountOwnerAssignmentProvenanceReceiptV5,
@@ -72,11 +84,17 @@ from apps.account.domain.canonical_account_creation_binding_v2 import (
 from apps.account.domain.canonical_account_ownership_reobservation_v1 import (
     CanonicalAccountOwnershipReobservationV1,
 )
+from apps.account.infrastructure.account_owner_assignment_actor_authority_source_v3_repository import (
+    DjangoAccountOwnerAssignmentActorAuthoritySourceV3Repository,
+)
 from apps.account.infrastructure.account_owner_assignment_provenance_receipt_v5_repository import (
     DjangoAccountOwnerAssignmentProvenanceReceiptV5Repository,
 )
 from apps.account.infrastructure.account_owner_assignment_subject_v5_repository import (
     DjangoAccountOwnerAssignmentSubjectV5Repository,
+)
+from apps.account.infrastructure.account_system_audit_actor_authority_bundle_provider import (
+    DjangoAccountSystemAuditActorAuthorityBundleProviderV3,
 )
 from apps.account.infrastructure.canonical_account_creation_consumption_models import (
     CanonicalAccountCreationBindingV2Model,
@@ -85,6 +103,9 @@ from apps.account.infrastructure.canonical_account_ownership_reobservation_v1_re
     DjangoCanonicalAccountOwnershipReobservationV1Repository,
 )
 from apps.account.infrastructure.identity_models import AccountProfileModel
+from apps.account.infrastructure.single_owner_authority_policy_v1_repository import (
+    DjangoSingleOwnerAuthorityPolicyV1Repository,
+)
 from apps.account.owner_tenant_authority_v3_composition import (
     build_owner_tenant_authority_v3_facade,
 )
@@ -340,8 +361,16 @@ def publish_current_owner_policy(seed: OwnerAccountSeed) -> dict[str, object]:
 
 def issue_current_owner_audit_selector(
     seed: OwnerAccountSeed,
+    *,
+    previous_assignment: AccountOwnerAssignmentEvidenceV5 | None = None,
 ) -> SystemAuditAuthorityBundleSelector:
-    """Issue current V5/V3 Account evidence from real session and physical-row facts."""
+    """Issue current evidence or recover its V5 lineage after real owner reapproval.
+
+    Recovery callers must atomically bind the resulting selector through the
+    full current profile/snapshot CAS. This helper never extends an old lease.
+    """
+    if previous_assignment is not None:
+        previous_assignment.__post_init__()
 
     actor_response = seed.client.post(
         reverse("api_account:authority-raw-publish"),
@@ -373,14 +402,40 @@ def issue_current_owner_audit_selector(
     )
     if policy_binding is None:
         raise RuntimeError("the actual owner policy is not current for this exact binding")
-    participants = build_current_single_owner_participants_provider(
-        principal=principal,
-        policy_binding=policy_binding,
-        actor_source_id=actor_receipt.actor.source_id,
-        actor_source_version=actor_receipt.actor.source_version,
-        actor_source_content_hash=actor_receipt.actor.content_hash,
-        using="default",
-    ).get_current(as_of=as_of)
+    if previous_assignment is None:
+        participants_provider = build_current_single_owner_participants_provider(
+            principal=principal,
+            policy_binding=policy_binding,
+            actor_source_id=actor_receipt.actor.source_id,
+            actor_source_version=actor_receipt.actor.source_version,
+            actor_source_content_hash=actor_receipt.actor.content_hash,
+            using="default",
+        )
+    else:
+        # Recovery is caller-atomic: the standalone provider intentionally
+        # rejects nested transactions. Reuse the existing Audit UOW reader,
+        # which locks all six raw authority tables on this exact connection.
+        if not connection.in_atomic_block:
+            raise RuntimeError("operator recovery requires its outer transaction")
+        participants_provider = CurrentSingleOwnerParticipantsProvider(
+            principal=principal,
+            binding=policy_binding,
+            policies=DjangoSingleOwnerAuthorityPolicyV1Repository(using="default"),
+            actors=CanonicalAccountActorAuthorityRequestReader(
+                current_reader=GetCurrentAccountOwnerAssignmentActorAuthoritySourceV3(
+                    input_bundle_provider=DjangoAccountSystemAuditActorAuthorityBundleProviderV3(
+                        using="default"
+                    ),
+                    repository=DjangoAccountOwnerAssignmentActorAuthoritySourceV3Repository(
+                        using="default"
+                    ),
+                ),
+                source_id=actor_receipt.actor.source_id,
+                source_version=actor_receipt.actor.source_version,
+                expected_content_hash=actor_receipt.actor.content_hash,
+            ),
+        )
+    participants = participants_provider.get_current(as_of=as_of)
     if participants is None or participants.policy.owner_user_id != seed.owner.pk:
         raise RuntimeError("current Account owner and staff participant facts are unavailable")
     policy = participants.policy
@@ -391,9 +446,12 @@ def issue_current_owner_audit_selector(
     if now >= valid_until:
         raise RuntimeError("Account evidence expired before the authority graph was issued")
     suffix = uuid4().hex
+    previous_receipt = previous_assignment.subject.receipt if previous_assignment else None
     receipt = AccountOwnerAssignmentProvenanceReceiptV5(
-        receipt_id=f"ash07-owner-receipt-{suffix}",
-        receipt_version="v5.1",
+        receipt_id=(
+            previous_receipt.receipt_id if previous_receipt else f"ash07-owner-receipt-{suffix}"
+        ),
+        receipt_version=(f"v5-recovery-{suffix}" if previous_receipt else "v5.1"),
         policy=policy,
         policy_identity_hash=policy.identity_hash,
         policy_content_hash=policy.content_hash,
@@ -428,10 +486,13 @@ def issue_current_owner_audit_selector(
         issued_at=now,
         recorded_at=now,
         valid_until=valid_until,
+        supersedes_content_hash=(previous_receipt.content_hash if previous_receipt else None),
     )
     receipt = IssueAccountOwnerAssignmentProvenanceReceiptV5(
         DjangoAccountOwnerAssignmentProvenanceReceiptV5Repository(using="default")
-    ).execute(IssueAccountOwnerAssignmentProvenanceReceiptV5Command(receipt))
+    ).execute(
+        IssueAccountOwnerAssignmentProvenanceReceiptV5Command(receipt, predecessor=previous_receipt)
+    )
     subject = _subject_for_receipt(receipt, suffix=suffix, requested_at=now)
     subject = RegisterAccountOwnerAssignmentSubjectV5(
         DjangoAccountOwnerAssignmentSubjectV5Repository(using="default")
@@ -450,14 +511,21 @@ def issue_current_owner_audit_selector(
     )
     assignment = evidence_facade.approve(
         ApproveAccountOwnerAssignmentEvidenceV5Command(
-            evidence_id=f"ash07-owner-evidence-{suffix}",
-            evidence_version="v5.1",
+            evidence_id=(
+                previous_assignment.evidence_id
+                if previous_assignment
+                else f"ash07-owner-evidence-{suffix}"
+            ),
+            evidence_version=(f"v5-recovery-{suffix}" if previous_assignment else "v5.1"),
             subject_id=subject.subject_id,
             subject_version=subject.subject_version,
             expected_subject_content_hash=subject.content_hash,
+            expected_predecessor_content_hash=(
+                previous_assignment.content_hash if previous_assignment else None
+            ),
         )
     )
-    authority = build_owner_tenant_authority_v3_facade(
+    authority_facade = build_owner_tenant_authority_v3_facade(
         principal=principal,
         policy_binding=policy_binding,
         actor_source_id=actor_receipt.actor.source_id,
@@ -466,7 +534,8 @@ def issue_current_owner_audit_selector(
         validity_period=timedelta(minutes=10),
         physical_row_provider=physical_provider,
         using="default",
-    ).issue(
+    )
+    authority = authority_facade.issue(
         IssueOwnerTenantAuthorityV3Command(
             authority_id=f"ash07-owner-scope-{suffix}",
             authority_version="v3.1",

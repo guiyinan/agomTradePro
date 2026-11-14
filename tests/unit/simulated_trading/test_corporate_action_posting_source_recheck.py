@@ -44,6 +44,7 @@ def test_audited_new_writes_recheck_source_after_audit_but_exact_replay_does_not
 
     repository = object.__new__(audited.DjangoAuditedCorporateActionPostingRepository)
     repository._using = "default"
+    repository._window_gate = None
     repository._posting = SimpleNamespace(
         post_revision=post_revision,
         assert_current_sources=assert_current_sources,

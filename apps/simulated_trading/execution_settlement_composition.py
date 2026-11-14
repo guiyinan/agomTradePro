@@ -25,6 +25,9 @@ from apps.data_center.domain.exchange_calendar import (
 from apps.data_center.domain.exchange_calendar import (
     ExchangeCalendarSnapshotCandidate as DataCenterExchangeCalendarSnapshotCandidate,
 )
+from apps.simulated_trading.application.corporate_action_tax_cash_coverage import (
+    CorporateActionTaxCashCoverageReader,
+)
 from apps.simulated_trading.application.execution_settlement_uow import (
     ExecuteSettlementBoundSimulatedTradeUseCase,
     ExecutionCalendarUnavailable,
@@ -68,6 +71,22 @@ from core.exceptions import AgomTradeProException
 from core.integration.config_center_runtime import get_active_runtime_value
 
 
+def build_configured_tax_cash_coverage_reader(
+    *, using: str
+) -> CorporateActionTaxCashCoverageReader:
+    """Compose actual current tax coverage lazily, without reading or activating sources."""
+    from apps.simulated_trading.corporate_action_tax_cash_coverage_composition import (
+        DjangoCorporateActionTaxCashCoverageReader,
+    )
+    from apps.simulated_trading.execution_current_reference_composition import (
+        get_simulated_execution_runtime_environment,
+    )
+
+    return DjangoCorporateActionTaxCashCoverageReader(
+        runtime_environment=get_simulated_execution_runtime_environment(), using=using
+    )
+
+
 def build_execute_settlement_bound_simulated_trade_use_case(
     *,
     using: str,
@@ -85,7 +104,9 @@ def build_execute_settlement_bound_simulated_trade_use_case(
     ``using``.
     """
 
-    repository = DjangoPortfolioRiskExecutionRepository(using=using)
+    repository = DjangoPortfolioRiskExecutionRepository(
+        using=using, tax_cash_coverage_reader=build_configured_tax_cash_coverage_reader(using=using)
+    )
     return ExecuteSettlementBoundSimulatedTradeUseCase(
         rule_reader=rule_reader,
         identity_reader=identity_reader,
@@ -119,7 +140,9 @@ def build_reserve_simulated_order_use_case(
     return ReserveSimulatedOrderUseCase(
         preparer=preparer,
         repository=DjangoSimulatedOrderReservationRepository(
-            using=using, portfolio_risk_guard=ConfiguredPortfolioRiskLockedOrderGuard(using=using)
+            using=using,
+            portfolio_risk_guard=ConfiguredPortfolioRiskLockedOrderGuard(using=using),
+            tax_cash_coverage_reader=build_configured_tax_cash_coverage_reader(using=using),
         ),
         clock=clock,
     )

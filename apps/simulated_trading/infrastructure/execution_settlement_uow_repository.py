@@ -10,6 +10,9 @@ from typing import TypeAlias
 from django.db import models, transaction
 
 from apps.risk_center.domain.execution_settlement_v3 import ExecutionSettlementBundleV3
+from apps.simulated_trading.application.corporate_action_tax_cash_coverage import (
+    CorporateActionTaxCashCoverageReader,
+)
 from apps.simulated_trading.application.execution_settlement_uow import (
     AutomaticTradeStopLossMarketGuard,
     AutomaticTradeStopLossMarketQuote,
@@ -47,8 +50,9 @@ from apps.simulated_trading.domain.execution_settlement_uow import (
 from apps.simulated_trading.infrastructure.corporate_action_posting_models import (
     CorporateActionPostingModel,
 )
-from apps.simulated_trading.infrastructure.corporate_action_tax_balance_repository import (
-    read_locked_corporate_action_tax_payable,
+from apps.simulated_trading.infrastructure.corporate_action_tax_cash_admission import (
+    assert_tax_cash_coverage_before_commit,
+    require_current_tax_cash_coverage,
 )
 from apps.simulated_trading.infrastructure.execution_settlement_stop_loss_threshold import (
     normalize_locked_stop_loss_pct,
@@ -161,7 +165,11 @@ class DjangoSimulatedTradeExecutionRepository:
     _validate_rule_quantity = staticmethod(validate_execution_rule_quantity)
 
     def __init__(
-        self, *, using: str, portfolio_risk_guard: PortfolioRiskLockedOrderGuard | None = None
+        self,
+        *,
+        using: str,
+        portfolio_risk_guard: PortfolioRiskLockedOrderGuard | None = None,
+        tax_cash_coverage_reader: CorporateActionTaxCashCoverageReader | None = None,
     ) -> None:
         """Bind the complete ledger operation to one explicit Django database alias."""
 
@@ -170,6 +178,7 @@ class DjangoSimulatedTradeExecutionRepository:
         self._using = using
         self._fee_policy_repository = DjangoFeePolicyV2Repository(using=using)
         self._portfolio_risk_guard = portfolio_risk_guard
+        self._tax_cash_coverage_reader = tax_cash_coverage_reader
 
     def get_execution_fee_policy(
         self,
@@ -472,7 +481,7 @@ class DjangoSimulatedTradeExecutionRepository:
                         as_of=now,
                     )
                     validate_locked_execution_market_audit(market_audit, intent=intent, now=now)
-                return self._apply_trade(
+                result = self._apply_trade(
                     account=account,
                     position=position,
                     plan=plan,
@@ -481,6 +490,10 @@ class DjangoSimulatedTradeExecutionRepository:
                     active_cash_held=active_cash_held,
                     local_market_audit=market_audit,
                 )
+                _validate_plan_bundle_binding(
+                    plan=plan, bundle=execution_bundle, as_of=self._now(clock)
+                )
+                return result
         except (SimulatedTradeExecutionBlocked, SimulatedTradeIdempotencyConflict):
             raise
         except (ArithmeticError, TypeError, ValueError) as error:
@@ -739,13 +752,21 @@ class DjangoSimulatedTradeExecutionRepository:
         )
         require_trade_fee_storage_range(fees)
         total_fees = fees.total_fee
+        tax_coverage = None
         if intent.side is SimulatedTradeSide.BUY or total_fees > amount:
+            tax_coverage = require_current_tax_cash_coverage(
+                reader=self._tax_cash_coverage_reader,
+                physical_account_id=intent.account_id,
+                owner_user_id=intent.user_id,
+                using=self._using,
+            )
+            unavailable = tax_coverage.tax_cash_unavailable
+            if unavailable is None:
+                raise SimulatedTradeExecutionBlocked("Tax cash coverage is incomplete")
             spendable_cash = _spendable_cash_after_holds(
                 cash,
                 active_cash_held,
-                tax_cash_unavailable=read_locked_corporate_action_tax_payable(
-                    account=account, using=self._using
-                ),
+                tax_cash_unavailable=unavailable,
             )
         next_position: PositionModel | None = position
         if intent.side is SimulatedTradeSide.BUY:
@@ -951,6 +972,13 @@ class DjangoSimulatedTradeExecutionRepository:
         # Keep the explicit settlement-clock write and its in-memory value aligned.
         # The model now also preserves supplied instants via its current-time default.
         trade.execution_time = execution_time
+        if tax_coverage is not None:
+            assert_tax_cash_coverage_before_commit(
+                reader=self._tax_cash_coverage_reader,
+                snapshot=tax_coverage,
+                using=self._using,
+                expected_account_updated_at=account.updated_at,
+            )
         return self._receipt(trade)
 
     def _validate_position(self, position: PositionModel) -> None:

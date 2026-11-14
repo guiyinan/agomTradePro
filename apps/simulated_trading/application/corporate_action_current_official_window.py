@@ -5,9 +5,8 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
-from enum import StrEnum
 from pathlib import Path
-from typing import Literal, Protocol, TypeGuard, cast
+from typing import cast
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from apps.portfolio.application.transition_plan_event_review import (
@@ -26,229 +25,51 @@ from apps.simulated_trading.application.corporate_action_current_official_window
     OfficialWindowRuntimePolicyReader,
     TransitionPlanDisclosureRuntimePolicy,
 )
+from apps.simulated_trading.application.corporate_action_official_window_evidence import (
+    CorporateActionCurrentOfficialWindowClock as CorporateActionCurrentOfficialWindowClock,
+)
+from apps.simulated_trading.application.corporate_action_official_window_evidence import (
+    CorporateActionCurrentOfficialWindowEvidence as CorporateActionCurrentOfficialWindowEvidence,
+)
+from apps.simulated_trading.application.corporate_action_official_window_evidence import (
+    CorporateActionCurrentOfficialWindowReason as CorporateActionCurrentOfficialWindowReason,
+)
+from apps.simulated_trading.application.corporate_action_official_window_evidence import (
+    ExchangeTimezoneEvidence as ExchangeTimezoneEvidence,
+)
+from apps.simulated_trading.application.corporate_action_official_window_evidence import (
+    OriginalDisclosureBodyVerifier as OriginalDisclosureBodyVerifier,
+)
+from apps.simulated_trading.application.corporate_action_official_window_evidence import (
+    VerifiedAccountOriginCalendar as VerifiedAccountOriginCalendar,
+)
+from apps.simulated_trading.application.corporate_action_official_window_evidence import (
+    VerifiedAccountOriginCalendarReader as VerifiedAccountOriginCalendarReader,
+)
+from apps.simulated_trading.application.corporate_action_official_window_evidence import (
+    _is_aware as _is_aware,
+)
+from apps.simulated_trading.application.corporate_action_official_window_evidence import (
+    _is_sha256 as _is_sha256,
+)
+from apps.simulated_trading.application.corporate_action_official_window_evidence import (
+    _is_token as _is_token,
+)
+from apps.simulated_trading.application.corporate_action_official_window_scope import (
+    CorporateActionOfficialWindowScope,
+    CorporateActionOfficialWindowScopeEvidence,
+)
+from apps.simulated_trading.application.corporate_action_window_policy_provenance import (
+    CorporateActionWindowPolicyProvenance,
+)
 from apps.simulated_trading.domain.corporate_action_posting import CorporateActionStageRequest
 from core.exceptions import AgomTradeProException
 
 _SZSE_SOURCE_ID = "szse_official"
 _SZSE_EXCHANGE = "SZSE"
 _OFFICIAL_ACTION_NAMESPACE = "exchange_official_disclosure"
-_SHA256 = re.compile(r"[0-9a-f]{64}")
 _SZSE_ASSET_CODE = re.compile(r"[0-9]{6}\.SZ")
 _MAXIMUM_WINDOW_LEASE = timedelta(seconds=60)
-
-
-class CorporateActionCurrentOfficialWindowReason(StrEnum):
-    """Stable outcomes for a read-only current-window prerequisite."""
-
-    WINDOW_READY_PREREQUISITE_ONLY = "WINDOW_READY_PREREQUISITE_ONLY"
-    REQUEST_INVALID = "REQUEST_INVALID"
-    CUTOFF_INVALID = "CUTOFF_INVALID"
-    CLOCK_UNAVAILABLE = "CLOCK_UNAVAILABLE"
-    CLOCK_INVALID = "CLOCK_INVALID"
-    CLOCK_AHEAD_OF_TRUSTED_NOW = "CLOCK_AHEAD_OF_TRUSTED_NOW"
-    CLOCK_MOVED_BACKWARDS = "CLOCK_MOVED_BACKWARDS"
-    OWNER_CALENDAR_UNAVAILABLE = "OWNER_CALENDAR_UNAVAILABLE"
-    OWNER_CALENDAR_INVALID = "OWNER_CALENDAR_INVALID"
-    CURRENT_DAY_CHANGED = "CURRENT_DAY_CHANGED"
-    POLICY_UNAVAILABLE = "POLICY_UNAVAILABLE"
-    POLICY_CHANGED = "POLICY_CHANGED"
-    SNAPSHOT_UNAVAILABLE = "SNAPSHOT_UNAVAILABLE"
-    SNAPSHOT_INCOMPLETE = "SNAPSHOT_INCOMPLETE"
-    SNAPSHOT_CHANGED = "SNAPSHOT_CHANGED"
-    SOURCE_EVENT_MISSING = "SOURCE_EVENT_MISSING"
-    SOURCE_EVENT_CHANGED = "SOURCE_EVENT_CHANGED"
-    ORIGINAL_BODY_VERIFIER_UNAVAILABLE = "ORIGINAL_BODY_VERIFIER_UNAVAILABLE"
-    ORIGINAL_BODY_UNVERIFIED = "ORIGINAL_BODY_UNVERIFIED"
-    WINDOW_EXPIRED = "WINDOW_EXPIRED"
-
-
-class CorporateActionCurrentOfficialWindowClock(Protocol):
-    """Supply the trusted aware wall clock used for start and finish checks."""
-
-    def now(self) -> datetime:
-        """Return one trusted timezone-aware current time."""
-        ...
-
-
-class ExchangeTimezoneEvidence(Protocol):
-    """Structural shape of the exchange timezone evidence returned by Account."""
-
-    @property
-    def exchange(self) -> str:
-        """Return the qualified exchange code."""
-        ...
-
-    @property
-    def timezone_name(self) -> str:
-        """Return the configured exchange timezone."""
-        ...
-
-    @property
-    def policy_id(self) -> str:
-        """Return the immutable timezone-policy identity."""
-        ...
-
-    @property
-    def policy_sha256(self) -> str:
-        """Return the immutable timezone-policy digest."""
-        ...
-
-
-class VerifiedAccountOriginCalendar(Protocol):
-    """Structural shape of the Account-owned zero-origin date and timezone proof."""
-
-    @property
-    def origin_on(self) -> date:
-        """Return the exact account-origin date in the exchange timezone."""
-        ...
-
-    @property
-    def decision_on(self) -> date:
-        """Return the exchange-local date at the supplied cutoff."""
-        ...
-
-    @property
-    def timezone_policy(self) -> ExchangeTimezoneEvidence:
-        """Return the qualified timezone policy evidence."""
-        ...
-
-    @property
-    def as_of(self) -> datetime:
-        """Return the exact cutoff used to read the calendar."""
-        ...
-
-
-class VerifiedAccountOriginCalendarReader(Protocol):
-    """Read one exact physical account's immutable origin and exchange-local day."""
-
-    def read_verified_zero_origin_calendar(
-        self,
-        *,
-        account_id: int,
-        owner_user_id: int,
-        exchange: str,
-        as_of: datetime,
-    ) -> VerifiedAccountOriginCalendar:
-        """Return account-owned origin evidence or raise a typed scope failure."""
-        ...
-
-
-class OriginalDisclosureBodyVerifier(Protocol):
-    """Verify one snapshot member against its retained original source body."""
-
-    def verify_original_body(
-        self,
-        *,
-        event: TransitionPlanEventRevision,
-        body_store_root: Path,
-    ) -> bool:
-        """Return True only when the exact original body matches the event identity."""
-        ...
-
-
-@dataclass(frozen=True, slots=True)
-class CorporateActionCurrentOfficialWindowEvidence:
-    """Finite original source-window clocks and hashes; never decision authority."""
-
-    window_ready: bool
-    reason_code: CorporateActionCurrentOfficialWindowReason
-    freshness_status: Literal["current", "stale", "unknown"] = "unknown"
-    reliability_status: Literal["verified", "unverified"] = "unverified"
-    must_not_use_for_decision: Literal[True] = True
-    decision_use_reason: Literal["window_evidence_only"] = "window_evidence_only"
-    account_id: int | None = None
-    owner_user_id: int | None = None
-    asset_code: str | None = None
-    security_id: str | None = None
-    source_record_id: str | None = None
-    source_revision_id: str | None = None
-    source_payload_sha256: str | None = None
-    source_observed_at: datetime | None = None
-    window_start_on: date | None = None
-    window_end_on: date | None = None
-    original_first_observed_at: datetime | None = None
-    original_listing_verified_at: datetime | None = None
-    original_proof_recorded_at: datetime | None = None
-    checked_at: datetime | None = None
-    expires_at: datetime | None = None
-    runtime_environment: str | None = None
-    policy_sha256: str | None = None
-    calendar_policy_sha256: str | None = None
-    scope_sha256: str | None = None
-    selected_event_sha256: str | None = None
-
-    def __post_init__(self) -> None:
-        """Keep readiness and its explicit window-only warning inseparable."""
-
-        if (
-            type(self.window_ready) is not bool
-            or type(self.reason_code) is not CorporateActionCurrentOfficialWindowReason
-            or self.must_not_use_for_decision is not True
-            or self.decision_use_reason != "window_evidence_only"
-            or self.freshness_status
-            != (
-                "current"
-                if self.window_ready
-                else (
-                    "stale"
-                    if self.reason_code
-                    in {
-                        CorporateActionCurrentOfficialWindowReason.CURRENT_DAY_CHANGED,
-                        CorporateActionCurrentOfficialWindowReason.WINDOW_EXPIRED,
-                    }
-                    else "unknown"
-                )
-            )
-            or self.reliability_status != ("verified" if self.window_ready else "unverified")
-            or self.window_ready
-            != (
-                self.reason_code
-                is CorporateActionCurrentOfficialWindowReason.WINDOW_READY_PREREQUISITE_ONLY
-            )
-        ):
-            raise ValueError("current official-window result status is inconsistent")
-        if not self.window_ready:
-            return
-        if (
-            type(self.account_id) is not int
-            or self.account_id <= 0
-            or type(self.owner_user_id) is not int
-            or self.owner_user_id <= 0
-            or type(self.asset_code) is not str
-            or _SZSE_ASSET_CODE.fullmatch(self.asset_code) is None
-            or self.security_id != self.asset_code
-            or type(self.source_record_id) is not str
-            or not self.source_record_id
-            or type(self.source_revision_id) is not str
-            or not self.source_revision_id
-            or not _is_sha256(self.source_payload_sha256)
-            or not _is_aware(self.source_observed_at)
-            or type(self.window_start_on) is not date
-            or type(self.window_start_on) is datetime
-            or type(self.window_end_on) is not date
-            or type(self.window_end_on) is datetime
-            or self.window_start_on > self.window_end_on
-            or not _is_aware(self.original_first_observed_at)
-            or not _is_aware(self.original_listing_verified_at)
-            or not _is_aware(self.original_proof_recorded_at)
-            or not _is_aware(self.checked_at)
-            or not _is_aware(self.expires_at)
-            or type(self.runtime_environment) is not str
-            or not self.runtime_environment
-            or not _is_sha256(self.policy_sha256)
-            or not _is_sha256(self.calendar_policy_sha256)
-            or not _is_sha256(self.scope_sha256)
-            or not _is_sha256(self.selected_event_sha256)
-        ):
-            raise ValueError("ready current official-window evidence is incomplete")
-        if not (
-            self.original_first_observed_at
-            <= self.original_listing_verified_at
-            <= self.original_proof_recorded_at
-            <= self.checked_at
-            < self.expires_at
-        ):
-            raise ValueError("current official-window clocks are not ordered")
 
 
 class CorporateActionCurrentOfficialWindowReader:
@@ -292,6 +113,55 @@ class CorporateActionCurrentOfficialWindowReader:
         as_of: datetime,
     ) -> CorporateActionCurrentOfficialWindowEvidence:
         """Return finite exact-window evidence only while policy, source, and clocks agree."""
+
+        state = self._read_current_state(request, as_of=as_of)
+        if isinstance(state, CorporateActionCurrentOfficialWindowEvidence):
+            return state
+        return _ready(
+            request,
+            state,
+            runtime_environment=self._runtime_environment,
+            checked_at=state.checked_at,
+        )
+
+    def read_current_scope(
+        self,
+        scope: CorporateActionOfficialWindowScope,
+        *,
+        as_of: datetime,
+    ) -> CorporateActionOfficialWindowScopeEvidence:
+        """Read actual complete coverage, including zero events, through the same fences."""
+        if type(scope) is not CorporateActionOfficialWindowScope:
+            raise ValueError("official-window read requires an exact scope")
+        scope.__post_init__()
+        state = self._read_current_state(scope, as_of=as_of)
+        if isinstance(state, CorporateActionCurrentOfficialWindowEvidence):
+            return CorporateActionOfficialWindowScopeEvidence(
+                scope=scope,
+                window_ready=False,
+                reason_code=state.reason_code,
+                checked_at=state.checked_at,
+            )
+        return CorporateActionOfficialWindowScopeEvidence(
+            scope=scope,
+            window_ready=True,
+            reason_code=CorporateActionCurrentOfficialWindowReason.WINDOW_READY_PREREQUISITE_ONLY,
+            checked_at=state.checked_at,
+            expires_at=state.expires_at,
+            snapshot=state.snapshot,
+            policy=state.policy,
+            calendar_policy_id=state.calendar.timezone_policy.policy_id,
+            calendar_policy_sha256=state.calendar.timezone_policy.policy_sha256,
+            exchange_timezone_name=state.calendar.timezone_policy.timezone_name,
+        )
+
+    def _read_current_state(
+        self,
+        request: CorporateActionStageRequest | CorporateActionOfficialWindowScope,
+        *,
+        as_of: datetime,
+    ) -> _CurrentWindowState | CorporateActionCurrentOfficialWindowEvidence:
+        """Share all original-body, latest-proof, current-day and final-clock checks."""
 
         try:
             started_at = self._clock.now()
@@ -461,16 +331,18 @@ class CorporateActionCurrentOfficialWindowReader:
                 CorporateActionCurrentOfficialWindowReason.WINDOW_EXPIRED,
                 checked_at=completed_at,
             )
-        return _ready(
-            request,
-            initial,
-            runtime_environment=self._runtime_environment,
-            checked_at=completed_at,
+        return _CurrentWindowState(
+            initial.calendar,
+            initial.policy,
+            initial.snapshot,
+            initial.selected_event,
+            initial.expires_at,
+            completed_at,
         )
 
     def _finish_block(
         self,
-        request: CorporateActionStageRequest,
+        request: CorporateActionStageRequest | CorporateActionOfficialWindowScope,
         reason: CorporateActionCurrentOfficialWindowReason,
         *,
         started_at: datetime,
@@ -510,7 +382,7 @@ class CorporateActionCurrentOfficialWindowReader:
 
     def _read_window(
         self,
-        request: CorporateActionStageRequest,
+        request: CorporateActionStageRequest | CorporateActionOfficialWindowScope,
         *,
         as_of: datetime,
         verify_original_bodies: bool = True,
@@ -599,11 +471,13 @@ class CorporateActionCurrentOfficialWindowReader:
             as_of=as_of,
         ):
             return None, CorporateActionCurrentOfficialWindowReason.SNAPSHOT_INCOMPLETE
-        selected = _select_requested_event(request, snapshot)
-        if selected is None:
-            return None, CorporateActionCurrentOfficialWindowReason.SOURCE_EVENT_MISSING
-        if not _selected_event_matches_request(request, selected, as_of=as_of):
-            return None, CorporateActionCurrentOfficialWindowReason.SOURCE_EVENT_CHANGED
+        selected = None
+        if type(request) is CorporateActionStageRequest:
+            selected = _select_requested_event(request, snapshot)
+            if selected is None:
+                return None, CorporateActionCurrentOfficialWindowReason.SOURCE_EVENT_MISSING
+            if not _selected_event_matches_request(request, selected, as_of=as_of):
+                return None, CorporateActionCurrentOfficialWindowReason.SOURCE_EVENT_CHANGED
         if self._original_body_verifier is None:
             return (
                 None,
@@ -625,6 +499,7 @@ class CorporateActionCurrentOfficialWindowReader:
                 snapshot=snapshot,
                 selected_event=selected,
                 expires_at=expires_at,
+                checked_at=as_of,
             ),
             CorporateActionCurrentOfficialWindowReason.WINDOW_READY_PREREQUISITE_ONLY,
         )
@@ -637,13 +512,20 @@ class _CurrentWindowState:
     calendar: VerifiedAccountOriginCalendar
     policy: TransitionPlanDisclosureRuntimePolicy
     snapshot: TransitionPlanEventAssetSnapshot
-    selected_event: TransitionPlanEventRevision
+    selected_event: TransitionPlanEventRevision | None
     expires_at: datetime
+    checked_at: datetime
 
 
 def _valid_request(request: object, *, as_of: datetime) -> bool:
     """Require one official exact-SZ source request whose provenance is cutoff-known."""
 
+    if type(request) is CorporateActionOfficialWindowScope:
+        try:
+            request.__post_init__()
+        except ValueError:
+            return False
+        return True
     if type(request) is not CorporateActionStageRequest:
         return False
     return (
@@ -738,7 +620,7 @@ def _valid_policy(
 def _valid_snapshot(
     value: object,
     *,
-    request: CorporateActionStageRequest,
+    request: CorporateActionStageRequest | CorporateActionOfficialWindowScope,
     policy: TransitionPlanDisclosureRuntimePolicy,
     as_of: datetime,
 ) -> bool:
@@ -759,7 +641,7 @@ def _valid_snapshot(
         and value.coverage_status is TransitionPlanEventCoverageStatus.COMPLETE
         and _is_sha256(value.source_scope_sha256)
         and type(value.events) is tuple
-        and bool(value.events)
+        and (bool(value.events) or type(request) is CorporateActionOfficialWindowScope)
         and all(type(event) is TransitionPlanEventRevision for event in value.events)
         and all(event.event_type.upper() != "UNKNOWN" for event in value.events)
         and all(event.known_at <= as_of and event.available_at <= as_of for event in value.events)
@@ -902,6 +784,8 @@ def _ready(
     """Project exact original source evidence with a permanent decision-use block."""
 
     event = state.selected_event
+    if event is None:
+        raise ValueError("financial current-window evidence requires an actual selected event")
     snapshot = state.snapshot
     return CorporateActionCurrentOfficialWindowEvidence(
         window_ready=True,
@@ -928,11 +812,12 @@ def _ready(
         calendar_policy_sha256=state.calendar.timezone_policy.policy_sha256,
         scope_sha256=snapshot.source_scope_sha256,
         selected_event_sha256=event.manifest_sha256,
+        policy_provenance=CorporateActionWindowPolicyProvenance.from_policy(state.policy),
     )
 
 
 def _blocked(
-    request: CorporateActionStageRequest,
+    request: CorporateActionStageRequest | CorporateActionOfficialWindowScope,
     reason: CorporateActionCurrentOfficialWindowReason,
     *,
     checked_at: datetime | None = None,
@@ -965,37 +850,17 @@ def _blocked(
     return CorporateActionCurrentOfficialWindowEvidence(
         window_ready=False,
         reason_code=reason,
+        freshness_status=(
+            "stale"
+            if reason
+            in {
+                CorporateActionCurrentOfficialWindowReason.CURRENT_DAY_CHANGED,
+                CorporateActionCurrentOfficialWindowReason.WINDOW_EXPIRED,
+            }
+            else "unknown"
+        ),
         checked_at=checked_at if _is_aware(checked_at) else None,
     )
-
-
-def _is_token(value: object) -> TypeGuard[str]:
-    """Return whether a value is a bounded canonical identity token."""
-
-    return (
-        type(value) is str
-        and bool(value)
-        and len(value) <= 256
-        and value == value.strip()
-        and not any(character.isspace() for character in value)
-    )
-
-
-def _is_sha256(value: object) -> TypeGuard[str]:
-    """Require a lowercase SHA-256 digest."""
-
-    return type(value) is str and _SHA256.fullmatch(value) is not None
-
-
-def _is_aware(value: object) -> TypeGuard[datetime]:
-    """Return whether a value is an exact timezone-aware datetime."""
-
-    if type(value) is not datetime or value.tzinfo is None:
-        return False
-    try:
-        return value.utcoffset() is not None
-    except (OverflowError, TypeError, ValueError):
-        return False
 
 
 __all__ = (

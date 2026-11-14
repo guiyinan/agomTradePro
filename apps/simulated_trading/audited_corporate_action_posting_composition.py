@@ -30,6 +30,9 @@ from apps.audit.domain.system_audit_event import (
 from apps.audit.infrastructure.system_audit_event_outbox_coordinator import (
     DjangoSystemAuditEventOutboxCoordinator,
 )
+from apps.simulated_trading.application.corporate_action_current_official_window import (
+    CorporateActionCurrentOfficialWindowEvidence,
+)
 from apps.simulated_trading.application.corporate_action_posting import (
     AuditedCorporateActionPostingRepositoryPort,
     AuditedCorporateActionPostingRepositoryProtocol,
@@ -50,6 +53,12 @@ from apps.simulated_trading.corporate_action_posting_composition import (
     build_corporate_action_payment_use_case,
     build_corporate_action_posting_use_case,
     build_corporate_action_revision_use_case,
+)
+from apps.simulated_trading.corporate_action_window_audit_composition import (
+    CorporateActionWindowAuditGate,
+    corporate_action_window_audit_payload,
+    corporate_action_window_audit_sha256,
+    restore_corporate_action_window_audit_evidence,
 )
 from apps.simulated_trading.corporate_action_write_scope_composition import (
     CorporateActionSourceTimestampReplayProof,
@@ -426,6 +435,7 @@ def _build_event(
     predecessor_hash: str | None,
     scope: AuditScopeRef,
     owner_grant: SimulatedCorporateActionWriteGrant,
+    window_evidence: CorporateActionCurrentOfficialWindowEvidence | None = None,
 ) -> SystemAuditEvent:
     """Create the registered canonical event for an inserted stage row."""
 
@@ -468,6 +478,23 @@ def _build_event(
             content_hash=owner_grant.content_hash,
         )
     )
+    detail = _detail(request, receipt)
+    if window_evidence is not None:
+        window_payload = corporate_action_window_audit_payload(
+            window_evidence,
+            request,
+            recorded_at=recorded_at,
+        )
+        detail["current_official_window"] = window_payload
+        evidence_refs.append(
+            AuditEvidenceRef(
+                owner="data_center",
+                artifact_type="official_corporate_action_window",
+                artifact_id=str(window_evidence.scope_sha256),
+                artifact_version=str(window_evidence.policy_sha256),
+                content_hash=corporate_action_window_audit_sha256(window_payload),
+            )
+        )
     return SystemAuditEvent.create(
         event_id=_event_id(request),
         event_version=_EVENT_VERSION,
@@ -498,7 +525,7 @@ def _build_event(
         publication_id=None,
         evidence_refs=tuple(evidence_refs),
         detail_schema=_DETAIL_SCHEMA,
-        detail=_detail(request, receipt),
+        detail=detail,
         stream_id=_stream_id(request),
         sequence_no=sequence_no,
         predecessor_hash=predecessor_hash,
@@ -656,6 +683,7 @@ class DjangoAuditedCorporateActionPostingRepository(AuditedCorporateActionPostin
         coordinator: DjangoSystemAuditEventOutboxCoordinator,
         owner_grant_gate: DjangoCorporateActionOwnerGrantGate,
         using: str,
+        window_gate: CorporateActionWindowAuditGate | None = None,
     ) -> None:
         """Require exact owner-grant authority and same-alias transaction participants."""
 
@@ -665,6 +693,7 @@ class DjangoAuditedCorporateActionPostingRepository(AuditedCorporateActionPostin
             or posting.database_alias != using
             or type(owner_grant_gate) is not DjangoCorporateActionOwnerGrantGate
             or owner_grant_gate.database_alias != using
+            or (window_gate is not None and type(window_gate) is not CorporateActionWindowAuditGate)
         ):
             raise CorporateActionPostingBlockedError(
                 "corporate-action owner grant and posting aliases differ or authority is missing",
@@ -674,6 +703,7 @@ class DjangoAuditedCorporateActionPostingRepository(AuditedCorporateActionPostin
         self._coordinator = coordinator
         self._owner_grant_gate = owner_grant_gate
         self._using = using
+        self._window_gate = window_gate
 
     def get_database_alias(self) -> str:
         """Return the alias shared by account posting and canonical Audit/Outbox."""
@@ -724,6 +754,7 @@ class DjangoAuditedCorporateActionPostingRepository(AuditedCorporateActionPostin
                 code="CORPORATE_ACTION_AUDIT_AUTHORITY_SCOPE_INVALID",
             )
         receipts = self._posting.post_revision(requests)
+        entry_windows: dict[str, CorporateActionCurrentOfficialWindowEvidence] = {}
         scope = current_authority.scope
         owner_grant = current_authority.grant
         for request, receipt in zip(requests, receipts, strict=True):
@@ -758,6 +789,12 @@ class DjangoAuditedCorporateActionPostingRepository(AuditedCorporateActionPostin
                     "new corporate-action row conflicts with prior Audit identity",
                     code="CORPORATE_ACTION_AUDIT_IDENTITY_CONFLICT",
                 )
+            window_evidence = None
+            if self._window_gate is not None:
+                window_evidence = self._window_gate.read_entry_evidence(request)
+                self._bind_window_deadline(window_evidence)
+                entry_windows[request.payload_sha256] = window_evidence
+                as_of = timezone.now()
             head = self._coordinator.get_current_head(
                 stream_id=_stream_id(request), as_of=as_of, scope=scope
             )
@@ -769,6 +806,7 @@ class DjangoAuditedCorporateActionPostingRepository(AuditedCorporateActionPostin
                 predecessor_hash=head.content_hash if head is not None else None,
                 scope=scope,
                 owner_grant=owner_grant,
+                window_evidence=window_evidence,
             )
             commit = self._coordinator.append_and_enqueue(
                 event,
@@ -782,12 +820,30 @@ class DjangoAuditedCorporateActionPostingRepository(AuditedCorporateActionPostin
                 )
         if any(not receipt.replayed for receipt in receipts):
             self._posting.assert_current_sources(requests)
+            if self._window_gate is not None:
+                for request in requests:
+                    original = entry_windows.get(request.payload_sha256)
+                    if original is not None:
+                        current = self._window_gate.assert_unchanged(request, original)
+                        self._bind_window_deadline(current)
         if self._assert_current_authority(authority) != authority:
             raise CorporateActionPostingBlockedError(
                 "Audit authority changed before corporate-action commit",
                 code="CORPORATE_ACTION_AUDIT_AUTHORITY_SCOPE_INVALID",
             )
         return receipts
+
+    def _bind_window_deadline(self, evidence: CorporateActionCurrentOfficialWindowEvidence) -> None:
+        """Keep the source cutoff enforced after every owner context has exited."""
+        if evidence.checked_at is None or evidence.expires_at is None:
+            raise CorporateActionPostingBlockedError(
+                "current official-window deadline is missing",
+                code="CORPORATE_ACTION_CURRENT_OFFICIAL_WINDOW_BLOCKED",
+            )
+        self._owner_grant_gate.bind_current_window_commit_deadline(
+            checked_at=evidence.checked_at,
+            valid_until=evidence.expires_at,
+        )
 
     def _assert_current_authority(
         self,
@@ -813,6 +869,16 @@ class DjangoAuditedCorporateActionPostingRepository(AuditedCorporateActionPostin
     ) -> bool:
         """Compare every stable business field and every active authority evidence link."""
 
+        window_evidence = None
+        if "current_official_window" in winner.detail:
+            try:
+                window_evidence = restore_corporate_action_window_audit_evidence(
+                    winner.detail["current_official_window"],
+                    request,
+                    recorded_at=winner.recorded_at,
+                )
+            except CorporateActionPostingBlockedError:
+                return False
         expected = _build_event(
             request,
             receipt,
@@ -821,6 +887,7 @@ class DjangoAuditedCorporateActionPostingRepository(AuditedCorporateActionPostin
             predecessor_hash=winner.predecessor_hash,
             scope=scope,
             owner_grant=owner_grant,
+            window_evidence=window_evidence,
         )
         return winner == expected
 
@@ -835,6 +902,7 @@ class DjangoAuditedCorporateActionPostingRepositoryFactory(
         *,
         environment: str = "production",
         owner_grant_gate: DjangoCorporateActionOwnerGrantGate,
+        window_gate: CorporateActionWindowAuditGate | None = None,
     ) -> None:
         """Bind one exact owner-grant gate for every financial posting use case."""
 
@@ -849,6 +917,7 @@ class DjangoAuditedCorporateActionPostingRepositoryFactory(
             )
 
         self._owner_grant_gate = owner_grant_gate
+        self._window_gate = window_gate
 
     def build_posting_repository(
         self,
@@ -879,6 +948,7 @@ class DjangoAuditedCorporateActionPostingRepositoryFactory(
             ),
             coordinator=DjangoSystemAuditEventOutboxCoordinator(using=using),
             owner_grant_gate=self._owner_grant_gate,
+            window_gate=self._window_gate,
             using=using,
         )
 
@@ -889,6 +959,7 @@ def build_audited_cash_entitlement_use_case(
     runtime_environment: str,
     owner_grant_gate: DjangoCorporateActionOwnerGrantGate,
     using: str = DEFAULT_DB_ALIAS,
+    window_gate: CorporateActionWindowAuditGate | None = None,
 ) -> PostCashDividendEntitlementUseCase:
     """Wire official entitlement with the explicit same-alias owner grant."""
 
@@ -903,6 +974,7 @@ def build_audited_cash_entitlement_use_case(
         audited_repository=DjangoAuditedCorporateActionPostingRepositoryFactory(
             environment=runtime_environment,
             owner_grant_gate=owner_grant_gate,
+            window_gate=window_gate,
         ),
         using=using,
     )
@@ -914,6 +986,7 @@ def build_audited_cash_payment_use_case(
     runtime_environment: str,
     owner_grant_gate: DjangoCorporateActionOwnerGrantGate,
     using: str = DEFAULT_DB_ALIAS,
+    window_gate: CorporateActionWindowAuditGate | None = None,
 ) -> PostCashDividendPaymentUseCase:
     """Wire official payment with the explicit same-alias owner grant."""
 
@@ -928,6 +1001,7 @@ def build_audited_cash_payment_use_case(
         audited_repository=DjangoAuditedCorporateActionPostingRepositoryFactory(
             environment=runtime_environment,
             owner_grant_gate=owner_grant_gate,
+            window_gate=window_gate,
         ),
         using=using,
     )
@@ -939,6 +1013,7 @@ def build_audited_cash_revision_use_case(
     runtime_environment: str,
     owner_grant_gate: DjangoCorporateActionOwnerGrantGate,
     using: str = DEFAULT_DB_ALIAS,
+    window_gate: CorporateActionWindowAuditGate | None = None,
 ) -> PostCorporateActionStageUseCase:
     """Wire the generic cash stage use case to the same explicit owner-grant Audit UOW."""
 
@@ -953,6 +1028,7 @@ def build_audited_cash_revision_use_case(
         audited_repository=DjangoAuditedCorporateActionPostingRepositoryFactory(
             environment=runtime_environment,
             owner_grant_gate=owner_grant_gate,
+            window_gate=window_gate,
         ),
         using=using,
     )

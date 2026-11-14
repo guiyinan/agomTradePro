@@ -29,6 +29,9 @@ from apps.simulated_trading.audited_corporate_action_tax_assessment_composition 
     _event_id,
     _stream_id,
 )
+from apps.simulated_trading.corporate_action_tax_assessment_window_composition import (
+    read_retained_tax_assessment_window_proof,
+)
 from apps.simulated_trading.infrastructure.corporate_action_tax_assessment_models import (
     CorporateActionTaxAssessmentHeaderModel as Header,
 )
@@ -64,7 +67,10 @@ class DjangoRetainedTaxAssessmentAuditVerifier:
         if winner is None:
             raise _blocked("The original assessment Audit event is missing")
         expected = _build_event(
-            header, sequence_no=winner.sequence_no, predecessor_hash=winner.predecessor_hash
+            header,
+            sequence_no=winner.sequence_no,
+            predecessor_hash=winner.predecessor_hash,
+            official_window_proof=read_retained_tax_assessment_window_proof(header, winner),
         )
         outbox = self._audit.get_exact_outbox_winner_targeted(expected)
         if winner != expected or outbox is None or outbox.event != expected:
