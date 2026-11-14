@@ -1,13 +1,13 @@
 {
   "version": 1,
-  "updated_at": "2026-08-28",
+  "updated_at": "2026-11-14",
   "status": "p0_semantic_surface_frozen_terminal_bridge_blocked",
   "tui_action_closure": {
     "published_path": "config/tui/published/tui_operation_graph.published.json",
-    "published_sha256": "5f44468913c0f03a81fbdbf16a98d6a97b7e44021db13315afd6bd465f304786",
-    "normalized_action_count": 413,
-    "normalized_read_action_count": 391,
-    "normalized_read_set_sha256": "05143b00f7b0193ec43c851cf39e31ffa55cd9cfbbf49c186e539ef18088509d",
+    "published_sha256": "7d43bd16033a25c5f0324626bc4eb57e11e794668cb17a0ada929335a6860c61",
+    "normalized_action_count": 423,
+    "normalized_read_action_count": 397,
+    "normalized_read_set_sha256": "cfd9d2bb1933065833fb55e94d87ce5efcf9809ec66e9275706279f3158c9362",
     "raw_debug_true_count": 413,
     "evidence_binding_count": 0
   },

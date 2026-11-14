@@ -31,7 +31,7 @@ def _guard() -> tuple[str, set[str]]:
         if isinstance(node, ast.Assign)
         and any(isinstance(target, ast.Name) and target.id == "expected" for target in node.targets)
     )
-    assert isinstance(expected, set) and len(expected) == 18
+    assert isinstance(expected, set) and len(expected) == 21
     return script, expected
 
 

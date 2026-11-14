@@ -140,7 +140,10 @@ def test_current_owner_window_reads_live_complete_empty_official_coverage(
     if os.environ.get("ASH05_LIVE_CURRENT_OFFICIAL_WINDOW") != "1":
         pytest.skip("Live official-source acceptance requires explicit opt-in")
     assert connection.vendor == "postgresql"
-    assert connection.settings_dict["NAME"] == "ash05_tax_payment_basis_qa"
+    assert connection.settings_dict["NAME"] in {
+        "ash05_tax_payment_basis_qa",
+        "ash05_owner_goldens_test_ci",
+    }
     configured_output = os.environ.get("ASH05_LIVE_OFFICIAL_EVIDENCE_DIR")
     assert configured_output
     output = Path(configured_output).resolve()

@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
+import playwright.sync_api as playwright_api
 import pytest
 from django.conf import settings
 from django.db import connection
@@ -176,6 +177,22 @@ def _ordinary_owner_browser(
         try:
             _open_owner_workflow(page, base_url=live_server.url)
             yield context, page, state
+        except (AssertionError, playwright_api.Error):
+            configured = os.environ.get("ASH05_BROWSER_EVIDENCE_DIR")
+            if configured:
+                directory = Path(configured)
+                directory.mkdir(parents=True, exist_ok=True)
+                # Record structure only: no cookies, values, bodies or token text.
+                inventory = page.evaluate("""() => ({
+                    panels: Array.from(document.querySelectorAll('[data-dashboard-panel]')).map(e => e.dataset.dashboardPanel),
+                    forms: Array.from(document.querySelectorAll('form[data-action-ui-key]')).map(e => ({key: e.dataset.actionUiKey, visible: Boolean(e.getClientRects().length)})),
+                    opens: Array.from(document.querySelectorAll('[data-dashboard-open]')).map(e => ({action: e.dataset.dashboardAction, visible: Boolean(e.getClientRects().length)})),
+                    details: Array.from(document.querySelectorAll('details.tui-panel-disclosure')).map(e => ({panel: e.closest('[data-dashboard-panel]')?.dataset.dashboardPanel, open: e.open}))
+                })""")
+                (directory / f"failure-ui-{world.account_id}.json").write_text(
+                    json.dumps(inventory, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+                )
+            raise
         finally:
             context.close()
             browser.close()
@@ -206,20 +223,31 @@ def _action_ui_key(action_key: str) -> str:
 
 
 def _dashboard_form(page: Any, panel_key: str, action_key: str) -> Any:
-    """Find the form for this exact published action, never another panel action."""
-    panel_form = page.locator(
-        f'[data-dashboard-panel="{panel_key}"] '
-        f'form[data-action-ui-key="{_action_ui_key(action_key)}"]'
-    )
+    """Use an inline form or the exact published panel header to open this task."""
+    panel = page.locator(f'[data-dashboard-panel="{panel_key}"]')
+    details = panel.locator("details.tui-panel-disclosure")
+    if details.count() == 1 and not details.evaluate("element => element.open"):
+        details.locator("summary").click()
+    panel_form = panel.locator(f'form[data-action-ui-key="{_action_ui_key(action_key)}"]')
     if panel_form.count() == 1 and panel_form.is_visible():
         return panel_form
-    task_form = page.locator(
-        "[data-actions-panel] " f'form[data-action-ui-key="{_action_ui_key(action_key)}"]'
+    # Header and initial prompt can both contain this action. The header is
+    # unique and remains available after the panel body displays a result.
+    open_action = panel.locator(
+        f'button.tui-dashboard-open[data-dashboard-open][data-dashboard-action="{action_key}"]'
     )
-    if not task_form.is_visible():
-        page.keyboard.press("F9")
+    expect(open_action).to_be_visible(timeout=180_000)
+    open_action.click()
+    task_form = page.locator(
+        f'[data-actions-panel] form[data-action-ui-key="{_action_ui_key(action_key)}"]'
+    )
     expect(task_form).to_be_visible(timeout=180_000)
     return task_form
+
+
+def _open_consent_prepare_form(page: Any) -> Any:
+    """Open consent through its visible published supporting panel action."""
+    return _dashboard_form(page, "corporate-action-consent-result", _CONSENT_PREPARE_ACTION)
 
 
 def _set_fields(form: Any, values: dict[str, object]) -> None:
@@ -324,7 +352,7 @@ def _select_consent(
     """Explicitly select the requested least-capability subset and confirm its continuation."""
     selected = set(capabilities)
     assert selected and selected.issubset(_CONSENT_FIELDS), "consent selection is outside V3"
-    form = _dashboard_form(page, "corporate-action-consent-result", _CONSENT_PREPARE_ACTION)
+    form = _open_consent_prepare_form(page)
     _set_fields(
         form,
         {

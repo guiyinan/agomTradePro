@@ -26,17 +26,17 @@
       "script": 20,
       "sdk": 57,
       "terminal_tui": 32,
-      "test_evidence": 151,
+      "test_evidence": 154,
       "workflow_step": 11
     },
     "by_status": {
       "active_public": 926,
       "adjacent_operational": 346,
-      "candidate-review": 70,
+      "candidate-review": 73,
       "compatibility": 139,
       "retired_blocked": 0
     },
-    "total": 1481
+    "total": 1484
   },
   "entries": [
     {
@@ -13817,6 +13817,36 @@
       "path": "tests/component/simulated_trading/test_corporate_action_cash_coverage_postgres.py",
       "status": "candidate-review",
       "symbol": "test_corporate_action_cash_coverage_postgres",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/component/simulated_trading/test_corporate_action_owner_balance_consumers_postgres.py:test_corporate_action_owner_balance_consumers_postgres:",
+      "locator": "",
+      "path": "tests/component/simulated_trading/test_corporate_action_owner_balance_consumers_postgres.py",
+      "status": "candidate-review",
+      "symbol": "test_corporate_action_owner_balance_consumers_postgres",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/component/simulated_trading/test_corporate_action_owner_nav_postgres.py:test_corporate_action_owner_nav_postgres:",
+      "locator": "",
+      "path": "tests/component/simulated_trading/test_corporate_action_owner_nav_postgres.py",
+      "status": "candidate-review",
+      "symbol": "test_corporate_action_owner_nav_postgres",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/component/simulated_trading/test_corporate_action_owner_plan_review_postgres.py:test_corporate_action_owner_plan_review_postgres:",
+      "locator": "",
+      "path": "tests/component/simulated_trading/test_corporate_action_owner_plan_review_postgres.py",
+      "status": "candidate-review",
+      "symbol": "test_corporate_action_owner_plan_review_postgres",
       "target": ""
     },
     {

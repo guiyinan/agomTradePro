@@ -232,6 +232,10 @@ def test_public_empty_asset_owner_coverage_and_synthetic_unknown_blocks_buy_rese
                     for offset in range((calendar_end - calendar_start).days + 1)
                     if (calendar_start + timedelta(days=offset)).weekday() < 5
                 }
+                # This reservation-only market is explicitly synthetic: today's
+                # session is open even on a real-world weekend. No exchange
+                # availability or current official calendar is inferred here.
+                sessions.add(local_today)
                 return original_calendar(
                     as_of=as_of,
                     open_dates=sessions,
