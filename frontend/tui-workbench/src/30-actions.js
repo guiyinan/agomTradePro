@@ -1027,6 +1027,17 @@
                     params = handoff.params;
                 }
             }
+            // A protected continuation opens the explicit confirmation modal instead
+            // of a second acknowledgement form. Keep its required body flag false
+            // for preflight and bind true only to that actual modal confirmation.
+            const continuationBodyAcknowledgement = continuationTarget
+                && action.confirmation_required === true
+                && (action.fields || []).some(field => field.key === "confirmed"
+                    && String(field.binding || "body").toLowerCase() === "body"
+                    && field.value_type === "boolean");
+            if (continuationBodyAcknowledgement) {
+                params = { ...params, confirmed: requestConfirmed === true };
+            }
             if (isTargetedDashboardAction) {
                 targetPanelParams = dashboardTargetParams(action, params, actions);
             }

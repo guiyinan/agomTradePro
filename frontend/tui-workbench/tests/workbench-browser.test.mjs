@@ -1354,6 +1354,7 @@ test(`plan ${entry} preview keeps confirmation inside its result panel and on th
     const screenSpec = makeRebalancePlanRowContinuationScreen();
     const source = screenSpec.actions.find(item => item.key === "rebalance-plan.preview-order");
     const target = screenSpec.actions.find(item => item.key === "rebalance-plan.order-confirm");
+    target.fields.push({ key: "confirmed", label: "Explicit acknowledgement", binding: "body", input_type: "select", value_type: "boolean", required: true, options: [{ value: "true", label: "Confirm" }, { value: "false", label: "Decline" }] });
     if (entry === "header") {
         const grid = screenSpec.screen.dashboard_panels[0];
         grid.row_actions = [];
@@ -1393,6 +1394,14 @@ test(`plan ${entry} preview keeps confirmation inside its result panel and on th
             const request = route.request();
             const body = request.postDataJSON();
             targetRequests.push({ body, key: request.headers()["idempotency-key"] });
+            if (typeof body.params.confirmed !== "boolean") {
+                await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({
+                    action: target, missing_fields: [target.fields.find(field => field.key === "confirmed")],
+                    response: { status_code: 400 }, view_model: { kind: "message", title: "Acknowledgement missing", status: "Missing" },
+                }) });
+                return;
+            }
+            assert.equal(body.params.confirmed, body.confirmed === true);
             if (!body.confirmed) {
                 await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({
                     version: "tui-workbench.v2", action: target, confirmation_required: true,
@@ -1432,6 +1441,13 @@ test(`plan ${entry} preview keeps confirmation inside its result panel and on th
         await continueButton.click();
         await preflightResponse;
         await page.locator("[data-confirm-action]").waitFor({ state: "visible" });
+        await page.locator("[data-cancel-action]").click();
+        assert.deepEqual(targetRequests.map(item => item.body.confirmed), [false]);
+        assert.deepEqual(targetRequests.map(item => item.body.params.confirmed), [false]);
+        const repeatedPreflight = page.waitForResponse(response => response.url().includes("/actions/rebalance-plan.order-confirm/run/"));
+        await continueButton.click();
+        await repeatedPreflight;
+        await page.locator("[data-confirm-action]").waitFor({ state: "visible" });
         const confirmedResponse = page.waitForResponse(response => (
             response.url().includes("/actions/rebalance-plan.order-confirm/run/")
             && response.request().postDataJSON().confirmed
@@ -1440,11 +1456,14 @@ test(`plan ${entry} preview keeps confirmation inside its result panel and on th
         await confirmedResponse;
         await previewPanel.getByText("Reservation submitted", { exact: true }).waitFor({ state: "visible" });
         assert.equal(sourceRequests.length, 1);
-        assert.deepEqual(targetRequests.map(item => item.body.confirmed), [false, true]);
+        assert.deepEqual(targetRequests.map(item => item.body.confirmed), [false, false, true]);
         assert.equal(targetRequests[0].key, sourceRequests[0].key);
         assert.equal(targetRequests[1].key, sourceRequests[0].key);
-        assert.deepEqual(targetRequests[1].body.params, targetRequests[0].body.params);
-        assert.equal(targetRequests[1].body.params.preview_token, token);
+        assert.equal(targetRequests[2].key, sourceRequests[0].key);
+        assert.deepEqual(targetRequests.map(item => item.body.params.confirmed), [false, false, true]);
+        const withoutAcknowledgement = params => Object.fromEntries(Object.entries(params).filter(([key]) => key !== "confirmed"));
+        assert.deepEqual(withoutAcknowledgement(targetRequests[2].body.params), withoutAcknowledgement(targetRequests[0].body.params));
+        assert.equal(targetRequests[2].body.params.preview_token, token);
     } finally { await browser.close(); }
 });
 }

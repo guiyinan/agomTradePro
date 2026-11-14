@@ -6,6 +6,8 @@ This standard defines the user-facing contract for AgomTradePro `/tui/`. It exis
 
 ## Core Rule
 
+When a protected continuation declares a required boolean body `confirmed` and the action requires confirmation, bind that body acknowledgement to the actual confirmation modal. Preflight sends false; only the user's confirm click sends true together with the outer confirmation evidence. Cancellation must never send a true acknowledgement or dispatch the owner mutation. Do not preselect a true default or bypass the backend confirmation/ownership gates.
+
 In immersive dashboards, a header for a task requiring explicit input opens the existing scoped task modal. It must not reveal an old professional-panel form from another screen or run the action before user submission. A protected continuation must accept the exact declared header task/result-panel pair as well as declared row actions, while rejecting unrelated panels and changed contexts. Keep result targeting and protected continuations in the same published panel; this does not bypass owner, CSRF, confirmation or final locked authorization.
 
 Exact-plan reads with missing, changed or blocked current event evidence keep the saved facts readable but suppress preview/review capabilities. The result leads with a plain-language request to recheck current announcements and create a successor; an old passing risk label must not conceal this current restriction. Internal event-review codes remain out of user copy.
