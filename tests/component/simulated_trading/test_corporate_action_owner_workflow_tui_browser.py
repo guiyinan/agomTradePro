@@ -225,6 +225,11 @@ def _action_ui_key(action_key: str) -> str:
 def _dashboard_form(page: Any, panel_key: str, action_key: str) -> Any:
     """Use an inline form or the exact published panel header to open this task."""
     panel = page.locator(f'[data-dashboard-panel="{panel_key}"]')
+    if panel.count() == 0:
+        workspace_return = page.locator("[data-return-dashboard-workspace]")
+        expect(workspace_return).to_be_visible(timeout=180_000)
+        workspace_return.click()
+        expect(panel).to_be_visible(timeout=180_000)
     details = panel.locator("details.tui-panel-disclosure")
     if details.count() == 1 and not details.evaluate("element => element.open"):
         details.locator("summary").click()
@@ -243,6 +248,16 @@ def _dashboard_form(page: Any, panel_key: str, action_key: str) -> Any:
     )
     expect(task_form).to_be_visible(timeout=180_000)
     return task_form
+
+
+def _workflow_result_container(page: Any, panel_key: str) -> Any:
+    """Read the visible targeted panel or the normal standalone task result."""
+    panel = page.locator(f'[data-dashboard-panel="{panel_key}"]')
+    if panel.count() == 1 and panel.is_visible():
+        return panel
+    main = page.locator("[data-main-panel]")
+    expect(main).to_be_visible(timeout=180_000)
+    return main
 
 
 def _open_consent_prepare_form(page: Any) -> Any:
@@ -398,7 +413,7 @@ def _prepare_workflow_intent(
 ) -> str:
     """Prepare one event-row action using only event, operation, and optional settlement date."""
     _load_event_row(page, world)
-    event_panel = page.locator('[data-dashboard-panel="corporate-action-workflow-events"]')
+    event_panel = _workflow_result_container(page, "corporate-action-workflow-events")
     event_row = event_panel.locator("tbody tr").filter(has_text=world.capture.title)
     row_action = event_row.locator(
         "[data-dashboard-row-action]" f'[data-row-action-key="{_PREPARE_ACTION}"]'
@@ -460,7 +475,7 @@ def _load_event_row(page: Any, world: OwnerWorkflowNativeWorld) -> str:
     view_model = result.get("view_model")
     if not (isinstance(view_model, dict) and view_model.get("status") == "已读取"):
         raise AssertionError("the event listing did not return its visible read result")
-    event_panel = page.locator('[data-dashboard-panel="corporate-action-workflow-events"]')
+    event_panel = _workflow_result_container(page, "corporate-action-workflow-events")
     event_row = event_panel.locator("tbody tr").filter(has_text=world.capture.title)
     expect(event_row).to_have_count(1, timeout=180_000)
     expect(event_row).to_contain_text(world.asset_code)
@@ -493,9 +508,8 @@ def _confirm_continuation(
     expect_revoked: bool = False,
 ) -> dict[str, Any] | None:
     """Drive the TUI's 409 preflight, then either cancel or explicitly confirm the action."""
-    button = page.locator(
-        f'[data-dashboard-panel="{panel_key}"] ' '[data-result-continuation="true"] button'
-    )
+    result_container = _workflow_result_container(page, panel_key)
+    button = result_container.locator('[data-result-continuation="true"] button')
     expect(button).to_be_visible(timeout=180_000)
     expected_path = _action_run_path(target_action)
     with page.expect_response(
@@ -544,7 +558,7 @@ def _confirm_continuation(
                 raise AssertionError(
                     "withdrawn consent did not produce the stable visible capability block"
                 )
-            expect(page.locator(f'[data-dashboard-panel="{panel_key}"]')).to_contain_text(
+            expect(_workflow_result_container(page, panel_key)).to_contain_text(
                 "本次尚未办理", timeout=180_000
             )
         elif status_code == 403:
@@ -560,7 +574,7 @@ def _confirm_continuation(
                 raise AssertionError(
                     "withdrawn consent did not produce a visible authorization block"
                 )
-            expect(page.locator(f'[data-dashboard-panel="{panel_key}"]')).to_contain_text(
+            expect(_workflow_result_container(page, panel_key)).to_contain_text(
                 "当前会话无权操作该模拟账户", timeout=180_000
             )
         else:
@@ -673,7 +687,7 @@ def _read_receipts(page: Any, world: OwnerWorkflowNativeWorld, labels: tuple[str
         fields={"account_id": world.account_id},
     )
     _expect_action_success(result)
-    panel = page.locator('[data-dashboard-panel="corporate-action-workflow-audit-receipts"]')
+    panel = _workflow_result_container(page, "corporate-action-workflow-audit-receipts")
     expect(panel).to_be_visible(timeout=180_000)
     for label in labels:
         expect(panel).to_contain_text(label, timeout=180_000)

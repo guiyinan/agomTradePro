@@ -518,6 +518,7 @@ def test_owner_nav_requires_current_raw_close_policy_and_full_tax_coverage(
             timezone_name=_TIMEZONE,
             live_clock=True,
             require_current_open_session=False,
+            bootstrap_runtime=False,
         )
         assert szse_calendar.dataset_key == world.calendar_dataset_key
         activate_runtime_profile_patch(

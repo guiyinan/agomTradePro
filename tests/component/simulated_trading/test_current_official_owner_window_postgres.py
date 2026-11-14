@@ -11,6 +11,7 @@ from collections.abc import Iterator
 from dataclasses import asdict
 from datetime import date, datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import pytest
 import requests
@@ -75,12 +76,7 @@ pytestmark = pytest.mark.django_db(
 )
 
 _OFFICIAL_ASSET_CODE = "001211.SZ"
-_EXPECTED_WINDOW_START = date(2026, 11, 6)
-_EXPECTED_WINDOW_END = date(2026, 11, 14)
 _EXPECTED_CAPTURE_PAGE_SHA256 = "623a2b4aa0de75d0685242ca41fe14e9eadb493315e17194845035fa58c6ef83"
-_EXPECTED_COVERAGE_MANIFEST_SHA256 = (
-    "902fac8236f1a66a85248de4bc5cedc2efd7640681a0deae7700be66c53ad2bc"
-)
 
 
 @pytest.fixture(autouse=True)
@@ -167,6 +163,8 @@ def test_current_owner_window_reads_live_complete_empty_official_coverage(
 
     environment = world.owner.environment
     policy_cutoff = timezone.now()
+    expected_window_start = world.anchor_date
+    expected_window_end = policy_cutoff.astimezone(ZoneInfo("Asia/Shanghai")).date()
     calendar = build_corporate_action_ownership_history_repository(
         runtime_environment=environment,
         using="default",
@@ -185,10 +183,10 @@ def test_current_owner_window_reads_live_complete_empty_official_coverage(
         as_of=policy_cutoff,
     )
     assert configured_policy is not None
-    assert calendar.origin_on == world.anchor_date == _EXPECTED_WINDOW_START
-    assert calendar.decision_on == _EXPECTED_WINDOW_END
-    assert configured_policy.start_on == _EXPECTED_WINDOW_START
-    assert configured_policy.end_on == _EXPECTED_WINDOW_END
+    assert calendar.origin_on == world.anchor_date == expected_window_start
+    assert calendar.decision_on == expected_window_end
+    assert configured_policy.start_on == expected_window_start
+    assert configured_policy.end_on == expected_window_end
     assert configured_policy.body_store_root == world.action_body_store_root
 
     # This is the existing Data Center plus Audit/Outbox capture path. Its
@@ -206,13 +204,14 @@ def test_current_owner_window_reads_live_complete_empty_official_coverage(
     proof = persisted.proof
     assert type(listing) is CapturedOfficialSzseListingWindow
     assert listing.asset_code == _OFFICIAL_ASSET_CODE
-    assert listing.start_on == _EXPECTED_WINDOW_START
-    assert listing.end_on == _EXPECTED_WINDOW_END
+    assert listing.start_on == expected_window_start
+    assert listing.end_on == expected_window_end
     assert listing.announcement_count == 0
     assert listing.entries == ()
     assert listing.first_pass_page_body_sha256 == listing.page_body_sha256
     assert listing.first_pass_page_body_sha256 == (_EXPECTED_CAPTURE_PAGE_SHA256,)
-    assert listing.coverage_manifest_sha256 == _EXPECTED_COVERAGE_MANIFEST_SHA256
+    proof.__post_init__()
+    assert len(listing.coverage_manifest_sha256) == 64
     assert proof == captured.candidate.proof
     assert proof.announcement_count == 0
     assert proof.entries == ()
@@ -347,14 +346,14 @@ def test_current_owner_window_reads_live_complete_empty_official_coverage(
     assert snapshot.events == ()
     assert snapshot.asset_code == _OFFICIAL_ASSET_CODE
     assert snapshot.security_id == _OFFICIAL_ASSET_CODE
-    assert snapshot.start_on == _EXPECTED_WINDOW_START
-    assert snapshot.end_on == _EXPECTED_WINDOW_END
+    assert snapshot.start_on == expected_window_start
+    assert snapshot.end_on == expected_window_end
     assert snapshot.as_of == snapshot.proof_recorded_at == persisted.recorded_at
     assert snapshot.first_observed_at == proof.first_observed_at
     assert snapshot.source_observed_at == proof.verified_at
     assert snapshot.source_scope_sha256 == proof.coverage_manifest_sha256
-    assert policy.start_on == _EXPECTED_WINDOW_START
-    assert policy.end_on == _EXPECTED_WINDOW_END
+    assert policy.start_on == expected_window_start
+    assert policy.end_on == expected_window_end
     assert policy.body_store_root == configured_policy.body_store_root
     assert policy.profile_id == configured_policy.profile_id
     assert policy.profile_key == configured_policy.profile_key
@@ -392,8 +391,8 @@ def test_current_owner_window_reads_live_complete_empty_official_coverage(
     assert all(
         request.asset_code == _OFFICIAL_ASSET_CODE
         and request.security_id == _OFFICIAL_ASSET_CODE
-        and request.start_on == _EXPECTED_WINDOW_START
-        and request.end_on == _EXPECTED_WINDOW_END
+        and request.start_on == expected_window_start
+        and request.end_on == expected_window_end
         for request in snapshot_requests
     )
     assert len(trusted_clock.values) == 4

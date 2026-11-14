@@ -6,6 +6,8 @@ This standard defines the user-facing contract for AgomTradePro `/tui/`. It exis
 
 ## Core Rule
 
+Exact-plan reads with missing, changed or blocked current event evidence keep the saved facts readable but suppress preview/review capabilities. The result leads with a plain-language request to recheck current announcements and create a successor; an old passing risk label must not conceal this current restriction. Internal event-review codes remain out of user copy.
+
 The existing account workspace exposes simulated corporate-action consent through
 two read-only preparations and two separately confirmed mutations in the account
 row menu. Account detail remains the primary row task. Show the original source

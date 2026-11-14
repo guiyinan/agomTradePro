@@ -403,6 +403,11 @@ def _project_revision(
     }
     if progress is None:
         result["blocking_reason"] = "当前成交、预留或账户事实尚不能与此计划版本完整对应。"
+    if (_mapping(envelope.get("review")) or {}).get("event_review_blocking_reason"):
+        result["blocking_reason"] = (
+            "当前公告需重新核对，旧计划暂不能继续预览；请按当前事实生成后继版本。"
+        )
+        result["outcome"] = "当前公告待重新核对；旧计划不可继续预览"
     return result
 
 

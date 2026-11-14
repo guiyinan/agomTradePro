@@ -1140,3 +1140,32 @@ def test_matching_empty_order_identity_is_unknown(identity_key: str) -> None:
     values = {field["key"]: field["value"] for field in fields}
 
     assert values["order_1_quantity_derivation"] == ("未知；本版本没有可匹配的取整证据。")
+
+
+@pytest.mark.parametrize(
+    "reason",
+    (
+        "TRANSITION_PLAN_EVENT_REVIEW_REQUIRED",
+        "TRANSITION_PLAN_EVENT_REVIEW_UNAVAILABLE",
+        "TRANSITION_PLAN_EVENT_REVIEW_BLOCKED",
+    ),
+)
+def test_current_event_block_is_visible_without_exposing_internal_reason(reason: str) -> None:
+    envelope = _envelope()
+    envelope["review"] = {"event_review_blocking_reason": reason}
+    envelope["capabilities"] = {
+        "read_only": False,
+        "can_preview_order": False,
+        "can_request_review": False,
+        "can_create_successor": True,
+    }
+    original = json.dumps(envelope["plan"], sort_keys=True)
+    result = _detail_result(envelope)
+    assert (
+        result["blocking_reason"]
+        == "当前公告需重新核对，旧计划暂不能继续预览；请按当前事实生成后继版本。"
+    )
+    assert reason not in str(result)
+    assert "风险检查通过" not in str(result["outcome"])
+    assert json.dumps(envelope["plan"], sort_keys=True) == original
+    assert not any("至少一项可继续" in item for item in result["next_steps"])

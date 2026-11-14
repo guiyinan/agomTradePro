@@ -13928,7 +13928,9 @@
         "apps/simulated_trading/transition_plan_official_disclosure_source.py",
         "apps/simulated_trading/transition_plan_event_coverage_composition.py",
         "apps/simulated_trading/transition_plan_event_review_composition.py",
-        "apps/simulated_trading/transition_plan_journey_composition.py"
+        "apps/simulated_trading/transition_plan_journey_composition.py",
+        "apps/simulated_trading/application/rebalance_journey_service.py",
+        "apps/terminal/application/tui_rebalance_plan_result.py"
       ],
       "required_markers": {
         "apps/portfolio/domain/transition_plan_revision_basis.py": [
@@ -13995,6 +13997,16 @@
           "_official_event_gate_enabled",
           "event_coverage_required=event_required",
           "_LazyConfiguredEventReviewValidator"
+        ],
+        "apps/simulated_trading/application/rebalance_journey_service.py": [
+          "require_transition_plan_event_review_clear(",
+          "event_review_blocking_reason",
+          "\"can_preview_order\": writable and usable_context",
+          "require_current_events"
+        ],
+        "apps/terminal/application/tui_rebalance_plan_result.py": [
+          "event_review_blocking_reason",
+          "当前公告待重新核对；旧计划不可继续预览"
         ]
       },
       "required_tests": [
@@ -14102,9 +14114,24 @@
           "case": "review blocks changed active profile before reading old proof",
           "test_file": "tests/unit/portfolio/test_transition_plan_revision_asset_identity.py",
           "test_function": "test_configured_event_review_blocks_changed_profile_before_latest_proof_read"
+        },
+        {
+          "case": "ordinary read capabilities fail closed for missing, changed or blocked current events without rewriting the plan",
+          "test_file": "tests/unit/simulated_trading/application/test_rebalance_journey_event_capabilities.py",
+          "test_function": "test_current_event_outcome_controls_advertised_actions_without_mutating_plan"
+        },
+        {
+          "case": "current event review blocks stale preview copy while preserving exact saved facts",
+          "test_file": "tests/unit/terminal/test_tui_rebalance_plan_result.py",
+          "test_function": "test_current_event_block_is_visible_without_exposing_internal_reason"
+        },
+        {
+          "case": "direct ordinary preview propagates current event failure before downstream market or order preparation; read-only history remains readable",
+          "test_file": "tests/unit/simulated_trading/application/test_rebalance_journey_event_capabilities.py",
+          "test_function": "test_preview_request_stops_at_current_event_gate_before_market_or_order_preparation"
         }
       ],
-      "notes": "Controlled-port and Native component tests do not establish current external-source or ordinary-browser acceptance. Vendor availability/expiry unknown remain null; local source admission_until is separate. Full original evidence stays embedded and hashed. Current risk/profile, native limits, fees, rule records, published-calendar members and classifier/source/mapping pins are rechecked without using the naturally changing account cash/full report hash as an immutable policy identity. Inactive staff approval remains must_not_execute; a manual binding grants no formal Evidence, live, automated or broker authority. Explicit active Config Center selection enables official SZSE request capture; absent config keeps M1. The non-proof receipt binds account, exact asset pairs, window, profile/snapshot and exchange timezone fingerprint. Final pin rechecks current policy then uses Data Center latest-to-exact DB-only proof reads and retains original recorded_at. Review and locked checks compare the same policy fingerprint and both half-open 60-second leases, blocking missing, changed or contradictory evidence. It does not claim exchange-guaranteed freshness or production execution authority."
+      "notes": "Controlled-port and Native component tests do not establish current external-source or ordinary-browser acceptance. Vendor availability/expiry unknown remain null; local source admission_until is separate. Full original evidence stays embedded and hashed. Current risk/profile, native limits, fees, rule records, published-calendar members and classifier/source/mapping pins are rechecked without using the naturally changing account cash/full report hash as an immutable policy identity. Inactive staff approval remains must_not_execute; a manual binding grants no formal Evidence, live, automated or broker authority. Explicit active Config Center selection enables official SZSE request capture; absent config keeps M1. The non-proof receipt binds account, exact asset pairs, window, profile/snapshot and exchange timezone fingerprint. Final pin rechecks current policy then uses Data Center latest-to-exact DB-only proof reads and retains original recorded_at. Review and locked checks compare the same policy fingerprint and both half-open 60-second leases, blocking missing, changed or contradictory evidence. It does not claim exchange-guaranteed freshness or production execution authority. Ordinary exact-plan reads reuse the same current event-review gate before advertising preview/review capabilities; a blocked read retains the immutable plan and a stable event_review_blocking_reason, while permitting a current-family successor. A direct preview request propagates the same current-event block before downstream market/order preparation; final account-locked event and authority checks remain mandatory."
     },
     {
       "id": "simulated_trading.holding_disclosure_reference",

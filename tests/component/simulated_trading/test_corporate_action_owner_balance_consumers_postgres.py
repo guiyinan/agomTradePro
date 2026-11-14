@@ -14,6 +14,7 @@ from django.test import override_settings
 from django.utils import timezone
 
 import tests.component.simulated_trading.test_execution_settlement_uow as trade_fixtures
+from apps.config_center.application.runtime_public import activate_runtime_profile_patch
 from apps.simulated_trading.application.corporate_action_tax_cash_coverage import (
     TaxCashCoverageSnapshot,
     TaxCashCoverageStatus,
@@ -63,6 +64,7 @@ from tests.component.simulated_trading.test_corporate_action_owner_workflow_http
 from tests.support.account_authority_generation_flush import (
     preserve_account_authority_generation as preserve_account_authority_generation,
 )
+from tests.support.ash03_auto_calendar_fixture import persist_auto_uow_formal_calendar
 from tests.support.ash05_owner_workflow_native_world import (
     OwnerWorkflowNativeWorld,
     build_owner_workflow_native_world,
@@ -243,6 +245,29 @@ def test_unassessed_sell_is_reserved_or_blocks_buy_and_legacy_marks_stay_unquali
         pytest.skip("ordinary owner balance consumers require the assigned migrated PostgreSQL DB")
     with override_settings(ROOT_URLCONF=_WORKFLOW_URLCONF):
         world = build_owner_workflow_native_world(monkeypatch=monkeypatch, tmp_path=tmp_path)
+        # Tax history uses rule-market SZ; current disclosure coverage asks for
+        # the separately scoped source-exchange SZSE publication. Neither is an
+        # implicit alias of the other. Preserve the world's actual Audit setup.
+        source_calendar = persist_auto_uow_formal_calendar(
+            as_of=timezone.now().astimezone(UTC),
+            exchange="SZSE",
+            timezone_name="Asia/Shanghai",
+            live_clock=True,
+            require_current_open_session=False,
+            bootstrap_runtime=False,
+        )
+        assert source_calendar.dataset_key == world.calendar_dataset_key
+        activate_runtime_profile_patch(
+            environment=world.owner.environment,
+            patch={
+                "config_center.market.exchange_timezone_map": {
+                    "SZ": "Asia/Shanghai",
+                    "SZSE": "Asia/Shanghai",
+                }
+            },
+            actor="ash05-synthetic-balance-calendar-scope",
+            reason="retain the explicit source-exchange and rule-market calendar scopes",
+        )
         base = _API_ROOT.format(account_id=world.account_id)
 
         refreshed = _refresh(world)

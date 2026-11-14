@@ -124,6 +124,7 @@ def persist_auto_uow_formal_calendar(
     advance_clock: Callable[[], None] | None = None,
     live_clock: bool = False,
     require_current_open_session: bool = True,
+    bootstrap_runtime: bool = True,
 ) -> FormalCalendarFixture:
     """Persist and reread a complete formal test calendar at the selected cutoff.
 
@@ -139,6 +140,8 @@ def persist_auto_uow_formal_calendar(
     actual system timestamps without freezing or advancing the clock. Historical
     tax journeys may explicitly opt out of requiring an open current session;
     their synthetic fills still use published open dates and real current clocks.
+    ``bootstrap_runtime=False`` adds another exchange to an already configured
+    world without resetting its actual owner and Audit authority configuration.
     """
 
     if connection.vendor != "postgresql":
@@ -147,6 +150,8 @@ def persist_auto_uow_formal_calendar(
         raise TypeError("live_clock must be an exact boolean")
     if type(require_current_open_session) is not bool:
         raise TypeError("require_current_open_session must be an exact boolean")
+    if type(bootstrap_runtime) is not bool:
+        raise TypeError("bootstrap_runtime must be an exact boolean")
     if not live_clock and advance_clock is None:
         raise ValueError("the fixed-clock calendar path requires advance_clock")
     if type(as_of) is not datetime or as_of.utcoffset() is None:
@@ -181,7 +186,8 @@ def persist_auto_uow_formal_calendar(
     raw_body = _raw_calendar_body(source_rows)
 
     if live_clock:
-        configure_critical_runtime()
+        if bootstrap_runtime:
+            configure_critical_runtime()
         activate_runtime_profile_patch(
             environment=runtime_environment,
             patch={_EXCHANGE_TIMEZONE_KEY: {exchange: timezone_name}},
@@ -190,7 +196,8 @@ def persist_auto_uow_formal_calendar(
         )
     else:
         with _runtime_public_write_clock():
-            configure_critical_runtime()
+            if bootstrap_runtime:
+                configure_critical_runtime()
             activate_runtime_profile_patch(
                 environment=runtime_environment,
                 patch={_EXCHANGE_TIMEZONE_KEY: {exchange: timezone_name}},
