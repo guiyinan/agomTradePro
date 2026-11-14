@@ -6887,3 +6887,34 @@ test("dashboard panels expose a native package download link", async () => {
         await browser.close();
     }
 });
+
+
+test("immersive dashboard header opens an explicit support task in a modal", async () => {
+    const config = structuredClone(editableDashboardScreen);
+    config.screen.chrome_mode = "immersive";
+    config.actions.find(item => item.key === "test.lookup-user").task_tier = "support";
+    const { browser, page } = await openHarness("https://app.test/?screen=test.edit-dashboard", {
+        waitForInitialRows: false, editableDashboardScreen: config,
+        actionRunMock: async ({ actionKey }) => actionKey === "test.lookup-user" ? {
+            action: config.actions.find(item => item.key === actionKey),
+            view_model: { kind: "detail", title: "查询结果", status: "完成", fields: [{ key: "user_id", label: "用户", value: "42" }] },
+        } : null,
+    });
+    let reads = 0;
+    page.on("request", request => { if (request.url().includes("/actions/test.lookup-user/run/")) reads++; });
+    try {
+        const header = page.locator('[data-dashboard-panel="lookup-user"] button.tui-dashboard-open[data-dashboard-action="test.lookup-user"]');
+        await header.click();
+        const form = page.locator('[data-tui-modal] form[data-action-ui-key="test.lookup-user"]');
+        await form.waitFor({ state: "visible", timeout: 2000 });
+        assert.equal(reads, 0);
+        assert.equal(await page.locator('[data-actions-panel]').evaluate(element => element.closest('.tui-panel').hidden), true);
+        assert.equal(await form.locator('[name="user_id"]').evaluate(element => element === document.activeElement), true);
+        await form.locator('[name="user_id"]').fill("42");
+        await form.locator('button[type="submit"]').click();
+        await page.waitForFunction(() => document.querySelector('[data-dashboard-panel="lookup-user"]')?.textContent.includes('42'));
+        assert.equal(reads, 1);
+    } finally {
+        await browser.close();
+    }
+});

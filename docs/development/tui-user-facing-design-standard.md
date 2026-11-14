@@ -6,6 +6,8 @@ This standard defines the user-facing contract for AgomTradePro `/tui/`. It exis
 
 ## Core Rule
 
+In immersive dashboards, a header for a task requiring explicit input opens the existing scoped task modal. It must not reveal an old professional-panel form from another screen or run the action before user submission. Keep result targeting and protected continuations in the same published panel; this does not bypass owner, CSRF, confirmation or final locked authorization.
+
 Exact-plan reads with missing, changed or blocked current event evidence keep the saved facts readable but suppress preview/review capabilities. The result leads with a plain-language request to recheck current announcements and create a successor; an old passing risk label must not conceal this current restriction. Internal event-review codes remain out of user copy.
 
 The existing account workspace exposes simulated corporate-action consent through

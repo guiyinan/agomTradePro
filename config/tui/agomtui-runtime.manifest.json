@@ -1,8 +1,8 @@
 {
   "version": "0.2.0",
   "source_owner": "AgomTradePro",
-  "upstream_commit": "5984304d59d196372fe5e9225fa3486d50475fe0",
-  "build_id": "agomtui-runtime-0.2.0+758794e6bab8",
+  "upstream_commit": "0a78bd447772ba4227c6bf079a4ac8a358daaeec",
+  "build_id": "agomtui-runtime-0.2.0+c5bc4721e516",
   "direction": "AgomTradePro -> AgOMTUI",
   "contracts": {
     "screen_dashboard_layouts": [
@@ -44,7 +44,7 @@
     "frontend/tui-workbench/src/10-navigation.js": "9c10c33dadda086bd58169e3dbce03b2598676b9821ef4b363704aa35dea9dcf",
     "frontend/tui-workbench/src/12-experience.js": "0d64fedee7e1ce2382aaf8c58b37e97810c1d1c94fe80e2c1970ded03d908963",
     "frontend/tui-workbench/src/15-workspace-state.js": "413897ed500bba799d2b3ce69115b64e657fb49db2b03a3305f4c0e1c0cb39fb",
-    "frontend/tui-workbench/src/20-dashboard.js": "5824d1b0d5791914765a8c9d80539e8d8522ac9c61002264f67aea0385a996ed",
+    "frontend/tui-workbench/src/20-dashboard.js": "a4bee6a188af10c59dddf466d37c6b2ffe3a64a3e9fcc71a8a8950a21a4cbafd",
     "frontend/tui-workbench/src/21-dashboard-row-actions.js": "96b9919d8941c139fc279d97136d73ab95f275ef9153800392aba4572ccf1230",
     "frontend/tui-workbench/src/29-pressure-scenario-lookup.js": "bad265c7e9e1a4e18b30eaf884adc872b5cbb101f39d021416dac804f0ad48f2",
     "frontend/tui-workbench/src/30-actions.js": "ff1ca2b175ec917236eb7ba1e59c8744c1593373cde331032abd688cefeb05ea",
@@ -58,7 +58,7 @@
     "frontend/tui-workbench/src/45-pagination.js": "83368d1dd0e36600dcf9964c48140de9a8e1868c5f5ce3a7771a559d7ff5994d",
     "frontend/tui-workbench/src/50-shell.js": "42dd5d4f80babe9a00f2b9d7f1de39a7d39d62bc64141894d66d2105571f54ca",
     "static/js/agomtui-runtime-core.js": "988216a4761b3053cc72c36a5ac7a83d84f6844c590c6bdc1045fff7a4b98e90",
-    "static/js/tui-workbench.js": "77371a1571fb8a771c1019d4123836a0e8d7a59106b3b8242a37040cbb5d60b4",
+    "static/js/tui-workbench.js": "94948608a470046ee9bc9dd871bd219aab3b5563f8246d2388b7e46ed8ea2b2e",
     "static/css/tui-workbench.css": "026886f03ddf988c1dd2aadc2d5f4a638128cb21248a45931525d987f2ce63d2",
     "config/tui/ia/tui_information_architecture.v1.json": "f00d2ac4b7d8c2eec7846404f23c920968179d1d242301f1828fa4b47ca0abe1",
     "apps/terminal/application/tui_metadata_constants.py": "4d07c324984f258aa8894c7d16a1545e72098d34db79ded7ffca667fd2f3d179",

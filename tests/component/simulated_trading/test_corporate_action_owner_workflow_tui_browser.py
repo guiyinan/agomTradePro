@@ -243,6 +243,12 @@ def _dashboard_form(page: Any, panel_key: str, action_key: str) -> Any:
     )
     expect(open_action).to_be_visible(timeout=180_000)
     open_action.click()
+    modal_form = page.locator(
+        f'[data-tui-modal] form[data-action-ui-key="{_action_ui_key(action_key)}"]'
+    )
+    if modal_form.count() == 1:
+        expect(modal_form).to_be_visible(timeout=180_000)
+        return modal_form
     task_form = page.locator(
         f'[data-actions-panel] form[data-action-ui-key="{_action_ui_key(action_key)}"]'
     )

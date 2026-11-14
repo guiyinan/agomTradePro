@@ -114,6 +114,19 @@
         if (normalizedActionKey) {
             const action = currentAction(normalizedActionKey);
             if (action && !dashboardActionCanAutoRun(action)) {
+                const panel = state.screen?.screen?.dashboard_panels?.find(
+                    (item) => item.key === panelKey,
+                );
+                if (panel && isImmersiveDashboardScreen(state.screen?.screen)) {
+                    openDashboardRowActionForm(
+                        action,
+                        panel,
+                        { result_panel_key: panel.result_panel_key || panel.key },
+                        {},
+                        dashboardPanelSelectedParams(panel),
+                    );
+                    return;
+                }
                 focusActions();
                 const form = revealActionFormInPanel(action);
                 focusActionFormInPanel(form);
