@@ -54,6 +54,9 @@ from apps.simulated_trading.infrastructure.corporate_action_posting_repository i
 from apps.simulated_trading.infrastructure.simulated_account_trade_models import (
     SimulatedAccountModel,
 )
+from tests.component.simulated_trading.test_order_reservation_legacy_write_guards import (
+    _create_active_reservation,
+)
 from tests.support.account_authority_generation_flush import (
     preserve_account_authority_generation as preserve_account_authority_generation,
 )
@@ -496,3 +499,73 @@ def test_postgres_wrong_owner_account_or_security_scope_blocks_without_writes(
     other_account.refresh_from_db()
     assert account.current_cash == Decimal("10000.00")
     assert other_account.current_cash == Decimal("5000.00")
+
+
+@pytest.mark.parametrize("held_side", ("buy", "sell"))
+@pytest.mark.django_db
+def test_postgres_active_order_hold_blocks_new_audited_stage_but_not_exact_replay(
+    held_side: str,
+) -> None:
+    """Preserve existing holds and all financial/Audit state when a new stage is rejected."""
+    if connection.vendor != "postgresql":
+        pytest.skip("native PostgreSQL reservation serialization is required")
+    user = get_user_model().objects.create_user(username=f"ca-hold-{held_side}", password="unused")
+    account = SimulatedAccountModel.objects.create(
+        user=user,
+        account_name="Corporate action hold isolation",
+        account_type="simulated",
+        initial_capital=Decimal("10000.00"),
+        current_cash=Decimal("10000.00"),
+        current_market_value=Decimal("0.00"),
+        total_value=Decimal("10000.00"),
+        is_active=True,
+    )
+    entitlement = _request(account)
+    repository = DjangoAuditedCorporateActionPostingRepositoryFactory(
+        environment="test", owner_grant_gate=_controlled_owner_gate(account.user_id)
+    ).build_posting_repository(
+        source_qualifier=_SourceVerifier(),
+        ownership_verifier=_OwnershipVerifier(),
+        tax_basis_verifier=None,
+        using="default",
+    )
+    original = repository.post_revision_with_audit((entitlement,))[0]
+    reservation = _create_active_reservation(
+        account, side=held_side, asset_code=entitlement.asset_code
+    )
+    held_before = (reservation.cash_reserved, reservation.shares_reserved, reservation.status)
+    counts_before = (
+        CorporateActionPostingModel.objects.count(),
+        SystemAuditEventModel.objects.count(),
+        SystemAuditOutboxModel.objects.count(),
+    )
+    payment = replace(
+        entitlement,
+        stage=CorporateActionStage.CASH_PAYMENT,
+        stage_date=_EFFECTIVE_DATE,
+        payment_date=_EFFECTIVE_DATE,
+        ownership_snapshot_id=None,
+        ownership_snapshot_sha256=None,
+        ownership_snapshot_as_of_date=None,
+        ownership_snapshot_observed_at=None,
+        eligible_quantity=None,
+        entitlement_calculation_sha256=None,
+    )
+    with pytest.raises(CorporateActionPostingBlockedError) as blocked:
+        repository.post_revision_with_audit((payment,))
+    assert blocked.value.code == "CORPORATE_ACTION_ACTIVE_RESERVATION"
+    account.refresh_from_db()
+    reservation.refresh_from_db()
+    assert account.current_cash == Decimal("10000.00")
+    assert (
+        reservation.cash_reserved,
+        reservation.shares_reserved,
+        reservation.status,
+    ) == held_before
+    replay = repository.post_revision_with_audit((entitlement,))[0]
+    assert replay.replayed and replay.entry_id == original.entry_id
+    assert (
+        CorporateActionPostingModel.objects.count(),
+        SystemAuditEventModel.objects.count(),
+        SystemAuditOutboxModel.objects.count(),
+    ) == counts_before

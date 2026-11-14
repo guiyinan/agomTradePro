@@ -34,7 +34,7 @@ from apps.simulated_trading.infrastructure.corporate_action_posting_models impor
     CorporateActionPostingModel,
 )
 from apps.simulated_trading.infrastructure.order_reservation_guard import (
-    lock_active_order_reservations,
+    require_no_active_order_reservations,
 )
 from apps.simulated_trading.infrastructure.simulated_account_trade_models import (
     PositionModel,
@@ -269,7 +269,7 @@ class DjangoCorporateActionPostingRepository(CorporateActionPostingRepositoryPro
 
             self._validate_revision_transition(requests, event_rows)
             try:
-                lock_active_order_reservations(
+                require_no_active_order_reservations(
                     account_id=first.account_id,
                     using=self._using,
                 )
