@@ -33,7 +33,10 @@ from apps.data_center.application.price_response_capture import (
     CapturedPriceBarResponse,
     ExactPriceBarRequestScope,
 )
-from apps.data_center.application.public_published_queries import get_published_price_bar_source
+from apps.data_center.application.public_published_queries import (
+    get_published_price_bar_source,
+    get_retained_historical_price_source,
+)
 from apps.data_center.domain.entities import PriceBar
 from apps.data_center.domain.enums import DataCapability, PriceAdjustment
 from apps.data_center.domain.market_time import latest_closed_cn_market_session
@@ -428,22 +431,40 @@ def _publish_synthetic_raw_close_capture(
         )
     )
     assert publication.publication.selected_source == "tushare"
-    result = get_published_price_bar_source(
-        world.asset_code,
-        trade_date=trade_date,
-        knowledge_cutoff=timezone.now().astimezone(UTC),
-        publication_key=publication.publication.publication_key,
-    )
-    assert result.evidence is not None, result.blocked_reason
-    assert result.evidence.publication_id == publication.publication.publication_id
-    assert result.evidence.trade_date == trade_date
-    assert result.evidence.source == "tushare"
-    assert result.evidence.values.close == close
-    assert result.evidence.source_observed_at is None
-    assert (
-        result.evidence.local_known_at
-        == result.evidence.raw_payload_reference.response_completed_at
-    )
+    knowledge_cutoff = timezone.now().astimezone(UTC)
+    if trade_date == latest_closed:
+        result = get_published_price_bar_source(
+            world.asset_code,
+            trade_date=trade_date,
+            knowledge_cutoff=knowledge_cutoff,
+            publication_key=publication.publication.publication_key,
+        )
+        assert result.evidence is not None, result.blocked_reason
+        assert result.evidence.publication_id == publication.publication.publication_id
+        assert result.evidence.trade_date == trade_date
+        assert result.evidence.source == "tushare"
+        assert result.evidence.values.close == close
+        assert result.evidence.source_observed_at is None
+        assert (
+            result.evidence.local_known_at
+            == result.evidence.raw_payload_reference.response_completed_at
+        )
+    else:
+        historical = get_retained_historical_price_source(
+            world.asset_code,
+            trade_date=trade_date,
+            publication_id=publication.publication.publication_id,
+            expected_publication_key=publication.publication.publication_key,
+            knowledge_cutoff=knowledge_cutoff,
+            environment="development",
+        )
+        assert historical.evidence is not None, historical.blocked_reason
+        price = historical.evidence.price
+        assert price.publication_id == publication.publication.publication_id
+        assert price.trade_date == trade_date
+        assert price.source == "tushare"
+        assert price.values.close == close
+        assert price.source_observed_at is None
     return _SyntheticRawClosePublication(
         trade_date=trade_date,
         publication_id=publication.publication.publication_id,
@@ -643,6 +664,9 @@ def test_owner_nav_requires_current_raw_close_policy_and_full_tax_coverage(
             settlement_date=world.settlement_date,
         )
 
+        # Recognizing debt changes the physical account revision. Advance the
+        # actual owner source heads before asking for complete current coverage.
+        _refresh(world)
         query = _query(world)
         from apps.simulated_trading.corporate_action_nav_mark_composition import (
             ConfiguredCorporateActionNavRawMarkPolicyReader,

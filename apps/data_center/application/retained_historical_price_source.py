@@ -496,7 +496,12 @@ def _verify_publication(
 def _verify_manifest(
     manifest: CandidateRawAuditManifest, publication: CanonicalPublication
 ) -> None:
-    """Verify every manifest identity and its complete ordered Audit reference set."""
+    """Verify the complete sealed manifest without conflating instance name and type.
+
+    Original instance names are checked exactly against RawAudit and the retained
+    request/payload. The audit's independent source_type must match the selected
+    canonical source in _verify_raw_audit.
+    """
     if type(manifest) is not CandidateRawAuditManifest:
         raise _HistoricalPriceEvidenceInvalid("retained_price_manifest_invalid")
     try:
@@ -517,7 +522,6 @@ def _verify_manifest(
         and len({item.ingested_run_id for item in references}) == len(references)
         and all(
             item.capability == canonical_capability_for_publication_dataset(_DATASET_KEY)
-            and item.provider_name == publication.selected_source
             for item in references
         ),
         "retained_price_manifest_identity_mismatch",

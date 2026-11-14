@@ -39,6 +39,14 @@ from tests.component.simulated_trading.test_execution_settlement_uow import (
 pytestmark = pytest.mark.django_db
 
 
+@pytest.fixture(autouse=True)
+def _isolated_settlement_tax_scenario(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Declare no-tax input only for these preexisting settlement caller scenarios."""
+    from tests.support.synthetic_trade_tax_coverage import install_synthetic_trade_tax_coverage
+
+    install_synthetic_trade_tax_coverage(monkeypatch)
+
+
 def _seed_sellable_position(
     account: SimulatedAccountModel, *, quantity: int, available_quantity: int
 ) -> PositionModel:

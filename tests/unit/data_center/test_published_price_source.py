@@ -131,12 +131,18 @@ class _MemoryRepository:
         return self.payloads.get(payload_hash)
 
 
-def _make_fixture(*, redact_volume: bool = False, response_delay_minutes: int = 1) -> _Fixture:
+def _make_fixture(
+    *,
+    redact_volume: bool = False,
+    response_delay_minutes: int = 1,
+    provider_name: str = "tushare",
+    source_type: str = "tushare",
+) -> _Fixture:
     """Build real, hash-bound publication and provider evidence for one session."""
 
     scope = ExactPriceBarRequestScope(
         provider_id=19,
-        provider_name="tushare",
+        provider_name=provider_name,
         dataset_key="equity.price.bar",
         api_name="daily",
         asset_code=ASSET_CODE,
@@ -226,14 +232,14 @@ def _make_fixture(*, redact_volume: bool = False, response_delay_minutes: int = 
         reference=reference,
     )
     audit = RawAudit(
-        provider_name="tushare",
+        provider_name=provider_name,
         capability="historical_price",
         request_params={"exact_price_request_scope": scope.to_payload()},
         status="ok",
         row_count=1,
         fetched_at=observed_at + timedelta(minutes=3),
         extra={
-            "source_type": "tushare",
+            "source_type": source_type,
             "provider_response_request_scope": scope.to_payload(),
             "provider_response_payload_reference": response_reference.to_payload(),
         },
@@ -248,7 +254,7 @@ def _make_fixture(*, redact_volume: bool = False, response_delay_minutes: int = 
         raw_audit_id=AUDIT_ID,
         version="1",
         content_hash=audit.content_hash,
-        provider_name="tushare",
+        provider_name=provider_name,
         capability="historical_price",
         run_id=PUBLICATION_RUN_ID,
         ingested_run_id=INGESTED_RUN_ID,

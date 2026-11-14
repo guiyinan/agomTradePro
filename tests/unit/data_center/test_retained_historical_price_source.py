@@ -112,9 +112,9 @@ class _Activation:
         return self.value
 
 
-def _fixture() -> _Fixture:
+def _fixture(*, provider_name: str = "tushare", source_type: str = "tushare") -> _Fixture:
     """Build exact retained source plus the actual manifest activation Audit envelope."""
-    source = price_fixtures._make_fixture()
+    source = price_fixtures._make_fixture(provider_name=provider_name, source_type=source_type)
     publication = replace(
         source.publication,
         publication_key="m1-rebalance-reference",
@@ -809,3 +809,42 @@ def test_hash_valid_activation_without_publication_resource_fails_closed() -> No
     result, _, _ = _read(fixture, activation=activation)
     assert result.evidence is None
     assert result.blocked_reason == "retained_price_activation_identity_mismatch"
+
+
+def test_named_tushare_instance_preserves_original_provider_identity() -> None:
+    """A sealed instance name is distinct from the canonical adapter type."""
+    fixture = _fixture(provider_name="Synthetic named Tushare instance")
+    result, _prices, _activation = _read(fixture)
+    assert result.evidence is not None, result.blocked_reason
+    assert fixture.publication.selected_source == "tushare"
+    assert (
+        result.evidence.price.raw_audit_reference.provider_name
+        == "Synthetic named Tushare instance"
+    )
+    assert (
+        result.evidence.price.raw_payload_reference.provider_name
+        == "Synthetic named Tushare instance"
+    )
+    assert result.evidence.price.source == "tushare"
+    assert result.evidence.must_not_use_for_decision is True
+
+
+def test_named_instance_with_another_original_source_type_is_rejected() -> None:
+    """Matching immutable instance identities cannot substitute a different source type."""
+    fixture = _fixture(
+        provider_name="Synthetic named Tushare instance", source_type="another-source"
+    )
+    result, _prices, _activation = _read(fixture)
+    assert result.evidence is None and result.blocked_reason
+
+
+def test_changed_instance_name_cannot_match_the_original_sealed_audit() -> None:
+    """The correct canonical type never excuses an altered original instance name."""
+    from apps.data_center.domain.entities import raw_audit_content_hash
+
+    fixture = _fixture(provider_name="Synthetic named Tushare instance")
+    prices = _Prices(fixture)
+    changed = replace(fixture.audit, provider_name="tushare")
+    prices.audit = replace(changed, content_hash=raw_audit_content_hash(changed))
+    result, _prices, _activation = _read(fixture, prices=prices)
+    assert result.evidence is None and result.blocked_reason

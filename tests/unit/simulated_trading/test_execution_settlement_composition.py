@@ -8,7 +8,11 @@ from typing import cast
 
 import pytest
 
+import apps.simulated_trading.execution_settlement_composition as composition
 from apps.risk_center.domain.execution_settlement_v3 import ExecutionSettlementBundleV3
+from apps.simulated_trading.application.corporate_action_tax_cash_coverage import (
+    TaxCashCoverageSnapshot,
+)
 from apps.simulated_trading.application.execution_settlement_uow import (
     ExecuteSettlementBoundSimulatedTradeUseCase,
     PublishedExecutionCalendarReader,
@@ -87,11 +91,39 @@ def _assert_guarded_repository(
     assert guard._using == using
 
 
-def test_trade_composition_requires_ports_and_shares_alias_bound_repository() -> None:
+def test_trade_composition_requires_ports_and_shares_alias_bound_repository(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     rule_reader = _RuleReader()
     calendar_reader = _CalendarReader()
     identity_reader = _IdentityReader()
     clock = _Clock()
+
+    class UnreadTaxCoverage:
+        database_alias = "execution_test"
+
+        def read_locked(
+            self, *, physical_account_id: int, owner_user_id: int, using: str
+        ) -> TaxCashCoverageSnapshot:
+            raise AssertionError("composition must not read tax coverage")
+
+        def assert_still_current(
+            self,
+            snapshot: TaxCashCoverageSnapshot,
+            *,
+            using: str,
+            expected_account_updated_at: datetime | None = None,
+        ) -> None:
+            raise AssertionError("composition must not revalidate tax coverage")
+
+    coverage = UnreadTaxCoverage()
+    aliases: list[str] = []
+
+    def build_coverage(*, using: str) -> UnreadTaxCoverage:
+        aliases.append(using)
+        return coverage
+
+    monkeypatch.setattr(composition, "build_configured_tax_cash_coverage_reader", build_coverage)
 
     use_case = build_execute_settlement_bound_simulated_trade_use_case(
         using="execution_test",
@@ -109,6 +141,8 @@ def test_trade_composition_requires_ports_and_shares_alias_bound_repository() ->
     assert use_case._identity_reader is identity_reader
     assert use_case._calendar_reader is calendar_reader
     assert use_case._clock is clock
+    assert aliases == ["execution_test"]
+    assert repository._tax_cash_coverage_reader is coverage
 
 
 def test_release_composition_requires_calendar_and_explicit_database_alias() -> None:

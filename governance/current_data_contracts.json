@@ -15496,9 +15496,24 @@
           "case": "missing_session_keeps_unknown",
           "test_file": "tests/unit/data_center/test_retained_historical_price_session_selection.py",
           "test_function": "test_missing_session_publication_does_not_substitute_current_pointer"
+        },
+        {
+          "case": "named_instance_identity",
+          "test_file": "tests/unit/data_center/test_retained_historical_price_source.py",
+          "test_function": "test_named_tushare_instance_preserves_original_provider_identity"
+        },
+        {
+          "case": "wrong_original_source_type",
+          "test_file": "tests/unit/data_center/test_retained_historical_price_source.py",
+          "test_function": "test_named_instance_with_another_original_source_type_is_rejected"
+        },
+        {
+          "case": "changed_original_instance",
+          "test_file": "tests/unit/data_center/test_retained_historical_price_source.py",
+          "test_function": "test_changed_instance_name_cannot_match_the_original_sealed_audit"
         }
       ],
-      "notes": "Select explicit retained publication ID/key and exact session. Full member seal, source manifest, RawAudit, exact original response and original activation Audit/Outbox are independent checks. Complete selected publication stream rejects cross-run rollback target/previous identities without scanning unrelated Audit rows. A caller-owned sole writable transaction preserves fixed publication table locks and original Audit row locks without savepoints. Historical raw values preserve interval end, local source availability, original persistence clocks and unknown supplier observation. No current pointer, live freshness, trading eligibility, PIT account return, ledger write or source repair is granted; unsupported/missing/corrupt/oversized evidence blocks. Native two-session execution and ordinary-user return continuity remain separate required acceptance. Exact-session discovery selects one latest retained activated candidate; a failed envelope never falls back to an older publication or current pointer."
+      "notes": "Select explicit retained publication ID/key and exact session. Full member seal, source manifest, RawAudit, exact original response and original activation Audit/Outbox are independent checks. Complete selected publication stream rejects cross-run rollback target/previous identities without scanning unrelated Audit rows. A caller-owned sole writable transaction preserves fixed publication table locks and original Audit row locks without savepoints. Historical raw values preserve interval end, local source availability, original persistence clocks and unknown supplier observation. No current pointer, live freshness, trading eligibility, PIT account return, ledger write or source repair is granted; unsupported/missing/corrupt/oversized evidence blocks. Native two-session execution and ordinary-user return continuity remain separate required acceptance. Exact-session discovery selects one latest retained activated candidate; a failed envelope never falls back to an older publication or current pointer. Provider instance name is not adapter source_type: preserve original instance names across sealed manifest, RawAudit, request scope and retained payload; independently require the original audit source_type to match canonical selected_source. Named Tushare instances do not receive a bypass for changed identity/type."
     }
   ]
 }
