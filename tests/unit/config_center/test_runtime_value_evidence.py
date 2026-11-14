@@ -184,21 +184,25 @@ def test_registered_neutral_bridge_uses_config_center_public_provider(
     """The neutral getter is wired to the same public provider as AppConfig.ready."""
 
     profile, snapshot, _values = _install_runtime(monkeypatch)
-    cutoffs: list[datetime] = []
+    calls: list[str] = []
 
-    def _qualified_value(
-        *,
-        environment: str,
-        definition_key: str,
-        as_of: datetime | None = None,
-    ) -> object | None:
-        assert environment == _ENVIRONMENT
-        assert definition_key == _DEFINITION_KEY
-        assert as_of is not None
-        cutoffs.append(as_of)
-        return snapshot.resolved_values[definition_key]
+    class _RuntimeService:
+        def get_active_profile(self, environment: str) -> RuntimeConfigProfile:
+            assert environment == _ENVIRONMENT
+            calls.append("profile")
+            return profile
 
-    monkeypatch.setattr(runtime_public, "get_active_runtime_value", _qualified_value)
+        def get_latest_snapshot(self, profile_key: str) -> RuntimeConfigSnapshot:
+            assert profile_key == profile.profile_key
+            calls.append("snapshot")
+            return snapshot
+
+    monkeypatch.setattr(runtime_public, "get_runtime_config_service", lambda: _RuntimeService())
+    monkeypatch.setattr(
+        runtime_public,
+        "get_active_runtime_value",
+        lambda **kwargs: pytest.fail("bundle must not recursively read the scalar facade"),
+    )
     monkeypatch.setattr(config_center_runtime, "_provider", None)
     config_center_runtime.configure_config_center_runtime_port(runtime_public)
 
@@ -212,7 +216,8 @@ def test_registered_neutral_bridge_uses_config_center_public_provider(
     assert evidence.profile_id == profile.profile_id
     assert evidence.snapshot_id == snapshot.snapshot_id
     assert evidence.value == _VALUE
-    assert cutoffs == [_AS_OF, _AS_OF]
+    assert evidence.as_of == _AS_OF
+    assert calls == ["profile", "snapshot", "profile", "snapshot"]
 
 
 def test_evidence_fails_closed_when_profile_version_changes_between_reads(

@@ -24,6 +24,9 @@ from apps.config_center.application.runtime_repository_provider import (
     get_storage_capacity_observation_service,
     get_storage_capacity_profile_service,
 )
+from apps.config_center.application.runtime_snapshot_evidence import (
+    read_active_runtime_snapshot_evidence,
+)
 from apps.config_center.application.storage_budget import StoragePressureGuard
 from apps.config_center.domain.runtime_config import (
     RuntimeConfigCriticality,
@@ -40,7 +43,10 @@ from apps.config_center.domain.runtime_config import (
     project_public_runtime_values,
     verify_runtime_profile_values,
 )
-from core.integration.config_center_runtime import RuntimeConfigDefinitionSpec
+from core.integration.config_center_runtime import (
+    ActiveRuntimeSnapshotEvidence,
+    RuntimeConfigDefinitionSpec,
+)
 
 _QLIB_RUNTIME_FIELDS: tuple[tuple[str, str, type[object]], ...] = (
     ("enabled", "alpha.qlib.enabled", bool),
@@ -134,6 +140,27 @@ def get_latest_runtime_snapshot(profile_key: str) -> RuntimeConfigSnapshot | Non
     """Read the latest resolved snapshot for a profile key."""
 
     return get_runtime_config_service().get_latest_snapshot(profile_key)
+
+
+def get_active_runtime_snapshot_evidence(
+    *,
+    environment: str,
+    definition_keys: tuple[str, ...],
+    as_of: datetime,
+) -> ActiveRuntimeSnapshotEvidence | None:
+    """Forward one fresh full-hash snapshot read through Config Center ports."""
+
+    try:
+        return read_active_runtime_snapshot_evidence(
+            runtime_config_service=get_runtime_config_service(),
+            value_repository=get_runtime_value_repository(),
+            definition_repository=get_runtime_definition_repository(),
+            environment=environment,
+            definition_keys=definition_keys,
+            as_of=as_of,
+        )
+    except (ArithmeticError, RuntimeError, TypeError, ValueError):
+        return None
 
 
 def get_active_runtime_value(
@@ -908,6 +935,7 @@ __all__ = [
     "evaluate_storage_pressure",
     "get_active_runtime_profile",
     "get_active_runtime_value",
+    "get_active_runtime_snapshot_evidence",
     "get_active_runtime_secret_ref",
     "get_active_domain_runtime_config",
     "get_active_alpha_runtime_config",

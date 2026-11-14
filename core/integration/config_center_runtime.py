@@ -151,6 +151,162 @@ class ActiveRuntimeValueEvidence:
     as_of: datetime
 
 
+@dataclass(frozen=True, slots=True)
+class _CopiedRuntimeConfigProfileRead:
+    """Detach the immutable profile identity from a provider-owned object."""
+
+    profile_id: str
+    profile_key: str
+    environment: str
+    version: int
+    status: str
+    content_hash: str
+    created_at: datetime
+    activated_at: datetime | None
+
+    def __post_init__(self) -> None:
+        """Keep the copied structural read object fully typed."""
+
+
+@dataclass(frozen=True, slots=True)
+class _CopiedRuntimeConfigSnapshotRead:
+    """Detach public values and return fresh nested copies to each consumer."""
+
+    snapshot_id: str
+    profile_id: str
+    profile_key: str
+    profile_version: int
+    snapshot_hash: str
+    _resolved_values: dict[str, object]
+    generated_at: datetime
+    effective_from: datetime | None
+
+    def __post_init__(self) -> None:
+        """Own a deep copy so later provider mutations cannot alter this evidence."""
+        object.__setattr__(self, "_resolved_values", deepcopy(self._resolved_values))
+
+    @property
+    def resolved_values(self) -> Mapping[str, object]:
+        """Return a detached public mapping so nested caller edits do not stick."""
+        return deepcopy(self._resolved_values)
+
+
+@dataclass(frozen=True, slots=True)
+class ActiveRuntimeSnapshotEvidence:
+    """One fresh full-hash-verified profile and public snapshot read bundle."""
+
+    environment: str
+    definition_keys: tuple[str, ...]
+    profile: RuntimeConfigProfileRead
+    snapshot: RuntimeConfigSnapshotRead
+    as_of: datetime
+
+    def __post_init__(self) -> None:
+        """Validate identity and detach all provider-owned mutable snapshot data."""
+        if (
+            type(self.environment) is not str
+            or not self.environment.strip()
+            or self.environment.strip() != self.environment
+            or type(self.definition_keys) is not tuple
+            or not self.definition_keys
+            or any(
+                type(key) is not str or not key or key.strip() != key or "." not in key
+                for key in self.definition_keys
+            )
+            or self.definition_keys != tuple(sorted(set(self.definition_keys)))
+            or not _is_aware_runtime_cutoff(self.as_of)
+            or not isinstance(self.profile, RuntimeConfigProfileRead)
+            or not isinstance(self.snapshot, RuntimeConfigSnapshotRead)
+        ):
+            raise ValueError("runtime snapshot evidence identity is invalid")
+        if not isinstance(self.profile.status, str) or self.profile.status != "active":
+            raise ValueError("runtime snapshot evidence requires an originally active profile")
+        profile = _CopiedRuntimeConfigProfileRead(
+            profile_id=self.profile.profile_id,
+            profile_key=self.profile.profile_key,
+            environment=self.profile.environment,
+            version=self.profile.version,
+            status="active",
+            content_hash=self.profile.content_hash,
+            created_at=self.profile.created_at,
+            activated_at=self.profile.activated_at,
+        )
+        original_values = self.snapshot.resolved_values
+        if not isinstance(original_values, Mapping) or any(
+            type(key) is not str for key in original_values
+        ):
+            raise ValueError("runtime snapshot evidence public values are invalid")
+        snapshot = _CopiedRuntimeConfigSnapshotRead(
+            snapshot_id=self.snapshot.snapshot_id,
+            profile_id=self.snapshot.profile_id,
+            profile_key=self.snapshot.profile_key,
+            profile_version=self.snapshot.profile_version,
+            snapshot_hash=self.snapshot.snapshot_hash,
+            _resolved_values=dict(original_values),
+            generated_at=self.snapshot.generated_at,
+            effective_from=self.snapshot.effective_from,
+        )
+        if profile.activated_at is None or snapshot.effective_from is None:
+            raise ValueError("runtime snapshot evidence has no effective clock")
+        clocks = (
+            profile.created_at,
+            profile.activated_at,
+            snapshot.generated_at,
+            snapshot.effective_from,
+        )
+        if (
+            type(profile.profile_id) is not str
+            or not profile.profile_id
+            or type(profile.profile_key) is not str
+            or not profile.profile_key
+            or type(profile.environment) is not str
+            or profile.environment != self.environment
+            or not isinstance(profile.status, str)
+            or profile.status != "active"
+            or type(profile.version) is not int
+            or profile.version <= 0
+            or type(profile.content_hash) is not str
+            or len(profile.content_hash) != 64
+            or any(character not in "0123456789abcdef" for character in profile.content_hash)
+            or not profile.content_hash
+            or (snapshot.profile_id, snapshot.profile_key, snapshot.profile_version)
+            != (profile.profile_id, profile.profile_key, profile.version)
+            or type(snapshot.snapshot_id) is not str
+            or not snapshot.snapshot_id
+            or type(snapshot.snapshot_hash) is not str
+            or not snapshot.snapshot_hash
+            or type(snapshot.profile_version) is not int
+            or snapshot.profile_version <= 0
+            or len(snapshot.snapshot_hash) != 64
+            or any(character not in "0123456789abcdef" for character in snapshot.snapshot_hash)
+            or any(not _is_aware_runtime_cutoff(clock) for clock in clocks)
+            or profile.created_at > self.as_of
+            or profile.activated_at > self.as_of
+            or snapshot.generated_at > self.as_of
+            or snapshot.effective_from != profile.activated_at
+            or snapshot.effective_from > self.as_of
+            or any(key not in snapshot.resolved_values for key in self.definition_keys)
+        ):
+            raise ValueError("runtime snapshot evidence is not current at its cutoff")
+        object.__setattr__(self, "profile", profile)
+        object.__setattr__(self, "snapshot", snapshot)
+
+
+@runtime_checkable
+class RuntimeSnapshotEvidenceReadPort(Protocol):
+    """Optional Config Center capability for one fresh, fully validated bundle."""
+
+    def get_active_runtime_snapshot_evidence(
+        self,
+        *,
+        environment: str,
+        definition_keys: tuple[str, ...],
+        as_of: datetime,
+    ) -> ActiveRuntimeSnapshotEvidence | None:
+        """Read fresh exact profile/snapshot evidence; never reuse another cutoff."""
+        ...
+
+
 class ConfigCenterRuntimeReadPort(Protocol):
     """Config Center-owned runtime operations used by registered consumers."""
 
@@ -351,6 +507,52 @@ def get_latest_runtime_snapshot(profile_key: str) -> RuntimeConfigSnapshotRead |
     return _provider.get_latest_runtime_snapshot(profile_key)
 
 
+def get_active_runtime_snapshot_evidence(
+    *,
+    environment: str,
+    definition_keys: tuple[str, ...],
+    as_of: datetime,
+) -> ActiveRuntimeSnapshotEvidence | None:
+    """Read one fresh full-hash-verified profile/snapshot bundle when supported.
+
+    Older Config Center providers intentionally remain valid for the original
+    scalar read port. They do not acquire a best-effort bundle fallback.
+    """
+
+    provider = _provider
+    if (
+        provider is None
+        or not isinstance(provider, RuntimeSnapshotEvidenceReadPort)
+        or type(environment) is not str
+        or not environment.strip()
+        or environment.strip() != environment
+        or type(definition_keys) is not tuple
+        or not definition_keys
+        or any(type(key) is not str or not key or key.strip() != key for key in definition_keys)
+        or definition_keys != tuple(sorted(set(definition_keys)))
+        or not _is_aware_runtime_cutoff(as_of)
+    ):
+        return None
+    try:
+        evidence = provider.get_active_runtime_snapshot_evidence(
+            environment=environment,
+            definition_keys=definition_keys,
+            as_of=as_of,
+        )
+        if type(evidence) is not ActiveRuntimeSnapshotEvidence:
+            return None
+        ActiveRuntimeSnapshotEvidence.__post_init__(evidence)
+    except (AttributeError, RuntimeError, TypeError, ValueError, OverflowError):
+        return None
+    if (
+        evidence.environment != environment
+        or evidence.definition_keys != definition_keys
+        or evidence.as_of != as_of
+    ):
+        return None
+    return evidence
+
+
 def get_active_runtime_value_evidence(
     *,
     environment: str,
@@ -359,10 +561,43 @@ def get_active_runtime_value_evidence(
 ) -> ActiveRuntimeValueEvidence | None:
     """Read stable typed-value provenance through the registered Config Center owner."""
 
-    if _provider is None:
+    provider = _provider
+    if provider is None:
         return None
+    if isinstance(provider, RuntimeSnapshotEvidenceReadPort):
+        snapshot_evidence = get_active_runtime_snapshot_evidence(
+            environment=environment,
+            definition_keys=(definition_key,),
+            as_of=as_of,
+        )
+        if snapshot_evidence is None:
+            return None
+        profile = snapshot_evidence.profile
+        snapshot = snapshot_evidence.snapshot
+        if profile.activated_at is None or snapshot.effective_from is None:
+            return None
+        value = snapshot.resolved_values.get(definition_key)
+        if value is None:
+            return None
+        return ActiveRuntimeValueEvidence(
+            environment=environment,
+            definition_key=definition_key,
+            value=deepcopy(value),
+            profile_id=profile.profile_id,
+            profile_key=profile.profile_key,
+            profile_version=profile.version,
+            profile_content_hash=profile.content_hash,
+            snapshot_id=snapshot.snapshot_id,
+            snapshot_hash=snapshot.snapshot_hash,
+            created_at=profile.created_at,
+            known_at=profile.created_at,
+            activated_at=profile.activated_at,
+            snapshot_generated_at=snapshot.generated_at,
+            effective_at=snapshot.effective_from,
+            as_of=as_of,
+        )
     return read_active_runtime_value_evidence_from_port(
-        _provider,
+        provider,
         environment=environment,
         definition_key=definition_key,
         as_of=as_of,
@@ -469,11 +704,13 @@ def activate_runtime_profile_patch(
 
 
 __all__ = [
+    "ActiveRuntimeSnapshotEvidence",
     "ActiveRuntimeValueEvidence",
     "ConfigCenterRuntimeReadPort",
     "RuntimeConfigDefinitionSpec",
     "RuntimeConfigProfileRead",
     "RuntimeConfigSnapshotRead",
+    "RuntimeSnapshotEvidenceReadPort",
     "activate_runtime_profile_patch",
     "collect_storage_capacity_profile",
     "configure_config_center_runtime_port",
@@ -482,6 +719,7 @@ __all__ = [
     "get_active_runtime_value",
     "get_active_runtime_value_evidence",
     "get_active_runtime_secret_ref",
+    "get_active_runtime_snapshot_evidence",
     "get_latest_runtime_snapshot",
     "register_runtime_definitions",
     "read_active_runtime_value_evidence_from_port",
