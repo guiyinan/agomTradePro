@@ -3634,6 +3634,7 @@
           "get_active_qlib_runtime_config",
           "get_active_runtime_profile",
           "get_active_runtime_secret_ref",
+          "get_active_runtime_snapshot_evidence",
           "get_active_runtime_value",
           "get_active_storage_budget",
           "get_latest_runtime_snapshot",
@@ -3659,6 +3660,9 @@
           "get_storage_budget_query_service",
           "get_storage_capacity_observation_service",
           "get_storage_capacity_profile_service"
+        ],
+        "application/runtime_snapshot_evidence.py": [
+          "read_active_runtime_snapshot_evidence"
         ],
         "application/runtime_value_evidence.py": [
           "read_active_runtime_value_evidence"
@@ -3707,7 +3711,7 @@
         ]
       },
       "layers": {
-        "application": 21,
+        "application": 22,
         "domain": 5,
         "infrastructure": 15,
         "interface": 6,

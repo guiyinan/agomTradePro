@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 7179,
+    "current_surface_references": 7181,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -8453,6 +8453,10 @@
     {
       "path": "apps/config_center/application/runtime_public.py",
       "text": "current profile, its immutable snapshot, and all persisted values without"
+    },
+    {
+      "path": "apps/config_center/application/runtime_snapshot_evidence.py",
+      "text": "\"\"\"Read and fully validate the latest active profile/snapshot source rows.\"\"\""
     },
     {
       "path": "apps/config_center/infrastructure/capacity_observer.py",
@@ -28161,6 +28165,10 @@
     {
       "path": "core/integration/canonical_account_ownership_reobservation.py",
       "text": "\"\"\"Required permanent or current ownership evidence is unavailable.\"\"\""
+    },
+    {
+      "path": "core/integration/config_center_runtime.py",
+      "text": "raise ValueError(\"runtime snapshot evidence is not current at its cutoff\")"
     },
     {
       "path": "core/integration/data_center_audit.py",
