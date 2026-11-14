@@ -19875,6 +19875,252 @@ paths:
                 items:
                   $ref: '#/components/schemas/BenchmarkComponentResponse'
           description: ''
+  /api/simulated-trading/accounts/{account_id}/corporate-action-consent/:
+    get:
+      operationId: api_simulated_trading_accounts_by_account_id_corporate_action_consent_get
+      description: Read owner terms without creating grants or financial entries.
+      parameters:
+      - in: path
+        name: account_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - simulated-trading
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimulatedActionConsentResponse'
+          description: ''
+    post:
+      operationId: api_simulated_trading_accounts_by_account_id_corporate_action_consent_post
+      description: Confirm only the unchanged server-prepared terms through real credentials.
+      parameters:
+      - in: path
+        name: account_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - simulated-trading
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SimulatedActionConsentRequestRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimulatedActionConsentResponse'
+          description: ''
+  /api/simulated-trading/accounts/{account_id}/corporate-action-consent/prepare/:
+    post:
+      operationId: api_simulated_trading_accounts_by_account_id_corporate_action_consent_prepare_post
+      description: Read exact terms without issuing consent or writing financial state.
+      parameters:
+      - in: path
+        name: account_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - simulated-trading
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SimulatedActionConsentPreparationRequestRequest'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimulatedActionConsentPreparationResponse'
+          description: ''
+  /api/simulated-trading/accounts/{account_id}/corporate-action-consent/withdraw/:
+    post:
+      operationId: api_simulated_trading_accounts_by_account_id_corporate_action_consent_withdraw_post
+      description: Withdraw only the prepared exact owner target after explicit confirmation.
+      parameters:
+      - in: path
+        name: account_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - simulated-trading
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SimulatedActionWithdrawalRequestRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimulatedActionConsentResponse'
+          description: ''
+  /api/simulated-trading/accounts/{account_id}/corporate-action-consent/withdraw/prepare/:
+    post:
+      operationId: api_simulated_trading_accounts_by_account_id_corporate_action_consent_withdraw_prepare_post
+      description: Read an original withdrawal locator without revoking it yet.
+      parameters:
+      - in: path
+        name: account_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - simulated-trading
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimulatedActionConsentPreparationResponse'
+          description: ''
+  /api/simulated-trading/accounts/{account_id}/corporate-actions/:
+    get:
+      operationId: api_simulated_trading_accounts_by_account_id_corporate_actions_get
+      description: Read the current workflow without accepting client-provided account
+        facts.
+      parameters:
+      - in: path
+        name: account_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - simulated-trading
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OwnerCorporateActionWorkflowResponse'
+          description: ''
+  /api/simulated-trading/accounts/{account_id}/corporate-actions/confirm/:
+    post:
+      operationId: api_simulated_trading_accounts_by_account_id_corporate_actions_confirm_post
+      description: Commit only literal-true confirmation for the exact opaque continuation.
+      parameters:
+      - in: path
+        name: account_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - simulated-trading
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OwnerCorporateActionWorkflowConfirmRequestRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OwnerCorporateActionWorkflowResponse'
+          description: ''
+  /api/simulated-trading/accounts/{account_id}/corporate-actions/events/:
+    get:
+      operationId: api_simulated_trading_accounts_by_account_id_corporate_actions_events_get
+      description: Bind event discovery to the real Session owner and exact path account.
+      parameters:
+      - in: path
+        name: account_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - simulated-trading
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OwnerCorporateActionWorkflowResponse'
+          description: ''
+  /api/simulated-trading/accounts/{account_id}/corporate-actions/prepare/:
+    post:
+      operationId: api_simulated_trading_accounts_by_account_id_corporate_actions_prepare_post
+      description: Prepare a signed continuation using only an event ID, action, and
+        date.
+      parameters:
+      - in: path
+        name: account_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - simulated-trading
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OwnerCorporateActionWorkflowPrepareRequestRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OwnerCorporateActionWorkflowResponse'
+          description: ''
+  /api/simulated-trading/accounts/{account_id}/corporate-actions/refresh/:
+    post:
+      operationId: api_simulated_trading_accounts_by_account_id_corporate_actions_refresh_post
+      description: Refresh only after explicit true and leave financial entries untouched.
+      parameters:
+      - in: path
+        name: account_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - simulated-trading
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OwnerCorporateActionWorkflowRefreshRequestRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OwnerCorporateActionWorkflowResponse'
+          description: ''
   /api/simulated-trading/accounts/{account_id}/equity-curve/:
     get:
       operationId: api_simulated_trading_accounts_by_account_id_equity_curve_get
@@ -22221,6 +22467,50 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/FeeConfigListResponse'
+          description: ''
+  /api/simulated-trading/portfolio-comparison/:
+    get:
+      operationId: api_simulated_trading_portfolio_comparison_get
+      description: Validate common inputs, enforce account visibility and return comparison
+        data.
+      summary: 对比两个投资组合
+      parameters:
+      - in: query
+        name: end_date
+        schema:
+          type: string
+          format: date
+        required: true
+      - in: query
+        name: left_account_id
+        schema:
+          type: integer
+          minimum: 1
+        required: true
+      - in: query
+        name: right_account_id
+        schema:
+          type: integer
+          minimum: 1
+        required: true
+      - in: query
+        name: start_date
+        schema:
+          type: string
+          format: date
+        required: true
+      tags:
+      - simulated-trading
+      security:
+      - cookieAuth: []
+      - agomInternalSignature: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortfolioComparisonResponse'
           description: ''
   /api/strategy/:
     get:
@@ -29664,6 +29954,62 @@ components:
       - total_cost
       - trade_id
       - transfer_fee
+    ComparisonAccount:
+      type: object
+      properties:
+        account_id:
+          type: integer
+        account_name:
+          type: string
+      required:
+      - account_id
+      - account_name
+    ComparisonCurvePoint:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+        left:
+          type: number
+          format: double
+          nullable: true
+        right:
+          type: number
+          format: double
+          nullable: true
+      required:
+      - date
+      - left
+      - right
+    ComparisonMetric:
+      type: object
+      properties:
+        key:
+          type: string
+        metric_label:
+          type: string
+        unit:
+          type: string
+        left:
+          type: number
+          format: double
+          nullable: true
+        right:
+          type: number
+          format: double
+          nullable: true
+        difference:
+          type: number
+          format: double
+          nullable: true
+      required:
+      - difference
+      - key
+      - left
+      - metric_label
+      - right
+      - unit
     ComprehensiveValuationRequestRequest:
       type: object
       description: 综合估值分析请求序列化器
@@ -29807,6 +30153,14 @@ components:
       - '1.0'
       type: string
       description: '* `1.0` - 1.0'
+    CorrectionModeEnum:
+      enum:
+      - ordinary
+      - correct_existing
+      type: string
+      description: |-
+        * `ordinary` - ordinary
+        * `correct_existing` - correct_existing
     CorrelationCalculationRequestRequest:
       type: object
       description: Validate one pairwise correlation calculation request.
@@ -31528,7 +31882,7 @@ components:
         success:
           type: boolean
         outcome:
-          $ref: '#/components/schemas/FeeCorrectionHeadResponseOutcomeEnum'
+          $ref: '#/components/schemas/OutcomeFa6Enum'
         message:
           type: string
         head:
@@ -31538,14 +31892,6 @@ components:
       - message
       - outcome
       - success
-    FeeCorrectionHeadResponseOutcomeEnum:
-      enum:
-      - success
-      - partial
-      type: string
-      description: |-
-        * `success` - success
-        * `partial` - partial
     FeeCorrectionPolicyRequestRequest:
       type: object
       description: Require explicit replacement settings without coercing consent
@@ -32366,6 +32712,35 @@ components:
           type: string
           format: date-time
           readOnly: true
+    HoldingComparison:
+      type: object
+      properties:
+        asset_code:
+          type: string
+        asset_name:
+          type: string
+        industry:
+          type: string
+          nullable: true
+        left_weight_percentage:
+          type: number
+          format: double
+          nullable: true
+        right_weight_percentage:
+          type: number
+          format: double
+          nullable: true
+        difference_percentage_points:
+          type: number
+          format: double
+          nullable: true
+      required:
+      - asset_code
+      - asset_name
+      - difference_percentage_points
+      - industry
+      - left_weight_percentage
+      - right_weight_percentage
     HoldingDisclosureErrorResponse:
       type: object
       description: Return a bounded interface error without account or provider internals.
@@ -32479,6 +32854,67 @@ components:
       - source_record_id
       - unit
       - value
+    HoldingsComparison:
+      type: object
+      properties:
+        overlap_percentage:
+          type: number
+          format: double
+          nullable: true
+        shared_count:
+          type: integer
+        left_only_count:
+          type: integer
+        right_only_count:
+          type: integer
+        valuation_known:
+          type: boolean
+        classification_known:
+          type: boolean
+        rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/HoldingComparison'
+        industry_rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/IndustryComparison'
+        overlap_rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/OverlapSummary'
+      required:
+      - classification_known
+      - industry_rows
+      - left_only_count
+      - overlap_percentage
+      - overlap_rows
+      - right_only_count
+      - rows
+      - shared_count
+      - valuation_known
+    IndustryComparison:
+      type: object
+      properties:
+        industry:
+          type: string
+        left_weight_percentage:
+          type: number
+          format: double
+          nullable: true
+        right_weight_percentage:
+          type: number
+          format: double
+          nullable: true
+        difference_percentage_points:
+          type: number
+          format: double
+          nullable: true
+      required:
+      - difference_percentage_points
+      - industry
+      - left_weight_percentage
+      - right_weight_percentage
     IngestionConfig:
       type: object
       description: 摄入配置序列化器
@@ -32806,6 +33242,11 @@ components:
       description: |-
         * `blocked` - blocked
         * `failed` - failed
+    KnowledgeSemanticsEnum:
+      enum:
+      - currently_known_reference_holding
+      type: string
+      description: '* `currently_known_reference_holding` - currently_known_reference_holding'
     LatestValuation:
       type: object
       description: 最新估值数据序列化器
@@ -33883,6 +34324,14 @@ components:
       - success
       type: string
       description: '* `success` - success'
+    OutcomeFa6Enum:
+      enum:
+      - success
+      - partial
+      type: string
+      description: |-
+        * `success` - success
+        * `partial` - partial
     OverallSignalEnum:
       enum:
       - strong_buy
@@ -33897,6 +34346,18 @@ components:
         * `hold` - hold
         * `sell` - sell
         * `strong_sell` - strong_sell
+    OverlapSummary:
+      type: object
+      properties:
+        overlap_label:
+          type: string
+        overlap_percentage:
+          type: number
+          format: double
+          nullable: true
+      required:
+      - overlap_label
+      - overlap_percentage
     OverrideEventRequest:
       type: object
       description: 临时豁免序列化器
@@ -33911,6 +34372,373 @@ components:
           - $ref: '#/components/schemas/NullEnum'
       required:
       - reason
+    OwnerCorporateActionReferenceReturnRow:
+      type: object
+      description: Allowlist a scoped reference basket without treating it as account
+        performance.
+      properties:
+        account_id:
+          type: integer
+          minimum: 1
+        asset_code:
+          type: string
+          nullable: true
+          maxLength: 32
+        status:
+          $ref: '#/components/schemas/Status216Enum'
+        reason_code:
+          type: string
+          nullable: true
+          maxLength: 128
+        record_date:
+          type: string
+          format: date
+          nullable: true
+        ex_date:
+          type: string
+          format: date
+          nullable: true
+        opening_date:
+          type: string
+          format: date
+          nullable: true
+        closing_date:
+          type: string
+          format: date
+          nullable: true
+        reference_quantity:
+          type: string
+          nullable: true
+        opening_price:
+          type: string
+          nullable: true
+        closing_price:
+          type: string
+          nullable: true
+        opening_value:
+          type: string
+          nullable: true
+        closing_value:
+          type: string
+          nullable: true
+        wealth_change:
+          type: string
+          nullable: true
+        closing_cash:
+          type: string
+          nullable: true
+        closing_dividend_receivable:
+          type: string
+          nullable: true
+        closing_physical_shares:
+          type: string
+          nullable: true
+        closing_share_receivable:
+          type: string
+          nullable: true
+        currency:
+          type: string
+          nullable: true
+          maxLength: 16
+        quantity_unit:
+          type: string
+          nullable: true
+          maxLength: 32
+        knowledge_cutoff:
+          type: string
+          format: date-time
+          nullable: true
+        valid_until:
+          type: string
+          format: date-time
+          nullable: true
+        knowledge_semantics:
+          $ref: '#/components/schemas/KnowledgeSemanticsEnum'
+        return_basis:
+          $ref: '#/components/schemas/ReturnBasisEnum'
+        must_not_use_for_decision:
+          type: boolean
+        source_observed_at:
+          type: string
+          nullable: true
+        source_event_id:
+          type: string
+          maxLength: 192
+        logical_source_event_id:
+          type: string
+          maxLength: 192
+        source_revision_id:
+          type: string
+          maxLength: 192
+        source_body_sha256:
+          type: string
+          maxLength: 64
+        event_content_sha256:
+          type: string
+          maxLength: 64
+        price_publication_ids:
+          type: array
+          items:
+            type: string
+            maxLength: 64
+          maxItems: 2
+        price_interval_end_ats:
+          type: array
+          items:
+            type: string
+            format: date-time
+          maxItems: 2
+        price_source_available_ats:
+          type: array
+          items:
+            type: string
+            format: date-time
+          maxItems: 2
+      required:
+      - account_id
+      - asset_code
+      - knowledge_semantics
+      - must_not_use_for_decision
+      - reason_code
+      - return_basis
+      - status
+    OwnerCorporateActionWorkflowAuditReceiptRow:
+      type: object
+      description: Publish traceable receipt details without raw payloads or source
+        hashes.
+      properties:
+        receipt_id:
+          type: string
+        recorded_at:
+          type: string
+        asset_code:
+          type: string
+        stage_label:
+          type: string
+        cash_delta:
+          type: string
+          nullable: true
+        share_delta:
+          type: string
+          nullable: true
+        summary:
+          type: string
+      required:
+      - asset_code
+      - cash_delta
+      - receipt_id
+      - recorded_at
+      - share_delta
+      - stage_label
+      - summary
+    OwnerCorporateActionWorkflowConfirmRequestRequest:
+      type: object
+      description: Confirm only an exact protected workflow continuation.
+      properties:
+        account_id:
+          type: integer
+          minimum: 1
+        continuation_token:
+          type: string
+          minLength: 1
+          maxLength: 65536
+        confirmed:
+          type: boolean
+      required:
+      - confirmed
+      - continuation_token
+    OwnerCorporateActionWorkflowEventRow:
+      type: object
+      description: Publish only the safe source dates, identity, status, and blocking
+        summary.
+      properties:
+        account_id:
+          type: integer
+          minimum: 1
+        event_id:
+          type: string
+        asset_code:
+          type: string
+        title:
+          type: string
+        event_type:
+          type: string
+        announced_on:
+          type: string
+          nullable: true
+        record_date:
+          type: string
+          nullable: true
+        effective_date:
+          type: string
+          nullable: true
+        source_observed_at:
+          type: string
+          nullable: true
+        status:
+          type: string
+        blocking_reason:
+          type: string
+          nullable: true
+      required:
+      - account_id
+      - announced_on
+      - asset_code
+      - blocking_reason
+      - effective_date
+      - event_id
+      - event_type
+      - record_date
+      - source_observed_at
+      - status
+      - title
+    OwnerCorporateActionWorkflowPrepareRequestActionEnum:
+      enum:
+      - cash_entitlement
+      - cash_payment
+      - share_entitlement
+      - share_delivery
+      - share_sellable_release
+      - rights_not_exercised
+      - tax_assess
+      - tax_recognize
+      - tax_collect
+      type: string
+      description: |-
+        * `cash_entitlement` - cash_entitlement
+        * `cash_payment` - cash_payment
+        * `share_entitlement` - share_entitlement
+        * `share_delivery` - share_delivery
+        * `share_sellable_release` - share_sellable_release
+        * `rights_not_exercised` - rights_not_exercised
+        * `tax_assess` - tax_assess
+        * `tax_recognize` - tax_recognize
+        * `tax_collect` - tax_collect
+    OwnerCorporateActionWorkflowPrepareRequestRequest:
+      type: object
+      description: Accept only a source event, one operation, and an optional settlement
+        date.
+      properties:
+        account_id:
+          type: integer
+          minimum: 1
+        event_id:
+          type: string
+          minLength: 1
+          maxLength: 192
+        action:
+          $ref: '#/components/schemas/OwnerCorporateActionWorkflowPrepareRequestActionEnum'
+        correction_mode:
+          allOf:
+          - $ref: '#/components/schemas/CorrectionModeEnum'
+          default: ordinary
+        settlement_date:
+          type: string
+          format: date
+      required:
+      - action
+      - event_id
+    OwnerCorporateActionWorkflowRefreshRequestRequest:
+      type: object
+      description: Require an explicit owner confirmation for evidence refresh.
+      properties:
+        account_id:
+          type: integer
+          minimum: 1
+        confirmed:
+          type: boolean
+      required:
+      - confirmed
+    OwnerCorporateActionWorkflowResponse:
+      type: object
+      description: Allowlist safe workflow facts and keep continuation material optional.
+      properties:
+        account_id:
+          type: integer
+          minimum: 1
+        outcome:
+          $ref: '#/components/schemas/Outcome537Enum'
+        summary:
+          type: string
+        blocking_reason:
+          type: string
+          nullable: true
+        source_observed_at:
+          type: string
+          nullable: true
+        checked_at:
+          type: string
+          nullable: true
+        freshness_status:
+          type: string
+        reliability_status:
+          type: string
+        must_not_use_for_decision:
+          type: boolean
+        book_cash:
+          type: string
+          nullable: true
+        spendable_cash:
+          type: string
+          nullable: true
+        net_asset_value:
+          type: string
+          nullable: true
+        dividend_receivable:
+          type: string
+          nullable: true
+        share_receivable:
+          type: string
+          nullable: true
+        tax_payable:
+          type: string
+          nullable: true
+        tax_coverage_status:
+          allOf:
+          - $ref: '#/components/schemas/TaxCoverageStatusEnum'
+          default: unknown
+        valuation_trade_dates:
+          type: array
+          items:
+            type: string
+            format: date
+        valuation_source_observed_at:
+          type: string
+          nullable: true
+        reference_return_summary:
+          type: string
+          nullable: true
+        reference_returns:
+          type: array
+          items:
+            $ref: '#/components/schemas/OwnerCorporateActionReferenceReturnRow'
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/OwnerCorporateActionWorkflowEventRow'
+        audit_receipts:
+          type: array
+          items:
+            $ref: '#/components/schemas/OwnerCorporateActionWorkflowAuditReceiptRow'
+        continuation: {}
+      required:
+      - account_id
+      - audit_receipts
+      - blocking_reason
+      - book_cash
+      - checked_at
+      - dividend_receivable
+      - events
+      - freshness_status
+      - must_not_use_for_decision
+      - net_asset_value
+      - outcome
+      - reliability_status
+      - share_receivable
+      - source_observed_at
+      - spendable_cash
+      - summary
+      - tax_payable
     OwnerM1RiskPolicyFlatPublishRequest:
       type: object
       description: Validate flat TUI controls, then reuse the nested API-to-Application
@@ -36911,6 +37739,54 @@ components:
           format: date-time
           readOnly: true
           title: 更新时间
+    PortfolioComparisonResponse:
+      type: object
+      description: Document the complete comparison response.
+      properties:
+        success:
+          type: boolean
+        outcome:
+          $ref: '#/components/schemas/OutcomeFa6Enum'
+        left_account:
+          $ref: '#/components/schemas/ComparisonAccount'
+        right_account:
+          $ref: '#/components/schemas/ComparisonAccount'
+        start_date:
+          type: string
+          format: date
+        end_date:
+          type: string
+          format: date
+        relative_twr_percentage_points:
+          type: number
+          format: double
+          nullable: true
+        metrics:
+          type: array
+          items:
+            $ref: '#/components/schemas/ComparisonMetric'
+        curve:
+          type: array
+          items:
+            $ref: '#/components/schemas/ComparisonCurvePoint'
+        holdings:
+          $ref: '#/components/schemas/HoldingsComparison'
+        warnings:
+          type: array
+          items:
+            type: string
+      required:
+      - curve
+      - end_date
+      - holdings
+      - left_account
+      - metrics
+      - outcome
+      - relative_twr_percentage_points
+      - right_account
+      - start_date
+      - success
+      - warnings
     PortfolioCreate:
       type: object
       description: 投资组合创建序列化器
@@ -39132,6 +40008,11 @@ components:
           oneOf:
           - $ref: '#/components/schemas/PeriodEnum'
           - $ref: '#/components/schemas/NullEnum'
+    ReturnBasisEnum:
+      enum:
+      - gross_unreinvested_record_date_holding
+      type: string
+      description: '* `gross_unreinvested_record_date_holding` - gross_unreinvested_record_date_holding'
     ReviewPolicyItemRequestRequest:
       type: object
       description: Validated single-item policy review input.
@@ -40570,6 +41451,211 @@ components:
         * `undervalued` - undervalued
         * `fair` - fair
         * `overvalued` - overvalued
+    SimulatedActionConsentPreparationRequestRequest:
+      type: object
+      description: Accept legacy choices or five explicit literal capability choices.
+      properties:
+        cash_dividend:
+          type: boolean
+        tax_assessment:
+          type: boolean
+        tax_withholding:
+          type: boolean
+        share_distribution:
+          type: boolean
+        rights_not_exercised:
+          type: boolean
+    SimulatedActionConsentPreparationResponse:
+      type: object
+      description: Expose sealed terms only inside the existing protected TUI continuation
+        envelope.
+      properties:
+        account_id:
+          type: integer
+        outcome:
+          type: string
+        consent_status:
+          type: string
+        summary:
+          type: string
+        blocking_reason:
+          type: string
+          nullable: true
+        source_observed_at:
+          type: string
+          nullable: true
+        source_valid_until:
+          type: string
+          nullable: true
+        consent_valid_until:
+          type: string
+          nullable: true
+        consent_token:
+          type: string
+          nullable: true
+        withdrawal_token:
+          type: string
+          nullable: true
+        grant_id:
+          type: string
+          nullable: true
+        grant_version:
+          type: string
+          nullable: true
+        grant_content_hash:
+          type: string
+          nullable: true
+        grant_schema:
+          type: string
+          nullable: true
+        selected_capabilities:
+          type: array
+          items:
+            type: string
+        capability_labels:
+          type: array
+          items:
+            type: string
+        terms_version:
+          type: string
+          nullable: true
+        terms_sha256:
+          type: string
+          nullable: true
+        terms_text:
+          type: string
+        must_not_execute:
+          type: boolean
+        continuation: {}
+      required:
+      - account_id
+      - blocking_reason
+      - capability_labels
+      - consent_status
+      - consent_token
+      - consent_valid_until
+      - grant_content_hash
+      - grant_id
+      - grant_schema
+      - grant_version
+      - must_not_execute
+      - outcome
+      - selected_capabilities
+      - source_observed_at
+      - source_valid_until
+      - summary
+      - terms_sha256
+      - terms_text
+      - terms_version
+      - withdrawal_token
+    SimulatedActionConsentRequestRequest:
+      type: object
+      description: Confirm only the server-prepared consent terms.
+      properties:
+        confirmed:
+          type: boolean
+        consent_token:
+          type: string
+          minLength: 1
+          maxLength: 16384
+      required:
+      - confirmed
+      - consent_token
+    SimulatedActionConsentResponse:
+      type: object
+      description: Publish preparation status and original source clocks separately
+        from consent validity.
+      properties:
+        account_id:
+          type: integer
+        outcome:
+          type: string
+        consent_status:
+          type: string
+        summary:
+          type: string
+        blocking_reason:
+          type: string
+          nullable: true
+        source_observed_at:
+          type: string
+          nullable: true
+        source_valid_until:
+          type: string
+          nullable: true
+        consent_valid_until:
+          type: string
+          nullable: true
+        consent_token:
+          type: string
+          nullable: true
+        withdrawal_token:
+          type: string
+          nullable: true
+        grant_id:
+          type: string
+          nullable: true
+        grant_version:
+          type: string
+          nullable: true
+        grant_content_hash:
+          type: string
+          nullable: true
+        grant_schema:
+          type: string
+          nullable: true
+        selected_capabilities:
+          type: array
+          items:
+            type: string
+        capability_labels:
+          type: array
+          items:
+            type: string
+        terms_version:
+          type: string
+          nullable: true
+        terms_sha256:
+          type: string
+          nullable: true
+        terms_text:
+          type: string
+        must_not_execute:
+          type: boolean
+      required:
+      - account_id
+      - blocking_reason
+      - capability_labels
+      - consent_status
+      - consent_token
+      - consent_valid_until
+      - grant_content_hash
+      - grant_id
+      - grant_schema
+      - grant_version
+      - must_not_execute
+      - outcome
+      - selected_capabilities
+      - source_observed_at
+      - source_valid_until
+      - summary
+      - terms_sha256
+      - terms_text
+      - terms_version
+      - withdrawal_token
+    SimulatedActionWithdrawalRequestRequest:
+      type: object
+      description: Withdraw only the server-prepared exact historical locator.
+      properties:
+        confirmed:
+          type: boolean
+        withdrawal_token:
+          type: string
+          minLength: 1
+          maxLength: 16384
+      required:
+      - confirmed
+      - withdrawal_token
     SourceTimeStatusEnum:
       enum:
       - not_provided
@@ -40586,6 +41672,14 @@ components:
         * `completed` - completed
         * `unresolved` - unresolved
         * `fenced` - fenced
+        * `unknown` - unknown
+    Status216Enum:
+      enum:
+      - complete
+      - unknown
+      type: string
+      description: |-
+        * `complete` - complete
         * `unknown` - unknown
     Status667Enum:
       enum:
@@ -41511,6 +42605,14 @@ components:
           - $ref: '#/components/schemas/TaskAttempt'
           readOnly: true
           nullable: true
+    TaxCoverageStatusEnum:
+      enum:
+      - complete
+      - unknown
+      type: string
+      description: |-
+        * `complete` - complete
+        * `unknown` - unknown
     TechnicalChartResponse:
       type: object
       description: 技术图表响应序列化器。

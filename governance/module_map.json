@@ -2387,7 +2387,7 @@
           "imports": 1
         },
         "simulated_trading": {
-          "imports": 46
+          "imports": 47
         },
         "terminal": {
           "imports": 2
@@ -4165,7 +4165,7 @@
           "imports": 3
         },
         "simulated_trading": {
-          "imports": 133
+          "imports": 135
         },
         "strategy": {
           "imports": 1
@@ -5254,6 +5254,7 @@
           "get_published_sector_memberships",
           "get_published_valuation_facts",
           "get_published_valuation_facts_for_decision",
+          "get_retained_historical_price_for_session",
           "get_retained_historical_price_source",
           "get_valuation_facts",
           "list_active_data_sources",
@@ -11049,7 +11050,7 @@
           ]
         },
         "audit": {
-          "imports": 46,
+          "imports": 47,
           "target_layers": [
             "application",
             "corporate_action_tax_assessment_composition",
@@ -11067,7 +11068,7 @@
           ]
         },
         "data_center": {
-          "imports": 133,
+          "imports": 135,
           "target_layers": [
             "application",
             "calendar_publication_operations_composition",
@@ -11299,6 +11300,11 @@
           "PostCashDividendPaymentUseCase",
           "PostCorporateActionStageUseCase",
           "RecordDateOwnershipProofReaderProtocol"
+        ],
+        "application/corporate_action_reference_return.py": [
+          "CorporateActionReferenceReturnInputs",
+          "CorporateActionReferenceReturnReport",
+          "build_corporate_action_reference_return"
         ],
         "application/corporate_action_share_tax_model.py": [
           "CurrentShareCapitalTaxModel",
@@ -12203,12 +12209,12 @@
         ]
       },
       "layers": {
-        "application": 144,
+        "application": 145,
         "domain": 57,
         "infrastructure": 154,
         "interface": 39,
         "management": 7,
-        "root": 84
+        "root": 85
       },
       "orm_models": {
         "infrastructure/models.py": [

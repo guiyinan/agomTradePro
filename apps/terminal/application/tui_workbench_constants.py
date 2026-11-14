@@ -42,6 +42,8 @@ ROW_IDENTIFIER_FIELDS = {
 }
 
 FIELD_LABELS = {
+    "reference_return_summary": "登记日参考持仓权益回报",
+    "reference_returns": "参考持仓权益核对结果",
     "package_available": "安装包可用",
     "package_version": "安装包版本",
     "package_filename": "安装包文件名",

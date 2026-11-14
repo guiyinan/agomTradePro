@@ -223,3 +223,64 @@ def test_listing_rejects_wrong_security_or_out_of_window_row(tmp_path: Path) -> 
                 body_store_root=tmp_path,
                 session=session,
             )
+
+
+@pytest.mark.parametrize("failed_method", ["GET", "POST"])
+@pytest.mark.parametrize("failures", [2, 4])
+def test_owned_official_transport_retries_resets_but_never_certifies_exhaustion(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, failed_method: str, failures: int
+) -> None:
+    """Run the actual HTTP retry path over synthetic transport resets and source bytes."""
+    import io
+
+    from urllib3.connectionpool import HTTPSConnectionPool
+    from urllib3.exceptions import ProtocolError
+    from urllib3.response import HTTPResponse
+    from urllib3.util.retry import Retry
+
+    import apps.data_center.infrastructure.official_szse_announcement_listing as listing
+
+    attempts: list[str] = []
+    failed = 0
+    original_factory = listing._official_session
+
+    def session_factory() -> requests.Session:
+        session = original_factory()
+        session.trust_env = False
+        return session
+
+    def make_request(
+        pool: object, conn: object, method: str, url: str, **kwargs: Any
+    ) -> HTTPResponse:
+        nonlocal failed
+        attempts.append(method)
+        if method == failed_method and failed < failures:
+            failed += 1
+            raise ProtocolError("synthetic official connection reset")
+        body = b"synthetic landing" if method == "GET" else b'{"announceCount":0,"data":[]}'
+        return HTTPResponse(
+            body=io.BytesIO(body),
+            status=200,
+            headers={"Content-Type": "text/html" if method == "GET" else "application/json"},
+            preload_content=False,
+        )
+
+    monkeypatch.setattr(listing, "_official_session", session_factory)
+    monkeypatch.setattr(HTTPSConnectionPool, "_make_request", make_request)
+    monkeypatch.setattr(Retry, "sleep", lambda self, response=None: None)
+    arguments = {
+        "asset_code": "001211.SZ",
+        "start_on": date(2026, 11, 6),
+        "end_on": date(2026, 11, 15),
+        "body_store_root": tmp_path,
+    }
+    if failures == 4:
+        with pytest.raises(OfficialSzseListingError):
+            listing.capture_official_szse_announcement_window(**arguments)
+        assert attempts.count(failed_method) == 4
+        assert not tuple(tmp_path.iterdir())
+    else:
+        result = listing.capture_official_szse_announcement_window(**arguments)
+        assert result.announcement_count == 0
+        assert result.first_pass_page_body_sha256 == result.page_body_sha256
+        assert len(attempts) == 5

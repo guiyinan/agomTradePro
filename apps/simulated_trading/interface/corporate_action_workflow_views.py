@@ -165,7 +165,9 @@ def _response_payload(
     normalized.pop("continuation", None)
     if continuation is not None:
         normalized["continuation"] = continuation
-    serializer = OwnerCorporateActionWorkflowResponseSerializer(data=normalized)
+    serializer = OwnerCorporateActionWorkflowResponseSerializer(
+        data=normalized, context={"account_id": account_id}
+    )
     try:
         serializer.is_valid(raise_exception=True)
     except serializers.ValidationError:

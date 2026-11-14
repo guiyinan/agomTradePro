@@ -16,6 +16,7 @@ from apps.data_center.application.retained_historical_price_source import (
     RetainedHistoricalPriceSourceResult,
 )
 from apps.data_center.composition import get_canonical_publication_repository
+from apps.data_center.domain.publication_lanes import M1_REBALANCE_REFERENCE_PUBLICATION_KEY
 from apps.data_center.infrastructure.publication_read_snapshot import (
     stabilize_caller_owned_publication_read,
 )
@@ -215,4 +216,76 @@ def _read_retained_source_snapshot(
     ).execute(request)
 
 
-__all__ = ["read_retained_historical_price_source"]
+__all__ = ["read_retained_historical_price_source", "read_retained_historical_price_for_session"]
+
+
+def read_retained_historical_price_for_session(
+    asset_code: str,
+    *,
+    trade_date: date,
+    expected_publication_key: str,
+    knowledge_cutoff: datetime,
+    environment: str,
+    using: str = "default",
+) -> RetainedHistoricalPriceSourceResult:
+    """Discover one retained session selector and verify that exact original only."""
+    if using != "default":
+        return RetainedHistoricalPriceSourceResult(None, "retained_price_alias_unsupported")
+    if (
+        type(asset_code) is not str
+        or not asset_code
+        or asset_code != asset_code.strip().upper()
+        or type(expected_publication_key) is not str
+        or expected_publication_key != M1_REBALANCE_REFERENCE_PUBLICATION_KEY
+        or type(environment) is not str
+        or not environment
+        or environment != environment.strip()
+        or type(trade_date) is not date
+        or type(knowledge_cutoff) is not datetime
+        or knowledge_cutoff.tzinfo is None
+        or knowledge_cutoff.utcoffset() is None
+    ):
+        return RetainedHistoricalPriceSourceResult(None, "retained_price_request_invalid")
+    try:
+        started_at = timezone.now()
+        if knowledge_cutoff > started_at:
+            return RetainedHistoricalPriceSourceResult(None, "retained_price_cutoff_in_future")
+        connection = connections[using]
+        boundary = nullcontext() if connection.in_atomic_block else transaction.atomic(using=using)
+        with boundary:
+            stabilize_caller_owned_publication_read(_DATASET_KEY)
+            selected = (
+                DjangoPublishedPriceSourceRepository().select_retained_publication_for_session(
+                    asset_code=asset_code,
+                    trade_date=trade_date,
+                    knowledge_cutoff=knowledge_cutoff,
+                )
+            )
+            if selected is None:
+                return RetainedHistoricalPriceSourceResult(
+                    None, "retained_price_session_publication_missing"
+                )
+            request = RetainedHistoricalPriceSourceRequest(
+                asset_code=asset_code,
+                trade_date=trade_date,
+                publication_id=selected,
+                expected_publication_key=expected_publication_key,
+                knowledge_cutoff=knowledge_cutoff,
+            )
+            result = _read_retained_source_snapshot(request, environment=environment, using=using)
+        completed_at = timezone.now()
+        if completed_at < started_at or knowledge_cutoff > completed_at:
+            return RetainedHistoricalPriceSourceResult(None, "retained_price_clock_invalid")
+        return result
+    except (DataValidationError, TypeError, ValueError):
+        return RetainedHistoricalPriceSourceResult(None, "retained_price_request_invalid")
+    except (
+        DataFetchError,
+        DatabaseError,
+        SystemAuditCompositionUnavailable,
+        SystemAuditEventOutboxCorruption,
+        SystemAuditEventOutboxUnavailable,
+        SystemAuditQueryCorruption,
+        SystemAuditQueryUnavailable,
+    ):
+        return RetainedHistoricalPriceSourceResult(None, "retained_price_read_unavailable")

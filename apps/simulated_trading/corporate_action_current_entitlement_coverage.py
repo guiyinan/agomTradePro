@@ -30,11 +30,16 @@ from apps.simulated_trading.domain.corporate_action_owner_revision import (
 from apps.simulated_trading.domain.corporate_action_ownership_history import (
     RecordDateOwnershipProof,
 )
+from apps.simulated_trading.domain.corporate_action_performance_projection import (
+    RestatementEntitlement,
+    RestatementTransfer,
+)
 from apps.simulated_trading.domain.corporate_action_posting import (
     CorporateActionEntryKind,
     CorporateActionKind,
     CorporateActionLedgerDelta,
     CorporateActionStage,
+    CorporateActionStageRequest,
 )
 from apps.simulated_trading.infrastructure.corporate_action_posting_models import (
     CorporateActionPostingModel,
@@ -64,6 +69,194 @@ def _digest(payload: object) -> str:
     ).hexdigest()
 
 
+def _aware(value: object) -> bool:
+    """Return whether a retained datetime is exact and timezone-aware."""
+    return type(value) is datetime and value.tzinfo is not None and value.utcoffset() is not None
+
+
+@dataclass(frozen=True, slots=True)
+class CurrentEntitlementReference:
+    """Current source entitlement plus original signed transfer facts for restatement.
+
+    This value is an optional projection of an independently verified current
+    entitlement and full ledger history. It is not account NAV, tax authority,
+    or permission to post any ledger stage. The source-body digest and canonical
+    event digest remain separate; local ownership-proof observation is not a
+    source-knowledge clock.
+    """
+
+    record_date: date
+    reference_quantity: Decimal
+    exchange_timezone_name: str
+    source_event_id: str
+    logical_source_event_id: str
+    source_revision_id: str
+    source_body_sha256: str
+    event_content_sha256: str
+    restatement_entitlement: RestatementEntitlement
+
+    def __post_init__(self) -> None:
+        """Keep source, record-date, and restatement identities distinct and exact."""
+        if (
+            type(self.record_date) is not date
+            or type(self.reference_quantity) is not Decimal
+            or not self.reference_quantity.is_finite()
+            or self.reference_quantity <= 0
+            or type(self.exchange_timezone_name) is not str
+            or not self.exchange_timezone_name
+            or self.exchange_timezone_name != self.exchange_timezone_name.strip()
+            or type(self.source_event_id) is not str
+            or not self.source_event_id
+            or self.source_event_id != self.source_event_id.strip()
+            or type(self.logical_source_event_id) is not str
+            or not self.logical_source_event_id
+            or self.logical_source_event_id != self.logical_source_event_id.strip()
+            or type(self.source_revision_id) is not str
+            or not self.source_revision_id
+            or self.source_revision_id != self.source_revision_id.strip()
+            or not _is_sha256(self.source_body_sha256)
+            or not _is_sha256(self.event_content_sha256)
+            or type(self.restatement_entitlement) is not RestatementEntitlement
+        ):
+            raise _blocked()
+        try:
+            ZoneInfo(self.exchange_timezone_name)
+            self.restatement_entitlement.__post_init__()
+        except (KeyError, TypeError, ValueError) as error:
+            raise _blocked() from error
+        if (
+            self.restatement_entitlement.action_id != self.logical_source_event_id
+            or self.restatement_entitlement.effective_on < self.record_date
+        ):
+            raise _blocked()
+
+
+def _current_entitlement_reference(
+    *,
+    event: SecurityDisclosureEvent,
+    terms: SzseDistributionTerms,
+    logical_source_event_id: str,
+    proof: RecordDateOwnershipProof,
+    kind: CorporateActionKind,
+    gross: Decimal,
+    history: tuple[CorporateActionPostingModel, ...],
+    requests: dict[int, CorporateActionStageRequest],
+) -> CurrentEntitlementReference | None:
+    """Project verified current rights and original principal transfers when clocks allow.
+
+    Retained source, qualification, posting, and storage clocks bound current
+    knowledge. The ownership proof's local reconstruction clock is excluded.
+    """
+    try:
+        zone = ZoneInfo(proof.exchange_timezone_name)
+    except (KeyError, TypeError, ValueError):
+        return None
+    if not _aware(event.first_seen_at):
+        return None
+    known_clocks = [event.first_seen_at]
+    cash_transfers: list[RestatementTransfer] = []
+    share_transfers: list[RestatementTransfer] = []
+    for row in history:
+        request = requests.get(row.pk)
+        if request is None:
+            return None
+        created_at: object = getattr(row, "created_at", None)
+        if (
+            request.action_kind is not kind
+            or request.stage is CorporateActionStage.TAX_WITHHOLDING
+            or type(row.pk) is not int
+            or row.pk <= 0
+            or not _aware(created_at)
+            or not all(
+                _aware(clock)
+                for clock in (
+                    request.source_observed_at,
+                    request.qualified_at,
+                    request.posted_at,
+                )
+            )
+        ):
+            return None
+        if type(created_at) is not datetime:
+            return None
+        known_clocks.extend(
+            (
+                request.source_observed_at,
+                request.qualified_at,
+                request.posted_at,
+                created_at,
+            )
+        )
+        cash = row.cash_delta
+        cash_receivable = row.cash_receivable_delta
+        shares = row.share_delta
+        share_receivable = row.share_receivable_delta
+        available_shares = row.available_share_delta
+        if any(
+            type(value) is not Decimal or not value.is_finite()
+            for value in (cash, cash_receivable, shares, share_receivable, available_shares)
+        ):
+            return None
+        if kind is CorporateActionKind.CASH_DIVIDEND:
+            if shares != 0 or share_receivable != 0 or available_shares != 0:
+                return None
+            if request.stage is CorporateActionStage.CASH_PAYMENT:
+                if cash != cash_receivable.copy_negate():
+                    return None
+                if cash != 0:
+                    cash_transfers.append(
+                        RestatementTransfer(
+                            entry_id=str(row.pk),
+                            accounting_on=request.posted_at.astimezone(zone).date(),
+                            amount=cash,
+                            recorded_at=created_at,
+                        )
+                    )
+            elif cash != 0:
+                return None
+        else:
+            if cash != 0 or cash_receivable != 0:
+                return None
+            if request.stage is CorporateActionStage.SHARE_DELIVERY:
+                if shares != share_receivable.copy_negate():
+                    return None
+                if shares != 0:
+                    share_transfers.append(
+                        RestatementTransfer(
+                            entry_id=str(row.pk),
+                            accounting_on=request.posted_at.astimezone(zone).date(),
+                            amount=shares,
+                            recorded_at=created_at,
+                        )
+                    )
+            elif shares != 0:
+                return None
+    try:
+        entitlement = RestatementEntitlement(
+            action_id=logical_source_event_id,
+            asset_code=event.asset_code,
+            effective_on=terms.ex_date,
+            gross_cash=gross if kind is CorporateActionKind.CASH_DIVIDEND else Decimal(0),
+            gross_shares=gross if kind is CorporateActionKind.SHARE_DISTRIBUTION else Decimal(0),
+            known_at=max(known_clocks),
+            cash_transfers=tuple(cash_transfers),
+            share_transfers=tuple(share_transfers),
+        )
+        return CurrentEntitlementReference(
+            record_date=terms.record_date,
+            reference_quantity=proof.eligible_quantity,
+            exchange_timezone_name=proof.exchange_timezone_name,
+            source_event_id=event.source_event_id,
+            logical_source_event_id=logical_source_event_id,
+            source_revision_id=event.source_revision_id,
+            source_body_sha256=event.source_body_sha256,
+            event_content_sha256=event.content_hash,
+            restatement_entitlement=entitlement,
+        )
+    except (KeyError, TypeError, ValueError, ArithmeticError):
+        return None
+
+
 @dataclass(frozen=True, slots=True)
 class CurrentAssetEntitlementCoverage:
     """Read-only recognized rights; its owning source witness supplies the original finite lease."""
@@ -73,6 +266,7 @@ class CurrentAssetEntitlementCoverage:
     shares_complete: bool
     minimum_mark_date: date | None
     evidence_sha256: str
+    current_entitlement_references: tuple[CurrentEntitlementReference, ...] | None = None
 
     def __post_init__(self) -> None:
         """Keep unknown recognition distinct from a genuinely empty certified source window."""
@@ -86,8 +280,23 @@ class CurrentAssetEntitlementCoverage:
             or type(self.evidence_sha256) is not str
             or len(self.evidence_sha256) != 64
             or any(character not in "0123456789abcdef" for character in self.evidence_sha256)
+            or (
+                self.current_entitlement_references is not None
+                and (
+                    type(self.current_entitlement_references) is not tuple
+                    or any(
+                        type(reference) is not CurrentEntitlementReference
+                        for reference in self.current_entitlement_references
+                    )
+                )
+            )
         ):
             raise _blocked()
+        if self.current_entitlement_references is not None:
+            for reference in self.current_entitlement_references:
+                reference.__post_init__()
+                if reference.restatement_entitlement.asset_code != self.asset_code:
+                    raise _blocked()
 
 
 def inspect_current_distribution_entitlement(
@@ -181,6 +390,7 @@ def inspect_current_distribution_entitlement(
     complete = False
     retained: list[str] = []
     active_ids: set[int] = set()
+    requests: dict[int, CorporateActionStageRequest] = {}
     try:
         requests = {
             row.pk: _request_from_row(row, owner_user_id=proof.owner_user_id)
@@ -272,12 +482,27 @@ def inspect_current_distribution_entitlement(
             "complete": complete,
         }
     )
+    reference = (
+        _current_entitlement_reference(
+            event=event,
+            terms=terms,
+            logical_source_event_id=logical_source_event_id,
+            proof=proof,
+            kind=kind,
+            gross=gross,
+            history=history,
+            requests=requests,
+        )
+        if complete
+        else None
+    )
     return CurrentAssetEntitlementCoverage(
         event.asset_code,
         complete if kind is CorporateActionKind.CASH_DIVIDEND else True,
         complete if kind is CorporateActionKind.SHARE_DISTRIBUTION else True,
         terms.ex_date,
         digest,
+        (reference,) if reference is not None else None,
     )
 
 
@@ -301,6 +526,15 @@ def combine_current_entitlement_coverage(
     floors = tuple(
         event.minimum_mark_date for event in events if event.minimum_mark_date is not None
     )
+    references = (
+        tuple(
+            reference
+            for event in events
+            for reference in event.current_entitlement_references or ()
+        )
+        if all(event.current_entitlement_references is not None for event in events)
+        else None
+    )
     return CurrentAssetEntitlementCoverage(
         asset_code,
         all(event.cash_complete for event in events),
@@ -313,4 +547,5 @@ def combine_current_entitlement_coverage(
                 "events": [event.evidence_sha256 for event in events],
             }
         ),
+        references,
     )

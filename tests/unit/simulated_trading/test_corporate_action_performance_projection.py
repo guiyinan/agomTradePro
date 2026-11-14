@@ -210,3 +210,67 @@ def test_inconsistent_or_unrepresentable_original_effects_return_no_partial_curv
         )
     with pytest.raises(CorporateActionRestatementInvalid):
         project_corporate_action_restatement(data)
+
+
+@pytest.mark.parametrize("paid", [False, True])
+def test_cash_reference_wealth_is_continuous_and_transfer_keeps_actual_date(paid: bool) -> None:
+    from apps.simulated_trading.domain.corporate_action_performance_projection import (
+        project_reference_corporate_action_wealth,
+    )
+
+    entitlement = RestatementEntitlement(
+        "cash-reference",
+        "synthetic.SZ",
+        _DAYS[1],
+        Decimal("20"),
+        Decimal(0),
+        _KNOWN,
+        (RestatementTransfer("paid-reference", _DAYS[2], Decimal("20"), _KNOWN),) if paid else (),
+        (),
+    )
+    result = project_reference_corporate_action_wealth(
+        reference_quantity=Decimal(100),
+        entitlement=entitlement,
+        marks=(_mark(_DAYS[0], "10"), _mark(_DAYS[1], "9.80")),
+        money_quantum=Decimal("0.01"),
+        quantity_quantum=Decimal("0.000001"),
+        knowledge_cutoff=_KNOWN + timedelta(seconds=2),
+        decision_day=_DAYS[2],
+    )
+    assert result.opening.total_value == result.closing.total_value == Decimal(1000)
+    assert result.wealth_change == 0
+    assert result.closing.cash == 0 and result.closing.dividend_receivable == 20
+
+
+@pytest.mark.parametrize("delivered", [False, True])
+def test_share_reference_wealth_counts_delivered_or_receivable_shares_once(delivered: bool) -> None:
+    from apps.simulated_trading.domain.corporate_action_performance_projection import (
+        project_reference_corporate_action_wealth,
+    )
+
+    entitlement = RestatementEntitlement(
+        "share-reference",
+        "synthetic.SZ",
+        _DAYS[1],
+        Decimal(0),
+        Decimal(10),
+        _KNOWN,
+        (),
+        (
+            (RestatementTransfer("delivered-reference", _DAYS[1], Decimal(10), _KNOWN),)
+            if delivered
+            else ()
+        ),
+    )
+    result = project_reference_corporate_action_wealth(
+        reference_quantity=Decimal(100),
+        entitlement=entitlement,
+        marks=(_mark(_DAYS[0], "11"), _mark(_DAYS[1], "10")),
+        money_quantum=Decimal("0.01"),
+        quantity_quantum=Decimal("0.000001"),
+        knowledge_cutoff=_KNOWN + timedelta(seconds=2),
+        decision_day=_DAYS[2],
+    )
+    assert result.opening.total_value == result.closing.total_value == Decimal(1100)
+    assert result.wealth_change == 0
+    assert result.closing.physical_shares + result.closing.share_receivable == Decimal(110)

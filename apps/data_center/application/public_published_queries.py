@@ -841,3 +841,27 @@ def get_publication_as_of(
         "must_not_use_for_decision": publication.must_not_use_for_decision,
         "blocked_reason": publication.blocked_reason,
     }
+
+
+def get_retained_historical_price_for_session(
+    asset_code: str,
+    *,
+    trade_date: date,
+    expected_publication_key: str,
+    knowledge_cutoff: datetime,
+    environment: str,
+    using: str = "default",
+) -> RetainedHistoricalPriceSourceResult:
+    """Read the exact newest retained activation for a session as historical evidence."""
+    from apps.data_center.retained_historical_price_source_composition import (
+        read_retained_historical_price_for_session,
+    )
+
+    return read_retained_historical_price_for_session(
+        asset_code,
+        trade_date=trade_date,
+        expected_publication_key=expected_publication_key,
+        knowledge_cutoff=knowledge_cutoff,
+        environment=environment,
+        using=using,
+    )

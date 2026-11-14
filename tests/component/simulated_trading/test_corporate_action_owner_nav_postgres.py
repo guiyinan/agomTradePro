@@ -9,9 +9,12 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import UTC, date, timedelta
 from decimal import Decimal, localcontext
+from pathlib import Path
+from typing import Literal
 from uuid import uuid4
 
 import pytest
@@ -75,6 +78,7 @@ from tests.support.ash05_owner_workflow_native_world import (
     build_owner_workflow_native_world,
     recover_owner_workflow_operator_authority,
 )
+from tests.support.ash07_native_runtime_role import isolated_ash07_runtime_role
 from tests.support.ash07_owner_account_authority import ASH07_OWNER_ACCEPTANCE_AVAILABLE_APPS
 from tests.support.ash07_owner_m1_price_batch import ensure_m1_price_publication_catalog
 from tests.support.simulated_tax_model_native_context import _TIMEZONE
@@ -92,6 +96,26 @@ _NAV_SCHEMA = "simulated.corporate_action.nav_raw_mark_configuration.v1"
 _NAV_POLICY_SCHEMA = "simulated-corporate-action-nav-raw-mark-policy.v1"
 _NAV_PURPOSE = "simulated_corporate_action_nav_raw_mark"
 _PRICE_CLOSE = Decimal("11.47")
+
+
+@pytest.fixture
+def actual_runtime_role(transactional_db: None, tmp_path: Path) -> Iterator[dict[str, object]]:
+    """Run publication and owner reads under the database's real restricted runtime login."""
+    del transactional_db
+    if connection.vendor != "postgresql":
+        yield {}
+        return
+    database_name = connection.settings_dict.get("NAME")
+    if database_name == "ash05_tax_payment_basis_qa":
+        target_profile: Literal["ash05_local", "ash05_ci"] = "ash05_local"
+    elif database_name == "ash05_owner_goldens_test_ci":
+        target_profile = "ash05_ci"
+    else:
+        raise RuntimeError("runtime-role fixture refuses an unassigned PostgreSQL test database")
+    with isolated_ash07_runtime_role(
+        tmp_path / "runtime-role", target_profile=target_profile
+    ) as report:
+        yield report
 
 
 class _SyntheticExactDailyPriceProvider:
@@ -561,11 +585,13 @@ def _assert_nav_identity(
 
 def test_owner_nav_requires_current_raw_close_policy_and_full_tax_coverage(
     monkeypatch: pytest.MonkeyPatch,
-    tmp_path,
+    tmp_path: Path,
+    actual_runtime_role: dict[str, object],
 ) -> None:
     """Show missing NAV evidence blocks, then reconcile current raw close and tax debt."""
     if connection.vendor != "postgresql":
         pytest.skip("the ordinary-owner NAV journey needs the assigned migrated PostgreSQL DB")
+    assert actual_runtime_role.get("runtime_acl_verified") is True
     with override_settings(ROOT_URLCONF=_WORKFLOW_URLCONF), isolated_task_channels():
         world = build_owner_workflow_native_world(monkeypatch=monkeypatch, tmp_path=tmp_path)
         szse_calendar = persist_auto_uow_formal_calendar(

@@ -351,3 +351,87 @@ def _project_exact(
             )
         )
     return tuple(output)
+
+
+@dataclass(frozen=True, slots=True)
+class ReferenceCorporateActionWealthComparison:
+    """Two exact values of a fixed record-date reference holding, before tax.
+
+    This basket contains that holding and its single event's rights/transfers.
+    It is independent of the account's cash, later trades and external flows;
+    it does not claim an account return or historical information availability.
+    The exact return fraction is wealth_change / opening.total_value.
+    """
+
+    reference_quantity: Decimal
+    opening: RestatedCorporateActionValue
+    closing: RestatedCorporateActionValue
+    wealth_change: Decimal
+
+
+def project_reference_corporate_action_wealth(
+    *,
+    reference_quantity: Decimal,
+    entitlement: RestatementEntitlement,
+    marks: tuple[RestatementRawMark, RestatementRawMark],
+    money_quantum: Decimal,
+    quantity_quantum: Decimal,
+    knowledge_cutoff: datetime,
+    decision_day: date,
+) -> ReferenceCorporateActionWealthComparison:
+    """Compare raw closes plus one event's economic rights exactly once.
+
+    The caller verifies the record-date quantity, current source economics,
+    both exact closed sessions and all original transfers. Transfers retain
+    their actual posting dates. No external cash or accepted tax liability is
+    introduced into this explicitly gross, unreinvested reference basket.
+    """
+    _decimal(reference_quantity)
+    _require(reference_quantity > 0, "RESTATEMENT_REFERENCE_QUANTITY_INVALID")
+    _require(type(entitlement) is RestatementEntitlement, "RESTATEMENT_ENTITLEMENT_INVALID")
+    _require(type(marks) is tuple and len(marks) == 2, "RESTATEMENT_REFERENCE_MARKS_INVALID")
+    entitlement.__post_init__()
+    _require(
+        all(type(mark) is RestatementRawMark for mark in marks),
+        "RESTATEMENT_REFERENCE_MARKS_INVALID",
+    )
+    _require(
+        marks[0].day < entitlement.effective_on <= marks[1].day,
+        "RESTATEMENT_REFERENCE_EX_DATE_NOT_BRACKETED",
+    )
+    # These balances belong only to the declared reference basket. In
+    # particular zero tax denotes a before-tax metric, never zero account debt.
+    try:
+        with localcontext() as context:
+            context.prec = 96
+            context.traps[Inexact] = True
+            cash = _sum_transfers(entitlement.cash_transfers)
+            shares = reference_quantity + _sum_transfers(entitlement.share_transfers)
+            values = project_corporate_action_restatement(
+                CorporateActionRestatementInput(
+                    asset_code=entitlement.asset_code,
+                    money_unit=marks[0].money_unit,
+                    quantity_unit=marks[0].quantity_unit,
+                    money_quantum=money_quantum,
+                    quantity_quantum=quantity_quantum,
+                    knowledge_cutoff=knowledge_cutoff,
+                    decision_day=decision_day,
+                    session_days=(marks[0].day, marks[1].day),
+                    current_cash=cash,
+                    current_position_quantity=shares,
+                    current_tax_payable=Decimal(0),
+                    marks=marks,
+                    entitlements=(entitlement,),
+                    unmodeled_event_dates=(),
+                )
+            )
+            return ReferenceCorporateActionWealthComparison(
+                reference_quantity,
+                values[0],
+                values[1],
+                values[1].total_value - values[0].total_value,
+            )
+    except DecimalException as error:
+        raise CorporateActionRestatementInvalid(
+            "RESTATEMENT_REFERENCE_PRECISION_UNSUPPORTED"
+        ) from error

@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 7428,
+    "current_surface_references": 7451,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -13335,6 +13335,10 @@
       "text": "\"\"\"Return one current row per asset without a historical correlated scan."
     },
     {
+      "path": "apps/data_center/infrastructure/published_price_source_repository.py",
+      "text": "candidate when that verification fails. No current pointer is read."
+    },
+    {
       "path": "apps/data_center/infrastructure/qmt_bridge_repository.py",
       "text": "\"\"\"Persist only authorized sources; never activate a current Publication here.\"\"\""
     },
@@ -22387,6 +22391,54 @@
       "text": "_invalid(\"active owner entry is not one exact current stage\")"
     },
     {
+      "path": "apps/simulated_trading/application/corporate_action_reference_return.py",
+      "text": "\"\"\"Sources supplied by independently verified owner/current-entitlement compositions.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_reference_return.py",
+      "text": "current = inputs.current_mark"
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_reference_return.py",
+      "text": "current source lease, complete original financial transfers and exact"
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_reference_return.py",
+      "text": "current.calendar.validate_for(cutoff)"
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_reference_return.py",
+      "text": "current.verify_for(current.query, as_of=cutoff)"
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_reference_return.py",
+      "text": "decision_day=current.trade_date,"
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_reference_return.py",
+      "text": "if inputs.record_date >= action.effective_on or action.asset_code != current.query.asset_code:"
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_reference_return.py",
+      "text": "min(deadline, current.valid_until),"
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_reference_return.py",
+      "text": "open_days = tuple(day.calendar_date for day in current.calendar.snapshot.days if day.is_open)"
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_reference_return.py",
+      "text": "or action.effective_on > current.trade_date"
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_reference_return.py",
+      "text": "or source.price.amount_unit != current.policy_binding.policy.currency"
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_reference_return.py",
+      "text": "or source.price.publication_key != current.policy_binding.policy.publication_key"
+    },
+    {
       "path": "apps/simulated_trading/application/corporate_action_share_tax_model.py",
       "text": "The model binds one simulated scenario to source text and current configured"
     },
@@ -24012,6 +24064,22 @@
     },
     {
       "path": "apps/simulated_trading/corporate_action_current_entitlement_coverage.py",
+      "text": "Retained source, qualification, posting, and storage clocks bound current"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_current_entitlement_coverage.py",
+      "text": "This value is an optional projection of an independently verified current"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_current_entitlement_coverage.py",
+      "text": "\"\"\"Current source entitlement plus original signed transfer facts for restatement."
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_current_entitlement_coverage.py",
+      "text": "\"\"\"Project verified current rights and original principal transfers when clocks allow."
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_current_entitlement_coverage.py",
       "text": "\"\"\"Require one original current entitlement matching current body and closed-date quantity."
     },
     {
@@ -24460,11 +24528,31 @@
     },
     {
       "path": "apps/simulated_trading/corporate_action_owner_workflow_readback.py",
+      "text": "result[\"reference_return_summary\"] = reference_returns.summary"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_owner_workflow_readback.py",
       "text": "result[\"summary\"] = ("
     },
     {
       "path": "apps/simulated_trading/corporate_action_owner_workflow_readback.py",
       "text": "result[\"summary\"] = ("
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_reference_return_composition.py",
+      "text": "pairs. Current entitlement references retain those actual transfer dates."
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_reference_return_composition.py",
+      "text": "return OwnerReferenceReturnReadback(summary, (row,), checked)"
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_reference_return_composition.py",
+      "text": "summary = ("
+    },
+    {
+      "path": "apps/simulated_trading/corporate_action_reference_return_composition.py",
+      "text": "summary: str"
     },
     {
       "path": "apps/simulated_trading/corporate_action_share_tax_instrument_qualification.py",
@@ -25077,6 +25165,10 @@
     {
       "path": "apps/simulated_trading/domain/corporate_action_performance_projection.py",
       "text": "The caller must independently verify complete current-knowledge source, account,"
+    },
+    {
+      "path": "apps/simulated_trading/domain/corporate_action_performance_projection.py",
+      "text": "The caller verifies the record-date quantity, current source economics,"
     },
     {
       "path": "apps/simulated_trading/domain/corporate_action_performance_projection.py",

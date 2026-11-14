@@ -49,3 +49,14 @@ API serializer 限制 `asset_type` 为 equity；证券的具体范围仍由操�
 Python SDK 调用为 `client.simulated_trading.close_position(account_id, asset_code, close_shares, close_price, *, idempotency_key)`，MCP 平仓工具也必须接收明确股数、价格字符串和稳定键。SDK 使用现有单次 POST 机制，禁止自动重试及跟随重定向；真实 3xx/4xx 状态保留为类型化异常。损坏的 200 回执、网络中断或读回未知均不能展示为完成。close 专用 MCP 在未知结果（含已发出 3xx）时保留原确认和键，确定的 4xx 拒绝仍按原拒绝契约处理。
 
 本入口只形成普通模拟账本交易。精确响应与同键重放不构成真实来源、实时行情、生产账户或券商成交资格。
+
+
+## 公司行动读回与登记日参考持仓
+
+本人会话读取 `GET /api/simulated-trading/accounts/{account_id}/corporate-actions/`，保留既有所有者权限及 JSON 状态码。响应新增 `tax_coverage_status`、`valuation_trade_dates`、`valuation_source_observed_at`，分别表达税款覆盖、当前估值使用的交易日及供应商原始观察时间；未知观察时间为 `null`。
+
+`reference_return_summary` 给出独立的登记日参考持仓核对说明，`reference_returns` 是对应明细。当前支持单证券、单事件家族的现金分红或送转：使用除权日前一个开市日及已收盘除权日的未复权收盘价，固定登记日数量，按当前已知完整来源重建税前、未再投资的参考价值。现金和股份从应收转为实际到账/交付时按原实际日期计入，只计一次；后来到账不得倒记到除权日。该指标不能解释为账户收益率、现金流调整业绩或当时已知的回测结果。账户净值和税款仍独立核验。
+
+明细 `status=unknown` 时，金额保留 `null`，不得显示为零收益；多证券、多家族、配股或原始历史收盘/权益证据不完整时保留稳定原因。`knowledge_semantics=currently_known_reference_holding`、`return_basis=gross_unreinvested_record_date_holding`、`must_not_use_for_decision=true` 始终保留，`source_observed_at=null` 不用读取时间补齐。原发布编号、区间结束和本地来源可用时钟单独保留。读取不创建税务评估、不付款、不写财务或审计。
+
+SDK/MCP 调用方如透传上述本人工作流结果，须原样保留未知值、日期、参考口径和决策禁用标记；通用详情只展示中文摘要。当前 SDK 与 MCP 没有该工作流的独立封装方法，本次不新增调用路径或自动重试金融确认。既有 TUI 公开动作桥接继续使用服务器的本人会话、显式确认与锁内授权，不从参考金额推断可用现金或执行许可。

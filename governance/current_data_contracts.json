@@ -15177,7 +15177,9 @@
         "apps/simulated_trading/corporate_action_owner_revision_composition.py",
         "apps/simulated_trading/application/corporate_action_owner_revision_preview.py",
         "apps/simulated_trading/corporate_action_owner_event_history_composition.py",
-        "apps/simulated_trading/application/corporate_action_owner_posting_read.py"
+        "apps/simulated_trading/application/corporate_action_owner_posting_read.py",
+        "apps/simulated_trading/corporate_action_reference_return_composition.py",
+        "apps/simulated_trading/application/corporate_action_reference_return.py"
       ],
       "required_markers": {
         "apps/simulated_trading/corporate_action_owner_workflow_composition.py": [
@@ -15213,6 +15215,18 @@
         "apps/simulated_trading/application/corporate_action_owner_posting_read.py": [
           "class OwnerCorporateActionActivePostingHead:",
           "entry.delta != calculate_corporate_action_delta(request)"
+        ],
+        "apps/simulated_trading/corporate_action_reference_return_composition.py": [
+          "read_locked_owner_reference_returns(",
+          "REFERENCE_ARCHIVED_RAW_CLOSE_UNVERIFIED",
+          "\"must_not_use_for_decision\": True",
+          "coverage.verify_for(coverage.query, as_of=checked)"
+        ],
+        "apps/simulated_trading/application/corporate_action_reference_return.py": [
+          "gross_unreinvested_record_date_holding",
+          "currently_known_reference_holding",
+          "source.price.source_observed_at is not None",
+          "min(deadline, current.valid_until)"
         ]
       },
       "required_tests": [
@@ -15255,9 +15269,29 @@
           "case": "active_head_canonical_delta",
           "test_file": "tests/unit/simulated_trading/test_corporate_action_owner_event_history_composition.py",
           "test_function": "test_active_head_dto_rejects_changed_delta_with_unchanged_request"
+        },
+        {
+          "case": "cash_original_late_transfers",
+          "test_file": "tests/unit/simulated_trading/test_corporate_action_reference_entitlement_projection.py",
+          "test_function": "test_cash_reference_uses_all_verified_reversal_and_late_payment_rows"
+        },
+        {
+          "case": "share_original_delivery_dates",
+          "test_file": "tests/unit/simulated_trading/test_corporate_action_reference_entitlement_projection.py",
+          "test_function": "test_share_projection_uses_delivery_transfer_not_scheduled_dates_or_release"
+        },
+        {
+          "case": "owner_reference_cash_continuity_native",
+          "test_file": "tests/component/simulated_trading/test_corporate_action_reference_return_postgres.py",
+          "test_function": "test_owner_cash_reference_return_brackets_ex_date_and_keeps_late_payment_late"
+        },
+        {
+          "case": "owner_reference_share_continuity_native",
+          "test_file": "tests/component/simulated_trading/test_corporate_action_reference_return_postgres.py",
+          "test_function": "test_owner_share_reference_return_counts_ex_date_rights_once_across_real_stages"
         }
       ],
-      "notes": "Retained choices and successful transport are not source completeness, usable balances or authority. Discovery preserves unknowns and original clocks. Explicit refresh is separate; sealed server facts bind exact owner/session/source/policy/time. Confirmation delegates fresh permission and exact replay to the financial writer. Minimal committed acknowledgement avoids treating optional postcommit readback as rollback. No real-account, production-source or tax/legal qualification is implied. Source correction is a separate explicit preparation mode: the complete inverse-and-successor preview must exactly equal the sealed batch and retain original active entries to validate all five deltas. No automatic correction fallback. Ordinary continuation after correction requires complete same-account Audit/Outbox and Domain replay, exact canonical owner and current disclosed head. A newer source still blocks until explicitly corrected. Ownership proofs must match the trusted preparation cutoff without retimestamping observations. Existing modern tax journals keep correction/refund unsupported and blocked. Unit registration does not constitute native/browser or production qualification."
+      "notes": "Retained choices and successful transport are not source completeness, usable balances or authority. Discovery preserves unknowns and original clocks. Explicit refresh is separate; sealed server facts bind exact owner/session/source/policy/time. Confirmation delegates fresh permission and exact replay to the financial writer. Minimal committed acknowledgement avoids treating optional postcommit readback as rollback. No real-account, production-source or tax/legal qualification is implied. Source correction is a separate explicit preparation mode: the complete inverse-and-successor preview must exactly equal the sealed batch and retain original active entries to validate all five deltas. No automatic correction fallback. Ordinary continuation after correction requires complete same-account Audit/Outbox and Domain replay, exact canonical owner and current disclosed head. A newer source still blocks until explicitly corrected. Ownership proofs must match the trusted preparation cutoff without retimestamping observations. Existing modern tax journals keep correction/refund unsupported and blocked. Unit registration does not constitute native/browser or production qualification. The optional reference basket is gross, unreinvested and currently-known only; fixed record-date quantity and original transfer dates avoid double counting. Missing retained raw prices or current entitlement leave unknown amounts, without changing account cash/debt or authorizing decisions."
     },
     {
       "id": "simulated_trading.corporate_action_current_raw_nav_mark",
@@ -15398,7 +15432,8 @@
         "apps/data_center/application/public_published_queries.py",
         "apps/data_center/infrastructure/publication_read_snapshot.py",
         "core/integration/data_center_audit.py",
-        "apps/audit/retained_system_audit_stream_composition.py"
+        "apps/audit/retained_system_audit_stream_composition.py",
+        "apps/data_center/infrastructure/published_price_source_repository.py"
       ],
       "required_markers": {
         "apps/data_center/application/retained_historical_price_source.py": [
@@ -15412,7 +15447,8 @@
           "read_data_center_retained_system_audit_stream(",
           "previous_publication_id",
           "stabilize_caller_owned_publication_read(_DATASET_KEY)",
-          "nullcontext()"
+          "nullcontext()",
+          "def read_retained_historical_price_for_session("
         ],
         "apps/audit/retained_system_audit_stream_composition.py": [
           "caller_owned_readonly()",
@@ -15423,6 +15459,11 @@
         "apps/data_center/infrastructure/publication_read_snapshot.py": [
           "def stabilize_caller_owned_publication_read(",
           "len(connection.atomic_blocks) != 1"
+        ],
+        "apps/data_center/infrastructure/published_price_source_repository.py": [
+          "def select_retained_publication_for_session(",
+          "publication_id__in=Subquery(members)",
+          "RETAINED_PRICE_SELECTION_AMBIGUOUS"
         ]
       },
       "required_tests": [
@@ -15445,9 +15486,19 @@
           "case": "full_stream_originals",
           "test_file": "tests/unit/audit/test_retained_system_audit_stream_composition.py",
           "test_function": "test_incomplete_or_changed_original_stream_never_returns_partial_pairs"
+        },
+        {
+          "case": "invalid_selected_publication_never_falls_back",
+          "test_file": "tests/unit/data_center/test_retained_historical_price_session_selection.py",
+          "test_function": "test_selected_invalid_original_never_falls_back_to_another_publication"
+        },
+        {
+          "case": "missing_session_keeps_unknown",
+          "test_file": "tests/unit/data_center/test_retained_historical_price_session_selection.py",
+          "test_function": "test_missing_session_publication_does_not_substitute_current_pointer"
         }
       ],
-      "notes": "Select explicit retained publication ID/key and exact session. Full member seal, source manifest, RawAudit, exact original response and original activation Audit/Outbox are independent checks. Complete selected publication stream rejects cross-run rollback target/previous identities without scanning unrelated Audit rows. A caller-owned sole writable transaction preserves fixed publication table locks and original Audit row locks without savepoints. Historical raw values preserve interval end, local source availability, original persistence clocks and unknown supplier observation. No current pointer, live freshness, trading eligibility, PIT account return, ledger write or source repair is granted; unsupported/missing/corrupt/oversized evidence blocks. Native two-session execution and ordinary-user return continuity remain separate required acceptance."
+      "notes": "Select explicit retained publication ID/key and exact session. Full member seal, source manifest, RawAudit, exact original response and original activation Audit/Outbox are independent checks. Complete selected publication stream rejects cross-run rollback target/previous identities without scanning unrelated Audit rows. A caller-owned sole writable transaction preserves fixed publication table locks and original Audit row locks without savepoints. Historical raw values preserve interval end, local source availability, original persistence clocks and unknown supplier observation. No current pointer, live freshness, trading eligibility, PIT account return, ledger write or source repair is granted; unsupported/missing/corrupt/oversized evidence blocks. Native two-session execution and ordinary-user return continuity remain separate required acceptance. Exact-session discovery selects one latest retained activated candidate; a failed envelope never falls back to an older publication or current pointer."
     }
   ]
 }

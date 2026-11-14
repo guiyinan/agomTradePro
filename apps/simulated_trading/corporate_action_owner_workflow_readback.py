@@ -32,6 +32,9 @@ from apps.simulated_trading.corporate_action_owner_tax_readback import (
     _original_receipt_clock,
     read_locked_owner_tax_receipts,
 )
+from apps.simulated_trading.corporate_action_reference_return_composition import (
+    read_locked_owner_reference_returns,
+)
 from apps.simulated_trading.execution_current_reference_composition import (
     get_simulated_execution_runtime_environment,
 )
@@ -50,6 +53,8 @@ def empty_owner_workflow_payload(account_id: int) -> dict[str, JSONValue]:
         "account_id": account_id,
         "outcome": "blocked",
         "summary": "请核对本人模拟账户、分项授权与官方资料后再办理。",
+        "reference_return_summary": "登记日参考持仓的税前、未再投资权益回报尚待核对。",
+        "reference_returns": [],
         "blocking_reason": "CORPORATE_ACTION_CURRENT_FACTS_UNVERIFIED",
         "source_observed_at": None,
         "checked_at": None,
@@ -316,6 +321,17 @@ def read_owner_workflow_payload(account: OwnerCorporateActionAccount) -> dict[st
             mark.trade_date.isoformat() for mark in balance_read.marks
         ]
         cutoff = balance_read.checked_at
+        reference_returns = read_locked_owner_reference_returns(
+            account=row,
+            asset_codes=account.asset_codes,
+            ledger=ledger,
+            balance_read=balance_read,
+            environment=get_simulated_execution_runtime_environment(),
+            using=using,
+        )
+        result["reference_return_summary"] = reference_returns.summary
+        reference_rows: list[JSONValue] = list(reference_returns.rows)
+        result["reference_returns"] = reference_rows
     records = read_owner_workflow_events(account, as_of=cutoff)
     result["events"] = owner_workflow_event_rows(account, records)
     result["source_observed_at"] = (

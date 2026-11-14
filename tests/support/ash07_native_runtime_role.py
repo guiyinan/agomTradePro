@@ -7,6 +7,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from copy import deepcopy
 from pathlib import Path
+from typing import Literal
 from uuid import uuid4
 
 import psycopg
@@ -89,17 +90,31 @@ def _identity(admin: psycopg.Connection[tuple[object, ...]]) -> tuple[object, ..
 
 
 @contextmanager
-def isolated_ash07_runtime_role(evidence_directory: Path) -> Iterator[dict[str, object]]:
+def isolated_ash07_runtime_role(
+    evidence_directory: Path,
+    *,
+    target_profile: Literal["ash07_local", "ash05_local", "ash05_ci"] = "ash07_local",
+) -> Iterator[dict[str, object]]:
     """Use a real restricted default login, restoring every touched owner and ACL.
 
-    Only this existing loopback TEST database is accepted. No schema/table is
-    created or dropped, no function definition/search path is replaced, and no
-    PUBLIC privilege or role membership is granted. The local cluster's existing
-    trust authentication permits a temporary login without any password DDL.
+    Only the explicitly selected loopback TEST profile is accepted. No schema/table
+    is created or dropped, no function definition/search path is replaced, and no
+    PUBLIC privilege or role membership is granted. The ASH05 profiles use a unique
+    temporary runtime credential; the original ASH07 trust profile is unchanged.
     """
 
+    profiles = {
+        "ash07_local": (_TEST_DATABASE, _PORT, _PORT),
+        "ash05_local": ("ash05_tax_payment_basis_qa", 56405, 5432),
+        "ash05_ci": ("ash05_owner_goldens_test_ci", 5432, 5432),
+    }
+    if target_profile not in profiles:
+        raise RuntimeError("runtime-role setup refuses an unknown target profile")
+    expected_database, configured_port, physical_port = profiles[target_profile]
     database = connections["default"]
-    assert_native_postgres_test_database(expected_name=_TEST_DATABASE)
+    if str(database.settings_dict.get("PORT")) != str(configured_port):
+        raise RuntimeError("runtime-role setup refuses an unapproved configured port")
+    assert_native_postgres_test_database(expected_name=expected_database)
     if database.in_atomic_block or not database.get_autocommit():
         raise RuntimeError("runtime-role setup requires the outer transaction-test boundary")
     with database.cursor() as cursor:
@@ -107,7 +122,7 @@ def isolated_ash07_runtime_role(evidence_directory: Path) -> Iterator[dict[str, 
         original_identity = cursor.fetchone()
     if (
         original_identity is None
-        or original_identity[0:2] != (_TEST_DATABASE, _PORT)
+        or original_identity[0:2] != (expected_database, physical_port)
         or original_identity[2] != original_identity[3]
         or str(database.settings_dict.get("HOST")) not in ("127.0.0.1", "localhost")
     ):
@@ -120,10 +135,12 @@ def isolated_ash07_runtime_role(evidence_directory: Path) -> Iterator[dict[str, 
     suffix = uuid4().hex
     owner_role = f"ash07_owner_{suffix}"
     runtime_role = f"ash07_runtime_{suffix}"
+    runtime_password = "" if target_profile == "ash07_local" else uuid4().hex
     evidence_directory.mkdir(parents=True, exist_ok=True)
     report: dict[str, object] = {
-        "database": _TEST_DATABASE,
-        "port": _PORT,
+        "database": expected_database,
+        "port": physical_port,
+        "target_profile": target_profile,
         "management_identity": list(original_identity),
         "owner_role": owner_role,
         "runtime_role": runtime_role,
@@ -183,6 +200,13 @@ def isolated_ash07_runtime_role(evidence_directory: Path) -> Iterator[dict[str, 
                     ).format(sql.Identifier(name), sql.SQL(login)),
                 )
                 created.append(name)
+                if name == runtime_role and runtime_password:
+                    _execute(
+                        admin,
+                        sql.SQL("ALTER ROLE {} PASSWORD {}").format(
+                            sql.Identifier(name), sql.Literal(runtime_password)
+                        ),
+                    )
             _execute(
                 admin,
                 sql.SQL("GRANT CREATE ON SCHEMA public TO {}").format(sql.Identifier(owner_role)),
@@ -231,16 +255,18 @@ def isolated_ash07_runtime_role(evidence_directory: Path) -> Iterator[dict[str, 
             ):
                 _execute(admin, statement.format(runtime))
             database.close()
-            database.settings_dict.update(USER=runtime_role, PASSWORD="", CONN_MAX_AGE=0)
+            database.settings_dict.update(
+                USER=runtime_role, PASSWORD=runtime_password, CONN_MAX_AGE=0
+            )
             switched = True
             database.ensure_connection()
-            assert_native_postgres_test_database(expected_name=_TEST_DATABASE)
+            assert_native_postgres_test_database(expected_name=expected_database)
             with database.cursor() as cursor:
                 cursor.execute(
                     "SELECT current_database(),inet_server_port(),session_user,current_user"
                 )
                 runtime_identity = cursor.fetchone()
-            if runtime_identity != (_TEST_DATABASE, _PORT, runtime_role, runtime_role):
+            if runtime_identity != (expected_database, physical_port, runtime_role, runtime_role):
                 raise RuntimeError("default alias did not establish a real runtime login")
             verify_account_authority_generation_runtime_acl(using="default")
             report["runtime_identity"] = list(runtime_identity)

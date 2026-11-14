@@ -531,3 +531,6 @@ SignalStatus = Literal["pending", "approved", "rejected", "invalidated"]
 # Policy types
 PolicyGear = Literal["stimulus", "neutral", "tightening"]
 ```
+
+
+Company-action owner readbacks retain nullable tax coverage and valuation clocks. If a caller passes through `reference_returns`, preserve `status=unknown`, null amounts, `source_observed_at=null` and `must_not_use_for_decision=true`. Complete rows describe a gross, unreinvested fixed record-date reference holding using currently known original sources; they do not grant account return, available cash or financial permission. See [the owner readback contract](../api/a-share-simulated-current-reference-manual.md#公司行动读回与登记日参考持仓). No dedicated SDK/MCP workflow wrapper is introduced; existing generic TUI bridges retain server authorization and explicit confirmation.

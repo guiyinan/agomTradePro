@@ -13,6 +13,8 @@ from uuid import UUID, uuid4
 
 import requests
 from django.utils import timezone
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 from apps.data_center.domain.security_disclosure_event import (
     SecurityDisclosureExchange,
@@ -32,6 +34,27 @@ _PDF_PATH = re.compile(
 _PUBLISH_TIME = re.compile(r"^(\d{4}-\d{2}-\d{2}) \d{2}:\d{2}:\d{2}$")
 _MAX_PAGE_BYTES = 2 * 1024 * 1024
 _MAX_ANNOUNCEMENTS = 10_000
+
+
+def _official_session() -> requests.Session:
+    """Retry bounded transport failures for the official read-only listing requests."""
+    session = requests.Session()
+    session.mount(
+        "https://www.szse.cn/",
+        HTTPAdapter(
+            max_retries=Retry(
+                total=3,
+                connect=3,
+                read=3,
+                status=3,
+                backoff_factor=0.5,
+                status_forcelist=(502, 503, 504),
+                allowed_methods=frozenset({"GET", "POST"}),
+                respect_retry_after_header=False,
+            )
+        ),
+    )
+    return session
 
 
 class OfficialSzseListingError(DataFetchError):
@@ -272,7 +295,7 @@ def capture_official_szse_announcement_window(
     if not isinstance(body_store_root, Path):
         raise OfficialSzseListingError("listing body store root is invalid")
     owns_session = session is None
-    http = session or requests.Session()
+    http = session or _official_session()
     try:
         landing = http.get(_PAGE_URL, timeout=(5, 20), allow_redirects=False)
         if landing.status_code != 200:

@@ -490,3 +490,105 @@ def test_registered_api_routes_are_the_five_owner_workflow_endpoints() -> None:
     }
     for url, name in expected.items():
         assert resolve(url).url_name == name
+
+
+def test_read_preserves_declared_tax_coverage_and_original_raw_valuation_metadata(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import json
+
+    payload = _payload()
+    payload.update(
+        {
+            "tax_coverage_status": "complete",
+            "valuation_trade_dates": ["2026-11-12"],
+            "valuation_source_observed_at": None,
+        }
+    )
+    monkeypatch.setattr(
+        views, "read_owner_corporate_action_workflow", lambda *args, **kwargs: payload
+    )
+    response = _call("get")
+    assert response.status_code == 200
+    body = json.loads(response.content)
+    assert body["tax_coverage_status"] == "complete"
+    assert body["valuation_trade_dates"] == ["2026-11-12"]
+    assert body["valuation_source_observed_at"] is None
+
+
+@pytest.mark.parametrize(
+    "metadata",
+    [
+        {"tax_coverage_status": "fresh"},
+        {"valuation_trade_dates": ["not-a-date"]},
+        {"valuation_source_observed_at": 123},
+    ],
+)
+def test_invalid_declared_valuation_metadata_blocks_instead_of_silently_disappearing(
+    monkeypatch: pytest.MonkeyPatch, metadata: dict[str, object]
+) -> None:
+    payload = _payload()
+    payload.update(metadata)
+    monkeypatch.setattr(
+        views, "read_owner_corporate_action_workflow", lambda *args, **kwargs: payload
+    )
+    response = _call("get")
+    assert response.status_code == 503
+    assert response.data["must_not_use_for_decision"] is True
+
+
+def _unknown_reference_row() -> dict[str, object]:
+    return {
+        "account_id": _ACCOUNT_ID,
+        "asset_code": "000001.SZ",
+        "status": "unknown",
+        "reason_code": "REFERENCE_ARCHIVED_RAW_CLOSE_UNVERIFIED",
+        "knowledge_semantics": "currently_known_reference_holding",
+        "return_basis": "gross_unreinvested_record_date_holding",
+        "must_not_use_for_decision": True,
+    }
+
+
+def test_reference_unknown_survives_owner_allowlist_without_inventing_values(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    payload = _payload()
+    payload.update(
+        {
+            "reference_return_summary": "登记日参考持仓权益回报待核对。",
+            "reference_returns": [_unknown_reference_row()],
+        }
+    )
+    monkeypatch.setattr(
+        views, "read_owner_corporate_action_workflow", lambda *args, **kwargs: payload
+    )
+    response = _call("get")
+    assert response.status_code == 200
+    row = response.data["reference_returns"][0]
+    assert (
+        row["status"] == "unknown" and row["opening_value"] is None and row["closing_value"] is None
+    )
+    assert row["source_observed_at"] is None and row["must_not_use_for_decision"] is True
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        {"account_id": _ACCOUNT_ID + 1},
+        {"must_not_use_for_decision": False},
+        {"source_observed_at": "2026-11-12T07:00:00Z"},
+        {"status": "complete", "opening_value": 0.0},
+    ],
+)
+def test_reference_scope_or_eligibility_mismatch_is_blocked_at_response_boundary(
+    monkeypatch: pytest.MonkeyPatch, change: dict[str, object]
+) -> None:
+    row = _unknown_reference_row()
+    row.update(change)
+    payload = _payload()
+    payload["reference_returns"] = [row]
+    monkeypatch.setattr(
+        views, "read_owner_corporate_action_workflow", lambda *args, **kwargs: payload
+    )
+    response = _call("get")
+    assert response.status_code == 503 and response.data["must_not_use_for_decision"] is True

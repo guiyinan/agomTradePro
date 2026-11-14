@@ -224,6 +224,75 @@ class OwnerCorporateActionWorkflowAuditReceiptRowSerializer(_StrictObjectSeriali
                 raise serializers.ValidationError({key: "必须为字符串。"})
 
 
+class OwnerCorporateActionReferenceReturnRowSerializer(_StrictObjectSerializer):
+    """Allowlist a scoped reference basket without treating it as account performance."""
+
+    account_id = serializers.IntegerField(min_value=1)
+    asset_code = serializers.CharField(allow_null=True, max_length=32)
+    status = serializers.ChoiceField(choices=("complete", "unknown"))
+    reason_code = serializers.CharField(allow_null=True, max_length=128)
+    record_date = serializers.DateField(required=False, allow_null=True, default=None)
+    ex_date = serializers.DateField(required=False, allow_null=True, default=None)
+    opening_date = serializers.DateField(required=False, allow_null=True, default=None)
+    closing_date = serializers.DateField(required=False, allow_null=True, default=None)
+    reference_quantity = _StrictNullableTextField(required=False, default=None)
+    opening_price = _StrictNullableTextField(required=False, default=None)
+    closing_price = _StrictNullableTextField(required=False, default=None)
+    opening_value = _StrictNullableTextField(required=False, default=None)
+    closing_value = _StrictNullableTextField(required=False, default=None)
+    wealth_change = _StrictNullableTextField(required=False, default=None)
+    closing_cash = _StrictNullableTextField(required=False, default=None)
+    closing_dividend_receivable = _StrictNullableTextField(required=False, default=None)
+    closing_physical_shares = _StrictNullableTextField(required=False, default=None)
+    closing_share_receivable = _StrictNullableTextField(required=False, default=None)
+    currency = serializers.CharField(required=False, allow_null=True, default=None, max_length=16)
+    quantity_unit = serializers.CharField(
+        required=False, allow_null=True, default=None, max_length=32
+    )
+    knowledge_cutoff = serializers.DateTimeField(required=False, allow_null=True, default=None)
+    valid_until = serializers.DateTimeField(required=False, allow_null=True, default=None)
+    knowledge_semantics = serializers.ChoiceField(choices=("currently_known_reference_holding",))
+    return_basis = serializers.ChoiceField(choices=("gross_unreinvested_record_date_holding",))
+    must_not_use_for_decision = serializers.BooleanField()
+    source_observed_at = _StrictNullableTextField(required=False, default=None)
+    source_event_id = serializers.CharField(required=False, max_length=192)
+    logical_source_event_id = serializers.CharField(required=False, max_length=192)
+    source_revision_id = serializers.CharField(required=False, max_length=192)
+    source_body_sha256 = serializers.CharField(required=False, max_length=64)
+    event_content_sha256 = serializers.CharField(required=False, max_length=64)
+    price_publication_ids = serializers.ListField(
+        child=serializers.CharField(max_length=64), required=False, default=list, max_length=2
+    )
+    price_interval_end_ats = serializers.ListField(
+        child=serializers.DateTimeField(), required=False, default=list, max_length=2
+    )
+    price_source_available_ats = serializers.ListField(
+        child=serializers.DateTimeField(), required=False, default=list, max_length=2
+    )
+
+    def _validate_exact_types(self, data: Mapping[str, object]) -> None:
+        """Preserve URL ownership, literal non-decision scope and unknown observations."""
+        if (
+            type(data.get("account_id")) is not int
+            or data.get("account_id") != self.context.get("account_id")
+            or data.get("must_not_use_for_decision") is not True
+            or data.get("source_observed_at") is not None
+        ):
+            raise serializers.ValidationError("参考持仓结果范围不可核对。")
+        if data.get("status") == "complete":
+            required = (
+                "asset_code",
+                "reference_quantity",
+                "opening_price",
+                "closing_price",
+                "opening_value",
+                "closing_value",
+                "wealth_change",
+            )
+            if any(type(data.get(key)) is not str or not data.get(key) for key in required):
+                raise serializers.ValidationError("参考持仓结果缺少完整原始数值。")
+
+
 class OwnerCorporateActionWorkflowResponseSerializer(serializers.Serializer[dict[str, Any]]):
     """Allowlist safe workflow facts and keep continuation material optional."""
 
@@ -242,6 +311,17 @@ class OwnerCorporateActionWorkflowResponseSerializer(serializers.Serializer[dict
     dividend_receivable = _StrictNullableTextField()
     share_receivable = _StrictNullableTextField()
     tax_payable = _StrictNullableTextField()
+    tax_coverage_status = serializers.ChoiceField(
+        choices=("complete", "unknown"), required=False, default="unknown"
+    )
+    valuation_trade_dates = serializers.ListField(
+        child=serializers.DateField(), required=False, default=list
+    )
+    valuation_source_observed_at = _StrictNullableTextField(required=False, default=None)
+    reference_return_summary = _StrictNullableTextField(required=False, default=None)
+    reference_returns = OwnerCorporateActionReferenceReturnRowSerializer(
+        many=True, required=False, default=list
+    )
     events = OwnerCorporateActionWorkflowEventRowSerializer(many=True)
     audit_receipts = OwnerCorporateActionWorkflowAuditReceiptRowSerializer(many=True)
     continuation = serializers.JSONField(required=False)

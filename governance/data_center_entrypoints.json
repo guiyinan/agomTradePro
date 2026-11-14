@@ -26,17 +26,17 @@
       "script": 20,
       "sdk": 57,
       "terminal_tui": 32,
-      "test_evidence": 157,
+      "test_evidence": 158,
       "workflow_step": 11
     },
     "by_status": {
       "active_public": 927,
       "adjacent_operational": 346,
-      "candidate-review": 76,
+      "candidate-review": 77,
       "compatibility": 139,
       "retired_blocked": 0
     },
-    "total": 1488
+    "total": 1489
   },
   "entries": [
     {
@@ -5661,7 +5661,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=6",
+      "evidence": "governed current-data contract; source_files=7",
       "id": "current_data_surface:governance/current_data_contracts.json:data_center.retained_historical_price:Exact retained M1 raw close for currently-known historical reconstruction only",
       "locator": "Exact retained M1 raw close for currently-known historical reconstruction only",
       "path": "governance/current_data_contracts.json",
@@ -6241,7 +6241,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=6",
+      "evidence": "governed current-data contract; source_files=8",
       "id": "current_data_surface:governance/current_data_contracts.json:simulated_trading.owner_corporate_action_workflow:Ordinary owner retained-event discovery, sealed preparation, explicit financial confirmation and independent original receipt readback",
       "locator": "Ordinary owner retained-event discovery, sealed preparation, explicit financial confirmation and independent original receipt readback",
       "path": "governance/current_data_contracts.json",
@@ -13897,6 +13897,16 @@
       "path": "tests/component/simulated_trading/test_corporate_action_posting_postgres.py",
       "status": "candidate-review",
       "symbol": "test_corporate_action_posting_postgres",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/component/simulated_trading/test_corporate_action_reference_return_postgres.py:test_corporate_action_reference_return_postgres:",
+      "locator": "",
+      "path": "tests/component/simulated_trading/test_corporate_action_reference_return_postgres.py",
+      "status": "candidate-review",
+      "symbol": "test_corporate_action_reference_return_postgres",
       "target": ""
     },
     {
