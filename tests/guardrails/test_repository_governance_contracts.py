@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import subprocess
 import tomllib
 from pathlib import Path
 
@@ -39,8 +40,22 @@ def test_sqlite_test_databases_are_not_written_to_repository_root() -> None:
 def test_generated_workspace_artifacts_are_ignored_and_cleanable() -> None:
     """Require durable ignore rules and an explicit cleanup command."""
 
-    ignore_lines = set((REPO_ROOT / ".gitignore").read_text(encoding="utf-8").splitlines())
-    assert {"test_db_*.sqlite3", "*.log", "/tmp", "*.stackdump"} <= ignore_lines
+    generated_paths = [
+        "test_db_123.sqlite3",
+        "artifacts/nested/run.log",
+        "tmp/generated-result.json",
+        "nested/crash.stackdump",
+    ]
+    source_paths = ["apps/account/application/use_case.py", "docs/GIT_WORKFLOW.md"]
+    result = subprocess.run(
+        ["git", "check-ignore", "--no-index", "--stdin", "-z"],
+        cwd=REPO_ROOT,
+        input="\0".join([*generated_paths, *source_paths]) + "\0",
+        text=True,
+        capture_output=True,
+        check=True,
+    )
+    assert set(result.stdout.rstrip("\0").split("\0")) == set(generated_paths)
     assert (REPO_ROOT / "scripts" / "clean-workspace-artifacts.ps1").is_file()
 
 
