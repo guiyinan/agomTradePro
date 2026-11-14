@@ -494,3 +494,54 @@ def test_runtime_type_boundary_does_not_accept_non_string_dataset(
     with pytest.raises(ValueError, match="dataset"):
         with snapshot_module.consistent_publication_read(object()):  # type: ignore[arg-type]
             pass
+
+
+@pytest.mark.parametrize("vendor", ["postgresql", "sqlite"])
+def test_caller_owned_boundary_keeps_single_transaction_and_original_lock_rules(
+    monkeypatch: pytest.MonkeyPatch, vendor: str
+) -> None:
+    connection = _Connection(vendor=vendor, in_atomic_block=True, autocommit=False)
+    connection.atomic_blocks = [object()]
+    atomic = _Atomic()
+    _patch_runtime(monkeypatch, connection=connection, atomic=atomic)
+    snapshot_module.stabilize_caller_owned_publication_read("equity.price.bar")
+    assert atomic.entered == 0 and len(connection.atomic_blocks) == 1
+    statements = connection.cursor_value.statements
+    assert not any("SET TRANSACTION" in statement for statement in statements)
+    if vendor == "postgresql":
+        locks = [statement for statement in statements if statement.startswith("LOCK TABLE")]
+        assert len(locks) == 7
+        assert '"data_center_price_bar"' in locks[3]
+        assert all("IN SHARE MODE" in statement for statement in locks)
+    else:
+        assert statements == []
+
+
+@pytest.mark.parametrize(
+    "fault", ["unowned", "nested", "autocommit", "readonly", "alias", "vendor"]
+)
+def test_caller_owned_boundary_rejects_invalid_ownership_without_savepoint(
+    monkeypatch: pytest.MonkeyPatch, fault: str
+) -> None:
+    connection = _Connection(in_atomic_block=True, autocommit=False)
+    connection.atomic_blocks = [object()]
+    if fault == "unowned":
+        connection.in_atomic_block = False
+    elif fault == "nested":
+        connection.atomic_blocks.append(object())
+    elif fault == "autocommit":
+        connection.autocommit = True
+    elif fault == "readonly":
+        connection.cursor_value.read_only = "on"
+    elif fault == "alias":
+        connection.alias = "other"
+    else:
+        connection.vendor = "other"
+    atomic = _Atomic()
+    _patch_runtime(monkeypatch, connection=connection, atomic=atomic)
+    with pytest.raises(snapshot_module.PublicationReadSnapshotError):
+        snapshot_module.stabilize_caller_owned_publication_read("equity.price.bar")
+    assert atomic.entered == 0
+    assert not any(
+        statement.startswith("LOCK TABLE") for statement in connection.cursor_value.statements
+    )

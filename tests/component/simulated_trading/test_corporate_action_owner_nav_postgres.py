@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from dataclasses import dataclass
 from datetime import UTC, date, timedelta
 from decimal import Decimal, localcontext
 from uuid import uuid4
@@ -96,9 +97,18 @@ _PRICE_CLOSE = Decimal("11.47")
 class _SyntheticExactDailyPriceProvider:
     """Return one exact synthetic Tushare-shaped response through Data Center."""
 
-    def __init__(self, *, provider_id: int, provider_name: str) -> None:
+    def __init__(
+        self,
+        *,
+        provider_id: int,
+        provider_name: str,
+        close: Decimal = _PRICE_CLOSE,
+    ) -> None:
         self._provider_id = provider_id
         self._provider_name = provider_name
+        if type(close) is not Decimal or not close.is_finite() or close <= 0:
+            raise ValueError("synthetic close must be a positive finite Decimal")
+        self._close = close
 
     def provider_name(self) -> str:
         """Return the exact name persisted in the provider configuration row."""
@@ -118,6 +128,9 @@ class _SyntheticExactDailyPriceProvider:
     ) -> CapturedPriceBarResponse:
         """Return captured response bytes for the production exact-price validator."""
         completed_at = timezone.now().astimezone(UTC)
+        open_price = self._close - Decimal("0.07")
+        high_price = self._close + Decimal("0.03")
+        low_price = self._close - Decimal("0.17")
         scope = ExactPriceBarRequestScope(
             provider_id=self._provider_id,
             provider_name=self._provider_name,
@@ -144,10 +157,10 @@ class _SyntheticExactDailyPriceProvider:
                     [
                         asset_code,
                         target_trade_date.strftime("%Y%m%d"),
-                        11.4,
-                        11.5,
-                        11.3,
-                        11.47,
+                        float(open_price),
+                        float(high_price),
+                        float(low_price),
+                        float(self._close),
                         200,
                         2100,
                     ]
@@ -168,10 +181,10 @@ class _SyntheticExactDailyPriceProvider:
         bar = PriceBar(
             asset_code=asset_code,
             bar_date=target_trade_date,
-            open=11.4,
-            high=11.5,
-            low=11.3,
-            close=float(_PRICE_CLOSE),
+            open=float(open_price),
+            high=float(high_price),
+            low=float(low_price),
+            close=float(self._close),
             volume=20_000.0,
             amount=2_100_000.0,
             freq="1d",
@@ -324,17 +337,39 @@ def _event_id(world: OwnerWorkflowNativeWorld, refreshed: dict[str, object]) -> 
     return identifier
 
 
-def _publish_synthetic_raw_close(
-    *, world: OwnerWorkflowNativeWorld, calendar: FormalCalendarFixture
-) -> date:
+@dataclass(frozen=True, slots=True)
+class _SyntheticRawClosePublication:
+    """Retain the exact test-only M1 selection needed by historical-reader cases."""
+
+    trade_date: date
+    publication_id: str
+    close: Decimal
+
+
+def _publish_synthetic_raw_close_capture(
+    *,
+    world: OwnerWorkflowNativeWorld,
+    calendar: FormalCalendarFixture,
+    target_trade_date: date | None = None,
+    close: Decimal = _PRICE_CLOSE,
+) -> _SyntheticRawClosePublication:
     """Capture, retain, stage, and activate one synthetic exact daily close."""
     open_sessions = frozenset(day.calendar_date for day in calendar.snapshot.days if day.is_open)
-    trade_date = latest_closed_cn_market_session(
+    latest_closed = latest_closed_cn_market_session(
         timezone.now().astimezone(UTC), open_sessions=open_sessions
     )
-    assert trade_date is not None
+    assert latest_closed is not None
+    if type(close) is not Decimal or not close.is_finite() or close <= 0:
+        raise ValueError("synthetic close must be a positive finite Decimal")
+    trade_date = latest_closed if target_trade_date is None else target_trade_date
+    if (
+        type(trade_date) is not date
+        or trade_date not in open_sessions
+        or trade_date > latest_closed
+    ):
+        raise ValueError("synthetic raw-close target must be an exact closed calendar session")
     ensure_m1_price_publication_catalog()
-    provider_name = f"ASH05 synthetic NAV Tushare {uuid4().hex}"
+    provider_name = f"ASH05 NAV {uuid4().hex}"
     provider_row = ProviderConfigModel._default_manager.create(
         name=provider_name,
         source_type="tushare",
@@ -351,6 +386,7 @@ def _publish_synthetic_raw_close(
         _SyntheticExactDailyPriceProvider(
             provider_id=provider_id,
             provider_name=provider_name,
+            close=close,
         ),
         priority=1,
         provider_id=provider_id,
@@ -378,13 +414,33 @@ def _publish_synthetic_raw_close(
     assert result.evidence.publication_id == publication.publication.publication_id
     assert result.evidence.trade_date == trade_date
     assert result.evidence.source == "tushare"
-    assert result.evidence.values.close == _PRICE_CLOSE
+    assert result.evidence.values.close == close
     assert result.evidence.source_observed_at is None
     assert (
         result.evidence.local_known_at
         == result.evidence.raw_payload_reference.response_completed_at
     )
-    return trade_date
+    return _SyntheticRawClosePublication(
+        trade_date=trade_date,
+        publication_id=publication.publication.publication_id,
+        close=close,
+    )
+
+
+def _publish_synthetic_raw_close(
+    *,
+    world: OwnerWorkflowNativeWorld,
+    calendar: FormalCalendarFixture,
+    target_trade_date: date | None = None,
+    close: Decimal = _PRICE_CLOSE,
+) -> date:
+    """Keep the original date-returning fixture contract and defaults."""
+    return _publish_synthetic_raw_close_capture(
+        world=world,
+        calendar=calendar,
+        target_trade_date=target_trade_date,
+        close=close,
+    ).trade_date
 
 
 def _runtime_asset_type(world: OwnerWorkflowNativeWorld) -> str:

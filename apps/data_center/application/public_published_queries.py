@@ -36,6 +36,9 @@ from apps.data_center.application.query_services import (
     query_published_valuation_facts,
     query_valuation_facts,
 )
+from apps.data_center.application.retained_historical_price_source import (
+    RetainedHistoricalPriceSourceResult,
+)
 from apps.data_center.composition import (
     get_asset_repository,
     get_canonical_publication_repository,
@@ -246,6 +249,32 @@ def get_published_price_bar_source(
         trade_date=trade_date,
         knowledge_cutoff=knowledge_cutoff,
         publication_key=publication_key,
+    )
+
+
+def get_retained_historical_price_source(
+    asset_code: str,
+    *,
+    trade_date: date,
+    publication_id: str,
+    expected_publication_key: str,
+    knowledge_cutoff: datetime,
+    environment: str,
+    using: str = "default",
+) -> RetainedHistoricalPriceSourceResult:
+    """Read one exact archived raw close as current-knowledge historical evidence only."""
+    from apps.data_center.retained_historical_price_source_composition import (
+        read_retained_historical_price_source,
+    )
+
+    return read_retained_historical_price_source(
+        asset_code,
+        trade_date=trade_date,
+        publication_id=publication_id,
+        expected_publication_key=expected_publication_key,
+        knowledge_cutoff=knowledge_cutoff,
+        environment=environment,
+        using=using,
     )
 
 

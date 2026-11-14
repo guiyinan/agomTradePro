@@ -15388,6 +15388,66 @@
         }
       ],
       "notes": "Accepted unpaid debt zero is distinct from complete modeled exposure. Unknown coverage keeps spendable cash unknown. Reads require the actual account transaction and independent immutable origin/source/window/history/model evidence, preserve the original finite deadline, and recheck physical/source epochs and exact write witnesses. No implicit assessment, collection, consent or default not-applicable classification. Actual consumer and ordinary-user native acceptance remain separate from registration. Empty asset universes retain exact immutable account-origin verification without an arbitrary exchange calendar. Nonempty coverage requires exact current typed classification with the SZSE/SZ crosswalk, original source/selector/profile identity and original finite expiry. Only local reread clocks are omitted from epoch comparison; no asset type or US not-applicable default is introduced. Read-only assessment preparation joins an established outer account transaction instead of opening a nested savepoint; original Audit/Outbox outermost and no-append rules are unchanged."
+    },
+    {
+      "id": "data_center.retained_historical_price",
+      "surface": "Exact retained M1 raw close for currently-known historical reconstruction only",
+      "source_files": [
+        "apps/data_center/application/retained_historical_price_source.py",
+        "apps/data_center/retained_historical_price_source_composition.py",
+        "apps/data_center/application/public_published_queries.py",
+        "apps/data_center/infrastructure/publication_read_snapshot.py",
+        "core/integration/data_center_audit.py",
+        "apps/audit/retained_system_audit_stream_composition.py"
+      ],
+      "required_markers": {
+        "apps/data_center/application/retained_historical_price_source.py": [
+          "currently_known_historical",
+          "must_not_use_for_decision: Literal[True] = True",
+          "source_observed_at=None",
+          "_verify_activation(",
+          "_verify_manifest("
+        ],
+        "apps/data_center/retained_historical_price_source_composition.py": [
+          "read_data_center_retained_system_audit_stream(",
+          "previous_publication_id",
+          "stabilize_caller_owned_publication_read(_DATASET_KEY)",
+          "nullcontext()"
+        ],
+        "apps/audit/retained_system_audit_stream_composition.py": [
+          "caller_owned_readonly()",
+          "recorded_at__lte=as_of",
+          "_MAX_STREAM_EVENTS + 1",
+          "get_identity_winners_targeted(batch)"
+        ],
+        "apps/data_center/infrastructure/publication_read_snapshot.py": [
+          "def stabilize_caller_owned_publication_read(",
+          "len(connection.atomic_blocks) != 1"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "superseded_stays_historical",
+          "test_file": "tests/unit/data_center/test_retained_historical_price_source.py",
+          "test_function": "test_reads_superseded_m1_publication_as_explicitly_historical_only"
+        },
+        {
+          "case": "missing_activation_blocks",
+          "test_file": "tests/unit/data_center/test_retained_historical_price_source.py",
+          "test_function": "test_published_source_without_original_activation_is_not_admitted"
+        },
+        {
+          "case": "original_body_hash",
+          "test_file": "tests/unit/data_center/test_retained_historical_price_source.py",
+          "test_function": "test_changed_original_body_fails_even_with_present_activation_pair"
+        },
+        {
+          "case": "full_stream_originals",
+          "test_file": "tests/unit/audit/test_retained_system_audit_stream_composition.py",
+          "test_function": "test_incomplete_or_changed_original_stream_never_returns_partial_pairs"
+        }
+      ],
+      "notes": "Select explicit retained publication ID/key and exact session. Full member seal, source manifest, RawAudit, exact original response and original activation Audit/Outbox are independent checks. Complete selected publication stream rejects cross-run rollback target/previous identities without scanning unrelated Audit rows. A caller-owned sole writable transaction preserves fixed publication table locks and original Audit row locks without savepoints. Historical raw values preserve interval end, local source availability, original persistence clocks and unknown supplier observation. No current pointer, live freshness, trading eligibility, PIT account return, ledger write or source repair is granted; unsupported/missing/corrupt/oversized evidence blocks. Native two-session execution and ordinary-user return continuity remain separate required acceptance."
     }
   ]
 }

@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 7416,
+    "current_surface_references": 7428,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -10348,6 +10348,10 @@
     },
     {
       "path": "apps/data_center/application/public_published_queries.py",
+      "text": "\"\"\"Read one exact archived raw close as current-knowledge historical evidence only.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/public_published_queries.py",
       "text": "\"\"\"Return price-covered assets from the current publication members only.\"\"\""
     },
     {
@@ -11033,6 +11037,22 @@
     {
       "path": "apps/data_center/application/research_data_foundation.py",
       "text": "\"\"\"Return requested operating versions only when latest and knowable.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/retained_historical_price_source.py",
+      "text": "\"\"\"Historical raw-price evidence whose type never grants current use.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/retained_historical_price_source.py",
+      "text": "\"\"\"Require evidence or a block and permanently deny current decision use.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/retained_historical_price_source.py",
+      "text": "\"\"\"Return the exact canonical publication row without current-pointer substitution.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/retained_historical_price_source.py",
+      "text": "\"\"\"Verify retained daily source lineage without consulting current pointers.\"\"\""
     },
     {
       "path": "apps/data_center/application/retention.py",
@@ -14117,6 +14137,18 @@
     {
       "path": "apps/data_center/published_price_source_composition.py",
       "text": "\"\"\"Keep current policy, publication members and sealed source inputs in one read boundary.\"\"\""
+    },
+    {
+      "path": "apps/data_center/retained_historical_price_source_composition.py",
+      "text": "The result is explicitly historical/current-knowledge evidence. This reader"
+    },
+    {
+      "path": "apps/data_center/retained_historical_price_source_composition.py",
+      "text": "\"\"\"Compose exact retained historical price reads without current-pointer authority.\"\"\""
+    },
+    {
+      "path": "apps/data_center/retained_historical_price_source_composition.py",
+      "text": "does not consult the current pointer, capture/repair a source, or authorize"
     },
     {
       "path": "apps/data_center/security_disclosure_capture_composition.py",
@@ -25041,6 +25073,22 @@
     {
       "path": "apps/simulated_trading/domain/corporate_action_ownership_history.py",
       "text": "that boundary. Because the current source contract cannot prove the legal"
+    },
+    {
+      "path": "apps/simulated_trading/domain/corporate_action_performance_projection.py",
+      "text": "The caller must independently verify complete current-knowledge source, account,"
+    },
+    {
+      "path": "apps/simulated_trading/domain/corporate_action_performance_projection.py",
+      "text": "\"\"\"A verified single-asset stable-trade interval, valued with current knowledge."
+    },
+    {
+      "path": "apps/simulated_trading/domain/corporate_action_performance_projection.py",
+      "text": "\"\"\"Current source terms and complete original transfers for one logical family."
+    },
+    {
+      "path": "apps/simulated_trading/domain/corporate_action_performance_projection.py",
+      "text": "is unsupported here because the current balance cannot safely undo it."
     },
     {
       "path": "apps/simulated_trading/domain/corporate_action_posting.py",

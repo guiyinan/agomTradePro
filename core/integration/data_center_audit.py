@@ -43,6 +43,7 @@ from apps.audit.application.data_repair_audit import (
 from apps.audit.application.data_validation_audit import (
     DataValidationRejectedObservation,
 )
+from apps.audit.application.retained_system_audit_pair import RetainedSystemAuditPair
 from apps.audit.application.system_audit_composition import (
     SystemAuditCompositionUnavailable,
     SystemAuditPublisherContractViolation,
@@ -159,6 +160,63 @@ def get_system_audit_event_repository() -> SystemAuditQueryRepository:
     return build_repository()
 
 
+def read_data_center_retained_system_audit_pair(
+    *,
+    event_id: str,
+    event_version: str,
+    stream_id: str,
+    scope: AuditScopeRef,
+    using: str,
+    as_of: datetime,
+) -> RetainedSystemAuditPair:
+    """Read one original Data Center activation event and exact Outbox pair.
+
+    Data Center callers authenticate their own read scope before crossing this
+    boundary. The Audit-owned reader provides the original stream-prefix,
+    row-clock, payload-hash and caller-owned read-only checks without exposing
+    an append capability.
+    """
+
+    from apps.audit.retained_system_audit_pair_composition import (
+        read_retained_system_audit_pair,
+    )
+
+    return read_retained_system_audit_pair(
+        event_id=event_id,
+        event_version=event_version,
+        stream_id=stream_id,
+        scope=scope,
+        using=using,
+        as_of=as_of,
+    )
+
+
+def read_data_center_retained_system_audit_stream(
+    *,
+    stream_id: str,
+    scope: AuditScopeRef,
+    using: str,
+    as_of: datetime,
+) -> tuple[RetainedSystemAuditPair, ...]:
+    """Read one bounded, fully verified historical Audit/Outbox stream prefix.
+
+    The returned pairs are read-only historical evidence.  The Audit-owned
+    composition verifies the complete scoped stream and every original
+    Outbox row; this facade exposes no append or repair capability.
+    """
+
+    from apps.audit.retained_system_audit_stream_composition import (
+        read_retained_system_audit_stream,
+    )
+
+    return read_retained_system_audit_stream(
+        stream_id=stream_id,
+        scope=scope,
+        using=using,
+        as_of=as_of,
+    )
+
+
 __all__ = [
     "AuditCategory",
     "AuditEvidenceRef",
@@ -206,4 +264,7 @@ __all__ = [
     "get_data_repair_audit_writer",
     "get_system_audit_event_repository",
     "preflight_data_reliability_audit_runtime",
+    "read_data_center_retained_system_audit_pair",
+    "read_data_center_retained_system_audit_stream",
+    "RetainedSystemAuditPair",
 ]

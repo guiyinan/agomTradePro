@@ -9,7 +9,7 @@
       "celery_dispatch_edge": 18,
       "celery_task": 130,
       "compatibility_facade": 95,
-      "current_data_surface": 120,
+      "current_data_surface": 121,
       "dynamic_import_edge": 15,
       "management_command": 50,
       "management_command_edge": 65,
@@ -26,17 +26,17 @@
       "script": 20,
       "sdk": 57,
       "terminal_tui": 32,
-      "test_evidence": 156,
+      "test_evidence": 157,
       "workflow_step": 11
     },
     "by_status": {
-      "active_public": 926,
+      "active_public": 927,
       "adjacent_operational": 346,
-      "candidate-review": 75,
+      "candidate-review": 76,
       "compatibility": 139,
       "retired_blocked": 0
     },
-    "total": 1486
+    "total": 1488
   },
   "entries": [
     {
@@ -5661,6 +5661,16 @@
     },
     {
       "category": "current_data_surface",
+      "evidence": "governed current-data contract; source_files=6",
+      "id": "current_data_surface:governance/current_data_contracts.json:data_center.retained_historical_price:Exact retained M1 raw close for currently-known historical reconstruction only",
+      "locator": "Exact retained M1 raw close for currently-known historical reconstruction only",
+      "path": "governance/current_data_contracts.json",
+      "status": "active_public",
+      "symbol": "data_center.retained_historical_price",
+      "target": ""
+    },
+    {
+      "category": "current_data_surface",
       "evidence": "governed current-data contract; source_files=5",
       "id": "current_data_surface:governance/current_data_contracts.json:data_center.tushare_full_market_empty_response:Full-session Tushare daily and daily_basic reads reject successful-empty and malformed tables; requested quote identities cannot be silently deduplicated before fact writes",
       "locator": "Full-session Tushare daily and daily_basic reads reject successful-empty and malformed tables; requested quote identities cannot be silently deduplicated before fact writes",
@@ -6051,7 +6061,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=3",
+      "evidence": "governed current-data contract; source_files=4",
       "id": "current_data_surface:governance/current_data_contracts.json:simulated_trading.corporate_action_tax_cash_coverage:Locked owner cash admission coverage and independent entitlement witness",
       "locator": "Locked owner cash admission coverage and independent entitlement witness",
       "path": "governance/current_data_contracts.json",
@@ -14121,6 +14131,16 @@
     },
     {
       "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/component/simulated_trading/test_retained_historical_price_source_postgres.py:test_retained_historical_price_source_postgres:",
+      "locator": "",
+      "path": "tests/component/simulated_trading/test_retained_historical_price_source_postgres.py",
+      "status": "candidate-review",
+      "symbol": "test_retained_historical_price_source_postgres",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
       "evidence": "reviewed test-owned simulated-trade source-exchange migration roundtrip and PostgreSQL reverse-guard writer locking; explicit synthetic markers, partial-app cleanup and restored original migration leaves, no production invocation or Data Center source-purpose qualification",
       "id": "test_evidence:tests/component/simulated_trading/test_settlement_exchange_migration.py:test_settlement_exchange_migration:",
       "locator": "",
@@ -14911,7 +14931,7 @@
   },
   "source_contract_counts": {
     "celery_tasks": 95,
-    "current_data_contracts": 120,
+    "current_data_contracts": 121,
     "legacy_entrypoints_and_wrappers": 0,
     "operational_governance_rules": 45,
     "runtime_config_keys": 52

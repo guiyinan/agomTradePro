@@ -71,6 +71,42 @@ _LOCK_TIMEOUT_UNIT_SECONDS: Final[dict[str, Decimal]] = {
 }
 
 
+def stabilize_caller_owned_publication_read(dataset_key: str) -> None:
+    """Stabilize publication reads inside the caller's sole writable transaction.
+
+    Original Audit/Outbox verification needs row locks in that same outer
+    transaction. This variant opens no savepoint and never changes transaction
+    ownership or grants write capabilities. Lock failures abort the caller's
+    operation; they must not be caught and used to continue an unstable read.
+    """
+    fact_table = _fact_table(dataset_key)
+    metadata_tables = _query_metadata_tables(dataset_key.strip())
+    _require_default_connection()
+    if (
+        not connection.in_atomic_block
+        or connection.get_autocommit()
+        or len(connection.atomic_blocks) != 1
+    ):
+        raise PublicationReadSnapshotError(
+            "publication read requires one caller-owned outer transaction"
+        )
+    if connection.vendor in _SQLITE_VENDORS:
+        return
+    if connection.vendor not in _POSTGRES_VENDORS:
+        raise PublicationReadSnapshotError("publication read database vendor is unsupported")
+    try:
+        read_only = _show_transaction_setting("SHOW transaction_read_only", "read_only")
+        if read_only not in {"off", "false", "no", "0"}:
+            raise PublicationReadSnapshotError(
+                "original Audit read requires a writable transaction"
+            )
+        _stabilize_nested_postgresql_read(fact_table, metadata_tables)
+    except DatabaseError as error:
+        raise PublicationReadSnapshotError(
+            "caller-owned publication read boundary is unavailable"
+        ) from error
+
+
 @contextmanager
 def consistent_publication_read(
     dataset_key: str,

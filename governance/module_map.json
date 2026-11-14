@@ -2881,7 +2881,7 @@
         "infrastructure": 28,
         "interface": 14,
         "management": 8,
-        "root": 10,
+        "root": 11,
         "templatetags": 2
       },
       "orm_models": {
@@ -5254,6 +5254,7 @@
           "get_published_sector_memberships",
           "get_published_valuation_facts",
           "get_published_valuation_facts_for_decision",
+          "get_retained_historical_price_source",
           "get_valuation_facts",
           "list_active_data_sources",
           "list_active_stock_codes",
@@ -5504,6 +5505,18 @@
           "configure_research_data_foundation_facade",
           "get_research_data_foundation_facade"
         ],
+        "application/retained_historical_price_source.py": [
+          "ReadRetainedHistoricalPriceSource",
+          "RetainedHistoricalActivationReader",
+          "RetainedHistoricalPriceActivation",
+          "RetainedHistoricalPriceEvidence",
+          "RetainedHistoricalPriceRepository",
+          "RetainedHistoricalPriceSourceError",
+          "RetainedHistoricalPriceSourceFactEvidence",
+          "RetainedHistoricalPriceSourceRequest",
+          "RetainedHistoricalPriceSourceResult",
+          "RetainedHistoricalPublicationReader"
+        ],
         "application/retention.py": [
           "ArchiveCoveragePort",
           "CreateRetentionPlanUseCase",
@@ -5735,12 +5748,12 @@
         ]
       },
       "layers": {
-        "application": 188,
+        "application": 189,
         "domain": 58,
         "infrastructure": 246,
         "interface": 32,
         "management": 42,
-        "root": 44
+        "root": 45
       },
       "orm_models": {
         "infrastructure/models.py": [
@@ -12191,7 +12204,7 @@
       },
       "layers": {
         "application": 144,
-        "domain": 56,
+        "domain": 57,
         "infrastructure": 154,
         "interface": 39,
         "management": 7,
