@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+from contextlib import nullcontext
 from dataclasses import dataclass, replace
 from datetime import date
 from uuid import uuid4
 
-from django.db import DEFAULT_DB_ALIAS, transaction
+from django.db import DEFAULT_DB_ALIAS, connections, transaction
 from django.utils import timezone
 
 from apps.audit.corporate_action_tax_assessment_composition import (
@@ -59,6 +60,8 @@ def prepare_owner_corporate_action_tax_assessment(
     A changed assessment is an explicit previewed successor only for assess.
     Recognition and collection require the retained current semantic facts;
     neither may silently assess, choose a latest sale or create another chain.
+    An established caller transaction owns this read; no nested savepoint is
+    opened before the original read-only Audit/Outbox verification.
     """
     if (
         operation not in {"tax_assess", "tax_recognize", "tax_collect"}
@@ -79,7 +82,8 @@ def prepare_owner_corporate_action_tax_assessment(
             supersedes_assessment_revision_id=None,
         )
     )
-    with transaction.atomic(using=using):
+    scope = nullcontext() if connections[using].in_atomic_block else transaction.atomic(using=using)
+    with scope:
         account = (
             SimulatedAccountModel._base_manager.using(using)
             .select_for_update()

@@ -264,6 +264,7 @@ from tests.support.simulated_tax_model_native_sources import (
     retain_synthetic_current_cny_instrument,
     synthetic_szse_distribution_pdf,
 )
+from tests.support.synthetic_trade_tax_coverage import SyntheticTradeTaxCoverage
 from tests.unit.simulated_trading.test_creation_composition import _settings as _creation_settings
 
 _SECURITY_ID = "ASH05.SZ.000001"
@@ -476,7 +477,11 @@ def _record_v4_fill(
         end=complete_through,
     )
     bundle = _sz_bundle(as_of=operation_at)
-    repository = DjangoSimulatedTradeExecutionRepository(using="default")
+    # Controlled admission input only for historical seed fills, not qualification.
+    seed_tax_coverage = SyntheticTradeTaxCoverage()
+    repository = DjangoSimulatedTradeExecutionRepository(
+        using="default", tax_cash_coverage_reader=seed_tax_coverage
+    )
     rule_reader = _SZRuleReader(bundle)
     preparer = ExecuteSettlementBoundSimulatedTradeUseCase(
         rule_reader=rule_reader,
@@ -486,7 +491,9 @@ def _record_v4_fill(
         repository=repository,
         clock=_Clock(operation_at),
     )
-    reservation_repository = DjangoSimulatedOrderReservationRepository(using="default")
+    reservation_repository = DjangoSimulatedOrderReservationRepository(
+        using="default", tax_cash_coverage_reader=seed_tax_coverage
+    )
     harness = _Harness(
         account=account,
         user_id=user_id,
@@ -592,6 +599,7 @@ def _record_v4_fill(
         policy_content_hash="d" * 64,
     )
     result = DjangoSimulatedOrderFillRepository(
+        tax_cash_coverage_reader=seed_tax_coverage,
         event_reader=DjangoLocalDailyMatchEventReader(using="default"),
         initial_position_mark_reader=fill_fixtures._InitialPositionMarkReader(proof=mark, calls=[]),
         using="default",

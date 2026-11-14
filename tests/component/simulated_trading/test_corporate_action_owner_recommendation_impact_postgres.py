@@ -34,6 +34,7 @@ from apps.risk_center.application.portfolio_risk_assets import PortfolioRiskAsse
 from apps.simulated_trading.application.rebalance_journey_event_request_scope import (
     RebalanceJourneyEventRequestScope,
 )
+from apps.simulated_trading.application.rebalance_journey_public import RebalanceJourneyCommand
 from apps.simulated_trading.infrastructure.corporate_action_posting_models import (
     CorporateActionPostingModel,
 )
@@ -66,10 +67,6 @@ from tests.component.simulated_trading.test_corporate_action_owner_workflow_http
     _business_original_fingerprints,
     _event_id,
     _refresh,
-)
-from tests.integration.simulated_trading.test_readonly_rebalance_plan_owner_api import (
-    _install_preview_ports,
-    _publish_m1_policy_for_preview,
 )
 from tests.support.account_authority_generation_flush import (
     preserve_account_authority_generation as preserve_account_authority_generation,
@@ -302,24 +299,20 @@ def test_owner_rebalance_preview_is_reviewed_after_retained_event_correction(
         position = PositionModel.objects.get(
             account_id=world.account_id, asset_code=world.asset_code
         )
-        price_reader, _, _, _ = _install_preview_ports(
-            monkeypatch,
-            account=account,
-            user_id=world.owner.owner.pk,
-            identity_security_ids={world.asset_code: world.security_id},
-            classification_asset_types={world.asset_code: "equity"},
-        )
+        # This case never needs a new market, fee or M1 risk publication.
+        # Track the actual downstream preview adapter instead of installing
+        # unrelated immutable policy rows which cannot be truncated at teardown.
+        journey = import_module("apps.simulated_trading.transition_plan_journey_composition")
+        actual_preview = journey._PurposeBoundPlanOrderPreviewer.preview
+        market_preparations: list[object] = []
 
-        # Publish the normal current M1 policy with its existing public setup
-        # API. Its temporary setup clock is restored before source or plan reads.
-        with monkeypatch.context() as m1_setup:
-            _publish_m1_policy_for_preview(
-                m1_setup,
-                client=APIClient(),
-                owner=world.owner.owner,
-                account=account,
-                strategy=None,
-            )
+        def observed_preview(
+            self: object, *, command: RebalanceJourneyCommand, revision: TransitionPlanRevision
+        ) -> tuple[dict[str, object], dict[str, object]]:
+            market_preparations.append(command)
+            return actual_preview(self, command=command, revision=revision)
+
+        monkeypatch.setattr(journey._PurposeBoundPlanOrderPreviewer, "preview", observed_preview)
 
         initial = _refresh(world)
         if initial.get("outcome") != "success":
@@ -598,7 +591,7 @@ def test_owner_rebalance_preview_is_reviewed_after_retained_event_correction(
             raise AssertionError(
                 "the public owner preview preflight did not block stale event facts"
             )
-        if price_reader.calls:
+        if market_preparations:
             raise AssertionError(
                 "stale-plan preview read market prices before current event review blocked it"
             )

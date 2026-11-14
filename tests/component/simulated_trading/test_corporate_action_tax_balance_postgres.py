@@ -128,6 +128,7 @@ def test_native_new_unapplied_assessment_blocks_order_cash_without_any_repair():
 
 
 def test_native_independent_dispositions_sum_and_cash_book_preserves_gross_cash():
+    """Accepted debt does not qualify missing current exposure or spendable cash."""
     account, first = _fixture()
     _run(first, action=None)
     last = first.history.settlement_days[-1]
@@ -165,8 +166,9 @@ def test_native_independent_dispositions_sum_and_cash_book_preserves_gross_cash(
             security_id=first.security_id,
             asset_code=first.asset_code,
         )
-    assert book.book_cash == Decimal("100") and book.tax_cash_unavailable == debt
-    assert book.available_cash == Decimal("100") - debt
+    assert book.book_cash == Decimal("100")
+    assert book.tax_cash_unavailable is None and book.available_cash is None
+    assert _debt(account) == debt
 
 
 def test_native_missing_original_tax_outbox_blocks_read_without_repair():
@@ -255,9 +257,9 @@ def test_native_new_cash_debits_cannot_spend_verified_tax(route):
                 clock=trade_fixtures._Clock(trade_fixtures.AS_OF),
             )
     if route == "reservation":
-        assert error.value.code == "INSUFFICIENT_AVAILABLE_CASH"
+        assert error.value.code == "ORDER_TAX_CASH_COVERAGE_UNAVAILABLE"
     else:
-        assert "unreserved account cash is insufficient" in str(error.value)
+        assert "尚未完整核对" in str(error.value)
     account.refresh_from_db()
     assert account.current_cash == required
     assert _debt(account) == assessment.calculation.withholding_amount

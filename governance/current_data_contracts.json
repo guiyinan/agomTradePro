@@ -15308,7 +15308,8 @@
       "source_files": [
         "apps/simulated_trading/application/corporate_action_tax_cash_coverage.py",
         "apps/simulated_trading/corporate_action_tax_cash_coverage_composition.py",
-        "apps/simulated_trading/infrastructure/corporate_action_ownership_history_repository.py"
+        "apps/simulated_trading/infrastructure/corporate_action_ownership_history_repository.py",
+        "apps/simulated_trading/corporate_action_owner_tax_prepare_composition.py"
       ],
       "required_markers": {
         "apps/simulated_trading/application/corporate_action_tax_cash_coverage.py": [
@@ -15327,6 +15328,11 @@
         "apps/simulated_trading/infrastructure/corporate_action_ownership_history_repository.py": [
           "def read_verified_zero_origin_at(",
           "_anchor_matches_account(existing=anchor, account=account)"
+        ],
+        "apps/simulated_trading/corporate_action_owner_tax_prepare_composition.py": [
+          "nullcontext()",
+          "connections[using].in_atomic_block",
+          "audit.caller_owned_readonly()"
         ]
       },
       "required_tests": [
@@ -15374,9 +15380,14 @@
           "case": "local_clock_not_source_refresh",
           "test_file": "tests/unit/simulated_trading/test_corporate_action_tax_cash_coverage_composition.py",
           "test_function": "test_local_classification_reread_clocks_do_not_change_original_source_epoch"
+        },
+        {
+          "case": "tax preview joins the existing owner read transaction while retaining rejection of genuinely nested audit callers",
+          "test_file": "tests/unit/simulated_trading/test_corporate_action_owner_tax_read_transaction.py",
+          "test_function": "test_tax_preview_joins_outer_read_transaction_without_weakening_audit_scope"
         }
       ],
-      "notes": "Accepted unpaid debt zero is distinct from complete modeled exposure. Unknown coverage keeps spendable cash unknown. Reads require the actual account transaction and independent immutable origin/source/window/history/model evidence, preserve the original finite deadline, and recheck physical/source epochs and exact write witnesses. No implicit assessment, collection, consent or default not-applicable classification. Actual consumer and ordinary-user native acceptance remain separate from registration. Empty asset universes retain exact immutable account-origin verification without an arbitrary exchange calendar. Nonempty coverage requires exact current typed classification with the SZSE/SZ crosswalk, original source/selector/profile identity and original finite expiry. Only local reread clocks are omitted from epoch comparison; no asset type or US not-applicable default is introduced."
+      "notes": "Accepted unpaid debt zero is distinct from complete modeled exposure. Unknown coverage keeps spendable cash unknown. Reads require the actual account transaction and independent immutable origin/source/window/history/model evidence, preserve the original finite deadline, and recheck physical/source epochs and exact write witnesses. No implicit assessment, collection, consent or default not-applicable classification. Actual consumer and ordinary-user native acceptance remain separate from registration. Empty asset universes retain exact immutable account-origin verification without an arbitrary exchange calendar. Nonempty coverage requires exact current typed classification with the SZSE/SZ crosswalk, original source/selector/profile identity and original finite expiry. Only local reread clocks are omitted from epoch comparison; no asset type or US not-applicable default is introduced. Read-only assessment preparation joins an established outer account transaction instead of opening a nested savepoint; original Audit/Outbox outermost and no-append rules are unchanged."
     }
   ]
 }

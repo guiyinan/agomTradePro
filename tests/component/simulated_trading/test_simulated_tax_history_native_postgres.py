@@ -110,6 +110,7 @@ from tests.support.ash07_owner_account_authority import (
     create_owner_account_seed,
 )
 from tests.support.runtime_config import configure_critical_runtime
+from tests.support.synthetic_trade_tax_coverage import SyntheticTradeTaxCoverage
 
 pytestmark = [
     pytest.mark.django_db(
@@ -324,7 +325,11 @@ def test_native_simulated_history_uses_explicit_tax_dates_and_only_reads_persist
         evidence=calendar_evidence,
         lag=_SETTLEMENT_LAG,
     )
-    reservation_repository = DjangoSimulatedOrderReservationRepository(using="default")
+    # Controlled seed admission; the later history/qualification reads remain real.
+    seed_tax_coverage = SyntheticTradeTaxCoverage()
+    reservation_repository = DjangoSimulatedOrderReservationRepository(
+        using="default", tax_cash_coverage_reader=seed_tax_coverage
+    )
     reservation_harness = _Harness(
         account=account,
         user_id=owner_seed.owner.pk,
@@ -450,6 +455,7 @@ def test_native_simulated_history_uses_explicit_tax_dates_and_only_reads_persist
     )
     mark_reader = fill_fixtures._InitialPositionMarkReader(proof=mark, calls=[])
     fill_result = DjangoSimulatedOrderFillRepository(
+        tax_cash_coverage_reader=seed_tax_coverage,
         event_reader=DjangoLocalDailyMatchEventReader(using="default"),
         initial_position_mark_reader=mark_reader,
         using="default",
