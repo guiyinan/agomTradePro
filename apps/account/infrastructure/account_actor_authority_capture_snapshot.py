@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from contextlib import AbstractContextManager, nullcontext
+from contextlib import AbstractContextManager
 
 from django.db.backends.base.base import BaseDatabaseWrapper
 from django.db.models import Model
@@ -26,6 +26,10 @@ from apps.account.infrastructure.account_actor_authority_raw_source_models_v3 im
 from apps.account.infrastructure.account_owner_assignment_actor_authority_bundle_provider import (
     AccountActorAuthorityRawSourceRepositoriesFactoryV3,
     DjangoAccountActorAuthorityInputBundleProviderV3,
+    _immutable_raw_bundle_snapshot,
+)
+from apps.account.infrastructure.owner_tenant_authority_v3_read_context import (
+    OwnerTenantAuthorityV3OperationReadContext,
 )
 
 
@@ -40,6 +44,8 @@ class DjangoAccountActorAuthorityCaptureBundleProviderV3(
         using: str = "default",
         require_capture_transaction: Callable[[], None],
         repositories_factory: AccountActorAuthorityRawSourceRepositoriesFactoryV3 | None = None,
+        read_context: OwnerTenantAuthorityV3OperationReadContext | None = None,
+        source_lock_policy_id: str | None = None,
     ) -> None:
         """Bind capture reads to one repository-owned transaction and alias."""
 
@@ -47,9 +53,20 @@ class DjangoAccountActorAuthorityCaptureBundleProviderV3(
         if not callable(require_capture_transaction):
             raise TypeError("require_capture_transaction must be callable")
         self._require_capture_transaction = require_capture_transaction
+        if (read_context is None) != (source_lock_policy_id is None):
+            raise ValueError("capture source lock context and policy must be supplied together")
+        if source_lock_policy_id is not None and (
+            type(source_lock_policy_id) is not str
+            or not source_lock_policy_id
+            or len(source_lock_policy_id) > 192
+            or any(character.isspace() for character in source_lock_policy_id)
+        ):
+            raise ValueError("capture source lock policy must be a canonical selector")
+        self._read_context = read_context
+        self._source_lock_policy_id = source_lock_policy_id
 
     def _snapshot(self, connection: BaseDatabaseWrapper) -> AbstractContextManager[None]:
-        """Lock every raw authority table before returning the no-op context."""
+        """Lock every raw authority table before one connection-bound read phase."""
 
         try:
             self._require_capture_transaction()
@@ -58,6 +75,15 @@ class DjangoAccountActorAuthorityCaptureBundleProviderV3(
                 "authority capture transaction is unavailable"
             ) from error
         _require_capture_connection(connection, self._using)
+        if (
+            self._read_context is not None
+            and self._source_lock_policy_id is not None
+            and self._read_context.is_active(self._using)
+            and self._read_context.has_source_locks(self._using, self._source_lock_policy_id)
+        ):
+            return _immutable_raw_bundle_snapshot(
+                connection, expected_connection=connection.connection
+            )
         with connection.cursor() as cursor:
             cursor.execute("SHOW transaction_isolation")
             row = cursor.fetchone()
@@ -67,7 +93,7 @@ class DjangoAccountActorAuthorityCaptureBundleProviderV3(
                 )
             tables = _quoted_raw_authority_tables(connection)
             cursor.execute(f"LOCK TABLE {', '.join(tables)} IN SHARE MODE NOWAIT")
-        return nullcontext()
+        return _immutable_raw_bundle_snapshot(connection, expected_connection=connection.connection)
 
 
 def _require_capture_connection(connection: BaseDatabaseWrapper, using: str) -> None:

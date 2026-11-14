@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from contextlib import AbstractContextManager, nullcontext
+from contextlib import AbstractContextManager
 
 from django.db import DatabaseError
 from django.db.backends.base.base import BaseDatabaseWrapper
@@ -22,6 +22,7 @@ from apps.account.infrastructure.account_actor_authority_raw_source_models_v3 im
 )
 from apps.account.infrastructure.account_owner_assignment_actor_authority_bundle_provider import (
     DjangoAccountActorAuthorityInputBundleProviderV3,
+    _immutable_raw_bundle_snapshot,
 )
 
 
@@ -51,7 +52,7 @@ class DjangoAccountSystemAuditActorAuthorityBundleProviderV3(
             raise AccountActorAuthorityRawSourceV3Unavailable(
                 "system audit authority source lock is unavailable"
             ) from error
-        return nullcontext()
+        return _immutable_raw_bundle_snapshot(connection, expected_connection=connection.connection)
 
 
 def _require_system_audit_connection(

@@ -2,8 +2,15 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from contextlib import contextmanager
+from dataclasses import replace
 from datetime import timedelta
 
+import pytest
+
+from apps.account.application.account_owner_assignment_actor_authority_source_v3 import (
+    AccountOwnerAssignmentActorAuthoritySourceV3Recorder,
+    PersistedAccountOwnerAssignmentActorAuthoritySourceV3,
+)
 from apps.account.application.owner_tenant_authority_v3 import (
     GetCurrentOwnerTenantAuthorityV3Command,
 )
@@ -25,7 +32,7 @@ from tests.unit.account.test_account_owner_assignment_actor_authority_source_v3 
     _source,
 )
 from tests.unit.account.test_owner_tenant_authority_v3 import _authority
-from tests.unit.account.test_owner_tenant_authority_v3_application import _authority_source
+from tests.unit.account.test_owner_tenant_authority_v3_application import _authority_source, _World
 
 
 class _PhysicalProvider:
@@ -151,12 +158,7 @@ def test_v3_reader_derives_facade_inputs_only_from_exact_immutable_sources(
         lambda **kwargs: _ActorRepository(),
     )
     monkeypatch.setattr(
-        module,
-        "DjangoAccountSystemAuditActorAuthorityBundleProviderV3",
-        lambda **kwargs: object(),
-    )
-    monkeypatch.setattr(
-        module, "GetCurrentAccountOwnerAssignmentActorAuthoritySourceV3", _ActorReader
+        module, "GetExactAccountOwnerAssignmentActorAuthoritySourceV3", _ActorReader
     )
     monkeypatch.setattr(module, "build_owner_tenant_authority_v3_facade", build_facade)
 
@@ -227,3 +229,109 @@ def test_v3_reader_rejects_scope_hash_mismatch_without_building_facade(monkeypat
         )
         is None
     )
+
+
+@pytest.mark.parametrize("denial", ("none", "inactive", "changed", "missing-assignment"))
+def test_original_actor_material_never_replaces_locked_current_graph_validation(
+    monkeypatch, denial
+):
+    """A historical principal loads once; the real V3 service still rechecks current facts."""
+    from apps.account import system_audit_authority_v3_composition as module
+
+    world = _World()
+    service = world.service()
+    authority = service.issue(world.issue_command())
+    cutoff = authority.recorded_at + timedelta(seconds=1)
+    world.repository.clocks = [cutoff]
+    record = world.repository.head
+    assert record is not None
+    actor = _source(
+        source_id="audit-principal-material",
+        source_version="v1",
+        principal_id="principal-42",
+        user_id=authority.actor_user_id,
+        actor_id=authority.actor_id,
+        is_staff=True,
+        is_superuser=True,
+        rbac_role="admin",
+        principal_authenticated_at=authority.approved_at - timedelta(minutes=1),
+        principal_valid_until=authority.valid_until,
+        source_recorded_at=authority.approved_at - timedelta(minutes=1),
+        source_valid_until=authority.valid_until,
+        issued_at=authority.approved_at,
+        recorded_at=authority.approved_at,
+        ttl_valid_until=authority.valid_until,
+        valid_until=authority.valid_until,
+        root_claim_hash=root_claim_hash_for_actor_authority_source_v3(
+            source_id="audit-principal-material",
+            principal_id="principal-42",
+            user_id=authority.actor_user_id,
+            authentication_context_identity_hash="a" * 64,
+            actor_id=authority.actor_id,
+        ),
+    )
+    exact_reads = []
+
+    class AuthorityRepository:
+        def now(self):
+            return cutoff
+
+        def get_provisional_winner(self, **kwargs):
+            return record
+
+    class ActorRepository:
+        def now(self):
+            return cutoff
+
+        def get_exact_by_hash(self, **kwargs):
+            exact_reads.append(kwargs)
+            return PersistedAccountOwnerAssignmentActorAuthoritySourceV3(
+                actor,
+                AccountOwnerAssignmentActorAuthoritySourceV3Recorder("test-material-reader"),
+            )
+
+    def duplicate_current_read(**kwargs):
+        pytest.fail("current actor validation belongs to the lock-bound complete V3 graph")
+
+    monkeypatch.setattr(
+        module, "DjangoOwnerTenantAuthorityV3Repository", lambda **k: AuthorityRepository()
+    )
+    monkeypatch.setattr(
+        module,
+        "DjangoAccountOwnerAssignmentActorAuthoritySourceV3Repository",
+        lambda **k: ActorRepository(),
+    )
+    monkeypatch.setattr(
+        module,
+        "GetCurrentAccountOwnerAssignmentActorAuthoritySourceV3",
+        duplicate_current_read,
+        raising=False,
+    )
+    monkeypatch.setattr(module, "build_owner_tenant_authority_v3_facade", lambda **k: service)
+    if denial == "inactive":
+        world.participants_reader.values = [
+            replace(_authority_source(world.assignment), is_active=False)
+        ]
+    elif denial == "changed":
+        world.participants_reader.values = [
+            _authority_source(world.assignment, source="first"),
+            _authority_source(world.assignment, source="changed"),
+        ]
+    elif denial == "missing-assignment":
+        world.evidence_reader.current_values = [None]
+    reader = AccountSystemAuditOwnerTenantAuthorityV3Reader(
+        actor_source_id=actor.source_id,
+        actor_source_version=actor.source_version,
+        actor_content_hash=actor.content_hash,
+        physical_row_provider=_PhysicalProvider(),
+    )
+    observation = reader.execute(
+        GetCurrentOwnerTenantAuthorityV3Command(
+            authority.authority_id,
+            authority.authority_version,
+            authority.content_hash,
+        )
+    )
+    assert (observation is not None) == (denial == "none")
+    assert len(exact_reads) == 1
+    assert world.participants_reader.calls

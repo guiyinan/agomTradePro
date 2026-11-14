@@ -51,6 +51,7 @@ class _Connection:
         self.vendor = vendor
         self.alias = alias
         self.in_atomic_block = False
+        self.connection = object()
         self.cursor_value = _Cursor()
 
     def get_autocommit(self) -> bool:

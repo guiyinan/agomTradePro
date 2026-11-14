@@ -63,6 +63,10 @@ from apps.account.infrastructure.account_rbac_authority_source_v3_repository imp
 from apps.account.infrastructure.account_user_authority_source_v3_repository import (
     DjangoAccountUserAuthoritySourceV3Repository,
 )
+from shared.infrastructure.immutable_read_snapshot import (
+    immutable_read_snapshot,
+    isolated_immutable_read_snapshot,
+)
 
 
 class AccountActorAuthorityRawSourceRepositoriesFactoryV3(Protocol):
@@ -302,7 +306,31 @@ def _provider_snapshot(using: str, connection: BaseDatabaseWrapper) -> Iterator[
 
     with _atomic_for_alias(using):
         _configure_snapshot(connection)
+        with _immutable_raw_bundle_snapshot(
+            connection, expected_connection=connection.connection, isolated=True
+        ):
+            yield
+
+
+@contextmanager
+def _immutable_raw_bundle_snapshot(
+    connection: BaseDatabaseWrapper,
+    *,
+    expected_connection: object,
+    isolated: bool = False,
+) -> Iterator[None]:
+    """Reuse raw worlds after their snapshot/locks, bound to the exact native connection."""
+    if expected_connection is None or connection.connection is not expected_connection:
+        raise AccountActorAuthorityRawSourceV3Unavailable(
+            "raw authority snapshot physical connection changed"
+        )
+    phase = isolated_immutable_read_snapshot() if isolated else immutable_read_snapshot()
+    with phase:
         yield
+        if connection.connection is not expected_connection:
+            raise AccountActorAuthorityRawSourceV3Unavailable(
+                "raw authority snapshot physical connection changed"
+            )
 
 
 def _require_repository_bundle(

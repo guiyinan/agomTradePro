@@ -173,7 +173,8 @@ class AccountOwnerAssignmentEvidenceV5Facade:
 
         self._ensure_postgresql()
         reuse_owned_phase = (
-            self._repository is not None
+            read_only
+            and self._repository is not None
             and self._read_context is not None
             and self._read_context.is_active(self._using)
             and self._actors._uow is not None
@@ -186,7 +187,14 @@ class AccountOwnerAssignmentEvidenceV5Facade:
                         if read_only
                         else lock_account_owner_assignment_evidence_v5_sources
                     )
-                    source_locker(using=self._using, policy_id=self._policy_id)
+                    inherited_source_locks = (
+                        read_only
+                        and reuse_owned_phase
+                        and self._read_context is not None
+                        and self._read_context.has_source_locks(self._using, self._policy_id)
+                    )
+                    if not inherited_source_locks:
+                        source_locker(using=self._using, policy_id=self._policy_id)
                     if read_only:
                         self._physical_row_provider.lock_current_sources_for_read()
                     else:
@@ -271,6 +279,10 @@ def build_account_owner_assignment_evidence_v5_facade(
             input_bundle_provider=DjangoAccountActorAuthorityCaptureBundleProviderV3(
                 using=alias,
                 require_capture_transaction=actors.require_capture_transaction,
+                read_context=read_context,
+                source_lock_policy_id=(
+                    policy_binding.policy_id if read_context is not None else None
+                ),
             ),
             repository=actors,
         ),
@@ -292,24 +304,32 @@ def build_account_owner_assignment_evidence_v5_facade(
         actors=actor_reader,
     )
 
-    binding_reader = GetExactCanonicalAccountCreationBindingV2(
-        DjangoCanonicalAccountCreationConsumptionRepository(using=alias)
+    bindings = DjangoCanonicalAccountCreationConsumptionRepository(using=alias)
+    physical = DjangoPhysicalAccountRowObservationV2Repository(using=alias)
+    reobservations = DjangoCanonicalAccountOwnershipReobservationV1Repository(
+        using=alias, binding_repository=bindings, physical_repository=physical
     )
+    receipts = DjangoAccountOwnerAssignmentProvenanceReceiptV5Repository(
+        using=alias, bindings=bindings, reobservations=reobservations, policies=policies
+    )
+    binding_reader = GetExactCanonicalAccountCreationBindingV2(bindings)
     physical_reader = GetCurrentPhysicalAccountRowObservationV2(
-        repository=DjangoPhysicalAccountRowObservationV2Repository(using=alias),
+        repository=physical,
         row_provider=physical_row_provider,
     )
     reobservation_reader = GetCurrentCanonicalAccountOwnershipReobservationV1(
-        repository=DjangoCanonicalAccountOwnershipReobservationV1Repository(using=alias),
+        repository=reobservations,
         current_physical_reader=physical_reader,
     )
     receipt_reader = GetCurrentAccountOwnerAssignmentProvenanceReceiptV5(
-        repository=DjangoAccountOwnerAssignmentProvenanceReceiptV5Repository(using=alias),
+        repository=receipts,
         binding_reader=binding_reader,
         policy_reader=policies,
         reobservation_reader=reobservation_reader,
     )
-    subjects = DjangoAccountOwnerAssignmentSubjectV5Repository(using=alias)
+    subjects = DjangoAccountOwnerAssignmentSubjectV5Repository(
+        using=alias, bindings=bindings, reobservations=reobservations, receipts=receipts
+    )
     subject_reader = GetCurrentAccountOwnerAssignmentSubjectV5(
         repository=subjects,
         current_receipt_reader=receipt_reader,

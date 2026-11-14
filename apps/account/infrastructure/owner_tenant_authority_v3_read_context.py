@@ -28,9 +28,21 @@ class _ActivePhase:
     connection: object
 
 
+@dataclass(frozen=True, slots=True)
+class _HeldSourceLocks:
+    """Identify locks acquired by the enclosing composition transaction."""
+
+    owner: OwnerTenantAuthorityV3OperationReadContext
+    connection: object
+    policy_id: str
+
+
 _active_phase: ContextVar[_ActivePhase | None] = ContextVar(
     "owner_tenant_authority_v3_active_read_phase",
     default=None,
+)
+_held_source_locks: ContextVar[_HeldSourceLocks | None] = ContextVar(
+    "owner_tenant_authority_v3_held_source_locks", default=None
 )
 
 
@@ -53,6 +65,39 @@ class OwnerTenantAuthorityV3OperationReadContext:
             raise TypeError("connection_provider must be callable")
         self._using = using
         self._connection_provider = connection_provider
+
+    @contextmanager
+    def source_locks(self, *, policy_id: str, acquire: Callable[[], None]) -> Iterator[None]:
+        """Record successful outer locks until their owning atomic scope exits.
+
+        The composition enters this scope inside its transaction, before any
+        nested V5 savepoint, and exits before that transaction can roll back.
+        This records held locks only; it neither owns a read cache nor extends
+        an authority observation. Writes must still acquire exclusive locks.
+        """
+        before = self._connection_provider()
+        acquire()
+        connection = self._connection_provider()
+        if connection is None or (before is not None and connection is not before):
+            raise AuthorityReadConnectionError("Authority source lock connection changed.")
+        token = _held_source_locks.set(_HeldSourceLocks(self, connection, policy_id))
+        try:
+            yield
+            if self._connection_provider() is not connection:
+                raise AuthorityReadConnectionError("Authority source lock connection changed.")
+        finally:
+            _held_source_locks.reset(token)
+
+    def has_source_locks(self, using: str, policy_id: str) -> bool:
+        """Check exact outer lock ownership without granting current authority."""
+        held = _held_source_locks.get()
+        return (
+            using == self._using
+            and held is not None
+            and held.owner is self
+            and held.policy_id == policy_id
+            and held.connection is self._connection_provider()
+        )
 
     @contextmanager
     def phase(self) -> Iterator[None]:

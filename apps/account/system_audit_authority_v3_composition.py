@@ -6,8 +6,8 @@ from dataclasses import dataclass
 from datetime import timedelta
 
 from apps.account.application.account_owner_assignment_actor_authority_source_v3 import (
-    GetCurrentAccountOwnerAssignmentActorAuthoritySourceV3,
-    GetCurrentAccountOwnerAssignmentActorAuthoritySourceV3Command,
+    GetExactAccountOwnerAssignmentActorAuthoritySourceV3,
+    GetExactAccountOwnerAssignmentActorAuthoritySourceV3Command,
 )
 from apps.account.application.account_owner_assignment_actor_authority_v3 import (
     AuthenticatedAccountPrincipalV3,
@@ -29,9 +29,6 @@ from apps.account.domain.account_owner_assignment_actor_authority_source_v3 impo
 from apps.account.domain.owner_tenant_authority_v3 import OwnerTenantAuthorityV3
 from apps.account.infrastructure.account_owner_assignment_actor_authority_source_v3_repository import (
     DjangoAccountOwnerAssignmentActorAuthoritySourceV3Repository,
-)
-from apps.account.infrastructure.account_system_audit_actor_authority_bundle_provider import (
-    DjangoAccountSystemAuditActorAuthorityBundleProviderV3,
 )
 from apps.account.infrastructure.owner_tenant_authority_v3_repository import (
     DjangoOwnerTenantAuthorityV3Repository,
@@ -82,7 +79,7 @@ class AccountSystemAuditOwnerTenantAuthorityV3Reader:
         authority = self._sealed_authority(command)
         if authority is None:
             return None
-        actor = self._current_actor()
+        actor = self._actor_principal_material()
         if actor is None:
             return None
         if (
@@ -154,20 +151,20 @@ class AccountSystemAuditOwnerTenantAuthorityV3Reader:
             return None
         return authority
 
-    def _current_actor(self) -> AccountOwnerAssignmentActorAuthoritySourceV3 | None:
-        """Read the exact actor selector against its immutable current source bundle."""
+    def _actor_principal_material(self) -> AccountOwnerAssignmentActorAuthoritySourceV3 | None:
+        """Restore exact original principal clocks, granting no current authority.
+
+        The complete V3 facade independently revalidates current actor/raw
+        heads, role, policy, assignment, physical source and final clocks under
+        its locks. A second standalone current read here adds no authority.
+        """
 
         repository = DjangoAccountOwnerAssignmentActorAuthoritySourceV3Repository(
             using=self.database_alias
         )
-        reader = GetCurrentAccountOwnerAssignmentActorAuthoritySourceV3(
-            input_bundle_provider=DjangoAccountSystemAuditActorAuthorityBundleProviderV3(
-                using=self.database_alias
-            ),
-            repository=repository,
-        )
+        reader = GetExactAccountOwnerAssignmentActorAuthoritySourceV3(repository=repository)
         source = reader.execute(
-            GetCurrentAccountOwnerAssignmentActorAuthoritySourceV3Command(
+            GetExactAccountOwnerAssignmentActorAuthoritySourceV3Command(
                 source_id=self.actor_source_id,
                 source_version=self.actor_source_version,
                 expected_content_hash=self.actor_content_hash,

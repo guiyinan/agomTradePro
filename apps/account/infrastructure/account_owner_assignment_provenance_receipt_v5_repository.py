@@ -121,21 +121,37 @@ class DjangoAccountOwnerAssignmentProvenanceReceiptV5Repository:
         *,
         using: str = "default",
         clock: AccountOwnerAssignmentProvenanceReceiptV5Clock | None = None,
+        bindings: DjangoCanonicalAccountCreationConsumptionRepository | None = None,
+        reobservations: DjangoCanonicalAccountOwnershipReobservationV1Repository | None = None,
+        policies: DjangoSingleOwnerAuthorityPolicyV1Repository | None = None,
     ) -> None:
         """Bind the receipt and all parent repositories to one explicit alias."""
 
         if type(using) is not str or not using or using.strip() != using:
             raise ValueError("using must be an exact database alias")
+        for parent in (bindings, reobservations, policies):
+            if parent is not None and parent._using != using:
+                raise ValueError("receipt parents must use the receipt database alias")
         self._using = using
         self._clock = clock
         self._token = object()
         self._uow: object | None = None
-        self._bindings = DjangoCanonicalAccountCreationConsumptionRepository(
-            using=using, clock=clock
+        self._bindings = (
+            bindings
+            if bindings is not None
+            else DjangoCanonicalAccountCreationConsumptionRepository(using=using, clock=clock)
         )
-        self._policies = DjangoSingleOwnerAuthorityPolicyV1Repository(using=using, clock=clock)
-        self._reobservations = DjangoCanonicalAccountOwnershipReobservationV1Repository(
-            using=using, clock=clock
+        self._policies = (
+            policies
+            if policies is not None
+            else DjangoSingleOwnerAuthorityPolicyV1Repository(using=using, clock=clock)
+        )
+        self._reobservations = (
+            reobservations
+            if reobservations is not None
+            else DjangoCanonicalAccountOwnershipReobservationV1Repository(
+                using=using, clock=clock, binding_repository=self._bindings
+            )
         )
 
     @contextmanager

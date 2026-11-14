@@ -111,8 +111,13 @@ def test_operation_context_reuses_one_cutoff_but_isolates_cutoffs_and_phases() -
     assert probe.calls == 3
 
 
+@pytest.mark.parametrize(
+    "outer_source_locks, read_only", [(False, True), (True, True), (True, False)]
+)
 def test_nested_evidence_facade_keeps_the_outer_operation_phase(
     monkeypatch: pytest.MonkeyPatch,
+    outer_source_locks: bool,
+    read_only: bool,
 ) -> None:
     """Nested V5 reads must not clear the V3 phase or its exact cache entries."""
 
@@ -141,26 +146,35 @@ def test_nested_evidence_facade_keeps_the_outer_operation_phase(
         transactions.append(using)
         return nullcontext()
 
-    def lock_sources(**options: object) -> None:
-        source_locks.append(str(options["using"]))
+    def read_lock_sources(**options: object) -> None:
+        source_locks.append("shared:" + str(options["using"]))
+
+    def write_lock_sources(**options: object) -> None:
+        source_locks.append("exclusive:" + str(options["using"]))
 
     monkeypatch.setattr(evidence_composition, "transaction", SimpleNamespace(atomic=atomic))
     monkeypatch.setattr(
         evidence_composition,
         "lock_account_owner_assignment_evidence_v5_sources_for_read",
-        lock_sources,
+        read_lock_sources,
+    )
+    monkeypatch.setattr(
+        evidence_composition,
+        "lock_account_owner_assignment_evidence_v5_sources",
+        write_lock_sources,
     )
     facade = evidence_composition.AccountOwnerAssignmentEvidenceV5Facade(
         using="authority-v3",
         policy_id="policy-42",
-        actors=cast(object, SimpleNamespace(_uow=object())),
+        actors=cast(object, SimpleNamespace(_uow=object(), atomic=lambda: nullcontext())),
         approve=cast(object, object()),
         exact=cast(object, object()),
         current=cast(object, object()),
         physical_row_provider=cast(
             object,
             SimpleNamespace(
-                lock_current_sources_for_read=lambda: physical_locks.append("physical")
+                lock_current_sources_for_read=lambda: physical_locks.append("physical"),
+                lock_current_sources=lambda: physical_locks.append("physical-write"),
             ),
         ),
         repository=cast(DjangoAccountOwnerAssignmentEvidenceV5Repository, object()),
@@ -168,14 +182,23 @@ def test_nested_evidence_facade_keeps_the_outer_operation_phase(
     )
     cutoff = datetime(2026, 8, 30, 11, tzinfo=UTC)
 
-    with context.phase():
-        first = facade._locked(lambda: probe.read(cutoff=cutoff), read_only=True)
-        second = facade._locked(lambda: probe.read(cutoff=cutoff), read_only=True)
+    with (
+        context.source_locks(policy_id="policy-42", acquire=lambda: None)
+        if outer_source_locks
+        else nullcontext()
+    ):
+        with context.phase():
+            first = facade._locked(lambda: probe.read(cutoff=cutoff), read_only=read_only)
+            second = facade._locked(lambda: probe.read(cutoff=cutoff), read_only=read_only)
 
-    assert second is first
-    assert probe.calls == 1
-    assert source_locks == ["authority-v3", "authority-v3"]
-    assert physical_locks == ["physical", "physical"]
+    assert (second is first) is read_only
+    assert probe.calls == (1 if read_only else 2)
+    assert source_locks == (
+        []
+        if outer_source_locks and read_only
+        else [("shared:" if read_only else "exclusive:") + "authority-v3"] * 2
+    )
+    assert physical_locks == (["physical", "physical"] if read_only else ["physical-write"] * 2)
     assert transactions == ["authority-v3", "authority-v3"]
 
 
@@ -189,6 +212,66 @@ def test_closed_native_connection_cannot_start_a_reusable_phase() -> None:
         with context.phase():
             pytest.fail("closed native connection entered a reusable phase")
     assert context.is_active("authority-v3") is False
+
+
+def test_source_lock_scope_is_exact_and_does_not_cache_authority() -> None:
+    """Only the acquiring graph, policy and live connection own held source locks."""
+    wrapper = SimpleNamespace(connection=object())
+    context = OwnerTenantAuthorityV3OperationReadContext(
+        using="authority-v3", connection_provider=lambda: wrapper.connection
+    )
+    other = OwnerTenantAuthorityV3OperationReadContext(
+        using="authority-v3", connection_provider=lambda: wrapper.connection
+    )
+    acquisitions: list[str] = []
+    assert not context.has_source_locks("authority-v3", "policy-42")
+    with context.source_locks(
+        policy_id="policy-42", acquire=lambda: acquisitions.append("acquired")
+    ):
+        assert acquisitions == ["acquired"]
+        assert context.has_source_locks("authority-v3", "policy-42")
+        assert not context.has_source_locks("other", "policy-42")
+        assert not context.has_source_locks("authority-v3", "other-policy")
+        assert not other.has_source_locks("authority-v3", "policy-42")
+        assert not context.is_active("authority-v3")
+        with context.phase():
+            assert context.has_source_locks("authority-v3", "policy-42")
+        assert not context.is_active("authority-v3")
+    assert not context.has_source_locks("authority-v3", "policy-42")
+
+
+def test_failed_lock_acquisition_and_connection_replacement_discard_scope() -> None:
+    """A failed acquisition or replaced physical connection cannot retain a receipt."""
+    wrapper = SimpleNamespace(connection=object())
+    context = OwnerTenantAuthorityV3OperationReadContext(
+        using="authority-v3", connection_provider=lambda: wrapper.connection
+    )
+
+    def fail() -> None:
+        raise RuntimeError("lock unavailable")
+
+    with pytest.raises(RuntimeError):
+        with context.source_locks(policy_id="policy-42", acquire=fail):
+            pytest.fail("failed acquisition entered scope")
+    assert not context.has_source_locks("authority-v3", "policy-42")
+    with pytest.raises(ExternalServiceError):
+        with context.source_locks(policy_id="policy-42", acquire=lambda: None):
+            wrapper.connection = object()
+            assert not context.has_source_locks("authority-v3", "policy-42")
+    assert not context.has_source_locks("authority-v3", "policy-42")
+
+
+def test_source_lock_scope_allows_initial_lazy_connection_only() -> None:
+    """Real lock acquisition may establish the initial native connection."""
+    wrapper = SimpleNamespace(connection=None)
+    context = OwnerTenantAuthorityV3OperationReadContext(
+        using="authority-v3", connection_provider=lambda: wrapper.connection
+    )
+    with context.source_locks(
+        policy_id="policy-42", acquire=lambda: setattr(wrapper, "connection", object())
+    ):
+        assert context.has_source_locks("authority-v3", "policy-42")
+    assert not context.has_source_locks("authority-v3", "policy-42")
 
 
 def test_native_connection_change_cannot_return_a_successful_phase() -> None:

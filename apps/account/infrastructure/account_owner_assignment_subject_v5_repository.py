@@ -79,22 +79,41 @@ class DjangoAccountOwnerAssignmentSubjectV5Repository:
         *,
         using: str = "default",
         clock: AccountOwnerAssignmentSubjectV5Clock | None = None,
+        bindings: DjangoCanonicalAccountCreationConsumptionRepository | None = None,
+        reobservations: DjangoCanonicalAccountOwnershipReobservationV1Repository | None = None,
+        receipts: DjangoAccountOwnerAssignmentProvenanceReceiptV5Repository | None = None,
     ) -> None:
         """Bind the subject and every durable parent query to one database alias."""
 
         if type(using) is not str or not using or using.strip() != using:
             raise ValueError("using must be an exact database alias")
+        for parent in (bindings, reobservations, receipts):
+            if parent is not None and parent._using != using:
+                raise ValueError("subject parents must use the subject database alias")
         self._using = using
         self._clock = clock
         self._uow: object | None = None
-        self._receipts = DjangoAccountOwnerAssignmentProvenanceReceiptV5Repository(
-            using=using, clock=clock
+        self._bindings = (
+            bindings
+            if bindings is not None
+            else DjangoCanonicalAccountCreationConsumptionRepository(using=using, clock=clock)
         )
-        self._bindings = DjangoCanonicalAccountCreationConsumptionRepository(
-            using=using, clock=clock
+        self._reobservations = (
+            reobservations
+            if reobservations is not None
+            else DjangoCanonicalAccountOwnershipReobservationV1Repository(
+                using=using, clock=clock, binding_repository=self._bindings
+            )
         )
-        self._reobservations = DjangoCanonicalAccountOwnershipReobservationV1Repository(
-            using=using, clock=clock
+        self._receipts = (
+            receipts
+            if receipts is not None
+            else DjangoAccountOwnerAssignmentProvenanceReceiptV5Repository(
+                using=using,
+                clock=clock,
+                bindings=self._bindings,
+                reobservations=self._reobservations,
+            )
         )
 
     @contextmanager

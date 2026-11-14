@@ -54,6 +54,7 @@ class _Connection:
         self.vendor = vendor
         self.in_atomic_block = in_atomic_block
         self.autocommit = autocommit
+        self.connection = object()
         self.ops = _Ops()
         self.cursor_value = _Cursor(isolation)
 

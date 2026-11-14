@@ -9,6 +9,7 @@ is an evidence-read boundary over an inactive Evidence V5 decision.
 from __future__ import annotations
 
 from collections.abc import Callable
+from contextlib import nullcontext
 from datetime import timedelta
 from typing import TypeVar
 
@@ -145,6 +146,7 @@ class OwnerTenantAuthorityV3Facade:
         service: OwnerTenantAuthorityV3Service,
         lock_current_physical_sources: Callable[[], None],
         lock_current_physical_sources_for_read: Callable[[], None],
+        read_context: OwnerTenantAuthorityV3OperationReadContext | None = None,
     ) -> None:
         """Bind one database alias and the server-owned Authority V3 service."""
 
@@ -154,6 +156,7 @@ class OwnerTenantAuthorityV3Facade:
         self._service = service
         self._lock_current_physical_sources = lock_current_physical_sources
         self._lock_current_physical_sources_for_read = lock_current_physical_sources_for_read
+        self._read_context = read_context
 
     @property
     def unit_of_work_key(self) -> str:
@@ -285,8 +288,19 @@ class OwnerTenantAuthorityV3Facade:
                         if read_only
                         else lock_owner_tenant_authority_v3_sources
                     )
-                    source_locker(using=self._using, policy_id=self._policy_id)
-                    with self._actors.atomic():
+
+                    def acquire_sources() -> None:
+                        source_locker(using=self._using, policy_id=self._policy_id)
+
+                    if self._read_context is None:
+                        acquire_sources()
+                    with (
+                        self._read_context.source_locks(
+                            policy_id=self._policy_id, acquire=acquire_sources
+                        )
+                        if self._read_context is not None
+                        else nullcontext()
+                    ), self._actors.atomic():
                         return operation()
         except (
             OwnerTenantAuthorityV3Corruption,
@@ -400,6 +414,8 @@ def build_owner_tenant_authority_v3_facade(
             input_bundle_provider=DjangoAccountActorAuthorityCaptureBundleProviderV3(
                 using=alias,
                 require_capture_transaction=actors.require_capture_transaction,
+                read_context=read_context,
+                source_lock_policy_id=policy_binding.policy_id,
             ),
             repository=actors,
         ),
@@ -449,6 +465,7 @@ def build_owner_tenant_authority_v3_facade(
         service=service,
         lock_current_physical_sources=provider_locker,
         lock_current_physical_sources_for_read=provider_read_locker,
+        read_context=read_context,
     )
 
 
