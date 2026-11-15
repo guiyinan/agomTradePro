@@ -44,6 +44,7 @@ M1_SCOPE_REF = (
 HANDOFF_PLAN_PATH = "docs/plans/a-share-usability-implementation-plan-2026-10-16.md"
 AUTHORIZED_HANDOFF_SECTIONS = {
     "ASH-03": "19.156",
+    "ASH-05": "19.187",
     "ASH-07": "19.157",
     "REF-03": "19.161",
     "REF-04": "19.162",

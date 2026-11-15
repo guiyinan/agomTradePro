@@ -3503,3 +3503,8 @@ V3 授权说明修复提交 `fd17993f5ee429f4ea5421035530ec16d7c463d1` 六项适
   **2ec实际原件与后继修正**：八CI六成功、Fast与owner失败；26原生实际18通过、8失败、零错误/跳过，当前真实官方空窗口再次通过，Publication303/Quote57项原始JUnit零bad。Luna三测试修正已按精确hash采用：刷新后重新激活独立raw NAV策略，保留原current/UNKNOWN与数值断言；税款分配只读指纹通过assessment真实外键过滤。Root本机r46因Windows事件循环未进入浏览器；复用仓库兼容策略后r48确认真实响应含原事件，但目标面板行丢失，失败原件均保留，584迁移不变、授权代数3558→3610→3664，无重置。
 
   Root以正式发布screen配置取得同现象Node RED：初始账户必填门留下无page的params分页对象，后续client-side分页把undefined转为NaN并清空已有行。修正为缺失或无效页码默认1，保持目标面板及行操作验收；相关6项及完整239项Node通过。完整Node运行后仅调整新增测试中未执行写动作的风险标签，再定向重跑该发布screen用例通过；正式CI仍须验证最终冻结测试源。四Python测试格式门、registry/module/runtime检查通过，生产Python输入沿r39未变复用类型证据。后继候选仍待同SHA八CI与26真实用户金样本全绿，ASH05/§9继续开放。
+
+
+  **276e后继确定修复**：该候选八CI七成功，仅owner失败，实际仍18/26通过、8失败、零错误/跳过。Root与Luna确认raw NAV证明把原provider实例名与canonical来源类型交叉相等比较，合法命名实例因此返回None；新增1失败/2反例通过的RED后只移除该错误比较，原Audit实例名、policy来源、日期、单位、原时钟与双读门保留，55项NAV单测通过。四浏览器已读到事件，随后Django阻止Playwright事件循环内直接ORM；按仓库既有单worker模式移动观察/refresh和独立测试operator恢复，所有财务、取消、重放及撤回断言不变，不启用ALLOW_ASYNC_UNSAFE。
+
+  指定复用QA的r67配股浏览器实际失败453.50秒，越过原ORM异常并准备成功，但续办按钮缺失；584迁移不变、授权代数3664→3718，无重置。正式发布screen Node证明：后端已允许办理准备公开显示同账户ID，前端却只给两类consent准备作三方匹配而误报泄露。仅同步第三workflow准备入口，保留请求/交接/唯一展示账户严格一致及全部opaque token保护；错账户、重复展示、嵌套token及token等于账号均拒绝。完整241项Node、7项后端metadata对齐通过。r68冻结输入10门全0（193单测、应用文件/治理脚本增量0、全库债务0、module/current121/投影/写面/MCP/runtime），之后仅前端与对应测试/runtime变化，Python输入未变。ASH05交接登记沿本节加入既有allowlist，131项正反例通过，但状态保持active；下一完整候选仍须同SHA八CI与26原生全绿，§9开放、ASH06未启。
