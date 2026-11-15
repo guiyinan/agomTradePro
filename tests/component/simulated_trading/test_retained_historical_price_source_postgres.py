@@ -67,6 +67,12 @@ from tests.support.ash03_auto_calendar_fixture import (
     FormalCalendarFixture,
     persist_auto_uow_formal_calendar,
 )
+from tests.support.ash05_owner_market_calendar import (
+    OwnerModelCalendarInstaller,
+)
+from tests.support.ash05_owner_market_calendar import (  # noqa: F401
+    owner_model_calendar as owner_model_calendar,
+)
 from tests.support.ash05_owner_workflow_native_world import (
     OwnerWorkflowNativeWorld,
     build_owner_workflow_native_world,
@@ -184,6 +190,7 @@ def test_retained_m1_price_is_exactly_historical_after_newer_pointer_activation(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
     actual_runtime_role: dict[str, object],
+    owner_model_calendar: OwnerModelCalendarInstaller,
 ) -> None:
     """Read two exact M1 dates and prove the old one never masquerades as current."""
     if connection.vendor != "postgresql":
@@ -204,6 +211,7 @@ def test_retained_m1_price_is_exactly_historical_after_newer_pointer_activation(
             bootstrap_runtime=False,
         )
         assert calendar.dataset_key == world.calendar_dataset_key
+        owner_model_calendar(calendar)
         activate_runtime_profile_patch(
             environment="development",
             patch={

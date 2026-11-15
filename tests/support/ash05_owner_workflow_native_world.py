@@ -11,7 +11,7 @@ from __future__ import annotations
 import base64
 import json
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, date, datetime, time, timedelta
 from decimal import Decimal
 from functools import partial
@@ -21,7 +21,9 @@ from uuid import uuid4
 from zoneinfo import ZoneInfo
 
 import pytest
+from django.conf import settings
 from django.db import connection, transaction
+from django.test import override_settings
 from django.utils import timezone
 
 import tests.support.simulated_tax_model_native_context as native_context
@@ -166,6 +168,38 @@ def _local_anchor(actual: datetime, *, history_weeks: Literal[1, 2] = 1) -> tupl
         anchor_date -= timedelta(days=1)
     anchor_at = datetime.combine(anchor_date, time(9, 0), tzinfo=_TIMEZONE_POLICY).astimezone(UTC)
     return anchor_date, anchor_at
+
+
+def _reauthenticate_current_owner(seed: OwnerAccountSeed) -> OwnerAccountSeed:
+    """Establish the same ordinary owner's current session after historical setup."""
+    seed.owner.refresh_from_db(using="default")
+    if (
+        seed.owner.pk is None
+        or not seed.owner.is_active
+        or seed.owner.is_staff
+        or seed.owner.is_superuser
+    ):
+        raise AssertionError("current workflow session requires the same ordinary active owner")
+    seed.client.force_login(seed.owner)
+    with override_settings(ROOT_URLCONF="tests.support.ash07_owner_source_test_urls"):
+        response = seed.client.get(
+            "/csrf/bootstrap/", secure=True, HTTP_ORIGIN="https://testserver"
+        )
+    if (
+        response.status_code != 200
+        or not response.wsgi_request.user.is_authenticated
+        or response.wsgi_request.user.pk != seed.owner.pk
+    ):
+        raise AssertionError("current ordinary-owner session bootstrap failed")
+    payload: object = response.json()
+    token = payload.get("csrf_token") if isinstance(payload, dict) else None
+    if (
+        type(token) is not str
+        or not token
+        or seed.client.cookies.get(settings.CSRF_COOKIE_NAME) is None
+    ):
+        raise AssertionError("current ordinary-owner session lacks its CSRF binding")
+    return replace(seed, csrf_token=token)
 
 
 def _activate_v3_policy(
@@ -706,6 +740,7 @@ def build_owner_workflow_native_world(
         timezone_name=_TIMEZONE,
         live_clock=True,
         require_current_open_session=False,
+        live_coverage_start=anchor_date,
     )
     open_dates = tuple(
         row.calendar_date
@@ -723,6 +758,8 @@ def build_owner_workflow_native_world(
     )
     monkeypatch.setattr(timezone, "now", actual_clock)
     now = actual_clock().astimezone(UTC)
+    if history_weeks == 2:
+        owner = _reauthenticate_current_owner(owner)
     _refresh_public_owner_source_after_fills(owner)
     decision_date = calendar.market_session
     payment_date = payment_date_override or decision_date

@@ -73,6 +73,12 @@ from tests.support.ash03_auto_calendar_fixture import (
     FormalCalendarFixture,
     persist_auto_uow_formal_calendar,
 )
+from tests.support.ash05_owner_market_calendar import (
+    OwnerModelCalendarInstaller,
+)
+from tests.support.ash05_owner_market_calendar import (  # noqa: F401
+    owner_model_calendar as owner_model_calendar,
+)
 from tests.support.ash05_owner_workflow_native_sources import (
     cash_distribution_capture,
     install_synthetic_szse_capture_transport,
@@ -134,6 +140,7 @@ def _calendar_and_recent_sessions(
         live_clock=True,
         require_current_open_session=False,
         bootstrap_runtime=False,
+        live_coverage_start=world.anchor_date,
     )
     if calendar.dataset_key != world.calendar_dataset_key:
         raise AssertionError("owner and price fixtures do not share the formal calendar dataset")
@@ -562,6 +569,7 @@ def test_owner_cash_reference_return_brackets_ex_date_and_keeps_late_payment_lat
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
     actual_runtime_role: dict[str, object],
+    owner_model_calendar: OwnerModelCalendarInstaller,
 ) -> None:
     """Read a fixed record-date cash entitlement before and after real payment posting."""
     if connection.vendor != "postgresql":
@@ -575,6 +583,7 @@ def test_owner_cash_reference_return_brackets_ex_date_and_keeps_late_payment_lat
             monkeypatch=monkeypatch, tmp_path=tmp_path, history_weeks=2
         )
         calendar, sessions, latest_closed = _calendar_and_recent_sessions(world)
+        owner_model_calendar(calendar)
         opening_date, ex_date = sessions[-2:]
         assert world.settlement_date < opening_date
         _extend_synthetic_tax_candidate_through_record_date(
@@ -780,6 +789,7 @@ def test_owner_share_reference_return_counts_ex_date_rights_once_across_real_sta
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
     actual_runtime_role: dict[str, object],
+    owner_model_calendar: OwnerModelCalendarInstaller,
 ) -> None:
     """Read the fixed record-date basket through real entitlement/delivery/release writes."""
     if connection.vendor != "postgresql":
@@ -792,6 +802,7 @@ def test_owner_share_reference_return_counts_ex_date_rights_once_across_real_sta
             capture_kind="share",
         )
         calendar, sessions, latest_closed = _calendar_and_recent_sessions(world)
+        owner_model_calendar(calendar)
         if world.settlement_date > latest_closed or world.settlement_date not in sessions:
             raise AssertionError("synthetic share effective date has not reached a closed session")
         prior_sessions = tuple(day for day in sessions if day < world.settlement_date)

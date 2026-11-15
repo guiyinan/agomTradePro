@@ -76,6 +76,12 @@ from tests.support.ash03_auto_calendar_fixture import (
     FormalCalendarFixture,
     persist_auto_uow_formal_calendar,
 )
+from tests.support.ash05_owner_market_calendar import (
+    OwnerModelCalendarInstaller,
+)
+from tests.support.ash05_owner_market_calendar import (  # noqa: F401
+    owner_model_calendar as owner_model_calendar,
+)
 from tests.support.ash05_owner_workflow_native_world import (
     OwnerWorkflowNativeWorld,
     build_owner_workflow_native_world,
@@ -608,6 +614,7 @@ def test_owner_nav_requires_current_raw_close_policy_and_full_tax_coverage(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
     actual_runtime_role: dict[str, object],
+    owner_model_calendar: OwnerModelCalendarInstaller,
 ) -> None:
     """Show missing NAV evidence blocks, then reconcile current raw close and tax debt."""
     if connection.vendor != "postgresql":
@@ -624,6 +631,7 @@ def test_owner_nav_requires_current_raw_close_policy_and_full_tax_coverage(
             bootstrap_runtime=False,
         )
         assert szse_calendar.dataset_key == world.calendar_dataset_key
+        owner_model_calendar(szse_calendar)
         activate_runtime_profile_patch(
             environment="development",
             patch={

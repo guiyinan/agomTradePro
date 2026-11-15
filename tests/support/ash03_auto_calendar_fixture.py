@@ -125,6 +125,7 @@ def persist_auto_uow_formal_calendar(
     live_clock: bool = False,
     require_current_open_session: bool = True,
     bootstrap_runtime: bool = True,
+    live_coverage_start: date | None = None,
 ) -> FormalCalendarFixture:
     """Persist and reread a complete formal test calendar at the selected cutoff.
 
@@ -142,6 +143,8 @@ def persist_auto_uow_formal_calendar(
     their synthetic fills still use published open dates and real current clocks.
     ``bootstrap_runtime=False`` adds another exchange to an already configured
     world without resetting its actual owner and Audit authority configuration.
+    ``live_coverage_start`` may retain an earlier explicit account origin in the
+    live source; it does not change the current clock, forward range, or TTL.
     """
 
     if connection.vendor != "postgresql":
@@ -152,6 +155,10 @@ def persist_auto_uow_formal_calendar(
         raise TypeError("require_current_open_session must be an exact boolean")
     if type(bootstrap_runtime) is not bool:
         raise TypeError("bootstrap_runtime must be an exact boolean")
+    if live_coverage_start is not None and (
+        not live_clock or type(live_coverage_start) is not date
+    ):
+        raise ValueError("live coverage start requires an exact date and live clock")
     if not live_clock and advance_clock is None:
         raise ValueError("the fixed-clock calendar path requires advance_clock")
     if type(as_of) is not datetime or as_of.utcoffset() is None:
@@ -175,7 +182,13 @@ def persist_auto_uow_formal_calendar(
 
     if live_clock:
         exchange_today = django_timezone.now().astimezone(exchange_timezone).date()
-        coverage_start = _previous_weekday(exchange_today - timedelta(days=7))
+        if live_coverage_start is not None and live_coverage_start > exchange_today:
+            raise ValueError("live coverage start cannot be in the future")
+        coverage_start = (
+            _previous_weekday(exchange_today - timedelta(days=7))
+            if live_coverage_start is None
+            else live_coverage_start
+        )
         coverage_end = exchange_today + timedelta(days=14)
     else:
         _require_fixture_clocks_frozen()
