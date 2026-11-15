@@ -34091,6 +34091,266 @@
           "bases": [
             "models.Model"
           ],
+          "class_name": "FinancialFactModel",
+          "docstring": "Financial statement fact (single line-item per row).",
+          "fields": [
+            {
+              "db_index": true,
+              "field_type": "CharField",
+              "kwargs": {
+                "db_index": true,
+                "max_length": 20
+              },
+              "name": "asset_code",
+              "positional_args": []
+            },
+            {
+              "db_index": true,
+              "field_type": "DateField",
+              "kwargs": {
+                "db_index": true,
+                "help_text": "Period end date (e.g. 2024-12-31)"
+              },
+              "name": "period_end",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "choices": "PERIOD_TYPE_CHOICES",
+                "max_length": 15
+              },
+              "name": "period_type",
+              "positional_args": []
+            },
+            {
+              "db_index": true,
+              "field_type": "CharField",
+              "kwargs": {
+                "db_index": true,
+                "help_text": "Metric identifier (e.g. revenue, net_profit, total_assets)",
+                "max_length": 60
+              },
+              "name": "metric_code",
+              "positional_args": []
+            },
+            {
+              "field_type": "DecimalField",
+              "kwargs": {
+                "blank": true,
+                "decimal_places": 4,
+                "max_digits": 28,
+                "null": true
+              },
+              "name": "value",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "db_default": "legacy-decimal-v1",
+                "default": "legacy-decimal-v1",
+                "max_length": 40
+              },
+              "name": "numeric_schema",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 128,
+                "null": true
+              },
+              "name": "exact_value_text",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "JSONField",
+              "kwargs": {
+                "blank": true,
+                "null": true
+              },
+              "name": "numeric_evidence",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 20
+              },
+              "name": "unit",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 50
+              },
+              "name": "source",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateField",
+              "kwargs": {
+                "blank": true,
+                "help_text": "Date report was published",
+                "null": true
+              },
+              "name": "report_date",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "kwargs": {
+                "auto_now_add": true
+              },
+              "name": "fetched_at",
+              "positional_args": []
+            },
+            {
+              "field_type": "JSONField",
+              "kwargs": {
+                "blank": true,
+                "default": "dict"
+              },
+              "name": "extra",
+              "positional_args": []
+            },
+            {
+              "field_type": "JSONField",
+              "kwargs": {
+                "blank": true,
+                "default": "dict"
+              },
+              "name": "decision_evidence",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "default": "1.0",
+                "max_length": 40
+              },
+              "name": "contract_version",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "default": "1.0",
+                "max_length": 40
+              },
+              "name": "schema_version",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 200
+              },
+              "name": "source_record_id",
+              "positional_args": []
+            },
+            {
+              "db_index": true,
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "db_index": true,
+                "max_length": 128
+              },
+              "name": "raw_payload_hash",
+              "positional_args": []
+            },
+            {
+              "db_index": true,
+              "field_type": "CharField",
+              "kwargs": {
+                "db_index": true,
+                "default": "accepted",
+                "max_length": 40
+              },
+              "name": "quality_status",
+              "positional_args": []
+            },
+            {
+              "field_type": "PositiveSmallIntegerField",
+              "kwargs": {
+                "default": 1
+              },
+              "name": "revision_number",
+              "positional_args": []
+            },
+            {
+              "db_index": true,
+              "field_type": "UUIDField",
+              "kwargs": {
+                "blank": true,
+                "db_index": true,
+                "null": true
+              },
+              "name": "ingested_run_id",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "db_index": true,
+              "field_type": "DateTimeField",
+              "kwargs": {
+                "blank": true,
+                "db_index": true,
+                "null": true
+              },
+              "name": "announced_at",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "db_index": true,
+              "field_type": "DateTimeField",
+              "kwargs": {
+                "blank": true,
+                "db_index": true,
+                "null": true
+              },
+              "name": "available_at",
+              "null": true,
+              "positional_args": []
+            }
+          ],
+          "meta": {
+            "constraints": "[models.CheckConstraint(condition=models.Q(numeric_schema='legacy-decimal-v1', value__isnull=False, exact_value_text__isnull=True, numeric_evidence__isnull=True) | models.Q(numeric_schema='native-decimal-v2', value__isnull=True, exact_value_text__isnull=False, numeric_evidence__isnull=False) & ~models.Q(exact_value_text='') & ~models.Q(numeric_evidence={}) & models.Q(_IsFinancialNumericJSONObject(models.F('numeric_evidence'))), name='dc_financial_numeric_state_valid')]",
+            "db_table": "data_center_financial_fact",
+            "indexes": "[models.Index(fields=['asset_code', 'period_end']), models.Index(fields=['metric_code'])]",
+            "ordering": [
+              "-period_end"
+            ],
+            "unique_together": [
+              [
+                "asset_code",
+                "period_end",
+                "period_type",
+                "metric_code",
+                "source",
+                "revision_number"
+              ]
+            ],
+            "verbose_name": "Financial Fact",
+            "verbose_name_plural": "Financial Facts"
+          },
+          "source_file": "infrastructure/financial_fact_models.py"
+        },
+        {
+          "bases": [
+            "models.Model"
+          ],
           "class_name": "InstitutionalCalendarEventModel",
           "docstring": "One immutable institutional event revision with source and system clocks.",
           "fields": [
@@ -35515,266 +35775,6 @@
           ],
           "meta": {
             "db_table": "data_center_financial_capacity_owner_approval_event"
-          },
-          "source_file": "infrastructure/models.py"
-        },
-        {
-          "bases": [
-            "models.Model"
-          ],
-          "class_name": "FinancialFactModel",
-          "docstring": "Financial statement fact (single line-item per row).",
-          "fields": [
-            {
-              "db_index": true,
-              "field_type": "CharField",
-              "kwargs": {
-                "db_index": true,
-                "max_length": 20
-              },
-              "name": "asset_code",
-              "positional_args": []
-            },
-            {
-              "db_index": true,
-              "field_type": "DateField",
-              "kwargs": {
-                "db_index": true,
-                "help_text": "Period end date (e.g. 2024-12-31)"
-              },
-              "name": "period_end",
-              "positional_args": []
-            },
-            {
-              "field_type": "CharField",
-              "kwargs": {
-                "choices": "PERIOD_TYPE_CHOICES",
-                "max_length": 15
-              },
-              "name": "period_type",
-              "positional_args": []
-            },
-            {
-              "db_index": true,
-              "field_type": "CharField",
-              "kwargs": {
-                "db_index": true,
-                "help_text": "Metric identifier (e.g. revenue, net_profit, total_assets)",
-                "max_length": 60
-              },
-              "name": "metric_code",
-              "positional_args": []
-            },
-            {
-              "field_type": "DecimalField",
-              "kwargs": {
-                "blank": true,
-                "decimal_places": 4,
-                "max_digits": 28,
-                "null": true
-              },
-              "name": "value",
-              "null": true,
-              "positional_args": []
-            },
-            {
-              "field_type": "CharField",
-              "kwargs": {
-                "db_default": "legacy-decimal-v1",
-                "default": "legacy-decimal-v1",
-                "max_length": 40
-              },
-              "name": "numeric_schema",
-              "positional_args": []
-            },
-            {
-              "field_type": "CharField",
-              "kwargs": {
-                "blank": true,
-                "max_length": 128,
-                "null": true
-              },
-              "name": "exact_value_text",
-              "null": true,
-              "positional_args": []
-            },
-            {
-              "field_type": "JSONField",
-              "kwargs": {
-                "blank": true,
-                "null": true
-              },
-              "name": "numeric_evidence",
-              "null": true,
-              "positional_args": []
-            },
-            {
-              "field_type": "CharField",
-              "kwargs": {
-                "blank": true,
-                "max_length": 20
-              },
-              "name": "unit",
-              "positional_args": []
-            },
-            {
-              "field_type": "CharField",
-              "kwargs": {
-                "max_length": 50
-              },
-              "name": "source",
-              "positional_args": []
-            },
-            {
-              "field_type": "DateField",
-              "kwargs": {
-                "blank": true,
-                "help_text": "Date report was published",
-                "null": true
-              },
-              "name": "report_date",
-              "null": true,
-              "positional_args": []
-            },
-            {
-              "field_type": "DateTimeField",
-              "kwargs": {
-                "auto_now_add": true
-              },
-              "name": "fetched_at",
-              "positional_args": []
-            },
-            {
-              "field_type": "JSONField",
-              "kwargs": {
-                "blank": true,
-                "default": "dict"
-              },
-              "name": "extra",
-              "positional_args": []
-            },
-            {
-              "field_type": "JSONField",
-              "kwargs": {
-                "blank": true,
-                "default": "dict"
-              },
-              "name": "decision_evidence",
-              "positional_args": []
-            },
-            {
-              "field_type": "CharField",
-              "kwargs": {
-                "default": "1.0",
-                "max_length": 40
-              },
-              "name": "contract_version",
-              "positional_args": []
-            },
-            {
-              "field_type": "CharField",
-              "kwargs": {
-                "default": "1.0",
-                "max_length": 40
-              },
-              "name": "schema_version",
-              "positional_args": []
-            },
-            {
-              "field_type": "CharField",
-              "kwargs": {
-                "blank": true,
-                "max_length": 200
-              },
-              "name": "source_record_id",
-              "positional_args": []
-            },
-            {
-              "db_index": true,
-              "field_type": "CharField",
-              "kwargs": {
-                "blank": true,
-                "db_index": true,
-                "max_length": 128
-              },
-              "name": "raw_payload_hash",
-              "positional_args": []
-            },
-            {
-              "db_index": true,
-              "field_type": "CharField",
-              "kwargs": {
-                "db_index": true,
-                "default": "accepted",
-                "max_length": 40
-              },
-              "name": "quality_status",
-              "positional_args": []
-            },
-            {
-              "field_type": "PositiveSmallIntegerField",
-              "kwargs": {
-                "default": 1
-              },
-              "name": "revision_number",
-              "positional_args": []
-            },
-            {
-              "db_index": true,
-              "field_type": "UUIDField",
-              "kwargs": {
-                "blank": true,
-                "db_index": true,
-                "null": true
-              },
-              "name": "ingested_run_id",
-              "null": true,
-              "positional_args": []
-            },
-            {
-              "db_index": true,
-              "field_type": "DateTimeField",
-              "kwargs": {
-                "blank": true,
-                "db_index": true,
-                "null": true
-              },
-              "name": "announced_at",
-              "null": true,
-              "positional_args": []
-            },
-            {
-              "db_index": true,
-              "field_type": "DateTimeField",
-              "kwargs": {
-                "blank": true,
-                "db_index": true,
-                "null": true
-              },
-              "name": "available_at",
-              "null": true,
-              "positional_args": []
-            }
-          ],
-          "meta": {
-            "constraints": "[models.CheckConstraint(condition=models.Q(numeric_schema='legacy-decimal-v1', value__isnull=False, exact_value_text__isnull=True, numeric_evidence__isnull=True) | models.Q(numeric_schema='native-decimal-v2', value__isnull=True, exact_value_text__isnull=False, numeric_evidence__isnull=False) & ~models.Q(exact_value_text='') & ~models.Q(numeric_evidence={}) & models.Q(_IsFinancialNumericJSONObject(models.F('numeric_evidence'))), name='dc_financial_numeric_state_valid')]",
-            "db_table": "data_center_financial_fact",
-            "indexes": "[models.Index(fields=['asset_code', 'period_end']), models.Index(fields=['metric_code'])]",
-            "ordering": [
-              "-period_end"
-            ],
-            "unique_together": [
-              [
-                "asset_code",
-                "period_end",
-                "period_type",
-                "metric_code",
-                "source",
-                "revision_number"
-              ]
-            ],
-            "verbose_name": "Financial Fact",
-            "verbose_name_plural": "Financial Facts"
           },
           "source_file": "infrastructure/models.py"
         },

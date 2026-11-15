@@ -2385,11 +2385,249 @@
         "registry_violations": 0,
         "full_original_committed_model_range": "pending correction commit, before push"
       }
+    },
+    {
+      "recorded_at_utc": "2026-11-15T23:20:24.857214+00:00",
+      "scope": "Resolve actual native-storage CI file-size growth and legacy just-saved DecimalField string regression",
+      "candidate": {
+        "base_head": "51dc68862146deda0f93034344afae3f69d33add",
+        "original_feature_base": "9ae935d6abbe58856f490ad7960311150b173765",
+        "files_before_acceptance_metadata": [
+          {
+            "path": "apps/data_center/infrastructure/financial_fact_models.py",
+            "sha256": "9042cee89e975a74c0913044acf174be5a915db4701a99786050fa61765fc27f"
+          },
+          {
+            "path": "apps/data_center/infrastructure/financial_numeric_storage.py",
+            "sha256": "2a315f7d6edb0457bca79784ab19ff85d0cdd5f63a5ea1830ebbfcb0691b6223"
+          },
+          {
+            "path": "apps/data_center/infrastructure/models.py",
+            "sha256": "a5745cad3b5a352f98462d7a75059db7fe0d0e2c66ed0f64515a7283a466f5aa"
+          },
+          {
+            "path": "docs/architecture/DATA_DICTIONARY.md",
+            "sha256": "214a47edb16908dc6f38b2d568331e92b9f4de4c0e60b1501383de95ab6b1fae"
+          },
+          {
+            "path": "docs/plans/data02-financial-source-time-remediation-2026-09-13.md",
+            "sha256": "8100ad8f7cd2e272aa735891ceb749483f4eaa6ef774cc3b7589ea6b2b35056a"
+          },
+          {
+            "path": "governance/current_data_contracts.json",
+            "sha256": "8d3f7f8ce25bcf5e9055f4967f4707b69654b76b8559554365e5a25199b210de"
+          },
+          {
+            "path": "governance/data_center_entrypoints.json",
+            "sha256": "ea91cca8dd5f65b7a1e0b2382a7222e72c6388c2eb210500c260021919693efd"
+          },
+          {
+            "path": "governance/data_dictionary.json",
+            "sha256": "f33d97240aa0a7e755df4eb753638918779aa8c7d5e0307e4967a7a321a20035"
+          },
+          {
+            "path": "governance/module_map.json",
+            "sha256": "d95e23c01eaae609f35d47e5ca75c7e8a58d99799fd25ad7ee6731f1768fa683"
+          },
+          {
+            "path": "tests/unit/data_center/test_financial_fact_model_exports.py",
+            "sha256": "d1cba8699d13b1b07e288f40d3a5f021f0f5de539e4b9bec23904d7c701cc52c"
+          },
+          {
+            "path": "tests/unit/data_center/test_financial_native_numeric_storage.py",
+            "sha256": "dd5fb183a39f885608ed76215df08bc68255c9d9dfcfea3770855098725d5d5f"
+          }
+        ]
+      },
+      "actual_failures": {
+        "file_size_nonempty_lines": {
+          "before": 980,
+          "failed_candidate": 1014,
+          "limit": 1000
+        },
+        "python311_and_313": {
+          "failed_case": "test_unpublished_valuation_and_financial_revisions_stay_outside_published_reads",
+          "per_version_failed": 1,
+          "per_version_passed": 6691,
+          "per_version_skipped": 207,
+          "reason": "just-saved legacy ORM DecimalField still holds string; numeric decoder rejected it"
+        },
+        "local_legacy_string_red": {
+          "failed": 3,
+          "passed": 14
+        },
+        "singular_model_filename_projection": {
+          "model_count": 616,
+          "qualified": false
+        },
+        "superseded_r7_typing": "Stopped only verified Root-owned mypy process when switching to required plural model filename; exit2 retained as intentional superseded QA, not a type pass."
+      },
+      "validation": {
+        "native_postgres": {
+          "tests": 218,
+          "errors": 0,
+          "failures": 0,
+          "skipped": 0,
+          "exit_code": 0,
+          "duration_seconds": 289.562,
+          "full_real_migrations": true,
+          "source_changes_during_run": []
+        },
+        "final_quick_unit": {
+          "passed": 26,
+          "exit_code": 0
+        },
+        "class_ast_equal_to_pre_extraction": true,
+        "models_nonempty_lines": 933,
+        "registered_model_and_facade_identity_test": "passed",
+        "generated_dictionary_models": 617,
+        "format_exit": 0,
+        "incremental_mypy_production_files": 3,
+        "full_mypy_errors": 0,
+        "governance_checks_exit": 0,
+        "original_model_range_after_correction_commit_51dc6886": {
+          "base": "9ae935d6abbe58856f490ad7960311150b173765",
+          "head": "51dc68862146deda0f93034344afae3f69d33add",
+          "semantic_changes": 1,
+          "exit_code": 0
+        },
+        "new_head_cumulative_model_range_and_size_guard": "pending final commit, before push",
+        "domain_coverage": "unchanged Domain input files retain followups[5] coverage evidence; final PG cohort executes their tests again",
+        "exact_incremental_domain_gate": {
+          "command_exit_code": 0,
+          "output_integrity": "incomplete: Windows child cp936 output caused parent UTF8 reader UnicodeDecodeError; no complete pytest counts claimed",
+          "recovered_raw_coverage": {
+            "covered_lines": 10478,
+            "num_statements": 11100,
+            "percent_covered": 94.3963963963964,
+            "percent_covered_display": "94.4",
+            "missing_lines": 622,
+            "excluded_lines": 4
+          },
+          "domain_files": 60,
+          "same_sha_linux_ci_recheck_required": true
+        }
+      },
+      "boundaries": [
+        "The final model file uses the established *_models.py convention; no generator or baseline is relaxed. Complete class AST, table, field and registration identity are unchanged.",
+        "Legacy finite numeric text is parsed explicitly as Decimal at the ORM boundary, then safe_float with None/no stripping/identity scale. The original row value and frozen v1 hash input remain untouched. V2 still requires exact native evidence and NULL legacy value.",
+        "The218-pass pre-rename candidate and all earlier receipts remain historical. Only this final source-identical cohort qualifies the current development code.",
+        "The unchanged decision_evidence field marker moved from models.py to the extracted definition; r9 missing-marker failure is retained, obligation is preserved and current contracts rechecked.",
+        "Independent Luna Max read-only review found no blockers in decoder, unchanged hash input, native blocking and model identity; it did not repeat QA or database operations.",
+        "D1 context20-test and C2 v3 30-test drafts remain isolated, not formal delivery or production qualification. Actual catalog/producer/consumer/Owner/calendar/PIT and complete-universe reconciliation remain open."
+      ],
+      "raw_artifacts": [
+        {
+          "path": ".tmp/data02-current-20261115/20261116/ci-7c6116766-quality.failed.log",
+          "sha256": "5a17e3738dd1a0ec3e9c04f8368701d18eba8223f3ec9d2b413d78b4b53fe696"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/ci-7c6116766-python311.failed.log",
+          "sha256": "d527035c90963d346a808128b38677bfc346693ddef17176c9b61c604f19c783"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/ci-7c6116766-python313.failed.log",
+          "sha256": "1a058adcb90c87974364256d708be67524cf7441fecf70af72bc3f1dea6fd5d5"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/native-legacy-text-red.log",
+          "sha256": "fd4edbd9bc00586755f99f52509ac3346189a9d3b994c1e59015bf275bbf5861"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/native-legacy-text-green.log",
+          "sha256": "7d72dbf2eaf1f23e89332069fcd3df726241cd12a3ef234d435aee9c2d7592eb"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/native-before-plural-source.patch",
+          "sha256": "9f7e7aa1a8933749a89485cc2f77ff4e2fbb8ecec4d6e57822fd4aa4c8b3d307"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/native-r7-superseded-qa-stop.json",
+          "sha256": "c407cff891b00f8932c8b881f6ee7d3363e8472d39150913178986e2b962b460"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/native-storage-final-r7-typing.receipt.json",
+          "sha256": "10d254b006df1e6581670688beecbb4d874d5f1e074bb11779e8274afecc6343"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/d1-native-frozen-r5-postgres.receipt.json",
+          "sha256": "65aae0f6a1181069a13b7e45c3e7930c35019a419b851b64bddb2631bceb7904"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/d1-native-frozen-r5-postgres.log",
+          "sha256": "b18584be4ba54b3756a9e9bcc7183ff34a79bcc55e12dd98d35af646caaa66cb"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/native-model-extraction-dictionary-build.log",
+          "sha256": "eb2feeaaaf3ff8df1bdb87d903a55b005826889019899be5c288975720a27d1c"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/native-model-extraction-dictionary-build-r2.log",
+          "sha256": "34d6fdcfd2f2240cc3c6d01fee87a4d65e1a2ec2ac989056ad5ddc88fc4676f5"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/native-plural-unit.log",
+          "sha256": "fdfcaccbad266e2425304754ce490d8d50c2c913673315cc5ba6f2ed9dcd49af"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/native-storage-final-r8-format.receipt.json",
+          "sha256": "ad37d9b57a780f383ed07e2138131f6033ab40742b3a1d58896f88d1cefd2e51"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/native-storage-final-r8-typing.receipt.json",
+          "sha256": "651da21a99abe4475754bee1aecc10ad38267bfe5a1aeea7d9af78a4e31ffd75"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/d1-native-frozen-r6-postgres.receipt.json",
+          "sha256": "1729bfca50f524e0480091013ab21c674f8bc987e3a8d626e18d13979e8489e8"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/d1-native-frozen-r6-postgres.log",
+          "sha256": "51b9e69b23eb2216e37c69fb4e2a403021ec459044c9be17bdc7ac1bd37963d6"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/d1-native-frozen-r6-postgres.junit.xml",
+          "sha256": "78d88d15b8d2d6be7efdfe7769110364daf2c6f3f2d8f39564b6662cc297f182"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/native-storage-final-r9-governance.receipt.json",
+          "sha256": "9071cf46130227b10ae8462d975204aa065127bec33972a26bfe24da5f7a820b"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/native-storage-final-r9-current.log",
+          "sha256": "b068bac94ff9ed780af2e089d281ae0ff8e8ae16dc984f3c30f8239c94b583c0"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/native-moved-marker-current-green.log",
+          "sha256": "cdc66d749ecf996bcca4ed722699f2e7fcb31846c37c8c5149568ad70bc84e73"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/native-storage-final-r10-governance.receipt.json",
+          "sha256": "cdbab2734fe3c93fb3d4dd6f831ff2833dd9ded0c4363a91cdea264be3df178d"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/native-ci-exact-domain-gate.log",
+          "sha256": "e2ef223a8765391ffa70c47906476d1c90a10dfdd86d395f1cbafb05df24b7f6"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/native-ci-exact-domain-recovered-coverage.json",
+          "sha256": "61b2240abb0d9f6fd7f5b0be435457ffeecccc0faefdcd339b2e49383872511d"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/native-ci-exact-domain-raw.coverage",
+          "sha256": "67683e5013a5794e345871d3f64986566faf579b1b36b72f02f41fee45dc42a3"
+        }
+      ],
+      "new_candidate_actual_ci": "pending final commit/push and cumulative-base Fast Feedback dispatch",
+      "production_deployment": false,
+      "financial_provider_requests": 0,
+      "data02_exit_met": false,
+      "data03_started": false
     }
   ],
   "current_authority_followup": "followups[0] (2026-11-16); original 2026-11-15 snapshots remain historical",
   "current_d1_c2_followup": "followups[1] (2026-11-16); original snapshots and all intermediate failures remain historical",
   "current_goal_followup": "followups[2] (2026-11-16); goal remains active and DATA03 dependency is unchanged",
   "current_native_storage_followup": "followups[5] (2026-11-16); development prerequisite only, full DATA02/03 exit gates unchanged",
-  "current_native_ci_followup": "followups[6] (2026-11-16); actual failures retained, corrected SHA must pass its own CI"
+  "current_native_ci_followup": "followups[7] (2026-11-16); final source recovery cohort, corrected candidate CI remains separate"
 }

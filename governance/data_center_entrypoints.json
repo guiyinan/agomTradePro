@@ -5371,7 +5371,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=147",
+      "evidence": "governed current-data contract; source_files=148",
       "id": "current_data_surface:governance/current_data_contracts.json:data_center.core_current_publication_rebuild:Active A-share quote/price/valuation/financial full-universe current publication rebuild and fact remediation",
       "locator": "Active A-share quote/price/valuation/financial full-universe current publication rebuild and fact remediation",
       "path": "governance/current_data_contracts.json",
@@ -5421,7 +5421,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=11",
+      "evidence": "governed current-data contract; source_files=12",
       "id": "current_data_surface:governance/current_data_contracts.json:data_center.financial_as_of_reads:Financial decisions preserve legacy China-market-day-start boundaries and explicit aware decision instants without widening Publication eligibility",
       "locator": "Financial decisions preserve legacy China-market-day-start boundaries and explicit aware decision instants without widening Publication eligibility",
       "path": "governance/current_data_contracts.json",

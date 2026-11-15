@@ -4609,7 +4609,8 @@
         "apps/factor/infrastructure/adapters/__init__.py",
         "apps/data_center/domain/entities.py",
         "apps/data_center/infrastructure/financial_fact_hydration.py",
-        "apps/data_center/infrastructure/financial_numeric_storage.py"
+        "apps/data_center/infrastructure/financial_numeric_storage.py",
+        "apps/data_center/infrastructure/financial_fact_models.py"
       ],
       "required_markers": {
         "apps/data_center/application/query_services.py": [
@@ -4658,6 +4659,11 @@
         "apps/factor/infrastructure/adapters/__init__.py": [
           "get_published_financial_facts_for_decision(",
           "decision_date=trade_date"
+        ],
+        "apps/data_center/infrastructure/financial_fact_models.py": [
+          "class FinancialFactModel(models.Model):",
+          "numeric_schema = models.CharField(",
+          "dc_financial_numeric_state_valid"
         ]
       },
       "required_tests": [
@@ -4720,6 +4726,21 @@
           "case": "native_revision_retains_original_known_time",
           "test_file": "tests/component/data_center/test_financial_native_decimal_repository.py",
           "test_function": "test_unpinned_native_correction_appends_and_preserves_past_knowledge"
+        },
+        {
+          "case": "financial_model_export_identity",
+          "test_file": "tests/unit/data_center/test_financial_fact_model_exports.py",
+          "test_function": "test_infrastructure_models_reexports_registered_financial_fact_model"
+        },
+        {
+          "case": "legacy_orm_numeric_text_preserves_frozen_hashes",
+          "test_file": "tests/unit/data_center/test_financial_native_numeric_storage.py",
+          "test_function": "test_legacy_frozen_hashes_match_before_migration"
+        },
+        {
+          "case": "unpublished_financial_revision_stays_outside_published_read",
+          "test_file": "tests/component/data_center/test_published_fact_refresh.py",
+          "test_function": "test_unpublished_valuation_and_financial_revisions_stay_outside_published_reads"
         }
       ],
       "notes": " Explicit decision_at ports reject non-aware and future instants before query access. They preserve exact UTC cutoff and derive only the report-date upper bound in Shanghai. Legacy date-only consumers remain unchanged. This is a C2 read-boundary prerequisite; no calendar/opening qualification, source-time policy activation, provider call, current-pointer change or DATA-02/03 production acceptance is inferred. Native decimal-v2 reads additionally constrain fetched_at to the explicit knowledge cutoff before selecting the latest revision; strict numeric wire/storage reconstruction and the injected independent catalog/body verifier are required. Default composition remains blocked for v2 until a real catalog is supplied; this is not production activation."
@@ -6580,7 +6601,8 @@
         "apps/data_center/infrastructure/financial_fact_hydration.py",
         "apps/data_center/migrations/0114_financial_native_decimal_storage.py",
         "apps/equity/infrastructure/fundamentals_published_fact_mappers.py",
-        "apps/equity/infrastructure/financial_source_gateway.py"
+        "apps/equity/infrastructure/financial_source_gateway.py",
+        "apps/data_center/infrastructure/financial_fact_models.py"
       ],
       "required_markers": {
         "apps/data_center/application/current_fact_remediation.py": [
@@ -6813,7 +6835,6 @@
           "FinancialDecisionEvidenceCodecError"
         ],
         "apps/data_center/infrastructure/models.py": [
-          "decision_evidence = models.JSONField(default=dict, blank=True)",
           "class FinancialCapacityGovernanceRecordModel(models.Model):",
           "class FinancialCapacityGovernanceRevocationModel(models.Model):",
           "class FinancialCapacityOwnerApprovalEventModel(models.Model):"
@@ -7472,6 +7493,12 @@
         "apps/data_center/infrastructure/financial_fact_hydration.py": [
           "source_evidence=source_evidence_from_model(row)",
           "decision_evidence=decode_financial_decision_evidence(row.decision_evidence)"
+        ],
+        "apps/data_center/infrastructure/financial_fact_models.py": [
+          "class FinancialFactModel(models.Model):",
+          "numeric_schema = models.CharField(",
+          "dc_financial_numeric_state_valid",
+          "decision_evidence = models.JSONField(default=dict, blank=True)"
         ]
       },
       "required_tests": [
@@ -8824,6 +8851,21 @@
           "case": "financial_native_body_replay_catalog_clock",
           "test_file": "tests/unit/data_center/test_financial_native_numeric_verifier.py",
           "test_function": "test_exact_contract_and_retained_body_are_replayed_at_fact_knowledge_time"
+        },
+        {
+          "case": "financial_model_export_identity",
+          "test_file": "tests/unit/data_center/test_financial_fact_model_exports.py",
+          "test_function": "test_infrastructure_models_reexports_registered_financial_fact_model"
+        },
+        {
+          "case": "legacy_orm_numeric_text_preserves_frozen_hashes",
+          "test_file": "tests/unit/data_center/test_financial_native_numeric_storage.py",
+          "test_function": "test_legacy_frozen_hashes_match_before_migration"
+        },
+        {
+          "case": "unpublished_financial_revision_stays_outside_published_read",
+          "test_file": "tests/component/data_center/test_published_fact_refresh.py",
+          "test_function": "test_unpublished_valuation_and_financial_revisions_stay_outside_published_reads"
         }
       ]
     },

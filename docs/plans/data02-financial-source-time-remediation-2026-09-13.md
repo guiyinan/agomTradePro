@@ -1102,3 +1102,17 @@ Security 将验收索引中 `API_REFERENCE.md` 路径键对应的公开 SHA-256 
 这批修复不改生产 Python；前批 188 项及类型证据只在源码哈希核实一致时复用。
 新 SHA 的实际 CI 仍以真实结果为准，不移用上一提交失败前的局部绿灯。Root 暂停新增
 历史 reader 实现，先收口实际 CI；两位 Luna Max 隔离草稿待审查、尚未采用到正式 Source。
+
+Fast Feedback 随后实际报告 `models.py` 由 980 增至 1,014 非空行，超过 1,000 上限；
+Luna Max 在限定 Source 窗口完整提取 `FinancialFactModel` 到独立 Infrastructure 模块，
+原导入入口显式 re-export，同一个 ORM 注册身份与所有字段/约束保持，不抬高基线。
+另一失败来自刚 `objects.create(value="0.2000")` 的旧 ORM 实例尚保留字符串属性；v1
+数值 decoder 错误拒绝，阻断既有发布成员摘要。Root 先以三份独立旧 golden 的字符串
+表示复现，再在旧 ORM 边界显式解码有限 Decimal 字符串；不修改原实例的 hash 输入表示，
+非法值/非有限值继续拒绝，v2 精确 Decimal 与证据要求不变。扩大合批回归以纳入实际失败
+的整份 published-fact refresh 模块，并重跑变更后的类型/真实 PG；此前 188 项仅保留为
+旧候选历史结果，不移作这次模型提取后的证明。新文件投影、字典和精确范围门随批更新。
+字典扫描仅覆盖既有 `models.py` / `*_models.py` 约定，提取文件最终使用
+`financial_fact_models.py`；曾用单数文件名导致投影漏一模型的中间生成结果不算通过。
+改名后的字典恢复 617 个静态模型声明，并重新冻结源码、验收与类型输入。旧 218 项
+PG 结果及为换候选而主动停止的 r7 全库类型扫描均保留，不拼接为最终候选的通过结果。

@@ -5772,7 +5772,7 @@
       "layers": {
         "application": 192,
         "domain": 60,
-        "infrastructure": 253,
+        "infrastructure": 254,
         "interface": 34,
         "management": 43,
         "root": 48
@@ -5790,7 +5790,6 @@
           "MacroFactModel",
           "PriceBarModel",
           "FundNavFactModel",
-          "FinancialFactModel",
           "FinancialPublicationCapacityWorkflowModel",
           "FinancialPublicationCapacityManifestItemModel",
           "FinancialPublicationCapacityEvidenceModel",

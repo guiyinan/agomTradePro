@@ -5282,6 +5282,38 @@
 | `ingested_run_id` | `UUIDField` | 是 |  |  |  |  |
 | `available_at` | `DateTimeField` | 是 |  |  |  |  |
 
+### FinancialFactModel
+
+- 来源文件：`apps/data_center/infrastructure/financial_fact_models.py`
+- 数据表：`data_center_financial_fact`
+- 说明：Financial statement fact (single line-item per row).
+
+| 字段 | 类型 | null | unique | 默认值 | 说明 | 关系目标 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `asset_code` | `CharField` |  |  |  |  |  |
+| `period_end` | `DateField` |  |  |  | Period end date (e.g. 2024-12-31) |  |
+| `period_type` | `CharField` |  |  |  |  |  |
+| `metric_code` | `CharField` |  |  |  | Metric identifier (e.g. revenue, net_profit, total_assets) |  |
+| `value` | `DecimalField` | 是 |  |  |  |  |
+| `numeric_schema` | `CharField` |  |  | legacy-decimal-v1 |  |  |
+| `exact_value_text` | `CharField` | 是 |  |  |  |  |
+| `numeric_evidence` | `JSONField` | 是 |  |  |  |  |
+| `unit` | `CharField` |  |  |  |  |  |
+| `source` | `CharField` |  |  |  |  |  |
+| `report_date` | `DateField` | 是 |  |  | Date report was published |  |
+| `fetched_at` | `DateTimeField` |  |  |  |  |  |
+| `extra` | `JSONField` |  |  | dict |  |  |
+| `decision_evidence` | `JSONField` |  |  | dict |  |  |
+| `contract_version` | `CharField` |  |  | 1.0 |  |  |
+| `schema_version` | `CharField` |  |  | 1.0 |  |  |
+| `source_record_id` | `CharField` |  |  |  |  |  |
+| `raw_payload_hash` | `CharField` |  |  |  |  |  |
+| `quality_status` | `CharField` |  |  | accepted |  |  |
+| `revision_number` | `PositiveSmallIntegerField` |  |  | 1 |  |  |
+| `ingested_run_id` | `UUIDField` | 是 |  |  |  |  |
+| `announced_at` | `DateTimeField` | 是 |  |  |  |  |
+| `available_at` | `DateTimeField` | 是 |  |  |  |  |
+
 ### InstitutionalCalendarEventModel
 
 - 来源文件：`apps/data_center/infrastructure/institutional_calendar_models.py`
@@ -5550,38 +5582,6 @@
 | `approval_receipt_sha256` | `CharField` |  |  |  |  |  |
 | `record_sha256` | `CharField` |  |  |  |  |  |
 | `created_at` | `DateTimeField` |  |  |  |  |  |
-
-### FinancialFactModel
-
-- 来源文件：`apps/data_center/infrastructure/models.py`
-- 数据表：`data_center_financial_fact`
-- 说明：Financial statement fact (single line-item per row).
-
-| 字段 | 类型 | null | unique | 默认值 | 说明 | 关系目标 |
-| --- | --- | --- | --- | --- | --- | --- |
-| `asset_code` | `CharField` |  |  |  |  |  |
-| `period_end` | `DateField` |  |  |  | Period end date (e.g. 2024-12-31) |  |
-| `period_type` | `CharField` |  |  |  |  |  |
-| `metric_code` | `CharField` |  |  |  | Metric identifier (e.g. revenue, net_profit, total_assets) |  |
-| `value` | `DecimalField` | 是 |  |  |  |  |
-| `numeric_schema` | `CharField` |  |  | legacy-decimal-v1 |  |  |
-| `exact_value_text` | `CharField` | 是 |  |  |  |  |
-| `numeric_evidence` | `JSONField` | 是 |  |  |  |  |
-| `unit` | `CharField` |  |  |  |  |  |
-| `source` | `CharField` |  |  |  |  |  |
-| `report_date` | `DateField` | 是 |  |  | Date report was published |  |
-| `fetched_at` | `DateTimeField` |  |  |  |  |  |
-| `extra` | `JSONField` |  |  | dict |  |  |
-| `decision_evidence` | `JSONField` |  |  | dict |  |  |
-| `contract_version` | `CharField` |  |  | 1.0 |  |  |
-| `schema_version` | `CharField` |  |  | 1.0 |  |  |
-| `source_record_id` | `CharField` |  |  |  |  |  |
-| `raw_payload_hash` | `CharField` |  |  |  |  |  |
-| `quality_status` | `CharField` |  |  | accepted |  |  |
-| `revision_number` | `PositiveSmallIntegerField` |  |  | 1 |  |  |
-| `ingested_run_id` | `UUIDField` | 是 |  |  |  |  |
-| `announced_at` | `DateTimeField` | 是 |  |  |  |  |
-| `available_at` | `DateTimeField` | 是 |  |  |  |  |
 
 ### FinancialPublicationCapacityEvidenceModel
 

@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-import math
 from dataclasses import dataclass
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from typing import Any, Literal
 
 from django.db.backends.base.base import BaseDatabaseWrapper
@@ -14,6 +13,7 @@ from django.db.models.sql.compiler import SQLCompiler
 from apps.data_center.domain.financial_numeric_evidence import (
     NativeFinancialMetricObservation,
 )
+from shared.numeric import safe_float
 
 
 class IsFinancialNumericJSONObject(Func):
@@ -68,6 +68,14 @@ def decode_financial_numeric_row(row: Model) -> StoredFinancialNumericValue:
     exact: object = getattr(row, "exact_value_text", None)
     payload: object = getattr(row, "numeric_evidence", None)
     if schema == "legacy-decimal-v1":
+        # Django retains a DecimalField's accepted string on a newly saved
+        # instance until refresh_from_db(). Decode it without mutating the
+        # original row representation used by the frozen legacy hash codec.
+        if type(value) is str:
+            try:
+                value = Decimal(value)
+            except InvalidOperation as error:
+                raise ValueError("Legacy financial numeric text is invalid") from error
         if (
             isinstance(value, bool)
             or not isinstance(value, (Decimal, int, float))
@@ -75,8 +83,8 @@ def decode_financial_numeric_row(row: Model) -> StoredFinancialNumericValue:
             or payload is not None
         ):
             raise ValueError("Legacy financial numeric storage is inconsistent")
-        legacy_value = float(value)
-        if not math.isfinite(legacy_value):
+        legacy_value = safe_float(value, default=None, strip_chars="", scale=1.0)
+        if legacy_value is None:
             raise ValueError("Legacy financial value must be finite")
         return StoredFinancialNumericValue(legacy_value, "legacy-decimal-v1", None)
     if schema != "native-decimal-v2":

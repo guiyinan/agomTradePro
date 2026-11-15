@@ -10,6 +10,7 @@ import pytest
 from apps.data_center.domain.financial_numeric_evidence import NativeFinancialMetricObservation
 from apps.data_center.infrastructure.financial_fact_repository import FinancialFactRepository
 from apps.data_center.infrastructure.financial_numeric_storage import (
+    decode_financial_numeric_row,
     decode_native_financial_numeric_evidence,
 )
 from apps.data_center.infrastructure.models import FinancialFactModel
@@ -44,8 +45,9 @@ from tests.unit.data_center.test_financial_native_decimal_fact import _fact, _na
         ),
     ],
 )
+@pytest.mark.parametrize("orm_value_is_text", [False, True])
 def test_legacy_frozen_hashes_match_before_migration(
-    number: int, value: str, row_hash: str, payload_hash: str
+    number: int, value: str, row_hash: str, payload_hash: str, orm_value_is_text: bool
 ) -> None:
     """Constants were captured independently from b96a before adding columns."""
     row = FinancialFactModel(
@@ -54,7 +56,7 @@ def test_legacy_frozen_hashes_match_before_migration(
         period_end=date(2026, 6, 30),
         period_type="semi_annual",
         metric_code="roe",
-        value=Decimal(value),
+        value=value if orm_value_is_text else Decimal(value),
         unit="%",
         source="akshare",
         report_date=date(2026, 8, 15),
@@ -74,6 +76,16 @@ def test_legacy_frozen_hashes_match_before_migration(
     assert canonical_fact_content_hash(row) == row_hash
     assert financial_payload_hash(row) == payload_hash
     assert FinancialFactRepository._from_model(row).to_dict()["value"] == float(value)
+
+
+@pytest.mark.parametrize(
+    "value", [None, True, "", "NaN", "Infinity", "-Infinity", "not-a-number", "1e10000"]
+)
+def test_legacy_numeric_orm_rejects_invalid_or_nonfinite_values(value: object) -> None:
+    """Legacy string compatibility never supplies a default for an invalid value."""
+    row = FinancialFactModel(value=value)
+    with pytest.raises(ValueError):
+        decode_financial_numeric_row(row)
 
 
 def test_native_wire_roundtrip_and_consumer_mapper_keep_exact_digits() -> None:
