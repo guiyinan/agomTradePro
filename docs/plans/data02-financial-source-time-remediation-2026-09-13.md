@@ -966,3 +966,45 @@ C2 已按公告日期锁定 SZSE `2026-08-15..2026-08-18` 的完整日期范围�
 矩阵缺口已闭合。尚需 C2 真实日历、正式开盘规则和 successor 全链，D1 完整量纲/
 精度治理与真实四 Publication 对账，随后完成同候选部署预检、备份/staging 和 E1。
 DATA-02 完整 universe 退出门不变，DATA-03 不启动。
+
+## 38. 2026-11-16 持续目标、Luna Max 分工与严格前置交付
+
+Owner 明确要求设置持续 goal，由 Root 带领 Luna Max subagents 按计划完成 DATA-02，
+完整退出后再完成 DATA-03；goal 已实际创建为 active。两位 Luna Max 分别负责互不重叠的
+C2/D1 Domain 与无数据库测试，Root 负责生产操作、交叉复核协调、共享投影/index/Git
+串行整合。没有新增 active 单元、恢复 deferred 事项，亦不把目标设置当作维护解除、
+容差例外、未知量纲或新增 TTL/开盘阶段的具体审批。
+
+本批完整小事项是两个可复用的严格前置，而非运行资格：
+
+- C2 `financial_next_session_availability` 以既有完整正式 calendar record/pointer 重验
+  current 身份、覆盖、知识时点与响应 TTL，从完整逐日快照重算严格下一开市日；正式阶段、
+  本地时刻、时区、原件 URI/SHA、规则版本和知识时钟必须显式提供。DST 缺口/歧义及直接
+  构造结果时跳过首个开市日均拒绝。输出固定 reference-only，不证明 DB/Audit/Owner
+  来源资格或历史 current，也不改写旧 matcher/witness/codec。
+- D1 `financial_numeric_evidence` 绑定 provider/dataset/metric/native field/unit/精确比例/
+  version/hash、原件 body SHA 与 native row id；保留有限精确十进制，拒绝 float、缺失、
+  derived、占位单位、Unicode 数字清洗和隐式舍入。极端 Decimal 指数及大整数在展开前
+  有界；比例结果为循环小数时阻断。输出固定 evidence-only，仍需独立原件重放、DB 目录
+  及精确 canonical 存储/读路径，不能用自报 `extra` 让四位小数事实通过 0/0。
+
+原生日历确认实际返回 `tui_session_auth_required`；随后经正常浏览器和现有凭据完成
+真实 admin 登录，不需要 Owner 手工登录。工作台及只读 scope 的实测阻断是
+`CALENDAR_CAPTURE_DATASET_MISSING`。四种日历目录历史均为零；目标生产镜像还没有
+本地已有的 `calendar_catalog_bootstrap` 模块，预览在导入阶段失败，不能登记成预演通过。
+没有将新源码临时塞入运行容器，也未以其他写接口绕过原生日历工作流。
+
+已生成明确的四表目录提案（3600 秒 TTL、100% 覆盖、不允许 partial、冲突阻断、仅参考）
+及原件摘要，尚未批准、初始化或激活。按配置规范的显式审批要求，已向 Owner 提出
+该具体提案及 09:15 集合竞价/09:30 连续竞价阶段选择；没有把等待时间当作答复。
+部署缺口须在精确候选完成 CI/S6、备份和 staging 后处理，再用正常会话继续采集。
+
+新的运维原件确认 worker/beat 使用下划线容器名且均在运行；不需重复启动，自然周期和
+自动续期仍未验收。manifest 路径确为空目录，尚未修复。资源与 Docker 版本只读快照
+已留存，不等于 Storage Budget、S6 或完整发布通过。当前三个核心 pointer 的六个可比
+身份字段与上次实测相同；旧投影没有 pointer PK，不声称比较了该字段。
+
+本批开发检查、交叉复核、候选身份及全部真实失败仍追加唯一验收索引的 `followups[2]`。
+后续依次完成 DB-owned 规则/数值目录、独立原件验证与精确 canonical 路径、C2 successor
+时间证据和消费者接线，再进入实际日历、E1 与完整 universe 对账。DATA-02/03 的原退出门
+与生产维护解除审批保持；未执行财务请求、回填、交易、账本写入或生产部署。

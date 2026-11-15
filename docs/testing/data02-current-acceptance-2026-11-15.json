@@ -1209,8 +1209,500 @@
       "production_claim": false,
       "data02_exit_met": false,
       "data03_started": false
+    },
+    {
+      "recorded_at_utc": "2026-11-15T18:21:43.776920+00:00",
+      "scope": "Root-led Luna Max C2/D1 reference-only Domain prerequisites and current operations discovery, under an actual persistent DATA02-then-DATA03 goal",
+      "goal_snapshot": {
+        "created_by_goal_tool": true,
+        "status_at_this_checkpoint": "active",
+        "data02_full_exit_before_data03": true,
+        "maintenance_removal_or_tolerance_exception_approved_by_goal": false
+      },
+      "candidate": {
+        "base_head": "fe886fedf0275d56a7a919e006a2b560575744f7",
+        "files_sha256": {
+          "apps/data_center/domain/financial_numeric_evidence.py": "ca504648256731d895a0550d3c10405d1b160468a732ee3bcdb46e1c76eaea53",
+          "apps/data_center/domain/financial_next_session_availability.py": "75ce68c16daac6bf91a8a7496b9a7e2454c4d08e6a8b42dd36d6ae6b80a9ea59",
+          "tests/unit/data_center/test_financial_numeric_evidence.py": "8f56db66872f0d1a347140620e2c1c3c863656f0e95a0cf4aa2789a0bc428443",
+          "tests/unit/data_center/test_financial_next_session_availability.py": "f2c86fbe22921979807f2ea28e81ce6cbc9458ae01ba2edde5fe3c771e7624c7",
+          "governance/module_map.json": "36e5c479eb7c7be97ffb8919230faaf940ad885e044a1782837f1aa435b7a507",
+          "governance/current_data_contracts.json": "ea33fb52512e36c8cbfb4cd23ee064252fe5026e581d48e70b5f209050fec263",
+          "governance/active_plan_registry.json": "d06cfbfd0a195d1ee5ac61da63871047d092711eb59197b0d8e0a39273b5df6f",
+          "pyproject.toml": "22e431a9126b689bd3e900798abb6f520965596c30e8cdae1935e892744d0350",
+          "pytest.ini": "e076f13aece73211a8d1a0188d787cd603e4ec39cf8522e616c8952901e391db"
+        },
+        "note": "Final source/test hashes match every completed root QA receipt; staged Git newline equivalence is added before commit.",
+        "staged_source_comparison": {
+          "apps/data_center/domain/financial_numeric_evidence.py": {
+            "as_tested_sha256": "ca504648256731d895a0550d3c10405d1b160468a732ee3bcdb46e1c76eaea53",
+            "staged_sha256": "ca504648256731d895a0550d3c10405d1b160468a732ee3bcdb46e1c76eaea53",
+            "only_git_newline_normalization": true,
+            "ast_equal": true
+          },
+          "apps/data_center/domain/financial_next_session_availability.py": {
+            "as_tested_sha256": "75ce68c16daac6bf91a8a7496b9a7e2454c4d08e6a8b42dd36d6ae6b80a9ea59",
+            "staged_sha256": "75ce68c16daac6bf91a8a7496b9a7e2454c4d08e6a8b42dd36d6ae6b80a9ea59",
+            "only_git_newline_normalization": true,
+            "ast_equal": true
+          },
+          "tests/unit/data_center/test_financial_numeric_evidence.py": {
+            "as_tested_sha256": "8f56db66872f0d1a347140620e2c1c3c863656f0e95a0cf4aa2789a0bc428443",
+            "staged_sha256": "8f56db66872f0d1a347140620e2c1c3c863656f0e95a0cf4aa2789a0bc428443",
+            "only_git_newline_normalization": true,
+            "ast_equal": true
+          },
+          "tests/unit/data_center/test_financial_next_session_availability.py": {
+            "as_tested_sha256": "f2c86fbe22921979807f2ea28e81ce6cbc9458ae01ba2edde5fe3c771e7624c7",
+            "staged_sha256": "f2c86fbe22921979807f2ea28e81ce6cbc9458ae01ba2edde5fe3c771e7624c7",
+            "only_git_newline_normalization": true,
+            "ast_equal": true
+          }
+        }
+      },
+      "local_validation": {
+        "checks": [
+          {
+            "name": "black",
+            "command": [
+              "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+              "-X",
+              "utf8",
+              "-m",
+              "black",
+              "--check",
+              "apps/data_center/domain/financial_numeric_evidence.py",
+              "apps/data_center/domain/financial_next_session_availability.py",
+              "tests/unit/data_center/test_financial_numeric_evidence.py",
+              "tests/unit/data_center/test_financial_next_session_availability.py"
+            ],
+            "started_at": "2026-11-15T18:12:28.805120+00:00",
+            "finished_at": "2026-11-15T18:12:30.176338+00:00",
+            "exit_code": 0,
+            "log": ".tmp\\data02-current-20261115\\20261116\\goal-prereqs-final-black.log",
+            "sha256": "ce29a48ef7d7d961badb0f7aec2eb4c319c19c85fc5e9b698ba6b9b4bec2d2c7"
+          },
+          {
+            "name": "isort",
+            "command": [
+              "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+              "-X",
+              "utf8",
+              "-m",
+              "isort",
+              "--check-only",
+              "apps/data_center/domain/financial_numeric_evidence.py",
+              "apps/data_center/domain/financial_next_session_availability.py",
+              "tests/unit/data_center/test_financial_numeric_evidence.py",
+              "tests/unit/data_center/test_financial_next_session_availability.py"
+            ],
+            "started_at": "2026-11-15T18:12:30.201595+00:00",
+            "finished_at": "2026-11-15T18:12:30.783917+00:00",
+            "exit_code": 0,
+            "log": ".tmp\\data02-current-20261115\\20261116\\goal-prereqs-final-isort.log",
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "name": "ruff",
+            "command": [
+              "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+              "-X",
+              "utf8",
+              "-m",
+              "ruff",
+              "check",
+              "apps/data_center/domain/financial_numeric_evidence.py",
+              "apps/data_center/domain/financial_next_session_availability.py",
+              "tests/unit/data_center/test_financial_numeric_evidence.py",
+              "tests/unit/data_center/test_financial_next_session_availability.py"
+            ],
+            "started_at": "2026-11-15T18:12:30.784973+00:00",
+            "finished_at": "2026-11-15T18:12:30.985682+00:00",
+            "exit_code": 0,
+            "log": ".tmp\\data02-current-20261115\\20261116\\goal-prereqs-final-ruff.log",
+            "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+          },
+          {
+            "name": "tests",
+            "command": [
+              "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+              "-X",
+              "utf8",
+              "-m",
+              "pytest",
+              "tests/unit/data_center/test_financial_numeric_evidence.py",
+              "tests/unit/data_center/test_financial_next_session_availability.py",
+              "tests/unit/data_center/test_numeric_tolerance.py",
+              "tests/unit/data_center/test_numeric_tolerance_v2.py",
+              "tests/unit/data_center/test_data02_publication_tolerance_evidence.py",
+              "tests/unit/data_center/test_data02_tolerance_v2_evidence.py",
+              "tests/unit/data_center/test_exchange_calendar_snapshot.py",
+              "tests/unit/data_center/test_calendar_publication_window.py",
+              "tests/unit/data_center/test_formal_exchange_calendar_publication.py",
+              "tests/unit/data_center/test_financial_source_time_evidence.py",
+              "-q",
+              "-o",
+              "cache_dir=D:\\githv\\agomTradePro\\.tmp\\data02-current-20261115\\20261116\\goal-pytest-cache",
+              "--cov=apps.data_center.domain.financial_numeric_evidence",
+              "--cov=apps.data_center.domain.financial_next_session_availability",
+              "--cov-report=term-missing",
+              "--cov-report=json:D:\\githv\\agomTradePro\\.tmp\\data02-current-20261115\\20261116\\goal-prereqs-final-coverage.json",
+              "--junitxml=D:\\githv\\agomTradePro\\.tmp\\data02-current-20261115\\20261116\\goal-prereqs-final-junit.xml"
+            ],
+            "started_at": "2026-11-15T18:12:31.981634+00:00",
+            "finished_at": "2026-11-15T18:13:03.233978+00:00",
+            "exit_code": 0,
+            "log": ".tmp\\data02-current-20261115\\20261116\\goal-prereqs-final-tests.log",
+            "sha256": "4d5da557d0375f08be255f0c5b8f95582268c11567386c91632131980588846e"
+          },
+          {
+            "name": "mypy",
+            "command": [
+              "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+              "-X",
+              "utf8",
+              "scripts/check_mypy_regression.py",
+              "apps/data_center/domain/financial_numeric_evidence.py",
+              "apps/data_center/domain/financial_next_session_availability.py"
+            ],
+            "started_at": "2026-11-15T18:12:32.005824+00:00",
+            "finished_at": "2026-11-15T18:12:48.316120+00:00",
+            "exit_code": 0,
+            "log": ".tmp\\data02-current-20261115\\20261116\\goal-prereqs-final-mypy.log",
+            "sha256": "5ba4fad13a81b04a0a55439e46f84ebb25f1dcefaf8a0f67d0e71ba1266e2e69"
+          },
+          {
+            "name": "debt",
+            "command": [
+              "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+              "-X",
+              "utf8",
+              "scripts/check_mypy_debt_ceiling.py"
+            ],
+            "started_at": "2026-11-15T18:12:48.317956+00:00",
+            "finished_at": "2026-11-15T18:16:56.177609+00:00",
+            "exit_code": 0,
+            "log": ".tmp\\data02-current-20261115\\20261116\\goal-prereqs-final-debt.log",
+            "sha256": "def6c561b37227470bcda90c8450d9837ca85dd34af34d05e7d6af2afdf85ab1"
+          },
+          {
+            "name": "architecture",
+            "command": [
+              "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+              "-X",
+              "utf8",
+              "scripts/check_architecture_delta.py",
+              "--base-ref",
+              "fe886fedf"
+            ],
+            "started_at": "2026-11-15T18:15:44.381525+00:00",
+            "finished_at": "2026-11-15T18:16:26.565876+00:00",
+            "exit_code": 0,
+            "log": ".tmp\\data02-current-20261115\\20261116\\goal-prereqs-final-architecture.log",
+            "sha256": "b05ba5799d6f030c52ba609c365205d8a9758b7585251f949efbf69b55b71d29",
+            "coverage_limitation": "abbreviated base ref resolved to the same HEAD; zero delta lines, not used to establish changed-source coverage; superseded by explicit scoped checks below"
+          },
+          {
+            "name": "module-build",
+            "command": [
+              "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+              "-X",
+              "utf8",
+              "scripts/build_module_map.py"
+            ],
+            "started_at": "2026-11-15T18:16:26.573831+00:00",
+            "finished_at": "2026-11-15T18:16:54.324363+00:00",
+            "exit_code": 0,
+            "log": ".tmp\\data02-current-20261115\\20261116\\goal-prereqs-final-module-build.log",
+            "sha256": "9f0b6e0bc5060c1f3cb1b97bb8401a0a428193c67fcf976a694b23836eb7af4c"
+          },
+          {
+            "name": "module-check",
+            "command": [
+              "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+              "-X",
+              "utf8",
+              "scripts/check_module_map.py"
+            ],
+            "started_at": "2026-11-15T18:16:54.334721+00:00",
+            "finished_at": "2026-11-15T18:17:21.028553+00:00",
+            "exit_code": 0,
+            "log": ".tmp\\data02-current-20261115\\20261116\\goal-prereqs-final-module-check.log",
+            "sha256": "50ba91f9d0e2baa1aeda94701d7695e45116e1326f5651784377318792b43759"
+          },
+          {
+            "name": "current",
+            "command": [
+              "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+              "-X",
+              "utf8",
+              "scripts/check_current_data_contracts.py"
+            ],
+            "started_at": "2026-11-15T18:17:21.031007+00:00",
+            "finished_at": "2026-11-15T18:17:54.913295+00:00",
+            "exit_code": 0,
+            "log": ".tmp\\data02-current-20261115\\20261116\\goal-prereqs-final-current.log",
+            "sha256": "cdc66d749ecf996bcca4ed722699f2e7fcb31846c37c8c5149568ad70bc84e73"
+          },
+          {
+            "name": "governance",
+            "command": [
+              "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+              "-X",
+              "utf8",
+              "scripts/check_governance_consistency.py"
+            ],
+            "started_at": "2026-11-15T18:17:54.920009+00:00",
+            "finished_at": "2026-11-15T18:18:17.854031+00:00",
+            "exit_code": 0,
+            "log": ".tmp\\data02-current-20261115\\20261116\\goal-prereqs-final-governance.log",
+            "sha256": "50824cda33db620929040684fffe76d54284292edfd06fd75b4dedc034571c6b"
+          },
+          {
+            "name": "architecture-working-tree",
+            "command": [
+              "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+              "-X",
+              "utf8",
+              "scripts/check_architecture_delta.py",
+              "--include-audit",
+              "--fail-on-audit-violations"
+            ],
+            "exit_code": 0,
+            "started_at": "2026-11-15T18:18:00.906207+00:00",
+            "finished_at": "2026-11-15T18:18:48.245900+00:00",
+            "log": ".tmp/data02-current-20261115/20261116/goal-prereqs-final-architecture-working-tree.log",
+            "sha256": "f10239e7a4a3726d1a801f3a5039e87018a702797291d8dd859f4f90d6721e52"
+          },
+          {
+            "name": "architecture-committed-stack",
+            "command": [
+              "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+              "-X",
+              "utf8",
+              "scripts/check_architecture_delta.py",
+              "--base-ref",
+              "689f5f1b3b5e37277641ac2c25a2860447d7035c",
+              "--head-ref",
+              "fe886fedf0275d56a7a919e006a2b560575744f7",
+              "--include-audit",
+              "--fail-on-audit-violations"
+            ],
+            "exit_code": 0,
+            "started_at": "2026-11-15T18:18:48.254333+00:00",
+            "finished_at": "2026-11-15T18:19:33.710329+00:00",
+            "log": ".tmp/data02-current-20261115/20261116/goal-prereqs-final-architecture-committed-stack.log",
+            "sha256": "3253836ff75490ef0e9bc1778dac3c76ebefc5146287fa60f852b0f2192d68af"
+          }
+        ],
+        "cohort_test_files": 10,
+        "tests_passed": 297,
+        "new_tests_passed": 84,
+        "per_module_combined_coverage_percent": {
+          "financial_next_session_availability": 96.7,
+          "financial_numeric_evidence": 99.1
+        },
+        "total_combined_coverage_percent": 97.7,
+        "mypy_incremental_regressions": 0,
+        "full_mypy_debt_errors": 0,
+        "debt_baseline_raised": false,
+        "environment": {
+          "python": "3.13.5",
+          "django": "5.2.12",
+          "pytest": "8.3.4",
+          "mypy": "1.14.1",
+          "ruff": "0.16.3"
+        },
+        "architecture_source_coverage": {
+          "new_working_source_files": 2,
+          "new_source_added_lines": 892,
+          "prior_committed_stack_source_files": 4,
+          "prior_committed_stack_added_lines": 374,
+          "include_audit": true,
+          "violations": 0
+        },
+        "independent_cross_reviews": [
+          {
+            "reviewer": "/root/luna_max_d1_precision",
+            "target": "C2 reference resolver and tests",
+            "result": "no substantive defects; strict next open including direct result construction, knowledge/current pointer/TTL, explicit phase and DST checked; no test runs or source writes"
+          },
+          {
+            "reviewer": "/root/luna_max_data02",
+            "target": "D1 exact native numeric proof and tests",
+            "result": "no substantive defects; bounded pre-format guards, exact Fraction scaling, complete hashes and non-authorizing limits checked; no test runs or source writes"
+          }
+        ],
+        "post_index_governance_check": {
+          "command": "python scripts/check_governance_consistency.py",
+          "exit_code": 0,
+          "log": ".tmp/data02-current-20261115/20261116/goal-prereqs-final-post-index-governance.log",
+          "sha256": "50824cda33db620929040684fffe76d54284292edfd06fd75b4dedc034571c6b"
+        }
+      },
+      "native_calendar_followup": {
+        "confirmation_resume": "tui_session_auth_required /403; token omitted from retained response",
+        "real_browser_login": "succeeded as existing admin through actual login form; no credentials or storage state exported",
+        "real_scope_block": "CALENDAR_CAPTURE_DATASET_MISSING",
+        "catalog_history_counts": {
+          "contracts": 0,
+          "bindings": 0,
+          "policies": 0,
+          "owners": 0
+        },
+        "bootstrap_preview": {
+          "transport_exit": 0,
+          "application_exit": 1,
+          "error": "ModuleNotFoundError: apps.data_center.application.calendar_catalog_bootstrap",
+          "write_stage_entered": false,
+          "successful_dry_run": false
+        },
+        "catalog_proposal": {
+          "path": ".tmp/data02-current-20261115/20261116/c2-catalog-candidate-unapproved.json",
+          "sha256": "bd2b2df4b29e601a0c22822286f527a08161c1a718fcaf3d27fc5ce0f7bc248e"
+        },
+        "concrete_catalog_approved": false,
+        "explicit_phase_approved": false,
+        "capture_executed": false,
+        "publication_activated": false,
+        "browser_completion": "Context closed; owned lingering input helper terminated after its child browser processes had exited",
+        "user_login_action_needed": false
+      },
+      "runtime_read_only_snapshot": {
+        "core_pointer_comparable_identity_fields_unchanged": true,
+        "core_pointer_count": 3,
+        "pointer_pk_not_available_in_prior_projection": true,
+        "worker_and_beat_running": true,
+        "natural_scheduler_cycles_verified": false,
+        "automatic_audit_renewal_verified": false,
+        "manifest_path_is_empty_directory": true,
+        "manifest_repaired": false,
+        "docker_client_server_version": "29.8.2",
+        "disk_used_ratio": 0.6049,
+        "free_gib": 56.98,
+        "database_gib": 3.5,
+        "resource_snapshot_is_not_storage_or_release_qualification": true,
+        "audit_lease_basis": "followups[0] actual restored-lease proof; no new lease verification or authority issuance in this step"
+      },
+      "implementation_boundaries": [
+        "C2 resolver consumes typed structural references, cannot prove DB/Owner/Audit or historical pointer; no opening exception catalog query; old matcher/witness/codec/consumers unchanged",
+        "D1 proof does not independently verify body/row membership, register a DB catalog, preserve precision in existing 4dp FinancialFact.value or qualify any production matrix",
+        "Source units for LIABILITY and derived asset/equity values remain unresolved; no rounding exception approved",
+        "Specific calendar TTL/policy bundle and 09:15 versus09:30 phase await Owner response; missing deployed bootstrap requires exact candidate release first"
+      ],
+      "raw_artifacts": [
+        {
+          "path": ".tmp/data02-current-20261115/20261116/native-calendar-resume-redacted.json",
+          "sha256": "bc3776516a423973052118a43f80aece0f0230ecb7f286e3cd7d751441f4d3e6"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/pw-open-cached.log",
+          "sha256": "e6c2002fa85c345a3c36650c7c8914c3fdf37cc4886823897d98ce074d20057e"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/pw-login.log",
+          "sha256": "06e183e8b16853256f37ae245144fa6695cab9689580c0a6b6eeb1591282a184"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/calendar-browser-4.snapshot.yml",
+          "sha256": "792600fe956432338bd1b461f00bd6971e520abf2ab88e1517b29c5c2dd01d28"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/calendar-browser-7.snapshot.yml",
+          "sha256": "7e1e8ae4c8bd4062036183e5525ef707e904adec2f02f1b8f722b629b8c04666"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/calendar-browser-owned-process-cleanup.json",
+          "sha256": "f04990def8e75db1b196d77fd2ba53065d61c69d30168cbb6a219d0eca65d7e7"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/c2_catalog_preview.py.stdout",
+          "sha256": "faac59fb4f2cb0d8188e377400c074977413e7d6d4aa24cb7ead553c8d673997"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/c2_catalog_preview.py.receipt.json",
+          "sha256": "88aaf2df6e67799ebfc62cc28dc9ea5431367198ac15968d46d8aed16df52dd4"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/c2_catalog_state_probe.py.stdout",
+          "sha256": "b36b6c7dd3bb40b5ff0c94b26f81db394a5dd2834265de595e9e23bfd7d772ce"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/c2-catalog-candidate-unapproved.json",
+          "sha256": "bd2b2df4b29e601a0c22822286f527a08161c1a718fcaf3d27fc5ce0f7bc248e"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/c2-core-pointer-no-change-check.json",
+          "sha256": "01110f6c3d1d79b7b217f65d10380d7b1080c91c858b9cb1adcc2ab4065582d3"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/deploy_resource_read_probe.py.stdout",
+          "sha256": "63b83dba7178aff69825173d1898b63921b34dfc8647cbba569fdbc8cdaefe1f"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/deploy_engine_read_probe.py.stdout",
+          "sha256": "c6f6afb85bcde5f186e36e35075ddb672ccbdf4b56e8ad11ec53b7244faab9fb"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/goal-git-fetch.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/github-workflows.json",
+          "sha256": "53704ec0b8cb7835208aa64ed8b5540b0e77b6ff099766a84b218d1154ee4e59"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/goal-prereqs-final-junit.xml",
+          "sha256": "1b82bc0cb60da6f8e00d710996d7a91f4b114315a89784690382caa4549b4a33"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/goal-prereqs-final-coverage.json",
+          "sha256": "711564e20a291490a784100e2b7fa98f4722f0e903959106b314d543e5bf23b1"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/luna-c2-resolver/red.log",
+          "sha256": "3e47659d58b05b94449b6252c096745b69de748bb83b023abf651ba48da3889b"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/luna-c2-resolver/tests.log",
+          "sha256": "2e102f04ccaeaf7f54a9bc12b7fbc657b893a4a1bf7b24b6b7af63a31865b9c3"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/luna-c2-resolver/tests-final.log",
+          "sha256": "a6200f45bf57c50b63bcd2a8e594fb4c538842d94e6910fc55ad96e379e37b96"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/luna-d1-numeric/red-import.log",
+          "sha256": "44833f237443d6c8ebca80c78eb85a1068ecb0c7db905bb1e378f8f372bc6c8b"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/luna-d1-numeric/green-tests.log",
+          "sha256": "63b7a20944e634efaa6c22a0330eb8b554cde626abc949cc05f3a89e0ece85b1"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/luna-d1-numeric/green-tests-r5.log",
+          "sha256": "2c863c115210961e908e9a404931d16b41d840624c3715b3fb48b4a98a1d82de"
+        }
+      ],
+      "raw_helper_limitations": [
+        "Initial browser helper module-path failure occurred before login and was corrected; full initial helper stdout exists only in tool history",
+        "Initial local Application-bundle import was unconfigured and failed AppRegistryNotReady before candidate creation; corrected proposal uses only Domain types; full original output was not saved locally",
+        "Initial pointer comparison used incompatible projection keys and failed KeyError; corrected check compares six explicit identity fields, with timestamps normalized only for representation"
+      ],
+      "financial_provider_requests": 0,
+      "financial_fact_or_publication_writes": 0,
+      "calendar_capture_or_publication_writes": 0,
+      "authentication_session_created": true,
+      "audit_token_or_login_state_mutations_not_claimed_zero": true,
+      "trades_or_ledger_writes": false,
+      "production_deployment": false,
+      "production_claim": false,
+      "data02_exit_met": false,
+      "data03_started": false,
+      "remaining": "DB-owned exact source/rule catalogs and independently verified canonical numeric path; qualified calendar and opening-rule binding, successor source-time witness/matcher/codec and decision consumers; same exact candidate CI/S6/backup/staging; E1 then full-universe DATA02 reconciliation; DATA03 cutover/observation/maintenance approval only after DATA02 exit."
     }
   ],
   "current_authority_followup": "followups[0] (2026-11-16); original 2026-11-15 snapshots remain historical",
-  "current_d1_c2_followup": "followups[1] (2026-11-16); original snapshots and all intermediate failures remain historical"
+  "current_d1_c2_followup": "followups[1] (2026-11-16); original snapshots and all intermediate failures remain historical",
+  "current_goal_followup": "followups[2] (2026-11-16); goal remains active and DATA03 dependency is unchanged"
 }

@@ -6557,7 +6557,9 @@
         "apps/data_center/application/publication_activation.py",
         "core/integration/production_account_authority_capture.py",
         "apps/data_center/application/m1_reference_price_batch_publication.py",
-        "apps/data_center/infrastructure/m1_reference_price_batch_publication_audit.py"
+        "apps/data_center/infrastructure/m1_reference_price_batch_publication_audit.py",
+        "apps/data_center/domain/financial_numeric_evidence.py",
+        "apps/data_center/domain/financial_next_session_availability.py"
       ],
       "required_markers": {
         "apps/data_center/application/current_fact_remediation.py": [
@@ -7415,6 +7417,23 @@
           "class M1ReferencePriceBatchPublicationAuditWriter",
           "publication.member_count",
           "manifest.raw_audits"
+        ],
+        "apps/data_center/domain/financial_numeric_evidence.py": [
+          "class FinancialMetricSourceContract:",
+          "class NativeFinancialMetricObservation:",
+          "Fraction(Decimal(source_value))",
+          "\"evidence_only\": True",
+          "\"production_ready\": False",
+          "\"must_not_use_for_decision\": True"
+        ],
+        "apps/data_center/domain/financial_next_session_availability.py": [
+          "class ExchangeSessionOpeningRule:",
+          "class FinancialNextSessionAvailability:",
+          "def resolve_financial_next_session_availability(",
+          "validate_current_calendar_publication(",
+          "expected_session = next_exchange_calendar_session(",
+          "\"reference_only\": True",
+          "\"must_not_use_for_decision\": True"
         ]
       },
       "required_tests": [
@@ -8722,6 +8741,31 @@
           "case": "numeric_v2_same_source_units_and_coverage",
           "test_file": "tests/unit/data_center/test_data02_tolerance_v2_evidence.py",
           "test_function": "test_v2_does_not_relax_source_metric_unit_or_complete_member_coverage"
+        },
+        {
+          "case": "financial_native_exact_numeric_source_precision",
+          "test_file": "tests/unit/data_center/test_financial_numeric_evidence.py",
+          "test_function": "test_observation_preserves_exact_native_decimal_and_exact_scale"
+        },
+        {
+          "case": "financial_native_exact_nonterminating_scale_block",
+          "test_file": "tests/unit/data_center/test_financial_numeric_evidence.py",
+          "test_function": "test_observation_rejects_a_nonterminating_decimal_scale_instead_of_rounding"
+        },
+        {
+          "case": "financial_next_session_reference_only_identity",
+          "test_file": "tests/unit/data_center/test_financial_next_session_availability.py",
+          "test_function": "test_resolves_next_open_session_and_returns_only_reference_binding"
+        },
+        {
+          "case": "financial_next_session_exact_result_revalidation",
+          "test_file": "tests/unit/data_center/test_financial_next_session_availability.py",
+          "test_function": "test_result_revalidates_the_exact_next_open_date_and_calendar_window"
+        },
+        {
+          "case": "financial_next_session_no_clock_default",
+          "test_file": "tests/unit/data_center/test_financial_next_session_availability.py",
+          "test_function": "test_phase_is_required_and_never_defaults_to_a_market_clock"
         }
       ]
     },
