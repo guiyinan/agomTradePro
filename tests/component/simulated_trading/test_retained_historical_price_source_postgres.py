@@ -161,7 +161,10 @@ def _read_only_effects(world: OwnerWorkflowNativeWorld) -> tuple[object, ...]:
         _model_rows(SimulatedOrderFillReceiptModel, reservation__account_id=account_id),
         _model_rows(CorporateActionPostingModel, account_id=account_id),
         _model_rows(CorporateActionTaxAssessmentHeaderModel, account_id=account_id),
-        _model_rows(CorporateActionTaxAssessmentAllocationModel, account_id=account_id),
+        _model_rows(
+            CorporateActionTaxAssessmentAllocationModel,
+            assessment__account_id=account_id,
+        ),
         _model_rows(CorporateActionTaxLiabilityOperationModel, account_id=account_id),
     )
     return (

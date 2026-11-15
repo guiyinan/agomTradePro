@@ -216,6 +216,12 @@ def _assert_raw_source_selections(
         assert fact.source_observed_at is None
         evidence.activation.pair.verify_at_cutoff(as_of=cutoff)
 
+    # Owner refresh may replace the test operator's runtime profile. Activate
+    # the independent NAV-only policy after that refresh before checking current.
+    owner_nav._activate_raw_mark_policy(
+        world=world,
+        publication_key=M1_REBALANCE_REFERENCE_PUBLICATION_KEY,
+    )
     mark = build_corporate_action_nav_raw_mark_reader(
         runtime_environment="development",
         calendar_dataset_key=world.calendar_dataset_key,
@@ -272,6 +278,10 @@ def _read_reference_row(
     world: OwnerWorkflowNativeWorld, *, latest_closed: date
 ) -> dict[str, object]:
     """Read the owner endpoint and require the display read to remain side-effect free."""
+    owner_nav._activate_raw_mark_policy(
+        world=world,
+        publication_key=M1_REBALANCE_REFERENCE_PUBLICATION_KEY,
+    )
     before = retained_prices._read_only_effects(world)
     payload = owner_workflow._read(
         world.owner.client,

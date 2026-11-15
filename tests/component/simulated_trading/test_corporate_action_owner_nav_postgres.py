@@ -690,11 +690,11 @@ def test_owner_nav_requires_current_raw_close_policy_and_full_tax_coverage(
         assert legacy_position.current_price is not None
         assert before_policy.get("must_not_use_for_decision") is True
 
+        _refresh(world)
         _activate_raw_mark_policy(
             world=world,
             publication_key=M1_REBALANCE_REFERENCE_PUBLICATION_KEY,
         )
-        _refresh(world)
         recognized = _read(world)
         assert recognized.get("tax_coverage_status") == "complete"
         assert _amount(recognized, "tax_payable") > 0
@@ -717,6 +717,10 @@ def test_owner_nav_requires_current_raw_close_policy_and_full_tax_coverage(
             settlement_date=world.settlement_date,
         )
         _refresh(world)
+        _activate_raw_mark_policy(
+            world=world,
+            publication_key=M1_REBALANCE_REFERENCE_PUBLICATION_KEY,
+        )
         collected = _read(world)
         assert collected.get("tax_coverage_status") == "complete"
         assert _amount(collected, "tax_payable") == Decimal("0.00")
@@ -727,11 +731,11 @@ def test_owner_nav_requires_current_raw_close_policy_and_full_tax_coverage(
         )
         assert nav_after_collect == nav_before_collect
 
+        _refresh(world)
         _activate_raw_mark_policy(
             world=world,
             publication_key=f"ash05-no-current-price-publication-{uuid4().hex}",
         )
-        _refresh(world)
         missing_source = _read(world)
         assert missing_source.get("tax_coverage_status") == "complete"
         assert type(missing_source.get("book_cash")) is str

@@ -894,7 +894,8 @@
         const pageCount = serverPaged
             ? Math.max(1, Number(pager.total_pages || Math.ceil(Number(pager.total_rows || sourceRows.length) / pageSize)))
             : Math.max(1, Math.ceil(sourceRows.length / pageSize));
-        paging.page = Math.min(Math.max(1, Number(serverPaged ? pager.page || paging.page : paging.page)), pageCount);
+        const requestedPage = Number((serverPaged ? pager.page || paging.page : paging.page) || 1);
+        paging.page = Math.min(Math.max(1, Number.isFinite(requestedPage) ? requestedPage : 1), pageCount);
         paging.size = pageSize;
         paging.pager = pager;
         panelPages[panel.key] = paging;

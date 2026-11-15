@@ -6927,15 +6927,21 @@ test("dashboard panels expose a native package download link", async () => {
 });
 
 
-test("immersive dashboard header opens an explicit support task in a modal", async () => {
+for (const kind of ["detail", "datagrid"]) {
+test(`immersive dashboard header renders its ${kind} result in the selected panel`, async () => {
     const config = structuredClone(editableDashboardScreen);
     config.screen.chrome_mode = "immersive";
+    const targetPanel = config.screen.dashboard_panels.find(panel => panel.key === "lookup-user");
+    targetPanel.kind = kind;
+    targetPanel.columns = [{ key: "user_id", label: "用户" }, { key: "title", label: "事项" }];
     config.actions.find(item => item.key === "test.lookup-user").task_tier = "support";
     const { browser, page } = await openHarness("https://app.test/?screen=test.edit-dashboard", {
         waitForInitialRows: false, editableDashboardScreen: config,
         actionRunMock: async ({ actionKey }) => actionKey === "test.lookup-user" ? {
             action: config.actions.find(item => item.key === actionKey),
-            view_model: { kind: "detail", title: "查询结果", status: "完成", fields: [{ key: "user_id", label: "用户", value: "42" }] },
+            view_model: kind === "detail"
+                ? { kind, title: "查询结果", status: "完成", fields: [{ key: "user_id", label: "用户", value: "42" }] }
+                : { kind, title: "事项列表", status: "已读取", columns: targetPanel.columns, rows: [{ user_id: "42", title: "Synthetic owner event" }] },
         } : null,
     });
     let reads = 0;
@@ -6952,7 +6958,52 @@ test("immersive dashboard header opens an explicit support task in a modal", asy
         await form.locator('button[type="submit"]').click();
         await page.waitForFunction(() => document.querySelector('[data-dashboard-panel="lookup-user"]')?.textContent.includes('42'));
         assert.equal(reads, 1);
+        if (kind === "datagrid") {
+            await page.locator('[data-dashboard-panel="lookup-user"] tbody tr').filter({ hasText: "Synthetic owner event" }).waitFor({ state: "visible" });
+        }
     } finally {
         await browser.close();
     }
+});
+}
+
+test("published corporate-action event header renders its retained rows and prepare action", async () => {
+    const graph = JSON.parse(await readFile(resolve(root, "config/tui/published/tui_operation_graph.published.json"), "utf8"));
+    const screenSpec = { ...graph.screens.find(item => item.key === "execution.corporate-actions"), status: "online" };
+    const screenActions = graph.actions.filter(item => item.screen_key === screenSpec.key)
+        .map(item => ({ ...item, method: item.fields.some(field => field.binding === "body") ? "POST" : "GET", risk: item.confirmation_required ? "write" : "read" }));
+    const eventAction = screenActions.find(item => item.key === "simulated-trading.corporate-action-workflow-events");
+    const testCatalog = structuredClone(catalog);
+    testCatalog.default_screen = screenSpec.key;
+    testCatalog.groups[0].key = screenSpec.group;
+    testCatalog.groups[0].modules[0].key = screenSpec.module_key;
+    testCatalog.groups[0].modules[0].screens = [{ key: screenSpec.key, label: screenSpec.label }];
+    const panelSpec = screenSpec.dashboard_panels.find(item => item.key === "corporate-action-workflow-events");
+    const { browser, page, browserErrors } = await openHarness(`https://app.test/?screen=${screenSpec.key}`, {
+        catalog: testCatalog,
+        dashboardScreen: { module: { key: screenSpec.module_key }, screen: screenSpec, actions: screenActions },
+        waitForInitialRows: false,
+        actionRunMock: ({ actionKey }) => actionKey === eventAction.key ? {
+            action: eventAction, outcome: "success", response: { status_code: 200 },
+            view_model: {
+                kind: "datagrid", status: "已读取", columns: panelSpec.columns,
+                blocking_reason: "余额与回执请单独读取", rows: [{
+                    account_id: "42", event_id: "synthetic-source-event", asset_code: "000001.SZ",
+                    title: "平安银行：2026年度权益分派实施公告", status: "待核对原文与当前窗口",
+                }], pager: { client_side: true, page: 1, page_size: 20, total_rows: 1 },
+            },
+        } : null,
+    });
+    try {
+        const panel = page.locator('[data-dashboard-panel="corporate-action-workflow-events"]');
+        assert.deepEqual(browserErrors, []);
+        await panel.locator('button.tui-dashboard-open').click();
+        const form = page.locator(`[data-tui-modal] form[data-action-ui-key="${eventAction.key}"]`);
+        await form.locator('[name="account_id"]').fill("42");
+        await form.locator('.tui-action-submit').click();
+        const row = panel.locator('tbody tr').filter({ hasText: "平安银行：2026年度权益分派实施公告" });
+        await row.waitFor({ state: "visible" });
+        assert.equal(await row.locator('[data-row-action-key="simulated-trading.corporate-action-workflow-prepare"]').count(), 1);
+        assert.deepEqual(browserErrors, []);
+    } finally { await browser.close(); }
 });

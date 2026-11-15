@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
 import os
@@ -35,6 +36,7 @@ from tests.component.simulated_trading.test_corporate_action_owner_workflow_http
     _WORKFLOW_URLCONF,
     _business_effect_counts,
 )
+from tests.playwright.runtime_compatibility import ensure_subprocess_event_loop_policy
 from tests.support.account_authority_generation_flush import (
     preserve_account_authority_generation as preserve_account_authority_generation,
 )
@@ -86,14 +88,20 @@ _EXPECTED_EFFECTS = {
 
 @pytest.fixture(autouse=True)
 def _loopback_http_browser_settings() -> Iterator[None]:
-    """Keep real Session/CSRF checks while allowing the isolated HTTP browser socket."""
-    with override_settings(
-        ALLOWED_HOSTS=["127.0.0.1", "localhost", "testserver"],
-        CSRF_COOKIE_SECURE=False,
-        SECURE_SSL_REDIRECT=False,
-        SESSION_COOKIE_SECURE=False,
-    ):
-        yield
+    """Keep real Session/CSRF checks and the repository's subprocess-capable browser loop."""
+    original_policy = asyncio.get_event_loop_policy()
+    changed = ensure_subprocess_event_loop_policy()
+    try:
+        with override_settings(
+            ALLOWED_HOSTS=["127.0.0.1", "localhost", "testserver"],
+            CSRF_COOKIE_SECURE=False,
+            SECURE_SSL_REDIRECT=False,
+            SESSION_COOKIE_SECURE=False,
+        ):
+            yield
+    finally:
+        if changed:
+            asyncio.set_event_loop_policy(original_policy)
 
 
 @contextmanager
@@ -481,6 +489,13 @@ def _load_event_row(page: Any, world: OwnerWorkflowNativeWorld) -> str:
     view_model = result.get("view_model")
     if not (isinstance(view_model, dict) and view_model.get("status") == "已读取"):
         raise AssertionError("the event listing did not return its visible read result")
+    if view_model.get("kind") != "datagrid":
+        raise AssertionError("the event listing did not project a datagrid")
+    rows = view_model.get("rows")
+    if not isinstance(rows, list) or not any(
+        isinstance(row, dict) and row.get("title") == world.capture.title for row in rows
+    ):
+        raise AssertionError("the event listing omitted the retained owner event row")
     event_panel = _workflow_result_container(page, "corporate-action-workflow-events")
     event_row = event_panel.locator("tbody tr").filter(has_text=world.capture.title)
     expect(event_row).to_have_count(1, timeout=180_000)
