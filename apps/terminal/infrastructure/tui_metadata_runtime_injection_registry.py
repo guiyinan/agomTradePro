@@ -130,6 +130,10 @@ from .tui_metadata_runtime_injection_identity_access import (
     RUNTIME_MCP_SELF_SERVICE_SCREEN,
     RUNTIME_USER_ACCESS_GOVERNANCE_SCREEN,
 )
+from .tui_metadata_runtime_injection_institutional_calendar import (
+    RUNTIME_INSTITUTIONAL_CALENDAR_ACTION,
+    RUNTIME_INSTITUTIONAL_CALENDAR_SCREEN,
+)
 from .tui_metadata_runtime_injection_macro_regime_analytics import (
     RUNTIME_MACRO_REGIME_ANALYTICS_ACTIONS,
 )
@@ -519,6 +523,11 @@ _LEGACY_RUNTIME_METADATA_INJECTIONS: tuple[RuntimeMetadataInjectionBundle, ...] 
         coverage_key="runtime_injected_equity_research_task_metadata",
         screens=(RUNTIME_EQUITY_RESEARCH_TASK_SCREEN,),
         actions=(RUNTIME_EQUITY_RESEARCH_TASK_ACTION,),
+    ),
+    RuntimeMetadataInjectionBundle(
+        coverage_key="runtime_injected_institutional_calendar_metadata",
+        screens=(RUNTIME_INSTITUTIONAL_CALENDAR_SCREEN,),
+        actions=(RUNTIME_INSTITUTIONAL_CALENDAR_ACTION,),
     ),
     RuntimeMetadataInjectionBundle(
         coverage_key="runtime_injected_equity_screen_metadata",

@@ -3211,6 +3211,132 @@
       ]
     },
     {
+      "key": "research.institutional-calendar",
+      "label": "机构日历研究",
+      "module_key": "investment-research",
+      "group": "research",
+      "audience": "authenticated",
+      "summary": "按明确日期与知识口径核对机构事件、来源时间、研究缺口和六候窗口。",
+      "view_type": "datagrid",
+      "status": "online",
+      "entry_mode": "dashboard",
+      "chrome_mode": "immersive",
+      "dashboard_layout": "task_flow",
+      "default_action_key": "data-center.institutional-calendar-read",
+      "user_experience": {
+        "journey": "workspace",
+        "primary_task": "用明确日期范围、UTC 知识截止时间和知识口径查阅机构日历。",
+        "primary_outcome": "同时核对事件原文、来源状态、研究缺口和规则派生的六候窗口。",
+        "empty_state_hint": "先填写日期范围、带时区的 UTC 知识截止时间和知识口径，再显式查询。",
+        "next_step_hint": "核对每条来源与修订；未来日程保持暂定，缺少原件时保留缺口。"
+      },
+      "business_context": {
+        "objective": "提供带来源时间和知识口径的机构事件研究资料。",
+        "decision_output": "可复核的原件线索、事件状态、研究缺口和自然日窗口。",
+        "checkpoints": [
+          "明确查询日期范围和 UTC 知识截止时间。",
+          "区分系统当时已知与市场当时可得。",
+          "逐项核对原文、来源时间、修订与未覆盖类别。",
+          "未来日程仅为暂定；无记录不代表没有事项。"
+        ]
+      },
+      "sources": [
+        "research.institutional-calendar"
+      ],
+      "dashboard_panels": [
+        {
+          "key": "institutional-calendar-boundary",
+          "title": "研究状态与用途边界",
+          "kind": "detail",
+          "user_priority": "p0",
+          "presentation_semantic": "primary_status",
+          "target_screen": "research.institutional-calendar",
+          "layout_area": "research-boundary",
+          "empty_message": "未来日程可能只是暂定；只有核对可验证的正式原件后才可确认。当前研究尚未完成，结果仅供参考，不用于投资或交易决策。未覆盖类别会明确列为缺口；缺少记录不等于没有事项。",
+          "columns": []
+        },
+        {
+          "key": "institutional-calendar-rows",
+          "title": "机构事件、来源状态与六候窗口",
+          "kind": "datagrid",
+          "action_key": "data-center.institutional-calendar-read",
+          "user_priority": "p0",
+          "presentation_semantic": "primary_list",
+          "layout_area": "calendar-results",
+          "max_rows": 20,
+          "empty_message": "请先填写日期范围、带时区的 UTC 知识截止时间和知识口径；无记录不表示没有事项。",
+          "error_message": "机构日历暂不可用；请检查输入与来源覆盖后重试。",
+          "stale_message": "当前研究材料可能已变化，请重新查询并核对原文与来源时间。",
+          "columns": [
+            {
+              "key": "row_kind",
+              "label": "记录类型"
+            },
+            {
+              "key": "event_on",
+              "label": "日期"
+            },
+            {
+              "key": "end_date",
+              "label": "结束日期"
+            },
+            {
+              "key": "title",
+              "label": "事项"
+            },
+            {
+              "key": "evidence_label",
+              "label": "证据等级"
+            },
+            {
+              "key": "lifecycle_label",
+              "label": "生命周期"
+            },
+            {
+              "key": "source_status",
+              "label": "来源状态与缺口"
+            },
+            {
+              "key": "source_url",
+              "label": "原文链接"
+            },
+            {
+              "key": "attribution",
+              "label": "来源归属"
+            },
+            {
+              "key": "source_published_at",
+              "label": "官方标注发布时间"
+            },
+            {
+              "key": "first_seen_at",
+              "label": "系统首次取得原文时间"
+            },
+            {
+              "key": "recorded_at",
+              "label": "本版本实际入库时间"
+            },
+            {
+              "key": "known_at",
+              "label": "知识截止时间"
+            },
+            {
+              "key": "knowledge_mode",
+              "label": "知识口径"
+            },
+            {
+              "key": "revision",
+              "label": "修订"
+            },
+            {
+              "key": "research_status",
+              "label": "研究状态"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "key": "task.today-focus",
       "label": "今日关注",
       "module_key": "daily-decisions",

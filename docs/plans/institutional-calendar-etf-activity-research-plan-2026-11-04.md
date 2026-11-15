@@ -545,3 +545,34 @@ Owner 授权继续在既有 `.tmp/cal02-calendar-contract-20261111` 准备一个
 本批不接 ORM、模型/迁移、Provider 网络、current/latest 捷径、TUI runtime 或重 QA，不写共享 Git/index，不启动 CAL-03。Root 后续在串行窗口负责正式采用、持久化、公开组合、模块图投影及真实用户验收；CAL-02 保持 `planned`，本准备完成不等于 M1 或整单元关闭。
 
 完成交接：查询用例 18 项测试及日历/解析/查询聚焦套件 53 项均通过，Domain 覆盖率 97.48%；Black、isort、Ruff 和新增生产文件增量 mypy 零回归。初始缺少模块的 RED 与格式失败原件保留，最终日志为 `.tmp/cal02-query-style-final.log`、`.tmp/cal02-query-mypy-final.log` 和 `.tmp/cal02-query-focused-final.log`。两个新增文件与前置契约/解析文件已一并进入正式候选，隔离准备项关闭；正式提交身份以本次 Git 提交为准。
+
+
+### 13.11 CAL-02 制度事件版本持久化隔离准备（2026-11-13）
+
+Owner 授权从正式 HEAD `2744ebc93f0d19ecd58509e5dda57808259075f4` 创建 `.tmp/cal02-persistence-20261113`，只准备 `apps/data_center/infrastructure/institutional_calendar_models.py`、`institutional_calendar_repository.py`、`apps/data_center/migrations/0113_institutional_calendar.py`、`tests/component/data_center/test_institutional_calendar_repository.py`，以及 `apps/data_center/infrastructure/models.py` 的模型注册导入。存储覆盖事件版本、原件 SHA-256、修订/取消、精确版本与全版本读取；实现既有两个读取 Port、幂等重放、冲突/缺号/ supersession 拒绝和更新/删除保护，并以独立迁移 SQLite 验证取消及 PIT 查询。
+
+本批不重复存储 RawPayload JSON 无法无损表达的 HTML 原件，不据此宣称原件字节或原生 PostgreSQL 资格已完成；不接 Provider 网络、公开组合/路由、TUI runtime、正式/共享数据库、重 QA、共享 Git/index 或生成投影。Root 后续负责正式采用、Data Dictionary/模块投影、原生 PostgreSQL、原件绑定、公开组合与真实用户验收；CAL-02 保持 `planned`，持久化准备通过不等于整单元关闭。
+
+完成交接：独立迁移 SQLite 组件测试 7 项、原有日历聚焦测试 53 项通过，Domain 覆盖率 97.48%；`0113_institutional_calendar` 无迁移漂移，Black/isort/Ruff、三个生产文件增量 mypy、全量架构和 Django system check 均通过。初始缺少模块 RED 保留，最终原件为 `.tmp/cal02-persistence-green.log`、`.tmp/cal02-persistence-style.log`、`.tmp/cal02-persistence-mypy.log`、`.tmp/cal02-persistence-migration-check.log`、`.tmp/cal02-persistence-unit-regression.log`、`.tmp/cal02-persistence-architecture.log` 和 `.tmp/cal02-persistence-django-check.log`。五个登记路径已在隔离副本冻结，未提交、未正式合并；原生 PostgreSQL、全库 mypy 债务门和生成投影仍待正式采用窗口。
+
+### 13.12 CAL-02 公开查询组合隔离准备（2026-11-13）
+
+Owner 授权从正式 HEAD `b28d4781292678c7949437a562d0f2958764e59e` 创建 `.tmp/cal02-composition-20261113`，叠加 §13.11 已冻结且逐文件哈希核对的五个持久化依赖路径；本批只新增 `apps/data_center/institutional_calendar_composition.py` 和 `tests/unit/data_center/test_institutional_calendar_composition.py`。公开组合工厂将显式数据库别名、显式时区和既有 Django 仓储注入查询用例，并验证实际只读行为，不增加路由、Interface、TUI 或事件写入能力。
+
+隔离阶段不得修改持久化依赖，不接 Provider 网络，不引入 current/latest 捷径，不运行原生 PostgreSQL、重 QA 或全库债务门，不写共享 Git/index 或生成投影。Root 后续在串行窗口正式采用持久化与组合两个冻结候选、生成模块图/数据字典并完成剩余门禁；CAL-02 保持 `planned`，本批完成不等于真实 TUI 验收或整单元关闭。
+
+完成交接：公开组合目标测试 1 项及日历/解析/查询/持久化/组合合并回归 61 项通过，Domain 覆盖率 97.5%；Black/isort/Ruff、新增生产文件增量 mypy、全量架构、Django system check 和 registry 校验均通过。五个持久化依赖保持逐字节一致，两个新增交付文件已在 `.tmp/cal02-composition-20261113` 冻结，未提交、未正式合并。初始缺少组合模块 RED 保留；最终原件为 `.tmp/cal02-composition-focused.log`、`.tmp/cal02-composition-style-final.log`、`.tmp/cal02-composition-mypy.log`、`.tmp/cal02-composition-architecture.log`、`.tmp/cal02-composition-django-check.log` 和 `.tmp/cal02-composition-registry.log`。模块图干跑识别 Data Center root 文件由 43 增至 44，但未写共享投影；原生 PostgreSQL、全库 mypy 债务门、正式投影及真实用户验收仍待串行采用窗口。
+
+### 13.13 CAL-02 正式采用与来源绑定的只读任务
+
+Owner 授权将 §13.11–13.12 七个冻结文件正式并入 `dev/next-development`，完成后继续剩余 M1 验收；本事项不并入 `main`、不推送远端。2026-11-13 的 `.tmp/cal02-formal-adoption-20261113`（基于 `71ed05dc96691bbee36a32ac905ec18e3237d1fc`）及其 61 项隔离回归仅为历史准备。ASH-05 完整退出后，Root 从正式基点 `4332b3cfa04cfae7fa7639cf52809d99e6674dc3` 将七个文件逐字节采用到正式树，并把迁移读取测试扩为双后端、补原生 PostgreSQL 首次并发重放/冲突验收。状态及串行焦点以 registry 为准。
+
+本批最小交付仍限六候自然日窗口与 M0 已取得资格的国家统计局 CPI 日程/实际发布。复用既有 RawPayload 存储保留可逐字节还原的完整 UTF-8 原文、公开链接、归属说明、原件摘要、真实首次取得/入库时钟与版本化来源配置；显式操作员初始化入口核对目录及原件摘要，重试复用原入库时间，不刷新旧事实。普通用户只读入口同时展示自然日窗口、官方发布、知识口径和来源缺口，不授予写入、调度、订单或账本能力。
+
+Luna 的有界 TUI 元数据准备已由 Root 采用到正式树；沿用现有研究模块和一个只读查询任务。查询结果保留系统已知重放与市场可得重建的区别，已确认实际发布与未来暂定日程分别显示；空事件、失效配置或坏原文仍提供明确来源状态。来源核验重新解析完整原件及精确前项，不能凭匹配摘要把日程升级成已发生。独立只读复核提出的实际发布标题/正文、延迟发布归属日及读取完成时有限资格复核三项已补反例并修正；查询与结果固定同一来源时区，结束时重新核对配置和真实时钟，来源变化或到期不沿用旧有效结论。同一时间的其他统计日程不能借 CPI 实际原文确认；原始日程行类别随规范化输入保留并重核，公开实际发布也不得在声明发布时间之前被记录为已发生。
+
+验收原件与每次真实候选身份只维护在 `artifacts/cal02-institutional-calendar-20261115/evidence-index.json`。最终 `native-r27` 在独立 `cal02_institutional_calendar_qa`（585 个已应用迁移）完成 37 项原生 PostgreSQL/接口/导入及普通用户浏览器验收，失败、错误、跳过均为零；运行前后源码输入、两份完整官方原文及 HEAD 均未变化。六个浏览器旅程覆盖桌面、390 像素窄屏、未知、过期、空态与历史截止点，Root 已查看本轮截图。97.5% Domain 覆盖率对应未变化的领域规则；当前 91 项单元回归、21 个生产文件增量 mypy、全库零债务、格式/架构/current/TUI、迁移无漂移与生成投影门禁通过。241 项前端测试复用未变化的前端实现，构建清单在本轮重新校验。独立复核发现的已有主键保存及冲突批量插入覆盖历史版本路径已局部封堵，新增四项 PostgreSQL 反例包含在本轮 37 项中。
+
+中间失败及候选身份继续保留在唯一索引，不拼作最终放行；其中 Docker 中断导致最终回归首次未启动，恢复原容器并完成 PostgreSQL 正常恢复后才运行 `native-r27`，未重建或重置测试库。治理交接沿用既有 `handoff_pending` 约束并登记本节，覆盖接受、缺失引用、未完成锚点与擅启后继的测试。正式实现、测试、生成投影和本节结论在 `dev/next-development` 本地合批提交；提交身份及工作树字节核对写入索引。Owner 本次授权的 ASH-05→CAL-02 完整验收范围至此结束，CAL-03 及以后不自动启动；本次没有远端推送、生产部署或生产来源资格授予。
+
+范围与回滚点：当前日历是研究参考，所有结果继续禁止用于决策；六候不含方向、收益或交易日猜测，国家统计局计划不会因时钟越过自动确认。只有已留存的 2026 日程及本次实际 CPI 原文取得当前最小接入证据，未取得资格的事件类别、全历史修订与自动采集不视为交付。交易日对齐算法只在完整明确的交易所日历输入下使用，缺口不以工作日猜测补齐；尚未开展事件波动研究，CAL-03 及以后另按各自门禁推进。回滚可停用本批来源配置及只读入口并保留不可变历史和原文；不为回滚删除原件或降低迁移、权限时钟、PIT 与有限期限约束。

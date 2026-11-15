@@ -16,13 +16,17 @@ from apps.data_center.application.institutional_calendar import (
 from core.exceptions import DataFetchError
 
 _SCHEDULE_TITLE_RE = re.compile(r"^(?P<year>[0-9]{4})年国家统计局主要统计信息发布日程表$")
-_ACTUAL_TITLE_RE = re.compile(r"^(?P<year>[0-9]{4})年(?P<month>1[0-2]|[1-9])月份居民消费价格\S+$")
+_ACTUAL_TITLE_RE = re.compile(
+    r"^(?P<year>[0-9]{4})年(?P<month>1[0-2]|[1-9])月份居民消费价格"
+    r"(?P<result>同比(?:(?:上涨|下降)[0-9]+(?:\.[0-9]+)?%|持平))$"
+)
 _PUBLICATION_TIME_RE = re.compile(r"^[0-9]{4}/[0-9]{2}/[0-9]{2} [0-9]{2}:[0-9]{2}$")
 _SCHEDULE_DAY_RE = re.compile(r"^(?P<day>[1-9]|[12][0-9]|3[01])/(?P<weekday>[一二三四五六日])$")
 _SCHEDULE_TIME_RE = re.compile(r"^(?P<hour>[01]?[0-9]|2[0-3]):(?P<minute>[0-5][0-9])$")
 _SPAN_RE = re.compile(r"^[1-9][0-9]*$")
 _SCHEDULE_HEADER = ("序号", "内容", *(f"{month}月" for month in range(1, 13)))
 _WEEKDAYS = ("一", "二", "三", "四", "五", "六", "日")
+_CPI_SCHEDULE_CONTENT_TITLE = "居民消费价格指数月度报告"
 
 
 @dataclass(frozen=True, slots=True)
@@ -59,6 +63,7 @@ class NbsScheduleEntry:
             first_seen_at=first_seen_at,
             recorded_at=recorded_at,
             original_sha256=self.original_sha256,
+            source_content_title=self.content_title,
         )
 
 
@@ -97,6 +102,11 @@ class NbsActualRelease:
                 "NBS actual release requires a typed schedule",
                 code="NBS_ACTUAL_SCHEDULE_MISMATCH",
             )
+        if schedule.source_content_title != _CPI_SCHEDULE_CONTENT_TITLE:
+            raise DataFetchError(
+                "Actual CPI evidence cannot confirm another or unknown schedule row class",
+                code="NBS_ACTUAL_EVENT_CLASS_MISMATCH",
+            )
         schedule.to_event()
         if self.source_published_at < schedule.scheduled_at:
             raise DataFetchError(
@@ -128,6 +138,7 @@ class NbsActualRelease:
             title=schedule.title,
             scheduled_at=schedule.scheduled_at,
             source_published_at=self.source_published_at,
+            source_timezone=self.source_timezone,
             first_seen_at=first_seen_at,
             recorded_at=recorded_at,
             original_sha256=self.original_sha256,
@@ -158,12 +169,16 @@ class _NbsHTMLParser(HTMLParser):
         super().__init__(convert_charrefs=True)
         self.metadata: dict[str, list[str]] = {}
         self.tables: list[_RawTable] = []
+        self.paragraphs: list[str] = []
+        self._paragraph_parts: list[str] | None = None
         self._table: _RawTable | None = None
         self._row: _RawRow | None = None
         self._cell: _RawCell | None = None
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         attributes = _attributes(attrs)
+        if tag == "p":
+            self._paragraph_parts = []
         if tag == "meta":
             name = attributes.get("name")
             if name is not None:
@@ -203,6 +218,9 @@ class _NbsHTMLParser(HTMLParser):
             )
 
     def handle_endtag(self, tag: str) -> None:
+        if tag == "p" and self._paragraph_parts is not None:
+            self.paragraphs.append("".join(self._paragraph_parts))
+            self._paragraph_parts = None
         if tag in {"td", "th"} and self._table is not None:
             if self._cell is None or self._row is None or self._cell.tag != tag:
                 raise DataFetchError(
@@ -232,6 +250,8 @@ class _NbsHTMLParser(HTMLParser):
             self._table = None
 
     def handle_data(self, data: str) -> None:
+        if self._paragraph_parts is not None:
+            self._paragraph_parts.append(data)
         if self._cell is not None:
             self._cell.parts.append(data)
 
@@ -344,10 +364,20 @@ def parse_nbs_actual_release(body: bytes, *, source_timezone: str) -> NbsActualR
             "NBS actual CPI title or reference period is unsupported",
             code="NBS_ACTUAL_TITLE_INVALID",
         )
+    year, month = int(title_match.group("year")), int(title_match.group("month"))
+    result = re.escape(title_match.group("result"))
+    result_paragraph = re.compile(
+        rf"^(?:{year}年)?{month}月份[，,]全国居民消费价格{result}(?:[。；，,]|$)"
+    )
+    if not any(result_paragraph.search(re.sub(r"\s+", "", text)) for text in parser.paragraphs):
+        raise DataFetchError(
+            "NBS actual CPI result paragraph is missing or contradicts its title",
+            code="NBS_ACTUAL_RESULT_UNPROVED",
+        )
     return NbsActualRelease(
         title=title,
-        reference_year=int(title_match.group("year")),
-        reference_month=int(title_match.group("month")),
+        reference_year=year,
+        reference_month=month,
         source_published_at=_publication_time(_metadata(parser, "PubDate"), zone),
         source_timezone=source_timezone,
         original_sha256=hashlib.sha256(body).hexdigest(),

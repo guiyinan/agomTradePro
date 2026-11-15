@@ -42,7 +42,11 @@ M1_SCOPE_REF = (
     "docs/plans/a-share-usability-implementation-plan-2026-10-16.md" "#1996-m1-first-delivery"
 )
 HANDOFF_PLAN_PATH = "docs/plans/a-share-usability-implementation-plan-2026-10-16.md"
+AUTHORIZED_HANDOFF_PLAN_PATHS = {
+    "CAL-02": "docs/plans/institutional-calendar-etf-activity-research-plan-2026-11-04.md",
+}
 AUTHORIZED_HANDOFF_SECTIONS = {
+    "CAL-02": "13.13",
     "ASH-03": "19.156",
     "ASH-05": "19.187",
     "ASH-07": "19.157",
@@ -148,10 +152,11 @@ def _dependency_cycle(unit_dependencies: dict[str, tuple[str, ...]]) -> bool:
 def _has_handoff_reference(root: Path, unit_id: object, value: object) -> bool:
     """Validate a citation for an explicitly authorized completed-unit handoff."""
     section = AUTHORIZED_HANDOFF_SECTIONS.get(unit_id) if isinstance(unit_id, str) else None
-    if section is None or value != f"{HANDOFF_PLAN_PATH}#{section}":
+    plan_path = AUTHORIZED_HANDOFF_PLAN_PATHS.get(str(unit_id), HANDOFF_PLAN_PATH)
+    if section is None or value != f"{plan_path}#{section}":
         return False
     try:
-        text = (root / HANDOFF_PLAN_PATH).read_text(encoding="utf-8")
+        text = (root / plan_path).read_text(encoding="utf-8")
         return any(line.startswith(f"### {section} ") for line in text.splitlines())
     except (OSError, UnicodeError):
         return False

@@ -447,6 +447,7 @@ def test_registry_accepts_explicit_ash07_closure_handoff_without_starting_succes
         ("GOV-04", "GOV-05", "ASH-05", "19.166"),
         ("REF-05", "ASH-08", "ASH-05", "19.167"),
         ("ASH-04", "ASH-05", "ASH-06", "19.187"),
+        ("CAL-01", "CAL-02", "CAL-03", "13.13"),
     ],
 )
 def test_registry_closure_requires_explicit_handoff_without_starting_successor(
@@ -471,8 +472,11 @@ def test_registry_closure_requires_explicit_handoff_without_starting_successor(
         unit["depends_on"] = [rename.get(value, value) for value in unit["depends_on"]]
     marker = payload["execution_focus"]["handoff_pending"]
     marker["completed_unit_id"] = anchor
-    marker["owner_decision_ref"] = f"{module.HANDOFF_PLAN_PATH}#{section}"
-    plan_path = tmp_path / module.HANDOFF_PLAN_PATH
+    handoff_plan = module.AUTHORIZED_HANDOFF_PLAN_PATHS.get(anchor, module.HANDOFF_PLAN_PATH)
+    if handoff_plan != module.HANDOFF_PLAN_PATH:
+        payload["workstreams"][0]["documents"].append({"path": handoff_plan, "role": "supporting"})
+    marker["owner_decision_ref"] = f"{handoff_plan}#{section}"
+    plan_path = tmp_path / handoff_plan
     plan_path.write_text(
         f"# A-share plan\n\n### {section} Owner-authorized {anchor} closure\n",
         encoding="utf-8",

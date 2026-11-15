@@ -11,7 +11,7 @@
       "compatibility_facade": 95,
       "current_data_surface": 121,
       "dynamic_import_edge": 15,
-      "management_command": 50,
+      "management_command": 51,
       "management_command_edge": 65,
       "mcp_tool": 40,
       "migration_evidence": 14,
@@ -19,24 +19,24 @@
       "operational_script": 40,
       "orchestration_entry": 18,
       "public_port": 97,
-      "rest_url": 90,
+      "rest_url": 91,
       "runbook": 7,
       "runtime_config_key": 52,
       "scheduler_writer": 18,
       "script": 20,
       "sdk": 57,
       "terminal_tui": 32,
-      "test_evidence": 158,
+      "test_evidence": 159,
       "workflow_step": 11
     },
     "by_status": {
-      "active_public": 927,
+      "active_public": 929,
       "adjacent_operational": 346,
-      "candidate-review": 77,
+      "candidate-review": 78,
       "compatibility": 139,
       "retired_blocked": 0
     },
-    "total": 1489
+    "total": 1492
   },
   "entries": [
     {
@@ -6672,6 +6672,16 @@
     {
       "category": "management_command",
       "evidence": "Data Center-owned Django command",
+      "id": "management_command:apps/data_center/management/commands/import_institutional_calendar.py:import_institutional_calendar:",
+      "locator": "",
+      "path": "apps/data_center/management/commands/import_institutional_calendar.py",
+      "status": "active_public",
+      "symbol": "import_institutional_calendar",
+      "target": ""
+    },
+    {
+      "category": "management_command",
+      "evidence": "Data Center-owned Django command",
       "id": "management_command:apps/data_center/management/commands/import_investor_accounts.py:import_investor_accounts:",
       "locator": "",
       "path": "apps/data_center/management/commands/import_investor_accounts.py",
@@ -11052,11 +11062,21 @@
     {
       "category": "rest_url",
       "evidence": "Data Center-owned URLconf",
-      "id": "rest_url:apps/data_center/interface/api_urls.py:path@220:egress/",
+      "id": "rest_url:apps/data_center/interface/api_urls.py:institutional-calendar:institutional-calendar/",
+      "locator": "institutional-calendar/",
+      "path": "apps/data_center/interface/api_urls.py",
+      "status": "active_public",
+      "symbol": "institutional-calendar",
+      "target": "InstitutionalCalendarView.as_view()"
+    },
+    {
+      "category": "rest_url",
+      "evidence": "Data Center-owned URLconf",
+      "id": "rest_url:apps/data_center/interface/api_urls.py:path@226:egress/",
       "locator": "egress/",
       "path": "apps/data_center/interface/api_urls.py",
       "status": "active_public",
-      "symbol": "path@220",
+      "symbol": "path@226",
       "target": "include('apps.data_center.interface.egress_api_urls')"
     },
     {
@@ -13647,6 +13667,16 @@
       "path": "tests/component/data_center/test_formal_calendar_publication_postgres.py",
       "status": "candidate-review",
       "symbol": "test_formal_calendar_publication_postgres",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/component/data_center/test_institutional_calendar_postgres.py:test_institutional_calendar_postgres:",
+      "locator": "",
+      "path": "tests/component/data_center/test_institutional_calendar_postgres.py",
+      "status": "candidate-review",
+      "symbol": "test_institutional_calendar_postgres",
       "target": ""
     },
     {

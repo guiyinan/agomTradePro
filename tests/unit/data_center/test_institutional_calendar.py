@@ -237,6 +237,7 @@ def test_future_versions_and_naive_or_inconsistent_clocks_fail_closed() -> None:
 def test_nbs_actual_release_creates_revision_without_mutating_schedule() -> None:
     schedule = _schedule_input().to_event()
     actual = NbsActualReleaseInput(
+        source_timezone="Asia/Shanghai",
         source_id=schedule.source_id,
         source_event_id=schedule.source_event_id,
         event_type=schedule.event_type,
@@ -262,6 +263,7 @@ def test_nbs_actual_release_creates_revision_without_mutating_schedule() -> None
 def test_nbs_actual_release_rejects_schedule_identity_or_time_mismatch() -> None:
     schedule = _schedule_input().to_event()
     actual = NbsActualReleaseInput(
+        source_timezone="Asia/Shanghai",
         source_id=schedule.source_id,
         source_event_id="another-source-event",
         event_type=schedule.event_type,
@@ -411,6 +413,7 @@ def test_application_wraps_invalid_nbs_and_repository_results() -> None:
 
     schedule = _schedule_input().to_event()
     actual = NbsActualReleaseInput(
+        source_timezone="Asia/Shanghai",
         source_id=schedule.source_id,
         source_event_id=schedule.source_event_id,
         event_type=schedule.event_type,

@@ -34089,6 +34089,159 @@
         },
         {
           "bases": [
+            "models.Model"
+          ],
+          "class_name": "InstitutionalCalendarEventModel",
+          "docstring": "One immutable institutional event revision with source and system clocks.",
+          "fields": [
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 240
+              },
+              "name": "event_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 240
+              },
+              "name": "source_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 240
+              },
+              "name": "source_event_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 240
+              },
+              "name": "event_type",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 240
+              },
+              "name": "title",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "choices": "EVIDENCE_CHOICES",
+                "max_length": 16
+              },
+              "name": "evidence",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "choices": "LIFECYCLE_CHOICES",
+                "max_length": 16
+              },
+              "name": "lifecycle",
+              "positional_args": []
+            },
+            {
+              "field_type": "PositiveIntegerField",
+              "name": "revision",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "kwargs": {
+                "null": true
+              },
+              "name": "scheduled_at",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "DateField",
+              "kwargs": {
+                "null": true
+              },
+              "name": "effective_on",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "kwargs": {
+                "null": true
+              },
+              "name": "source_published_at",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "DateField",
+              "kwargs": {
+                "null": true
+              },
+              "name": "source_published_on",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "name": "available_at",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "name": "first_seen_at",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "name": "recorded_at",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "original_sha256",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 240,
+                "null": true
+              },
+              "name": "supersedes_event_id",
+              "null": true,
+              "positional_args": []
+            }
+          ],
+          "meta": {
+            "base_manager_name": "objects",
+            "constraints": "[models.UniqueConstraint(fields=('event_id', 'revision'), name='dc_inst_cal_rev_uniq'), models.CheckConstraint(condition=models.Q(revision__gte=1), name='dc_inst_cal_revision_ck'), models.CheckConstraint(condition=models.Q(original_sha256__regex='^[0-9a-f]{64}$'), name='dc_inst_cal_hash_ck'), models.CheckConstraint(condition=models.Q(source_published_at__isnull=False, source_published_on__isnull=True) | models.Q(source_published_at__isnull=True, source_published_on__isnull=False), name='dc_inst_cal_source_ck'), models.CheckConstraint(condition=models.Q(source_published_at__isnull=True) | models.Q(available_at__gte=models.F('source_published_at')), name='dc_inst_cal_available_ck'), models.CheckConstraint(condition=models.Q(recorded_at__gte=models.F('first_seen_at')), name='dc_inst_cal_recorded_ck'), models.CheckConstraint(condition=models.Q(revision=1, supersedes_event_id__isnull=True) | models.Q(revision__gt=1, supersedes_event_id__isnull=False), name='dc_inst_cal_supersedes_ck'), models.CheckConstraint(condition=~models.Q(lifecycle__in=(EventLifecycle.OCCURRED.value, EventLifecycle.CANCELLED.value)) | models.Q(evidence=EvidenceGrade.CONFIRMED.value, source_published_at__isnull=False), name='dc_inst_cal_occurrence_ck')]",
+            "db_table": "data_center_institutional_calendar_event",
+            "default_manager_name": "objects",
+            "indexes": "[models.Index(fields=('available_at',), name='dc_inst_cal_avail_ix'), models.Index(fields=('recorded_at',), name='dc_inst_cal_recorded_ix'), models.Index(fields=('event_type', 'lifecycle'), name='dc_inst_cal_type_state_ix')]",
+            "ordering": [
+              "event_id",
+              "revision"
+            ]
+          },
+          "source_file": "infrastructure/institutional_calendar_models.py"
+        },
+        {
+          "bases": [
             "MacroFactorSourceAppendOnlyModel"
           ],
           "class_name": "MacroFactorResearchCalendarPeriodModel",

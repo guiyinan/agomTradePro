@@ -8,6 +8,9 @@ from apps.terminal.application.tui_account_inspection_result import (
     project_account_inspection_result,
 )
 from apps.terminal.application.tui_equity_pool_result import project_equity_pool_view_model
+from apps.terminal.application.tui_institutional_calendar_result import (
+    project_institutional_calendar_context,
+)
 from apps.terminal.application.tui_m1_risk_policy_result import (
     project_m1_risk_policy_mutation_result,
 )
@@ -321,6 +324,12 @@ class TuiWorkbenchResultModelMixin(
         status_code: int,
     ) -> dict[str, Any]:
         model = dict(view_model)
+        if (
+            action.get("key") == "data-center.institutional-calendar-read"
+            and 200 <= status_code < 300
+            and isinstance(payload, dict)
+        ):
+            model.update(project_institutional_calendar_context(payload))
         if (
             action.get("key")
             in {

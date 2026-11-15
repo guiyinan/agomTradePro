@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Protocol
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from apps.data_center.domain.institutional_calendar import (
     EventLifecycle,
@@ -30,6 +31,7 @@ class NbsScheduleInput:
     first_seen_at: datetime
     recorded_at: datetime
     original_sha256: str
+    source_content_title: str | None = None
 
     def to_event(self) -> InstitutionalEvent:
         """Create a tentative scheduled fact without claiming actual occurrence."""
@@ -68,6 +70,7 @@ class NbsActualReleaseInput:
     title: str
     scheduled_at: datetime
     source_published_at: datetime
+    source_timezone: str
     first_seen_at: datetime
     recorded_at: datetime
     original_sha256: str
@@ -90,7 +93,8 @@ class NbsActualReleaseInput:
                 code="NBS_ACTUAL_SCHEDULE_MISMATCH",
             )
         try:
-            return InstitutionalEvent(
+            zone = ZoneInfo(self.source_timezone)
+            event = InstitutionalEvent(
                 event_id=schedule.event_id,
                 source_id=self.source_id,
                 source_event_id=self.source_event_id,
@@ -100,7 +104,7 @@ class NbsActualReleaseInput:
                 lifecycle=EventLifecycle.OCCURRED,
                 revision=schedule.revision + 1,
                 scheduled_at=self.scheduled_at,
-                effective_on=schedule.scheduled_at.date(),
+                effective_on=self.source_published_at.astimezone(zone).date(),
                 source_published_at=self.source_published_at,
                 source_published_on=None,
                 available_at=self.source_published_at,
@@ -109,8 +113,18 @@ class NbsActualReleaseInput:
                 original_sha256=self.original_sha256,
                 supersedes_event_id=schedule.event_id,
             )
+            if event.first_seen_at < event.available_at:
+                raise DataFetchError(
+                    "Public actual release was not available at its claimed first receipt",
+                    code="NBS_ACTUAL_NOT_AVAILABLE_AT_FIRST_SEEN",
+                )
+            return event
         except InstitutionalCalendarError as exc:
             raise DataFetchError(str(exc), code=exc.code) from exc
+        except (ZoneInfoNotFoundError, ValueError) as exc:
+            raise DataFetchError(
+                "NBS source timezone is unknown", code="NBS_SOURCE_TIMEZONE_INVALID"
+            ) from exc
 
 
 class InstitutionalEventRepositoryPort(Protocol):

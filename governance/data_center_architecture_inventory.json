@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 7453,
+    "current_surface_references": 7456,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -12849,6 +12849,18 @@
     {
       "path": "apps/data_center/infrastructure/gateways/tencent_gateway.py",
       "text": "while current is not None and id(current) not in visited:"
+    },
+    {
+      "path": "apps/data_center/infrastructure/institutional_calendar_repository.py",
+      "text": "\"\"\"Append event versions and restore exact domain facts without latest shortcuts.\"\"\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/institutional_calendar_repository.py",
+      "text": "if event.revision != latest.revision + 1:"
+    },
+    {
+      "path": "apps/data_center/infrastructure/institutional_calendar_repository.py",
+      "text": "latest = rows[-1]"
     },
     {
       "path": "apps/data_center/infrastructure/instrument_reference_capture_claim_repository.py",

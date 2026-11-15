@@ -1,24 +1,20 @@
 {
-  "version": "2026-11-15.v600",
+  "version": "2026-11-15.v601",
   "updated_at": "2026-11-15",
   "execution_focus": {
-    "unit_id": "CAL-02",
+    "unit_id": null,
     "allowed_parallel_execution_modes": [
       "production",
       "external",
       "governance"
     ],
-    "policy": "CAL-02 sole formal repository focus, directly authorized by Owner after complete ASH05 exit. ASH05 accepted exact347f09c94e44cb12e1ec446fb67751c6e12c155c:8sameSHA CI success, all26mandatory owner journeys executed0failure/error/skip,12Publication reports303executions295unique0bad,Quote57zero-bad,fullmypydebt0. Root reviewed four exact-candidate browser screenshots and actual001211.SZ2026-11-06..15 complete-empty SZSE original/finite clock; synthetic financial/legal/price/calendar context and productionqualificationfalse remain explicit. Sole existing evidence index and ASH plan19.187 preserve all rejection history. ASH06 deferred/unopened; ASH10 account/PIT return and funded rights exercise not granted. CAL02 starts serial formal adoption of frozen persistence5 and composition2 files, then isolated nativePostgreSQL/fullmypy/module+dataDictionary/original-body binding/minimal real ordinary-user TUI acceptance per existing CAL plan. CAL13.13 existing no-main-merge/no-remote-push adoption scope remains; no CAL source is pushed by this ASH closure metadata. First qualified M1 only six natural monthly windows plus NBS schedule/actual release; no CAL03+ study/ETF expansion. Root owns Source/index/Git/projections/heavyQA; frozen preparation remains isolated until actual adoption. ASH local QA now idle584migrations/gen4111 with ACL restored; never repair/reseed/recreate/drop/reset ash05_owner_source,ash05_owner_native_test,ash05_tax_assessment_qa. CAL QA must use its separately named isolated database and cache/task channels, budget1CPU512MiB PG/.25CPU64MiB Redis, no concurrent heavy ASH QA. No production deployment/writes or real trades.",
-    "parallel_preparation": [
-      {
-        "unit_id": "CAL-02",
-        "scope": "v483 CAL-02 bounded persistence preparation is delivered and frozen in detached .tmp/cal02-persistence-20261113 based on formal HEAD2744ebc93, limited to the registered institutional_calendar_models.py, institutional_calendar_repository.py, 0113_institutional_calendar.py, component test and models.py registration import. Append-only versions implement both existing read ports, exact idempotent replay, conflict/gap/supersession rejection and ORM update/delete guards. Seven migrated SQLite component tests and53 existing focused units pass with Domain coverage97.48%; migration drift, Black/isort/Ruff, three-file incremental mypy, full architecture and Django system checks pass. Original missing-module RED is retained. No native PostgreSQL, global mypy debt, generated projections, Provider/network, public composition/routes, TUI runtime, production/shared DB, shared Git/index or formal integration occurred. Root retains formal adoption, data dictionary/module projections, native PG evidence, original-body binding, public composition and real-user acceptance; CAL-02 remains planned.",
-        "owner": "CAL-02 isolated institutional-event persistence preparation under Root",
-        "isolated_workspace": true,
-        "shared_git_serialized": true,
-        "isolated_test_resources": true
-      }
-    ]
+    "policy": "Owner-authorized ASH05 to CAL02 acceptance is complete. CAL02 local M1 acceptance is recorded in the institutional calendar plan13.13 and its sole evidence index; no remote push/main merge/production activation. CAL03+ remain unstarted; ASH06 remains deferred. No production trading, orders or ledger writes. Preserve protected ASH databases; no repair/reseed/recreate/drop/reset.",
+    "parallel_preparation": [],
+    "handoff_pending": {
+      "completed_unit_id": "CAL-02",
+      "owner_decision_ref": "docs/plans/institutional-calendar-etf-activity-research-plan-2026-11-04.md#13.13",
+      "reason": "The authorized ASH05 to CAL02 scope is complete; successor research remains a separate, unstarted work item."
+    }
   },
   "workstreams": [
     {
@@ -59,7 +55,7 @@
       "priority": "P0",
       "owner": "research+data_center+signal+portfolio+broker_execution",
       "status": "production_validation",
-      "next_gate": "Owner approved automated STRAT-01 dry-run and append-only canonical registration of the eight already approved definitions once genuine identity, current-head, scope, version and hash checks pass. Algorithm/permission configuration and default-off broker automation are permitted only within actual qualification and explicit in-system user opt-in; STRAT-03 remains deferred, not completed or automatically resumed. Approvals and retained history: docs/reviews/owner-scope-freeze-2026-10-18/approval-log.md and registry-application-base.json in the same directory. Convergence: prioritize REF-05 PIT feasibility and bounded Regime value evidence; REF-04 starts with typed R4/R5 replay/state-machine reuse. New algorithm/lifecycle structures follow demonstrated need; existing approved registrations/history continue, STRAT-03 remains deferred. See docs/plans/data-boundary-convergence-plan-2026-10-26.md. Owner requested review and development-plan registration on 2026-11-04: CAL-01 through CAL-05 add bounded institutional-calendar and ETF-activity research under docs/plans/institutional-calendar-etf-activity-research-plan-2026-11-04.md. CAL-01 is planned read-only feasibility; CAL-02 through CAL-05 wait for registered prerequisites and serialized repository handoff. Preserve ASH-07/ASH-08 priority, all existing unit states and execution_focus; no production activation, trading integration or STRAT-03 resumption.",
+      "next_gate": "Owner approved automated STRAT-01 dry-run and append-only canonical registration of the eight already approved definitions once genuine identity, current-head, scope, version and hash checks pass. Algorithm/permission configuration and default-off broker automation are permitted only within actual qualification and explicit in-system user opt-in; STRAT-03 remains deferred, not completed or automatically resumed. Approvals and retained history: docs/reviews/owner-scope-freeze-2026-10-18/approval-log.md and registry-application-base.json in the same directory. Convergence: prioritize REF-05 PIT feasibility and bounded Regime value evidence; REF-04 starts with typed R4/R5 replay/state-machine reuse. New algorithm/lifecycle structures follow demonstrated need; existing approved registrations/history continue, STRAT-03 remains deferred. See docs/plans/data-boundary-convergence-plan-2026-10-26.md. Owner requested review and development-plan registration on 2026-11-04: CAL-01 through CAL-05 add bounded institutional-calendar and ETF-activity research under docs/plans/institutional-calendar-etf-activity-research-plan-2026-11-04.md. CAL-01 feasibility and CAL-02 source-bound calendar/TUI M1 are complete; CAL-03 through CAL-05 remain unstarted and follow their registered dependencies and serialized handoff. Preserve ASH-07/ASH-08 priority, all existing unit states and execution_focus; no production activation, trading integration or STRAT-03 resumption.",
       "documents": [
         {
           "path": "docs/plans/strategy-research-capability-completion-audit-2026-08-05.md",
@@ -2104,7 +2100,7 @@
         "wave": 3,
         "priority": "P2",
         "execution_mode": "repository",
-        "status": "active",
+        "status": "completed",
         "title": "Deliver PIT institutional calendar and minimal read-only TUI",
         "depends_on": [
           "CAL-01",

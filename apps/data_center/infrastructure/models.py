@@ -30,6 +30,9 @@ from .candidate_raw_audit_manifest_models import (
 from .candidate_raw_audit_manifest_models import (
     CandidateRawAuditManifestModel as CandidateRawAuditManifestModel,
 )
+from .institutional_calendar_models import (
+    InstitutionalCalendarEventModel as InstitutionalCalendarEventModel,
+)
 from .pit_models import PITDatasetManifestModel, PITFactVersionModel  # noqa: F401
 from .price_limit_snapshot_models import PriceLimitSnapshotFactModel as PriceLimitSnapshotFactModel
 from .publication_models import CanonicalPublicationModel as CanonicalPublicationModel

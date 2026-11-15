@@ -68,6 +68,7 @@ from apps.data_center.interface.calendar_workbench_api_views import (
     CalendarWorkbenchPrepareView,
     CalendarWorkbenchScopeView,
 )
+from apps.data_center.interface.institutional_calendar_api import InstitutionalCalendarView
 from apps.data_center.interface.price_limit_publication_api_views import (
     CurrentPriceLimitPublicationView,
     ExactPriceLimitPublicationView,
@@ -147,6 +148,11 @@ class DataCenterApiRootView(APIView):
 
 
 urlpatterns = [
+    path(
+        "institutional-calendar/",
+        InstitutionalCalendarView.as_view(),
+        name="institutional-calendar",
+    ),
     path(
         "price-limits/publication/preview/",
         PriceLimitPublicationPreviewView.as_view(),
