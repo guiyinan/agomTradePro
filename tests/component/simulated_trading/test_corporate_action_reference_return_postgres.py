@@ -568,9 +568,15 @@ def test_owner_cash_reference_return_brackets_ex_date_and_keeps_late_payment_lat
         pytest.skip("owner cash reference return requires the assigned migrated PostgreSQL DB")
     assert actual_runtime_role.get("runtime_acl_verified") is True
     with override_settings(ROOT_URLCONF=_WORKFLOW_URLCONF), isolated_task_channels():
-        world = build_owner_workflow_native_world(monkeypatch=monkeypatch, tmp_path=tmp_path)
+        # The recent record session must follow the seed SELL's modeled tax
+        # settlement.  Trading on the record session remains unsupported and
+        # must keep the production history reader blocked.
+        world = build_owner_workflow_native_world(
+            monkeypatch=monkeypatch, tmp_path=tmp_path, history_weeks=2
+        )
         calendar, sessions, latest_closed = _calendar_and_recent_sessions(world)
         opening_date, ex_date = sessions[-2:]
+        assert world.settlement_date < opening_date
         _extend_synthetic_tax_candidate_through_record_date(
             world=world,
             record_date=opening_date,

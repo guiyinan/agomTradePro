@@ -157,9 +157,11 @@ class OwnerWorkflowNativeWorld:
     share_sellable_date: date
 
 
-def _local_anchor(actual: datetime) -> tuple[date, datetime]:
-    """Choose the explicit recent business-week account-origin clock."""
-    anchor_date = actual.astimezone(_TIMEZONE_POLICY).date() - timedelta(days=7)
+def _local_anchor(actual: datetime, *, history_weeks: Literal[1, 2] = 1) -> tuple[date, datetime]:
+    """Choose a finite retained origin before the actual current workflow clock."""
+    if type(history_weeks) is not int or history_weeks not in (1, 2):
+        raise AssertionError("synthetic history origin must be one or two weeks earlier")
+    anchor_date = actual.astimezone(_TIMEZONE_POLICY).date() - timedelta(weeks=history_weeks)
     while anchor_date.weekday() >= 5:
         anchor_date -= timedelta(days=1)
     anchor_at = datetime.combine(anchor_date, time(9, 0), tzinfo=_TIMEZONE_POLICY).astimezone(UTC)
@@ -650,6 +652,7 @@ def build_owner_workflow_native_world(
     tmp_path: Path,
     capture_kind: Literal["cash", "share", "rights"] = "cash",
     payment_date_override: date | None = None,
+    history_weeks: Literal[1, 2] = 1,
 ) -> OwnerWorkflowNativeWorld:
     """Create one actual nonstaff owner and V4 history before HTTP workflow calls.
 
@@ -661,7 +664,7 @@ def build_owner_workflow_native_world(
         pytest.skip("ordinary owner workflow needs the assigned migrated PostgreSQL database")
     actual_clock = timezone.now
     actual = actual_clock().astimezone(UTC)
-    anchor_date, anchor_at = _local_anchor(actual)
+    anchor_date, anchor_at = _local_anchor(actual, history_weeks=history_weeks)
     monkeypatch.setenv(
         "AGOMTRADEPRO_ENCRYPTION_KEY",
         base64.urlsafe_b64encode(b"w" * 32).decode("ascii"),
