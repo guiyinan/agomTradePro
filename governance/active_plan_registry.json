@@ -1,27 +1,19 @@
 {
-  "version": "2026-11-15.v599",
+  "version": "2026-11-15.v600",
   "updated_at": "2026-11-15",
   "execution_focus": {
-    "unit_id": "ASH-05",
+    "unit_id": "CAL-02",
     "allowed_parallel_execution_modes": [
       "production",
       "external",
       "governance"
     ],
-    "policy": "ASH-05 sole formal repository focus; ASH06 deferred/unopened. Exact0ce21acba62bd6f5cdd4194b06b3797bf39b1f98 rejected:7successfulCI, owner23of26 with3failure0error/skip; four browsers and current official sample pass. Originals stay bound to that candidate: Publication12reports303executions295unique0bad, Quote57zero-bad, full mypy debt0. Root omitted explicit calendar coverage when shifting cash seed two weeks; actual setup assertion fails. Fix passes exact nonfuture live_coverage_start at initial world and reference republish only; default one-week path, today+14 end, actual clock/publication chain and TTL unchanged. Actual17RED7pass then102focusedpass. Two other cases crossed Sunday15:00 and unchanged48h price freshness; generic latest-completed-session resolver has no provider runtime route (default_source/enable_failover missing), distinct from formal execution calendar. Reuse existing pressure-TUI fixture: public provider configuration, actual active AKShare metadata, synthetic SDK calendar rows matching formal overlap, actual registry/adapter/calendar resolver and actual adapter observed_at; teardown clears caches. Two focused real SQLite/config/registry/normalizer tests pass after correcting missing critical unit setup; no production/Domain/M1freshness/financial source deadlines changed. Root serial assigned-QA exact publication probe and final new-candidate8CI/26zero-bad still required; not whole-unit closure. Root owns Source/index/Git/projections/heavyQA; Luna private/readonly only. Assigned QA only ash05_tax_payment_basis_qa, PG16localhost56405 1CPU512MiB, Redis56406/0 .25CPU64MiB;584migrations/generation4111 last verified after r133; QA is idle. NEVER repair/reseed/recreate/drop/reset ash05_owner_source, ash05_owner_native_test, ash05_tax_assessment_qa. Trusted signing/locked authority/Audit/Outbox/original clocks remain. Reference fixed-record-date gross unreinvested currently-known is not ASH10 account/PIT return; financial/price sources synthetic, live official sample limited, UNKNOWN retained. After actual full ASH05 close, Owner authorizes direct CAL02 formal adoption/remaining acceptance. No deployment/main merge/production financial writes/real trades. Assigned retained-source native r129 actually passes1 in263.70s,584migrations/gen3934to3986 and exact ACL restoration, unchanged inputs. Cash r130 now passes world/calendar/price setup but initial owner refresh403: its16day-old historical login exceeded default14day Session lifetime. Only two-week fixture now creates a fresh same ordinary-owner session at restored actual clock and real CSRF bootstrap, preserving Account/Binding; no session lifetime or financial authority changes. Actual expired-session RED then combined27SQLite boundary/config/session tests pass; format0. r130 original1fail237.65s retained,584migrations/gen3986to4038 ACLrestored inputssame. New exact assigned cash probe still pending; full sameSHA8CI/26 not replaced. Cash r133 passed session/world/calendar/entitlement and before-payment reference assertions, then actual next payment preparation blocked WINDOW_EXPIRED on slow Windows at original60s boundary. Original failure/input hashes and584migrations/ACL restoration retained; no further local clock retry. Final frozen development checks then exact hosted8CI/26 remain required. Final r134 frozen development gates all0:133focused units0bad,26mandatory collection,Black/isort/Ruff,all3projections andregistry. All production/dependency/current-contract/runtime inputs remain byte-identical to r110; no production type regression or baseline increase. This is development preparation, not exact hosted qualification.",
+    "policy": "CAL-02 sole formal repository focus, directly authorized by Owner after complete ASH05 exit. ASH05 accepted exact347f09c94e44cb12e1ec446fb67751c6e12c155c:8sameSHA CI success, all26mandatory owner journeys executed0failure/error/skip,12Publication reports303executions295unique0bad,Quote57zero-bad,fullmypydebt0. Root reviewed four exact-candidate browser screenshots and actual001211.SZ2026-11-06..15 complete-empty SZSE original/finite clock; synthetic financial/legal/price/calendar context and productionqualificationfalse remain explicit. Sole existing evidence index and ASH plan19.187 preserve all rejection history. ASH06 deferred/unopened; ASH10 account/PIT return and funded rights exercise not granted. CAL02 starts serial formal adoption of frozen persistence5 and composition2 files, then isolated nativePostgreSQL/fullmypy/module+dataDictionary/original-body binding/minimal real ordinary-user TUI acceptance per existing CAL plan. CAL13.13 existing no-main-merge/no-remote-push adoption scope remains; no CAL source is pushed by this ASH closure metadata. First qualified M1 only six natural monthly windows plus NBS schedule/actual release; no CAL03+ study/ETF expansion. Root owns Source/index/Git/projections/heavyQA; frozen preparation remains isolated until actual adoption. ASH local QA now idle584migrations/gen4111 with ACL restored; never repair/reseed/recreate/drop/reset ash05_owner_source,ash05_owner_native_test,ash05_tax_assessment_qa. CAL QA must use its separately named isolated database and cache/task channels, budget1CPU512MiB PG/.25CPU64MiB Redis, no concurrent heavy ASH QA. No production deployment/writes or real trades.",
     "parallel_preparation": [
       {
         "unit_id": "CAL-02",
         "scope": "v483 CAL-02 bounded persistence preparation is delivered and frozen in detached .tmp/cal02-persistence-20261113 based on formal HEAD2744ebc93, limited to the registered institutional_calendar_models.py, institutional_calendar_repository.py, 0113_institutional_calendar.py, component test and models.py registration import. Append-only versions implement both existing read ports, exact idempotent replay, conflict/gap/supersession rejection and ORM update/delete guards. Seven migrated SQLite component tests and53 existing focused units pass with Domain coverage97.48%; migration drift, Black/isort/Ruff, three-file incremental mypy, full architecture and Django system checks pass. Original missing-module RED is retained. No native PostgreSQL, global mypy debt, generated projections, Provider/network, public composition/routes, TUI runtime, production/shared DB, shared Git/index or formal integration occurred. Root retains formal adoption, data dictionary/module projections, native PG evidence, original-body binding, public composition and real-user acceptance; CAL-02 remains planned.",
         "owner": "CAL-02 isolated institutional-event persistence preparation under Root",
-        "isolated_workspace": true,
-        "shared_git_serialized": true,
-        "isolated_test_resources": true
-      },
-      {
-        "unit_id": "ASH-05",
-        "scope": "Existing Luna max readonly bounded lane: independently confirmed two-week origin must propagate through both live calendar publishes, reviewed default/range/clock/TTL preservation; identified missing generic provider-calendar runtime route and existing pressure-TUI synthetic SDK fixture. No shared Source/index/Git/projection writes, DB/heavy QA or new agents. Root owns exact assigned-QA probe and complete new-candidate8CI/26native qualification; ASH05 remains open.",
-        "owner": "Root-led Luna max isolated typed correction preview preparation",
         "isolated_workspace": true,
         "shared_git_serialized": true,
         "isolated_test_resources": true
@@ -1774,7 +1766,7 @@
         "wave": 3,
         "priority": "P1",
         "execution_mode": "repository",
-        "status": "active",
+        "status": "completed",
         "title": "Connect announcements and corporate actions to positions and plan validity",
         "depends_on": [
           "ASH-02",
@@ -2112,7 +2104,7 @@
         "wave": 3,
         "priority": "P2",
         "execution_mode": "repository",
-        "status": "planned",
+        "status": "active",
         "title": "Deliver PIT institutional calendar and minimal read-only TUI",
         "depends_on": [
           "CAL-01",
