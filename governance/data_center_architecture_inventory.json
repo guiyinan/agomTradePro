@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 7456,
+    "current_surface_references": 7461,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -10324,6 +10324,10 @@
     },
     {
       "path": "apps/data_center/application/public_published_queries.py",
+      "text": "As with the legacy canonical fact port, it does not establish a current"
+    },
+    {
+      "path": "apps/data_center/application/public_published_queries.py",
       "text": "\"\"\"Project asset codes from a fully validated current member snapshot.\"\"\""
     },
     {
@@ -10389,6 +10393,10 @@
     {
       "path": "apps/data_center/application/public_published_queries.py",
       "text": "priority=current.priority if current is not None else 100,"
+    },
+    {
+      "path": "apps/data_center/application/public_published_queries.py",
+      "text": "publication_key: str = \"current\","
     },
     {
       "path": "apps/data_center/application/public_published_queries.py",
@@ -11417,6 +11425,18 @@
     {
       "path": "apps/data_center/domain/execution_quotes.py",
       "text": "the current active catalog row; ``queried_at`` does not make that lookup PIT."
+    },
+    {
+      "path": "apps/data_center/domain/financial_next_session_availability.py",
+      "text": "The formal calendar must be the exact current Publication at ``known_at``;"
+    },
+    {
+      "path": "apps/data_center/domain/financial_next_session_availability.py",
+      "text": "database records and revalidate their current/effective identities before"
+    },
+    {
+      "path": "apps/data_center/domain/financial_next_session_availability.py",
+      "text": "raise TypeError(\"availability requires an exact current calendar pointer\")"
     },
     {
       "path": "apps/data_center/domain/financial_scope_discovery.py",

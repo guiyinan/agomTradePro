@@ -1700,6 +1700,108 @@
       "data02_exit_met": false,
       "data03_started": false,
       "remaining": "DB-owned exact source/rule catalogs and independently verified canonical numeric path; qualified calendar and opening-rule binding, successor source-time witness/matcher/codec and decision consumers; same exact candidate CI/S6/backup/staging; E1 then full-universe DATA02 reconciliation; DATA03 cutover/observation/maintenance approval only after DATA02 exit."
+    },
+    {
+      "recorded_at_utc": "2026-11-15T19:10:26.344496+00:00",
+      "scope": "Actual 49b2 CI failure correction: generated inventories and narrowly scoped historical false-positive remediation; Fast Feedback native-PG routing remains pending",
+      "candidate": {
+        "base_head": "49b2f56c085f4dd9e8049852565e6f7959e310d3",
+        "files_sha256": {
+          ".gitleaksignore": "ab5a72b8713eb38fc9a7027ecd389dde6395b8b06a1d557978b4ae82176ad164",
+          "apps/data_center/application/data02_publication_tolerance_evidence.py": "5b96e8ea3bc2e2be885d173f691c39ba28bebb755d905d500474ec356768ce20",
+          "governance/data_center_architecture_inventory.json": "924592f093623f80537f84ccbbc83ab1c38fb4feb2e151e93d9f08ee85365340",
+          "governance/data_center_entrypoints.json": "4ee117cf6d1972e05ba734b0eb946d15627aaac447361ab170ce0c53d16f9cec"
+        }
+      },
+      "local_validation": {
+        "d1_tests_passed": 84,
+        "format": 0,
+        "incremental_mypy": 0,
+        "debt_ceiling": 0,
+        "architecture": {
+          "exit_code": 0,
+          "changed_files": 1,
+          "added_lines": 6,
+          "boundary_violations": 0,
+          "audit_violations": 0
+        },
+        "unified_data_center_projections": 0,
+        "current_data": 0,
+        "governance": 0,
+        "gitleaks": {
+          "version": "8.24.3",
+          "original_push_red_exit": 1,
+          "original_push_findings": 2,
+          "exact_push_after_fingerprint_fix_exit": 0,
+          "initial_full_history_exit": 1,
+          "additional_historical_test_false_positives": 6,
+          "full_history_r2_exit": 0,
+          "full_history_commits": 4820,
+          "new_fake_credential_negative_control_exit": 1,
+          "negative_control_findings": 1,
+          "broad_rule_or_path_allowlist_added": false
+        }
+      },
+      "ci_failures_retained": {
+        "consistency": 43746845223,
+        "security": 43746845219,
+        "fast_feedback": 43746845190,
+        "fast_feedback_cause": "Both Python3.11/3.13 jobs select native-PG calendar browser module on SQLite; 6 setup errors before bodies. Fix and dedicated native-PG coverage pending."
+      },
+      "raw_artifacts": [
+        {
+          "path": ".tmp/data02-current-20261115/20261116/ci-source-fix-final-format.receipt.json",
+          "sha256": "ecabcf5e278dd01efea59df84e5894e9a663db749a0536b40ceedec73f829001"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/ci-source-fix-final-tests.receipt.json",
+          "sha256": "a961ee6aa02da438c2f61aa2506378f5f2a194e915415e5575b3ac60264b80a6"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/ci-source-fix-final-typing.receipt.json",
+          "sha256": "49c70acb1eea7673a6b1bbbe5040abfc3e9698787fe1a45c0d959663cf98b973"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/ci-source-fix-final-governance.receipt.json",
+          "sha256": "d810d385624fda2b4e63cb10b577548b6a55f877c25283ba290bf1dc9beecfb5"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/gitleaks-original-push-red.json",
+          "sha256": "28fae87f9684ce869a01de60fa40321508ceae98a98580f4902270beb8da318f"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/gitleaks-original-push-green.json",
+          "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/gitleaks-full-history-final.json",
+          "sha256": "2720a3443d0154ce99588960fffcff4f626c4b75459b6ce78e7bfc3b6bf833c9"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/gitleaks-full-history-r2.json",
+          "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/gitleaks-narrowness-r2.json",
+          "sha256": "cee385e47eb6263daadb49b71e4fe04cce2c89da6f2d9df185d7b7a6a58fe8b5"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/ci-49b2f56c0/fast-feedback-43746845190.failed.log",
+          "sha256": "00c5f62f1a53f3a7644729a85b5a90068c74e4d91a4d83ee44c161f6e1b4274d"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/ci-49b2f56c0/security-43746845219.failed.log",
+          "sha256": "f72169e45ad6be9a8bae53e82752479c0c6f7d4d3539e8beae21dd4523744b7e"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/ci-consistency-49b2f56c0.failed.log",
+          "sha256": "6a7eb7a6e03687149520829f84713d5ce1722221da7e1b07224f161ebae17dac"
+        }
+      ],
+      "financial_provider_requests": 0,
+      "production_deployment": false,
+      "data02_exit_met": false,
+      "data03_started": false
     }
   ],
   "current_authority_followup": "followups[0] (2026-11-16); original 2026-11-15 snapshots remain historical",

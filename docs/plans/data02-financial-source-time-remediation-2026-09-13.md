@@ -1008,3 +1008,28 @@ C2/D1 Domain 与无数据库测试，Root 负责生产操作、交叉复核协�
 后续依次完成 DB-owned 规则/数值目录、独立原件验证与精确 canonical 路径、C2 successor
 时间证据和消费者接线，再进入实际日历、E1 与完整 universe 对账。DATA-02/03 的原退出门
 与生产维护解除审批保持；未执行财务请求、回填、交易、账本写入或生产部署。
+
+## 39. 2026-11-16 实际 CI 失败收口与后续实现窗口
+
+实际开发候选 `49b2f56c085f4dd9e8049852565e6f7959e310d3` 的远端 CI 揭示了本地
+检查遗漏：统一 Data Center 投影检查同时要求 architecture inventory 与 entrypoints，
+仅生成 module map 不足。本次按各自生成器补齐两份投影，并通过统一检查；以后统一
+使用 `check_data_center_governance_projections.py`，不把单项通过称为完整投影通过。
+
+Security 扫描将两处字段集合变量表达式识别为 generic-api-key。局部变量改名不改变
+解析行为或既有 hash；已逐项复核并仅登记原提交/路径/规则/行号精确指纹。完整历史扫描
+又发现六处旧测试的公开 scenario/profile/replay 标识，同样逐项复核后登记精确指纹。
+保留原始失败；同版 Gitleaks 8.24.3 完整历史重扫 4,820 commits 无发现，独立新假密钥
+夹具仍准确检出一项，未放宽规则、路径或整个提交。四组 D1 回归 84 项及类型、债务、
+格式、架构、current-data 与治理检查通过；具体候选文件及原件身份追加唯一索引。
+
+Fast Feedback 两个 Python 版本另有相同的六项 setup errors：SQLite runner 自动选中
+要求指定原生 PostgreSQL 数据库的机构日历浏览器模块，测试体未执行。Luna Max 正在
+限定 selector/test/workflow 范围修复路由并补专用 PostgreSQL job；不得把硬失败改成 skip，
+也不得仅排除测试后宣称覆盖。此项尚未通过，不把本次局部修复写成候选 CI 全绿。
+
+Root 串行整合 Git/index/投影；下一 D1 实现窗口由 Luna Max 完成版本化精确存储、
+独立原件与 DB 目录校验、append-only revision 及无损读取链路。旧四位列在原生 v2
+行必须为空，禁止未经批准的兼容舍入；旧行及冻结摘要保持不变。C2 具体 TTL/正式阶段
+仍待已提出的明确答复，参数化实现可继续，实际激活保持阻断。DATA-02 完整退出与
+DATA-03 依赖门没有变化。

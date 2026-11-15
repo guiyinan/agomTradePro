@@ -574,8 +574,8 @@ def _parse_tolerance_policy(
     """Parse only the explicitly selected policy version and its exact field set."""
 
     raw = _mapping(value, f"{dataset_key}.tolerance_policy")
-    expected_keys = _TOLERANCE_POLICY_V2_KEYS if format_version == 2 else _TOLERANCE_POLICY_KEYS
-    _exact_keys(raw, expected_keys, f"{dataset_key}.tolerance_policy")
+    expected_fields = _TOLERANCE_POLICY_V2_KEYS if format_version == 2 else _TOLERANCE_POLICY_KEYS
+    _exact_keys(raw, expected_fields, f"{dataset_key}.tolerance_policy")
     fields: list[dict[str, str]] = []
     for index, field_value in enumerate(_sequence(raw["fields"], "tolerance_policy.fields")):
         field = _mapping(field_value, f"tolerance_policy.fields[{index}]")
@@ -661,8 +661,10 @@ def _parse_policy_registry(
             raise Data02PublicationToleranceEvidenceError(
                 "numeric tolerance policy registry datasets must be unique"
             )
-        policy_keys = _TOLERANCE_POLICY_V2_KEYS if format_version == 2 else _TOLERANCE_POLICY_KEYS
-        tolerance_payload = {key: policy_raw[key] for key in policy_keys}
+        registry_fields = (
+            _TOLERANCE_POLICY_V2_KEYS if format_version == 2 else _TOLERANCE_POLICY_KEYS
+        )
+        tolerance_payload = {key: policy_raw[key] for key in registry_fields}
         policy = _parse_tolerance_policy(
             tolerance_payload, dataset_key=dataset_key, format_version=format_version
         )
