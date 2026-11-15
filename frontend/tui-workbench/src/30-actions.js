@@ -1027,17 +1027,7 @@
                     params = handoff.params;
                 }
             }
-            // A protected continuation opens the explicit confirmation modal instead
-            // of a second acknowledgement form. Keep its required body flag false
-            // for preflight and bind true only to that actual modal confirmation.
-            const continuationBodyAcknowledgement = continuationTarget
-                && action.confirmation_required === true
-                && (action.fields || []).some(field => field.key === "confirmed"
-                    && String(field.binding || "body").toLowerCase() === "body"
-                    && field.value_type === "boolean");
-            if (continuationBodyAcknowledgement) {
-                params = { ...params, confirmed: requestConfirmed === true };
-            }
+            params = continuationBodyAcknowledgedParams(action, params, continuationTarget, requestConfirmed);
             if (isTargetedDashboardAction) {
                 targetPanelParams = dashboardTargetParams(action, params, actions);
             }
@@ -1465,46 +1455,4 @@
         if (panel) {
             await loadDashboardPanel(panel);
         }
-    }
-
-    function dashboardPanelMarkup(panelKey) {
-        const panel = currentDashboardPanel(panelKey);
-        const container = panel
-            ? els.main.querySelector(`[data-dashboard-panel="${CSS.escape(panel.key)}"]`)
-            : null;
-        return container?.innerHTML || "";
-    }
-
-    function restoreDashboardActionPanel(options = {}) {
-        const panelKey = String(options.dashboardResultPanelKey || "").trim();
-        if (!panelKey || !Object.prototype.hasOwnProperty.call(options, "dashboardResultPanelMarkup")) {
-            return;
-        }
-        const panel = currentDashboardPanel(panelKey);
-        const container = panel
-            ? els.main.querySelector(`[data-dashboard-panel="${CSS.escape(panel.key)}"]`)
-            : null;
-        if (!panel || !container) {
-            return;
-        }
-        container.innerHTML = options.dashboardResultPanelMarkup;
-        bindCopyButtons(container);
-        bindDashboardRowActions(container, panel);
-        bindDashboardPanelOpenControls(container);
-        processHostSlot(container);
-    }
-
-    function renderDashboardActionLoading(panelKey, action) {
-        const panel = currentDashboardPanel(panelKey);
-        const container = panel
-            ? els.main.querySelector(`[data-dashboard-panel="${CSS.escape(panel.key)}"]`)
-            : null;
-        if (!panel || !container) {
-            return;
-        }
-        container.panelViewModel = null;
-        container.innerHTML = renderDashboardPanelShell(
-            panel,
-            `<div class="tui-loading">正在执行${escapeHtml(action.label || "当前操作")}...</div>`,
-        );
     }

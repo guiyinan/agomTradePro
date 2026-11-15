@@ -1,3 +1,13 @@
+function continuationBodyAcknowledgedParams(action, params, isTarget, confirmed) {
+    // A protected handoff uses its explicit modal instead of a second acknowledgement
+    // form. Preflight stays false; only that modal's actual confirm click binds true.
+    const hasBodyAcknowledgement = isTarget && action.confirmation_required === true
+        && (action.fields || []).some(field => field.key === "confirmed"
+            && String(field.binding || "body").toLowerCase() === "body"
+            && field.value_type === "boolean");
+    return hasBodyAcknowledgement ? { ...params, confirmed: confirmed === true } : params;
+}
+
 function showContinuationRecovery(action, sourceActionKey, message) {
     const sourceAction = currentAction(sourceActionKey);
     els.main.innerHTML = `
@@ -777,3 +787,49 @@ function offerFeeFencedResolution(action, actions, result) {
     });
     els.main.appendChild(button);
 }
+
+    function dashboardPanelMarkup(panelKey) {
+        const panel = currentDashboardPanel(panelKey);
+        const container = panel
+            ? els.main.querySelector(`[data-dashboard-panel="${CSS.escape(panel.key)}"]`)
+            : null;
+        return container?.innerHTML || "";
+    }
+
+    function restoreDashboardActionPanel(options = {}) {
+        const panelKey = String(options.dashboardResultPanelKey || "").trim();
+        if (!panelKey || !Object.prototype.hasOwnProperty.call(options, "dashboardResultPanelMarkup")) {
+            return;
+        }
+        const panel = currentDashboardPanel(panelKey);
+        const container = panel
+            ? els.main.querySelector(`[data-dashboard-panel="${CSS.escape(panel.key)}"]`)
+            : null;
+        if (!panel || !container) {
+            return;
+        }
+        container.innerHTML = options.dashboardResultPanelMarkup;
+        // HTML snapshots retain binding markers, but their DOM listeners are gone.
+        for (const marker of ["data-copy-bound", "data-secret-bound", "data-row-action-bound", "data-dashboard-open-bound"]) {
+            container.querySelectorAll(`[${marker}]`).forEach(node => node.removeAttribute(marker));
+        }
+        bindCopyButtons(container);
+        bindDashboardRowActions(container, panel);
+        bindDashboardPanelOpenControls(container);
+        processHostSlot(container);
+    }
+
+    function renderDashboardActionLoading(panelKey, action) {
+        const panel = currentDashboardPanel(panelKey);
+        const container = panel
+            ? els.main.querySelector(`[data-dashboard-panel="${CSS.escape(panel.key)}"]`)
+            : null;
+        if (!panel || !container) {
+            return;
+        }
+        container.panelViewModel = null;
+        container.innerHTML = renderDashboardPanelShell(
+            panel,
+            `<div class="tui-loading">正在执行${escapeHtml(action.label || "当前操作")}...</div>`,
+        );
+    }

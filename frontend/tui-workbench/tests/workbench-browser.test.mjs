@@ -1384,7 +1384,7 @@ test(`plan ${entry} preview keeps confirmation inside its result panel and on th
                 view_model: { kind: "detail", title: "Plan order preview", status: "Ready", fields: [{ label: "Order", value: "600000.SH BUY" }] },
                 continuation: {
                     action_key: target.key,
-                    input: { account_id: "42", order_key: "reservation-r7", preview_token: token },
+                    input: { account_id: "42", order_key: "reservation-r7", preview_token: `${token}-${sourceRequests.length}` },
                     expires_at: new Date(Date.now() + 60_000).toISOString(),
                 },
                 debug: { raw_available: false, raw_response: null },
@@ -1422,16 +1422,19 @@ test(`plan ${entry} preview keeps confirmation inside its result panel and on th
             }) });
         });
 
-        await page.locator(entry === "header"
-            ? '[data-dashboard-panel="plan-order-preview"] button.tui-dashboard-open'
-            : '[data-dashboard-panel="plan-order-grid"] [data-dashboard-row-action]').click();
-        const previewForm = page.locator('form[data-action-ui-key="rebalance-plan.preview-order"]');
-        await previewForm.waitFor({ state: "visible" });
-        await previewForm.locator('[name="quantity"]').fill("10");
-        await previewForm.locator('[name="limit_price"]').fill("10.25");
-        const previewResponse = page.waitForResponse(response => response.url().includes("/actions/rebalance-plan.preview-order/run/"));
-        await previewForm.locator(".tui-action-submit").click();
-        await previewResponse;
+        const preparePreview = async () => {
+            await page.locator(entry === "header"
+                ? '[data-dashboard-panel="plan-order-preview"] button.tui-dashboard-open'
+                : '[data-dashboard-panel="plan-order-grid"] [data-dashboard-row-action]').click();
+            const previewForm = page.locator('form[data-action-ui-key="rebalance-plan.preview-order"]');
+            await previewForm.waitFor({ state: "visible" });
+            await previewForm.locator('[name="quantity"]').fill("10");
+            await previewForm.locator('[name="limit_price"]').fill("10.25");
+            const previewResponse = page.waitForResponse(response => response.url().includes("/actions/rebalance-plan.preview-order/run/"));
+            await previewForm.locator(".tui-action-submit").click();
+            await previewResponse;
+        };
+        await preparePreview();
 
         const previewPanel = page.locator('[data-dashboard-panel="plan-order-preview"]');
         const continueButton = previewPanel.locator('[data-result-continuation="true"] button');
@@ -1444,6 +1447,8 @@ test(`plan ${entry} preview keeps confirmation inside its result panel and on th
         await page.locator("[data-cancel-action]").click();
         assert.deepEqual(targetRequests.map(item => item.body.confirmed), [false]);
         assert.deepEqual(targetRequests.map(item => item.body.params.confirmed), [false]);
+        // Cancelling destroys the handoff; a fresh preview must issue a new one.
+        await preparePreview();
         const repeatedPreflight = page.waitForResponse(response => response.url().includes("/actions/rebalance-plan.order-confirm/run/"));
         await continueButton.click();
         await repeatedPreflight;
@@ -1455,15 +1460,16 @@ test(`plan ${entry} preview keeps confirmation inside its result panel and on th
         await page.locator("[data-confirm-action]").click();
         await confirmedResponse;
         await previewPanel.getByText("Reservation submitted", { exact: true }).waitFor({ state: "visible" });
-        assert.equal(sourceRequests.length, 1);
+        assert.equal(sourceRequests.length, 2);
         assert.deepEqual(targetRequests.map(item => item.body.confirmed), [false, false, true]);
         assert.equal(targetRequests[0].key, sourceRequests[0].key);
-        assert.equal(targetRequests[1].key, sourceRequests[0].key);
-        assert.equal(targetRequests[2].key, sourceRequests[0].key);
+        assert.equal(targetRequests[1].key, sourceRequests[1].key);
+        assert.equal(targetRequests[2].key, sourceRequests[1].key);
+        assert.notEqual(sourceRequests[1].key, sourceRequests[0].key);
         assert.deepEqual(targetRequests.map(item => item.body.params.confirmed), [false, false, true]);
         const withoutAcknowledgement = params => Object.fromEntries(Object.entries(params).filter(([key]) => key !== "confirmed"));
-        assert.deepEqual(withoutAcknowledgement(targetRequests[2].body.params), withoutAcknowledgement(targetRequests[0].body.params));
-        assert.equal(targetRequests[2].body.params.preview_token, token);
+        assert.deepEqual(withoutAcknowledgement(targetRequests[2].body.params), withoutAcknowledgement(targetRequests[1].body.params));
+        assert.equal(targetRequests[2].body.params.preview_token, `${token}-2`);
     } finally { await browser.close(); }
 });
 }
