@@ -928,3 +928,41 @@ Owner 明确要求先处理审计权限失效，再补齐 C2 日历和 D1 字段
 本阶段回归覆盖旧 v1 hash/格式、逐指标/单位/精度、跨市场/休市/开盘/PIT 和既有读取阻断，
 生产 Python 变更继续运行增量 mypy、全库债务及专项门禁。审计操作的回滚保持 required
 和业务写入阻断；有问题时只追加合法 successor，不复活过期来源，不恢复整库或切金融发布。
+
+## 37. 2026-11-16 D1 同源逐指标矩阵与 C2 采集确认
+
+D1 已实现独立 v2 policy/input/evidence schema，旧 v1 hash、ASCII 单位及跨源比较语义
+保持。v2 使用实际单位文本，拒绝 `catalog`/`native` 等占位符；financial natural key 精确
+选取一项 metric，并按证券、报告期、期间类型、provider 逐组要求完整配置指标集合。
+重算 Publication/snapshot hash 后删除整列或单组指标仍被拒绝；相同 provider、完整
+universe/member/field、精确单位和 approved registry identity 均继续校验。
+v2 当前每个 dataset 只支持单一 provider，不能把混源 Publication 标为已覆盖。
+输出始终 `production_ready=false`，不证明调用方声明的单位已由真实来源核验。
+
+实际历史原件 SHA `6a56f4ccbaa203e689f62a1f14033ed8a61a0c0a842afda03a6c27e5b1054578`
+中唯一 `000001.SZ / 2026-06-30` 行已逐字段读取，未重新请求财务供应商。
+10 项适配器指标中 8 项有原生值，total_assets/equity 为现有适配器推导，不能伪装成
+原生值。AKShare 当前官方该接口文档原件已留存，明确收入/利润为元、五项比例为 %；
+该表不能单独证明 LIABILITY 的量纲，当前文档捕获也不证明过去已知时间。
+完整 source/field/unit/storage precision 矩阵和原件摘要见唯一验收索引的本次 followup，
+不激活空的 v1 tolerance registry，也不把原 v1 的历史状态标签当作 D1 方案未批准。
+
+真实 debt_ratio、revenue_growth、net_profit_growth、roa 的原始小数分别超过当前表
+4 位精度，直接存入会损失精度；本批没有批准或应用舍入例外，0/0 保持。
+现有适配器经过 float，资产/权益推导亦经过 float，后续须按明确 Decimal 规则保留原值、
+标注推导和规范化依据。不得仅为让对账通过而给两侧套同一未批准舍入。
+也不能直接扩大原表小数位：现有冻结 fact hash 使用 `str(Decimal)`，即使数值相等，
+新增尾零仍可能改变既有发布成员摘要。需比较版本化精度存储与经单独批准的有限舍入
+方案，保留原始精度及旧记录身份；本批无迁移、重写或生产资格。
+
+C2 已按公告日期锁定 SZSE `2026-08-15..2026-08-18` 的完整日期范围，在原生 MCP
+工作流仅取得 prepare 预览。服务端明确返回 confirmation_required；已向 Owner 发出
+这次采集/保存快照/生成发布预览的精确确认，尚未收到答复，故未执行 prepare。
+这不是重复请求 C2 方案授权，也不包含日历发布激活或财务回填；令牌不进入仓库。
+正式开盘规则和合格 calendar Publication 尚未绑定，旧 date-only matcher/witness
+不改写为 successor。当前资料不允许以周一或固定开盘常量推定可用时刻。
+
+本次本地开发门禁与失败原件均追加同一验收索引；Luna Max 有界只读复核确认逐组完整
+矩阵缺口已闭合。尚需 C2 真实日历、正式开盘规则和 successor 全链，D1 完整量纲/
+精度治理与真实四 Publication 对账，随后完成同候选部署预检、备份/staging 和 E1。
+DATA-02 完整 universe 退出门不变，DATA-03 不启动。

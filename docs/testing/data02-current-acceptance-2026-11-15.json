@@ -863,7 +863,354 @@
       "no_trading_or_ledger_writes": true,
       "financial_provider_requests": 0,
       "data03_started": false
+    },
+    {
+      "recorded_at_utc": "2026-11-15T17:32:58.524027+00:00",
+      "scope": "D1 versioned same-provider per-metric parser with source/unit/precision inventory; C2 native prepare preview only, pending explicit server confirmation",
+      "candidate": {
+        "base_head": "ae34e84f8a3574c7b2bc11e80cbbf579e48897c6",
+        "files_sha256": {
+          "apps/data_center/domain/numeric_tolerance.py": "62303760f272665b72d42e12ec5e06941f4ca6e856cf6b151a2a912f7edb0b8c",
+          "apps/data_center/application/data02_publication_tolerance_evidence.py": "8798d3855117fe0355595931130f8097be4e24765bb6fa8e6c7f151d891bc0ad",
+          "tests/unit/data_center/test_numeric_tolerance_v2.py": "e5a6d318bea731c9a68366f9c7dd5c7ec1d2a3fce4ba66842fa833e1597741af",
+          "tests/unit/data_center/test_data02_tolerance_v2_evidence.py": "bf5a47fc827b58b5d844fe00d17da6514a1a175bfdfe3731aac6cea573910bd2",
+          "governance/current_data_contracts.json": "57e8c2d52788ffda212caf66193d5b72685d1b19351deb69debbfd5cc86d1e11",
+          "governance/module_map.json": "6bff8c6348b03febe475073a9e4bb1c2f430b7b5a56124da03af01e6d9025b26",
+          "governance/data02_numeric_tolerance_policies.json": "f917b8985833de6b1a1102abeeb641702b90cf8edf5b21c8ebe621b039cf09ee",
+          "pyproject.toml": "22e431a9126b689bd3e900798abb6f520965596c30e8cdae1935e892744d0350",
+          "pytest.ini": "e076f13aece73211a8d1a0188d787cd603e4ec39cf8522e616c8952901e391db"
+        },
+        "staged_source_comparison": {
+          "apps/data_center/domain/numeric_tolerance.py": {
+            "as_tested_sha256": "62303760f272665b72d42e12ec5e06941f4ca6e856cf6b151a2a912f7edb0b8c",
+            "staged_sha256": "128cbb0f0f5e32f9911450920487eda7a6dd62c4633ba6824ec2bf38e205e604",
+            "only_git_newline_normalization": true,
+            "ast_equal": true
+          },
+          "apps/data_center/application/data02_publication_tolerance_evidence.py": {
+            "as_tested_sha256": "8798d3855117fe0355595931130f8097be4e24765bb6fa8e6c7f151d891bc0ad",
+            "staged_sha256": "8798d3855117fe0355595931130f8097be4e24765bb6fa8e6c7f151d891bc0ad",
+            "only_git_newline_normalization": true,
+            "ast_equal": true
+          },
+          "tests/unit/data_center/test_numeric_tolerance_v2.py": {
+            "as_tested_sha256": "e5a6d318bea731c9a68366f9c7dd5c7ec1d2a3fce4ba66842fa833e1597741af",
+            "staged_sha256": "e5a6d318bea731c9a68366f9c7dd5c7ec1d2a3fce4ba66842fa833e1597741af",
+            "only_git_newline_normalization": true,
+            "ast_equal": true
+          },
+          "tests/unit/data_center/test_data02_tolerance_v2_evidence.py": {
+            "as_tested_sha256": "bf5a47fc827b58b5d844fe00d17da6514a1a175bfdfe3731aac6cea573910bd2",
+            "staged_sha256": "bf5a47fc827b58b5d844fe00d17da6514a1a175bfdfe3731aac6cea573910bd2",
+            "only_git_newline_normalization": true,
+            "ast_equal": true
+          }
+        }
+      },
+      "local_validation": {
+        "checks": [
+          {
+            "name": "black",
+            "command": [
+              "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+              "-X",
+              "utf8",
+              "-m",
+              "black",
+              "--check",
+              "apps/data_center/domain/numeric_tolerance.py",
+              "apps/data_center/application/data02_publication_tolerance_evidence.py",
+              "tests/unit/data_center/test_numeric_tolerance_v2.py",
+              "tests/unit/data_center/test_data02_tolerance_v2_evidence.py"
+            ],
+            "started_at": "2026-11-15T17:26:31.997129+00:00",
+            "finished_at": "2026-11-15T17:26:33.269496+00:00",
+            "exit_code": 0,
+            "log": ".tmp\\data02-current-20261115\\20261116\\d1-final-black.log",
+            "sha256": "ce29a48ef7d7d961badb0f7aec2eb4c319c19c85fc5e9b698ba6b9b4bec2d2c7"
+          },
+          {
+            "name": "isort",
+            "command": [
+              "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+              "-X",
+              "utf8",
+              "-m",
+              "isort",
+              "--check-only",
+              "apps/data_center/domain/numeric_tolerance.py",
+              "apps/data_center/application/data02_publication_tolerance_evidence.py",
+              "tests/unit/data_center/test_numeric_tolerance_v2.py",
+              "tests/unit/data_center/test_data02_tolerance_v2_evidence.py"
+            ],
+            "started_at": "2026-11-15T17:26:33.283477+00:00",
+            "finished_at": "2026-11-15T17:26:33.643891+00:00",
+            "exit_code": 0,
+            "log": ".tmp\\data02-current-20261115\\20261116\\d1-final-isort.log",
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "name": "ruff",
+            "command": [
+              "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+              "-X",
+              "utf8",
+              "-m",
+              "ruff",
+              "check",
+              "apps/data_center/domain/numeric_tolerance.py",
+              "apps/data_center/application/data02_publication_tolerance_evidence.py",
+              "tests/unit/data_center/test_numeric_tolerance_v2.py",
+              "tests/unit/data_center/test_data02_tolerance_v2_evidence.py"
+            ],
+            "started_at": "2026-11-15T17:26:33.644586+00:00",
+            "finished_at": "2026-11-15T17:26:33.808139+00:00",
+            "exit_code": 0,
+            "log": ".tmp\\data02-current-20261115\\20261116\\d1-final-ruff.log",
+            "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+          },
+          {
+            "name": "tests",
+            "command": [
+              "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+              "-X",
+              "utf8",
+              "-m",
+              "pytest",
+              "tests/unit/data_center/test_numeric_tolerance_v2.py",
+              "tests/unit/data_center/test_data02_tolerance_v2_evidence.py",
+              "tests/unit/data_center/test_numeric_tolerance.py",
+              "tests/unit/data_center/test_data02_publication_tolerance_evidence.py",
+              "-q",
+              "--cov=apps.data_center.domain.numeric_tolerance",
+              "--cov-report=term-missing",
+              "--cov-report=json:D:\\githv\\agomTradePro\\.tmp\\data02-current-20261115\\20261116\\d1-final-coverage.json",
+              "--junitxml=D:\\githv\\agomTradePro\\.tmp\\data02-current-20261115\\20261116\\d1-final-junit.xml"
+            ],
+            "started_at": "2026-11-15T17:26:40.221743+00:00",
+            "finished_at": "2026-11-15T17:27:04.042723+00:00",
+            "exit_code": 0,
+            "log": ".tmp\\data02-current-20261115\\20261116\\d1-final-tests.log",
+            "sha256": "919ce6206eb0f2c8482abf3fa3b2991c98360ca480e1985aa4dd5c5f884bc916"
+          },
+          {
+            "name": "mypy",
+            "command": [
+              "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+              "-X",
+              "utf8",
+              "scripts/check_mypy_regression.py",
+              "apps/data_center/domain/numeric_tolerance.py",
+              "apps/data_center/application/data02_publication_tolerance_evidence.py"
+            ],
+            "started_at": "2026-11-15T17:26:40.221850+00:00",
+            "finished_at": "2026-11-15T17:26:54.715931+00:00",
+            "exit_code": 0,
+            "log": ".tmp\\data02-current-20261115\\20261116\\d1-final-mypy.log",
+            "sha256": "5ba4fad13a81b04a0a55439e46f84ebb25f1dcefaf8a0f67d0e71ba1266e2e69"
+          },
+          {
+            "name": "debt",
+            "command": [
+              "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+              "-X",
+              "utf8",
+              "scripts/check_mypy_debt_ceiling.py"
+            ],
+            "started_at": "2026-11-15T17:26:54.717861+00:00",
+            "finished_at": "2026-11-15T17:30:58.932480+00:00",
+            "exit_code": 0,
+            "log": ".tmp\\data02-current-20261115\\20261116\\d1-final-debt.log",
+            "sha256": "def6c561b37227470bcda90c8450d9837ca85dd34af34d05e7d6af2afdf85ab1"
+          },
+          {
+            "name": "architecture",
+            "command": [
+              "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+              "-X",
+              "utf8",
+              "scripts/check_architecture_delta.py",
+              "--base-ref",
+              "ae34e84f8"
+            ],
+            "started_at": "2026-11-15T17:27:13.956462+00:00",
+            "finished_at": "2026-11-15T17:27:46.459575+00:00",
+            "exit_code": 0,
+            "log": ".tmp\\data02-current-20261115\\20261116\\d1-final-architecture.log",
+            "sha256": "2e1c7f1fcc0132db0756779de8c7c2124cae9db3a1564e46685a532ff05186ad"
+          },
+          {
+            "name": "module-build",
+            "command": [
+              "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+              "-X",
+              "utf8",
+              "scripts/build_module_map.py"
+            ],
+            "started_at": "2026-11-15T17:27:46.467029+00:00",
+            "finished_at": "2026-11-15T17:28:14.103066+00:00",
+            "exit_code": 0,
+            "log": ".tmp\\data02-current-20261115\\20261116\\d1-final-module-build.log",
+            "sha256": "9f0b6e0bc5060c1f3cb1b97bb8401a0a428193c67fcf976a694b23836eb7af4c"
+          },
+          {
+            "name": "module-check",
+            "command": [
+              "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+              "-X",
+              "utf8",
+              "scripts/check_module_map.py"
+            ],
+            "started_at": "2026-11-15T17:28:14.110840+00:00",
+            "finished_at": "2026-11-15T17:28:40.433668+00:00",
+            "exit_code": 0,
+            "log": ".tmp\\data02-current-20261115\\20261116\\d1-final-module-check.log",
+            "sha256": "50ba91f9d0e2baa1aeda94701d7695e45116e1326f5651784377318792b43759"
+          },
+          {
+            "name": "current",
+            "command": [
+              "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+              "-X",
+              "utf8",
+              "scripts/check_current_data_contracts.py"
+            ],
+            "started_at": "2026-11-15T17:28:40.436793+00:00",
+            "finished_at": "2026-11-15T17:29:21.138666+00:00",
+            "exit_code": 0,
+            "log": ".tmp\\data02-current-20261115\\20261116\\d1-final-current.log",
+            "sha256": "cdc66d749ecf996bcca4ed722699f2e7fcb31846c37c8c5149568ad70bc84e73"
+          },
+          {
+            "name": "governance",
+            "command": [
+              "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+              "-X",
+              "utf8",
+              "scripts/check_governance_consistency.py"
+            ],
+            "started_at": "2026-11-15T17:29:21.147312+00:00",
+            "finished_at": "2026-11-15T17:29:54.273502+00:00",
+            "exit_code": 0,
+            "log": ".tmp\\data02-current-20261115\\20261116\\d1-final-governance.log",
+            "sha256": "50824cda33db620929040684fffe76d54284292edfd06fd75b4dedc034571c6b"
+          }
+        ],
+        "tests_passed": 84,
+        "domain_module_combined_coverage_percent": 95.3,
+        "debt_baseline_raised": false,
+        "luna_max_review": "Followup review of per-report metric closure, catalog sentinel and application call passed; no tests or source mutations performed by reviewer.",
+        "post_document_registry_check": {
+          "command": "python scripts/check_governance_consistency.py",
+          "exit_code": 0,
+          "log": ".tmp/data02-current-20261115/20261116/d1-final-registry.log",
+          "sha256": "50824cda33db620929040684fffe76d54284292edfd06fd75b4dedc034571c6b"
+        }
+      },
+      "source_matrix": {
+        "path": {
+          "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/d1-real-field-unit-precision-matrix.json",
+          "sha256": "379117775e9f345771189c3b7a9da26f6f38e6819b6525c40ff943a957f29031"
+        },
+        "historical_raw_sha256": "6a56f4ccbaa203e689f62a1f14033ed8a61a0c0a842afda03a6c27e5b1054578",
+        "metric_count": 10,
+        "native_metric_count": 8,
+        "derived_metrics": [
+          "total_assets",
+          "equity"
+        ],
+        "native_precision_loss_at_existing_four_dp": [
+          "revenue_growth",
+          "net_profit_growth",
+          "roa",
+          "debt_ratio"
+        ],
+        "units_unproven_by_interface_table": [
+          "total_assets",
+          "total_liabilities",
+          "equity"
+        ],
+        "primary_document": {
+          "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/source-originals/akshare-stock-finance-20261116.html",
+          "sha256": "ac54211c94ddb337de2e8c5b7dcca4caa8f6e402655a9862d7bccd126be1fcdb"
+        },
+        "primary_document_url": "https://akshare.akfamily.xyz/data/stock/stock_finance.html",
+        "canonical_rounding_exception_approved": false,
+        "active_registry": false,
+        "same_source_zero_tolerance_preserved": true,
+        "precision_schema_migration": false
+      },
+      "c2_confirmation": {
+        "state": "server_confirmation_required_pending_user_reply",
+        "action_key": "data-center.calendar-workbench-prepare",
+        "exchange": "SZSE",
+        "coverage_start": "2026-08-15",
+        "coverage_end": "2026-08-18",
+        "preview_only": true,
+        "capture_executed": false,
+        "calendar_publication_activated": false,
+        "token_retained_in_repository": false
+      },
+      "raw_artifacts": [
+        {
+          "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/d1-v2-red.log",
+          "sha256": "fce3bec0c63c09c834c0a0c5d083da746f581d8d1af66b205a967a76cace3bf3"
+        },
+        {
+          "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/d1-v2-parser-red.log",
+          "sha256": "081db58675d2704af19c3ddd431dc48d6a39838dca1ea0903247f3d371683391"
+        },
+        {
+          "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/d1-v2-green.log",
+          "sha256": "cea2166c84314fc6f7f510014110fad28677ed16298af20223f9dca50a1a52af"
+        },
+        {
+          "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/d1-v2-green-r2.log",
+          "sha256": "9966e79557523eeb48f23f4c9790d0c550085428f908b80d16076fd46cc2df49"
+        },
+        {
+          "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/d1-v2-green-r3.log",
+          "sha256": "d9b563ecadf1f14e91d55bfdced7c0034c0d51e3a8326bd54ab995ed923b0669"
+        },
+        {
+          "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/d1-ruff-initial.log",
+          "sha256": "8b52b50e339579dd2c99a99956c1b6d0df9d20795f36021d34e8af8754ba981c"
+        },
+        {
+          "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/d1-real-field-unit-precision-matrix.json",
+          "sha256": "379117775e9f345771189c3b7a9da26f6f38e6819b6525c40ff943a957f29031"
+        },
+        {
+          "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/historical-raw-target-period.json",
+          "sha256": "27df391e65678efad6686d4f68c942ad1295afca6b91cc2506cb2339773b91d1"
+        },
+        {
+          "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/d1_runtime_catalog_probe.py.stdout",
+          "sha256": "379245974482ae8ed1ec788039efacb225532d6f28758af27befd1bd17769d6b"
+        },
+        {
+          "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/d1-final-junit.xml",
+          "sha256": "968760cd765946faada71c33b91d67b42661ba8b2979b0ef6acc4eb28f9db929"
+        },
+        {
+          "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/d1-final-coverage.json",
+          "sha256": "6186c141952813503008d3501f9e35c13479824f70b8d488cda0ad64d1a60ecc"
+        }
+      ],
+      "remaining": [
+        "C2 actual qualified calendar and source-bound opening rule, successor matcher/witness/codec and historical compatibility",
+        "D1 source-bound per-metric unit and exact Decimal precision governance incl. derived provenance; complete real four-Publication reconciliation",
+        "exact same-candidate release checks and current backup/staging before E1",
+        "full-universe DATA02 exit; DATA03 remains waiting"
+      ],
+      "financial_provider_requests": 0,
+      "business_data_writes": 0,
+      "production_deployment": false,
+      "production_claim": false,
+      "data02_exit_met": false,
+      "data03_started": false
     }
   ],
-  "current_authority_followup": "followups[0] (2026-11-16); original 2026-11-15 snapshots remain historical"
+  "current_authority_followup": "followups[0] (2026-11-16); original 2026-11-15 snapshots remain historical",
+  "current_d1_c2_followup": "followups[1] (2026-11-16); original snapshots and all intermediate failures remain historical"
 }

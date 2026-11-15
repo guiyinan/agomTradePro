@@ -7110,7 +7110,11 @@
           "class NumericToleranceField:",
           "class NumericTolerancePolicy:",
           "data02-numeric-tolerance-policy-v1",
-          "breached=not (within_absolute or within_relative)"
+          "breached=not (within_absolute or within_relative)",
+          "class NumericToleranceFieldV2:",
+          "class NumericTolerancePolicyV2:",
+          "data02-numeric-tolerance-policy-v2",
+          "def validate_member_coverage("
         ],
         "apps/data_center/application/data02_publication_tolerance_evidence.py": [
           "class Data02PublicationToleranceEvidence:",
@@ -7123,7 +7127,10 @@
           "validate_publication_evidence(",
           "Publication fact identities must be unique",
           "Publication id does not match its canonical current identity",
-          "reference snapshot hash does not match compared values"
+          "reference snapshot hash does not match compared values",
+          "v2 reconciliation requires the same provider",
+          "tolerance_policy.validate_member_coverage(",
+          "numeric_unit_text_v2(comparison_raw[\"unit\"])"
         ],
         "scripts/record_data02_publication_tolerance_evidence.py": [
           "DEFAULT_POLICY_REGISTRY =",
@@ -8700,6 +8707,21 @@
           "case": "m1_batch_stale_cas_preserves_winner",
           "test_file": "tests/component/data_center/test_m1_reference_price_batch_publication_activation.py",
           "test_function": "test_batch_compare_and_swap_keeps_concurrent_single_publication_current"
+        },
+        {
+          "case": "numeric_v2_per_report_complete_metric_matrix",
+          "test_file": "tests/unit/data_center/test_numeric_tolerance_v2.py",
+          "test_function": "test_financial_matrix_requires_all_metrics_for_every_report_group"
+        },
+        {
+          "case": "numeric_v1_hash_stable_with_v2",
+          "test_file": "tests/unit/data_center/test_numeric_tolerance_v2.py",
+          "test_function": "test_v1_hash_and_ascii_unit_contract_are_unchanged"
+        },
+        {
+          "case": "numeric_v2_same_source_units_and_coverage",
+          "test_file": "tests/unit/data_center/test_data02_tolerance_v2_evidence.py",
+          "test_function": "test_v2_does_not_relax_source_metric_unit_or_complete_member_coverage"
         }
       ]
     },

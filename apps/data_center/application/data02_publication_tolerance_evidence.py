@@ -15,7 +15,7 @@ import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from typing import Final
+from typing import Final, TypeAlias
 from uuid import NAMESPACE_URL, uuid5
 
 from apps.data_center.domain.contracts import DatasetKey, PublicationPolicy
@@ -23,8 +23,11 @@ from apps.data_center.domain.control_plane import PublicationFactReference
 from apps.data_center.domain.numeric_tolerance import (
     NumericToleranceComparison,
     NumericToleranceField,
+    NumericToleranceFieldV2,
     NumericTolerancePolicy,
+    NumericTolerancePolicyV2,
     compare_numeric_value,
+    numeric_unit_text_v2,
 )
 from apps.data_center.domain.publication_evidence import validate_publication_evidence
 
@@ -33,6 +36,9 @@ from .publication_utils import publication_hash
 
 class Data02PublicationToleranceEvidenceError(ValueError):
     """Raised when four-Publication numeric evidence is incomplete or altered."""
+
+
+_TolerancePolicy: TypeAlias = NumericTolerancePolicy | NumericTolerancePolicyV2
 
 
 _CORE_DATASETS: Final[tuple[str, ...]] = (
@@ -93,6 +99,7 @@ _PUBLICATION_POLICY_KEYS: Final[frozenset[str]] = frozenset(
 _TOLERANCE_POLICY_KEYS: Final[frozenset[str]] = frozenset(
     {"content_hash", "fields", "identity", "policy_version", "rule"}
 )
+_TOLERANCE_POLICY_V2_KEYS: Final[frozenset[str]] = _TOLERANCE_POLICY_KEYS | {"selector"}
 _TOLERANCE_FIELD_KEYS: Final[frozenset[str]] = frozenset(
     {"absolute_tolerance", "field_name", "relative_tolerance", "unit"}
 )
@@ -400,7 +407,7 @@ class Data02PublicationToleranceDataset:
     covered_asset_count: int
     covered_asset_codes_hash: str
     publication_policy: PublicationPolicy
-    tolerance_policy: NumericTolerancePolicy
+    tolerance_policy: _TolerancePolicy
     tolerance_approval: dict[str, str]
     members: tuple[PublicationFactReference, ...]
     member_identity_hash: str
@@ -447,6 +454,11 @@ class Data02PublicationToleranceDataset:
                 "policy_version": self.tolerance_policy.policy_version,
                 "rule": self.tolerance_policy.rule,
                 "approval": dict(self.tolerance_approval),
+                **(
+                    {"selector": self.tolerance_policy.selector}
+                    if isinstance(self.tolerance_policy, NumericTolerancePolicyV2)
+                    else {}
+                ),
             },
         }
 
@@ -461,6 +473,7 @@ class Data02PublicationToleranceEvidence:
     universe_hash: str
     policy_registry_sha256: str
     datasets: tuple[Data02PublicationToleranceDataset, ...]
+    format_version: int = 1
 
     @property
     def breach_count(self) -> int:
@@ -489,7 +502,7 @@ class Data02PublicationToleranceEvidence:
             "read_mode": "select_only",
             "reconciliation_passed": self.reconciliation_passed,
             "runtime_enablement": "not_authorized",
-            "schema_version": "data02-four-publication-tolerance-evidence.v1",
+            "schema_version": f"data02-four-publication-tolerance-evidence.v{self.format_version}",
             "universe": {
                 "denominator": self.denominator,
                 "universe_hash": self.universe_hash,
@@ -555,43 +568,61 @@ def _parse_publication_policy(
     return policy
 
 
-def _parse_tolerance_policy(value: object, *, dataset_key: str) -> NumericTolerancePolicy:
+def _parse_tolerance_policy(
+    value: object, *, dataset_key: str, format_version: int = 1
+) -> _TolerancePolicy:
+    """Parse only the explicitly selected policy version and its exact field set."""
+
     raw = _mapping(value, f"{dataset_key}.tolerance_policy")
-    _exact_keys(raw, _TOLERANCE_POLICY_KEYS, f"{dataset_key}.tolerance_policy")
-    fields_raw = _sequence(raw["fields"], "tolerance_policy.fields")
-    fields: list[NumericToleranceField] = []
-    for index, field_value in enumerate(fields_raw):
+    expected_keys = _TOLERANCE_POLICY_V2_KEYS if format_version == 2 else _TOLERANCE_POLICY_KEYS
+    _exact_keys(raw, expected_keys, f"{dataset_key}.tolerance_policy")
+    fields: list[dict[str, str]] = []
+    for index, field_value in enumerate(_sequence(raw["fields"], "tolerance_policy.fields")):
         field = _mapping(field_value, f"tolerance_policy.fields[{index}]")
         _exact_keys(field, _TOLERANCE_FIELD_KEYS, f"tolerance_policy.fields[{index}]")
         try:
             fields.append(
-                NumericToleranceField(
-                    field_name=_token(field["field_name"], "tolerance field_name"),
-                    unit=_token(field["unit"], "tolerance unit"),
-                    absolute_tolerance=_decimal_input(
+                {
+                    "field_name": _token(field["field_name"], "tolerance field_name"),
+                    "unit": (
+                        numeric_unit_text_v2(field["unit"])
+                        if format_version == 2
+                        else _token(field["unit"], "tolerance unit")
+                    ),
+                    "absolute_tolerance": _decimal_input(
                         field["absolute_tolerance"], "tolerance absolute_tolerance"
                     ),
-                    relative_tolerance=_decimal_input(
+                    "relative_tolerance": _decimal_input(
                         field["relative_tolerance"], "tolerance relative_tolerance"
                     ),
-                )
+                }
             )
         except (TypeError, ValueError) as exc:
             raise Data02PublicationToleranceEvidenceError(str(exc)) from exc
     try:
-        policy = NumericTolerancePolicy(
-            dataset_key=dataset_key,
-            policy_version=_token(raw["policy_version"], "tolerance_policy.policy_version"),
-            rule=_token(raw["rule"], "tolerance_policy.rule"),
-            fields=tuple(fields),
-        )
+        version = _token(raw["policy_version"], "tolerance_policy.policy_version")
+        rule = _token(raw["rule"], "tolerance_policy.rule")
+        policy: _TolerancePolicy
+        if format_version == 2:
+            policy = NumericTolerancePolicyV2(
+                dataset_key=dataset_key,
+                policy_version=version,
+                rule=rule,
+                fields=tuple(NumericToleranceFieldV2(**field) for field in fields),
+                selector=_token(raw["selector"], "tolerance_policy.selector"),
+            )
+        else:
+            policy = NumericTolerancePolicy(
+                dataset_key=dataset_key,
+                policy_version=version,
+                rule=rule,
+                fields=tuple(NumericToleranceField(**field) for field in fields),
+            )
     except (TypeError, ValueError) as exc:
         raise Data02PublicationToleranceEvidenceError(str(exc)) from exc
-    supplied_hash = _digest(raw["content_hash"], "tolerance_policy.content_hash")
-    if supplied_hash != policy.content_hash:
+    if _digest(raw["content_hash"], "tolerance_policy.content_hash") != policy.content_hash:
         raise Data02PublicationToleranceEvidenceError("tolerance policy content_hash mismatch")
-    supplied_identity = _token(raw["identity"], "tolerance_policy.identity")
-    if supplied_identity != policy.identity:
+    if _token(raw["identity"], "tolerance_policy.identity") != policy.identity:
         raise Data02PublicationToleranceEvidenceError("tolerance policy identity mismatch")
     return policy
 
@@ -600,7 +631,8 @@ def _parse_policy_registry(
     payload: bytes,
     *,
     captured_at: datetime,
-) -> tuple[dict[str, tuple[NumericTolerancePolicy, dict[str, str]]], str]:
+    format_version: int = 1,
+) -> tuple[dict[str, tuple[_TolerancePolicy, dict[str, str]]], str]:
     if type(payload) is not bytes or not payload:
         raise Data02PublicationToleranceEvidenceError(
             "policy_registry_payload must be non-empty bytes"
@@ -608,7 +640,7 @@ def _parse_policy_registry(
     decoded = _decode_strict_json(payload, label="numeric tolerance policy registry")
     raw = _mapping(decoded, "policy_registry")
     _exact_keys(raw, _REGISTRY_KEYS, "policy_registry")
-    if raw["schema_version"] != "data02-numeric-tolerance-policy-registry.v1":
+    if raw["schema_version"] != f"data02-numeric-tolerance-policy-registry.v{format_version}":
         raise Data02PublicationToleranceEvidenceError(
             "numeric tolerance policy registry schema_version is unsupported"
         )
@@ -616,17 +648,24 @@ def _parse_policy_registry(
         raise Data02PublicationToleranceEvidenceError(
             "numeric tolerance policy registry must be active"
         )
-    registered: dict[str, tuple[NumericTolerancePolicy, dict[str, str]]] = {}
+    registered: dict[str, tuple[_TolerancePolicy, dict[str, str]]] = {}
     for index, policy_value in enumerate(_sequence(raw["policies"], "policy_registry.policies")):
         policy_raw = _mapping(policy_value, f"policy_registry.policies[{index}]")
-        _exact_keys(policy_raw, _REGISTRY_POLICY_KEYS, f"policy_registry.policies[{index}]")
+        _exact_keys(
+            policy_raw,
+            _REGISTRY_POLICY_KEYS | {"selector"} if format_version == 2 else _REGISTRY_POLICY_KEYS,
+            f"policy_registry.policies[{index}]",
+        )
         dataset_key = _token(policy_raw["dataset_key"], "policy_registry.dataset_key")
         if dataset_key in registered:
             raise Data02PublicationToleranceEvidenceError(
                 "numeric tolerance policy registry datasets must be unique"
             )
-        tolerance_payload = {key: policy_raw[key] for key in _TOLERANCE_POLICY_KEYS}
-        policy = _parse_tolerance_policy(tolerance_payload, dataset_key=dataset_key)
+        policy_keys = _TOLERANCE_POLICY_V2_KEYS if format_version == 2 else _TOLERANCE_POLICY_KEYS
+        tolerance_payload = {key: policy_raw[key] for key in policy_keys}
+        policy = _parse_tolerance_policy(
+            tolerance_payload, dataset_key=dataset_key, format_version=format_version
+        )
         approval_raw = _mapping(policy_raw["approval"], "policy_registry.approval")
         _exact_keys(approval_raw, _APPROVAL_KEYS, "policy_registry.approval")
         approved_at = _utc(approval_raw["approved_at"], "policy_registry.approved_at")
@@ -655,7 +694,8 @@ def _parse_dataset(
     denominator: int,
     universe_hash: str,
     captured_at: datetime,
-    registered_policies: Mapping[str, tuple[NumericTolerancePolicy, dict[str, str]]],
+    registered_policies: Mapping[str, tuple[_TolerancePolicy, dict[str, str]]],
+    format_version: int = 1,
 ) -> Data02PublicationToleranceDataset:
     raw = _mapping(value, "datasets[]")
     _exact_keys(raw, _DATASET_KEYS, "datasets[]")
@@ -667,9 +707,13 @@ def _parse_dataset(
         )
     reference_source = _token(raw["reference_source"], "reference_source")
     observed_source = _token(raw["observed_source"], "observed_source")
-    if reference_source == observed_source:
+    if format_version == 1 and reference_source == observed_source:
         raise Data02PublicationToleranceEvidenceError(
             f"{dataset_key} reference and observed sources must differ"
+        )
+    if format_version == 2 and reference_source != observed_source:
+        raise Data02PublicationToleranceEvidenceError(
+            f"{dataset_key} v2 reconciliation requires the same provider"
         )
     publication_raw = _mapping(raw["publication"], f"{dataset_key}.publication")
     _exact_keys(publication_raw, _PUBLICATION_KEYS, f"{dataset_key}.publication")
@@ -692,7 +736,9 @@ def _parse_dataset(
         dataset_key=dataset_key,
         expected_identity=policy_identity,
     )
-    tolerance_policy = _parse_tolerance_policy(raw["tolerance_policy"], dataset_key=dataset_key)
+    tolerance_policy = _parse_tolerance_policy(
+        raw["tolerance_policy"], dataset_key=dataset_key, format_version=format_version
+    )
     registered = registered_policies.get(dataset_key)
     if registered is None or registered[0] != tolerance_policy:
         raise Data02PublicationToleranceEvidenceError(
@@ -744,6 +790,28 @@ def _parse_dataset(
             f"{dataset_key} Publication id does not match its canonical current identity"
         )
     tolerance_by_field = {field.field_name: field for field in tolerance_policy.fields}
+    if isinstance(tolerance_policy, NumericTolerancePolicyV2):
+        try:
+            tolerance_policy.validate_member_coverage(
+                tuple((member.natural_key, member.source) for member in members)
+            )
+        except (TypeError, ValueError) as exc:
+            raise Data02PublicationToleranceEvidenceError(str(exc)) from exc
+    expected_by_member: dict[str, set[str]] = {}
+    for member in members:
+        if format_version == 2 and member.source != reference_source:
+            raise Data02PublicationToleranceEvidenceError(
+                "v2 member provider differs from the compared source"
+            )
+        try:
+            selected = (
+                tolerance_policy.fields_for_member(member.natural_key, source=member.source)
+                if isinstance(tolerance_policy, NumericTolerancePolicyV2)
+                else tolerance_policy.fields
+            )
+        except (TypeError, ValueError) as exc:
+            raise Data02PublicationToleranceEvidenceError(str(exc)) from exc
+        expected_by_member[member.natural_key] = {field.field_name for field in selected}
     comparisons_raw = _sequence(raw["comparisons"], f"{dataset_key}.comparisons")
     comparisons: list[NumericToleranceComparison] = []
     identities: set[tuple[str, str]] = set()
@@ -758,6 +826,10 @@ def _parse_dataset(
             raise Data02PublicationToleranceEvidenceError(
                 f"comparison field {field_name} is absent from tolerance policy"
             )
+        if format_version == 2 and field_name not in expected_by_member.get(natural_key, set()):
+            raise Data02PublicationToleranceEvidenceError(
+                "comparison field does not match the selected member metric"
+            )
         identity = (natural_key, field_name)
         if identity in identities:
             raise Data02PublicationToleranceEvidenceError(
@@ -770,7 +842,11 @@ def _parse_dataset(
                 compare_numeric_value(
                     natural_key=natural_key,
                     tolerance=tolerance,
-                    unit=_token(comparison_raw["unit"], "comparison.unit"),
+                    unit=(
+                        numeric_unit_text_v2(comparison_raw["unit"])
+                        if format_version == 2
+                        else _token(comparison_raw["unit"], "comparison.unit")
+                    ),
                     canonical_value=_decimal_input(
                         comparison_raw["canonical_value"], "comparison.canonical_value"
                     ),
@@ -781,9 +857,8 @@ def _parse_dataset(
             )
         except (TypeError, ValueError) as exc:
             raise Data02PublicationToleranceEvidenceError(str(exc)) from exc
-    expected_fields = set(tolerance_by_field)
     if len(fields_by_natural_key) != member_count or any(
-        fields != expected_fields for fields in fields_by_natural_key.values()
+        fields != expected_by_member.get(key) for key, fields in fields_by_natural_key.items()
     ):
         raise Data02PublicationToleranceEvidenceError(
             f"{dataset_key} comparison coverage must include every member and governed field"
@@ -856,8 +931,14 @@ def parse_data02_publication_tolerance_snapshot(
     decoded = _decode_strict_json(payload, label="payload")
     raw = _mapping(decoded, "evidence")
     _exact_keys(raw, _TOP_LEVEL_KEYS, "evidence")
-    if raw["schema_version"] != "data02-four-publication-tolerance-input.v1":
+    versions = {
+        "data02-four-publication-tolerance-input.v1": 1,
+        "data02-four-publication-tolerance-input.v2": 2,
+    }
+    schema = raw["schema_version"]
+    if type(schema) is not str or schema not in versions:
         raise Data02PublicationToleranceEvidenceError("schema_version is unsupported")
+    format_version = versions[schema]
     if raw["read_mode"] != "select_only":
         raise Data02PublicationToleranceEvidenceError("read_mode must be select_only")
     cutoff = as_of or datetime.now(UTC)
@@ -873,6 +954,7 @@ def parse_data02_publication_tolerance_snapshot(
     registered_policies, policy_registry_sha256 = _parse_policy_registry(
         policy_registry_payload,
         captured_at=captured_at,
+        format_version=format_version,
     )
     datasets = tuple(
         sorted(
@@ -883,6 +965,7 @@ def parse_data02_publication_tolerance_snapshot(
                     universe_hash=universe_hash,
                     captured_at=captured_at,
                     registered_policies=registered_policies,
+                    format_version=format_version,
                 )
                 for item in _sequence(raw["datasets"], "datasets")
             ),
@@ -917,6 +1000,7 @@ def parse_data02_publication_tolerance_snapshot(
         universe_hash=universe_hash,
         policy_registry_sha256=policy_registry_sha256,
         datasets=datasets,
+        format_version=format_version,
     )
 
 
