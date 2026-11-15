@@ -86,6 +86,7 @@ jobs:
       test-paths: ${{ steps.tests.outputs.test-paths }}
       test-count: ${{ steps.tests.outputs.test-count }}
       runtime-required: ${{ steps.runtime-scope.outputs.required }}
+      calendar-postgres-required: ${{ steps.calendar-postgres.outputs.required }}
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -212,6 +213,59 @@ jobs:
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
           echo "test-count=$(wc -w <<< "${TEST_PATHS}" | tr -d ' ')" >> "$GITHUB_OUTPUT"
+
+      - name: Detect native calendar PostgreSQL scope
+        id: calendar-postgres
+        shell: bash
+        env:
+          BASE_REF: ${{ steps.refs.outputs.base-ref }}
+          HEAD_REF: ${{ steps.refs.outputs.head-ref }}
+          EVENT_NAME: ${{ github.event_name }}
+          FULL_VALIDATION: ${{ inputs.full_validation }}
+        run: |
+          set -euo pipefail
+          required=false
+          if [[ "${EVENT_NAME}" == "workflow_call" || "${EVENT_NAME}" == "workflow_dispatch" || "${FULL_VALIDATION}" == "true" ]]; then
+            required=true
+          elif [[ -z "${BASE_REF}" || -z "${HEAD_REF}" ]]; then
+            required=true
+          elif ! changed_paths="$(git diff --name-only "${BASE_REF}...${HEAD_REF}")"; then
+            required=true
+          else
+            while IFS= read -r changed_path; do
+              case "${changed_path}" in
+                apps/data_center/*|\
+                apps/account/*|\
+                apps/audit/*|\
+                apps/config_center/*|\
+                apps/terminal/*|\
+                config/tui/*|\
+                core/settings/*|\
+                core/templates/terminal/tui_workbench.html|\
+                frontend/agomtradepro-host/*|\
+                frontend/agomtui-runtime/*|\
+                pytest.ini|\
+                pyproject.toml|\
+                requirements-dev.txt|\
+                scripts/select_tests.py|\
+                static/css/tui-workbench.css|\
+                static/js/tui-workbench.js|\
+                tests/component/data_center/*|\
+                tests/component/conftest.py|\
+                tests/component/equity/test_research_snapshot_tui_browser.py|\
+                tests/conftest.py|\
+                tests/playwright/*|\
+                tests/support/*|\
+                tests/unit/ci/test_select_tests.py|\
+                .github/workflows/ci-fast-feedback.yml|\
+                .github/workflows/nightly-tests.yml)
+                  required=true
+                  break
+                  ;;
+              esac
+            done <<< "${changed_paths}"
+          fi
+          echo "required=${required}" >> "$GITHUB_OUTPUT"
 
   incremental-quality:
     name: Incremental quality gates
@@ -500,3 +554,49 @@ jobs:
         run: |
           python manage.py check
           python manage.py collectstatic --noinput -v 0
+
+  institutional-calendar-postgres:
+    name: Institutional calendar native PostgreSQL browser (Python 3.11)
+    needs: detect-tests
+    if: needs.detect-tests.outputs.calendar-postgres-required == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: cal02_institutional_calendar_source_ci
+          POSTGRES_USER: contract_test
+          POSTGRES_PASSWORD: disposable_ci_only
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U contract_test -d cal02_institutional_calendar_source_ci"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+    env:
+      DATABASE_URL: postgresql://contract_test:disposable_ci_only@127.0.0.1:5432/cal02_institutional_calendar_source_ci
+      DJANGO_SETTINGS_MODULE: core.settings.critical_postgres_test
+      AGOM_CRITICAL_TEST_DB_NAME: cal02_institutional_calendar_qa
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+          pip install -e sdk/
+
+      - name: Install Python browser runtime
+        run: python -m playwright install --with-deps chromium
+
+      - name: Run six native PostgreSQL calendar browser journeys
+        run: >-
+          python -m pytest -p django
+          tests/component/data_center/test_institutional_calendar_browser.py
+          --create-db -q -o addopts=''

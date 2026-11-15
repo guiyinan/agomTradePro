@@ -1802,6 +1802,124 @@
       "production_deployment": false,
       "data02_exit_met": false,
       "data03_started": false
+    },
+    {
+      "recorded_at_utc": "2026-11-15T20:28:57.344449+00:00",
+      "scope": "Fix SQLite/native-PostgreSQL calendar browser CI routing without dropping ordinary component coverage",
+      "candidate": {
+        "base_head": "b96a38d8758153ebafefb36d5fed5bd6fc086ff8",
+        "files_sha256": {
+          "scripts/select_tests.py": "68d02418f833127b43865a7f1179a50e4068dad1d90e5860492f7bf96f0f06ad",
+          "tests/unit/ci/test_select_tests.py": "08e0f3b0744863a928cc8f54c93a51b5c711af73e443e441302476b51055ea29",
+          ".github/workflows/ci-fast-feedback.yml": "eaaf076172002316124a891c19fe1a2b48a8577779c5c80e9d34007a0b156682",
+          ".github/workflows/nightly-tests.yml": "b1e2bf25d4f55a3714f49389c611122a3e4854280ddf79aff41885fb9333493a"
+        },
+        "isolated_qa_snapshot_files_byte_identical": true
+      },
+      "validation": {
+        "isolated_selector_workflow_contract_tests": {
+          "passed": 87,
+          "exit_code": 0
+        },
+        "isolated_incremental_mypy": {
+          "source_files": 1,
+          "issues": 0,
+          "regressions": 0,
+          "exit_code": 0
+        },
+        "isolated_unified_data_center_projections_exit": 0,
+        "format_exit": 0,
+        "actionlint": {
+          "version": "1.7.7",
+          "official_windows_amd64_archive_sha256": "7f12f1801bca3d480d67aaf7774f4c2a6359a3ca8eebe382c95c10c9704aa731",
+          "exit_code": 0,
+          "shellcheck_enabled": false
+        },
+        "exact_workflow_scope_shell_cases": {
+          "passed": 11,
+          "exit_code": 0
+        },
+        "native_browser_on_unchanged_b96a_runtime": {
+          "passed": 6,
+          "skipped": 0,
+          "duration_seconds": 286.56,
+          "source_database": "data02_qa_source",
+          "test_database": "cal02_institutional_calendar_qa",
+          "server": "owned disposable PostgreSQL16 on loopback55446"
+        },
+        "local_combined_worktree_full_mypy_debt": {
+          "exit_code": 0,
+          "errors": 0,
+          "files_with_errors": 0,
+          "includes_native_storage_wip": true
+        },
+        "independent_luna_max_review": "passed; standalone selector legacy git-diff swallowing remains documented",
+        "new_workflow_actual_ci": "pending push/run",
+        "isolated_governance_exit": 0
+      },
+      "raw_artifacts": [
+        {
+          "path": ".tmp/data02-current-20261115/20261116/ci-route-root-isolated-tests.log",
+          "sha256": "552561a474785701eee52950e0f5fa8ca3e27c027faff1706d0f7a0c070c8221"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/ci-route-root-isolated-tests.junit.xml",
+          "sha256": "b93e5d4cd37294d2b9850492d7912911572f26d74baf31bdd39598208ab951ce"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/ci-route-isolated-typing.log",
+          "sha256": "1696369e79514135c6c84d87d82a0fc9c6a7026a4b6fda77e8a7e9b50eef135b"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/ci-route-isolated-projections.log",
+          "sha256": "77eacc40662986de6c961dd9101786ccaa2175710b233e44269a9eaac409c995"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/ci-route-root-format-check.log",
+          "sha256": "c402668a21e7f9f3d90ef17bf9ce260dc345c41cbc6a82ba48b7265fe4794fd7"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/ci-route-actionlint.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/ci-route-scope-behavior.log",
+          "sha256": "4af7fd84094c1c6e8a86335a4f5681563e4f36b53a17235ff7ed78da5f5fba23"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/ci-scope-201709151535/results.json",
+          "sha256": "3174bebf522f3e35ec10e9f0890aa3dde7aa8862e95775e99ca468ebe139d4b3"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/c2-browser-native-b96a.log",
+          "sha256": "b8f4c68f29f9f352636fb82d20c60a25082cc3c5e56b81cbab7d736e816d212a"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/c2-browser-native-b96a.junit.xml",
+          "sha256": "15cba76002c956112356748463af47a11f3acaf154c92f235ededc2b7940d025"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/native-and-ci-full-mypy-debt.log",
+          "sha256": "def6c561b37227470bcda90c8450d9837ca85dd34af34d05e7d6af2afdf85ab1"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/ci-b96a38d87-fast.failed.log",
+          "sha256": "680828f745c31b9e01c1160e8521081f9bc758ffe4daeb3d49d23c2f6d43ebec"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/ci-route-isolated-governance.log",
+          "sha256": "50824cda33db620929040684fffe76d54284292edfd06fd75b4dedc034571c6b"
+        }
+      ],
+      "boundaries": [
+        "C2 CI change is validated in an isolated b96a runtime snapshot; uncommitted native-storage feature is not part of its isolated QA.",
+        "The six browser cases retain their PostgreSQL-only assertion. No skip replaces execution.",
+        "Current CI preflight diff errors fail the job; standalone selector legacy error fallback was not changed."
+      ],
+      "production_deployment": false,
+      "financial_provider_requests": 0,
+      "data02_exit_met": false,
+      "data03_started": false
     }
   ],
   "current_authority_followup": "followups[0] (2026-11-16); original 2026-11-15 snapshots remain historical",

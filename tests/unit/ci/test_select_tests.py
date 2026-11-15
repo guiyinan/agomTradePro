@@ -9,6 +9,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+import yaml
+
 # 获取项目根目录
 PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
 select_tests_path = PROJECT_ROOT / "scripts" / "select_tests.py"
@@ -316,7 +318,8 @@ class TestSelectTests(unittest.TestCase):
 
         tests = select_tests_func(get_changed_modules(changed), changed, profile="logic_guardrails")
 
-        self.assertIn("tests/component/data_center/", tests)
+        self.assertIn("tests/component/data_center/test_repositories.py", tests)
+        self.assertNotIn("tests/component/data_center/", tests)
 
     def test_logic_profile_keeps_data_center_tests_in_mixed_shared_diff(self):
         """Shared edits must not discard tests selected by an app change."""
@@ -327,7 +330,8 @@ class TestSelectTests(unittest.TestCase):
 
         tests = select_tests_func(get_changed_modules(changed), changed, profile="logic_guardrails")
 
-        self.assertIn("tests/component/data_center/", tests)
+        self.assertIn("tests/component/data_center/test_repositories.py", tests)
+        self.assertNotIn("tests/component/data_center/", tests)
 
     def test_logic_profile_selects_changed_component_test_itself(self):
         """A test-only diff must execute the changed test instead of only guardrails."""
@@ -646,6 +650,146 @@ class TestManagedBrowserSelectionBoundary(unittest.TestCase):
         self.assertIn("tests/playwright/tests/uat/ -v", workflow)
         self.assertIn("--require-no-skips", workflow)
         self.assertIn("--min-tests 20", workflow)
+
+
+class TestNativePostgresCalendarSelection(unittest.TestCase):
+    """Keep the calendar browser journey on its isolated PostgreSQL runner."""
+
+    browser_target = "tests/component/data_center/test_institutional_calendar_browser.py"
+
+    @staticmethod
+    def _data_center_component_test_files() -> set[str]:
+        component_root = PROJECT_ROOT / "tests/component/data_center"
+        return {
+            path.relative_to(PROJECT_ROOT).as_posix()
+            for path in component_root.rglob("*.py")
+            if path.is_file() and (path.name.startswith("test_") or path.name.endswith("_test.py"))
+        }
+
+    def test_data_center_fast_feedback_keeps_every_other_component_test(self):
+        targets = set(
+            select_tests_func(
+                {"data_center"},
+                ["apps/data_center/domain/entities.py"],
+                profile="logic_guardrails",
+            )
+        )
+        selected_component_tests = {
+            target for target in targets if target.startswith("tests/component/data_center/")
+        }
+        expected_component_tests = self._data_center_component_test_files() - {self.browser_target}
+
+        self.assertEqual(selected_component_tests, expected_component_tests)
+        self.assertNotIn("tests/component/data_center/", targets)
+        self.assertNotIn(self.browser_target, targets)
+
+    def test_browser_test_only_change_routes_out_of_sqlite_selector(self):
+        targets = set(select_tests_func(set(), [self.browser_target], profile="logic_guardrails"))
+
+        self.assertNotIn(self.browser_target, targets)
+        self.assertNotIn("tests/component/data_center/", targets)
+        self.assertTrue(set(CORE_GUARDRAIL_TESTS).issubset(targets))
+
+    def test_raw_scope_detector_and_postgres_job_cover_test_only_changes(self):
+        workflow_path = PROJECT_ROOT / ".github/workflows/ci-fast-feedback.yml"
+        workflow = yaml.load(workflow_path.read_text(encoding="utf-8"), Loader=yaml.BaseLoader)
+
+        reusable_input = workflow["on"]["workflow_call"]["inputs"]["full_validation"]
+        self.assertEqual(reusable_input["default"], "true")
+        detect_job = workflow["jobs"]["detect-tests"]
+        self.assertEqual(
+            detect_job["outputs"]["calendar-postgres-required"],
+            "${{ steps.calendar-postgres.outputs.required }}",
+        )
+        detector = next(
+            step
+            for step in detect_job["steps"]
+            if step.get("name") == "Detect native calendar PostgreSQL scope"
+        )
+        self.assertIn("git diff --name-only", detector["run"])
+        self.assertIn("workflow_call", detector["run"])
+        self.assertIn("workflow_dispatch", detector["run"])
+        self.assertEqual(detector["env"]["FULL_VALIDATION"], "${{ inputs.full_validation }}")
+        self.assertIn('"${FULL_VALIDATION}" == "true"', detector["run"])
+        self.assertIn('-z "${BASE_REF}"', detector["run"])
+        self.assertIn('-z "${HEAD_REF}"', detector["run"])
+        self.assertIn("! changed_paths=", detector["run"])
+        self.assertIn("tests/component/data_center/", detector["run"])
+        self.assertIn("tests/support/", detector["run"])
+        self.assertIn("scripts/select_tests.py", detector["run"])
+        self.assertIn(".github/workflows/nightly-tests.yml", detector["run"])
+        native_path_case = (
+            detector["run"].split('case "${changed_path}" in', 1)[1].split("esac", 1)[0]
+        )
+        self.assertIn("tests/component/data_center/*", native_path_case)
+        self.assertIn("required=true", native_path_case)
+
+        job = workflow["jobs"]["institutional-calendar-postgres"]
+        self.assertEqual(job["needs"], "detect-tests")
+        self.assertEqual(
+            job["if"],
+            "needs.detect-tests.outputs.calendar-postgres-required == 'true'",
+        )
+        self.assertEqual(
+            job["services"]["postgres"]["env"]["POSTGRES_DB"],
+            "cal02_institutional_calendar_source_ci",
+        )
+        self.assertEqual(
+            job["env"]["DJANGO_SETTINGS_MODULE"], "core.settings.critical_postgres_test"
+        )
+        self.assertEqual(
+            job["env"]["AGOM_CRITICAL_TEST_DB_NAME"],
+            "cal02_institutional_calendar_qa",
+        )
+        install_index = next(
+            index
+            for index, step in enumerate(job["steps"])
+            if step.get("name") == "Install Python browser runtime"
+        )
+        browser_index = next(
+            index
+            for index, step in enumerate(job["steps"])
+            if step.get("name") == "Run six native PostgreSQL calendar browser journeys"
+        )
+        self.assertLess(install_index, browser_index)
+        browser_run = job["steps"][browser_index]["run"]
+        self.assertIn(self.browser_target, browser_run)
+        self.assertIn("--create-db", browser_run)
+        self.assertNotIn("--no-migrations", browser_run)
+
+    def test_nightly_sqlite_component_and_postgres_job_route_browser_as_a_pair(self):
+        workflow_path = PROJECT_ROOT / ".github/workflows/nightly-tests.yml"
+        workflow = yaml.load(workflow_path.read_text(encoding="utf-8"), Loader=yaml.BaseLoader)
+
+        nightly_steps = workflow["jobs"]["nightly"]["steps"]
+        sqlite_component = next(
+            step for step in nightly_steps if step.get("name") == "Run Component Tests"
+        )
+        self.assertIn(f"--ignore={self.browser_target}", sqlite_component["run"])
+
+        postgres_steps = workflow["jobs"]["critical-postgres"]["steps"]
+        browser_install_index = next(
+            index
+            for index, step in enumerate(postgres_steps)
+            if step.get("name") == "Install Python browser runtime for current-data contracts"
+        )
+        calendar_index = next(
+            index
+            for index, step in enumerate(postgres_steps)
+            if step.get("name") == "Run institutional calendar native PostgreSQL browser journeys"
+        )
+        self.assertLess(browser_install_index, calendar_index)
+        calendar_step = postgres_steps[calendar_index]
+        self.assertEqual(
+            calendar_step["env"]["DJANGO_SETTINGS_MODULE"],
+            "core.settings.critical_postgres_test",
+        )
+        self.assertEqual(
+            calendar_step["env"]["AGOM_CRITICAL_TEST_DB_NAME"],
+            "cal02_institutional_calendar_qa",
+        )
+        self.assertIn(self.browser_target, calendar_step["run"])
+        self.assertIn("--create-db", calendar_step["run"])
 
 
 if __name__ == "__main__":

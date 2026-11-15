@@ -1033,3 +1033,21 @@ Root 串行整合 Git/index/投影；下一 D1 实现窗口由 Luna Max 完成�
 行必须为空，禁止未经批准的兼容舍入；旧行及冻结摘要保持不变。C2 具体 TTL/正式阶段
 仍待已提出的明确答复，参数化实现可继续，实际激活保持阻断。DATA-02 完整退出与
 DATA-03 依赖门没有变化。
+
+## 40. 2026-11-16 日历浏览器测试的真实 PostgreSQL 路由
+
+Fast Feedback 的 `logic_guardrails` 选择器将含原生日历浏览器模块的目录展开，保留
+其余全部组件测试；该模块由独立 PostgreSQL 16 job 承接。原始 diff 独立决定 PG scope，
+覆盖直接 test-only 改动、支持文件、相关业务依赖及工作流；缺 refs、diff 失败、手动与
+完整发布验证均保守包含。复用既有 `full_validation`，没有新增可跳过原生覆盖的开关。
+default/full 选择器不变。Nightly 的 SQLite 排除与同 job 内 Chromium/原生 PG 执行成对。
+
+源数据库与显式 `TEST.NAME=cal02_institutional_calendar_qa` 分离，测试保留原硬断言。
+Root 在 `b96a38d87` 的独立源码快照、全迁移的新 PG 测试库中跑过六例，全部通过；再将
+四个 CI 修复文件采用到该快照，87 项回归、增量类型、统一投影检查通过。Actionlint
+1.7.7 及 11 组实际 scope shell 分支检查通过，ShellCheck 未运行；新工作流仍须真实 CI。
+独立 Luna Max 复核通过。原 selector 单独调用时吞掉 git diff 错误的既存边界未改变，
+不把工作流前置 diff 的阻断行为扩大为所有独立 CLI 调用的保证。
+
+本事项仅修复验证路由；生产审计、日历目录、正式阶段、财务回填、完整 universe 对账
+和 DATA-03 退出门没有因此放行。精确存储主链另按完整事项整合，不混入本次 CI 提交。

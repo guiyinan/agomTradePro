@@ -409,6 +409,10 @@ LOGIC_GUARDRAILS_ALLOWED_PREFIXES = (
     "apps/",
 )
 
+FAST_FEEDBACK_NATIVE_POSTGRES_ONLY_TARGETS = frozenset(
+    {"tests/component/data_center/test_institutional_calendar_browser.py"}
+)
+
 
 def _is_logic_guardrails_target(path: str) -> bool:
     """Return whether a target is lightweight enough for Logic Guardrails."""
@@ -420,6 +424,44 @@ def _is_logic_guardrails_target(path: str) -> bool:
     if normalized.startswith("apps/"):
         return "/tests/" in normalized
     return True
+
+
+def _finalize_selected_tests(targets: set[str] | list[str], profile: str) -> list[str]:
+    """Keep PostgreSQL-only browser tests out of SQLite-backed fast feedback."""
+
+    if profile != "logic_guardrails":
+        return sorted(set(targets))
+    if isinstance(targets, list) and targets == CORE_GUARDRAIL_TESTS:
+        return list(CORE_GUARDRAIL_TESTS)
+
+    selected: set[str] = set()
+    for target in targets:
+        normalized = target.replace("\\", "/").rstrip("/")
+        if normalized in FAST_FEEDBACK_NATIVE_POSTGRES_ONLY_TARGETS:
+            continue
+
+        target_path = PROJECT_ROOT / normalized
+        contains_postgres_only_target = any(
+            postgres_target.startswith(f"{normalized}/")
+            for postgres_target in FAST_FEEDBACK_NATIVE_POSTGRES_ONLY_TARGETS
+        )
+        if target_path.is_dir() and contains_postgres_only_target:
+            for candidate in target_path.rglob("*.py"):
+                if not candidate.is_file():
+                    continue
+                is_pytest_file = candidate.name.startswith("test_") or candidate.name.endswith(
+                    "_test.py"
+                )
+                if not is_pytest_file:
+                    continue
+                relative = candidate.relative_to(PROJECT_ROOT).as_posix()
+                if relative not in FAST_FEEDBACK_NATIVE_POSTGRES_ONLY_TARGETS:
+                    selected.add(relative)
+            continue
+
+        selected.add(target)
+
+    return sorted(selected)
 
 
 def get_app_local_tests(module: str) -> list[str]:
@@ -553,7 +595,9 @@ def select_tests(
     if sdk_files:
         remaining_files = [path for path in changed_files if path not in sdk_files]
         base_targets = select_tests(modules - {"sdk"}, remaining_files, profile)
-        return sorted(set(base_targets) | {"sdk/tests/test_sdk/", "sdk/tests/test_mcp/"})
+        return _finalize_selected_tests(
+            set(base_targets) | {"sdk/tests/test_sdk/", "sdk/tests/test_mcp/"}, profile
+        )
 
     use_logic_guardrails_profile = profile == "logic_guardrails"
     changed_test_targets = get_changed_test_targets(
@@ -580,8 +624,9 @@ def select_tests(
     }
     if unmapped_app_modules:
         if use_logic_guardrails_profile:
-            return sorted(
-                target for target in FULL_TEST_SUITES if _is_logic_guardrails_target(target)
+            return _finalize_selected_tests(
+                {target for target in FULL_TEST_SUITES if _is_logic_guardrails_target(target)},
+                profile,
             )
         return FULL_TEST_SUITES
 
@@ -593,9 +638,11 @@ def select_tests(
                 existing_tests = [
                     target for target in existing_tests if _is_logic_guardrails_target(target)
                 ]
-            return sorted(existing_tests) if existing_tests else CORE_GUARDRAIL_TESTS
+            return _finalize_selected_tests(
+                existing_tests if existing_tests else CORE_GUARDRAIL_TESTS, profile
+            )
         if use_logic_guardrails_profile:
-            return CORE_GUARDRAIL_TESTS
+            return _finalize_selected_tests(CORE_GUARDRAIL_TESTS, profile)
         return FULL_TEST_SUITES
 
     # CI 配置变更 -> 运行全量测试
@@ -604,13 +651,15 @@ def select_tests(
             pass
         elif use_logic_guardrails_profile:
             if not changed_test_targets:
-                return CORE_GUARDRAIL_TESTS
+                return _finalize_selected_tests(CORE_GUARDRAIL_TESTS, profile)
             existing_tests = [
                 target
                 for target in tests
                 if os.path.exists(target) and _is_logic_guardrails_target(target)
             ]
-            return sorted(existing_tests) if existing_tests else CORE_GUARDRAIL_TESTS
+            return _finalize_selected_tests(
+                existing_tests if existing_tests else CORE_GUARDRAIL_TESTS, profile
+            )
         else:
             return FULL_TEST_SUITES
 
@@ -621,13 +670,15 @@ def select_tests(
             pass
         elif use_logic_guardrails_profile:
             if not changed_test_targets:
-                return CORE_GUARDRAIL_TESTS
+                return _finalize_selected_tests(CORE_GUARDRAIL_TESTS, profile)
             existing_tests = [
                 target
                 for target in tests
                 if os.path.exists(target) and _is_logic_guardrails_target(target)
             ]
-            return sorted(existing_tests) if existing_tests else CORE_GUARDRAIL_TESTS
+            return _finalize_selected_tests(
+                existing_tests if existing_tests else CORE_GUARDRAIL_TESTS, profile
+            )
         else:
             return FULL_TEST_SUITES
 
@@ -650,11 +701,13 @@ def select_tests(
     existing_tests = [t for t in tests if os.path.exists(t)]
 
     if not existing_tests:
-        return CORE_GUARDRAIL_TESTS
+        return _finalize_selected_tests(CORE_GUARDRAIL_TESTS, profile)
 
     if use_logic_guardrails_profile:
         filtered_tests = [t for t in existing_tests if _is_logic_guardrails_target(t)]
-        return sorted(filtered_tests) if filtered_tests else CORE_GUARDRAIL_TESTS
+        return _finalize_selected_tests(
+            filtered_tests if filtered_tests else CORE_GUARDRAIL_TESTS, profile
+        )
 
     return sorted(existing_tests)
 

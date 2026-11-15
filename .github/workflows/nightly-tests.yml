@@ -367,6 +367,7 @@ jobs:
           PYTHONFAULTHANDLER: "1"
         run: |
           python -m pytest tests/component/ -vv -ra \
+              --ignore=tests/component/data_center/test_institutional_calendar_browser.py \
               -n 2 \
               --dist=load \
               --max-worker-restart=0 \
@@ -966,6 +967,15 @@ jobs:
 
       - name: Install Python browser runtime for current-data contracts
         run: python -m playwright install --with-deps chromium
+
+      - name: Run institutional calendar native PostgreSQL browser journeys
+        env:
+          DJANGO_SETTINGS_MODULE: core.settings.critical_postgres_test
+          AGOM_CRITICAL_TEST_DB_NAME: cal02_institutional_calendar_qa
+        run: >-
+          python -m pytest -p django
+          tests/component/data_center/test_institutional_calendar_browser.py
+          --create-db -q -o addopts=''
 
       - name: Run full-registry transaction cleanup regressions on PostgreSQL
         timeout-minutes: 10
