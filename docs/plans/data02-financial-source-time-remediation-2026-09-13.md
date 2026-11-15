@@ -1082,3 +1082,23 @@ Root 串行收口本批 Git/index/投影；两位 Luna Max 分别在临时隔离
 值对象与 C2 v3 witness/codec 及其测试，当前不写共享 Source，不运行共享重 QA；完成后
 及时采用到正式开发分支。C2 的 TTL/正式阶段待答复，实际日历批准、v3 时间资格、E1、
 完整 universe 四 Publication 对账仍未完成；DATA-02/03 原退出门和生产维护审批不变。
+
+| base_sha | identity | change_kind | rationale | consumer_audit | compatibility_or_rollback |
+| --- | --- | --- | --- | --- | --- |
+| 9ae935d6abbe58856f490ad7960311150b173765 | data_center.FinancialFactModel | model_change | 原生字段超过四位精度，新增独立 native-decimal-v2 精确文本与证据；旧列仅 v1 使用 | repository、write guard、发布成员及 fallback 编码、equity mapper、HTTP 输出均按显式版本接线；独立旧 golden、带旧数据迁移与 188 项真实 PostgreSQL 回归已核对；生产组合尚未激活 | DB 默认 v1 兼容旧 writer；首次 native 写入前升级所有 reader；已有 native 行时拒绝反迁移并保留兼容 codec，不进行有损回滚 |
+
+## 42. 2026-11-16 精确 CI 失败修复与范围门补证
+
+实际候选 `7c6116766b61f2254908534fd3ca7d51bbaf46a3` 的 Architecture CI 在两种 Python
+版本均通过架构、模块地图和字典投影检查，但因缺少 REF-01 模型差值说明而失败。本地
+此前无参数字典检查仅证明投影一致，未证明精确提交范围的说明门；按既有 REF-01 契约
+在本计划补齐上表，使用真实完整 base/head OID 再验原模型改动范围，不放宽检查器。
+
+Security 将验收索引中 `API_REFERENCE.md` 路径键对应的公开 SHA-256 误识别为凭据。
+复核后仅登记原 commit/路径/规则/行号的精确历史指纹；当前候选清单改用独立 `path` /
+`sha256` 字段避免同类语法歧义。保持扫描规则与目录范围；本次还须扫描包含最终元数据的
+候选，而不能沿用元数据生成前的局部目录扫描。原失败和修复检查追加唯一索引。
+
+这批修复不改生产 Python；前批 188 项及类型证据只在源码哈希核实一致时复用。
+新 SHA 的实际 CI 仍以真实结果为准，不移用上一提交失败前的局部绿灯。Root 暂停新增
+历史 reader 实现，先收口实际 CI；两位 Luna Max 隔离草稿待审查、尚未采用到正式 Source。
