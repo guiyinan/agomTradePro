@@ -5,13 +5,14 @@
     const isRecord = value => value !== null && typeof value === "object" && !Array.isArray(value);
     const sameKeys = (value, keys) => isRecord(value)
         && Object.keys(value).sort().join("\u0000") === [...keys].sort().join("\u0000");
-    const corporateActionConsentPrepareActions = new Set([
+    const corporateActionPublicAccountPrepareActions = new Set([
         "simulated-trading.corporate-action-consent-prepare",
         "simulated-trading.corporate-action-consent-withdraw-prepare",
+        "simulated-trading.corporate-action-workflow-prepare",
     ]);
 
     function captureConsentAccountScope(action, params) {
-        if (!corporateActionConsentPrepareActions.has(action?.key)
+        if (!corporateActionPublicAccountPrepareActions.has(action?.key)
             || !isRecord(params) || !hasOwn(params, "account_id")) return undefined;
         return { account_id: params.account_id };
     }
@@ -26,7 +27,7 @@
     }
 
     function consentPreparePublicAccountId(action, descriptor, result, continuation, submittedScope) {
-        if (!corporateActionConsentPrepareActions.has(action?.key)) return { status: "not_applicable" };
+        if (!corporateActionPublicAccountPrepareActions.has(action?.key)) return { status: "not_applicable" };
         if (descriptor.fieldMap.account_id !== "account_id"
             || !hasOwn(continuation.input, "account_id")
             || !isRecord(submittedScope)) {

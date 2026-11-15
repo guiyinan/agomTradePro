@@ -7007,3 +7007,58 @@ test("published corporate-action event header renders its retained rows and prep
         assert.deepEqual(browserErrors, []);
     } finally { await browser.close(); }
 });
+
+test("published corporate-action row prepares a protected continuation in its result panel", async () => {
+    const graph = JSON.parse(await readFile(resolve(root, "config/tui/published/tui_operation_graph.published.json"), "utf8"));
+    const screenSpec = { ...graph.screens.find(item => item.key === "execution.corporate-actions"), status: "online" };
+    const screenActions = graph.actions.filter(item => item.screen_key === screenSpec.key).map(item => ({
+        ...item,
+        method: item.method || (item.fields.some(field => field.binding === "body") ? "POST" : "GET"),
+        risk: item.risk || "read",
+        confirmation_required: item.confirmation_required ?? (item.risk === "write"),
+    }));
+    const events = screenActions.find(item => item.key === "simulated-trading.corporate-action-workflow-events");
+    const prepare = screenActions.find(item => item.key === "simulated-trading.corporate-action-workflow-prepare");
+    const confirm = screenActions.find(item => item.key === "simulated-trading.corporate-action-workflow-confirm");
+    const token = "synthetic-owner-operation-token";
+    const testCatalog = structuredClone(catalog);
+    testCatalog.default_screen = screenSpec.key;
+    testCatalog.groups[0].key = screenSpec.group;
+    testCatalog.groups[0].modules[0].key = screenSpec.module_key;
+    testCatalog.groups[0].modules[0].screens = [{ key: screenSpec.key, label: screenSpec.label }];
+    const panelSpec = screenSpec.dashboard_panels.find(item => item.key === "corporate-action-workflow-events");
+    const { browser, page, browserErrors } = await openHarness(`https://app.test/?screen=${screenSpec.key}`, {
+        catalog: testCatalog,
+        dashboardScreen: { module: { key: screenSpec.module_key }, screen: screenSpec, actions: screenActions },
+        waitForInitialRows: false,
+        actionRunMock: ({ actionKey }) => {
+            if (actionKey === events.key) return {
+                action: events, outcome: "success", response: { status_code: 200 },
+                view_model: { kind: "datagrid", status: "已读取", columns: panelSpec.columns,
+                    rows: [{ account_id: "42", event_id: "synthetic-source-event", asset_code: "000001.SZ", title: "Synthetic owner event" }],
+                    pager: { client_side: true, page: 1, page_size: 20, total_rows: 1 } },
+            };
+            if (actionKey === prepare.key) return {
+                action: prepare, outcome: "success", response: { status_code: 200 },
+                view_model: { kind: "detail", status: "可确认", fields: [{ key: "account_id", label: "账户", value: "42" }, { key: "action", label: "项目", value: "未参与配股" }] },
+                continuation: { action_key: confirm.key, input: { account_id: "42", continuation_token: token }, expires_at: new Date(Date.now() + 60000).toISOString() },
+            };
+            return null;
+        },
+    });
+    try {
+        const panel = page.locator('[data-dashboard-panel="corporate-action-workflow-events"]');
+        await panel.locator('button.tui-dashboard-open').click();
+        const readForm = page.locator(`[data-tui-modal] form[data-action-ui-key="${events.key}"]`);
+        await readForm.locator('[name="account_id"]').fill("42");
+        await readForm.locator('.tui-action-submit').click();
+        const row = panel.locator('tbody tr').filter({ hasText: "Synthetic owner event" });
+        await row.locator('[data-dashboard-row-action]').click();
+        const form = page.locator(`[data-tui-modal] form[data-action-ui-key="${prepare.key}"]`);
+        await form.locator('[name="action"]').selectOption("rights_not_exercised");
+        await form.locator('.tui-action-submit').click();
+        await page.locator('[data-dashboard-panel="corporate-action-workflow-result"] [data-result-continuation="true"] button').waitFor({ state: "visible" });
+        await assertContinuationTokenNotPersisted(page, token);
+        assert.deepEqual(browserErrors, []);
+    } finally { await browser.close(); }
+});

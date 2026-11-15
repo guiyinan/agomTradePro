@@ -17,9 +17,10 @@ two read-only preparations and two separately confirmed mutations in the account
 row menu. Account detail remains the primary row task. Show the original source
 observation and expiry before consent; do not ask the owner to paste internal
 locators. Protected continuations retain credentials only for the current result.
-Only these two preparations may treat an account ID as public, after the submitted
-scope, continuation input and unique displayed account field match canonically.
-The consent and withdrawal tokens remain protected, even if a token happens to
+The two consent preparations and the corporate-action workflow preparation may
+treat an account ID as public only after the submitted scope, continuation input
+and unique displayed account field match canonically, matching the server rule.
+The consent, withdrawal and operation tokens remain protected, even if a token happens to
 equal the public ID. Read-only owners may withdraw their exact historical consent
 after expiry or policy loss; a current session deadline never renews the old grant.
 Use ordinary status/recovery copy without transport details. Saving or withdrawing

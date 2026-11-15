@@ -1405,8 +1405,9 @@ test("continuation values duplicated into render or debug data are rejected", ()
 
 function makeCorporateActionConsentActions(sourceKey) {
     const withdrawal = sourceKey === "simulated-trading.corporate-action-consent-withdraw-prepare";
-    const tokenKey = withdrawal ? "withdrawal_token" : "consent_token";
-    const targetKey = withdrawal
+    const workflow = sourceKey === "simulated-trading.corporate-action-workflow-prepare";
+    const tokenKey = workflow ? "continuation_token" : withdrawal ? "withdrawal_token" : "consent_token";
+    const targetKey = workflow ? "simulated-trading.corporate-action-workflow-confirm" : withdrawal
         ? "simulated-trading.corporate-action-consent-withdraw"
         : "simulated-trading.corporate-action-consent";
     const hiddenField = key => ({
@@ -1450,7 +1451,8 @@ function successfulConsentPrepareResult(sourceKey, actions, {
     fields,
 } = {}) {
     const withdrawal = sourceKey === "simulated-trading.corporate-action-consent-withdraw-prepare";
-    const tokenKey = withdrawal ? "withdrawal_token" : "consent_token";
+    const workflow = sourceKey === "simulated-trading.corporate-action-workflow-prepare";
+    const tokenKey = workflow ? "continuation_token" : withdrawal ? "withdrawal_token" : "consent_token";
     const result = successfulResult(token);
     result.continuation.action_key = actions[1].key;
     result.continuation.input = { account_id: continuationAccountId, [tokenKey]: token };
@@ -1468,6 +1470,7 @@ test("corporate-action consent prepare exposes only a three-way matching account
     for (const sourceKey of [
         "simulated-trading.corporate-action-consent-prepare",
         "simulated-trading.corporate-action-consent-withdraw-prepare",
+        "simulated-trading.corporate-action-workflow-prepare",
     ]) {
         for (const submittedAccountId of ["1", 1]) {
             const actions = makeCorporateActionConsentActions(sourceKey);
@@ -2437,4 +2440,36 @@ test("password challenge submission preserves retry context but cancellation dis
     cancelled.listeners.get("cancel:click")();
     assert.deepEqual(cancelled.statusCalls, ["已取消"]);
     assert.equal(controller.targetRequestForRetry(target, actions, 5).status, "missing");
+});
+
+
+test("workflow public account scope preserves mismatch and credential leak fences", () => {
+    const sourceKey = "simulated-trading.corporate-action-workflow-prepare";
+    const actions = makeCorporateActionConsentActions(sourceKey);
+    for (const scenario of [
+        { submitted: "2", continuation: "1", display: "1" },
+        { submitted: "1", continuation: "2", display: "1" },
+        { submitted: "1", continuation: "1", display: "2" },
+        { submitted: "01", continuation: "1", display: "1" },
+    ]) {
+        const result = successfulConsentPrepareResult(sourceKey, actions, {
+            continuationAccountId: scenario.continuation, displayedAccountId: scenario.display,
+        });
+        assert.notEqual(loadController().acceptResult(actions[0], actions, result, 1,
+            undefined, "prepare-key", { account_id: scenario.submitted }).status, "stored");
+    }
+    for (const token of ["actual-secret", "1"]) {
+        const result = successfulConsentPrepareResult(sourceKey, actions, { token });
+        if (token !== "1") result.view_model.metadata = { nested: [token] };
+        assert.equal(loadController().acceptResult(actions[0], actions, result, 1,
+            undefined, "prepare-key", { account_id: "1" }).status, "leaked");
+    }
+    const duplicate = successfulConsentPrepareResult(sourceKey, actions, {
+        fields: [{ key: "account_id", value: "1" }, { key: "account_id", value: "1" }],
+    });
+    assert.notEqual(loadController().acceptResult(actions[0], actions, duplicate, 1,
+        undefined, "prepare-key", { account_id: "1" }).status, "stored");
+    assert.equal(JSON.stringify(loadController().captureConsentAccountScope(actions[0], {
+        account_id: 1, continuation_token: "private-token", password: "private-password",
+    })), JSON.stringify({ account_id: 1 }));
 });
