@@ -4606,7 +4606,10 @@
         "apps/data_center/domain/protocols.py",
         "apps/data_center/infrastructure/financial_fact_repository.py",
         "apps/alpha/infrastructure/adapters/simple_adapter.py",
-        "apps/factor/infrastructure/adapters/__init__.py"
+        "apps/factor/infrastructure/adapters/__init__.py",
+        "apps/data_center/domain/entities.py",
+        "apps/data_center/infrastructure/financial_fact_hydration.py",
+        "apps/data_center/infrastructure/financial_numeric_storage.py"
       ],
       "required_markers": {
         "apps/data_center/application/query_services.py": [
@@ -4641,7 +4644,9 @@
           "announced_at__isnull=False",
           "announced_at__lte=knowledge_cutoff",
           "available_at__isnull=False",
-          "available_at__lte=knowledge_cutoff"
+          "available_at__lte=knowledge_cutoff",
+          "fetched_at__lte=knowledge_cutoff",
+          "native financial read requires independent catalog and body verification"
         ],
         "apps/alpha/infrastructure/adapters/simple_adapter.py": [
           "get_published_financial_facts_for_decision(",
@@ -4710,9 +4715,14 @@
           "case": "legacy_date_port_keeps_midnight_cutoff",
           "test_file": "tests/unit/data_center/test_financial_decision_instant_ports.py",
           "test_function": "test_legacy_date_port_keeps_midnight_cutoff"
+        },
+        {
+          "case": "native_revision_retains_original_known_time",
+          "test_file": "tests/component/data_center/test_financial_native_decimal_repository.py",
+          "test_function": "test_unpinned_native_correction_appends_and_preserves_past_knowledge"
         }
       ],
-      "notes": " Explicit decision_at ports reject non-aware and future instants before query access. They preserve exact UTC cutoff and derive only the report-date upper bound in Shanghai. Legacy date-only consumers remain unchanged. This is a C2 read-boundary prerequisite; no calendar/opening qualification, source-time policy activation, provider call, current-pointer change or DATA-02/03 production acceptance is inferred."
+      "notes": " Explicit decision_at ports reject non-aware and future instants before query access. They preserve exact UTC cutoff and derive only the report-date upper bound in Shanghai. Legacy date-only consumers remain unchanged. This is a C2 read-boundary prerequisite; no calendar/opening qualification, source-time policy activation, provider call, current-pointer change or DATA-02/03 production acceptance is inferred. Native decimal-v2 reads additionally constrain fetched_at to the explicit knowledge cutoff before selecting the latest revision; strict numeric wire/storage reconstruction and the injected independent catalog/body verifier are required. Default composition remains blocked for v2 until a real catalog is supplied; this is not production activation."
     },
     {
       "id": "data_center.publication_only_d7_d9",
@@ -5455,7 +5465,8 @@
         "apps/data_center/price_sync_composition.py",
         "apps/data_center/application/price_response_capture.py",
         "apps/data_center/infrastructure/tushare_exact_price_capture.py",
-        "apps/data_center/infrastructure/tushare_replay_parser.py"
+        "apps/data_center/infrastructure/tushare_replay_parser.py",
+        "apps/data_center/infrastructure/financial_fact_hydration.py"
       ],
       "required_markers": {
         "apps/data_center/domain/entities.py": [
@@ -5553,7 +5564,7 @@
         ],
         "apps/data_center/infrastructure/financial_fact_repository.py": [
           "def list_publication_candidates(",
-          "available_at=m.available_at"
+          "return financial_fact_from_model(m)"
         ],
         "apps/data_center/infrastructure/fund_nav_repository.py": [
           "def list_publication_candidates(",
@@ -5694,6 +5705,9 @@
           "sync_uow = DjangoDataCenterSyncUnitOfWork(",
           "publication_key=publication_key",
           "publication_quality_recorder=quality_recorder"
+        ],
+        "apps/data_center/infrastructure/financial_fact_hydration.py": [
+          "available_at=row.available_at"
         ]
       },
       "required_tests": [
@@ -6559,7 +6573,14 @@
         "apps/data_center/application/m1_reference_price_batch_publication.py",
         "apps/data_center/infrastructure/m1_reference_price_batch_publication_audit.py",
         "apps/data_center/domain/financial_numeric_evidence.py",
-        "apps/data_center/domain/financial_next_session_availability.py"
+        "apps/data_center/domain/financial_next_session_availability.py",
+        "apps/data_center/application/financial_numeric_verification.py",
+        "apps/data_center/infrastructure/financial_numeric_storage.py",
+        "apps/data_center/infrastructure/financial_native_numeric_verifier.py",
+        "apps/data_center/infrastructure/financial_fact_hydration.py",
+        "apps/data_center/migrations/0114_financial_native_decimal_storage.py",
+        "apps/equity/infrastructure/fundamentals_published_fact_mappers.py",
+        "apps/equity/infrastructure/financial_source_gateway.py"
       ],
       "required_markers": {
         "apps/data_center/application/current_fact_remediation.py": [
@@ -6751,9 +6772,8 @@
         "apps/data_center/infrastructure/financial_fact_repository.py": [
           "def list_current_publication_candidates(",
           "available_at__isnull=False",
-          "source_evidence=source_evidence_from_model(m)",
-          "decision_evidence=decode_financial_decision_evidence(m.decision_evidence)",
-          "source_time_evidence_verifier=self._source_time_evidence_verifier"
+          "source_time_evidence_verifier=self._source_time_evidence_verifier",
+          "return financial_fact_from_model(m)"
         ],
         "apps/data_center/domain/financial_source_evidence.py": [
           "class FinancialFactSourceEvidence:",
@@ -7434,6 +7454,24 @@
           "expected_session = next_exchange_calendar_session(",
           "\"reference_only\": True",
           "\"must_not_use_for_decision\": True"
+        ],
+        "apps/data_center/infrastructure/financial_numeric_storage.py": [
+          "def decode_financial_numeric_row(",
+          "NativeFinancialMetricObservation.from_payload(value)",
+          "jsonb_typeof"
+        ],
+        "apps/data_center/infrastructure/financial_native_numeric_verifier.py": [
+          "AKSHARE_MAIN_FINANCIAL_DATA_ENDPOINT",
+          "known_at=fact.fetched_at",
+          "_period_type_from_period_end"
+        ],
+        "apps/data_center/migrations/0114_financial_native_decimal_storage.py": [
+          "refuse_lossy_numeric_reverse",
+          "dc_financial_numeric_state_valid"
+        ],
+        "apps/data_center/infrastructure/financial_fact_hydration.py": [
+          "source_evidence=source_evidence_from_model(row)",
+          "decision_evidence=decode_financial_decision_evidence(row.decision_evidence)"
         ]
       },
       "required_tests": [
@@ -8766,6 +8804,26 @@
           "case": "financial_next_session_no_clock_default",
           "test_file": "tests/unit/data_center/test_financial_next_session_availability.py",
           "test_function": "test_phase_is_required_and_never_defaults_to_a_market_clock"
+        },
+        {
+          "case": "financial_native_exact_storage_roundtrip",
+          "test_file": "tests/component/data_center/test_financial_native_decimal_repository.py",
+          "test_function": "test_exact_native_roundtrip_keeps_four_place_column_null_and_replays_without_update"
+        },
+        {
+          "case": "financial_native_revision_preserves_knowledge",
+          "test_file": "tests/component/data_center/test_financial_native_decimal_repository.py",
+          "test_function": "test_unpinned_native_correction_appends_and_preserves_past_knowledge"
+        },
+        {
+          "case": "financial_native_populated_migration_legacy_hash",
+          "test_file": "tests/component/data_center/test_financial_native_decimal_repository.py",
+          "test_function": "test_migration_preserves_populated_legacy_facts_and_frozen_members"
+        },
+        {
+          "case": "financial_native_body_replay_catalog_clock",
+          "test_file": "tests/unit/data_center/test_financial_native_numeric_verifier.py",
+          "test_function": "test_exact_contract_and_retained_body_are_replayed_at_fact_knowledge_time"
         }
       ]
     },

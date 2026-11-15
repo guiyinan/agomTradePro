@@ -14,6 +14,7 @@ from __future__ import annotations
 import hashlib
 import json
 import unicodedata
+from collections.abc import Mapping
 from dataclasses import dataclass
 from decimal import Decimal
 from fractions import Fraction
@@ -176,6 +177,29 @@ class FinancialMetricSourceContract:
             "source_unit": self.source_unit,
         }
 
+    @classmethod
+    def from_payload(cls, value: object) -> FinancialMetricSourceContract:
+        """Restore one exact versioned JSON contract without coercing its fields."""
+
+        payload = _payload_mapping(value)
+        if _payload_text(payload, "origin") != "native":
+            raise ValueError("financial metric contract must have native origin")
+        result = cls(
+            provider=_payload_text(payload, "provider"),
+            dataset_key=_payload_text(payload, "dataset_key"),
+            metric_code=_payload_text(payload, "metric_code"),
+            source_field=_payload_text(payload, "source_field"),
+            source_unit=_payload_text(payload, "source_unit"),
+            canonical_unit=_payload_text(payload, "canonical_unit"),
+            scale_numerator=_payload_integer(payload, "scale_numerator"),
+            scale_denominator=_payload_integer(payload, "scale_denominator"),
+            contract_version=_payload_text(payload, "contract_version"),
+            origin="native",
+        )
+        if not _same_wire_payload(payload, result.to_dict()):
+            raise ValueError("financial metric contract payload differs from exact reconstruction")
+        return result
+
     @property
     def content_hash(self) -> str:
         """Hash the complete provider, metric, field, unit, scale and version."""
@@ -265,6 +289,23 @@ class NativeFinancialMetricObservation:
             or self.contract_identity != self.contract.identity
         ):
             raise ValueError("observation contract identity does not match its contract")
+
+    @classmethod
+    def from_payload(cls, value: object) -> NativeFinancialMetricObservation:
+        """Decode strict evidence while retaining its non-authorizing semantics."""
+
+        payload = _payload_mapping(value)
+        contract = FinancialMetricSourceContract.from_payload(payload.get("contract"))
+        result = cls.from_raw_value(
+            contract=contract,
+            raw_value=_payload_text(payload, "source_value_text"),
+            source_field=_payload_text(payload, "source_field"),
+            body_sha256=_payload_text(payload, "body_sha256"),
+            native_row_id=_payload_text(payload, "native_row_id"),
+        )
+        if not _same_wire_payload(payload, result.to_dict()):
+            raise ValueError("financial numeric payload differs from exact reconstruction")
+        return result
 
     @classmethod
     def from_raw_value(
@@ -366,6 +407,46 @@ def _scale_exact_decimal(
         contract.scale_denominator,
     )
     return _finite_decimal_text(exact_value)
+
+
+def _payload_mapping(value: object) -> dict[str, object]:
+    """Narrow one JSON object without cleaning identifiers or dropping fields."""
+
+    if not isinstance(value, Mapping):
+        raise ValueError("financial numeric payload must be an object")
+    result: dict[str, object] = {}
+    for key, item in value.items():
+        if type(key) is not str:
+            raise ValueError("financial numeric payload keys must be text")
+        result[key] = item
+    return result
+
+
+def _payload_text(payload: Mapping[str, object], name: str) -> str:
+    """Read exact required text at the JSON boundary."""
+
+    value = payload.get(name)
+    if type(value) is not str:
+        raise ValueError(f"{name} must be text")
+    return value
+
+
+def _payload_integer(payload: Mapping[str, object], name: str) -> int:
+    """Read an integer without treating a JSON boolean as one."""
+
+    value = payload.get(name)
+    if type(value) is not int:
+        raise ValueError(f"{name} must be an integer")
+    return value
+
+
+def _same_wire_payload(left: dict[str, object], right: dict[str, object]) -> bool:
+    """Compare the exact declared fields and scalar types before equality."""
+
+    return left.keys() == right.keys() and all(
+        type(left[key]) is type(expected) and left[key] == expected
+        for key, expected in right.items()
+    )
 
 
 __all__ = ["FinancialMetricSourceContract", "NativeFinancialMetricObservation"]

@@ -14,6 +14,7 @@ from datetime import datetime
 
 from apps.data_center.domain.entities import QuoteChangePctEvidence
 
+from .financial_numeric_storage import decode_financial_numeric_row
 from .models import (
     CapitalFlowFactModel,
     FinancialFactModel,
@@ -51,8 +52,9 @@ def canonical_news_payload_hash(
 
 
 def financial_payload_hash(row: FinancialFactModel) -> str:
-    """Return the existing deterministic financial fallback digest."""
+    """Keep legacy digests and give exact native values an explicit v2 encoding."""
 
+    numeric = decode_financial_numeric_row(row)
     payload: dict[str, object] = {
         "asset_code": row.asset_code,
         "period_end": row.period_end.isoformat(),
@@ -64,6 +66,11 @@ def financial_payload_hash(row: FinancialFactModel) -> str:
         "report_date": row.report_date.isoformat() if row.report_date else None,
         "available_at": row.available_at.isoformat() if row.available_at else None,
     }
+    if numeric.numeric_schema == "native-decimal-v2":
+        payload["encoding"] = "financial-native-payload-v2"
+        payload["numeric_schema"] = numeric.numeric_schema
+        payload["value"] = row.exact_value_text
+        payload["numeric_evidence"] = row.numeric_evidence
     return _sha256_json(payload)
 
 

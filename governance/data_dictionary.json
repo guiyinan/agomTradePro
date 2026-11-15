@@ -35568,10 +35568,44 @@
             {
               "field_type": "DecimalField",
               "kwargs": {
+                "blank": true,
                 "decimal_places": 4,
-                "max_digits": 28
+                "max_digits": 28,
+                "null": true
               },
               "name": "value",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "db_default": "legacy-decimal-v1",
+                "default": "legacy-decimal-v1",
+                "max_length": 40
+              },
+              "name": "numeric_schema",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 128,
+                "null": true
+              },
+              "name": "exact_value_text",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "JSONField",
+              "kwargs": {
+                "blank": true,
+                "null": true
+              },
+              "name": "numeric_evidence",
+              "null": true,
               "positional_args": []
             },
             {
@@ -35723,6 +35757,7 @@
             }
           ],
           "meta": {
+            "constraints": "[models.CheckConstraint(condition=models.Q(numeric_schema='legacy-decimal-v1', value__isnull=False, exact_value_text__isnull=True, numeric_evidence__isnull=True) | models.Q(numeric_schema='native-decimal-v2', value__isnull=True, exact_value_text__isnull=False, numeric_evidence__isnull=False) & ~models.Q(exact_value_text='') & ~models.Q(numeric_evidence={}) & models.Q(_IsFinancialNumericJSONObject(models.F('numeric_evidence'))), name='dc_financial_numeric_state_valid')]",
             "db_table": "data_center_financial_fact",
             "indexes": "[models.Index(fields=['asset_code', 'period_end']), models.Index(fields=['metric_code'])]",
             "ordering": [

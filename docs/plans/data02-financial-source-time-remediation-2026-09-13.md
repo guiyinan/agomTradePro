@@ -1051,3 +1051,34 @@ Root 在 `b96a38d87` 的独立源码快照、全迁移的新 PG 测试库中跑�
 
 本事项仅修复验证路由；生产审计、日历目录、正式阶段、财务回填、完整 universe 对账
 和 DATA-03 退出门没有因此放行。精确存储主链另按完整事项整合，不混入本次 CI 提交。
+
+## 41. 2026-11-16 原生十进制无损存储与独立原件复验
+
+财务事实新增显式 `native-decimal-v2`：旧四位 `value` 列为空，原生值以规范十进制文本
+和严格字段合同观测保存，Domain、查询、HTTP 与 equity mapper 保留精确值。旧 v1 行、
+21 字段发布成员摘要与 normalized fallback 编码保持原样；新版本独立冻结 24 字段编码。
+独立的改动前 golden 与带旧数据的真实迁移核对零值、负值、大值及既有成员引用。
+
+写入前整批验证合同、完整来源维度、精确 native row 与留存响应正文；复验核对成功完整
+Raw Audit、精确 provider/source type、批准端点、捕获时间、正文 SHA/大小及原始字段。
+缺目录或 verifier 即阻断，不接受展示名称替代 provider 身份。native 行与 v1 升级的
+变更均追加 revision，未被 publication 引用也不原地覆盖；PIT 先按 fetched_at 过滤再选
+revision，旧行与旧摘要保留。读出和发布同样要求独立 verifier，结构自洽不等于资格。
+
+迁移为 expand-first，数据库默认 v1 使旧 SQL writer 在新表结构下仍可写入；首次 native
+写入前，全部读写端必须升级为 native-aware 候选。已有 native 行时反迁移明确拒绝，
+不能用旧镜像读取 NULL 或将精确值强制塞回四位列。后续回滚应保留兼容 schema/codec、
+撤销资格并恢复阻断。带旧数据迁移已分别使用真实 PostgreSQL 与 SQLite 验证，完整
+本批命令、候选身份、结果及中间失败见唯一索引 `followups[5]`。
+
+此批尚未激活：生产组合缺真实 DB 数值目录、认证 Owner 事件/撤销、无原生版本文档的
+不可变捕获，以及 producer/consumer 接线。目录还须绑定源端点、货币等 row context、
+来源适用版本及真实知识时间；不能由当前文档补证过去语义。现有七项 native 单位依据
+不扩展到 Main-response LIABILITY 或两项 derived 字段，不批准舍入或缺单位例外。
+
+上一 CI 路由提交 `9ae935d6abbe58856f490ad7960311150b173765` 的六条实际工作流已通过，
+专用原生日历浏览器 job 实际六项通过、无 skip；此事实不移作本批新代码的 CI 证据。
+Root 串行收口本批 Git/index/投影；两位 Luna Max 分别在临时隔离路径准备 D1 来源上下文
+值对象与 C2 v3 witness/codec 及其测试，当前不写共享 Source，不运行共享重 QA；完成后
+及时采用到正式开发分支。C2 的 TTL/正式阶段待答复，实际日历批准、v3 时间资格、E1、
+完整 universe 四 Publication 对账仍未完成；DATA-02/03 原退出门和生产维护审批不变。

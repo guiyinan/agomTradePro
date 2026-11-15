@@ -11,6 +11,9 @@ from uuid import UUID
 from django.db import IntegrityError, connection, transaction
 from django.db.models import Q
 
+from apps.data_center.application.financial_numeric_verification import (
+    FinancialNumericEvidenceVerifier,
+)
 from apps.data_center.domain.entities import FinancialFact
 from apps.data_center.domain.financial_source_evidence import (
     FinancialFactDecisionEvidence,
@@ -53,6 +56,7 @@ def bulk_upsert_financial_facts(
     facts: list[FinancialFact],
     *,
     source_time_evidence_verifier: FinancialSourceTimeEvidenceVerifier | None = None,
+    numeric_evidence_verifier: FinancialNumericEvidenceVerifier | None = None,
     ingested_run_id: UUID | None = None,
 ) -> int:
     """Return actual inserts/updates, preserving unchanged rows and source proof."""
@@ -63,6 +67,13 @@ def bulk_upsert_financial_facts(
         raise FinancialFactProvenanceConflictError("ingested_run_id must be a UUID")
     _reject_duplicate_natural_keys(facts)
     for fact in facts:
+        fact.__post_init__()
+        if fact.numeric_schema == "native-decimal-v2" and (
+            numeric_evidence_verifier is None or not numeric_evidence_verifier(fact)
+        ):
+            raise FinancialFactProvenanceConflictError(
+                "native financial numeric evidence requires independent catalog and body verification"
+            )
         _validate_fact_decision_evidence(fact)
         decision = fact.decision_evidence
         if (
@@ -130,8 +141,12 @@ def bulk_upsert_financial_facts(
                 raise FinancialFactProvenanceConflictError(
                     "Financial fact row disappeared during upsert"
                 )
+            append_numeric_revision = (
+                row.numeric_schema == "native-decimal-v2"
+                or fact.numeric_schema == "native-decimal-v2"
+            )
             if _update_existing_row(fact, row, ingested_run_id=ingested_run_id):
-                if str(row.pk) in pinned:
+                if str(row.pk) in pinned or append_numeric_revision:
                     row.pk = None
                     row.revision_number += 1
                     successors.append(row)
@@ -148,6 +163,9 @@ def bulk_upsert_financial_facts(
         if normalized_updates:
             normalized_fields = [
                 "value",
+                "numeric_schema",
+                "exact_value_text",
+                "numeric_evidence",
                 "unit",
                 "report_date",
                 "available_at",
@@ -164,6 +182,9 @@ def bulk_upsert_financial_facts(
         if source_updates:
             source_fields = [
                 "value",
+                "numeric_schema",
+                "exact_value_text",
+                "numeric_evidence",
                 "unit",
                 "report_date",
                 "available_at",
@@ -402,11 +423,31 @@ def _normalized_fields_match(fact: FinancialFact, row: FinancialFactModel) -> bo
 
     stored_extra: object = getattr(row, "extra", None)
     return (
-        _model_decimal_storage(fact.value) == _model_decimal_storage(row.value)
+        _numeric_fields_match(fact, row)
         and row.unit == fact.unit
         and row.report_date == fact.report_date
         and row.available_at == fact.available_at
         and (stored_extra if stored_extra is not None else {}) == fact.extra
+    )
+
+
+def _numeric_fields_match(fact: FinancialFact, row: FinancialFactModel) -> bool:
+    """Keep native comparisons exact and restrict four-place conversion to v1."""
+
+    if fact.numeric_schema != row.numeric_schema:
+        return False
+    if fact.numeric_schema == "native-decimal-v2":
+        evidence = fact.numeric_evidence
+        return (
+            evidence is not None
+            and row.value is None
+            and row.exact_value_text == evidence.canonical_value
+            and row.numeric_evidence == evidence.to_dict()
+        )
+    return (
+        row.exact_value_text is None
+        and row.numeric_evidence is None
+        and _model_decimal_storage(fact.value) == _model_decimal_storage(row.value)
     )
 
 
@@ -513,6 +554,10 @@ def _validate_existing_row_update(
 ) -> None:
     """Reject a value update that would retain or merge stale source proof."""
 
+    if row.numeric_schema == "native-decimal-v2" and fact.numeric_schema != "native-decimal-v2":
+        raise FinancialFactProvenanceConflictError(
+            "native financial storage cannot downgrade to v1"
+        )
     stored_decision: object = getattr(row, "decision_evidence", None)
     requested_decision = _decision_evidence_payload(fact)
     if stored_decision not in (None, {}) and not requested_decision:
@@ -540,6 +585,11 @@ def _validate_existing_row_update(
         if (
             evidence.raw_payload_hash == row.raw_payload_hash
             and not _is_transport_metadata_upgrade(fact, row)
+            and not (
+                row.numeric_schema == "legacy-decimal-v1"
+                and fact.numeric_schema == "native-decimal-v2"
+                and _source_fields_match(fact, row)
+            )
         ):
             raise FinancialFactProvenanceConflictError(
                 "changed financial value cannot reuse the same raw payload"
@@ -626,7 +676,10 @@ def _model_from_fact(
         period_end=fact.period_end,
         period_type=fact.period_type.value,
         metric_code=fact.metric_code,
-        value=fact.value,
+        value=fact.value if fact.numeric_schema == "legacy-decimal-v1" else None,
+        numeric_schema=fact.numeric_schema,
+        exact_value_text=(fact.numeric_evidence.canonical_value if fact.numeric_evidence else None),
+        numeric_evidence=(fact.numeric_evidence.to_dict() if fact.numeric_evidence else None),
         unit=fact.unit,
         source=fact.source,
         report_date=fact.report_date,
@@ -655,7 +708,10 @@ def _update_existing_row(
         and (ingested_run_id is None or row.ingested_run_id == ingested_run_id)
     ):
         return False
-    row.value = fact.value
+    row.value = fact.value if fact.numeric_schema == "legacy-decimal-v1" else None
+    row.numeric_schema = fact.numeric_schema
+    row.exact_value_text = fact.numeric_evidence.canonical_value if fact.numeric_evidence else None
+    row.numeric_evidence = fact.numeric_evidence.to_dict() if fact.numeric_evidence else None
     row.unit = fact.unit
     row.report_date = fact.report_date
     row.available_at = fact.available_at

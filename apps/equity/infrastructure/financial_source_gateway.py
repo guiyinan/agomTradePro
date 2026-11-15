@@ -116,7 +116,7 @@ class _BaseFinancialGateway:
         metric_map: dict[str, FinancialFact],
         metric_code: str,
         default: float | None,
-    ) -> float | None:
+    ) -> float | Decimal | None:
         """Read one optional fact exactly once and return its numeric value."""
 
         fact = metric_map.get(metric_code)

@@ -30,6 +30,7 @@ from .candidate_raw_audit_manifest_models import (
 from .candidate_raw_audit_manifest_models import (
     CandidateRawAuditManifestModel as CandidateRawAuditManifestModel,
 )
+from .financial_numeric_storage import IsFinancialNumericJSONObject as _IsFinancialNumericJSONObject
 from .institutional_calendar_models import (
     InstitutionalCalendarEventModel as InstitutionalCalendarEventModel,
 )
@@ -829,7 +830,12 @@ class FinancialFactModel(models.Model):
         db_index=True,
         help_text="Metric identifier (e.g. revenue, net_profit, total_assets)",
     )
-    value = models.DecimalField(max_digits=28, decimal_places=4)
+    value = models.DecimalField(max_digits=28, decimal_places=4, null=True, blank=True)
+    numeric_schema = models.CharField(
+        max_length=40, default="legacy-decimal-v1", db_default="legacy-decimal-v1"
+    )
+    exact_value_text = models.CharField(max_length=128, null=True, blank=True)
+    numeric_evidence = models.JSONField(null=True, blank=True)
     unit = models.CharField(max_length=20, blank=True)
     source = models.CharField(max_length=50)
     report_date = models.DateField(null=True, blank=True, help_text="Date report was published")
@@ -848,6 +854,30 @@ class FinancialFactModel(models.Model):
 
     class Meta:
         db_table = "data_center_financial_fact"
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    models.Q(
+                        numeric_schema="legacy-decimal-v1",
+                        value__isnull=False,
+                        exact_value_text__isnull=True,
+                        numeric_evidence__isnull=True,
+                    )
+                    | (
+                        models.Q(
+                            numeric_schema="native-decimal-v2",
+                            value__isnull=True,
+                            exact_value_text__isnull=False,
+                            numeric_evidence__isnull=False,
+                        )
+                        & ~models.Q(exact_value_text="")
+                        & ~models.Q(numeric_evidence={})
+                        & models.Q(_IsFinancialNumericJSONObject(models.F("numeric_evidence")))
+                    )
+                ),
+                name="dc_financial_numeric_state_valid",
+            )
+        ]
         unique_together = [
             ("asset_code", "period_end", "period_type", "metric_code", "source", "revision_number")
         ]
@@ -860,7 +890,12 @@ class FinancialFactModel(models.Model):
         verbose_name_plural = "Financial Facts"
 
     def __str__(self) -> str:
-        return f"{self.asset_code} {self.period_end} {self.metric_code}={self.value}"
+        """Show the active numeric representation without a rounded shadow value."""
+
+        rendered = (
+            self.exact_value_text if self.numeric_schema == "native-decimal-v2" else self.value
+        )
+        return f"{self.asset_code} {self.period_end} {self.metric_code}={rendered}"
 
 
 from . import fact_and_operational_models as _split_models  # noqa: E402

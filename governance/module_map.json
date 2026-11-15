@@ -4114,7 +4114,7 @@
           "imports": 4
         },
         "equity": {
-          "imports": 48
+          "imports": 49
         },
         "factor": {
           "imports": 4
@@ -4676,6 +4676,13 @@
         ],
         "application/financial_capacity_workflow_base.py": [
           "FinancialCapacityWorkflowBase"
+        ],
+        "application/financial_numeric_verification.py": [
+          "FinancialMetricSourceContractCatalogPort",
+          "FinancialNativeProviderIdentityPort",
+          "FinancialNumericEvidenceVerifier",
+          "FinancialProviderIdentity",
+          "FinancialRetainedFinancialBodyPort"
         ],
         "application/financial_publication_capacity.py": [
           "FinancialCapacityWorkflow"
@@ -5763,9 +5770,9 @@
         ]
       },
       "layers": {
-        "application": 191,
+        "application": 192,
         "domain": 60,
-        "infrastructure": 250,
+        "infrastructure": 253,
         "interface": 34,
         "management": 43,
         "root": 48
@@ -6355,7 +6362,7 @@
           ]
         },
         "data_center": {
-          "imports": 48,
+          "imports": 49,
           "target_layers": [
             "application",
             "composition",

@@ -17,6 +17,7 @@ from apps.data_center.domain.control_plane import PublicationFactReference
 from apps.data_center.domain.entities import QuoteChangePctEvidence
 from apps.data_center.domain.market_time import cn_market_date_start_utc
 
+from .financial_numeric_storage import decode_financial_numeric_row
 from .models import FinancialFactModel, QuoteSnapshotModel
 from .publication_fact_identity import build_publication_fact_identity
 
@@ -47,23 +48,76 @@ _LEGACY_QUOTE_FIELD_NAMES: Final[tuple[str, ...]] = (
     "revision_number",
     "ingested_run_id",
 )
+_LEGACY_FINANCIAL_FIELD_NAMES: Final[tuple[str, ...]] = (
+    "id",
+    "asset_code",
+    "period_end",
+    "period_type",
+    "metric_code",
+    "value",
+    "unit",
+    "source",
+    "report_date",
+    "fetched_at",
+    "extra",
+    "decision_evidence",
+    "contract_version",
+    "schema_version",
+    "source_record_id",
+    "raw_payload_hash",
+    "quality_status",
+    "revision_number",
+    "ingested_run_id",
+    "announced_at",
+    "available_at",
+)
+_NATIVE_FINANCIAL_FIELD_NAMES: Final[tuple[str, ...]] = (
+    *_LEGACY_FINANCIAL_FIELD_NAMES,
+    "numeric_schema",
+    "exact_value_text",
+    "numeric_evidence",
+)
 
 
 def canonical_fact_content_hash(row: models.Model) -> str:
-    """Bind every persisted concrete field, including values and evidence, to SHA-256.
+    """Bind the fields covered by each explicit row encoding to SHA-256.
 
     This digest describes a normalized database row. It never attests to an
     original HTTP response, even when a vendor body hash is unavailable.
+    Versioned financial and quote encodings preserve frozen field projections.
     """
 
     if isinstance(row, QuoteSnapshotModel):
         return _canonical_quote_snapshot_content_hash(row)
+    if isinstance(row, FinancialFactModel):
+        return _canonical_financial_fact_content_hash(row)
     payload: dict[str, object] = {
         field.attname: _canonical_json_value(getattr(row, field.attname))
         for field in row._meta.concrete_fields
     }
     encoded = json.dumps(
         {"encoding": "canonical-fact-row-v1", "table": row._meta.db_table, "fields": payload},
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    ).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def _canonical_financial_fact_content_hash(row: FinancialFactModel) -> str:
+    """Freeze old field identities and bind complete native storage under v2."""
+
+    numeric = decode_financial_numeric_row(row)
+    if numeric.numeric_schema == "legacy-decimal-v1":
+        encoding = "canonical-fact-row-v1"
+        names = _LEGACY_FINANCIAL_FIELD_NAMES
+    else:
+        encoding = "canonical-financial-fact-row-v2"
+        names = _NATIVE_FINANCIAL_FIELD_NAMES
+    payload = {name: _canonical_json_value(getattr(row, name)) for name in names}
+    encoded = json.dumps(
+        {"encoding": encoding, "table": row._meta.db_table, "fields": payload},
         ensure_ascii=False,
         sort_keys=True,
         separators=(",", ":"),

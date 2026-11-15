@@ -8,7 +8,7 @@
 
 - App 数：42
 - 模型数：617
-- 字段数：9615
+- 字段数：9618
 
 口径说明：仅覆盖 `apps/*/infrastructure/` 下的 `models.py`、`models/` 包与 `*_models.py`；字段为类体内显式赋值的 Django 字段，继承字段不展开，动态字段与隐式自增主键不在投影内。
 
@@ -5563,7 +5563,10 @@
 | `period_end` | `DateField` |  |  |  | Period end date (e.g. 2024-12-31) |  |
 | `period_type` | `CharField` |  |  |  |  |  |
 | `metric_code` | `CharField` |  |  |  | Metric identifier (e.g. revenue, net_profit, total_assets) |  |
-| `value` | `DecimalField` |  |  |  |  |  |
+| `value` | `DecimalField` | 是 |  |  |  |  |
+| `numeric_schema` | `CharField` |  |  | legacy-decimal-v1 |  |  |
+| `exact_value_text` | `CharField` | 是 |  |  |  |  |
+| `numeric_evidence` | `JSONField` | 是 |  |  |  |  |
 | `unit` | `CharField` |  |  |  |  |  |
 | `source` | `CharField` |  |  |  |  |  |
 | `report_date` | `DateField` | 是 |  |  | Date report was published |  |

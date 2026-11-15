@@ -26,17 +26,17 @@
       "script": 20,
       "sdk": 57,
       "terminal_tui": 32,
-      "test_evidence": 159,
+      "test_evidence": 160,
       "workflow_step": 11
     },
     "by_status": {
       "active_public": 931,
       "adjacent_operational": 346,
-      "candidate-review": 78,
+      "candidate-review": 79,
       "compatibility": 139,
       "retired_blocked": 0
     },
-    "total": 1494
+    "total": 1495
   },
   "entries": [
     {
@@ -5371,7 +5371,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=140",
+      "evidence": "governed current-data contract; source_files=147",
       "id": "current_data_surface:governance/current_data_contracts.json:data_center.core_current_publication_rebuild:Active A-share quote/price/valuation/financial full-universe current publication rebuild and fact remediation",
       "locator": "Active A-share quote/price/valuation/financial full-universe current publication rebuild and fact remediation",
       "path": "governance/current_data_contracts.json",
@@ -5421,7 +5421,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=8",
+      "evidence": "governed current-data contract; source_files=11",
       "id": "current_data_surface:governance/current_data_contracts.json:data_center.financial_as_of_reads:Financial decisions preserve legacy China-market-day-start boundaries and explicit aware decision instants without widening Publication eligibility",
       "locator": "Financial decisions preserve legacy China-market-day-start boundaries and explicit aware decision instants without widening Publication eligibility",
       "path": "governance/current_data_contracts.json",
@@ -5621,7 +5621,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=45",
+      "evidence": "governed current-data contract; source_files=46",
       "id": "current_data_surface:governance/current_data_contracts.json:data_center.publication_writer_atomicity:Canonical publication writer and member snapshot commit",
       "locator": "Canonical publication writer and member snapshot commit",
       "path": "governance/current_data_contracts.json",
@@ -13677,6 +13677,16 @@
       "path": "tests/component/data_center/test_financial_fact_repository_postgres_provenance.py",
       "status": "active_public",
       "symbol": "test_financial_fact_repository_postgres_provenance",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/component/data_center/test_financial_native_decimal_repository.py:test_financial_native_decimal_repository:",
+      "locator": "",
+      "path": "tests/component/data_center/test_financial_native_decimal_repository.py",
+      "status": "candidate-review",
+      "symbol": "test_financial_native_decimal_repository",
       "target": ""
     },
     {

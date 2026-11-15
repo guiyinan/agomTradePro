@@ -139,6 +139,11 @@ POST /api/data-center/sync/macro/
 }
 ```
 
+财务事实保留旧格式的数值输出。原生精确格式通过 `numeric_schema: "native-decimal-v2"`
+显式区分，`value` 为无损十进制字符串，并附 `numeric_evidence` 的原始字段、量纲和精度
+证据；客户端不得先转为 float 再作精确对账。证据对象本身不授予决策资格，发布读取仍须
+通过完整的来源、目录、时间和新鲜度门禁，缺失或复验失败不会按零返回。
+
 ---
 
 ## 2. Regime 判定 (Regime)

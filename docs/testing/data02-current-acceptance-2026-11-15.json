@@ -1920,9 +1920,331 @@
       "financial_provider_requests": 0,
       "data02_exit_met": false,
       "data03_started": false
+    },
+    {
+      "recorded_at_utc": "2026-11-15T21:51:21.627088+00:00",
+      "scope": "Lossless native-decimal-v2 storage, independent retained-body verifier, append-only numeric revisions and frozen legacy publication encodings",
+      "candidate": {
+        "base_head": "9ae935d6abbe58856f490ad7960311150b173765",
+        "files_sha256_before_acceptance_metadata": {
+          "apps/data_center/application/financial_numeric_verification.py": "5cfa93127fc8a19b26a04d5491e233747f63081909840a61a865dcd0201a2756",
+          "apps/data_center/domain/entities.py": "99e7cce017f86535aee22f7eb6d0ddbb07ad114a2655a217f0bdcdece3bc7e57",
+          "apps/data_center/domain/financial_numeric_evidence.py": "9623188f4bc72d3d37dc2e0ae280647734cf31f63d81c1fe59b39a4e97b70733",
+          "apps/data_center/infrastructure/financial_fact_hydration.py": "3c43b43facc357fc0ac3af9c61a96e43c7c3db896af0b24e0634d64efd39a589",
+          "apps/data_center/infrastructure/financial_fact_repository.py": "922aa5f4c3837a05d36bd0659634792a85a574462a30797cc93ba56c9c3cc814",
+          "apps/data_center/infrastructure/financial_fact_write_guard.py": "4b38008144e29b9a40548f3e38bd46adbb9f7eb6da91b857c3b2b28af981a163",
+          "apps/data_center/infrastructure/financial_native_numeric_verifier.py": "d2fecb30e47179fcb244b166634d3650c3ec28594008b807550ab75a53f12bea",
+          "apps/data_center/infrastructure/financial_numeric_storage.py": "f4bf941f25104bc5c5251b5daa38e21f9613fc7ba4c8ac87ed5f47abd3c6edae",
+          "apps/data_center/infrastructure/models.py": "4964cee3aa88c96793a5814010b5ed714b528a2c7c7e0f1856d052616965237b",
+          "apps/data_center/infrastructure/publication_fact_evidence.py": "1793b4a0da9b0ba32096dc88bc3ccbfb00ecf853d0a445e6b18e0bdfbe5b5cbf",
+          "apps/data_center/infrastructure/publication_fact_legacy_payload.py": "5ea074df909b3bcc517b8634982cd573e75cf1340e7269754b4dc6ee5ed6a08e",
+          "apps/data_center/migrations/0114_financial_native_decimal_storage.py": "7e2a03afcf87e806d4c6366fe36b0a2eed70c0b2a7301743c2b47f6c815fbc8e",
+          "apps/equity/infrastructure/financial_source_gateway.py": "bf73d9245e17863327ea3e504d1a79076b864b01cc0a24e32437fc09a761fd5e",
+          "apps/equity/infrastructure/fundamentals_published_fact_mappers.py": "48520067fd34659715e322e0a70e4aa6fc8cf0f7a7e1d1ee7c5d9655d81cbd8a",
+          "docs/architecture/DATA_DICTIONARY.md": "928d61e7d8f944f16916fa987f45f687c1611e4f7d83bffff601eee1d500b2e0",
+          "docs/plans/data02-financial-source-time-remediation-2026-09-13.md": "0afcde4c55e670ec4d0e38fd4283b32ec99a0bb6a84a4c7b7ee35af20fc3fa9d",
+          "docs/testing/api/API_REFERENCE.md": "2e3448ec53e6a62791081356840b48869381784bde76ed9681f586400f22e020",
+          "governance/current_data_contracts.json": "7bea56ba557d374dcb03d6664bf70000a06f0e297fdd7442c65974c20376ee6c",
+          "governance/data_center_architecture_inventory.json": "4b736f94973c82ac5076c181532a911699f1659badeb3d2dd7b569fb469e5830",
+          "governance/data_center_entrypoints.json": "15e71c8cadb8e68e6039191e5fcbef9f359ae55d9669980f63ce91b34a331eb9",
+          "governance/data_dictionary.json": "666e77e0b0e87ec70ac4c5519031b0ed552a870f03c007d7e725f310420ec012",
+          "governance/module_map.json": "8c70ee46c86fce24e84e54aa5744305d1a33dc82b0d1d6e1591bebfed0c61bf7",
+          "tests/component/data_center/test_financial_native_decimal_repository.py": "571561ec79619a1e6539a0ae079dde595a0c31bf5064fd5d8f609461c9914617",
+          "tests/unit/data_center/test_financial_native_decimal_fact.py": "4161393e067a01d5408bbd9ec1976165a636c02506d9c1f35d0777f75ac94e0c",
+          "tests/unit/data_center/test_financial_native_numeric_storage.py": "4cc52a2ff5c486961360814cc16a56b0ca861ba67f4004ee02d095925d1e0fce",
+          "tests/unit/data_center/test_financial_native_numeric_verifier.py": "f8d8527719c6f154bf6121e00ce027c2cac9b04497963244aa92e5cb70399c4d"
+        },
+        "postgres_source_changes_during_run": []
+      },
+      "validation": {
+        "native_postgres_cohort": {
+          "tests": 188,
+          "errors": 0,
+          "failures": 0,
+          "skipped": 0,
+          "exit_code": 0,
+          "duration_seconds": 238.88,
+          "test_database": "data02_native_precision_20261116",
+          "database_absent_before_run": true,
+          "full_real_migrations": true
+        },
+        "populated_0113_to_0114_sqlite_migration": {
+          "passed": 1,
+          "exit_code": 0,
+          "includes_old_writer_after_expand": true
+        },
+        "unit_coverage_cohort": {
+          "passed": 152,
+          "exit_code": 0,
+          "financial_fact_class_lines_covered": 43,
+          "financial_fact_class_lines_total": 47,
+          "numeric_evidence_combined_percent": 94.9,
+          "independent_body_verifier_combined_percent": 97.0
+        },
+        "format_exit": 0,
+        "incremental_mypy_production_files": 14,
+        "incremental_mypy_exit": 0,
+        "full_mypy_errors": 0,
+        "architecture_all_new_files_staged": {
+          "production_files": 14,
+          "added_lines": 1031,
+          "boundary_violations": 0,
+          "audit_violations": 0
+        },
+        "unified_projections_exit": 0,
+        "current_contracts_exit": 0,
+        "migration_drift_exit": 0,
+        "governance_exit": 0,
+        "generated_data_dictionary_exit": 0,
+        "current_file_secret_scan_exit": 0,
+        "independent_luna_max_review": "Native storage reviewed independently; no substantive finding. Raw-body verifier independently implemented and reviewed by Root.",
+        "prior_calendar_ci_commit": {
+          "sha": "9ae935d6abbe58856f490ad7960311150b173765",
+          "all_six_workflows": "success",
+          "dedicated_native_calendar_job": {
+            "id": 132950236383,
+            "passed": 6,
+            "skipped": 0
+          },
+          "does_not_qualify_new_native_storage_candidate": true
+        },
+        "new_native_storage_actual_ci": "pending push/run",
+        "final_governance_receipt": {
+          "path": ".tmp/data02-current-20261115/20261116/native-storage-final-r5-governance.receipt.json",
+          "sha256": "239271ba8145f2645fb793358ccc86021f12febc11a7a0953bdfca75f0e5f706"
+        },
+        "final_governance_commands": [
+          {
+            "name": "architecture",
+            "exit_code": 0
+          },
+          {
+            "name": "projections",
+            "exit_code": 0
+          },
+          {
+            "name": "current",
+            "exit_code": 0
+          },
+          {
+            "name": "migration-drift",
+            "exit_code": 0
+          },
+          {
+            "name": "governance",
+            "exit_code": 0
+          }
+        ]
+      },
+      "boundaries": [
+        "Legacy v1 21-field membership and normalized fallback hashes are checked against an independent pre-change three-row golden and a populated historical migration; v2 freezes a distinct 24-field encoding.",
+        "Native rows have NULL legacy value, exact decimal text and a strict typed observation. Changed native values and legacy-to-native upgrades append revisions even when unpinned; whole-batch independent verification precedes DML.",
+        "No production composition currently supplies a real approved numeric catalog. Missing verifier/catalog remains blocked; source applicability/context, authentic approval and revocation, unversioned document capture, producer and consumer composition remain required.",
+        "Seven native units have current document evidence. Main-response LIABILITY magnitude and two derived fields remain unqualified; current capture cannot establish historical knowledge or waive precision.",
+        "New DB default preserves old SQL writers during expand. Before first native row every reader/writer must use a native-aware candidate. Reverse migration refuses native rows; after native writes preserve compatible schema/codecs and re-block rather than use a lossy old image.",
+        "C2 TTL/phase answers remain pending. New date-only/next-session v3 witness, approved rule/policy and exact calendar as-of reader remain necessary.",
+        "Intermediate format/type/current-contract failures and pre-final PG candidates remain in the ignored evidence directory; only the listed source-identical cohort qualifies this code item.",
+        "The r3 PostgreSQL run passed170 but skipped8 opt-in private-schema cases: Root selected the similarly named postgres_provenance module instead of the intended18 generic provenance regressions. The final r4 full-migration run corrects the module without weakening tests or rewriting skips. Dictionary check initially found the new db_default missing from the projection; regenerated and rechecked with the official tools.",
+        "The initial expected Domain red log has no complete source-manifest receipt and is retained only as diagnostic failure evidence, never as acceptance. Earlier candidate manifests and failed format/type/current commands are indexed separately from final acceptance."
+      ],
+      "raw_artifacts": [
+        {
+          "path": ".tmp/data02-current-20261115/20261116/financial-legacy-golden-before-v2.json",
+          "sha256": "77a13f2c522cf03b4a010b72311665bea32143421aab37fb97997526bb4ac4aa"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/d1-native-frozen-r4-postgres.receipt.json",
+          "sha256": "bba684caff7e026c8a8931ef3fc1e828f63f9e7b187f82b78a02b972f3f2e6eb"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/d1-native-frozen-r4-postgres.log",
+          "sha256": "c1b309ab9d2af793bd02216d85d5d78472504c2a247ee4e629dee977edd6d58f"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/d1-native-frozen-r4-postgres.junit.xml",
+          "sha256": "7e7b3fdb7534a98f7529c31b5ba0cbc2f706ac59431c040294d67db5cdff32c1"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/d1-native-frozen-r3-postgres.receipt.json",
+          "sha256": "2baad91d42e3be717c530a2402ca2b55f4291deb0e7286cb22d2e75f08debb37"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/d1-native-frozen-r3-postgres.log",
+          "sha256": "a65d86b26c007bcd07163b8ae85d5c20b45621e7db9068f366f8b294e88b5e3b"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/d1-native-frozen-r3-postgres.junit.xml",
+          "sha256": "8e0f326087a9ce38d47c8703c32c4ecb73e6c02a91038799299cda658ecb12ef"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/native-legacy-migration-sqlite.log",
+          "sha256": "6614cf54f1527cf0cdf6f3f1d6814981ab3aee271b40550fef85b6ee5a808eaf"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/native-legacy-migration-sqlite.junit.xml",
+          "sha256": "db99800893085886aec8375af275ff58428255e513d864b7671034e1e7c6dc1d"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/native-storage-final-r3-format.receipt.json",
+          "sha256": "bcb57ee0d6a5ec4a0ef7bb9ae032536ffc0c8f8a6c6cf67d44ba8b0b496d3646"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/native-storage-final-r3-typing.receipt.json",
+          "sha256": "ee4dcd42c58162dc696555afb27379e7cf2caf7fbb01bc4daf159b6f7a3e2f30"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/native-storage-final-r3-coverage.receipt.json",
+          "sha256": "5ae981cc4d15255dd6607f4bf279a656408531eac1476c4ba7c9f887857dcbee"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/native-storage-final-r3-coverage.json",
+          "sha256": "f64fd46032a666031c8ce47c29e85350b1d75b1905b6a00f706734aaf1463349"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/native-storage-final-r4-governance.receipt.json",
+          "sha256": "85f9a9efd1b065e1c8e19981afabc70e01f62b42095650d00e001684c8f28d3e"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/native-data-dictionary-final.log",
+          "sha256": "6281d775ef17c20a3db5f54ad3da83fa6081bfa8f4f3206ed4dbadc44cc0c4c4"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/native-data-dictionary-final-r2.log",
+          "sha256": "8d5d8bbc165e7a4a6cfc178af91f928fcdd18ed672c13f115518bd2fe5f9b54a"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/native-secret-scan-r3.log",
+          "sha256": "c98b81de927b61ce3a4f1f0f38a9e71523f5726ea2f36742d62701bdc8a591e3"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/ci-9ae935d6-latest.json",
+          "sha256": "ca8410877ea93fcf18281a3cffdfe7fd7ed963037e400ac1ef3458c581c7f464"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/ci-9ae-calendar-job.log",
+          "sha256": "7fa89a226e4b1cb10be11e154dceae49ce26ea80e33bd58a827def52542a0c34"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/native-storage-final-r5-governance.receipt.json",
+          "sha256": "239271ba8145f2645fb793358ccc86021f12febc11a7a0953bdfca75f0e5f706"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/d1-domain-native-red.log",
+          "sha256": "afce76d3f42eeb4b478ad8e7ff1d219007fa1616caed22017214710e915033c0"
+        }
+      ],
+      "financial_provider_requests": 0,
+      "production_deployment": false,
+      "production_fact_writes": 0,
+      "data02_exit_met": false,
+      "data03_started": false,
+      "intermediate_candidates_not_final_acceptance": [
+        {
+          "path": ".tmp/data02-current-20261115/20261116/native-storage-final-format.receipt.json",
+          "sha256": "7a2c26544507e7ffffdbae456f0e1073384d60502fb262a485ab3ef7d035ee64",
+          "commands": [
+            {
+              "name": "black",
+              "exit_code": 0
+            },
+            {
+              "name": "isort",
+              "exit_code": 1
+            }
+          ]
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/native-storage-final-r2-format.receipt.json",
+          "sha256": "75268b0b4464f5da2b3508a1a5e5c581121832bef01228f6fea409848bb7e358",
+          "commands": [
+            {
+              "name": "black",
+              "exit_code": 0
+            },
+            {
+              "name": "isort",
+              "exit_code": 0
+            },
+            {
+              "name": "ruff",
+              "exit_code": 1
+            }
+          ]
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/native-storage-final-typing.receipt.json",
+          "sha256": "5521e44a151731405e375d2f6666cce7555004372f32d05ac6e0d5e1b32ab22a",
+          "commands": [
+            {
+              "name": "mypy",
+              "exit_code": 0
+            },
+            {
+              "name": "debt",
+              "exit_code": 0
+            }
+          ]
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/native-storage-final-coverage.receipt.json",
+          "sha256": "7a70c18613e48a4374355f13bd3159bdabb37db27948349474a40d1894418fe9",
+          "commands": [
+            {
+              "name": "coverage",
+              "exit_code": 0
+            }
+          ]
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/native-storage-final-r3-governance.receipt.json",
+          "sha256": "153536d554c607ed0b0ce024e5f8ced612436a10c350b33e590a2b1abdf864f9",
+          "commands": [
+            {
+              "name": "architecture",
+              "exit_code": 0
+            },
+            {
+              "name": "projections",
+              "exit_code": 0
+            },
+            {
+              "name": "current",
+              "exit_code": 1
+            }
+          ]
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/d1-native-postgres-cohort.receipt.json",
+          "sha256": "812936911c2a87822a7f4d83de28c1dfed0752fce497404f16dd56bdc319bbb6",
+          "result": {
+            "exit_code": null
+          }
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/d1-native-frozen-postgres-full.receipt.json",
+          "sha256": "d0b4d00fa2263497a7910fdf2ec712d93fef766a63a33bca17f174d22cddcef1",
+          "result": {
+            "exit_code": 0,
+            "passed": 160,
+            "skipped": 0,
+            "duration_seconds": 212.22
+          }
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/d1-native-frozen-r2-postgres.receipt.json",
+          "sha256": "275257efd5d0b6d87078d8ab03efd713d3ac02ea2246b827f8ec5188484ab46e",
+          "result": {
+            "exit_code": 0,
+            "passed": 161,
+            "skipped": 0,
+            "duration_seconds": 218.65
+          }
+        }
+      ]
     }
   ],
   "current_authority_followup": "followups[0] (2026-11-16); original 2026-11-15 snapshots remain historical",
   "current_d1_c2_followup": "followups[1] (2026-11-16); original snapshots and all intermediate failures remain historical",
-  "current_goal_followup": "followups[2] (2026-11-16); goal remains active and DATA03 dependency is unchanged"
+  "current_goal_followup": "followups[2] (2026-11-16); goal remains active and DATA03 dependency is unchanged",
+  "current_native_storage_followup": "followups[5] (2026-11-16); development prerequisite only, full DATA02/03 exit gates unchanged"
 }

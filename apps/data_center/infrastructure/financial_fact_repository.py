@@ -6,8 +6,11 @@ from collections.abc import Sequence
 from datetime import date, datetime
 from uuid import UUID
 
-from django.db.models import OuterRef, Subquery
+from django.db.models import OuterRef, Q, Subquery
 
+from apps.data_center.application.financial_numeric_verification import (
+    FinancialNumericEvidenceVerifier,
+)
 from apps.data_center.domain.control_plane import PublicationFactReference
 from apps.data_center.domain.entities import FinancialFact
 from apps.data_center.domain.enums import FinancialPeriodType
@@ -18,7 +21,7 @@ from apps.data_center.infrastructure.financial_availability_repository import (
 )
 from apps.data_center.infrastructure.models import FinancialFactModel
 
-from .financial_decision_evidence_codec import decode_financial_decision_evidence
+from .financial_fact_hydration import financial_fact_from_model
 from .financial_fact_publication_helpers import (
     _NATURAL_KEY,
     _financial_publication_reference_impl,
@@ -30,7 +33,6 @@ from .financial_fact_write_guard import (
     FinancialFactProvenanceConflictError,
     FinancialSourceTimeEvidenceVerifier,
     bulk_upsert_financial_facts,
-    source_evidence_from_model,
 )
 from .financial_source_policy import requires_verified_financial_source_evidence
 
@@ -41,27 +43,45 @@ class FinancialFactRepository(FinancialAvailabilityRepositoryMixin):
     def __init__(
         self,
         source_time_evidence_verifier: FinancialSourceTimeEvidenceVerifier | None = None,
+        *,
+        numeric_evidence_verifier: FinancialNumericEvidenceVerifier | None = None,
     ) -> None:
         """Bind the verifier that recomputes unique source-time row evidence."""
 
         self._source_time_evidence_verifier = source_time_evidence_verifier
+        self._numeric_evidence_verifier = numeric_evidence_verifier
 
     @staticmethod
     def _from_model(m: FinancialFactModel) -> FinancialFact:
-        return FinancialFact(
-            asset_code=m.asset_code,
-            period_end=m.period_end,
-            period_type=FinancialPeriodType(m.period_type),
-            metric_code=m.metric_code,
-            value=float(m.value),
-            unit=m.unit,
-            source=m.source,
-            report_date=m.report_date,
-            available_at=m.available_at,
-            fetched_at=m.fetched_at,
-            extra=m.extra or {},
-            source_evidence=source_evidence_from_model(m),
-            decision_evidence=decode_financial_decision_evidence(m.decision_evidence),
+        """Restore one supported numeric schema without losing native decimal digits."""
+
+        return financial_fact_from_model(m)
+
+    def _read_model(self, row: FinancialFactModel) -> FinancialFact:
+        """Require fresh independent qualification before exposing native values."""
+
+        fact = self._from_model(row)
+        if fact.numeric_schema == "native-decimal-v2" and (
+            self._numeric_evidence_verifier is None or not self._numeric_evidence_verifier(fact)
+        ):
+            raise FinancialFactProvenanceConflictError(
+                "native financial read requires independent catalog and body verification"
+            )
+        return fact
+
+    def _publication_reference(
+        self,
+        row: FinancialFactModel,
+        require_verified_source_evidence: bool,
+        source_time_evidence_verifier: FinancialSourceTimeEvidenceVerifier | None,
+    ) -> PublicationFactReference:
+        """Pass this repository's numeric verifier through every publication query."""
+
+        return _financial_publication_reference(
+            row,
+            require_verified_source_evidence,
+            source_time_evidence_verifier,
+            self._numeric_evidence_verifier,
         )
 
     def get_facts(
@@ -92,6 +112,9 @@ class FinancialFactRepository(FinancialAvailabilityRepositoryMixin):
                     announced_at__lte=knowledge_cutoff,
                     available_at__isnull=False,
                     available_at__lte=knowledge_cutoff,
+                ).filter(
+                    Q(numeric_schema="legacy-decimal-v1")
+                    | Q(numeric_schema="native-decimal-v2", fetched_at__lte=knowledge_cutoff)
                 )
             if fact_pks is None:
                 latest = (
@@ -102,7 +125,7 @@ class FinancialFactRepository(FinancialAvailabilityRepositoryMixin):
                 qs = qs.filter(pk=Subquery(latest))
             rows = list(qs.order_by("-period_end")[:limit])
             if rows:
-                return [self._from_model(m) for m in rows]
+                return [self._read_model(m) for m in rows]
         return []
 
     def get_latest(
@@ -115,7 +138,7 @@ class FinancialFactRepository(FinancialAvailabilityRepositoryMixin):
                 qs = qs.filter(period_type=period_type.value)
             m = qs.order_by("-period_end", "-revision_number", "-pk").first()
             if m is not None:
-                return self._from_model(m)
+                return self._read_model(m)
         return None
 
     def bulk_upsert(
@@ -129,6 +152,7 @@ class FinancialFactRepository(FinancialAvailabilityRepositoryMixin):
         return bulk_upsert_financial_facts(
             facts,
             source_time_evidence_verifier=self._source_time_evidence_verifier,
+            numeric_evidence_verifier=self._numeric_evidence_verifier,
             ingested_run_id=ingested_run_id,
         )
 
@@ -140,7 +164,7 @@ class FinancialFactRepository(FinancialAvailabilityRepositoryMixin):
             facts,
             source_time_evidence_verifier=self._source_time_evidence_verifier,
             require_verified_source_evidence=requires_verified_financial_source_evidence(),
-            reference_factory=_financial_publication_reference,
+            reference_factory=self._publication_reference,
         )
 
     def list_current_publication_candidates(
@@ -155,7 +179,7 @@ class FinancialFactRepository(FinancialAvailabilityRepositoryMixin):
             source_time_evidence_verifier=self._source_time_evidence_verifier,
             require_verified_source_evidence=requires_verified_financial_source_evidence(),
             natural_key=_NATURAL_KEY,
-            reference_factory=_financial_publication_reference,
+            reference_factory=self._publication_reference,
         )
 
 
@@ -163,8 +187,15 @@ def _financial_publication_reference(
     row: FinancialFactModel,
     require_verified_source_evidence: bool = False,
     source_time_evidence_verifier: FinancialSourceTimeEvidenceVerifier | None = None,
+    numeric_evidence_verifier: FinancialNumericEvidenceVerifier | None = None,
 ) -> PublicationFactReference:
     """Convert one evidence-safe financial row to a publication reference."""
+    if row.numeric_schema != "legacy-decimal-v1":
+        fact = financial_fact_from_model(row)
+        if numeric_evidence_verifier is None or not numeric_evidence_verifier(fact):
+            raise FinancialFactProvenanceConflictError(
+                "native financial publication requires independent catalog and body verification"
+            )
     return _financial_publication_reference_impl(
         row,
         require_verified_source_evidence,

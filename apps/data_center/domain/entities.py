@@ -12,7 +12,8 @@ import json
 import math
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
-from typing import Any, ClassVar
+from decimal import Decimal
+from typing import Any, ClassVar, Literal
 from uuid import UUID
 
 from apps.data_center.domain.enums import (
@@ -24,6 +25,7 @@ from apps.data_center.domain.enums import (
     PriceAdjustment,
     ProviderHealthStatus,
 )
+from apps.data_center.domain.financial_numeric_evidence import NativeFinancialMetricObservation
 from apps.data_center.domain.financial_source_evidence import (
     FinancialFactDecisionEvidence,
     FinancialFactSourceEvidence,
@@ -517,7 +519,7 @@ class FinancialFact:
     period_end: date
     period_type: FinancialPeriodType
     metric_code: str
-    value: float
+    value: float | Decimal
     unit: str = ""
     source: str = ""
     report_date: date | None = None
@@ -526,18 +528,43 @@ class FinancialFact:
     extra: dict[str, Any] = field(default_factory=dict)
     source_evidence: FinancialFactSourceEvidence | None = None
     decision_evidence: FinancialFactDecisionEvidence | None = None
+    numeric_schema: Literal["legacy-decimal-v1", "native-decimal-v2"] = "legacy-decimal-v1"
+    numeric_evidence: NativeFinancialMetricObservation | None = None
 
     def __post_init__(self) -> None:
         """Validate the fact and preserve optional source evidence as typed data."""
 
         if not self.asset_code or not self.metric_code:
             raise ValueError("FinancialFact fields cannot be empty")
-        if (
-            isinstance(self.value, bool)
-            or not isinstance(self.value, (int, float))
-            or not math.isfinite(self.value)
-        ):
-            raise ValueError("FinancialFact.value must be finite")
+        if self.numeric_schema == "legacy-decimal-v1":
+            if (
+                isinstance(self.value, bool)
+                or not isinstance(self.value, (int, float))
+                or not math.isfinite(self.value)
+                or self.numeric_evidence is not None
+            ):
+                raise ValueError(
+                    "Legacy FinancialFact requires a finite value without native evidence"
+                )
+        elif self.numeric_schema == "native-decimal-v2":
+            evidence = self.numeric_evidence
+            if (
+                type(self.value) is not Decimal
+                or not self.value.is_finite()
+                or type(evidence) is not NativeFinancialMetricObservation
+            ):
+                raise ValueError("Native FinancialFact requires exact Decimal and typed evidence")
+            evidence.__post_init__()
+            if (
+                self.value != Decimal(evidence.canonical_value)
+                or self.metric_code != evidence.contract.metric_code
+                or self.unit != evidence.contract.canonical_unit
+                or self.source != evidence.contract.provider
+                or evidence.contract.dataset_key != "equity.financial.fact"
+            ):
+                raise ValueError("Native FinancialFact does not match its exact numeric subject")
+        else:
+            raise ValueError("FinancialFact numeric schema is unsupported")
         if self.available_at is not None and (
             self.available_at.tzinfo is None or self.available_at.utcoffset() is None
         ):
@@ -554,7 +581,7 @@ class FinancialFact:
     def to_dict(self) -> dict[str, Any]:
         """Serialize the fact without inferring missing source timestamps."""
 
-        return {
+        payload: dict[str, Any] = {
             "asset_code": self.asset_code,
             "period_end": self.period_end.isoformat(),
             "period_type": self.period_type.value,
@@ -573,6 +600,14 @@ class FinancialFact:
                 self.decision_evidence.to_dict() if self.decision_evidence is not None else None
             ),
         }
+        if self.numeric_schema == "native-decimal-v2":
+            evidence = self.numeric_evidence
+            if evidence is None:
+                raise ValueError("Native FinancialFact numeric evidence is missing")
+            payload["value"] = evidence.canonical_value
+            payload["numeric_schema"] = self.numeric_schema
+            payload["numeric_evidence"] = evidence.to_dict()
+        return payload
 
 
 @dataclass(frozen=True)

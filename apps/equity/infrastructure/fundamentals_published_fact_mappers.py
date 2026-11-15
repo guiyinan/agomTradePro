@@ -4,10 +4,11 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from decimal import Decimal
-from typing import Any
+from typing import Any, Literal
 
 from apps.data_center.domain.entities import FinancialFact, PriceBar, ValuationFact
 from apps.data_center.domain.enums import FinancialPeriodType, PriceAdjustment
+from apps.data_center.domain.financial_numeric_evidence import NativeFinancialMetricObservation
 from apps.equity.domain.entities import ValuationMetrics
 from apps.equity.infrastructure.fundamentals_fact_helpers import parse_fact_date as _parse_fact_date
 from apps.equity.infrastructure.fundamentals_fact_helpers import (
@@ -66,7 +67,27 @@ def parse_public_financial_fact(row: Mapping[str, object]) -> FinancialFact | No
     metric_code = str(row.get("metric_code") or "").strip()
     period_end = _parse_fact_date(row.get("period_end"))
     fetched_at = _parse_fact_datetime(row.get("fetched_at"))
-    value = safe_float(row.get("value"), default=None)
+    raw_numeric_schema = row.get("numeric_schema", "legacy-decimal-v1")
+    numeric_schema: Literal["legacy-decimal-v1", "native-decimal-v2"]
+    numeric_evidence: NativeFinancialMetricObservation | None = None
+    value: float | Decimal | None
+    if raw_numeric_schema == "native-decimal-v2":
+        numeric_schema = "native-decimal-v2"
+        try:
+            numeric_evidence = NativeFinancialMetricObservation.from_payload(
+                row.get("numeric_evidence")
+            )
+        except ValueError:
+            return None
+        raw_value = row.get("value")
+        if type(raw_value) is not str or raw_value != numeric_evidence.canonical_value:
+            return None
+        value = Decimal(raw_value)
+    elif raw_numeric_schema == "legacy-decimal-v1":
+        numeric_schema = "legacy-decimal-v1"
+        value = safe_float(row.get("value"), default=None)
+    else:
+        return None
     if not asset_code or not metric_code or period_end is None or fetched_at is None:
         return None
     if value is None:
@@ -101,6 +122,8 @@ def parse_public_financial_fact(row: Mapping[str, object]) -> FinancialFact | No
             available_at=available_at,
             fetched_at=fetched_at,
             extra=extra,
+            numeric_schema=numeric_schema,
+            numeric_evidence=numeric_evidence,
         )
     except ValueError:
         return None

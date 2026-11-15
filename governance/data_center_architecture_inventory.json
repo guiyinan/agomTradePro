@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 7461,
+    "current_surface_references": 7462,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -12525,6 +12525,10 @@
     {
       "path": "apps/data_center/infrastructure/financial_fact_repository.py",
       "text": "qs = qs.filter(pk=Subquery(latest))"
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_native_numeric_verifier.py",
+      "text": "persisted provider row, then checks the returned bytes again. Current"
     },
     {
       "path": "apps/data_center/infrastructure/financial_publication_capacity_runtime.py",
