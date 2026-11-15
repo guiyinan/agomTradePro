@@ -871,3 +871,27 @@ degraded，不得洗白。完整决策、理由与边界见
 [date-only 精度决策记录](data02-date-only-precision-decision-2026-10-04.md)；该文件同时
 作为 contract registry owner approval 的审批 receipt 原件。DATA-02 继续保持
 `awaiting_production`。
+
+## 35. 2026-11-15 显式决策时点读取与当前生产复核
+
+本次按 Owner 后续顺序先推进 DATA-02，再判断 DATA-03；不恢复 deferred ASH，也不启动
+CAL-03。正式开发分支为 `dev/next-development`，基线为
+`689f5f1b3b5e37277641ac2c25a2860447d7035c`；外来 `.task-logs/` 保留。
+
+C2 的有界前置新增 `get_financial_facts_for_decision_at` 和
+`get_published_financial_facts_for_decision_at`，调用者必须提供带时区的 `decision_at`。
+入口将其规范化为同一 UTC 瞬时，以该瞬时的上海日期限制报告期；禁止无时区、非时间或
+晚于服务端当前时刻的截止点，校验先于数据读取。发布入口继续核验原 Publication 门和
+成员身份。旧 `decision_date` 入口仍使用上海午夜，不暗中改用请求时间或开盘时间。
+本切片没有来源时间推导、日历政策激活、历史改写、Provider 请求或发布指针切换。
+
+完整 C2 尚需绑定具体市场、合格日历 publication/version/hash 及可证明的正式开盘时刻，
+追加 successor match contract、witness 和读取兼容验收；当前日历的开市日期不能单独证明
+开盘瞬时，不能用业务常量补造。D1 零容差和 E1 自动化已有 Owner 方案授权，无需重复
+审批；真实字段/单位/精度矩阵、账户/证券/provider/固定窗口、累计预算、当前 authority、
+候选和备份门仍须满足。现有 E1 不覆盖全市场回填，不能因此缩小 DATA-02 的完整退出门。
+
+本事项的生产只读事实、候选身份、测试、原件位置和失败记录统一见
+`docs/testing/data02-current-acceptance-2026-11-15.json`。生产现状与本地开发通过分开记录；
+没有四类当前 Publication、完整来源时间凭证和 canonical 对账前，DATA-02 保持原状态，
+DATA-03 不启动。回滚以本切片完整提交为界；保留旧日期端口和现有生产事实。

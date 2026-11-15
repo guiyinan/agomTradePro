@@ -118,6 +118,12 @@ pytest tests/unit/ci/test_check_current_data_contracts.py -q
 
 ## 五条不可破坏的语义
 
+财务显式时点入口 `get_financial_facts_for_decision_at` /
+`get_published_financial_facts_for_decision_at` 要求 aware `decision_at`，拒绝未来截止点；
+同一瞬时规范化为 UTC，报告期上界取该瞬时的上海日期。原日期入口继续使用上海午夜。
+发布入口仍依赖原 Publication gate 与精确成员，不因非空结果或开盘时点扩大资格。
+该读取能力不激活 C2，不推导供应商源时间或使用业务常量补造日历开盘时间。
+
 多证券股票池的 published 读取可展示已验证发布中的局部估值缺失：仅接受
 `equity.valuation.fact` / `valuation_source_data_unavailable`，按真实 master 解析结果
 绑定请求代码、canonical asset、发布身份与范围，保留完整请求分母、逐行限制及原始源时钟。

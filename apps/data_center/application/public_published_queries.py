@@ -10,8 +10,10 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import replace
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from typing import Any
+
+from django.utils import timezone
 
 from apps.data_center.application.published_price_source import PublishedPriceSourceResult
 from apps.data_center.application.query_services import (
@@ -51,6 +53,7 @@ from apps.data_center.domain.market_time import (
     cn_market_date_start_utc,
 )
 from apps.data_center.publication_read_composition import publication_snapshot
+from core.exceptions import DataValidationError
 
 
 def get_current_publication_freshness_gate(
@@ -686,6 +689,74 @@ def get_published_financial_facts_for_decision(
         as_of=decision_date,
         publication_key=publication_key,
         knowledge_cutoff=cn_market_date_start_utc(decision_date),
+    )
+    return _usable_decision_rows(payload, dataset_key="equity.financial.fact")
+
+
+def _financial_decision_cutoff(decision_at: datetime) -> datetime:
+    """Validate an explicit knowledge instant before any repository access."""
+
+    if (
+        not isinstance(decision_at, datetime)
+        or decision_at.tzinfo is None
+        or decision_at.utcoffset() is None
+    ):
+        raise DataValidationError(
+            "Financial decision time must be timezone-aware",
+            code="FINANCIAL_DECISION_TIME_INVALID",
+        )
+    cutoff = decision_at.astimezone(UTC)
+    if cutoff > timezone.now():
+        raise DataValidationError(
+            "Financial decision time cannot be in the future",
+            code="FINANCIAL_DECISION_TIME_FUTURE",
+        )
+    return cutoff
+
+
+def get_financial_facts_for_decision_at(
+    asset_code: str,
+    *,
+    decision_at: datetime,
+    limit: int = 20,
+) -> list[dict[str, object]]:
+    """Read canonical facts knowable at one explicit aware decision instant.
+
+    This preserves the supplied cutoff rather than projecting it to midnight.
+    As with the legacy canonical fact port, it does not establish a current
+    Publication identity; published decision consumers use the paired port.
+    It does not derive availability or qualify an exchange calendar.
+    """
+
+    cutoff = _financial_decision_cutoff(decision_at)
+    return query_financial_facts(
+        asset_code,
+        limit=limit,
+        end=cn_market_date_from_observation(cutoff),
+        knowledge_cutoff=cutoff,
+    )
+
+
+def get_published_financial_facts_for_decision_at(
+    asset_code: str,
+    *,
+    decision_at: datetime,
+    limit: int = 20,
+    publication_key: str = "current",
+) -> list[dict[str, object]]:
+    """Read usable published financial facts at an explicit decision instant.
+
+    The existing Publication gate and member-bound query remain authoritative.
+    An explicit cutoff does not promote missing or blocked source evidence.
+    """
+
+    cutoff = _financial_decision_cutoff(decision_at)
+    payload = get_published_financial_facts(
+        asset_code,
+        limit=limit,
+        as_of=cn_market_date_from_observation(cutoff),
+        publication_key=publication_key,
+        knowledge_cutoff=cutoff,
     )
     return _usable_decision_rows(payload, dataset_key="equity.financial.fact")
 

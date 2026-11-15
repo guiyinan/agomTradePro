@@ -1,0 +1,679 @@
+{
+  "schema": "data02-current-acceptance-index.v1",
+  "recorded_at_utc": "2026-11-15T15:55:31.229304+00:00",
+  "unit_id": "DATA-02",
+  "branch": "dev/next-development",
+  "candidate": {
+    "base_head": "689f5f1b3b5e37277641ac2c25a2860447d7035c",
+    "files_sha256": {
+      "apps/data_center/application/public.py": "9cd792595d9d6cc0e42c83a35d3581ab76361dd37fa5dbc099f946d44a418137",
+      "apps/data_center/application/public_published_queries.py": "e0dea38c75897964b329339f0bc0277397186688251755328d201faa2f39c4c7",
+      "tests/unit/data_center/test_financial_decision_instant_ports.py": "46b0d12b63aa36b8b767fbe33f0b30502e7ff138afcc1999fdec3f6ebb0dd481",
+      "governance/current_data_contracts.json": "38218bcac311922e0f42a4f7fcd5aa18381be26b05d9901cbe199e648a9448ac",
+      "governance/module_map.json": "6bff8c6348b03febe475073a9e4bb1c2f430b7b5a56124da03af01e6d9025b26",
+      "pyproject.toml": "22e431a9126b689bd3e900798abb6f520965596c30e8cdae1935e892744d0350",
+      "pytest.ini": "e076f13aece73211a8d1a0188d787cd603e4ec39cf8522e616c8952901e391db",
+      "governance/financial_source_time_match_contracts.json": "368903b6b0ab40679414ea392744f026834e3e5972ae58e15ad6446966e85621",
+      "governance/financial_sync_request_budgets.json": "03e3341a6750a54d3389b6be089ca61178230f205d0bce94b0bdaa748a4b49a5",
+      "governance/data02_numeric_tolerance_policies.json": "f917b8985833de6b1a1102abeeb641702b90cf8edf5b21c8ebe621b039cf09ee"
+    },
+    "note": "Final production/test/contract input bytes. Read-only production snapshots have independent timestamps and sources; no production qualification inferred.",
+    "staged_source_comparison": {
+      "apps/data_center/application/public.py": {
+        "staged_sha256": "2cf05deabb3ccb7387fc8ca30bcadf714c74aab072f0d0885f89e575e4748dea",
+        "as_tested_sha256": "9cd792595d9d6cc0e42c83a35d3581ab76361dd37fa5dbc099f946d44a418137",
+        "only_git_newline_normalization": true
+      },
+      "apps/data_center/application/public_published_queries.py": {
+        "staged_sha256": "746e1f7bb537e59029c047f77f999a88c4fc2181211ed4b046e8797d62766793",
+        "as_tested_sha256": "e0dea38c75897964b329339f0bc0277397186688251755328d201faa2f39c4c7",
+        "only_git_newline_normalization": true
+      },
+      "tests/unit/data_center/test_financial_decision_instant_ports.py": {
+        "staged_sha256": "abd7229cc8a70146fadf6e76c97ba869ae4df0fafa56eb7b3e75345d5964c44d",
+        "as_tested_sha256": "46b0d12b63aa36b8b767fbe33f0b30502e7ff138afcc1999fdec3f6ebb0dd481",
+        "only_git_newline_normalization": true
+      },
+      "governance/current_data_contracts.json": {
+        "staged_sha256": "e7e2e867b22f625d11a7279a9fe00af7f56fed1a671daacd3bad8138fbeaee45",
+        "as_tested_sha256": "38218bcac311922e0f42a4f7fcd5aa18381be26b05d9901cbe199e648a9448ac",
+        "only_git_newline_normalization": true
+      },
+      "governance/module_map.json": {
+        "staged_sha256": "6bff8c6348b03febe475073a9e4bb1c2f430b7b5a56124da03af01e6d9025b26",
+        "as_tested_sha256": "6bff8c6348b03febe475073a9e4bb1c2f430b7b5a56124da03af01e6d9025b26",
+        "only_git_newline_normalization": false
+      }
+    },
+    "staged_comparison_note": "The first literal byte check rejected Git CRLF-to-LF normalization before commit. Normalized text and Python AST are identical for all tested/staged source files; no semantic or code changes followed final checks. Both actual tested-byte and staged-byte hashes are retained. This does not claim literal byte equality."
+  },
+  "scope": "Current read-only production revalidation plus explicit aware financial decision-time public ports. No C2 activation or E1 execution.",
+  "production_qualified": false,
+  "data02_exit_met": false,
+  "data03_started": false,
+  "production_snapshots": {
+    "scope_note": "Collectors are separate timestamped read-only snapshots. Coverage/universe comparison is one RR snapshot. Structural pointers, SQL counts and profile fields do not revalidate canonical content, current authority graph or exact release/profile binding.",
+    "runtime_identity_diagnostic": {
+      "observed_at_utc": "2026-11-15T15:32:11.807777+00:00",
+      "release_path": "/opt/agomtradepro/releases/20261101013730",
+      "web": {
+        "health": "healthy",
+        "image_id": "sha256:8fb8281c9551f28611ee9a0cf6d5503792077eeddff9a917aee1793d8559ea92",
+        "image_reference": "agomtradepro-web:20261101013730",
+        "name": "agomtradepro-web-1",
+        "oci_revision": "4149a9cf4a3738f38d0ca62979fa9bfed56a6a07",
+        "started_at": "2026-11-01T01:56:36.845004544Z",
+        "status": "running"
+      },
+      "https_status": {
+        "/api/decision-ready/": 503,
+        "/api/health/": 200,
+        "/api/health/db/": 200,
+        "/api/operational-readiness/release-identity/": 403,
+        "/api/ready/": 200
+      },
+      "identity_accepted": false
+    },
+    "manifest_path_is_directory": true,
+    "profile": [
+      {
+        "activated_at": "2026-11-01T05:28:52.174877+00:00",
+        "content_hash": "d99f74886bd5f97875b0ba0d29f43f52e1ef45ee0c75e377782dfa9ca452e745",
+        "environment": "production",
+        "profile_id": "a979df49-3965-46fb-81b7-0fce8a33a355",
+        "profile_key": "production",
+        "release_ref": "recovery-20261101T052231652550Z-c023f302ea4746f98a08c4fd31b6cea0",
+        "version": 21
+      }
+    ],
+    "audit_runtime_config": {
+      "mode": "required",
+      "outbox_enabled": true,
+      "selector_present": true,
+      "authority_verified": false
+    },
+    "authority_counts": {
+      "actor_source_max_valid_until": "2026-11-15T05:22:29.741833+00:00",
+      "actor_source_v3": 45,
+      "owner_assignment_evidence_v5": 8,
+      "owner_assignment_receipt_v5": 8,
+      "owner_authority_max_valid_until": "2027-09-12T18:23:04.344562+00:00",
+      "owner_tenant_v3": 8,
+      "owner_tenant_v3_revocations": 0,
+      "rbac_source_v3": 30,
+      "temporally_current_actor_leaf_heads": 0,
+      "temporally_current_joined_actor_owner_pairs": 0,
+      "temporally_current_owner_leaf_heads": 3,
+      "user_source_v3": 30
+    },
+    "actual_deployed_audit_lease": {
+      "exit_code": 0,
+      "lease": {
+        "mode": "required",
+        "outbox_enabled": true,
+        "reason_code": "authority_unavailable",
+        "valid_until": null
+      },
+      "mutations_performed": false,
+      "observed_at_utc": "2026-11-15T15:41:31.400860+00:00",
+      "source_sha256": "4d086bd53f9c0514f9a555d83a0d97763b2ae8ebdf0fb17e896cdd788f38b8c7",
+      "stderr_sha256": "ce66e244d429315372eb03865b33ce22b927772d294e42e1f6c4bd2c17ad0d3f",
+      "transaction": "PGOPTIONS READ ONLY; RR READ ONLY; ROLLBACK"
+    },
+    "configured_universe": [
+      {
+        "asset_type": "stock",
+        "exchanges": [
+          "SSE",
+          "SZSE",
+          "BSE"
+        ],
+        "id": 1,
+        "include_inactive": false,
+        "universe_id": "active_a_share"
+      }
+    ],
+    "universe_count": 5573,
+    "universe_asset_codes_json_sha256": "9d950f2aa17301e825c63d2ce6ba4030c90108c4b7d0634a579f23d3b09dec8a",
+    "current_member_coverage_and_persisted_clocks": [
+      {
+        "current_universe_count": 5573,
+        "current_universe_covered_count": 0,
+        "dangling_fact_count": 0,
+        "dataset_key": "equity.financial.fact",
+        "mapped_member_count": 0,
+        "missing_count": 5573,
+        "outside_current_universe_count": 0,
+        "persisted_member_count": 0,
+        "observed_at_range": [
+          null,
+          null
+        ],
+        "full_persisted_clock_evidence": "current_coverage_probe.py.stdout (raw collector below)"
+      },
+      {
+        "current_universe_count": 5573,
+        "current_universe_covered_count": 5561,
+        "dangling_fact_count": 0,
+        "dataset_key": "equity.price.bar",
+        "mapped_member_count": 5561,
+        "missing_count": 12,
+        "outside_current_universe_count": 0,
+        "persisted_member_count": 5561,
+        "observed_at_range": [
+          "2026-09-30T07:00:00+00:00",
+          "2026-09-30T07:00:00+00:00"
+        ],
+        "full_persisted_clock_evidence": "current_coverage_probe.py.stdout (raw collector below)"
+      },
+      {
+        "current_universe_count": 5573,
+        "current_universe_covered_count": 5572,
+        "dangling_fact_count": 0,
+        "dataset_key": "equity.quote.snapshot",
+        "mapped_member_count": 5572,
+        "missing_count": 1,
+        "outside_current_universe_count": 0,
+        "persisted_member_count": 5572,
+        "observed_at_range": [
+          "2026-09-30T07:00:00+00:00",
+          "2026-09-30T07:00:00+00:00"
+        ],
+        "full_persisted_clock_evidence": "current_coverage_probe.py.stdout (raw collector below)"
+      },
+      {
+        "current_universe_count": 5573,
+        "current_universe_covered_count": 5572,
+        "dangling_fact_count": 0,
+        "dataset_key": "equity.valuation.fact",
+        "mapped_member_count": 5572,
+        "missing_count": 1,
+        "outside_current_universe_count": 0,
+        "persisted_member_count": 5572,
+        "observed_at_range": [
+          "2026-09-30T07:34:18+00:00",
+          "2026-09-30T08:15:00+00:00"
+        ],
+        "full_persisted_clock_evidence": "current_coverage_probe.py.stdout (raw collector below)"
+      }
+    ],
+    "current_pointer_identities": [
+      {
+        "activation_id": "19d9a93e-55b6-5b8e-882d-8f3160f560dc",
+        "as_of": "2026-09-30T07:00:00+00:00",
+        "blocked_reason": "",
+        "coverage_conflict_count": 0,
+        "coverage_eligible_count": 5561,
+        "coverage_missing_count": 11,
+        "coverage_requested_count": 5572,
+        "coverage_selected_count": 5561,
+        "dataset_key": "equity.price.bar",
+        "member_count": 5561,
+        "must_not_use_for_decision": false,
+        "pointer_publication_hash": "7ca621b7a349a8d318eee65f2b386c85cab7e9868a4a648361b4615a312ab3fb",
+        "pointer_publication_id": "09744cd3-3ca4-5314-ae29-ebc1a67047f4",
+        "pointer_resolves_eligible": true,
+        "pointer_updated_at": "2026-10-06T10:34:29.820133+00:00",
+        "publication_key": "current",
+        "published_at": "2026-10-06T10:34:29.820133+00:00",
+        "state": "published"
+      },
+      {
+        "activation_id": "19d9a93e-55b6-5b8e-882d-8f3160f560dc",
+        "as_of": "2026-09-30T07:00:00+00:00",
+        "blocked_reason": "",
+        "coverage_conflict_count": 0,
+        "coverage_eligible_count": 5572,
+        "coverage_missing_count": 0,
+        "coverage_requested_count": 5572,
+        "coverage_selected_count": 5572,
+        "dataset_key": "equity.quote.snapshot",
+        "member_count": 5572,
+        "must_not_use_for_decision": false,
+        "pointer_publication_hash": "6e8c6931de65003f856cdbb6e32cc8fc47eb8dbe1ac8028d7175a9de2d344678",
+        "pointer_publication_id": "7be67625-995d-5f01-af0b-38c03ea039aa",
+        "pointer_resolves_eligible": true,
+        "pointer_updated_at": "2026-10-06T10:34:29.820133+00:00",
+        "publication_key": "current",
+        "published_at": "2026-10-06T10:34:29.820133+00:00",
+        "state": "published"
+      },
+      {
+        "activation_id": "19d9a93e-55b6-5b8e-882d-8f3160f560dc",
+        "as_of": "2026-09-30T08:15:00+00:00",
+        "blocked_reason": "",
+        "coverage_conflict_count": 0,
+        "coverage_eligible_count": 5572,
+        "coverage_missing_count": 0,
+        "coverage_requested_count": 5572,
+        "coverage_selected_count": 5572,
+        "dataset_key": "equity.valuation.fact",
+        "member_count": 5572,
+        "must_not_use_for_decision": false,
+        "pointer_publication_hash": "7fa189457fb1804a818ca3e5274446bf9f2844c9b5eec93db7d4174388a5f7d2",
+        "pointer_publication_id": "2aef6ec3-b4fb-5976-9390-c60d3a950ff5",
+        "pointer_resolves_eligible": true,
+        "pointer_updated_at": "2026-10-06T10:34:29.820133+00:00",
+        "publication_key": "current",
+        "published_at": "2026-10-06T10:34:29.820133+00:00",
+        "state": "published"
+      }
+    ],
+    "financial_provenance_counts": {
+      "financial_fact_announced_at_count": 0,
+      "financial_fact_available_at_count": 105606,
+      "financial_fact_decision_evidence_count": 0,
+      "financial_fact_source_time_witness_count": 0,
+      "financial_fact_total": 487624,
+      "latest_source_time_audit_at": null,
+      "source_time_artifact_audit_count": 0,
+      "source_time_bound_claim_count": 0,
+      "source_time_claim_count": 0,
+      "source_time_success_audit_count": 0
+    },
+    "clock_limits": "Member observed/available/fetched/source_published values are preserved as stored. Fetched/response completion is not source availability or first-known time. No missing source time, original bytes, first acquisition, knowledge cutoff or provenance is synthesized. No source/fact/publication numeric comparison was executed.",
+    "raw_collectors": [
+      {
+        "source": {
+          "path": ".tmp/data02-current-20261115/current_identity_probe.py",
+          "sha256": "2098275c239bf882da35441a264d95c16bebd090af1612062452bdeba504a852"
+        },
+        "receipt": {
+          "path": ".tmp/data02-current-20261115/current_identity_probe.py.receipt.json",
+          "sha256": "0df3d2c57f6333555ab2e16116568afa2502763b973a4d436074e16fef1e2993"
+        },
+        "stdout": {
+          "path": ".tmp/data02-current-20261115/current_identity_probe.py.stdout",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "stderr": {
+          "path": ".tmp/data02-current-20261115/current_identity_probe.py.stderr",
+          "sha256": "91665f0b6152627b3dd0b711e05b0304881e5a85c35de14aa08609fdbfc29bcb"
+        }
+      },
+      {
+        "source": {
+          "path": ".tmp/data02-current-20261115/current_identity_diagnostic.py",
+          "sha256": "4b5c4c0f2dcf2a5851e65fcb87fac06d1408b42560d21a59f219a1fd25376041"
+        },
+        "receipt": {
+          "path": ".tmp/data02-current-20261115/current_identity_diagnostic.py.receipt.json",
+          "sha256": "577af350d1d2130f540429ffaa8428ad4170b8928c424633a1f30ab8fbcf0b4a"
+        },
+        "stdout": {
+          "path": ".tmp/data02-current-20261115/current_identity_diagnostic.py.stdout",
+          "sha256": "f4a72d62eae95f59fd0ad1111be3142b4253748a73edd65f948e7d814ff44120"
+        },
+        "stderr": {
+          "path": ".tmp/data02-current-20261115/current_identity_diagnostic.py.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      {
+        "source": {
+          "path": ".tmp/data02-current-20261115/production_database_probe.py",
+          "sha256": "15376f5cdf777fcdbdfde6af05d559e4a6b0b87cc6df69674abe8ad82a60c800"
+        },
+        "receipt": {
+          "path": ".tmp/data02-current-20261115/production_database_probe.py.receipt.json",
+          "sha256": "299a82dfb09632af5004e0dc461d48c15b70309249c1962692f88e2886914b66"
+        },
+        "stdout": {
+          "path": ".tmp/data02-current-20261115/production_database_probe.py.stdout",
+          "sha256": "85ecfac61ecd66d85dcb53a07102d9f65de7e149c80678b01a2b438aaa2b2eb8"
+        },
+        "stderr": {
+          "path": ".tmp/data02-current-20261115/production_database_probe.py.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      {
+        "source": {
+          "path": ".tmp/data02-current-20261115/production_current_pointer_probe.py",
+          "sha256": "be75fd566292abf5912963f3e760636401d9340a4d0db42b5972aa14ee5fdf25"
+        },
+        "receipt": {
+          "path": ".tmp/data02-current-20261115/production_current_pointer_probe.py.receipt.json",
+          "sha256": "d7511bd4ffbf6d03308c318ddc60b313df03ccbe3ba99fce40d98e25de67e34d"
+        },
+        "stdout": {
+          "path": ".tmp/data02-current-20261115/production_current_pointer_probe.py.stdout",
+          "sha256": "648c907e61a5c0c4044c4a7d797db005743253879cddc697aa62385a7c38cd62"
+        },
+        "stderr": {
+          "path": ".tmp/data02-current-20261115/production_current_pointer_probe.py.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      {
+        "source": {
+          "path": ".tmp/data02-current-20261115/production_financial_evidence_probe.py",
+          "sha256": "ee03d8417275ed17b949662c09fabcaa3c71766f58d844b6ba86f24f4628fdc1"
+        },
+        "receipt": {
+          "path": ".tmp/data02-current-20261115/production_financial_evidence_probe.py.receipt.json",
+          "sha256": "ad6056fa51ee172143cbdec1214ef81dcfa21d4f7282beb745782a06db400195"
+        },
+        "stdout": {
+          "path": ".tmp/data02-current-20261115/production_financial_evidence_probe.py.stdout",
+          "sha256": "55edce3e246e996c08e9aa319af073f784e186743f8f3135f2efab1a3e15ab62"
+        },
+        "stderr": {
+          "path": ".tmp/data02-current-20261115/production_financial_evidence_probe.py.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      {
+        "source": {
+          "path": ".tmp/data02-current-20261115/audit_runtime_probe.py",
+          "sha256": "97c8edcf1776713fcc66dc12c873a61e60388653c223a537e113e2c429a984ae"
+        },
+        "receipt": {
+          "path": ".tmp/data02-current-20261115/audit_runtime_probe.py.receipt.json",
+          "sha256": "4365a7bf36e4a971c154bcfbf83f1f5e619ceb1341e8b3c72b19c80b21e8a8c3"
+        },
+        "stdout": {
+          "path": ".tmp/data02-current-20261115/audit_runtime_probe.py.stdout",
+          "sha256": "1154b92a99e10637baf781319f50f4a2743d88bab874d7d21d13083dbef36c07"
+        },
+        "stderr": {
+          "path": ".tmp/data02-current-20261115/audit_runtime_probe.py.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      {
+        "source": {
+          "path": ".tmp/data02-current-20261115/current_coverage_probe.py",
+          "sha256": "163fc7c37463ad78a58e94c9b862c6d4891d7146f05e43a899f30315df0dab4b"
+        },
+        "receipt": {
+          "path": ".tmp/data02-current-20261115/current_coverage_probe.py.receipt.json",
+          "sha256": "8e1fc645b975c3804093c2d8910f3822d88304e0432616eb4bb0d0e8c76c225c"
+        },
+        "stdout": {
+          "path": ".tmp/data02-current-20261115/current_coverage_probe.py.stdout",
+          "sha256": "23f1fb7eb350d70094804685ec330c28c0e1e2ed8e420a1c90c86e18607fbf4f"
+        },
+        "stderr": {
+          "path": ".tmp/data02-current-20261115/current_coverage_probe.py.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      {
+        "source": {
+          "path": ".tmp/data02-current-20261115/selected_scope_probe.py",
+          "sha256": "0bba3d61aec21f23c167396b468b5f46ba6bb108f390ab937050a4f639cc7d1f"
+        },
+        "receipt": {
+          "path": ".tmp/data02-current-20261115/selected_scope_probe.py.receipt.json",
+          "sha256": "ec64ea7172b53698793b32c16da1103ff374e207feaa799aae2eecca2283e829"
+        },
+        "stdout": {
+          "path": ".tmp/data02-current-20261115/selected_scope_probe.py.stdout",
+          "sha256": "6a9019cf454cf39c4102c715839b8fb8a1e5ccab28f4bcc55eda4555d1c7fcf3"
+        },
+        "stderr": {
+          "path": ".tmp/data02-current-20261115/selected_scope_probe.py.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      }
+    ]
+  },
+  "e1_preparation": {
+    "selection_authority": "Owner answered the actual scope question with 你看着办吧 on 2026-11-15. This delegates scope selection; it does not make an expired server authority current or widen the existing E1 gate.",
+    "account_id": 631,
+    "account_basis": "Latest active DATA02-named simulated account visible through authenticated account.read.account_list. Visibility is not current writer authority or owner/tenant proof.",
+    "asset": {
+      "asset_type": "stock",
+      "code": "000001.SZ",
+      "exchange": "SZSE",
+      "is_active": true,
+      "name": "平安银行"
+    },
+    "provider": {
+      "id": 3,
+      "is_active": true,
+      "name": "AKShare Public",
+      "priority": 10,
+      "source_type": "akshare"
+    },
+    "target_report_period": "2026-06-30",
+    "target_period_type": "semi_annual",
+    "persisted_announcement_date": "2026-08-15",
+    "announcement_date_qualification": "Existing report_date only; not retained provider-native source-time proof. Must be independently matched before any write.",
+    "request_budget": {
+      "asset_announcement_slices": 1,
+      "logical_provider_requests_max": 2,
+      "period_rows_per_capture_max": 200,
+      "provider_requests_performed": 0,
+      "unknown_write_auto_retry": false
+    },
+    "planned_effects": {
+      "retained_raw_and_audit_outbox": "Only exact validated task-required additions, bounded by current gates",
+      "facts": "Candidate expectation is the 10 existing report metrics; actual row/period/metric identity must be validated before writing; no verified write-count forecast yet",
+      "publication_creation": false,
+      "publication_activation": false,
+      "current_pointer_change": false,
+      "ledger_write": false,
+      "history_delete_or_correction": false
+    },
+    "execution_status": "blocked_before_provider_access",
+    "remaining_preflight": "Actual current server-issued actor plus owner/account/tenant scope; exact deployed candidate/profile and required same-candidate checks; qualified C2 policy/calendar/opening; source-bound D1 field/unit/precision matrix; current verified backup/staging rollback; executable dry-run with precise write forecast and cumulative budget. No production writer command is approved by this index.",
+    "existing_metric_units": {
+      "debt_ratio": "%",
+      "equity": "元",
+      "net_profit": "元",
+      "net_profit_growth": "%",
+      "revenue": "元",
+      "revenue_growth": "%",
+      "roa": "%",
+      "roe": "%",
+      "total_assets": "元",
+      "total_liabilities": "元"
+    },
+    "existing_metric_row_count": 10,
+    "existing_selected_rows_provenance": "All 10 stored rows have announced_at/available_at/decision_evidence counts0; exact retained query is selected_scope_probe.py.stdout."
+  },
+  "local_validation": [
+    {
+      "name": "regression-final",
+      "exit_code": 0,
+      "summary": "126 passed, zero failures/errors/skips; 225.36 seconds; native SQLite setup, mocked public boundaries and retained-evidence regressions, not production qualification",
+      "log": {
+        "path": ".tmp/data02-current-20261115/regression-final.log",
+        "sha256": "7622507715d505a4f8c2fbbe53854452ebd4f49fd33855a2ae7284ca83cefc3e"
+      }
+    },
+    {
+      "name": "mypy-incremental",
+      "exit_code": 0,
+      "summary": "0 regressions, 0 errors in both changed production files",
+      "log": {
+        "path": ".tmp/data02-current-20261115/mypy-incremental.log",
+        "sha256": "5ba4fad13a81b04a0a55439e46f84ebb25f1dcefaf8a0f67d0e71ba1266e2e69"
+      }
+    },
+    {
+      "name": "mypy-debt",
+      "exit_code": 0,
+      "summary": "Full production debt: 0 errors in 0 files; baseline unchanged",
+      "log": {
+        "path": ".tmp/data02-current-20261115/mypy-debt.log",
+        "sha256": "def6c561b37227470bcda90c8450d9837ca85dd34af34d05e7d6af2afdf85ab1"
+      }
+    },
+    {
+      "name": "black-check-final",
+      "exit_code": 0,
+      "summary": "All three changed Python files conform",
+      "log": {
+        "path": ".tmp/data02-current-20261115/black-check-final.log",
+        "sha256": "ab81d49758ee3d83e73f7d022b92772c8d7969bfd4d6680c5baf6a23890a301f"
+      }
+    },
+    {
+      "name": "isort-check-final",
+      "exit_code": 0,
+      "summary": "All three changed Python files conform",
+      "log": {
+        "path": ".tmp/data02-current-20261115/isort-check-final.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "ruff-final",
+      "exit_code": 0,
+      "summary": "All three changed Python files: zero diagnostics",
+      "log": {
+        "path": ".tmp/data02-current-20261115/ruff-final.log",
+        "sha256": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0"
+      }
+    },
+    {
+      "name": "architecture",
+      "exit_code": 0,
+      "summary": "2 production files / 82 added lines; zero boundary and audit violations",
+      "log": {
+        "path": ".tmp/data02-current-20261115/architecture.log",
+        "sha256": "ebc0b2cbd3dc6075e840de157505e64309a94617581f9f16709db587b1f0b999"
+      }
+    },
+    {
+      "name": "module-map",
+      "exit_code": 0,
+      "summary": "Generated source projection matches; 44 modules / 213 edges",
+      "log": {
+        "path": ".tmp/data02-current-20261115/module-map.log",
+        "sha256": "50ba91f9d0e2baa1aeda94701d7695e45116e1326f5651784377318792b43759"
+      }
+    },
+    {
+      "name": "current-contracts",
+      "exit_code": 0,
+      "summary": "121 governed surfaces pass",
+      "log": {
+        "path": ".tmp/data02-current-20261115/current-contracts.log",
+        "sha256": "cdc66d749ecf996bcca4ed722699f2e7fcb31846c37c8c5149568ad70bc84e73"
+      }
+    },
+    {
+      "name": "registry",
+      "exit_code": 0,
+      "summary": "v602: 95 units, zero violations",
+      "log": {
+        "path": ".tmp/data02-current-20261115/registry.log",
+        "sha256": "1da3fcd10b75d2755cba878ad0201495a0af1237b13b394c9634cd85585beffb"
+      }
+    },
+    {
+      "name": "governance",
+      "exit_code": 0,
+      "summary": "Full consistency: zero violations",
+      "log": {
+        "path": ".tmp/data02-current-20261115/governance.log",
+        "sha256": "50824cda33db620929040684fffe76d54284292edfd06fd75b4dedc034571c6b"
+      }
+    }
+  ],
+  "final_junit": {
+    "path": ".tmp/data02-current-20261115/regression-final.xml",
+    "sha256": "17051b5958f0bd0469a0ac74d3032758ad95290410208a7910b629d1b54f3344"
+  },
+  "review": {
+    "agent": "luna_max_data02",
+    "model": "gpt-6-luna",
+    "reasoning_effort": "max",
+    "scope": "Read-only source/approval review followed by bounded diff review, no heavy QA or production access",
+    "finding": "Public compatibility shim could retain patched split-module query after test teardown",
+    "resolution": "Autouse fixture records and restores the original split query; final review found this sufficient and no new static issues",
+    "formal_B1_acceptance": false
+  },
+  "retained_intermediate_results": [
+    {
+      "log": {
+        "path": ".tmp/data02-current-20261115/instant-ports-red.log",
+        "sha256": "02be2970caf71a4393d1c4e03c9f5a7f22e2df4eccd2dc0197c0ab463f02fa4c"
+      },
+      "result": "19 failed / 2 passed before implementation; 8 failures also depended on an incorrect raw-query patch seam. Original red test source bytes were not sealed; do not treat all 19 as independent production defects."
+    },
+    {
+      "log": {
+        "path": ".tmp/data02-current-20261115/instant-ports-green.log",
+        "sha256": "db26476f61eb03612dc00d8b006ab719f3894071d4f013762bf2badf5480be49"
+      },
+      "result": "8 failed / 13 passed; raw query patched on wrong module, corrected in tests"
+    },
+    {
+      "log": {
+        "path": ".tmp/data02-current-20261115/instant-ports-green-r2.log",
+        "sha256": "e1d545ab001d9608d729543e7d64287f525a1d81fd6cb2c6052131d257aa14eb"
+      },
+      "result": "52 passed; preliminary before final mock-isolation correction"
+    },
+    {
+      "log": {
+        "path": ".tmp/data02-current-20261115/regression.log",
+        "sha256": "f903f584872d61f02d29f05b3f4b8234ecc41b40c1e2e9f7daab7abb7635dd2a"
+      },
+      "result": "125 passed; preliminary before final fixture and server-clock/key test, not substituted for final 126-pass candidate"
+    },
+    {
+      "log": {
+        "path": ".tmp/data02-current-20261115/ruff.log",
+        "sha256": "1f2f68f98c851a48895e49dd44658a5448fbbab8732f046c741e72feef8619a6"
+      },
+      "result": "One B009 test diagnostic, fixed before final zero-diagnostic check"
+    },
+    {
+      "kind": "legacy_identity_guard",
+      "result": "Failed because the deployed manifest path is a directory; diagnosis retained, no manifest repaired or accepted"
+    },
+    {
+      "kind": "audit_probe_adaptation",
+      "result": "Three failed compatibility attempts retained; final call used the actual deployed get_system_audit_authority_lease under default READ ONLY plus RR READ ONLY/ROLLBACK",
+      "files": [
+        {
+          "path": ".tmp/data02-current-20261115/audit_runtime_probe.first-failure.json",
+          "sha256": "7b0b6124544f6e2fcb96669f9863568d19b0ace0df989e7c4047e4ddc64ff39b"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/audit_runtime_probe.second-failure.json",
+          "sha256": "c29959a794f21f0e567373235f42018bcb88d7da6faea427effd02bbb85e4461"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/audit_runtime_probe.third-failure.json",
+          "sha256": "b4db1fe4527d18be3946bad444ee5a3d1442cf7ececff179d432ade9c9df97d8"
+        }
+      ]
+    },
+    {
+      "kind": "coverage_sql_adaptation",
+      "result": "First read-only SQL failed on code-column mismatch; corrected after reading complete AssetMaster definition; final exact structural comparison passed",
+      "file": {
+        "path": ".tmp/data02-current-20261115/current_coverage_probe.first-failure.json",
+        "sha256": "c178de073bbde1fddbb943fc10ba942331665b50f5a02b6a96d94327437eb641"
+      }
+    }
+  ],
+  "not_verified_or_completed": [
+    "Full-universe current source/provenance/freshness coverage and numeric reconciliation across all four immutable Publications",
+    "C2 qualified opening calendar, successor matcher/witness policy and source-body replay; D1 actual canonical field/unit/precision matrix",
+    "Current server authority, account/tenant/service identity and exact runtime/profile binding",
+    "Current backup/staging rollback and required candidate-bound release gates for E1 execution",
+    "E1 executable production dry-run or provider/backfill; no provider request or business write performed",
+    "DATA-03 M9/M10 activation, maintenance change, smoke/UAT and observation window"
+  ],
+  "operational_boundary": {
+    "provider_calls": 0,
+    "business_database_writes": 0,
+    "production_deployments": 0,
+    "authority_issuance": 0,
+    "profile_activations": 0,
+    "publication_switches": 0,
+    "main_merges": 0,
+    "remote_pushes": 0,
+    "protected_databases_touched": false,
+    "external_task_logs_touched": false
+  },
+  "handoff_plan": "docs/plans/data02-financial-source-time-remediation-2026-09-13.md#35"
+}

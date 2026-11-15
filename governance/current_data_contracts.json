@@ -4597,7 +4597,7 @@
     },
     {
       "id": "data_center.financial_as_of_reads",
-      "surface": "Date-only pre-open financial decisions enforce period-end and exact China-market-day-start source-knowledge boundaries",
+      "surface": "Financial decisions preserve legacy China-market-day-start boundaries and explicit aware decision instants without widening Publication eligibility",
       "source_files": [
         "apps/data_center/application/query_services.py",
         "apps/data_center/application/public.py",
@@ -4615,12 +4615,20 @@
           "knowledge_cutoff=knowledge_cutoff"
         ],
         "apps/data_center/application/public.py": [
-          "get_published_financial_facts_for_decision = _bind_published_query("
+          "get_published_financial_facts_for_decision = _bind_published_query(",
+          "get_financial_facts_for_decision_at = _bind_published_query(",
+          "get_published_financial_facts_for_decision_at = _bind_published_query("
         ],
         "apps/data_center/application/public_published_queries.py": [
           "def get_published_financial_facts_for_decision(",
           "decision_date: date",
-          "knowledge_cutoff=cn_market_date_start_utc(decision_date)"
+          "knowledge_cutoff=cn_market_date_start_utc(decision_date)",
+          "def get_financial_facts_for_decision_at(",
+          "def get_published_financial_facts_for_decision_at(",
+          "FINANCIAL_DECISION_TIME_INVALID",
+          "FINANCIAL_DECISION_TIME_FUTURE",
+          "cutoff = decision_at.astimezone(UTC)",
+          "knowledge_cutoff=cutoff"
         ],
         "apps/data_center/domain/market_time.py": [
           "def cn_market_date_start_utc(value: date) -> datetime:"
@@ -4677,8 +4685,34 @@
           "case": "simple_scores_keep_selected_pit_sources_and_null_clocks_separate_from_signal_date",
           "test_file": "tests/unit/alpha/test_t3b_provider_contracts.py",
           "test_function": "test_simple_scores_publish_selected_fundamental_source_evidence"
+        },
+        {
+          "case": "explicit_instant_preserves_open_boundary",
+          "test_file": "tests/unit/data_center/test_financial_decision_instant_ports.py",
+          "test_function": "test_explicit_instant_preserves_open_boundary"
+        },
+        {
+          "case": "instant_normalizes_timezone_and_uses_shanghai_date",
+          "test_file": "tests/unit/data_center/test_financial_decision_instant_ports.py",
+          "test_function": "test_instant_normalizes_timezone_and_uses_shanghai_date"
+        },
+        {
+          "case": "invalid_or_future_cutoff_stops_before_query",
+          "test_file": "tests/unit/data_center/test_financial_decision_instant_ports.py",
+          "test_function": "test_invalid_or_future_cutoff_stops_before_query"
+        },
+        {
+          "case": "explicit_instant_cannot_bypass_publication_gate",
+          "test_file": "tests/unit/data_center/test_financial_decision_instant_ports.py",
+          "test_function": "test_explicit_instant_cannot_bypass_publication_gate"
+        },
+        {
+          "case": "legacy_date_port_keeps_midnight_cutoff",
+          "test_file": "tests/unit/data_center/test_financial_decision_instant_ports.py",
+          "test_function": "test_legacy_date_port_keeps_midnight_cutoff"
         }
-      ]
+      ],
+      "notes": " Explicit decision_at ports reject non-aware and future instants before query access. They preserve exact UTC cutoff and derive only the report-date upper bound in Shanghai. Legacy date-only consumers remain unchanged. This is a C2 read-boundary prerequisite; no calendar/opening qualification, source-time policy activation, provider call, current-pointer change or DATA-02/03 production acceptance is inferred."
     },
     {
       "id": "data_center.publication_only_d7_d9",

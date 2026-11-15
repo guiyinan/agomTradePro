@@ -888,6 +888,10 @@ get_published_financial_facts_for_decision = _bind_published_query(
     "get_published_financial_facts_for_decision",
     _published_queries.get_published_financial_facts_for_decision,
 )
+get_published_financial_facts_for_decision_at = _bind_published_query(
+    "get_published_financial_facts_for_decision_at",
+    _published_queries.get_published_financial_facts_for_decision_at,
+)
 get_published_valuation_facts = _bind_published_query(
     "get_published_valuation_facts", _published_queries.get_published_valuation_facts
 )
@@ -960,6 +964,10 @@ get_financial_facts_for_decision = _bind_published_query(
     "get_financial_facts_for_decision",
     _published_queries.get_financial_facts_for_decision,
 )
+get_financial_facts_for_decision_at = _bind_published_query(
+    "get_financial_facts_for_decision_at",
+    _published_queries.get_financial_facts_for_decision_at,
+)
 get_valuation_facts = _bind_published_query(
     "get_valuation_facts", _published_queries.get_valuation_facts
 )
@@ -984,6 +992,7 @@ __all__ = [
     "get_active_publication_policy",
     "get_financial_facts",
     "get_financial_facts_for_decision",
+    "get_financial_facts_for_decision_at",
     "get_akshare_eastmoney_gateway_port",
     "get_akshare_module_port",
     "get_current_publication",
@@ -1046,6 +1055,7 @@ __all__ = [
     "get_published_capital_flow_series",
     "get_published_financial_facts",
     "get_published_financial_facts_for_decision",
+    "get_published_financial_facts_for_decision_at",
     "get_published_equity_context_payloads",
     "get_published_equity_analysis_context_payloads",
     "get_published_latest_quote_payload",
