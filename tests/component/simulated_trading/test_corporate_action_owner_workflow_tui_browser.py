@@ -344,7 +344,12 @@ def _expect_action_success(payload: dict[str, Any]) -> None:
         or not isinstance(response, dict)
         or response.get("status_code") != 200
     ):
-        raise AssertionError("the ordinary-owner TUI action did not complete successfully")
+        raise AssertionError(
+            "the ordinary-owner TUI action did not complete successfully: "
+            f"outcome={payload.get('outcome')!r}, "
+            f"reason={payload.get('blocking_reason')!r}, "
+            f"status={response.get('status_code') if isinstance(response, dict) else None!r}"
+        )
 
 
 def _run_dashboard_action(
@@ -602,7 +607,9 @@ def _confirm_continuation(
                 or (not confirmed.get("business_summary"))
             ):
                 raise AssertionError(
-                    "withdrawn consent did not produce the stable visible capability block"
+                    "withdrawn consent did not produce the stable visible capability block: "
+                    f"outcome={confirmed.get('outcome')!r}, "
+                    f"reason={confirmed.get('blocking_reason')!r}"
                 )
             expect(_workflow_result_container(page, panel_key)).to_contain_text(
                 "本次尚未办理", timeout=180_000
@@ -732,7 +739,18 @@ def _read_receipts(page: Any, world: OwnerWorkflowNativeWorld, labels: tuple[str
         action_key=_AUDIT_ACTION,
         fields={"account_id": world.account_id},
     )
-    _expect_action_success(result)
+    response = result.get("response")
+    model = result.get("view_model")
+    assert isinstance(response, dict) and response.get("status_code") == 200
+    assert result.get("outcome") == "partial"
+    assert isinstance(model, dict) and model.get("kind") == "datagrid"
+    assert model.get("outcome") == "partial"
+    assert model.get("status") == "已读取"
+    assert result.get("blocking_reason") in {
+        "CORPORATE_ACTION_VALUATION_AND_TAX_COVERAGE_REQUIRED",
+        "",
+    }
+    assert "已核对" in str(result.get("business_summary") or "")
     panel = _workflow_result_container(page, "corporate-action-workflow-audit-receipts")
     expect(panel).to_be_visible(timeout=180_000)
     for label in labels:

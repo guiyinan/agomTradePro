@@ -31,8 +31,22 @@ from apps.data_center.application.public_published_queries import (
 )
 from apps.data_center.domain.market_time import latest_closed_cn_market_session
 from apps.data_center.domain.publication_lanes import M1_REBALANCE_REFERENCE_PUBLICATION_KEY
+from apps.data_center.domain.security_disclosure_event import (
+    SecurityDisclosureEventReadScope,
+    SecurityDisclosureExchange,
+)
+from apps.data_center.security_disclosure_capture_composition import (
+    make_security_disclosure_event_reader,
+)
+from apps.simulated_trading import corporate_action_owner_workflow_readback as workflow_readback
 from apps.simulated_trading.corporate_action_nav_mark_composition import (
     build_corporate_action_nav_raw_mark_reader,
+)
+from apps.simulated_trading.corporate_action_owner_balance_composition import (
+    OwnerCorporateActionBalanceReadback,
+)
+from apps.simulated_trading.corporate_action_owner_ledger_composition import (
+    OwnerCorporateActionPostingState,
 )
 from apps.simulated_trading.infrastructure.models import PositionModel
 from apps.simulated_trading.infrastructure.simulated_account_trade_models import (
@@ -283,11 +297,60 @@ def _read_reference_row(
         publication_key=M1_REBALANCE_REFERENCE_PUBLICATION_KEY,
     )
     before = retained_prices._read_only_effects(world)
-    payload = owner_workflow._read(
-        world.owner.client,
-        owner_workflow._API_ROOT.format(account_id=world.account_id),
-        owner_workflow._headers(world),
-    )
+    evidence: dict[str, object] = {}
+    read_balance = workflow_readback.read_locked_owner_corporate_action_balance
+
+    def observe_balance(
+        *,
+        account: SimulatedAccountModel,
+        canonical_account_id: str,
+        ledger: OwnerCorporateActionPostingState,
+        environment: str,
+        using: str = "default",
+    ) -> OwnerCorporateActionBalanceReadback:
+        """Observe bounded proof states without replacing any source or result."""
+        result = read_balance(
+            account=account,
+            canonical_account_id=canonical_account_id,
+            ledger=ledger,
+            environment=environment,
+            using=using,
+        )
+        coverage = result.tax_coverage
+        evidence.update(
+            coverage_status=coverage.coverage_status.value if coverage is not None else None,
+            coverage_reasons=(
+                [reason.value for reason in coverage.reason_codes] if coverage is not None else []
+            ),
+            mark_count=len(result.marks),
+            entitlements=(
+                None
+                if result.entitlements is None
+                else [
+                    {
+                        "cash_complete": item.cash_complete,
+                        "shares_complete": item.shares_complete,
+                        "reference_count": (
+                            None
+                            if item.current_entitlement_references is None
+                            else len(item.current_entitlement_references)
+                        ),
+                    }
+                    for item in result.entitlements
+                ]
+            ),
+        )
+        return result
+
+    with pytest.MonkeyPatch.context() as observation:
+        observation.setattr(
+            workflow_readback, "read_locked_owner_corporate_action_balance", observe_balance
+        )
+        payload = owner_workflow._read(
+            world.owner.client,
+            owner_workflow._API_ROOT.format(account_id=world.account_id),
+            owner_workflow._headers(world),
+        )
     if retained_prices._read_only_effects(world) != before:
         raise AssertionError("reference-return GET changed original financial or Audit rows")
     summary = payload.get("reference_return_summary")
@@ -296,6 +359,13 @@ def _read_reference_row(
         raise AssertionError("owner reference-return summary is missing")
     if len(rows) != 1 or not isinstance(rows[0], dict):
         raise AssertionError("owner reference-return row is incomplete or ambiguous")
+    if rows[0].get("status") != "complete":
+        raise AssertionError(
+            "owner reference-return row is not complete: "
+            f"reason={rows[0].get('reason_code')!r}, "
+            f"tax_coverage={payload.get('tax_coverage_status')!r}, "
+            f"valuation_dates={payload.get('valuation_trade_dates')!r}, evidence={evidence!r}"
+        )
     checked_raw = payload.get("checked_at")
     reference_cutoff_raw = rows[0].get("knowledge_cutoff")
     if type(checked_raw) is not str or type(reference_cutoff_raw) is not str:
@@ -468,6 +538,18 @@ def test_owner_cash_reference_return_brackets_ex_date_and_keeps_late_payment_lat
             previous_event_id=previous_event_id,
             current_event_id=event_id,
         )
+        retained_events = make_security_disclosure_event_reader(using="default").execute(
+            SecurityDisclosureEventReadScope(
+                as_of=timezone.now(),
+                exchange=SecurityDisclosureExchange.SZSE,
+                asset_code=world.asset_code,
+            )
+        )
+        successor_events = tuple(
+            record.event for record in retained_events if record.event.source_event_id == event_id
+        )
+        assert len(successor_events) == 1
+        successor_revision_id = successor_events[0].source_revision_id
         _assert_raw_source_selections(
             world=world,
             selections=selections,
@@ -486,10 +568,12 @@ def test_owner_cash_reference_return_brackets_ex_date_and_keeps_late_payment_lat
         assert entitlement.get("outcome") == "success"
         posting = owner_workflow.CorporateActionPostingModel.objects.get(
             account_id=world.account_id,
-            source_event_id=event_id,
+            source_event_id=previous_event_id,
             stage="cash_entitlement",
             entry_kind="posting",
         )
+        assert posting.source_record_id == event_id
+        assert posting.source_revision_id == successor_revision_id
         assert posting.eligible_quantity == Decimal("70.000000")
         assert posting.cash_amount == Decimal("14.00")
         owner_workflow._refresh(world)
@@ -521,10 +605,12 @@ def test_owner_cash_reference_return_brackets_ex_date_and_keeps_late_payment_lat
         assert payment.get("outcome") == "success"
         payment_row = owner_workflow.CorporateActionPostingModel.objects.get(
             account_id=world.account_id,
-            source_event_id=event_id,
+            source_event_id=previous_event_id,
             stage="cash_payment",
             entry_kind="posting",
         )
+        assert payment_row.source_record_id == event_id
+        assert payment_row.source_revision_id == successor_revision_id
         assert payment_row.cash_delta == Decimal("14.00")
         assert payment_row.cash_receivable_delta == Decimal("-14.00")
         account.refresh_from_db()
@@ -679,6 +765,7 @@ def test_owner_share_reference_return_counts_ex_date_rights_once_across_real_sta
             exact_retry=False,
         )
         assert delivery.get("outcome") == "success"
+        owner_workflow._refresh(world)
         _assert_reference_row(
             world=world,
             selections=selections,

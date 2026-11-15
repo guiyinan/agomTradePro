@@ -6,6 +6,8 @@ import json
 from pathlib import Path
 from typing import cast
 
+import pytest
+
 from apps.terminal.application.tui_account_action_scope import (
     continuation_public_account_fields,
     continuation_secret_values,
@@ -14,6 +16,7 @@ from apps.terminal.application.tui_account_action_scope import (
 from apps.terminal.application.tui_metadata_continuation_validation import (
     _validate_result_continuations,
 )
+from apps.terminal.application.tui_workbench import TuiWorkbenchService
 from apps.terminal.infrastructure.tui_metadata_repository import PublishedTuiMetadataRepository
 from apps.terminal.infrastructure.tui_metadata_runtime_injection_corporate_action_workflow import (
     CORPORATE_ACTION_WORKFLOW_AUDIT_RECEIPTS_ACTION_KEY,
@@ -229,3 +232,87 @@ def test_account_navigation_and_effective_published_runtime_metadata_are_valid()
         screens=[screen],
         action_by_key=effective_actions,
     )
+
+
+@pytest.mark.parametrize(
+    ("action_key", "outcome", "reason", "summary"),
+    (
+        (
+            CORPORATE_ACTION_WORKFLOW_CONFIRM_ACTION_KEY,
+            "blocked",
+            "CORPORATE_ACTION_SELECTED_CAPABILITY_REQUIRED",
+            "本次尚未办理；请重新核对分项授权。",
+        ),
+        (
+            CORPORATE_ACTION_WORKFLOW_AUDIT_RECEIPTS_ACTION_KEY,
+            "partial",
+            "CORPORATE_ACTION_VALUATION_AND_TAX_COVERAGE_REQUIRED",
+            "已核对原始模拟账本与审计回执；估值与税务覆盖待核对。",
+        ),
+        (
+            CORPORATE_ACTION_WORKFLOW_READ_ACTION_KEY,
+            "partial",
+            None,
+            "已核对本人模拟账本及独立估值。",
+        ),
+    ),
+)
+def test_workflow_projection_preserves_business_receipt_head(
+    action_key: str, outcome: str, reason: str | None, summary: str
+) -> None:
+    """Keep a completed receipt read distinct from qualified account valuation."""
+    service = TuiWorkbenchService(
+        metadata_repository=PublishedTuiMetadataRepository(
+            published_path=ROOT / "config/tui/published/tui_operation_graph.published.json"
+        ),
+        action_executor=None,
+    )
+    payload: dict[str, object] = {
+        "account_id": 42,
+        "outcome": outcome,
+        "summary": summary,
+        "blocking_reason": reason,
+        "must_not_use_for_decision": True,
+        "audit_receipts": [{"receipt_id": "receipt-original", "stage_label": "模拟未参与配股"}],
+    }
+    model = service._to_view_model(
+        action=_action_map()[action_key],
+        payload=payload,
+        status_code=200,
+        request_params={"account_id": "42"},
+    )
+    assert model["business_summary"] == summary
+    assert model["blocking_reason"] == (reason or "")
+    assert model["status"] == (
+        "已读取"
+        if action_key == CORPORATE_ACTION_WORKFLOW_AUDIT_RECEIPTS_ACTION_KEY
+        else "不可用于决策"
+    )
+    if action_key == CORPORATE_ACTION_WORKFLOW_AUDIT_RECEIPTS_ACTION_KEY:
+        assert model["rows"][0]["receipt_id"] == "receipt-original"
+
+
+@pytest.mark.parametrize("status_code", (200, 403))
+def test_other_or_failed_transport_does_not_use_workflow_business_head(status_code: int) -> None:
+    """Limit the workflow head to its declared actions and successful transport."""
+    service = TuiWorkbenchService(
+        metadata_repository=PublishedTuiMetadataRepository(
+            published_path=ROOT / "config/tui/published/tui_operation_graph.published.json"
+        ),
+        action_executor=None,
+    )
+    action = dict(_action_map()[CORPORATE_ACTION_WORKFLOW_CONFIRM_ACTION_KEY])
+    if status_code == 200:
+        action["key"] = "simulated-trading.corporate-action-workflow-unknown"
+    model = service._finalize_view_model(
+        action,
+        {"kind": "message", "message": "Transport result"},
+        payload={
+            "outcome": "blocked",
+            "summary": "Workflow-only summary",
+            "blocking_reason": "WORKFLOW_ONLY",
+        },
+        status_code=status_code,
+    )
+    assert model["business_summary"] != "Workflow-only summary"
+    assert model["blocking_reason"] != "WORKFLOW_ONLY"

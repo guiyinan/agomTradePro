@@ -321,6 +321,31 @@ class TuiWorkbenchResultModelMixin(
         status_code: int,
     ) -> dict[str, Any]:
         model = dict(view_model)
+        if (
+            action.get("key")
+            in {
+                "simulated-trading.corporate-action-workflow-read",
+                "simulated-trading.corporate-action-workflow-events",
+                "simulated-trading.corporate-action-workflow-audit-receipts",
+                "simulated-trading.corporate-action-workflow-prepare",
+                "simulated-trading.corporate-action-workflow-confirm",
+                "simulated-trading.corporate-action-workflow-refresh",
+            }
+            and 200 <= status_code < 300
+            and isinstance(payload, dict)
+            and type(payload.get("outcome")) is str
+            and payload.get("outcome") in {"success", "partial", "noop", "blocked", "failed"}
+            and type(payload.get("summary")) is str
+            and (
+                payload.get("blocking_reason") is None
+                or type(payload.get("blocking_reason")) is str
+            )
+        ):
+            # These owner responses distinguish original receipt verification from
+            # current valuation eligibility, including HTTP-200 business blocks.
+            model["business_summary"] = self._operator_text(payload["summary"])
+            model["blocking_reason"] = payload.get("blocking_reason") or ""
+            model["outcome"] = payload["outcome"]
         model.setdefault(
             "business_summary",
             self._default_business_summary(action, model, payload, status_code),
