@@ -675,5 +675,195 @@
     "protected_databases_touched": false,
     "external_task_logs_touched": false
   },
-  "handoff_plan": "docs/plans/data02-financial-source-time-remediation-2026-09-13.md#35"
+  "handoff_plan": "docs/plans/data02-financial-source-time-remediation-2026-09-13.md#35",
+  "followups": [
+    {
+      "date_local": "2026-11-16",
+      "scope": "Restore the existing current System Audit authority for user1/account631, then continue C2/D1. No financial provider fetch/backfill or core Publication switch.",
+      "production_authority_current_verified": true,
+      "production_qualification": false,
+      "profile": {
+        "version": 22,
+        "release_ref": "4149a9cf4a3738f38d0ca62979fa9bfed56a6a07",
+        "profile_id": "2044c84e-b1b2-4027-b107-590a4e66b94f",
+        "content_hash": "f4a793900b860ca7916666edd9703e2a2cb0c36a3bc1a3c2058f78c96711f87f"
+      },
+      "lease": {
+        "mode": "required",
+        "outbox_enabled": true,
+        "reason_code": null,
+        "valid_until": "2026-11-29T16:12:55.522488+00:00"
+      },
+      "lease_verification_sql_kinds": {
+        "LOCK": 15,
+        "RELEASE": 15,
+        "SAVEPOINT": 15,
+        "SELECT": 229,
+        "SET": 2,
+        "SHOW": 10
+      },
+      "business_dml_during_verification": false,
+      "recovery_result": {
+        "authority_persisted": true,
+        "authority_valid_until": "2026-11-29T16:12:55.522488+00:00",
+        "evidence_content_hash": "f471623b7268cfe43ac37e0eab0ccfa70148574d8bb259839b53b0e9bd07af2a",
+        "evidence_id": "audit-admin-owner-evidence-20260912185635",
+        "evidence_version": "recovery-20261115T161723Z-27fda7f7170741c9",
+        "mode": "execute",
+        "outcome": "success",
+        "runtime_enabled": true,
+        "selector": {
+          "actor_content_hash": "ecdb9c20e6cc7f2b7a5f2890a7276c74eea5a3fae2ff88785fd1d3078a495f20",
+          "actor_source_id": "system-audit-recovery-20261115T161723Z-27fda7f7170741c9",
+          "actor_source_version": "v1",
+          "scope_content_hash": "8f92b289ba9f3e03f5624f45165cee248966f0530891d68a39fb3673409d4e15",
+          "scope_schema": "account.owner_tenant_authority.v3",
+          "scope_source_id": "system-audit-authority-f8f25b708c324bdc8efa54a555778f09",
+          "scope_source_version": "recovery-20261115T161723Z-27fda7f7170741c9"
+        }
+      },
+      "core_pointer_identities_unchanged": true,
+      "authorization": "Current user explicitly requests audit-expiry recovery; prior owner scheme and E1 scope remain bounded to the same real owner/account. Configured credentials were used through actual HTTPS login and CSRF-protected empty-body raw attestation publication. No session/token/password persisted.",
+      "fresh_auth_material_receipt": {
+        "path": ".tmp/data02-current-20261115/20261116/fresh-source-receipt.json",
+        "sha256": "5495dae649cf7f55b55890fa68353129fa9e894a305e5b9bd9d97d7e776187f7"
+      },
+      "reviewed_request": {
+        "path": ".tmp/data02-current-20261115/20261116/recovery-candidate.json",
+        "sha256": "dded3430fa9cbfa6a3c512098dfaa4fd727efcfd2b73ef77afa0f3471fb03a71"
+      },
+      "request_byte_normalization": {
+        "reviewed_request_sha256": "dded3430fa9cbfa6a3c512098dfaa4fd727efcfd2b73ef77afa0f3471fb03a71",
+        "executed_request_sha256": "106d2dd55226b5dd67e712cf87e85a887a7c5afb1ebafbce66d73034581e27c7",
+        "json_objects_identical": true,
+        "difference": "CRLF to LF only while staging Linux operational JSON",
+        "job_path": "/app/var/data02-audit-recovery/106d2dd55226b5dd67e712cf87e85a887a7c5afb1ebafbce66d73034581e27c7",
+        "no_resubmission": true
+      },
+      "independent_review": "Luna Max found principal_seal was mistakenly used instead of raw authentication-context content_hash; corrected before any recovery command execution. Corrected candidate static review passed; DB source binding confirms underlying account631.",
+      "retained_failures": [
+        {
+          "kind": "readonly_observation_timeout",
+          "detail": "Initial180s no-execute preview timed out; same candidate later completed identity-only preflight. No provider or recovery writes in preview."
+        },
+        {
+          "kind": "rejected_principal_hash",
+          "artifact": {
+            "path": ".tmp/data02-current-20261115/20261116/recovery-candidate.r2-principal-hash-rejected.json",
+            "sha256": "11beabfe3050f301547d6eaa2dc68adca979727af91ce930c6a1d6a417234aee"
+          },
+          "detail": "Old candidate kept; never executed."
+        },
+        {
+          "kind": "operational_script_import",
+          "detail": "First detached helper failed before Django setup/recovery command; zero-write reconciliation showed targets0/profile21. One explicit corrected attempt used the same JSON object, added canonical app import path, and retained the first immutable result."
+        },
+        {
+          "kind": "overconstrained_readonly_probe",
+          "artifact": {
+            "path": ".tmp/data02-current-20261115/20261116/post_recovery_audit_lease.py.stdout",
+            "sha256": "f9da494fdcc0bd1c9f392f61afd64492f3f1ead60830f376d59d90f6ffea0527"
+          },
+          "detail": "PGOPTIONS READ ONLY with caller RR returned authority_unavailable; this is not the intended composition-owned lock protocol. Actual public lease read with a statement guard allowing read locks but rejecting DML returned valid current authority; no validation was skipped."
+        }
+      ],
+      "observations": {
+        "calendar_snapshot_count": 0,
+        "calendar_current_pointer_count": 0,
+        "guard_renewal_request_still_legacy": true,
+        "natural_scheduler_cycles_verified": false,
+        "manifest_path_still_directory": true
+      },
+      "remaining": "C2 qualified exchange-calendar snapshots/publications and formal opening-rule identity; D1 true field/unit/precision matrix and per-metric parser support; same-candidate release and backup/staging gates; exact E1 execution and full-universe DATA02 exit. Do not infer an indefinite service lease or automatic renewal; the fresh upstream source still expires2026-11-29 UTC.",
+      "raw_artifacts": [
+        {
+          "path": ".tmp/data02-current-20261115/20261116/authority_material_probe.py.stdout",
+          "sha256": "68e5ea1a40f6f104d932519a5bb32fb54188191aa65409b947fc078c9db77605"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/authority_binding_probe.py.stdout",
+          "sha256": "95bca0f0d4f8799b8bfeeff9a96be84384e412439c2c9ce992e23bddb83eae72"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/recovery_command_probe.r1.stderr",
+          "sha256": "10b18ada1993447c39de9f56b4203c669b2a9f6604e48e2c4c891e4860b0fe22"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/recovery_command_probe.r2-result.json",
+          "sha256": "4a0ad10d15692962cc673be0dcda0602692eddadf566571e2d546c61e81bdde2"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/recovery_command_probe.py.stdout",
+          "sha256": "cd35a9b4505ca93582579d8ad549233cd9c3e6148607e3f7717c3bcaa127ad65"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/recovery_command_probe.py.receipt.json",
+          "sha256": "8190bd7db3b6ab5c91146138860bcd51642b0b558bebaf222ccef30ea8987294"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/launch_recovery_job.first-result.json",
+          "sha256": "953c3f5fa9b4b3ecb8474aeee14b6357f55a7de43fdb3e8c94d253617c98e127"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/recovery_zero_write_verification.py.stdout",
+          "sha256": "d878a5b462c8ceac5b7bab1ed21963ddb2ae38c76a27ee2091b33beed744e51b"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/launch_recovery_attempt2.py.stdout",
+          "sha256": "ac8110d376cbac0bc56ddde84a3ec8accaebac973dc4af16ea4f76143b5feece"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/recovery_job_status_attempt2_check3.py.stdout",
+          "sha256": "fb2fc8ca18cfbda6c5bd5324adfd7e0517e540d9630fbc5a9a87f5d286f1bf05"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/post_recovery_database_probe.py.stdout",
+          "sha256": "d5c2589e8821c114cb334c2c005491c10c8f4671ad061d5b23c6789032a26301"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/post_recovery_pointer_probe.py.stdout",
+          "sha256": "4d22f166448af413b2e31d7d7f636596990590bc21b3b8797d2ef21c51a4adac"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/lease_with_read_fences_probe.py.stdout",
+          "sha256": "53bd739c76dd2245b755fda0c1deb9525f1121ec2f638a305cacf62a8570a2b8"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/c2_calendar_inventory.py.stdout",
+          "sha256": "944b19e76ad1c1fc64ea4df1c3138ec7084bb68fff5de2e1268dd292cee3407e"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/c2_calendar_facts_probe.py.stdout",
+          "sha256": "57d133ba34f76a62650b06a3d116e030555d1710f33cd0d546db33c258cd8eec"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/c2-official-opening-source-candidates.json",
+          "sha256": "35ca94651cdf9fed405272adb715e4622b70203f42d30758264bf56e0a4733c9"
+        }
+      ],
+      "operation_inputs": [
+        {
+          "path": ".tmp/data02-current-20261115/20261116/publish_fresh_authenticated_sources.py",
+          "sha256": "c5c6307a2062e9e4a3365641dda859badc3ff72ace07d58b910ed0c9703441b5"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/execute_recovery_job.py",
+          "sha256": "0c947f57b2a736276fb22b31b73e2a23a8ba80ab31877e919f634144836f5750"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/launch_recovery_attempt2.py",
+          "sha256": "5b013b5db8f9c93250d4d76554de3b0a78d1ef7c2359af10f6ecb7d9ec417954"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/lease_with_read_fences_probe.py",
+          "sha256": "2c31d87c900be8b0e41ca84adda5009b794458ec305fc1e1079f14e58066fd02"
+        }
+      ],
+      "no_production_deployment": true,
+      "no_trading_or_ledger_writes": true,
+      "financial_provider_requests": 0,
+      "data03_started": false
+    }
+  ],
+  "current_authority_followup": "followups[0] (2026-11-16); original 2026-11-15 snapshots remain historical"
 }

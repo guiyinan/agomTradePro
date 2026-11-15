@@ -895,3 +895,36 @@ C2 的有界前置新增 `get_financial_facts_for_decision_at` 和
 `docs/testing/data02-current-acceptance-2026-11-15.json`。生产现状与本地开发通过分开记录；
 没有四类当前 Publication、完整来源时间凭证和 canonical 对账前，DATA-02 保持原状态，
 DATA-03 不启动。回滚以本切片完整提交为界；保留旧日期端口和现有生产事实。
+
+## 36. 2026-11-16 当前审计权限恢复与 C2/D1 后续边界
+
+Owner 明确要求先处理审计权限失效，再补齐 C2 日历和 D1 字段矩阵；沿用账户 631 的
+受控范围，不重复索取已有授权。通过真实 HTTPS 登录及 CSRF 保护的空参数发布入口取得
+新 Authentication/User/RBAC 来源，确认既有 policy、opaque account 与 underlying 631
+绑定；旧 Evidence V5 已过期，故使用已部署的 `recover_system_audit_authority`。
+候选先预演，经 Luna Max 修正并复核认证来源 content hash 绑定后执行；没有改写旧记录。
+
+恢复事务实际成功，配置升至 v22，`release_ref` 绑定当前实际镜像源码
+`4149a9cf4a3738f38d0ca62979fa9bfed56a6a07`。按正式 composition 自有事务及必要读锁再次
+读取租约，期间 SQL guard 拒绝业务 DML：租约 required/outbox enabled、无阻断原因，
+有效至 `2026-11-29T16:12:55.522488Z`（上海 11 月 30 日 00:12）。旧强制只读 RR 探针
+的拒绝结果保留，不以其替代正式读锁合同。恢复前后三个核心发布指针的完整身份一致，
+没有财务供应商请求、事实回填、账本写入、部署或 DATA-03 激活。
+
+本次仅恢复当前真实权限窗口；旧自动续期 envelope 仍落后，worker/beat 自然周期和
+自动续期没有验收，不宣称后台运行永久恢复。镜像 manifest 路径异常也未修复。
+辅助脚本首次在应用导入前失败，已以目标零写入、profile 未变及未进入命令阶段完成对账，
+再显式执行修正的同一 JSON 请求；保留所有失败与 CRLF/LF 字节身份差异，不盲重试未知写入。
+当前唯一验收索引继续追加 `docs/testing/data02-current-acceptance-2026-11-15.json`。
+
+剩余按同一事项继续：C2 当前生产日历快照和 current pointer 均为零，须补合格日历日期、
+正式开盘规则原件、版本/知识时间绑定及新旧时间政策兼容，不能用工作日猜测或固定常量。
+已留存深交所 2026 年规则 PDF 候选原件，正式规则第 2.3.2 条与旧版本条号不同；资料留存
+不等于运行政策已激活。D1 须以兼容新版本支持单指标 financial member 的真实单位，
+按 exact field/unit/precision 对账；0/0 已有 Owner 批准，不能因此再要同一批准，也不能
+把未证明的单位或舍入规则登记为已通过。随后才做 E1 完整预检、备份/staging 和精确执行；
+单证券通过仍不替代 DATA-02 的完整 universe 退出门。
+
+本阶段回归覆盖旧 v1 hash/格式、逐指标/单位/精度、跨市场/休市/开盘/PIT 和既有读取阻断，
+生产 Python 变更继续运行增量 mypy、全库债务及专项门禁。审计操作的回滚保持 required
+和业务写入阻断；有问题时只追加合法 successor，不复活过期来源，不恢复整库或切金融发布。
