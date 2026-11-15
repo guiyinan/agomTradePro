@@ -349,9 +349,10 @@ class SimulatedCorporateActionNavRawMarkProof:
         audit_reference = evidence.raw_audit_reference
         capture_completed_at = payload_reference.response_completed_at
         _require_clock(capture_completed_at, "raw_payload_completed_at")
+        # Body and Audit retain the configured instance name; the policy above
+        # independently binds the canonical source type verified by Data Center.
         if (
             capture_completed_at != evidence.local_known_at
-            or payload_reference.provider_name != evidence.source
             or payload_reference.provider_name != audit_reference.provider_name
             or payload_reference.dataset_key != "equity.price.bar"
             or payload_reference.run_id != audit_reference.run_id

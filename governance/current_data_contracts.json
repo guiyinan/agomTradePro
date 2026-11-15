@@ -15304,7 +15304,9 @@
         "apps/simulated_trading/application/corporate_action_nav_mark.py": [
           "source_observed_at",
           "must_not_use_for_decision: Literal[True] = True",
-          "self.valid_until != expected_deadline"
+          "self.valid_until != expected_deadline",
+          "payload_reference.provider_name != audit_reference.provider_name",
+          "evidence.source != policy.source"
         ],
         "apps/simulated_trading/infrastructure/corporate_action_nav_mark_reader.py": [
           "if not self._same_selected_evidence(first, final):",
@@ -15332,9 +15334,14 @@
           "case": "old_session_not_current",
           "test_file": "tests/unit/simulated_trading/test_corporate_action_nav_mark_reader.py",
           "test_function": "test_retained_proof_rejects_old_session_when_later_session_has_closed"
+        },
+        {
+          "case": "named_instance_and_canonical_source_are_separate_exact_bindings",
+          "test_file": "tests/unit/simulated_trading/test_corporate_action_nav_mark_reader.py",
+          "test_function": "test_reader_distinguishes_provider_instance_from_canonical_source_type"
         }
       ],
-      "notes": "Raw daily close is restricted to explicit price basis, currency, exact security classification, configured policy, current calendar and original published evidence. Double reads and final completion clock bind one finite original session deadline. Unknown vendor observation stays null. This mark alone does not prove account NAV, complete rights/tax exposure, spendability or trading permission; no legacy position price fallback."
+      "notes": "Raw daily close is restricted to explicit price basis, currency, exact security classification, configured policy, current calendar and original published evidence. Double reads and final completion clock bind one finite original session deadline. Unknown vendor observation stays null. This mark alone does not prove account NAV, complete rights/tax exposure, spendability or trading permission; no legacy position price fallback. The canonical source type is independently policy-bound; retained response and RawAudit names bind the original configured provider instance exactly and may differ from that source type."
     },
     {
       "id": "simulated_trading.corporate_action_tax_cash_coverage",

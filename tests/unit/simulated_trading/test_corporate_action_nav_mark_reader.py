@@ -238,6 +238,39 @@ def test_reader_returns_exact_raw_close_and_preserves_unknown_source_observation
         proof.verify_for(_query(), as_of=proof.checked_at - timedelta(microseconds=1))
 
 
+@pytest.mark.parametrize(
+    ("source", "audit_provider", "accepted"),
+    [
+        ("tushare", "ASH05 NAV synthetic instance", True),
+        ("tushare", "another provider instance", False),
+        ("another-source-type", "ASH05 NAV synthetic instance", False),
+    ],
+)
+def test_reader_distinguishes_provider_instance_from_canonical_source_type(
+    source: str, audit_provider: str, accepted: bool
+) -> None:
+    """Keep original instance names bound to Audit separately from the selected source type."""
+    instance = "ASH05 NAV synthetic instance"
+    base = _PriceReader().base
+    named = replace(
+        base,
+        source=source,
+        raw_payload_reference=replace(base.raw_payload_reference, provider_name=instance),
+        raw_audit_reference=replace(base.raw_audit_reference, provider_name=audit_provider),
+    )
+    prices = _PriceReader(lambda cutoff: replace(named, knowledge_cutoff=cutoff))
+    reader, _ = _reader(price_reader=prices)
+
+    proof = reader.read_current_mark(_query())
+
+    assert (proof is not None) is accepted
+    if proof is not None:
+        assert proof.source_evidence.source == "tushare"
+        assert proof.source_evidence.raw_payload_reference.provider_name == instance
+        assert proof.source_evidence.raw_audit_reference.provider_name == instance
+        assert proof.verify_for(_query(), as_of=proof.checked_at) is None
+
+
 def test_reader_rejects_clock_reversal_and_trade_date_boundary_crossing() -> None:
     reversed_reader, _ = _reader(
         clock_values=(_AS_OF, _AS_OF + timedelta(seconds=1), _AS_OF - timedelta(seconds=1))

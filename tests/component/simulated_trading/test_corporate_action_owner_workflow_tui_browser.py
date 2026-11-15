@@ -6,18 +6,19 @@ import asyncio
 import hashlib
 import json
 import os
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from datetime import date
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
-from typing import Any
+from typing import Any, TypeVar
 from urllib.parse import urlsplit
 
 import playwright.sync_api as playwright_api
 import pytest
 from django.conf import settings
-from django.db import connection
+from django.db import connection, connections
 from django.middleware.csrf import _does_token_match
 from django.test import override_settings
 from playwright.sync_api import Route, expect, sync_playwright
@@ -34,7 +35,9 @@ from apps.simulated_trading.infrastructure.corporate_action_tax_liability_models
 from apps.simulated_trading.infrastructure.models import PositionModel, SimulatedAccountModel
 from tests.component.simulated_trading.test_corporate_action_owner_workflow_http_postgres import (
     _WORKFLOW_URLCONF,
-    _business_effect_counts,
+)
+from tests.component.simulated_trading.test_corporate_action_owner_workflow_http_postgres import (
+    _business_effect_counts as _direct_business_effect_counts,
 )
 from tests.playwright.runtime_compatibility import ensure_subprocess_event_loop_policy
 from tests.support.account_authority_generation_flush import (
@@ -84,6 +87,28 @@ _EXPECTED_EFFECTS = {
     "share_sellable_release": (1, 0, 0, 1, 1),
     "rights_not_exercised": (1, 0, 0, 1, 1),
 }
+
+
+_DbResultT = TypeVar("_DbResultT")
+
+
+def _db_call(call: Callable[[], _DbResultT]) -> _DbResultT:
+    """Observe committed database state outside Playwright's synchronous event loop."""
+
+    def execute() -> _DbResultT:
+        connections.close_all()
+        try:
+            return call()
+        finally:
+            connections.close_all()
+
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        return executor.submit(execute).result()
+
+
+def _business_effect_counts(account_id: int) -> tuple[int, int, int, int, int]:
+    """Read actual financial/Audit effects on a dedicated synchronous database thread."""
+    return _db_call(lambda: _direct_business_effect_counts(account_id))
 
 
 @pytest.fixture(autouse=True)
@@ -360,7 +385,7 @@ def _refresh_account(
     """Use test-operator recovery only as fixture setup, then run the ordinary TUI refresh."""
     if has_financial_history:
         # This independent fixture operator renewal is not an ordinary-owner action or grant.
-        recover_owner_workflow_operator_authority(world)
+        _db_call(lambda: recover_owner_workflow_operator_authority(world))
     result = _run_dashboard_action(
         page,
         panel_key="corporate-action-workflow-refresh",
@@ -734,7 +759,7 @@ def test_nonstaff_owner_completes_cash_payment_and_tax_from_the_tui(
         pytest.skip("the migrated ordinary-owner browser journey runs only on assigned PostgreSQL")
     with isolated_task_channels(), override_settings(ROOT_URLCONF=_WORKFLOW_URLCONF):
         world = build_owner_workflow_native_world(monkeypatch=monkeypatch, tmp_path=tmp_path)
-        starting_account = SimulatedAccountModel.objects.get(pk=world.account_id)
+        starting_account = _db_call(lambda: SimulatedAccountModel.objects.get(pk=world.account_id))
         starting_cash = starting_account.current_cash
         assert not (
             starting_account.cash_known is not True
@@ -793,11 +818,13 @@ def test_nonstaff_owner_completes_cash_payment_and_tax_from_the_tui(
             assert (
                 _business_effect_counts(world.account_id) == after_entitlement
             ), "the signed entitlement retry duplicated a financial effect"
-            entitlement = CorporateActionPostingModel.objects.get(
-                account_id=world.account_id,
-                source_event_id=event_id,
-                stage="cash_entitlement",
-                entry_kind="posting",
+            entitlement = _db_call(
+                lambda: CorporateActionPostingModel.objects.get(
+                    account_id=world.account_id,
+                    source_event_id=event_id,
+                    stage="cash_entitlement",
+                    entry_kind="posting",
+                )
             )
             assert not (
                 entitlement.eligible_quantity != Decimal("100.000000")
@@ -805,7 +832,9 @@ def test_nonstaff_owner_completes_cash_payment_and_tax_from_the_tui(
                 or entitlement.cash_delta != Decimal("0.00")
                 or entitlement.cash_receivable_delta != Decimal("20.00")
             ), "cash entitlement did not preserve the synthetic record-date facts"
-            account_after_entitlement = SimulatedAccountModel.objects.get(pk=world.account_id)
+            account_after_entitlement = _db_call(
+                lambda: SimulatedAccountModel.objects.get(pk=world.account_id)
+            )
             assert not (
                 account_after_entitlement.cash_known is not True
                 or account_after_entitlement.current_cash != starting_cash
@@ -834,17 +863,19 @@ def test_nonstaff_owner_completes_cash_payment_and_tax_from_the_tui(
                 _business_effect_counts(world.account_id),
                 _EXPECTED_EFFECTS["cash_payment"],
             )
-            payment_row = CorporateActionPostingModel.objects.get(
-                account_id=world.account_id,
-                source_event_id=event_id,
-                stage="cash_payment",
-                entry_kind="posting",
+            payment_row = _db_call(
+                lambda: CorporateActionPostingModel.objects.get(
+                    account_id=world.account_id,
+                    source_event_id=event_id,
+                    stage="cash_payment",
+                    entry_kind="posting",
+                )
             )
             assert not (
                 payment_row.cash_delta != entitlement.cash_amount
                 or payment_row.cash_receivable_delta != -entitlement.cash_amount
             ), "cash payment did not exactly settle the original receivable"
-            account = SimulatedAccountModel.objects.get(pk=world.account_id)
+            account = _db_call(lambda: SimulatedAccountModel.objects.get(pk=world.account_id))
             after_payment_cash = account.current_cash
             assert account.cash_known is True and type(after_payment_cash) is Decimal
             assert (
@@ -878,12 +909,14 @@ def test_nonstaff_owner_completes_cash_payment_and_tax_from_the_tui(
                 _assert_effect_delta(
                     before, _business_effect_counts(world.account_id), _EXPECTED_EFFECTS[action]
                 )
-                account.refresh_from_db()
+                _db_call(lambda: account.refresh_from_db())
                 if action == "tax_assess":
-                    assessment = CorporateActionTaxAssessmentHeaderModel.objects.get(
-                        account_id=world.account_id,
-                        source_event_id=event_id,
-                        settlement_date=world.settlement_date,
+                    assessment = _db_call(
+                        lambda: CorporateActionTaxAssessmentHeaderModel.objects.get(
+                            account_id=world.account_id,
+                            source_event_id=event_id,
+                            settlement_date=world.settlement_date,
+                        )
                     )
                     try:
                         withholding_amount = Decimal(assessment.withholding_amount_text)
@@ -897,10 +930,12 @@ def test_nonstaff_owner_completes_cash_payment_and_tax_from_the_tui(
                     ), "tax assessment unexpectedly changed account cash"
                     continue
 
-                liabilities_now = list(
-                    CorporateActionTaxLiabilityOperationModel.objects.filter(
-                        account_id=world.account_id
-                    ).order_by("sequence")
+                liabilities_now = _db_call(
+                    lambda: list(
+                        CorporateActionTaxLiabilityOperationModel.objects.filter(
+                            account_id=world.account_id
+                        ).order_by("sequence")
+                    )
                 )
                 if action == "tax_recognize":
                     assert not (
@@ -921,26 +956,33 @@ def test_nonstaff_owner_completes_cash_payment_and_tax_from_the_tui(
                     or account.current_cash != after_payment_cash - withholding_amount
                 ), "tax collection did not exactly reconcile cash and liability"
 
-            rows = list(
-                CorporateActionPostingModel.objects.filter(
+            rows = _db_call(
+                lambda: list(
+                    CorporateActionPostingModel.objects.filter(
+                        account_id=world.account_id,
+                        source_event_id=entitlement.source_event_id,
+                    ).order_by("account_revision")
+                )
+            )
+            assessment_count = _db_call(
+                lambda: CorporateActionTaxAssessmentHeaderModel.objects.filter(
                     account_id=world.account_id,
                     source_event_id=entitlement.source_event_id,
-                ).order_by("account_revision")
+                    settlement_date=world.settlement_date,
+                ).count()
             )
-            assessments = CorporateActionTaxAssessmentHeaderModel.objects.filter(
-                account_id=world.account_id,
-                source_event_id=entitlement.source_event_id,
-                settlement_date=world.settlement_date,
+
+            liabilities = _db_call(
+                lambda: list(
+                    CorporateActionTaxLiabilityOperationModel.objects.filter(
+                        account_id=world.account_id
+                    ).order_by("sequence")
+                )
             )
-            liabilities = list(
-                CorporateActionTaxLiabilityOperationModel.objects.filter(
-                    account_id=world.account_id
-                ).order_by("sequence")
-            )
-            account.refresh_from_db()
+            _db_call(lambda: account.refresh_from_db())
             assert not (
                 [row.stage for row in rows] != ["cash_entitlement", "cash_payment"]
-                or assessments.count() != 1
+                or assessment_count != 1
                 or [row.sequence for row in liabilities] != [1, 2]
                 or withholding_amount is None
                 or Decimal(liabilities[-1].outstanding_amount_text) != Decimal("0")
@@ -976,9 +1018,11 @@ def test_nonstaff_owner_completes_share_entitlement_delivery_and_release_from_th
             tmp_path=tmp_path,
             capture_kind="share",
         )
-        account = SimulatedAccountModel.objects.get(pk=world.account_id)
-        position = PositionModel.objects.get(
-            account_id=world.account_id, asset_code=world.asset_code
+        account = _db_call(lambda: SimulatedAccountModel.objects.get(pk=world.account_id))
+        position = _db_call(
+            lambda: PositionModel.objects.get(
+                account_id=world.account_id, asset_code=world.asset_code
+            )
         )
         starting_cash = account.current_cash
         starting_quantity = position.quantity
@@ -1024,14 +1068,16 @@ def test_nonstaff_owner_completes_share_entitlement_delivery_and_release_from_th
                         raise AssertionError("share entitlement replay changed financial effects")
 
             _refresh_account(page, world, has_financial_history=True)
-            rows = list(
-                CorporateActionPostingModel.objects.filter(
-                    account_id=world.account_id,
-                    source_event_id=source_event_id,
-                ).order_by("account_revision")
+            rows = _db_call(
+                lambda: list(
+                    CorporateActionPostingModel.objects.filter(
+                        account_id=world.account_id,
+                        source_event_id=source_event_id,
+                    ).order_by("account_revision")
+                )
             )
-            account.refresh_from_db()
-            position.refresh_from_db()
+            _db_call(lambda: account.refresh_from_db())
+            _db_call(lambda: position.refresh_from_db())
             if (
                 [row.stage for row in rows]
                 != ["share_entitlement", "share_delivery", "share_sellable_release"]
@@ -1041,12 +1087,16 @@ def test_nonstaff_owner_completes_share_entitlement_delivery_and_release_from_th
                 or account.current_cash != starting_cash
                 or position.quantity != starting_quantity + Decimal("10.000000")
                 or position.available_quantity != starting_available + Decimal("10.000000")
-                or CorporateActionTaxAssessmentHeaderModel.objects.filter(
-                    account_id=world.account_id, source_event_id=source_event_id
-                ).exists()
-                or CorporateActionTaxLiabilityOperationModel.objects.filter(
-                    account_id=world.account_id
-                ).exists()
+                or _db_call(
+                    lambda: CorporateActionTaxAssessmentHeaderModel.objects.filter(
+                        account_id=world.account_id, source_event_id=source_event_id
+                    ).exists()
+                )
+                or _db_call(
+                    lambda: CorporateActionTaxLiabilityOperationModel.objects.filter(
+                        account_id=world.account_id
+                    ).exists()
+                )
             ):
                 raise AssertionError("the share journey did not preserve its three-stage ledger")
             _read_receipts(
@@ -1078,9 +1128,11 @@ def test_nonstaff_owner_records_rights_no_effect_from_the_tui(
             _refresh_account(page, world, has_financial_history=False)
             _select_consent(page, world, capabilities=("rights_not_exercised",), state=state)
             source_event_id = _load_event_row(page, world)
-            account = SimulatedAccountModel.objects.get(pk=world.account_id)
-            position = PositionModel.objects.get(
-                account_id=world.account_id, asset_code=world.asset_code
+            account = _db_call(lambda: SimulatedAccountModel.objects.get(pk=world.account_id))
+            position = _db_call(
+                lambda: PositionModel.objects.get(
+                    account_id=world.account_id, asset_code=world.asset_code
+                )
             )
             before_cash = account.current_cash
             before_quantity = position.quantity
@@ -1101,13 +1153,15 @@ def test_nonstaff_owner_records_rights_no_effect_from_the_tui(
                 _business_effect_counts(world.account_id),
                 _EXPECTED_EFFECTS["rights_not_exercised"],
             )
-            row = CorporateActionPostingModel.objects.get(
-                account_id=world.account_id,
-                source_event_id=source_event_id,
-                stage="rights_not_exercised",
+            row = _db_call(
+                lambda: CorporateActionPostingModel.objects.get(
+                    account_id=world.account_id,
+                    source_event_id=source_event_id,
+                    stage="rights_not_exercised",
+                )
             )
-            account.refresh_from_db()
-            position.refresh_from_db()
+            _db_call(lambda: account.refresh_from_db())
+            _db_call(lambda: position.refresh_from_db())
             if (
                 row.action_kind != "rights_issue"
                 or row.entry_kind != "no_effect"
@@ -1119,12 +1173,16 @@ def test_nonstaff_owner_records_rights_no_effect_from_the_tui(
                 or account.current_cash != before_cash
                 or position.quantity != before_quantity
                 or position.available_quantity != before_available
-                or CorporateActionTaxAssessmentHeaderModel.objects.filter(
-                    account_id=world.account_id
-                ).exists()
-                or CorporateActionTaxLiabilityOperationModel.objects.filter(
-                    account_id=world.account_id
-                ).exists()
+                or _db_call(
+                    lambda: CorporateActionTaxAssessmentHeaderModel.objects.filter(
+                        account_id=world.account_id
+                    ).exists()
+                )
+                or _db_call(
+                    lambda: CorporateActionTaxLiabilityOperationModel.objects.filter(
+                        account_id=world.account_id
+                    ).exists()
+                )
             ):
                 raise AssertionError("rights non-participation changed financial balances or tax")
             _read_receipts(page, world, ("模拟未参与配股",))
@@ -1193,7 +1251,11 @@ def test_prepared_owner_intent_is_blocked_after_tui_withdrawal(
                 raise AssertionError(
                     "the withdrawn prepared intent changed financial/Audit/Outbox effects"
                 )
-            if CorporateActionPostingModel.objects.filter(account_id=world.account_id).exists():
+            if _db_call(
+                lambda: CorporateActionPostingModel.objects.filter(
+                    account_id=world.account_id
+                ).exists()
+            ):
                 raise AssertionError(
                     "the withdrawn prepared intent wrote a corporate-action ledger row"
                 )
