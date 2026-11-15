@@ -15226,7 +15226,8 @@
           "gross_unreinvested_record_date_holding",
           "currently_known_reference_holding",
           "source.price.source_observed_at is not None",
-          "min(deadline, current.valid_until)"
+          "min(deadline, current.valid_until)",
+          "cutoff.astimezone(ZoneInfo(publication.timezone_name)).date()"
         ]
       },
       "required_tests": [
@@ -15289,9 +15290,19 @@
           "case": "owner_reference_share_continuity_native",
           "test_file": "tests/component/simulated_trading/test_corporate_action_reference_return_postgres.py",
           "test_function": "test_owner_share_reference_return_counts_ex_date_rights_once_across_real_stages"
+        },
+        {
+          "case": "known_post_close_transfer_uses_original_local_accounting_day",
+          "test_file": "tests/unit/simulated_trading/test_corporate_action_reference_return_composition.py",
+          "test_function": "test_reference_return_keeps_known_transfers_after_last_close_on_actual_accounting_day"
+        },
+        {
+          "case": "future_transfer_date_and_recording_remain_rejected",
+          "test_file": "tests/unit/simulated_trading/test_corporate_action_reference_return_composition.py",
+          "test_function": "test_reference_return_rejects_future_transfer_dates_or_recording_clocks"
         }
       ],
-      "notes": "Retained choices and successful transport are not source completeness, usable balances or authority. Discovery preserves unknowns and original clocks. Explicit refresh is separate; sealed server facts bind exact owner/session/source/policy/time. Confirmation delegates fresh permission and exact replay to the financial writer. Minimal committed acknowledgement avoids treating optional postcommit readback as rollback. No real-account, production-source or tax/legal qualification is implied. Source correction is a separate explicit preparation mode: the complete inverse-and-successor preview must exactly equal the sealed batch and retain original active entries to validate all five deltas. No automatic correction fallback. Ordinary continuation after correction requires complete same-account Audit/Outbox and Domain replay, exact canonical owner and current disclosed head. A newer source still blocks until explicitly corrected. Ownership proofs must match the trusted preparation cutoff without retimestamping observations. Existing modern tax journals keep correction/refund unsupported and blocked. Unit registration does not constitute native/browser or production qualification. The optional reference basket is gross, unreinvested and currently-known only; fixed record-date quantity and original transfer dates avoid double counting. Missing retained raw prices or current entitlement leave unknown amounts, without changing account cash/debt or authorizing decisions."
+      "notes": "Retained choices and successful transport are not source completeness, usable balances or authority. Discovery preserves unknowns and original clocks. Explicit refresh is separate; sealed server facts bind exact owner/session/source/policy/time. Confirmation delegates fresh permission and exact replay to the financial writer. Minimal committed acknowledgement avoids treating optional postcommit readback as rollback. No real-account, production-source or tax/legal qualification is implied. Source correction is a separate explicit preparation mode: the complete inverse-and-successor preview must exactly equal the sealed batch and retain original active entries to validate all five deltas. No automatic correction fallback. Ordinary continuation after correction requires complete same-account Audit/Outbox and Domain replay, exact canonical owner and current disclosed head. A newer source still blocks until explicitly corrected. Ownership proofs must match the trusted preparation cutoff without retimestamping observations. Existing modern tax journals keep correction/refund unsupported and blocked. Unit registration does not constitute native/browser or production qualification. The optional reference basket is gross, unreinvested and currently-known only; fixed record-date quantity and original transfer dates avoid double counting. Missing retained raw prices or current entitlement leave unknown amounts, without changing account cash/debt or authorizing decisions. Valuation dates stay on their exact closed sessions. The original knowledge cutoff converted through the verified calendar publication timezone bounds actual transfer accounting dates, including known postings after the latest close. Future accounting dates and future recording clocks remain rejected; no posting is backdated and no finite source deadline is extended."
     },
     {
       "id": "simulated_trading.corporate_action_current_raw_nav_mark",

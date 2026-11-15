@@ -8,10 +8,11 @@ and readback paths remain the real production compositions.
 from __future__ import annotations
 
 from collections.abc import Iterator
+from copy import deepcopy
 from datetime import UTC, date, datetime
 from decimal import Decimal
 from pathlib import Path
-from typing import Literal, Protocol
+from typing import Literal, Protocol, cast
 
 import pytest
 from django.db import connection
@@ -25,6 +26,9 @@ from apps.account.domain.simulated_corporate_action_write_grant import (
     SIMULATED_CORPORATE_ACTION_WRITE_GRANT_V3_SCHEMA,
 )
 from apps.config_center.application.runtime_public import activate_runtime_profile_patch
+from apps.config_center.application.runtime_value_evidence import (
+    read_active_runtime_value_evidence,
+)
 from apps.data_center.application.public_published_queries import (
     get_published_price_bar_source,
     get_retained_historical_price_source,
@@ -47,6 +51,9 @@ from apps.simulated_trading.corporate_action_owner_balance_composition import (
 )
 from apps.simulated_trading.corporate_action_owner_ledger_composition import (
     OwnerCorporateActionPostingState,
+)
+from apps.simulated_trading.corporate_action_tax_policy_composition import (
+    SIMULATED_DIVIDEND_TAX_POLICY_KEY,
 )
 from apps.simulated_trading.infrastructure.models import PositionModel
 from apps.simulated_trading.infrastructure.simulated_account_trade_models import (
@@ -151,6 +158,70 @@ def _calendar_and_recent_sessions(
     if len(closed) < 2:
         raise AssertionError("formal calendar does not cover two closed price sessions")
     return calendar, closed, latest_closed
+
+
+def _extend_synthetic_tax_candidate_through_record_date(
+    *,
+    world: OwnerWorkflowNativeWorld,
+    record_date: date,
+) -> None:
+    """Extend only this synthetic candidate to the exact corrected event date.
+
+    The seed world intentionally activates a finite tax candidate through its
+    original record date.  This reference-return case creates a distinct,
+    synthetic direct successor with a later record date, so the test must
+    explicitly amend that modelled applicability window before asking the
+    production coverage reader to inspect it.
+    """
+    as_of = timezone.now().astimezone(UTC)
+    evidence = read_active_runtime_value_evidence(
+        environment="development",
+        definition_key=SIMULATED_DIVIDEND_TAX_POLICY_KEY,
+        as_of=as_of,
+    )
+    if evidence is None or type(evidence.value) is not dict:
+        raise AssertionError("synthetic tax candidate evidence is unavailable")
+    policy_payload = cast(dict[str, object], deepcopy(evidence.value))
+    raw_rows = policy_payload.get("policies")
+    if type(raw_rows) is not list or len(raw_rows) != 1:
+        raise AssertionError("synthetic tax candidate scope is not unique")
+    row = raw_rows[0]
+    if type(row) is not dict:
+        raise AssertionError("synthetic tax candidate scope is malformed")
+    candidate = cast(dict[str, object], row)
+    expected_identity = {
+        "account_kind": "simulated",
+        "physical_account_id": world.account_id,
+        "canonical_account_id": world.canonical_account_id,
+        "owner_user_id": world.owner.owner.pk,
+        "security_id": world.security_id,
+        "asset_code": world.asset_code,
+        "candidate_id": f"ash05-synthetic-tax-candidate-{world.account_id}",
+    }
+    if any(candidate.get(key) != value for key, value in expected_identity.items()):
+        raise AssertionError("synthetic tax candidate is bound to another owner or instrument")
+    lower_raw = candidate.get("record_date_from")
+    upper_raw = candidate.get("record_date_through")
+    if type(lower_raw) is not str or type(upper_raw) is not str:
+        raise AssertionError("synthetic tax candidate has no finite record-date scope")
+    try:
+        lower = date.fromisoformat(lower_raw)
+        previous_upper = date.fromisoformat(upper_raw)
+    except ValueError as error:
+        raise AssertionError("synthetic tax candidate dates are malformed") from error
+    if not lower <= previous_upper < record_date:
+        raise AssertionError("test successor date is not a finite extension of the seed scope")
+    candidate["record_date_through"] = record_date.isoformat()
+    activate_runtime_profile_patch(
+        environment="development",
+        patch={SIMULATED_DIVIDEND_TAX_POLICY_KEY: policy_payload},
+        actor="ash05-synthetic-reference-tax-date-scope",
+        reason="extend one explicit synthetic candidate through its corrected record date",
+        expected_active_profile_id=evidence.profile_id,
+        expected_active_profile_version=evidence.profile_version,
+        expected_active_profile_hash=evidence.profile_content_hash,
+        expected_active_snapshot_hash=evidence.snapshot_hash,
+    )
 
 
 def _publish_reference_prices(
@@ -500,6 +571,10 @@ def test_owner_cash_reference_return_brackets_ex_date_and_keeps_late_payment_lat
         world = build_owner_workflow_native_world(monkeypatch=monkeypatch, tmp_path=tmp_path)
         calendar, sessions, latest_closed = _calendar_and_recent_sessions(world)
         opening_date, ex_date = sessions[-2:]
+        _extend_synthetic_tax_candidate_through_record_date(
+            world=world,
+            record_date=opening_date,
+        )
         selections = _publish_reference_prices(
             world=world,
             calendar=calendar,
@@ -633,6 +708,20 @@ def test_owner_cash_reference_return_brackets_ex_date_and_keeps_late_payment_lat
             closing_share_receivable=Decimal("0.000000"),
             expected_value=Decimal("700.00"),
         )
+        amount_fields = frozenset(
+            {
+                "reference_quantity",
+                "opening_price",
+                "closing_price",
+                "opening_value",
+                "closing_value",
+                "wealth_change",
+                "closing_cash",
+                "closing_dividend_receivable",
+                "closing_physical_shares",
+                "closing_share_receivable",
+            }
+        )
         for field in (
             "account_id",
             "asset_code",
@@ -665,7 +754,10 @@ def test_owner_cash_reference_return_brackets_ex_date_and_keeps_late_payment_lat
             "price_interval_end_ats",
             "price_source_available_ats",
         ):
-            assert after_payment.get(field) == before_payment.get(field)
+            if field in amount_fields:
+                assert _amount(after_payment, field) == _amount(before_payment, field)
+            else:
+                assert after_payment.get(field) == before_payment.get(field)
         before_cutoff = datetime.fromisoformat(str(before_payment["knowledge_cutoff"]))
         after_cutoff = datetime.fromisoformat(str(after_payment["knowledge_cutoff"]))
         assert before_cutoff < after_cutoff

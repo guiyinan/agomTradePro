@@ -344,7 +344,33 @@ class TuiWorkbenchResultModelMixin(
             # These owner responses distinguish original receipt verification from
             # current valuation eligibility, including HTTP-200 business blocks.
             model["business_summary"] = self._operator_text(payload["summary"])
-            model["blocking_reason"] = payload.get("blocking_reason") or ""
+            reason: str = payload.get("blocking_reason") or ""
+            readable_reason = (
+                {
+                    "CORPORATE_ACTION_BALANCE_READBACK_PENDING": "请单独读取账户余额和财务回执。",
+                    "CORPORATE_ACTION_VALUATION_AND_TAX_COVERAGE_REQUIRED": (
+                        "净值与可用资金仍待完整估值及税务覆盖核对。"
+                    ),
+                    "CORPORATE_ACTION_SELECTED_CAPABILITY_REQUIRED": (
+                        "所选分项授权已不可用，请重新核对授权并准备。"
+                    ),
+                    "CORPORATE_ACTION_CONSENT_CHANGED": "本次同意已变化，请重新核对授权并准备。",
+                }.get(reason, model["business_summary"])
+                if reason
+                else ""
+            )
+            model["blocking_reason"] = readable_reason
+            model["user_error_code"] = reason
+            fields = model.get("fields")
+            if isinstance(fields, list):
+                model["fields"] = [
+                    (
+                        {**field, "label": "处理说明", "value": readable_reason}
+                        if isinstance(field, dict) and field.get("key") == "blocking_reason"
+                        else field
+                    )
+                    for field in fields
+                ]
             model["outcome"] = payload["outcome"]
         model.setdefault(
             "business_summary",

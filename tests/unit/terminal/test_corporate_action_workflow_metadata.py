@@ -282,7 +282,14 @@ def test_workflow_projection_preserves_business_receipt_head(
         request_params={"account_id": "42"},
     )
     assert model["business_summary"] == summary
-    assert model["blocking_reason"] == (reason or "")
+    assert model["user_error_code"] == (reason or "")
+    assert not reason or reason not in model["blocking_reason"]
+    assert bool(model["blocking_reason"]) is bool(reason)
+    assert all(
+        not reason or reason not in str(field.get("value", ""))
+        for field in model.get("fields", [])
+        if field.get("key") == "blocking_reason"
+    )
     assert model["status"] == (
         "已读取"
         if action_key == CORPORATE_ACTION_WORKFLOW_AUDIT_RECEIPTS_ACTION_KEY

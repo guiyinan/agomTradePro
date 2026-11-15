@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import hashlib
 from dataclasses import replace
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Any
 
@@ -29,7 +29,9 @@ from apps.simulated_trading.application.corporate_action_reference_return import
     build_corporate_action_reference_return,
 )
 from apps.simulated_trading.domain.corporate_action_performance_projection import (
+    CorporateActionRestatementInvalid,
     RestatementEntitlement,
+    RestatementTransfer,
 )
 from core.exceptions import BusinessLogicError
 from tests.unit.data_center import test_published_price_source as price_fixtures
@@ -237,3 +239,61 @@ def test_reference_return_rejects_a_retained_source_from_another_cutoff(
         build_corporate_action_reference_return(changed)
 
     assert blocked.value.code == "REFERENCE_RETURN_RAW_PRICE_SCOPE_INVALID"
+
+
+@pytest.mark.parametrize("kind", ("cash", "share"))
+@pytest.mark.parametrize("offset_hours", (0, -12))
+def test_reference_return_keeps_known_transfers_after_last_close_on_actual_accounting_day(
+    monkeypatch: pytest.MonkeyPatch, kind: str, offset_hours: int
+) -> None:
+    """Late known transfers keep their real dates beyond the last valued session."""
+    cash = Decimal("14.00") if kind == "cash" else Decimal("0")
+    shares = Decimal("7.000000") if kind == "share" else Decimal("0")
+    inputs = _inputs(monkeypatch, cash=cash, shares=shares)
+    cutoff = inputs.knowledge_cutoff
+    transfer = RestatementTransfer(
+        entry_id="original-late-transfer",
+        accounting_on=cutoff.date(),
+        amount=cash if kind == "cash" else shares,
+        recorded_at=cutoff - timedelta(microseconds=1),
+    )
+    assert transfer.accounting_on > inputs.current_mark.trade_date
+    action = replace(
+        inputs.entitlement,
+        cash_transfers=(transfer,) if kind == "cash" else (),
+        share_transfers=(transfer,) if kind == "share" else (),
+    )
+    represented_cutoff = cutoff.astimezone(timezone(timedelta(hours=offset_hours)))
+    result = _report(replace(inputs, entitlement=action, knowledge_cutoff=represented_cutoff))
+    assert result.comparison.closing.dividend_receivable == cash
+    assert result.comparison.closing.cash == Decimal("0")
+    assert result.comparison.closing.share_receivable == shares
+    assert result.comparison.closing.physical_shares == inputs.reference_quantity
+    assert result.comparison.closing.day == inputs.current_mark.trade_date
+    assert result.knowledge_cutoff == cutoff
+
+
+@pytest.mark.parametrize("future_field", ("accounting_day", "knowledge_clock"))
+def test_reference_return_rejects_future_transfer_dates_or_recording_clocks(
+    monkeypatch: pytest.MonkeyPatch, future_field: str
+) -> None:
+    """Using the accounting cutoff never admits a future or not-yet-recorded transfer."""
+    inputs = _inputs(monkeypatch, cash=Decimal("14.00"), shares=Decimal("0"))
+    cutoff = inputs.knowledge_cutoff
+    transfer = RestatementTransfer(
+        entry_id="future-transfer",
+        accounting_on=(
+            cutoff.date() + timedelta(days=1) if future_field == "accounting_day" else cutoff.date()
+        ),
+        amount=Decimal("14.00"),
+        recorded_at=(
+            cutoff + timedelta(microseconds=1)
+            if future_field == "knowledge_clock"
+            else cutoff - timedelta(microseconds=1)
+        ),
+    )
+    with pytest.raises(CorporateActionRestatementInvalid) as blocked:
+        _report(
+            replace(inputs, entitlement=replace(inputs.entitlement, cash_transfers=(transfer,)))
+        )
+    assert blocked.value.reason_code == "RESTATEMENT_TRANSFER_SCOPE_OR_KNOWLEDGE_INVALID"

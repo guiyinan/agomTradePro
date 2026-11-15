@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal
 from typing import Literal
+from zoneinfo import ZoneInfo
 
 from apps.data_center.application.retained_historical_price_source import (
     RetainedHistoricalPriceEvidence,
@@ -90,6 +91,12 @@ def build_corporate_action_reference_return(
     current = inputs.current_mark
     current.verify_for(current.query, as_of=cutoff)
     current.calendar.validate_for(cutoff)
+    publication = current.calendar.publication
+    if publication is None:
+        raise _blocked("REFERENCE_RETURN_SCOPE_INVALID")
+    # A known posting can occur after the last closed valuation session.
+    # Retain its actual local date while bounding it by the original cutoff.
+    accounting_day = cutoff.astimezone(ZoneInfo(publication.timezone_name)).date()
     action = inputs.entitlement
     action.__post_init__()
     if inputs.record_date >= action.effective_on or action.asset_code != current.query.asset_code:
@@ -141,7 +148,7 @@ def build_corporate_action_reference_return(
         money_quantum=inputs.currency_quantum,
         quantity_quantum=inputs.quantity_quantum,
         knowledge_cutoff=cutoff,
-        decision_day=current.trade_date,
+        decision_day=accounting_day,
     )
     return CorporateActionReferenceReturnReport(
         action.asset_code,

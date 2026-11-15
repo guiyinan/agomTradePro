@@ -22412,10 +22412,6 @@
     },
     {
       "path": "apps/simulated_trading/application/corporate_action_reference_return.py",
-      "text": "decision_day=current.trade_date,"
-    },
-    {
-      "path": "apps/simulated_trading/application/corporate_action_reference_return.py",
       "text": "if inputs.record_date >= action.effective_on or action.asset_code != current.query.asset_code:"
     },
     {
@@ -22437,6 +22433,10 @@
     {
       "path": "apps/simulated_trading/application/corporate_action_reference_return.py",
       "text": "or source.price.publication_key != current.policy_binding.policy.publication_key"
+    },
+    {
+      "path": "apps/simulated_trading/application/corporate_action_reference_return.py",
+      "text": "publication = current.calendar.publication"
     },
     {
       "path": "apps/simulated_trading/application/corporate_action_share_tax_model.py",
