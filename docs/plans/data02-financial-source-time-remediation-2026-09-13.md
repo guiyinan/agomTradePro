@@ -1411,3 +1411,6 @@ S6预算准备只读核对当前2026-11-16目标范围5573只、上市日期未�
 冻结发布候选7955a814c4c50617c41b8b72ba9636877ace3852现已取得同SHA七类CI成功（八次成功run，包含以2529为累计基准的手动完整Fast Feedback）；正式Publication CI中C2/v3原生32例通过，原始完整模型差异4项复验通过。已下载同候选official artifact。正常流程另已创建并完整下载当前生产PG备份postgres-20261116T184134Z.dump，284481443字节，SHA256=83ac5b189f564cc06973988411efd942d5b946a1120c9e10cf15a14bf73975f3；远端pg_restore清单、完整SFTP、大小与哈希均验证，未清理/恢复/切换服务。后续仅证据或授权记账提交不替换此冻结候选，S6必须使用7955的干净独立checkout。
 
 当前真正未决为一次常规S6的扩展请求范围：已向Owner集中提出财报最多22296次实际尝试、行情/估值两stage各100次Session调用，既有生产E1仍另限2次且无重试/分页，范围增加则停止而不自动加额。现有凭据已可用于匿名pipe/FD，无需在聊天索取密码。决定到达前不启动相关provider stage，不把CI/备份写成S6或生产资格，DATA-02全量四Publication与DATA-03保持未完成。
+
+
+2026-11-17 Owner已明确回复“批准本候选标准 S6 预算（推荐）”，解除上述预算等待：冻结候选7955a814、范围上限5573只，一次标准S6财报实际尝试合计≤22296（完整scope≤22292、独立slice≤4），market probe/full capacity各≤100次Session调用；生产E1仍另限2次、不重试、不分页。正式范围增加时停止，不自动加额；不启用advance-isolated-market-graph额外刷新，也不重跑失败attempt。按正常fresh prepare、独立数据库、现有active-superuser匿名pipe/FD授权与候选CI/image/report契约执行；该预算批准不是生产manifest双人review或Publication放行。

@@ -3601,7 +3601,7 @@
     {
       "date": "2026-11-16T18:08:48.512032+00:00",
       "kind": "e1_frozen_integrated_c2_numeric_v3_preparation",
-      "status": "frozen_candidate_ci_passed_awaiting_s6_scope_budget",
+      "status": "owner_approved_standard_s6_fresh_preparation",
       "base_head": "2529c3bd50b728ae87ad328c1ae5794907f5ea74",
       "scope": "Frozen single-security Main+Balance E1 critical path only; full DATA-02 universe and four Publication exit gates unchanged.",
       "delivery": {
@@ -3978,7 +3978,7 @@
           "financial_statement_budget_includes_market_dispatches": false
         },
         "budget_basis": "S6 full-scope2N/4N plus separate one-security financial slice2logical/up to4physical; no cross-stage deduplication. Existing E1 max2 remains separate. Normal authenticated per-candidate scope authorization must still run; no discovered Owner authorization expands current scope to this full S6 ceiling.",
-        "decision_status": "Awaiting one explicit Owner decision on the requested standard S6 ceiling; credentials already available, no password requested; no provider calls started."
+        "decision_status": "Owner approved one standard S6 for frozen7955 candidate; no longer awaiting scope decision."
       },
       "native_r7_result": {
         "receipt": {
@@ -4115,7 +4115,25 @@
         "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/controlled-release-backup-r1.verified-summary.json",
         "sha256": "4f781ca77eb1d1b53f9d5b7b46129caff28af138ecfdfcf6898af7288c3c952e"
       },
-      "qualification_boundary": "Completed source implementation/local gates/exact candidate CI and verified current-production backup. S6, controlled deployment, real qualified E1/reconciliation, full-universe four Publications and DATA03 remain unproven. No later evidence-only commit changes the frozen7955 candidate; its S6 must use a clean exact7955 checkout."
+      "qualification_boundary": "Completed source implementation/local gates/exact candidate CI and verified current-production backup. S6, controlled deployment, real qualified E1/reconciliation, full-universe four Publications and DATA03 remain unproven. No later evidence-only commit changes the frozen7955 candidate; its S6 must use a clean exact7955 checkout.",
+      "s6_owner_budget_authorization": {
+        "recorded_at_utc": "2026-11-16T23:20:14.337190+00:00",
+        "owner_reply": "批准本候选标准 S6 预算（推荐）",
+        "question_reference": "request_user_input_async/call_f431f9ccb434415c8ffb9646e0a3266c/0",
+        "candidate_sha": "7955a814c4c50617c41b8b72ba9636877ace3852",
+        "standard_s6_attempts_authorized": 1,
+        "universe_count_ceiling": 5573,
+        "financial_scope_physical_attempt_ceiling": 22292,
+        "financial_slice_physical_attempt_ceiling": 4,
+        "financial_s6_total_physical_attempt_ceiling": 22296,
+        "market_provider_probe_session_dispatch_ceiling": 100,
+        "market_full_universe_session_dispatch_ceiling": 100,
+        "e1_separate_physical_ceiling": 2,
+        "e1_auto_retry_or_pagination_allowed": false,
+        "universe_growth_action": "stop_without_automatic_budget_increase",
+        "advance_isolated_market_graph": false,
+        "qualification_boundary": "Budget approval only; normal fresh-attempt isolation, per-candidate authenticated scope authorization, all S6 reports and controlled deployment gates remain required. No failed-attempt replay or production publication grant."
+      }
     }
   ],
   "current_authority_followup": "followups[0] (2026-11-16); original 2026-11-15 snapshots remain historical",
