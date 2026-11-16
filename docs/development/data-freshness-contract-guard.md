@@ -1,5 +1,14 @@
 # 当前数据新鲜度契约与 CI 门禁
 
+## 2026-11-16 已发布财务数值 schema 边界
+
+已发布财务响应带 `numeric_evidence` 或 `exact_value_text` 时，即使字段值为 null，
+也不能以缺失 schema 或显式 `legacy-decimal-v1` 进入旧版浮点解析。原生 v2 继续要求
+公开 canonical value 字符串与精确 typed evidence 一致，并拒绝存储专用字段
+`exact_value_text`。无原生专用字段的旧版数值字符串及既有 v1/v2 输出保持兼容。
+该读端保护登记扩展 `data_center.financial_as_of_reads`，不补造目录资格、源时钟、
+当前/PIT 授权或生产启用证据。
+
 2026-11-15 留存价格的实例名称与数据源类型必须分开：manifest、RawAudit、请求scope及原始载荷按原实例名逐字核对，原审计extra.source_type另与canonical selected_source核对。不得把配置展示名称直接要求为适配器类型，也不得为了兼容命名实例放过原身份、类型或摘要不一致。 当前raw NAV证明同样分别核对policy.source类型及原响应/Audit实例名；合法命名实例不得因这两个独立字段不同而被误报为缺失。
 
 2026-11-15 登记日参考持仓对照独立于账户收益：按精确证券/交易日发现最新已激活留存发布后，必须核对该候选全部原文、成员和 Audit/Outbox，不因无效候选回退至旧发布，也不读当前指针替代历史价格。固定登记日数量、税前未再投资，真实到账/交付日期保留；缺少完整证据仅此指标 unknown，金额不填零。供应商观察时间继续 null，原截止点和有限来源期限不续期，所有结果 must_not_use_for_decision=true。 已知到账可晚于最后闭市日：估值仍取精确闭市交易日，原 knowledge_cutoff 按已核对日历发布时区转换的本地记账日用于校验真实到账日期；不得用最近收盘日拒绝已知的后续到账，也不得回填到账日。未来记账日或未来记录时钟仍拒绝，原有限期限保持。

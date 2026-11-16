@@ -5421,7 +5421,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=12",
+      "evidence": "governed current-data contract; source_files=13",
       "id": "current_data_surface:governance/current_data_contracts.json:data_center.financial_as_of_reads:Financial decisions preserve legacy China-market-day-start boundaries and explicit aware decision instants without widening Publication eligibility",
       "locator": "Financial decisions preserve legacy China-market-day-start boundaries and explicit aware decision instants without widening Publication eligibility",
       "path": "governance/current_data_contracts.json",

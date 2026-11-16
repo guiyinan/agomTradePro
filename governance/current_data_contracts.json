@@ -4610,7 +4610,8 @@
         "apps/data_center/domain/entities.py",
         "apps/data_center/infrastructure/financial_fact_hydration.py",
         "apps/data_center/infrastructure/financial_numeric_storage.py",
-        "apps/data_center/infrastructure/financial_fact_models.py"
+        "apps/data_center/infrastructure/financial_fact_models.py",
+        "apps/equity/infrastructure/fundamentals_published_fact_mappers.py"
       ],
       "required_markers": {
         "apps/data_center/application/query_services.py": [
@@ -4664,6 +4665,11 @@
           "class FinancialFactModel(models.Model):",
           "numeric_schema = models.CharField(",
           "dc_financial_numeric_state_valid"
+        ],
+        "apps/equity/infrastructure/fundamentals_published_fact_mappers.py": [
+          "_NATIVE_NUMERIC_ONLY_FIELDS",
+          "if has_native_numeric_fields:",
+          "if \"exact_value_text\" in row:"
         ]
       },
       "required_tests": [
@@ -4741,9 +4747,29 @@
           "case": "unpublished_financial_revision_stays_outside_published_read",
           "test_file": "tests/component/data_center/test_published_fact_refresh.py",
           "test_function": "test_unpublished_valuation_and_financial_revisions_stay_outside_published_reads"
+        },
+        {
+          "case": "public_native_fields_cannot_downgrade_to_legacy_float",
+          "test_file": "tests/unit/equity/test_financial_published_fact_mapper_guard.py",
+          "test_function": "test_unmarked_or_legacy_native_fields_fail_closed_before_float_parse"
+        },
+        {
+          "case": "public_native_shape_excludes_storage_only_value",
+          "test_file": "tests/unit/equity/test_financial_published_fact_mapper_guard.py",
+          "test_function": "test_public_native_row_rejects_storage_only_value_field"
+        },
+        {
+          "case": "legacy_numeric_string_wire_compatibility",
+          "test_file": "tests/unit/equity/test_financial_published_fact_mapper_guard.py",
+          "test_function": "test_legacy_numeric_string_keeps_the_existing_v1_wire_golden"
+        },
+        {
+          "case": "native_public_wire_preserves_schema_and_decimal",
+          "test_file": "tests/unit/equity/test_financial_published_fact_mapper_guard.py",
+          "test_function": "test_native_canonical_string_keeps_the_v2_schema_and_decimal"
         }
       ],
-      "notes": " Explicit decision_at ports reject non-aware and future instants before query access. They preserve exact UTC cutoff and derive only the report-date upper bound in Shanghai. Legacy date-only consumers remain unchanged. This is a C2 read-boundary prerequisite; no calendar/opening qualification, source-time policy activation, provider call, current-pointer change or DATA-02/03 production acceptance is inferred. Native decimal-v2 reads additionally constrain fetched_at to the explicit knowledge cutoff before selecting the latest revision; strict numeric wire/storage reconstruction and the injected independent catalog/body verifier are required. Default composition remains blocked for v2 until a real catalog is supplied; this is not production activation."
+      "notes": " Explicit decision_at ports reject non-aware and future instants before query access. They preserve exact UTC cutoff and derive only the report-date upper bound in Shanghai. Legacy date-only consumers remain unchanged. This is a C2 read-boundary prerequisite; no calendar/opening qualification, source-time policy activation, provider call, current-pointer change or DATA-02/03 production acceptance is inferred. Native decimal-v2 reads additionally constrain fetched_at to the explicit knowledge cutoff before selecting the latest revision; strict numeric wire/storage reconstruction and the injected independent catalog/body verifier are required. Default composition remains blocked for v2 until a real catalog is supplied; this is not production activation. Published financial consumers reject numeric_evidence/exact_value_text fields under missing or legacy schema, including explicit nulls, before any legacy float conversion. Native v2 accepts only the public canonical value string plus its exact typed evidence; storage-only exact_value_text is rejected. Plain legacy numeric strings and legacy/v2 wire identities remain unchanged. This consumer boundary does not supply a production numeric catalog or widen current/PIT eligibility."
     },
     {
       "id": "data_center.publication_only_d7_d9",

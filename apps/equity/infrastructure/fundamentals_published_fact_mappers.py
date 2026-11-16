@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from decimal import Decimal
-from typing import Any, Literal
+from typing import Any, Final, Literal
 
 from apps.data_center.domain.entities import FinancialFact, PriceBar, ValuationFact
 from apps.data_center.domain.enums import FinancialPeriodType, PriceAdjustment
@@ -15,6 +15,10 @@ from apps.equity.infrastructure.fundamentals_fact_helpers import (
     parse_fact_datetime as _parse_fact_datetime,
 )
 from shared.numeric import safe_float
+
+_NATIVE_NUMERIC_ONLY_FIELDS: Final[frozenset[str]] = frozenset(
+    {"numeric_evidence", "exact_value_text"}
+)
 
 
 def parse_public_price_bar(
@@ -68,10 +72,13 @@ def parse_public_financial_fact(row: Mapping[str, object]) -> FinancialFact | No
     period_end = _parse_fact_date(row.get("period_end"))
     fetched_at = _parse_fact_datetime(row.get("fetched_at"))
     raw_numeric_schema = row.get("numeric_schema", "legacy-decimal-v1")
+    has_native_numeric_fields = any(field_name in row for field_name in _NATIVE_NUMERIC_ONLY_FIELDS)
     numeric_schema: Literal["legacy-decimal-v1", "native-decimal-v2"]
     numeric_evidence: NativeFinancialMetricObservation | None = None
     value: float | Decimal | None
     if raw_numeric_schema == "native-decimal-v2":
+        if "exact_value_text" in row:
+            return None
         numeric_schema = "native-decimal-v2"
         try:
             numeric_evidence = NativeFinancialMetricObservation.from_payload(
@@ -84,6 +91,8 @@ def parse_public_financial_fact(row: Mapping[str, object]) -> FinancialFact | No
             return None
         value = Decimal(raw_value)
     elif raw_numeric_schema == "legacy-decimal-v1":
+        if has_native_numeric_fields:
+            return None
         numeric_schema = "legacy-decimal-v1"
         value = safe_float(row.get("value"), default=None)
     else:

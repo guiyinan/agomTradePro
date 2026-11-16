@@ -3112,6 +3112,106 @@
           "sha256": "7934e90f32aedd68b4ab6a5c81db3e8d67c2e3265a5e060bdc573d9f0e6bee04"
         }
       ]
+    },
+    {
+      "date": "2026-11-16",
+      "kind": "published_financial_native_schema_downgrade_guard",
+      "base_head": "b27034e7a69405815fba36d99d271caa10315249",
+      "candidate": "Formal Root working tree from this base; exact commit range is retained in .tmp/native-financial-mapper-preparation/formal-commit-confirmation.json after commit.",
+      "prior_candidate_actual_ci": {
+        "head_sha": "b27034e7a69405815fba36d99d271caa10315249",
+        "all_success": true,
+        "workflows": 7,
+        "domain_source_unchanged_from_f961": true,
+        "no_fresh_full_domain_count_inferred": true
+      },
+      "implementation": "Reject native-only numeric_evidence/exact_value_text fields, including null, under absent or legacy schema before safe_float. Reject storage-only exact_value_text in public v2; retain canonical Decimal, legacy numeric strings and frozen v1 hashes. No ORM, provider/unit configuration or source clocks changed.",
+      "verification": {
+        "expected_red": {
+          "tests": 13,
+          "failures": 10,
+          "errors": 0,
+          "skipped": 0
+        },
+        "formal_pure_boundary_and_existing_goldens": {
+          "tests": 51,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        "production_files_incremental_mypy": 1,
+        "full_mypy_debt": 0,
+        "module_cycles_architecture_projections_current_governance_exit": 0,
+        "current_contracts": 121,
+        "new_database_or_provider_operations": 0
+      },
+      "retained_failure": "First projection check found stale entrypoint line metadata. Regenerated only that projection; unchanged Python inputs retain the same successful test/type hashes and final projection/current/governance checks pass.",
+      "security_scan_receipt": ".tmp/native-financial-mapper-preparation/formal-current-secret.receipt.json; generated after final metadata, before commit, without a self-referential receipt hash in this index.",
+      "remaining": "Full DATA-02/03 scope remains unchanged. Calendar Admin/generic safeguards, real catalog and retained evidence, authenticated Owner actions, current/PIT commit fencing, eight constructor injections, C2 v3 production wiring/calendar, E1 and full-universe four-Publication reconciliation remain prerequisites. No production qualification, deployment, fact/trade writes or new financial HTTP is inferred.",
+      "source_files": [
+        {
+          "path": "apps/equity/infrastructure/fundamentals_published_fact_mappers.py",
+          "sha256": "dc71a571584dd1414bd47e64fcd51b0ddbc33f1ff818f12cd759f254d4662583"
+        },
+        {
+          "path": "tests/unit/equity/test_financial_published_fact_mapper_guard.py",
+          "sha256": "86fda4882b307f082691ef9db085064467d38cef75983366463b8f83c050bd82"
+        }
+      ],
+      "artifacts": [
+        {
+          "path": ".tmp/native-financial-mapper-preparation/formal-format-r1.receipt.json",
+          "sha256": "cff43ab8fbd7f75d4376c94bd48438f65a39ed01792b3f8497fa53aad5584586"
+        },
+        {
+          "path": ".tmp/native-financial-mapper-preparation/formal-green-r1.receipt.json",
+          "sha256": "9c746f6442d3833ef4061c77242908f7616f9701c0fa0108d3d761d19f45f230"
+        },
+        {
+          "path": ".tmp/native-financial-mapper-preparation/formal-static-r1.receipt.json",
+          "sha256": "10810c7bb51f0bd393ddce9f7e1ec422c8bbda3cb840d0618014375b9cac2d83"
+        },
+        {
+          "path": ".tmp/native-financial-mapper-preparation/formal-build-r1.receipt.json",
+          "sha256": "2b88962cda8fc5b2b044ebfffa016038898bb8d36651c3b4e89e1095b047640a"
+        },
+        {
+          "path": ".tmp/native-financial-mapper-preparation/formal-governance-final-r1.receipt.json",
+          "sha256": "83f7286d2682b72f7e425ab1d1970653d639569b3e04826de26aa38c1270a962"
+        },
+        {
+          "path": ".tmp/native-financial-mapper-preparation/formal-red-r1.receipt.json",
+          "sha256": "7ee8a8235eda7007dd16661b38b46bd06ae7f439e575516627a1b09bb80c2e3a"
+        },
+        {
+          "path": ".tmp/native-financial-mapper-preparation/formal-red-r1.junit.xml",
+          "sha256": "e378e2e792ff39e7cf6b769a96b3dff60b1ae76e4e87c4e504a5cf3aaece33e1"
+        },
+        {
+          "path": ".tmp/native-financial-mapper-preparation/formal-red-r1-red.log",
+          "sha256": "35a7255509676ce201a1f77575e00b282673b95f7ff67c2e6352ef5181135e45"
+        },
+        {
+          "path": ".tmp/native-financial-mapper-preparation/formal-green-r1.junit.xml",
+          "sha256": "0f96288faa086d0472cbdef045f78c536cb11a683b0f5dace4d1b8b5b4928c33"
+        },
+        {
+          "path": ".tmp/native-financial-mapper-preparation/formal-governance-r1.receipt.json",
+          "sha256": "b15b0281ba6e40edac0832f4e962db01babd2862138f76174293494149bcc3ff"
+        },
+        {
+          "path": ".tmp/native-financial-mapper-preparation/formal-governance-r1-projections.log",
+          "sha256": "d7623e90b7ce73e32d9803ea2bbef05e93697dc96e44040d51988e8a0d726844"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/ci-b27034e7a-final.json",
+          "sha256": "820d0f9b0fdf9bb3977d82fac131506b0c7cdcea637cf95e0d339effc3d1db8a"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/ci-b27034e7a-quality.log",
+          "sha256": "7cf64f7981df3dd3b359c52af28d40d751b12e424ef82fa6d141a44ad3718ccb"
+        }
+      ]
     }
   ],
   "current_authority_followup": "followups[0] (2026-11-16); original 2026-11-15 snapshots remain historical",

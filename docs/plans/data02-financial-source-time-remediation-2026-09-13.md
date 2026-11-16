@@ -1206,3 +1206,26 @@ DATA-02 的完整剩余及退出门继续遵循上一节。后续日历配置隔
 同库原件、认证 Owner、当前/PIT 和事务内撤销验证；不得以相同用户名或主键推造跨库
 认证。开发回滚点为本节父候选；其 CI 已失败，回滚只用于定位，不授予发布资格。
 本批不部署、不请求新财务响应、不写生产事实或交易，DATA-03 仍等待完整 DATA-02 退出。
+
+## 46. 已发布原生财务响应的降级保护（2026-11-16）
+
+前一修正候选 `b27034e7a69405815fba36d99d271caa10315249` 的七条实际 CI 均已成功，
+原生历史日历/default Core coordinator 路径的本地 fresh 88 项与实际 CI 形成该候选的
+独立证据；未从其增量 quality job 推造新的全域测试数或覆盖率。
+
+本批收敛 D1 的公开响应解析缺口：带 `numeric_evidence` 或存储专用 `exact_value_text`
+的行，不能因 schema 缺失或被强制改为 legacy 而进入 `safe_float`。即使这些字段为 null
+也拒绝；正常 v2 仍核对 canonical value 字符串和 typed evidence，并拒绝存储专用字段。
+无原生专用字段的旧版字符串、既有 v1 固定哈希及 v2 Decimal 输出保持原状。
+
+Root 将隔离提案转为正式包 canonical imports，扩成 13 项边界用例，先复现 10 failed /
+3 passed，再合并原有存储/实体固定值回归，共 51 passed、零跳过。唯一验收索引
+`docs/testing/data02-current-acceptance-2026-11-15.json` 的 `followups[11]` 记录类型、
+投影/current/governance、原件与精确候选身份；首轮入口投影过期保留原件后由生成器更新。
+本批只改公开响应的纯解析边界，不改数据库模型、事实写入、计算时间或来源单位规则。
+
+完整 DATA-02 退出条件不变。真实数值目录/原件及认证 Owner 事件、同库 current/PIT
+与提交前撤销 fence、八处构造注入、C2 v3 生产接线、日历管理/同步安全、受控 E1 和
+全 universe 四 Publication 对账仍按前节落实。单元关闭或生产资格不能由这 51 项替代。
+开发回滚点为上述父候选；回滚会重新暴露 schema 降级缺口，不用于生产恢复。未部署、
+未使用财务 HTTP 预算、未写生产事实或交易，DATA-03 保持等待完整 DATA-02 退出。
