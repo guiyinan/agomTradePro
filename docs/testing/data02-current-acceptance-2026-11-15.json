@@ -3439,6 +3439,164 @@
           "sha256": "10860585dc6bb6ec8b90a0cffdecf45ae8899e1591faf23cafadc5e0ac4a6d51"
         }
       ]
+    },
+    {
+      "date": "2026-11-16T09:13:38.628149+00:00",
+      "kind": "d1_numeric_catalog_and_delegated_c2_decision",
+      "base_head": "88d40015256cdfa9e7b9ace675f69df879565cbd",
+      "candidate": {
+        "files_sha256": {
+          ".github/workflows/ci-fast-feedback.yml": "9a751d517ce3c0c70a95bc59c4f924eee75941aed8f2faa7df5a5679f2b53ae5",
+          ".github/workflows/ci-publication-postgres.yml": "7eab173e81e92a1de903c8f613d4caaa449bb1b20f235205b505336da9ec797b",
+          ".github/workflows/nightly-tests.yml": "64c1fc1d4e798b72a07207ca00895804747268787b3e6dc27b707d12a9151d90",
+          "apps/data_center/application/financial_numeric_catalog.py": "017990e9f6f37f2223c5a1cdc733b89a8d7352c10ba0c8bc1a013b27a6591b67",
+          "apps/data_center/domain/financial_numeric_catalog.py": "19cc458b583c57fb8a4909f61f53e8e06c7433de8250d0db2901d3fbf2eaadc3",
+          "apps/data_center/infrastructure/financial_numeric_catalog_capture_repository.py": "69819cc0eec2cd9d77a47d7ead3efa7da614f72609fdab609ad67bd91ded18a0",
+          "apps/data_center/infrastructure/financial_numeric_catalog_models.py": "eee61080cdb9fe916769511da496cb01d6e0d03efa12e5012839602efec7559a",
+          "apps/data_center/infrastructure/financial_numeric_catalog_repository.py": "1308bc79ce3dcf132636e942acadd66bb89c1e530b27784de023657b183067ad",
+          "apps/data_center/management/commands/manage_financial_numeric_catalog.py": "0814d3c7ab37da846c2ff16c2fac6502c40da2876c9aec487cdb88c4b8899be9",
+          "apps/data_center/migrations/0116_financial_numeric_catalog.py": "89fa00c20685d131791ebaf9dab37749ccc35a8da2f51e326358baa04b9e371f",
+          "apps/data_center/models.py": "67300e550748139ea28a991e2860552dcff6371f4b55c59c33cc26716f6446aa",
+          "docs/architecture/DATA_DICTIONARY.md": "933331cacac1a4211fb88ed578b092b29b4e73b195517454217ec0c3803fe05a",
+          "docs/development/data-freshness-contract-guard.md": "f107da1f67e277a6fea1ea38682aa8dbcd118021ce08b0f7ec30df1a1b6b37d5",
+          "docs/plans/data02-financial-source-time-remediation-2026-09-13.md": "5a8a94f478aa93357c2c37e5dc4775c2163ae1c4af1f26138f0daa8097533e0e",
+          "governance/active_plan_registry.json": "c5ccc3e23697b68b7710e116d4fb6470e34cf11d7d11ff1e3c438c2b96861e61",
+          "governance/current_data_contracts.json": "859fb4703d23b0abc3ab7df854d36271b207db37cb74b608981218a4f5848fbf",
+          "governance/data_center_architecture_inventory.json": "b743e15142c915c509fd49f73697056d4c6fff7d965636fa9790778aac749021",
+          "governance/data_center_entrypoints.json": "efb592e098973ed5f4b90b673eab1988cbbbc4fc20d0cf56d7e395b9c29bb5de",
+          "governance/data_dictionary.json": "0453123c8f11014bd5aa481c9b5386058af238753d7c4d63724265a94208dab2",
+          "governance/module_map.json": "6cdcdd6e10c328a58881cbf14838b5ccbc81b95a588aca8613c11e2662a11a69",
+          "scripts/select_tests.py": "5a1e465a617e7ffeb60486500a916dcc819ff8800c6500936178041e019992c6",
+          "tests/component/data_center/test_financial_numeric_catalog_postgres.py": "36dc82d9f8cb42884508e5d579c29428901e0f54ed7f81da77b1760ca8fafbbb",
+          "tests/unit/ci/test_select_tests.py": "1c05a9d350bee98c74ea7d2679699e083df1b5b5ceacab1bee37d705d027f7c8",
+          "tests/unit/data_center/test_financial_numeric_catalog.py": "f983743f611df66cad6d1828c9f1de2d0a9d8c2038aac82ba233639cbe844306"
+        },
+        "note": "Final working-tree inputs except this self-referential index; exact commit and its actual CI are recorded after they exist."
+      },
+      "prior_candidate_actual_ci": {
+        "head_sha": "88d40015256cdfa9e7b9ace675f69df879565cbd",
+        "applicable_workflows": 7,
+        "all_success": true,
+        "artifact": {
+          "path": ".tmp/calendar-catalog-admin-preparation/formal/ci-88d400152-final-observed.json",
+          "sha256": "216d4b7f4f11a8cba1a70a30cf60a3cae274d1349ac4501cbee4da86ce9b0a75"
+        }
+      },
+      "implementation": [
+        "Normal Django authenticated default-alias command; append-only capture/qualification/Owner event tables; no unit or metric seeds.",
+        "Current purpose requires caller-owned same-alias PostgreSQL RC UOW and scope/entry/capture/provider/audit locks; explicit PIT retains cutoff.",
+        "Generated0116 plus ordered AEX reverse guard and three ALWAYS UPDATE/DELETE triggers; privileged INSERT/TRUNCATE remain trusted DB-owner boundary.",
+        "Isolated native PostgreSQL CI routes; SQLite excludes this module without expanding four calendar-only test routes.",
+        "User delegated C2 choice to Root:3600 seconds/100percent/no partial/conflict block/09:30 continuous; actual source/calendar and persisted Owner events still required."
+      ],
+      "verification": {
+        "native_postgres": {
+          "tests": 8,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        "native_source_changes_during_run": [],
+        "actual_migration_0116": true,
+        "actual_catalog_tables": 3,
+        "actual_always_triggers": 3,
+        "unit_regression_passed": 103,
+        "selector_workflow_passed": 112,
+        "coverage_tests_passed_overlapping_not_additive": 35,
+        "new_domain_statement_and_branch_coverage_percent": 100,
+        "incremental_production_files": 9,
+        "final_full_debt_exit_code": 0,
+        "governance_exit_codes": {
+          "entrypoints": 0,
+          "cycles": 0,
+          "architecture": 0,
+          "module-map": 0,
+          "projections": 0,
+          "current": 0,
+          "governance": 0,
+          "debt": 0
+        },
+        "staged_architecture_exit_code": 0,
+        "source_reuse_binding": "All8 original production SHA256 values still match static-r1; selector has separate unchanged-input incremental result; final full debt rerun after selector change."
+      },
+      "retained_limitations": [
+        "Original untracked architecture delta counted only tracked models.py; staged recheck includes new production lines and is required evidence.",
+        "The two local CI routing files and new native module have actual new-head CI pending; parent CI success is scoped to88d400152.",
+        "Native suite lasted1733.21 seconds, including full-app transaction cleanup;8 passed/0skip is actual unchanged-candidate result."
+      ],
+      "remaining": [
+        "Real controlled numeric-document capture and exact qualified catalog entries with authenticated Owner events.",
+        "E1 Main7/Balance3 verification and explicit current/PIT typed context plus own raw NOTICE evidence.",
+        "C2 real official opening rule/calendar qualification and v3 producer/storage/consumer wiring.",
+        "Candidate-bound release/backup/staging/authority and actual bounded E1; financial physical budget remains0/2.",
+        "All-universe four-Publication reconciliation and remaining DATA02 exit; DATA03 waits."
+      ],
+      "production_qualified": false,
+      "data02_exit_met": false,
+      "data03_started": false,
+      "security_scan_receipt": ".tmp/data02-current-20261115/20261116/numeric-catalog-preparation/formal/current-secret.receipt.json",
+      "artifacts": [
+        {
+          "path": ".tmp/data02-current-20261115/20261116/numeric-catalog-preparation/formal/adoption.json",
+          "sha256": "ad48610f269f73a20263a9e785228ac026ab0fd034a8a6560a6e9be82a3644d2"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/numeric-catalog-preparation/formal/format-r1.receipt.json",
+          "sha256": "a8e38f1b0b2b9c8fa86d611799e218b45759e1bb33b6aa01b7f10b57696cabf5"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/numeric-catalog-preparation/formal/unit-r1.receipt.json",
+          "sha256": "46c590e73093f3a72e4fdeb162da955b005b68849ed36a963597353307c56753"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/numeric-catalog-preparation/formal/static-r1.receipt.json",
+          "sha256": "529b7f97d5c5a5603ecfe051f0c14fc4a481afc61a123bc4f2d7d6c55dcdffb4"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/numeric-catalog-preparation/formal/build-r1.receipt.json",
+          "sha256": "c328f785befceb2e295a320d63f4cbe3c0b6a0ba0b425433d101e6aff5e34f9c"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/numeric-catalog-preparation/formal/generate-migration-r1.receipt.json",
+          "sha256": "d4c91d8fae82841767938988a2ac30f97fb463a2a2bf61373f1cb9e50d5dedeb"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/numeric-catalog-preparation/formal/migration-guard-adoption.json",
+          "sha256": "e239712879e5ce78ccb03336e9ea02e345c71da4112730a7ebfa8c3550084933"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/numeric-catalog-preparation/formal/domain-coverage-r1.receipt.json",
+          "sha256": "c3f644fe711eb272f4a793d4da23364e9f79285121901946721bb159933fbe3e"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/numeric-catalog-preparation/formal/domain-coverage-r1.json",
+          "sha256": "c6adf9984d54226b8b1216b868bd3d6196ba5527a5ce8e68a61e9178e973f0e4"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/numeric-catalog-preparation/formal/routing-r1.receipt.json",
+          "sha256": "876e1007fde79c6701cd22e732adee466921271f75a82492ecdb187eb709f202"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/numeric-catalog-preparation/formal/final-governance-r1.receipt.json",
+          "sha256": "148ea60a9f7858819b9096f51f45cafee77749fd3e7f441fea616236370c3da4"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/numeric-catalog-preparation/formal/staged-architecture-r1.receipt.json",
+          "sha256": "780bc13ea42256e998acdee0be5e803ee57fa20729b1971f56f8401a1b767101"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/numeric-catalog-pg-r1.receipt.json",
+          "sha256": "cae7a7b396625c1193de7cb3783083c96c8f70c1677b2797a63a8bbccb8991d7"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/numeric-catalog-pg-r1-postflight.json",
+          "sha256": "c4946f488014fd70610f7b44068df2a099627b34b02186fea990627530b1f1f2"
+        },
+        {
+          "path": ".tmp/calendar-catalog-admin-preparation/formal/ci-88d400152-final-observed.json",
+          "sha256": "216d4b7f4f11a8cba1a70a30cf60a3cae274d1349ac4501cbee4da86ce9b0a75"
+        }
+      ]
     }
   ],
   "current_authority_followup": "followups[0] (2026-11-16); original 2026-11-15 snapshots remain historical",
@@ -3446,5 +3604,24 @@
   "current_goal_followup": "followups[9] (2026-11-16); fresh88-case C2 history cohort, full DATA02/03 exit unchanged",
   "current_native_storage_followup": "followups[5] (2026-11-16); development prerequisite only, full DATA02/03 exit gates unchanged",
   "current_native_ci_followup": "followups[7] (2026-11-16); final source recovery cohort, corrected candidate CI remains separate",
-  "current_calendar_history_followup": "followups[9] (2026-11-16); development prerequisite only; production Admin/catalog isolation still required"
+  "current_calendar_history_followup": "followups[9] (2026-11-16); development prerequisite only; production Admin/catalog isolation still required",
+  "current_c2_delegated_decision": {
+    "recorded_at_utc": "2026-11-16T08:30:56+00:00",
+    "authority": "User explicitly delegated selection to Root in this conversation; not a persisted Owner approval event.",
+    "user_reply": "最优解是什么？你定吧 然后记下",
+    "selected_by": "Root",
+    "freshness_ttl_seconds": 3600,
+    "coverage_percent": 100,
+    "allow_partial": false,
+    "conflict_behavior": "block",
+    "opening_phase": "continuous_auction",
+    "local_opening_time": "09:30:00",
+    "reason": "Place date-only successor availability at the start of continuous trading. Exact exchange, official rule effectiveness and qualified calendar evidence remain required.",
+    "plan_section": "docs/plans/data02-financial-source-time-remediation-2026-09-13.md#48",
+    "production_owner_event_created": false,
+    "calendar_qualified": false,
+    "financial_http_requests_used": 0,
+    "financial_http_requests_maximum": 2
+  },
+  "current_numeric_catalog_followup": 13
 }

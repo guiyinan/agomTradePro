@@ -8,6 +8,7 @@ import sys
 import unittest
 from pathlib import Path
 from unittest.mock import patch
+from urllib.parse import urlsplit
 
 import yaml
 
@@ -662,6 +663,10 @@ class TestNativePostgresCalendarSelection(unittest.TestCase):
     catalog_admin_target = "tests/component/data_center/test_calendar_catalog_admin_pg.py"
     generic_catalog_target = "tests/component/data_center/test_generic_calendar_catalog_pg.py"
     native_targets = (browser_target, history_target, catalog_admin_target, generic_catalog_target)
+    financial_catalog_target = (
+        "tests/component/data_center/test_financial_numeric_catalog_postgres.py"
+    )
+    sqlite_excluded_targets = (*native_targets, financial_catalog_target)
 
     @staticmethod
     def _data_center_component_test_files() -> set[str]:
@@ -684,15 +689,15 @@ class TestNativePostgresCalendarSelection(unittest.TestCase):
             target for target in targets if target.startswith("tests/component/data_center/")
         }
         expected_component_tests = self._data_center_component_test_files() - set(
-            self.native_targets
+            self.sqlite_excluded_targets
         )
 
         self.assertEqual(selected_component_tests, expected_component_tests)
         self.assertNotIn("tests/component/data_center/", targets)
         self.assertTrue(set(self.native_targets).isdisjoint(targets))
 
-    def test_browser_test_only_change_routes_out_of_sqlite_selector(self):
-        for target in self.native_targets:
+    def test_native_postgres_only_test_change_routes_out_of_sqlite_selector(self):
+        for target in self.sqlite_excluded_targets:
             with self.subTest(target=target):
                 targets = set(select_tests_func(set(), [target], profile="logic_guardrails"))
 
@@ -732,6 +737,12 @@ class TestNativePostgresCalendarSelection(unittest.TestCase):
             detector["run"].split('case "${changed_path}" in', 1)[1].split("esac", 1)[0]
         )
         self.assertIn("tests/component/data_center/*", native_path_case)
+        finance_exception = native_path_case.index(
+            "tests/component/data_center/test_financial_numeric_catalog_postgres.py)"
+        )
+        generic_component_route = native_path_case.index("tests/component/data_center/*")
+        self.assertLess(finance_exception, generic_component_route)
+        self.assertIn("continue", native_path_case[finance_exception:generic_component_route])
         self.assertIn("required=true", native_path_case)
 
         job = workflow["jobs"]["institutional-calendar-postgres"]
@@ -765,6 +776,7 @@ class TestNativePostgresCalendarSelection(unittest.TestCase):
         browser_run = job["steps"][browser_index]["run"]
         for target in self.native_targets:
             self.assertIn(target, browser_run)
+        self.assertNotIn(self.financial_catalog_target, browser_run)
         self.assertIn("--create-db", browser_run)
         self.assertIn("--migrations", browser_run)
         self.assertNotIn("--no-migrations", browser_run)
@@ -777,7 +789,7 @@ class TestNativePostgresCalendarSelection(unittest.TestCase):
         sqlite_component = next(
             step for step in nightly_steps if step.get("name") == "Run Component Tests"
         )
-        for target in self.native_targets:
+        for target in self.sqlite_excluded_targets:
             self.assertIn(f"--ignore={target}", sqlite_component["run"])
 
         postgres_steps = workflow["jobs"]["critical-postgres"]["steps"]
@@ -803,9 +815,54 @@ class TestNativePostgresCalendarSelection(unittest.TestCase):
         )
         for target in self.native_targets:
             self.assertIn(target, calendar_step["run"])
+        self.assertNotIn(self.financial_catalog_target, calendar_step["run"])
         self.assertIn("--create-db", calendar_step["run"])
         self.assertIn("--migrations", calendar_step["run"])
         self.assertNotIn("--no-migrations", calendar_step["run"])
+
+    def test_financial_catalog_has_isolated_publication_and_nightly_postgres_routes(self):
+        publication = yaml.load(
+            (PROJECT_ROOT / ".github/workflows/ci-publication-postgres.yml").read_text(
+                encoding="utf-8"
+            ),
+            Loader=yaml.BaseLoader,
+        )
+        nightly = yaml.load(
+            (PROJECT_ROOT / ".github/workflows/nightly-tests.yml").read_text(encoding="utf-8"),
+            Loader=yaml.BaseLoader,
+        )
+        for trigger in ("pull_request", "push"):
+            self.assertIn(
+                "tests/component/data_center/**",
+                publication["on"][trigger]["paths"],
+            )
+
+        publication_step = next(
+            step
+            for step in publication["jobs"]["publication-postgres"]["steps"]
+            if step.get("name") == "Run native financial numeric catalog PostgreSQL contracts"
+        )
+        nightly_step = next(
+            step
+            for step in nightly["jobs"]["critical-postgres"]["steps"]
+            if step.get("name") == "Run financial numeric catalog native PostgreSQL contracts"
+        )
+        for step, source_database in (
+            (publication_step, "agom_release_rehearsal_ci"),
+            (nightly_step, "agomtradepro_critical"),
+        ):
+            env = step["env"]
+            self.assertEqual(env["DJANGO_SETTINGS_MODULE"], "core.settings.critical_postgres_test")
+            test_database = env["AGOM_CRITICAL_TEST_DB_NAME"]
+            self.assertTrue(test_database)
+            self.assertNotEqual(urlsplit(env["DATABASE_URL"]).path.lstrip("/"), test_database)
+            self.assertEqual(urlsplit(env["DATABASE_URL"]).path.lstrip("/"), source_database)
+            run = step["run"]
+            self.assertIn(self.financial_catalog_target, run)
+            self.assertIn("--ds=core.settings.critical_postgres_test", run)
+            self.assertIn("--create-db", run)
+            self.assertIn("--migrations", run)
+            self.assertNotIn("--no-migrations", run)
 
 
 if __name__ == "__main__":

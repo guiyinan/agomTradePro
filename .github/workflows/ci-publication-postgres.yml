@@ -131,6 +131,18 @@ jobs:
           python -m pytest
           tests/unit/ci/test_publication_postgres_workflow.py
           -c /dev/null --confcutdir=tests/unit/ci -p no:cacheprovider -q
+      - name: Run native financial numeric catalog PostgreSQL contracts
+        env:
+          DATABASE_URL: postgresql://contract_test:disposable_ci_only@127.0.0.1:5432/agom_release_rehearsal_ci
+          DJANGO_SETTINGS_MODULE: core.settings.critical_postgres_test
+          AGOM_CRITICAL_TEST_DB_NAME: financial_numeric_catalog_publication_test
+        run: >-
+          python -m pytest
+          tests/component/data_center/test_financial_numeric_catalog_postgres.py
+          --ds=core.settings.critical_postgres_test
+          --create-db
+          --migrations
+          -q -o addopts=''
       - name: Exercise financial capacity non-PostgreSQL gate contracts
         run: >-
           python -m pytest

@@ -1267,3 +1267,83 @@ Root 的完整 PostgreSQL 合批为 133 passed / 4 opt-in skipped；四项要求
 受控 E1 与全 universe 四 Publication 对账仍未完成。财务 HTTP 预算使用 0/2；本批无部署、
 生产事实或交易写入。开发回滚点为上述父候选；回退将重新暴露日历管理/同步写入风险，
 不能作为已发布日历历史的生产恢复方案。
+
+
+## 48. E1 收敛、C2 具体口径决定与数值目录（2026-11-16）
+
+Owner 在本会话答复“最优解是什么？你定吧 然后记下”，明确委托 Root 选择此前待答的
+C2 具体口径。Root 据此选定：freshness TTL 为 3600 秒、覆盖率 100%、禁止 partial、
+冲突即阻断，date-only 公告的 successor availability 采用严格下一交易日的 09:30
+连续竞价开始。选择目的为把可用时点放在连续交易阶段；不是对 09:15 规则事实的否定。
+这是 Owner 委托后的 Root 决定，不伪造数据库 Owner event、真实 actor 或服务器审批。
+具体交易所、规则有效区间、本地时刻与正式原件、calendar Publication 仍须精确绑定并
+通过资格验证；本决定不能替代原件或将旧 date-only v1 批准自动转换成 v3。
+此前各节“TTL/阶段待答”保留为当时快照，此处是后续决定的唯一定位。
+
+Owner 同时要求先收敛 E1 单证券真实闭环。账户、证券、provider 与报告期已委托 Root，
+以实际 preflight 冻结，不再次要求 Owner 指定。先整合 E1 写入和实际读回所需的 qualified
+路径；其它路径在不能理解 NULL legacy/exact text/v3 或不能重验资格时明确阻断，
+不为 E1 提前打开全部八处构造入口。完整 universe 与四 Publication 对账仍是 DATA-02
+最终退出门，DATA-03 继续等待，不用 E1 通过代替整单元关闭。
+
+只读契约审计发现既有双请求路径两次均访问 Main endpoint，且默认重试可使物理 HTTP
+超过两次。E1 保持共享最多两次实际财务 HTTP、单次 max_attempts=1、无隐式重试或分页；
+Main 原件复用于独立数值/NOTICE 角色、Balance 原件提供三项原生余额字段的方案须先完成
+显式契约修订及资格校验，不能把既有 dual-Main 路由直接称为 Main+Balance。当前仍为
+0/2，未知单位、币种、合并口径与来源适用性继续作为证据缺口，不以本决定填充。
+
+本节数值目录真实门禁、实际候选及 CI 结果在完成后追加同一验收索引；不新增进度台账。
+
+
+### 48.1 D1 required10 静态来源、字段与单位矩阵
+
+范围按 Root/D1 已核的 10 项清单：Main7 加独立 Balance3。下表只确认当前留存官方原件中的字段名和文档单位，属于**metric-set 覆盖候选**；不构成真实响应验证、目录资格或生产资格。
+
+| 分组 | D1 metric | 接口 / native field | 官方文档字段语义 | 文档单位 |
+|---|---|---|---|---|
+| Main7 | `revenue` | `stock_financial_analysis_indicator_em` / `TOTALOPERATEREVE` | 营业总收入 | 元 |
+| Main7 | `net_profit` | `stock_financial_analysis_indicator_em` / `PARENTNETPROFIT` | 归属净利润 | 元 |
+| Main7 | `revenue_growth` | `stock_financial_analysis_indicator_em` / `TOTALOPERATEREVETZ` | 营业总收入同比增长 | % |
+| Main7 | `net_profit_growth` | `stock_financial_analysis_indicator_em` / `PARENTNETPROFITTZ` | 归属净利润同比增长 | % |
+| Main7 | `roe` | `stock_financial_analysis_indicator_em` / `ROEJQ` | 加权净资产收益率 | % |
+| Main7 | `roa` | `stock_financial_analysis_indicator_em` / `ZZCJLL` | 加权总资产收益率 | % |
+| Main7 | `debt_ratio` | `stock_financial_analysis_indicator_em` / `ZCFZL` | 资产负债率 | % |
+| Balance3 | `total_assets` | `stock_zcfz_em`, `RPT_DMSK_FN_BALANCE` / `TOTAL_ASSETS` | 资产-总资产 | 元 |
+| Balance3 | `total_liabilities` | `stock_zcfz_em`, `RPT_DMSK_FN_BALANCE` / `TOTAL_LIABILITIES` | 负债-总负债 | 元 |
+| Balance3 | `equity` | `stock_zcfz_em`, `RPT_DMSK_FN_BALANCE` / `TOTAL_EQUITY` | 股东权益合计 | 元 |
+
+**原件定位。** Main7 来自留存 AKShare 官方文档 `stock_financial_analysis_indicator_em` 小节：接口及输入范围在行 5107–5125；对应七个原生输出字段和单位在行 5194–5284。Balance3 的官方文档 `stock_zcfz_em` 小节位于行 3078–3166：`date` 输入及单报告期说明在行 3078–3100，三个语义字段及“注意单位：元”在行 3133–3163。Balance 的 native key 到文档字段映射由 AKShare 官方 pinned 源码 `stock_report_em.py` 的 `stock_zcfz_em` 定义行 20–117 支持：`RPT_DMSK_FN_BALANCE` 与报告期过滤在行 32–41，原始列重命名在行 62–75。原件 URL、版本和 SHA-256 列于下文；详细逐字段定位保留于本次验收原件索引。
+
+**解释边界。** `Main7+Balance3` 是新组合候选；Balance3 必须独立保留来源与证据。Main 响应里的 `LIABILITY` 不是 `debt_ratio`，其金额单位在现有证据中未证明；不得拿它补 Balance3，也不得将其作为比率。旧适配器推导的 `total_assets` / `equity` 不得伪装成 native；`BPS` 是每股净资产，不能替代总权益。当前文档不得回推 9 月旧 raw 的语义。
+
+仍未证明：实际 financial response/body、单证券 Balance `SECURITY_CODE` 过滤接受度、页数/总数与唯一性、`NOTICE_DATE` 的原始类型和行身份、Main/Balance 报告期及公告时点一致性、currency、合并/母公司口径、银行覆盖、catalog/Owner 事件及当前与 PIT 数值复验。官方 `stock_zcfz_em` 包装函数按指定 `date` 取沪深列表并读取 `result.pages`，不提供单证券参数且会分页；其静态原件只支持字段/文档单位映射，不证明 one-request Balance3。当前没有财务响应；E1 财务 HTTP 预算未使用。
+
+原件身份：
+
+- [AKShare 官方文档](https://akshare.akfamily.xyz/data/stock/stock.html)，本次留存 HTML SHA-256 `ac54211c94ddb337de2e8c5b7dcca4caa8f6e402655a9862d7bccd126be1fcdb`。
+- [AKShare Balance 官方固定源码](https://github.com/akfamily/akshare/blob/25acdfac7ddf3a0721a0ebdcc6a1d7ef3e76abc9/akshare/stock/finance/stock_report_em.py)，commit `25acdfac7ddf3a0721a0ebdcc6a1d7ef3e76abc9`，SHA-256 `4b0da2770f482b0748ef9643b232590bc8fe1c76a4c50ed4bfa9435ba0cc2269`。
+
+文档单位“元”本身不补充实际响应币种、报表合并口径或适用区间；这些上下文必须另有精确证据。
+
+
+### 48.2 数值目录的正式开发交付边界
+
+前一正式候选 `88d40015256cdfa9e7b9ace675f69df879565cbd` 的七条实际 CI 均已成功。
+本批采用 DB-owned 数值文档 capture、来源资格条目和本地 Owner apply/revoke 事件三表，
+管理命令通过正常 Django 密码认证并限制 default alias；它不初始化业务单位、舍入或
+来源上下文。当前解析必须使用调用方拥有的同库 PostgreSQL READ COMMITTED UOW，
+范围 advisory 与条目/原件/Audit 锁保持到外层提交；显式 PIT 仍按原 cutoff 重放。
+Root 正常生成 0116，再加入三表 UPDATE/DELETE ALWAYS trigger 和逆迁移先锁三表、
+再检查空表且锁持续到 DROP 的保护；不宣称能约束可信 DB owner 的 INSERT/TRUNCATE。
+
+真实 PostgreSQL 八项全通过、零跳过，并核实 0116、三表、三个 ALWAYS trigger；
+运行期间 Source 未变，复用已核实归属的迁移测试库。旧 103 项纯回归与新增 112 项
+CI 路由检查通过；35 项覆盖检查与前述纯测试有重叠，不相加，新 Domain 为 100%。
+八个原生产文件与选择器分别通过增量类型检查，最终全生产债务门为零；生成字典为
+42 apps、620 models、9658 fields。新增源码暂存后又完整检查架构增量，避免漏扫新文件。
+完整命令、候选输入、已验证复用及原件统一见验收索引 followups[13]。
+
+本批不包含真实文档 capture/目录 Owner 配置、qualified Main/Balance 验证器或 E1
+生产写入资格；其它接口、C2 治理与 v3 存储/消费仍按 E1 必需范围整合。财务 HTTP
+保持 0/2，未部署、未写生产事实或交易，DATA-03 仍等待完整 DATA-02 退出。开发回滚
+点为父候选；一旦目录已有记录，0116 逆迁移会拒绝丢弃它们，不以回退清除历史。

@@ -234,6 +234,9 @@ jobs:
           else
             while IFS= read -r changed_path; do
               case "${changed_path}" in
+                tests/component/data_center/test_financial_numeric_catalog_postgres.py)
+                  continue
+                  ;;
                 apps/data_center/*|\
                 apps/account/*|\
                 apps/audit/*|\

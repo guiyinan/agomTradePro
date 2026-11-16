@@ -11,7 +11,7 @@
       "compatibility_facade": 95,
       "current_data_surface": 121,
       "dynamic_import_edge": 15,
-      "management_command": 51,
+      "management_command": 52,
       "management_command_edge": 65,
       "mcp_tool": 40,
       "migration_evidence": 14,
@@ -26,17 +26,17 @@
       "script": 20,
       "sdk": 57,
       "terminal_tui": 32,
-      "test_evidence": 160,
+      "test_evidence": 161,
       "workflow_step": 11
     },
     "by_status": {
-      "active_public": 931,
+      "active_public": 932,
       "adjacent_operational": 346,
-      "candidate-review": 79,
+      "candidate-review": 80,
       "compatibility": 139,
       "retired_blocked": 0
     },
-    "total": 1495
+    "total": 1497
   },
   "entries": [
     {
@@ -5421,7 +5421,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=13",
+      "evidence": "governed current-data contract; source_files=20",
       "id": "current_data_surface:governance/current_data_contracts.json:data_center.financial_as_of_reads:Financial decisions preserve legacy China-market-day-start boundaries and explicit aware decision instants without widening Publication eligibility",
       "locator": "Financial decisions preserve legacy China-market-day-start boundaries and explicit aware decision instants without widening Publication eligibility",
       "path": "governance/current_data_contracts.json",
@@ -6717,6 +6717,16 @@
       "path": "apps/data_center/management/commands/initialize_financial_response_artifact.py",
       "status": "active_public",
       "symbol": "initialize_financial_response_artifact",
+      "target": ""
+    },
+    {
+      "category": "management_command",
+      "evidence": "Data Center-owned Django command",
+      "id": "management_command:apps/data_center/management/commands/manage_financial_numeric_catalog.py:manage_financial_numeric_catalog:",
+      "locator": "",
+      "path": "apps/data_center/management/commands/manage_financial_numeric_catalog.py",
+      "status": "active_public",
+      "symbol": "manage_financial_numeric_catalog",
       "target": ""
     },
     {
@@ -13687,6 +13697,16 @@
       "path": "tests/component/data_center/test_financial_native_decimal_repository.py",
       "status": "candidate-review",
       "symbol": "test_financial_native_decimal_repository",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/component/data_center/test_financial_numeric_catalog_postgres.py:test_financial_numeric_catalog_postgres:",
+      "locator": "",
+      "path": "tests/component/data_center/test_financial_numeric_catalog_postgres.py",
+      "status": "candidate-review",
+      "symbol": "test_financial_numeric_catalog_postgres",
       "target": ""
     },
     {

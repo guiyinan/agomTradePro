@@ -4611,7 +4611,14 @@
         "apps/data_center/infrastructure/financial_fact_hydration.py",
         "apps/data_center/infrastructure/financial_numeric_storage.py",
         "apps/data_center/infrastructure/financial_fact_models.py",
-        "apps/equity/infrastructure/fundamentals_published_fact_mappers.py"
+        "apps/equity/infrastructure/fundamentals_published_fact_mappers.py",
+        "apps/data_center/domain/financial_numeric_catalog.py",
+        "apps/data_center/application/financial_numeric_catalog.py",
+        "apps/data_center/infrastructure/financial_numeric_catalog_capture_repository.py",
+        "apps/data_center/infrastructure/financial_numeric_catalog_repository.py",
+        "apps/data_center/infrastructure/financial_numeric_catalog_models.py",
+        "apps/data_center/management/commands/manage_financial_numeric_catalog.py",
+        "apps/data_center/migrations/0116_financial_numeric_catalog.py"
       ],
       "required_markers": {
         "apps/data_center/application/query_services.py": [
@@ -4670,6 +4677,42 @@
           "_NATIVE_NUMERIC_ONLY_FIELDS",
           "if has_native_numeric_fields:",
           "if \"exact_value_text\" in row:"
+        ],
+        "apps/data_center/domain/financial_numeric_catalog.py": [
+          "class FinancialNumericCatalogEntry:",
+          "class FinancialNumericCatalogOwnerEvent:",
+          "def resolve_financial_numeric_source_qualification("
+        ],
+        "apps/data_center/application/financial_numeric_catalog.py": [
+          "class CaptureFinancialNumericSourceDocumentUseCase:",
+          "class FinancialNumericSourceCatalogUseCase:",
+          "def resolve_exact_in_uow("
+        ],
+        "apps/data_center/infrastructure/financial_numeric_catalog_capture_repository.py": [
+          "class DjangoFinancialNumericSourceCaptureRepository:",
+          "def database_alias(self) -> str:",
+          "def lock_capture_for_uow("
+        ],
+        "apps/data_center/infrastructure/financial_numeric_catalog_repository.py": [
+          "class DjangoFinancialMetricSourceCatalogRepository(",
+          "def _authenticated_actor(",
+          "SELECT pg_advisory_xact_lock(%s)",
+          "def resolve_exact_in_uow("
+        ],
+        "apps/data_center/infrastructure/financial_numeric_catalog_models.py": [
+          "class FinancialNumericSourceDocumentCaptureModel(",
+          "class FinancialMetricSourceCatalogEntryModel(",
+          "class FinancialMetricSourceCatalogOwnerEventModel("
+        ],
+        "apps/data_center/management/commands/manage_financial_numeric_catalog.py": [
+          "if database != DEFAULT_DB_ALIAS:",
+          "authenticated: object = authenticate(",
+          "getpass(\"Financial numeric catalog Owner password: \")"
+        ],
+        "apps/data_center/migrations/0116_financial_numeric_catalog.py": [
+          "atomic = True",
+          "ACCESS EXCLUSIVE MODE",
+          "ENABLE ALWAYS TRIGGER"
         ]
       },
       "required_tests": [
@@ -4767,9 +4810,34 @@
           "case": "native_public_wire_preserves_schema_and_decimal",
           "test_file": "tests/unit/equity/test_financial_published_fact_mapper_guard.py",
           "test_function": "test_native_canonical_string_keeps_the_v2_schema_and_decimal"
+        },
+        {
+          "case": "catalog_models_are_registered_and_exported_by_the_public_facade",
+          "test_file": "tests/component/data_center/test_financial_numeric_catalog_postgres.py",
+          "test_function": "test_catalog_models_are_registered_and_exported_by_the_public_facade"
+        },
+        {
+          "case": "reverse_migration_waits_for_capture_writer_then_refuses_committed_row",
+          "test_file": "tests/component/data_center/test_financial_numeric_catalog_postgres.py",
+          "test_function": "test_reverse_migration_waits_for_capture_writer_then_refuses_committed_row"
+        },
+        {
+          "case": "owner_auth_apply_revoke_pit_and_append_only_guards_use_real_rows",
+          "test_file": "tests/component/data_center/test_financial_numeric_catalog_postgres.py",
+          "test_function": "test_owner_auth_apply_revoke_pit_and_append_only_guards_use_real_rows"
+        },
+        {
+          "case": "revocation_waits_for_current_uow_and_samples_event_clock_after_entry_lock",
+          "test_file": "tests/component/data_center/test_financial_numeric_catalog_postgres.py",
+          "test_function": "test_revocation_waits_for_current_uow_and_samples_event_clock_after_entry_lock"
+        },
+        {
+          "case": "management_command_rejects_nondefault_database_before_auth_http_or_writes",
+          "test_file": "tests/component/data_center/test_financial_numeric_catalog_postgres.py",
+          "test_function": "test_management_command_rejects_nondefault_database_before_auth_http_or_writes"
         }
       ],
-      "notes": " Explicit decision_at ports reject non-aware and future instants before query access. They preserve exact UTC cutoff and derive only the report-date upper bound in Shanghai. Legacy date-only consumers remain unchanged. This is a C2 read-boundary prerequisite; no calendar/opening qualification, source-time policy activation, provider call, current-pointer change or DATA-02/03 production acceptance is inferred. Native decimal-v2 reads additionally constrain fetched_at to the explicit knowledge cutoff before selecting the latest revision; strict numeric wire/storage reconstruction and the injected independent catalog/body verifier are required. Default composition remains blocked for v2 until a real catalog is supplied; this is not production activation. Published financial consumers reject numeric_evidence/exact_value_text fields under missing or legacy schema, including explicit nulls, before any legacy float conversion. Native v2 accepts only the public canonical value string plus its exact typed evidence; storage-only exact_value_text is rejected. Plain legacy numeric strings and legacy/v2 wire identities remain unchanged. This consumer boundary does not supply a production numeric catalog or widen current/PIT eligibility."
+      "notes": " Explicit decision_at ports reject non-aware and future instants before query access. They preserve exact UTC cutoff and derive only the report-date upper bound in Shanghai. Legacy date-only consumers remain unchanged. This is a C2 read-boundary prerequisite; no calendar/opening qualification, source-time policy activation, provider call, current-pointer change or DATA-02/03 production acceptance is inferred. Native decimal-v2 reads additionally constrain fetched_at to the explicit knowledge cutoff before selecting the latest revision; strict numeric wire/storage reconstruction and the injected independent catalog/body verifier are required. Default composition remains blocked for v2 until a real catalog is supplied; this is not production activation. Published financial consumers reject numeric_evidence/exact_value_text fields under missing or legacy schema, including explicit nulls, before any legacy float conversion. Native v2 accepts only the public canonical value string plus its exact typed evidence; storage-only exact_value_text is rejected. Plain legacy numeric strings and legacy/v2 wire identities remain unchanged. This consumer boundary does not supply a production numeric catalog or widen current/PIT eligibility. The DB-owned numeric documentation capture/catalog/Owner lifecycle uses actual retained bytes, exact successful egress audit and normal authenticated Django superuser command writes on the default alias. Explicit PIT lookup is evidence-only; caller-owned same-alias PostgreSQL READ COMMITTED current fences hold contract/entry/capture/provider/audit locks until outer commit and reject newer Owner knowledge. Migration0116 refuses nonempty reversal after locking all three tables through DROP. These ports do not inject the eight production fact repositories, qualify Balance, seed units/configuration or grant DATA-02 production acceptance."
     },
     {
       "id": "data_center.publication_only_d7_d9",

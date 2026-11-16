@@ -7,8 +7,8 @@
 ## 概览
 
 - App 数：42
-- 模型数：617
-- 字段数：9618
+- 模型数：620
+- 字段数：9658
 
 口径说明：仅覆盖 `apps/*/infrastructure/` 下的 `models.py`、`models/` 包与 `*_models.py`；字段为类体内显式赋值的 Django 字段，继承字段不展开，动态字段与隐式自增主键不在投影内。
 
@@ -5313,6 +5313,73 @@
 | `ingested_run_id` | `UUIDField` | 是 |  |  |  |  |
 | `announced_at` | `DateTimeField` | 是 |  |  |  |  |
 | `available_at` | `DateTimeField` | 是 |  |  |  |  |
+
+### FinancialMetricSourceCatalogEntryModel
+
+- 来源文件：`apps/data_center/infrastructure/financial_numeric_catalog_models.py`
+- 数据表：`data_center_fin_metric_source_entry`
+- 说明：One immutable exact qualification revision tied to a retained document capture.
+
+| 字段 | 类型 | null | unique | 默认值 | 说明 | 关系目标 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `entry_id` | `UUIDField` |  |  | uuid4 |  |  |
+| `qualification_identity` | `CharField` |  | 是 |  |  |  |
+| `qualification_sha256` | `CharField` |  |  |  |  |  |
+| `contract_identity` | `CharField` |  |  |  |  |  |
+| `contract_sha256` | `CharField` |  |  |  |  |  |
+| `contract_provider` | `CharField` |  |  |  |  |  |
+| `dataset_key` | `CharField` |  |  |  |  |  |
+| `metric_code` | `CharField` |  |  |  |  |  |
+| `qualification` | `JSONField` |  |  |  |  |  |
+| `document_capture` | `ForeignKey` |  |  |  |  | FinancialNumericSourceDocumentCaptureModel |
+| `effective_from` | `DateTimeField` |  |  |  |  |  |
+| `effective_until` | `DateTimeField` | 是 |  |  |  |  |
+
+### FinancialMetricSourceCatalogOwnerEventModel
+
+- 来源文件：`apps/data_center/infrastructure/financial_numeric_catalog_models.py`
+- 数据表：`data_center_fin_metric_source_owner_event`
+- 说明：One append-only authenticated Owner apply or revoke for an exact entry hash.
+
+| 字段 | 类型 | null | unique | 默认值 | 说明 | 关系目标 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `event_id` | `UUIDField` |  |  | uuid4 |  |  |
+| `entry` | `ForeignKey` |  |  |  |  | FinancialMetricSourceCatalogEntryModel |
+| `action` | `CharField` |  |  |  |  |  |
+| `qualification_identity` | `CharField` |  |  |  |  |  |
+| `qualification_sha256` | `CharField` |  |  |  |  |  |
+| `actor` | `ForeignKey` |  |  |  |  | settings.AUTH_USER_MODEL |
+| `actor_username_snapshot` | `CharField` |  |  |  |  |  |
+| `event_at` | `DateTimeField` |  |  |  |  |  |
+
+### FinancialNumericSourceDocumentCaptureModel
+
+- 来源文件：`apps/data_center/infrastructure/financial_numeric_catalog_models.py`
+- 数据表：`data_center_fin_numeric_doc_capture`
+- 说明：One exact raw public-document body capture with controlled-egress metadata.
+
+| 字段 | 类型 | null | unique | 默认值 | 说明 | 关系目标 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `capture_id` | `UUIDField` |  |  |  |  |  |
+| `provider` | `ForeignKey` |  |  |  | data_center.ProviderConfigModel | data_center.ProviderConfigModel |
+| `provider_name_snapshot` | `CharField` |  |  |  |  |  |
+| `provider_source_type_snapshot` | `CharField` |  |  |  |  |  |
+| `dataset_key` | `CharField` |  |  |  |  |  |
+| `deployment_region` | `CharField` |  |  |  |  |  |
+| `issuer` | `CharField` |  |  |  |  |  |
+| `document_id` | `CharField` |  |  |  |  |  |
+| `canonical_url` | `TextField` |  |  |  |  |  |
+| `target_url_sha256` | `CharField` |  |  |  |  |  |
+| `target_host` | `CharField` |  |  |  |  |  |
+| `request_attempt` | `PositiveSmallIntegerField` |  |  |  |  |  |
+| `egress_id` | `PositiveBigIntegerField` | 是 |  |  |  |  |
+| `transport` | `CharField` |  |  |  |  |  |
+| `status_code` | `PositiveSmallIntegerField` |  |  |  |  |  |
+| `content_type` | `CharField` |  |  |  |  |  |
+| `response_completed_at` | `DateTimeField` |  |  |  |  |  |
+| `body_sha256` | `CharField` |  |  |  |  |  |
+| `body_size_bytes` | `PositiveBigIntegerField` |  |  |  |  |  |
+| `body_reference` | `CharField` |  |  |  |  |  |
 
 ### InstitutionalCalendarEventModel
 

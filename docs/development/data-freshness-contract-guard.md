@@ -1,5 +1,16 @@
 # 当前数据新鲜度契约与 CI 门禁
 
+## 2026-11-16 原生财务数值目录与 Owner 记录
+
+数值目录把原始公开文档捕获、精确合同版本与正常 Django 身份认证的 Owner apply/revoke
+分开记录。原件逐次校验保存字节、provider 身份、成功 egress audit 和独立来源/知识时钟；
+未提供真实文档与事件时不返回资格。历史 lookup 保留显式 known_at，不把 fact.fetched_at
+当成当前时刻。current fence 必须加入同 alias 的调用方 PostgreSQL READ COMMITTED
+事务，锁住合同范围与记录直至外层提交；等待期间出现的较新事件不能被旧 cutoff 过滤掉。
+0116 三表 UPDATE/DELETE 防护与先锁表后检查空表的逆迁移保护保留历史；数据库特权
+INSERT/TRUNCATE 属可信运维边界。这些端口尚未接入八处生产事实构造，不授予默认
+数值目录、Balance、C2 时间或发布资格。
+
 ## 2026-11-16 日历目录管理与同步边界
 
 `data_center.exchange_calendar_snapshot` 只通过显式 create-only bootstrap 建立；精确重放不能修复、

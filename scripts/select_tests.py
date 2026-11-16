@@ -415,6 +415,7 @@ FAST_FEEDBACK_NATIVE_POSTGRES_ONLY_TARGETS = frozenset(
         "tests/component/data_center/test_formal_exchange_calendar_publication_history_pg.py",
         "tests/component/data_center/test_calendar_catalog_admin_pg.py",
         "tests/component/data_center/test_generic_calendar_catalog_pg.py",
+        "tests/component/data_center/test_financial_numeric_catalog_postgres.py",
     }
 )
 
@@ -432,7 +433,7 @@ def _is_logic_guardrails_target(path: str) -> bool:
 
 
 def _finalize_selected_tests(targets: set[str] | list[str], profile: str) -> list[str]:
-    """Route native PostgreSQL calendar acceptance out of SQLite-backed checks."""
+    """Route native PostgreSQL acceptance out of SQLite-backed checks."""
 
     if profile != "logic_guardrails":
         return sorted(set(targets))

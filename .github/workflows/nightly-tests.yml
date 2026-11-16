@@ -371,6 +371,7 @@ jobs:
               --ignore=tests/component/data_center/test_formal_exchange_calendar_publication_history_pg.py \
               --ignore=tests/component/data_center/test_calendar_catalog_admin_pg.py \
               --ignore=tests/component/data_center/test_generic_calendar_catalog_pg.py \
+              --ignore=tests/component/data_center/test_financial_numeric_catalog_postgres.py \
               -n 2 \
               --dist=load \
               --max-worker-restart=0 \
@@ -721,6 +722,19 @@ jobs:
 
       - name: Apply full migration graph to empty PostgreSQL database
         run: python manage.py migrate --noinput
+
+      - name: Run financial numeric catalog native PostgreSQL contracts
+        env:
+          DATABASE_URL: postgresql://agomtradepro:critical-test-password@127.0.0.1:5432/agomtradepro_critical
+          DJANGO_SETTINGS_MODULE: core.settings.critical_postgres_test
+          AGOM_CRITICAL_TEST_DB_NAME: test_financial_numeric_catalog_nightly
+        run: >-
+          python -m pytest
+          tests/component/data_center/test_financial_numeric_catalog_postgres.py
+          --ds=core.settings.critical_postgres_test
+          --create-db
+          --migrations
+          -q -o addopts=''
 
       - name: Record applied migration plan
         run: python manage.py showmigrations --plan > reports/quality/postgres/migration-plan.txt

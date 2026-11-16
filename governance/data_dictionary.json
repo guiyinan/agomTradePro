@@ -34349,6 +34349,400 @@
         },
         {
           "bases": [
+            "_StatutorySourceImmutableModel"
+          ],
+          "class_name": "FinancialMetricSourceCatalogEntryModel",
+          "docstring": "One immutable exact qualification revision tied to a retained document capture.",
+          "fields": [
+            {
+              "field_type": "UUIDField",
+              "kwargs": {
+                "default": "uuid4",
+                "editable": false,
+                "primary_key": true
+              },
+              "name": "entry_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 256,
+                "unique": true
+              },
+              "name": "qualification_identity",
+              "positional_args": [],
+              "unique": true
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "qualification_sha256",
+              "positional_args": []
+            },
+            {
+              "db_index": true,
+              "field_type": "CharField",
+              "kwargs": {
+                "db_index": true,
+                "max_length": 160
+              },
+              "name": "contract_identity",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "contract_sha256",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 128
+              },
+              "name": "contract_provider",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 160
+              },
+              "name": "dataset_key",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 128
+              },
+              "name": "metric_code",
+              "positional_args": []
+            },
+            {
+              "field_type": "JSONField",
+              "name": "qualification",
+              "positional_args": []
+            },
+            {
+              "field_type": "ForeignKey",
+              "kwargs": {
+                "on_delete": "models.PROTECT",
+                "related_name": "catalog_entries"
+              },
+              "name": "document_capture",
+              "positional_args": [
+                "FinancialNumericSourceDocumentCaptureModel"
+              ]
+            },
+            {
+              "field_type": "DateTimeField",
+              "name": "effective_from",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "kwargs": {
+                "blank": true,
+                "null": true
+              },
+              "name": "effective_until",
+              "null": true,
+              "positional_args": []
+            }
+          ],
+          "meta": {
+            "base_manager_name": "objects",
+            "constraints": "[models.CheckConstraint(condition=models.Q(qualification_sha256__regex='^[0-9a-f]{64}$', contract_sha256__regex='^[0-9a-f]{64}$'), name='dc_fin_metric_hashes_ck'), models.CheckConstraint(condition=models.Q(effective_until__isnull=True) | models.Q(effective_until__gt=models.F('effective_from')), name='dc_fin_metric_effective_ck')]",
+            "db_table": "data_center_fin_metric_source_entry",
+            "default_manager_name": "objects",
+            "indexes": "[models.Index(fields=('contract_identity', 'effective_from', 'effective_until'), name='dc_fin_metric_scope_idx'), models.Index(fields=('dataset_key', 'metric_code'), name='dc_fin_metric_code_idx')]",
+            "ordering": [
+              "recorded_at",
+              "entry_id"
+            ]
+          },
+          "source_file": "infrastructure/financial_numeric_catalog_models.py"
+        },
+        {
+          "bases": [
+            "_StatutorySourceImmutableModel"
+          ],
+          "class_name": "FinancialMetricSourceCatalogOwnerEventModel",
+          "docstring": "One append-only authenticated Owner apply or revoke for an exact entry hash.",
+          "fields": [
+            {
+              "field_type": "UUIDField",
+              "kwargs": {
+                "default": "uuid4",
+                "editable": false,
+                "primary_key": true
+              },
+              "name": "event_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "ForeignKey",
+              "kwargs": {
+                "on_delete": "models.PROTECT",
+                "related_name": "owner_events"
+              },
+              "name": "entry",
+              "positional_args": [
+                "FinancialMetricSourceCatalogEntryModel"
+              ]
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "choices": [
+                  [
+                    "apply",
+                    "Apply"
+                  ],
+                  [
+                    "revoke",
+                    "Revoke"
+                  ]
+                ],
+                "max_length": 8
+              },
+              "name": "action",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 256
+              },
+              "name": "qualification_identity",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "qualification_sha256",
+              "positional_args": []
+            },
+            {
+              "field_type": "ForeignKey",
+              "kwargs": {
+                "on_delete": "models.PROTECT",
+                "related_name": "financial_metric_source_catalog_events"
+              },
+              "name": "actor",
+              "positional_args": [
+                "settings.AUTH_USER_MODEL"
+              ]
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 150
+              },
+              "name": "actor_username_snapshot",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "name": "event_at",
+              "positional_args": []
+            }
+          ],
+          "meta": {
+            "base_manager_name": "objects",
+            "constraints": "[models.UniqueConstraint(fields=('entry', 'action'), name='dc_fin_metric_event_once_uniq'), models.CheckConstraint(condition=models.Q(action__in=('apply', 'revoke')), name='dc_fin_metric_action_ck'), models.CheckConstraint(condition=models.Q(recorded_at__gte=models.F('event_at'), qualification_sha256__regex='^[0-9a-f]{64}$'), name='dc_fin_metric_event_clock_ck')]",
+            "db_table": "data_center_fin_metric_source_owner_event",
+            "default_manager_name": "objects",
+            "indexes": "[models.Index(fields=('entry', 'recorded_at'), name='dc_fin_metric_event_idx')]",
+            "ordering": [
+              "recorded_at",
+              "event_id"
+            ]
+          },
+          "source_file": "infrastructure/financial_numeric_catalog_models.py"
+        },
+        {
+          "bases": [
+            "_StatutorySourceImmutableModel"
+          ],
+          "class_name": "FinancialNumericSourceDocumentCaptureModel",
+          "docstring": "One exact raw public-document body capture with controlled-egress metadata.",
+          "fields": [
+            {
+              "field_type": "UUIDField",
+              "kwargs": {
+                "editable": false,
+                "primary_key": true
+              },
+              "name": "capture_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "ForeignKey",
+              "kwargs": {
+                "on_delete": "models.PROTECT",
+                "related_name": "financial_numeric_source_document_captures"
+              },
+              "name": "provider",
+              "positional_args": [
+                "'data_center.ProviderConfigModel'"
+              ]
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 100
+              },
+              "name": "provider_name_snapshot",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 20
+              },
+              "name": "provider_source_type_snapshot",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 120
+              },
+              "name": "dataset_key",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 40
+              },
+              "name": "deployment_region",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 240
+              },
+              "name": "issuer",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 240
+              },
+              "name": "document_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "TextField",
+              "name": "canonical_url",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "target_url_sha256",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 253
+              },
+              "name": "target_host",
+              "positional_args": []
+            },
+            {
+              "field_type": "PositiveSmallIntegerField",
+              "name": "request_attempt",
+              "positional_args": []
+            },
+            {
+              "field_type": "PositiveBigIntegerField",
+              "kwargs": {
+                "blank": true,
+                "null": true
+              },
+              "name": "egress_id",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 16
+              },
+              "name": "transport",
+              "positional_args": []
+            },
+            {
+              "field_type": "PositiveSmallIntegerField",
+              "name": "status_code",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 200
+              },
+              "name": "content_type",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "name": "response_completed_at",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "body_sha256",
+              "positional_args": []
+            },
+            {
+              "field_type": "PositiveBigIntegerField",
+              "name": "body_size_bytes",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 1024
+              },
+              "name": "body_reference",
+              "positional_args": []
+            }
+          ],
+          "meta": {
+            "base_manager_name": "objects",
+            "constraints": "[models.CheckConstraint(condition=models.Q(provider_source_type_snapshot=PUBLIC_DOCUMENT_SOURCE_TYPE), name='dc_fin_num_doc_provider_ck'), models.CheckConstraint(condition=models.Q(transport='egress'), name='dc_fin_num_doc_transport_ck'), models.CheckConstraint(condition=models.Q(status_code__gte=200, status_code__lt=300), name='dc_fin_num_doc_status_ck'), models.CheckConstraint(condition=models.Q(request_attempt__gte=1, body_size_bytes__gt=0), name='dc_fin_num_doc_size_ck'), models.CheckConstraint(condition=models.Q(recorded_at__gte=models.F('response_completed_at'), target_url_sha256__regex='^[0-9a-f]{64}$', body_sha256__regex='^[0-9a-f]{64}$'), name='dc_fin_num_doc_integrity_ck')]",
+            "db_table": "data_center_fin_numeric_doc_capture",
+            "default_manager_name": "objects",
+            "indexes": "[models.Index(fields=('provider', 'dataset_key', 'response_completed_at'), name='dc_fin_num_doc_scope_idx'), models.Index(fields=('body_sha256',), name='dc_fin_num_doc_body_idx')]",
+            "ordering": [
+              "response_completed_at",
+              "capture_id"
+            ]
+          },
+          "source_file": "infrastructure/financial_numeric_catalog_models.py"
+        },
+        {
+          "bases": [
             "models.Model"
           ],
           "class_name": "InstitutionalCalendarEventModel",

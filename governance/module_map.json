@@ -4680,6 +4680,13 @@
         "application/financial_capacity_workflow_base.py": [
           "FinancialCapacityWorkflowBase"
         ],
+        "application/financial_numeric_catalog.py": [
+          "CaptureFinancialNumericSourceDocumentUseCase",
+          "FinancialNumericSourceCatalogRepositoryPort",
+          "FinancialNumericSourceCatalogUseCase",
+          "FinancialNumericSourceDocumentCaptureRepositoryPort",
+          "ProviderDocumentFetchPort"
+        ],
         "application/financial_numeric_verification.py": [
           "FinancialMetricSourceContractCatalogPort",
           "FinancialNativeProviderIdentityPort",
@@ -5781,11 +5788,11 @@
         ]
       },
       "layers": {
-        "application": 194,
-        "domain": 62,
-        "infrastructure": 257,
+        "application": 195,
+        "domain": 63,
+        "infrastructure": 260,
         "interface": 34,
-        "management": 43,
+        "management": 44,
         "root": 49
       },
       "orm_models": {
