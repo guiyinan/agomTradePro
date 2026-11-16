@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 7462,
+    "current_surface_references": 7464,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -11439,6 +11439,10 @@
       "text": "raise TypeError(\"availability requires an exact current calendar pointer\")"
     },
     {
+      "path": "apps/data_center/domain/financial_next_session_witness.py",
+      "text": "raise ValueError(\"calendar reference is not current and fresh at known_at\")"
+    },
+    {
       "path": "apps/data_center/domain/financial_scope_discovery.py",
       "text": "\"\"\"Latest source-native announcement date and its two capture proofs.\"\"\""
     },
@@ -12529,6 +12533,10 @@
     {
       "path": "apps/data_center/infrastructure/financial_native_numeric_verifier.py",
       "text": "persisted provider row, then checks the returned bytes again. Current"
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_next_session_witness_codec.py",
+      "text": "rows, Audit events, current publication, or historical point-in-time state."
     },
     {
       "path": "apps/data_center/infrastructure/financial_publication_capacity_runtime.py",

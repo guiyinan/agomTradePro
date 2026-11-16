@@ -6602,7 +6602,10 @@
         "apps/data_center/migrations/0114_financial_native_decimal_storage.py",
         "apps/equity/infrastructure/fundamentals_published_fact_mappers.py",
         "apps/equity/infrastructure/financial_source_gateway.py",
-        "apps/data_center/infrastructure/financial_fact_models.py"
+        "apps/data_center/infrastructure/financial_fact_models.py",
+        "apps/data_center/domain/financial_numeric_source_qualification.py",
+        "apps/data_center/domain/financial_next_session_witness.py",
+        "apps/data_center/infrastructure/financial_next_session_witness_codec.py"
       ],
       "required_markers": {
         "apps/data_center/application/current_fact_remediation.py": [
@@ -7499,6 +7502,16 @@
           "numeric_schema = models.CharField(",
           "dc_financial_numeric_state_valid",
           "decision_evidence = models.JSONField(default=dict, blank=True)"
+        ],
+        "apps/data_center/domain/financial_numeric_source_qualification.py": [
+          "class FinancialNumericSourceQualification:",
+          "source_response_completed_at: datetime,",
+          "def matches_source_context("
+        ],
+        "apps/data_center/domain/financial_next_session_witness.py": [
+          "class FinancialNextSessionSourceTimeWitnessV3:",
+          "def earliest_temporal_usability_at(",
+          "return self.known_at <= as_of"
         ]
       },
       "required_tests": [
@@ -8866,6 +8879,21 @@
           "case": "unpublished_financial_revision_stays_outside_published_read",
           "test_file": "tests/component/data_center/test_published_fact_refresh.py",
           "test_function": "test_unpublished_valuation_and_financial_revisions_stay_outside_published_reads"
+        },
+        {
+          "case": "source_clock_cannot_be_requalified_by_later_document",
+          "test_file": "tests/unit/data_center/test_financial_numeric_source_qualification.py",
+          "test_function": "test_old_response_cannot_use_later_document_but_fresh_response_can"
+        },
+        {
+          "case": "explicit_next_session_v3_date_precision",
+          "test_file": "tests/unit/data_center/test_financial_next_session_witness.py",
+          "test_function": "test_v3_round_trip_keeps_date_only_notice_and_future_open"
+        },
+        {
+          "case": "frozen_calendar_supersession_context",
+          "test_file": "tests/unit/data_center/test_financial_next_session_witness.py",
+          "test_function": "test_codec_roundtrips_superseded_capture_context_without_rewriting_it"
         }
       ]
     },

@@ -2623,11 +2623,214 @@
       "financial_provider_requests": 0,
       "data02_exit_met": false,
       "data03_started": false
+    },
+    {
+      "recorded_at_utc": "2026-11-16T00:01:56.279037+00:00",
+      "scope": "Adopt exact source-response applicability qualifications and separate reference-only date-precision next-session witness/codec v3",
+      "candidate": {
+        "base_head": "2d5d3f99581ba1c202c902fd8bd98a1ff75ba11e",
+        "files_before_acceptance_metadata": [
+          {
+            "path": "apps/data_center/domain/financial_next_session_witness.py",
+            "sha256": "ab7777d26efacd67fd1c77b6fd58ac2c041b6177b2d8cd3176e2ad1f3ffcf093"
+          },
+          {
+            "path": "apps/data_center/domain/financial_numeric_source_qualification.py",
+            "sha256": "a324fa20c7b053c4ad280432c01cf704d01d1148b03938e21654602dabd58af5"
+          },
+          {
+            "path": "apps/data_center/infrastructure/financial_next_session_witness_codec.py",
+            "sha256": "c9ef4886b18a2705bbb2249ac2a63a1f2b19bb300c72161c0e8028991ac3005a"
+          },
+          {
+            "path": "docs/plans/data02-financial-source-time-remediation-2026-09-13.md",
+            "sha256": "a2155dd7740c55224e3976b7290d609794449bc055fe7a7319b7c07641f232b1"
+          },
+          {
+            "path": "governance/current_data_contracts.json",
+            "sha256": "cfe78fe0238fd4aaff92fcd85ccc51e2ca092b69b0029e2f7818d2f5505da855"
+          },
+          {
+            "path": "governance/data_center_architecture_inventory.json",
+            "sha256": "ca9577a883a8b896466e3f4b5b6f5a338c4570bb0f2c327c8beb132da0797835"
+          },
+          {
+            "path": "governance/data_center_entrypoints.json",
+            "sha256": "dc5ace79b9b5c80c84c9e612ce1aaedf9a72940fac113ecf85cf317388d1e893"
+          },
+          {
+            "path": "governance/module_map.json",
+            "sha256": "13c7664dc0e7c35047d956a99d603641ea7f17584e1fe868efc4237e5a67c3a6"
+          },
+          {
+            "path": "tests/unit/data_center/test_financial_next_session_witness.py",
+            "sha256": "965718b3a8be502aeaff31dc8f2baac461ea789a6bf59f84a6f2a632fc9a51f8"
+          },
+          {
+            "path": "tests/unit/data_center/test_financial_numeric_source_qualification.py",
+            "sha256": "3ad011e28211c1ca91a3dc8f669780196e0e86ed91a105349c65cb44d6c52bc6"
+          }
+        ]
+      },
+      "prior_native_candidate_actual_ci": {
+        "sha": "2d5d3f99581ba1c202c902fd8bd98a1ff75ba11e",
+        "all_eight_runs": "completed/success",
+        "cumulative_base": "9ae935d6abbe58856f490ad7960311150b173765",
+        "linux_domain_quality": {
+          "passed": 8076,
+          "skipped": 1,
+          "subtests_passed": 14,
+          "covered_lines": 10478,
+          "lines": 11100,
+          "percent": 94.4
+        },
+        "not_reused_as_new_candidate_ci": true
+      },
+      "validation": {
+        "integration_unit_cohort": {
+          "tests": 223,
+          "errors": 0,
+          "failures": 0,
+          "skipped": 0,
+          "exit_code": 0
+        },
+        "new_module_coverage": [
+          {
+            "path": "apps/data_center/domain/financial_next_session_witness.py",
+            "summary": {
+              "covered_lines": 416,
+              "num_statements": 438,
+              "percent_covered": 93.13725490196079,
+              "percent_covered_display": "93.1",
+              "missing_lines": 22,
+              "excluded_lines": 0,
+              "num_branches": 174,
+              "num_partial_branches": 20,
+              "covered_branches": 154,
+              "missing_branches": 20
+            }
+          },
+          {
+            "path": "apps/data_center/domain/financial_numeric_source_qualification.py",
+            "summary": {
+              "covered_lines": 243,
+              "num_statements": 266,
+              "percent_covered": 90.05524861878453,
+              "percent_covered_display": "90.1",
+              "missing_lines": 23,
+              "excluded_lines": 0,
+              "num_branches": 96,
+              "num_partial_branches": 13,
+              "covered_branches": 83,
+              "missing_branches": 13
+            }
+          },
+          {
+            "path": "apps/data_center/infrastructure/financial_next_session_witness_codec.py",
+            "summary": {
+              "covered_lines": 168,
+              "num_statements": 176,
+              "percent_covered": 95.28301886792453,
+              "percent_covered_display": "95.3",
+              "missing_lines": 8,
+              "excluded_lines": 0,
+              "num_branches": 36,
+              "num_partial_branches": 2,
+              "covered_branches": 34,
+              "missing_branches": 2
+            }
+          }
+        ],
+        "production_files": 3,
+        "incremental_mypy_exit": 0,
+        "full_mypy_errors": 0,
+        "format_exit": 0,
+        "architecture_projection_current_contract_governance_exit": 0,
+        "independent_c2_luna_max_review": "No blocking finding; date precision, known_at gate, full nested codec and frozen historical context reviewed. No independent QA rerun.",
+        "d1_root_review": "Separates source response time from knowledge clocks; fixed document URL constructor/decoder bound mismatch with expected red then positive regression.",
+        "legacy_source_files_unchanged": [
+          "apps/data_center/domain/financial_numeric_evidence.py",
+          "apps/data_center/domain/financial_source_time_evidence.py",
+          "apps/data_center/infrastructure/financial_decision_evidence_codec.py"
+        ]
+      },
+      "diagnostic_failure": {
+        "url_roundtrip_before_fix": {
+          "failed": 1,
+          "passed": 20
+        },
+        "reason": "Constructor allowed4096-character canonical URL while generic payload text reader limited512; wire now applies the same4096 bound."
+      },
+      "remaining": [
+        "Real retained unversioned documentation capture, immutable DB numeric catalog, authenticated apply/revoke and independent resolver/composition are being prepared; no records seeded.",
+        "Exact historical calendar-publication reader with original Audit pair, legal supersession and calendar-catalog content protection is being prepared; current reader and old financial codecs are unchanged.",
+        "Production source/Owner/policy checks, producer/consumer v3 integration, actual calendar qualification, E1, all-universe four-Publication reconciliation and DATA03 remain incomplete.",
+        "Concrete calendar TTL/phase reply remains pending; no new precision/unit exception or business approval is inferred."
+      ],
+      "raw_artifacts": [
+        {
+          "path": ".tmp/data02-current-20261115/20261116/ci-2d5d3f995-final.json",
+          "sha256": "cdd651e6871cdfcebb6ac5bbc39fa3d1ec019745b984662508405199a63985df"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/ci-2d5d3f995-cumulative-quality.log",
+          "sha256": "ae17f605579910d3a42311fc15d01d81d96624920da73af16d63aa0f5fae2759"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/d1-qualification-formal-url-red.log",
+          "sha256": "372e7b27f5ecb982486fc0813e1e5cf6b30524146f35a6ba929eafe8fa7b4faa"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/d1-qualification-formal-unit.log",
+          "sha256": "900306262e0d190da3204d56bee6bf60c9790135ddb28479cde17d8798708f63"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/d1-qualification-formal-mypy.log",
+          "sha256": "1696369e79514135c6c84d87d82a0fc9c6a7026a4b6fda77e8a7e9b50eef135b"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/c2-witness-preparation/formal-r2-mypy.log",
+          "sha256": "5ba4fad13a81b04a0a55439e46f84ebb25f1dcefaf8a0f67d0e71ba1266e2e69"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/contexts-witness-integration.log",
+          "sha256": "362152071e1c27e591a2950838c646c348a9bbadb65cca382fd2ab11286adddd"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/contexts-witness-integration.junit.xml",
+          "sha256": "6272f9e29f9ea5de07b8e74a686e70adb36639f1390c0e8146dfaf192cdd7179"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/contexts-witness-integration-coverage.json",
+          "sha256": "410e5716bb24d9527ddde142b255f4abb3a36348ad467244f62d4f023f068071"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/contexts-witness-full-mypy-debt.log",
+          "sha256": "def6c561b37227470bcda90c8450d9837ca85dd34af34d05e7d6af2afdf85ab1"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/contexts-witness-final-format.receipt.json",
+          "sha256": "98009be46c6a9a8094826400bcff04a145d65e2c06af78559999ca680838dd3a"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/contexts-witness-projection-build.receipt.json",
+          "sha256": "97fed9213b18feb1d075337843c9b847d1e24b7df37b15950a66d67c56d8c1ca"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/contexts-witness-final-governance.receipt.json",
+          "sha256": "038671bb51087b5c466176979fbebcb8e79fa92611d4cbb1a90166e0f9e5847d"
+        }
+      ],
+      "new_candidate_actual_ci": "pending commit/push",
+      "financial_provider_requests": 0,
+      "production_deployment": false,
+      "data02_exit_met": false,
+      "data03_started": false
     }
   ],
   "current_authority_followup": "followups[0] (2026-11-16); original 2026-11-15 snapshots remain historical",
   "current_d1_c2_followup": "followups[1] (2026-11-16); original snapshots and all intermediate failures remain historical",
-  "current_goal_followup": "followups[2] (2026-11-16); goal remains active and DATA03 dependency is unchanged",
+  "current_goal_followup": "followups[8] (2026-11-16); goal active, source integration delivered separately from production qualification",
   "current_native_storage_followup": "followups[5] (2026-11-16); development prerequisite only, full DATA02/03 exit gates unchanged",
   "current_native_ci_followup": "followups[7] (2026-11-16); final source recovery cohort, corrected candidate CI remains separate"
 }

@@ -1116,3 +1116,28 @@ Luna Max 在限定 Source 窗口完整提取 `FinancialFactModel` 到独立 Infr
 `financial_fact_models.py`；曾用单数文件名导致投影漏一模型的中间生成结果不算通过。
 改名后的字典恢复 617 个静态模型声明，并重新冻结源码、验收与类型输入。旧 218 项
 PG 结果及为换候选而主动停止的 r7 全库类型扫描均保留，不拼接为最终候选的通过结果。
+
+## 43. 2026-11-16 来源上下文与 date-only v3 见证的正式采用
+
+原生存储修复候选 `2d5d3f99581ba1c202c902fd8bd98a1ff75ba11e` 的 push 与累计基线
+Fast Feedback 已实际通过；累计质量 job 在 Linux 完整记录 8,076 passed、1 skipped、
+14 subtests，Data Center Domain 10,478/11,100 行覆盖，94.4%，全库类型债务为零。
+Security、Architecture、Consistency、Quote Metric PostgreSQL、Publication PostgreSQL
+与看板也已通过，八条同 SHA 实际工作流（含累计基线 dispatch）均 completed/success。
+
+两位 Luna Max 的隔离准备现采用到正式 Source。D1 新资格对象将字段合同绑定精确端点、
+显式 row context、原件捕获和源响应有效窗口；响应完成时间须独立不晚于知识截止点，
+文档/记录/既有授权/撤销时钟另按知识时间检查。不能让今天的无版本文档补证更早响应。
+采用时修正了文档 URL 构造与解码长度边界不一致，保留失败原件；旧合同 v1 身份不改。
+
+C2 新增独立 v3 witness/codec，保留 NOTICE_DATE 与报告期为日期，不填公告午夜；
+正式开盘 `available_at` 与响应完成及知识时间分开，不能用请求时间重置历史新鲜度。
+见证封存完整原件、行、calendar publication、规则及政策引用，当前结构仍为 reference-only，
+不自行证明 DB、Audit/outbox、Owner 或历史 current。原始构造时 lifecycle 与窗口上下文
+保持冻结；后续合法 supersession 应由真实历史 reader 检查其半开有效区间，不能改写旧见证。
+旧 decision evidence codec v1/v2 与 Source-time witness 保持原样。
+
+本批仅采用可验证的时序/上下文表达及编解码，尚需真实 DB 目录、原件/授权读取与撤销重验、
+producer/consumer 接线及历史 publication reader，才能进入受控 E1。3600 秒与正式阶段的
+具体提案保持待明确答复，未知量纲、舍入、全 universe 与 DATA-03 退出门不变。
+Root 串行负责投影、index、Git 与重 QA；本批候选、复核和失败继续追加同一验收索引。
