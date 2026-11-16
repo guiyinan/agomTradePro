@@ -369,7 +369,7 @@ def test_postgres_first_publication_cas_waits_on_exact_scope_winner() -> None:
             audit_port.release_audit.set()
         outcomes = (first.result(timeout=15), second.result(timeout=15))
 
-    assert sorted(outcome[0] for outcome in outcomes) == ["blocked", "published"]
+    assert sorted(outcome[0] for outcome in outcomes) == ["blocked", "published"], outcomes
     assert next(code for kind, code in outcomes if kind == "blocked") == (
         "CALENDAR_POINTER_CAS_MISMATCH"
     )
@@ -398,7 +398,11 @@ def test_postgres_forward_cas_race_keeps_pointer_row_and_supersedes_once() -> No
     policy = DatasetPublicationPolicyModel._default_manager.get(dataset_key=_DATASET.value)
     left_snapshot = DjangoExchangeCalendarSnapshotRepository().save(_candidate())
     right_snapshot = DjangoExchangeCalendarSnapshotRepository().save(_candidate())
-    clock.value = first.record.published_at + timedelta(seconds=1)
+    clock.value = max(
+        first.record.published_at,
+        left_snapshot.recorded_at,
+        right_snapshot.recorded_at,
+    ) + timedelta(seconds=1)
     left_request = _request(
         left_snapshot,
         contract,
@@ -443,7 +447,7 @@ def test_postgres_forward_cas_race_keeps_pointer_row_and_supersedes_once() -> No
         start.wait(timeout=10)
         outcomes = (left.result(timeout=20), right.result(timeout=20))
 
-    assert sorted(outcome[0] for outcome in outcomes) == ["blocked", "published"]
+    assert sorted(outcome[0] for outcome in outcomes) == ["blocked", "published"], outcomes
     assert next(code for kind, code in outcomes if kind == "blocked") == (
         "CALENDAR_POINTER_CAS_MISMATCH"
     )

@@ -3212,6 +3212,233 @@
           "sha256": "7cf64f7981df3dd3b359c52af28d40d751b12e424ef82fa6d141a44ad3718ccb"
         }
       ]
+    },
+    {
+      "date": "2026-11-16",
+      "kind": "calendar_catalog_generic_admin_safety_and_natural_audit_observation",
+      "base_head": "3048076a52472727d9cd63950780ff245b1739ba",
+      "candidate": "Formal Root working tree; exact committed range retained in .tmp/calendar-catalog-admin-preparation/formal/commit-confirmation.json.",
+      "prior_candidate_actual_ci": {
+        "head_sha": "3048076a52472727d9cd63950780ff245b1739ba",
+        "all_applicable_success": true,
+        "workflows": 5,
+        "scope_note": "Equity mapper path filters did not run Quote or Publication PostgreSQL workflows. No new PostgreSQL/full Domain run is inferred."
+      },
+      "implementation": [
+        "All four calendar ModelAdmins deny object POST while change-only staff retain real Admin GET; no unchanged Save/auto_now catalog mutation.",
+        "Generic manifest/contract/binding/policy/owner writes reject the isolated calendar before DML; global disable synchronizations exclude it.",
+        "Ordinary policy activation retains the unchanged calendar in full catalog/fingerprint validation, excludes it only from derived targets, and rejects calendar non-target changes before saves.",
+        "Fast and Nightly native PostgreSQL jobs include both new HTTP/repository suites; SQLite routing excludes all four native-only calendar modules."
+      ],
+      "verification": {
+        "native_postgres_full_cohort": {
+          "tests": 137,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 4
+        },
+        "source_changes_during_postgres": [],
+        "legacy_policy_optin_supplement": {
+          "tests": {
+            "tests": 4,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          },
+          "scope": "Same unchanged candidate bytes; separate exact Root-created empty loopback evid06_authority_test, five-model legacy fixture only, not a full-migration/calendar-history claim. All four intentionally skipped opt-in cases from the full cohort were executed here."
+        },
+        "database": "Root-owned loopback PostgreSQL16; r2 initially created a fresh fully migrated schema, r7 reused the verified owned database after test-only URLconf/app-registry, source/forward-clock fixture and standard permission-initialization fixes.",
+        "unit_and_selection": {
+          "passed": 92,
+          "skipped": 0,
+          "note": "Includes one isolated SQLite migration-backed contract test; not a purely database-free cohort. Its executed tests and all production bytes are unchanged by the later PostgreSQL-only test configuration/forward-clock fixture fixes."
+        },
+        "production_files_incremental_mypy": 8,
+        "full_mypy_debt": 0,
+        "format_cycles_architecture_projections_current_governance_exit": 0,
+        "current_contracts": 121
+      },
+      "retained_failures": [
+        "Supplementary opt-in launcher initially missed the project root on sys.path after creating its verified empty owned DB; failure reproduced without DB mutation and exact DB OID/owner/empty state recorded before controlled recovery. Original first local traceback was not captured; Root tool output and the labelled reproduction are retained.",
+        "r1 launcher rejected a pytest node-id as a filesystem hash path before database creation; unchanged failure reproduced and retained before fixing ignored launcher.",
+        "r2:83 tests,1 failure,0skip; core.urls imported disabled backtest during Admin URL reverse. r3:83 tests,1 failure,0skip; restricted available_apps hid config_center from the real Admin registry and masked its error through unavailable Core template tags. Removed that test-only restriction. New suites were targeted before full r4. r4 then exposed a pre-existing forward-clock fixture race: second source row could be recorded after first published_at on a slow host. Final r5 creates both actual snapshots before sampling the first publication clock; equal-pointer and one-second-forward assertions are unchanged. The affected case passed targeted. r5 then found both CAS contenders blocked in another old test; original blocked codes were not retained by its assertion. An observability-only targeted repetition passed, so no exact cause/code is fabricated. That fixture also sampled a forward clock before newly written sources could be known; it now samples after both source clocks, and failure assertions retain actual contender codes. Affected cases passed targeted. r6:83 tests,1 failure; a preceding scoped-app teardown had flushed auth Permission rows without restoring default post_migrate data, so new Admin setup could not find its actual model change permissions. The native fixture now clears the ContentType cache and invokes Django standard create_permissions for the actual data_center AppConfig; normal login and backend permission checks remain. A scoped native case followed by all12 new tests was verified before final full r7. Final test-local URLconf retains the actual registered Admin site, full app registry/middleware/auth/session and native DB; production URLs unchanged."
+      ],
+      "production_audit_observation": {
+        "observed_at_utc": "2026-11-16T05:31:45.134392+00:00",
+        "operation": "read-only SSH Docker logs and PostgreSQL repeatable-read/read-only TaskMonitor/schedule queries; no dispatch or renewal invocation",
+        "task_results": {
+          "blocked": 0,
+          "failed": 0,
+          "healthy_noop": 21,
+          "renewal_success_task_result": 0,
+          "renewal_unconfirmed": 0,
+          "unclassified": 0
+        },
+        "beat_due_events": 21,
+        "worker_task_ids": 21,
+        "selected_latest_correlated_cycles": 8,
+        "latest_two": [
+          {
+            "beat_due_at": "2026-11-16T05:15:00.167147+00:00",
+            "business_class": "healthy_noop",
+            "outcome": "noop",
+            "start_delta_seconds": 2.559,
+            "started_at": "2026-11-16T05:15:02.726339+00:00",
+            "task_id": "95d3f963-7cb0-476e-a36e-87c948b50a27"
+          },
+          {
+            "beat_due_at": "2026-11-16T05:30:00.442738+00:00",
+            "business_class": "healthy_noop",
+            "outcome": "noop",
+            "start_delta_seconds": 10.89,
+            "started_at": "2026-11-16T05:30:11.332619+00:00",
+            "task_id": "685c2f6d-c33e-4d8b-9548-fb0b7729a16f"
+          }
+        ],
+        "current_lease_verification_performed": false,
+        "actual_renewal_proven": false,
+        "limits": "Healthy natural noop results do not prove actual renewal, every worker's independent lease check, or qualification against a future deployed image."
+      },
+      "remaining": "Real D1 catalog/retained documents/authenticated Owner events and same-UOW fences, C2 v3 producer/storage/consumer and formal calendar activation, eight constructor injections, bounded E1 and full-universe four-Publication reconciliation remain. DATA-02 awaiting_production; DATA-03 waiting_dependency. Financial HTTP budget remains0/2; no production facts/trades or deployment.",
+      "security_scan_receipt": ".tmp/calendar-catalog-admin-preparation/formal/current-secret.receipt.json; produced after final metadata, before commit.",
+      "artifacts": [
+        {
+          "path": ".tmp/calendar-catalog-admin-preparation/formal/adoption.json",
+          "sha256": "06f3c35b2363ec245da9298d2581c4ebc253d5f5ff55366090257557610e6c20"
+        },
+        {
+          "path": ".tmp/calendar-catalog-admin-preparation/formal/safety-format-r7.receipt.json",
+          "sha256": "5fc9f1205bcf8b255ca90b1c97aa1fb7d8bc45e4c8170d0c548b384b8e0eb4ef"
+        },
+        {
+          "path": ".tmp/calendar-catalog-admin-preparation/formal/safety-build-r1.receipt.json",
+          "sha256": "61a304b4812a9be7c0065616b202092c6426a62ed3eb576b83f440338d35a81c"
+        },
+        {
+          "path": ".tmp/calendar-catalog-admin-preparation/formal/safety-static-r1.receipt.json",
+          "sha256": "fc91bf30e7e20d953341691ead1d16020e4457e3c71deac20c479777049f0563"
+        },
+        {
+          "path": ".tmp/calendar-catalog-admin-preparation/formal/safety-governance-r1.receipt.json",
+          "sha256": "2c9970fc493414f73b943ac41d734a07adf7e534504b62f441e32cab8995092a"
+        },
+        {
+          "path": ".tmp/calendar-catalog-admin-preparation/formal/safety-unit-r1.receipt.json",
+          "sha256": "45c7420054513f7772c97770648be2bf664f0b753948807798502045854c58c8"
+        },
+        {
+          "path": ".tmp/calendar-catalog-admin-preparation/formal/safety-unit-r1.junit.xml",
+          "sha256": "a6cbde35332fa5c355052459cef70970747079c26ab6fd420f5d7cdbbcc89c1e"
+        },
+        {
+          "path": ".tmp/calendar-catalog-admin-preparation/formal/pg-node-id-preflight-failure.json",
+          "sha256": "165085ebe94fcc08d631a49cf69b09d822cf8c522705bed8c720a2991036c792"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/calendar-catalog-safety-pg-r7.receipt.json",
+          "sha256": "6be704e5832a7ce7184b967ee88c784fe4a4ff8d6d7e988de09470e4f4609bcb"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/calendar-catalog-safety-pg-r7.junit.xml",
+          "sha256": "032222e00f6b0fa0da5dc4db46d6817c72cbd5301cfe3d64e05d8a07fd6b1627"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/calendar-catalog-safety-pg-r2.receipt.json",
+          "sha256": "409667dceaa58bd33a60011fd95f09b47ea3778145a4c63adfaa2407e3d30ec4"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/calendar-catalog-safety-pg-r2.junit.xml",
+          "sha256": "37571df422ca5869a83538f2f9d0053aa8a0fd3eeae52b3f875151d579be9dd7"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/calendar-catalog-safety-pg-r3.receipt.json",
+          "sha256": "e97268c59782bc735a68cd0cd8bc9af0377eaf4ce91756503c611b07ad066d3e"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/calendar-catalog-safety-pg-r3.junit.xml",
+          "sha256": "218baeeaa268614df957bd13da222579be02c1a71391e447ae1f8060cec4923d"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/calendar-catalog-safety-target-r1.receipt.json",
+          "sha256": "5529aba20b58dae925905a4dba8d9aedc5a75c2ac862a6e20b1b9c86c00eb91c"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/calendar-catalog-safety-pg-r4.receipt.json",
+          "sha256": "b40e4007d88e3ec51d60320593fd266084e15908764a0c8d3d859913a680e3b2"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/calendar-catalog-safety-pg-r4.junit.xml",
+          "sha256": "ccf61b8e509989b852e623bb3fc28a9dea1030e495dddbed61f70d55ed1aee0c"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/calendar-catalog-forward-clock-target-r1.receipt.json",
+          "sha256": "ffca0cd355c3dd6a9da0fd535d3c7d02707ab98c627abea8a3b648e00756d93a"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/calendar-catalog-safety-pg-r5.receipt.json",
+          "sha256": "984e12eedbccd629e0042b78419a37524433517584d5c80d41b03d8c25c4a254"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/calendar-catalog-safety-pg-r5.junit.xml",
+          "sha256": "61cb4a2592fbfc4fa44d0ce0f316a94fc737aeecaa30734d17acf8137a1c8c0f"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/calendar-catalog-cas-clock-red-r1.receipt.json",
+          "sha256": "d5a312d22e2b855ff6dcd87f709baa5bbb8de2ae3f651d160277e167446914d6"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/calendar-catalog-cas-clock-green-r1.receipt.json",
+          "sha256": "bf6c18813a85f4ac4c9605fbb562030cf60a92a89f5449384cf188f1c3ef5ef1"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/calendar-catalog-safety-pg-r6.receipt.json",
+          "sha256": "b59bb08390a2dda2c7bcd18eb4deecba4946b16c112462a717a2b26eba1fb830"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/calendar-catalog-safety-pg-r6.junit.xml",
+          "sha256": "eb4c0e68b257ac22a41e23fcfca2e80377e7cc5adbd0e9ff723d0c90263285f5"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/calendar-catalog-auth-order-r1.receipt.json",
+          "sha256": "48bd0632c747bba0bce4641d502ec507f1ce8ca94df88809836b75ce9aead20b"
+        },
+        {
+          "path": ".tmp/calendar-catalog-admin-preparation/formal/safety-policy-optin-r1.receipt.json",
+          "sha256": "040a424675229f423f7886ee318b407775cbe32f5df966cd576a2197a458ac8a"
+        },
+        {
+          "path": ".tmp/calendar-catalog-admin-preparation/formal/safety-policy-optin-r1.junit.xml",
+          "sha256": "3c93b16049415ab60c3c515538662e519b39502bddbf6a64185104337d2bc86e"
+        },
+        {
+          "path": ".tmp/calendar-catalog-admin-preparation/formal/policy-optin-preflight-failure.json",
+          "sha256": "c617f646cba2e376d25470919b38c00277a8171c8edc2a47b64faa71ec4c9ac9"
+        },
+        {
+          "path": ".tmp/calendar-catalog-admin-preparation/formal/policy-optin-import-preflight-reproduced.log",
+          "sha256": "2fdb53e93c6a8d65c259b0c81586c79a54d7b4e0b1ef972054bf4a64c360a6df"
+        },
+        {
+          "path": ".tmp/native-financial-mapper-preparation/ci-3048076a5-final.json",
+          "sha256": "395d235cf89bcf98e64cd12e0b830b6f970f0116fbb534a28e0193adb0d19b94"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/authority_renewal_natural_cycles_probe_reviewed.py.stdout",
+          "sha256": "beb9dad6e0ff110437b44b5ad0d5eb89492a9dea4e07005d572936105fbd79ed"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/authority_renewal_natural_cycles_probe_reviewed.py.receipt.json",
+          "sha256": "742f4afe74570abf88006dda81ae57c2c79e70ae444ccbf6c1c6dac715f3d758"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/authority-renewal-observation-preparation/root-review.json",
+          "sha256": "c97afad20094532a40810a46d9f6a7804509e0573474d1318ff50c7dd01f0fcc"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/authority-renewal-observation-preparation/root-projector-precheck.json",
+          "sha256": "10860585dc6bb6ec8b90a0cffdecf45ae8899e1591faf23cafadc5e0ac4a6d51"
+        }
+      ]
     }
   ],
   "current_authority_followup": "followups[0] (2026-11-16); original 2026-11-15 snapshots remain historical",

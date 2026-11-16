@@ -555,13 +555,15 @@ def test_forward_publication_requires_a_later_pointer_clock_and_supersedes_atomi
     )
 
     first_snapshot, audit, clock, principal, first_request = _ready()
+    second_snapshot = DjangoExchangeCalendarSnapshotRepository().save(_candidate())
+    # Both source rows must be known before testing equality with the old pointer.
+    clock.value = max(clock.now(), second_snapshot.recorded_at + timedelta(seconds=1))
     repository = DjangoFormalExchangeCalendarPublicationRepository(
         audit_port=audit, using="default", clock=clock.now
     )
     with transaction.atomic(using="default"):
         first = repository.publish(first_request, principal=principal)
 
-    second_snapshot = DjangoExchangeCalendarSnapshotRepository().save(_candidate())
     contract = DatasetContractModel._default_manager.get(dataset_key=_DATASET.value)
     policy = DatasetPublicationPolicyModel._default_manager.get(dataset_key=_DATASET.value)
     second_request = _request(

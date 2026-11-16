@@ -6,6 +6,10 @@ from collections.abc import Iterable
 
 from django.db import transaction
 
+from apps.data_center.application.calendar_catalog_bootstrap import (
+    CALENDAR_DATASET_KEY,
+    CALENDAR_GENERIC_ENTRYPOINT_REJECTION_MESSAGE,
+)
 from apps.data_center.domain.contracts import (
     DataOwnerRegistration,
     DatasetContract,
@@ -66,6 +70,8 @@ class DatasetContractRepository:
     def save(self, contract: DatasetContract) -> DatasetContract:
         """Upsert a contract and supersede older versions for its dataset."""
 
+        if contract.key.value == CALENDAR_DATASET_KEY:
+            raise ValueError(CALENDAR_GENERIC_ENTRYPOINT_REJECTION_MESSAGE)
         with transaction.atomic():
             existing_version = (
                 DatasetContractModel._default_manager.select_for_update()
@@ -206,6 +212,8 @@ class ProviderBindingRepository:
     def save(self, binding: ProviderBinding) -> ProviderBinding:
         """Upsert one versioned provider binding."""
 
+        if binding.dataset.value == CALENDAR_DATASET_KEY:
+            raise ValueError(CALENDAR_GENERIC_ENTRYPOINT_REJECTION_MESSAGE)
         row, _created = DatasetProviderBindingModel._default_manager.update_or_create(
             dataset_key=binding.dataset.value,
             contract_version=binding.dataset.contract_version,
@@ -225,8 +233,12 @@ class ProviderBindingRepository:
         """Replace active bindings atomically while retaining audit history."""
 
         entries = list(bindings)
+        if any(binding.dataset.value == CALENDAR_DATASET_KEY for binding in entries):
+            raise ValueError(CALENDAR_GENERIC_ENTRYPOINT_REJECTION_MESSAGE)
         with transaction.atomic():
-            DatasetProviderBindingModel._default_manager.filter(enabled=True).update(enabled=False)
+            DatasetProviderBindingModel._default_manager.filter(enabled=True).exclude(
+                dataset_key=CALENDAR_DATASET_KEY
+            ).update(enabled=False)
             for binding in entries:
                 self.save(binding)
         return len(entries)
@@ -246,6 +258,8 @@ class DataOwnerRegistryRepository:
     def save(self, registration: DataOwnerRegistration) -> DataOwnerRegistration:
         """Upsert one ownership registration."""
 
+        if registration.dataset_key == CALENDAR_DATASET_KEY:
+            raise ValueError(CALENDAR_GENERIC_ENTRYPOINT_REJECTION_MESSAGE)
         row, _created = DataOwnerRegistrationModel._default_manager.update_or_create(
             dataset_key=registration.dataset_key,
             defaults={
@@ -261,8 +275,12 @@ class DataOwnerRegistryRepository:
         """Replace active registrations atomically while retaining old rows."""
 
         entries = list(registrations)
+        if any(registration.dataset_key == CALENDAR_DATASET_KEY for registration in entries):
+            raise ValueError(CALENDAR_GENERIC_ENTRYPOINT_REJECTION_MESSAGE)
         with transaction.atomic():
-            DataOwnerRegistrationModel._default_manager.filter(active=True).update(active=False)
+            DataOwnerRegistrationModel._default_manager.filter(active=True).exclude(
+                dataset_key=CALENDAR_DATASET_KEY
+            ).update(active=False)
             for registration in entries:
                 self.save(registration)
         return len(entries)

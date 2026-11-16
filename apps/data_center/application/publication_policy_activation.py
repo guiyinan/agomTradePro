@@ -11,6 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Final, Protocol
 
+from apps.data_center.application.calendar_catalog_bootstrap import CALENDAR_DATASET_KEY
 from apps.data_center.domain.contracts import DatasetKey, PublicationPolicy
 from core.exceptions import DataValidationError
 
@@ -224,7 +225,7 @@ class PublicationPolicyActivationRequest:
             sorted(
                 policy.dataset.value
                 for policy in self.candidate_policies
-                if policy.uses_versioned_evidence
+                if policy.uses_versioned_evidence and policy.dataset.value != CALENDAR_DATASET_KEY
             )
         )
         if target_keys != self.expected_state.candidate_target_dataset_keys:

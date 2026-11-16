@@ -659,6 +659,9 @@ class TestNativePostgresCalendarSelection(unittest.TestCase):
     history_target = (
         "tests/component/data_center/test_formal_exchange_calendar_publication_history_pg.py"
     )
+    catalog_admin_target = "tests/component/data_center/test_calendar_catalog_admin_pg.py"
+    generic_catalog_target = "tests/component/data_center/test_generic_calendar_catalog_pg.py"
+    native_targets = (browser_target, history_target, catalog_admin_target, generic_catalog_target)
 
     @staticmethod
     def _data_center_component_test_files() -> set[str]:
@@ -680,23 +683,20 @@ class TestNativePostgresCalendarSelection(unittest.TestCase):
         selected_component_tests = {
             target for target in targets if target.startswith("tests/component/data_center/")
         }
-        expected_component_tests = self._data_center_component_test_files() - {
-            self.browser_target,
-            self.history_target,
-        }
+        expected_component_tests = self._data_center_component_test_files() - set(
+            self.native_targets
+        )
 
         self.assertEqual(selected_component_tests, expected_component_tests)
         self.assertNotIn("tests/component/data_center/", targets)
-        self.assertNotIn(self.browser_target, targets)
-        self.assertNotIn(self.history_target, targets)
+        self.assertTrue(set(self.native_targets).isdisjoint(targets))
 
     def test_browser_test_only_change_routes_out_of_sqlite_selector(self):
-        for target in (self.browser_target, self.history_target):
+        for target in self.native_targets:
             with self.subTest(target=target):
                 targets = set(select_tests_func(set(), [target], profile="logic_guardrails"))
 
-                self.assertNotIn(self.browser_target, targets)
-                self.assertNotIn(self.history_target, targets)
+                self.assertTrue(set(self.native_targets).isdisjoint(targets))
                 self.assertNotIn("tests/component/data_center/", targets)
                 self.assertTrue(set(CORE_GUARDRAIL_TESTS).issubset(targets))
 
@@ -759,15 +759,12 @@ class TestNativePostgresCalendarSelection(unittest.TestCase):
         browser_index = next(
             index
             for index, step in enumerate(job["steps"])
-            if step.get("name") == "Run six native PostgreSQL calendar browser journeys"
+            if step.get("name") == "Run native calendar PostgreSQL safety and browser journeys"
         )
         self.assertLess(install_index, browser_index)
         browser_run = job["steps"][browser_index]["run"]
-        self.assertIn(self.browser_target, browser_run)
-        self.assertIn(
-            "tests/component/data_center/test_formal_exchange_calendar_publication_history_pg.py",
-            browser_run,
-        )
+        for target in self.native_targets:
+            self.assertIn(target, browser_run)
         self.assertIn("--create-db", browser_run)
         self.assertIn("--migrations", browser_run)
         self.assertNotIn("--no-migrations", browser_run)
@@ -780,7 +777,8 @@ class TestNativePostgresCalendarSelection(unittest.TestCase):
         sqlite_component = next(
             step for step in nightly_steps if step.get("name") == "Run Component Tests"
         )
-        self.assertIn(f"--ignore={self.browser_target}", sqlite_component["run"])
+        for target in self.native_targets:
+            self.assertIn(f"--ignore={target}", sqlite_component["run"])
 
         postgres_steps = workflow["jobs"]["critical-postgres"]["steps"]
         browser_install_index = next(
@@ -791,7 +789,7 @@ class TestNativePostgresCalendarSelection(unittest.TestCase):
         calendar_index = next(
             index
             for index, step in enumerate(postgres_steps)
-            if step.get("name") == "Run institutional calendar native PostgreSQL browser journeys"
+            if step.get("name") == "Run native calendar PostgreSQL safety and browser journeys"
         )
         self.assertLess(browser_install_index, calendar_index)
         calendar_step = postgres_steps[calendar_index]
@@ -803,8 +801,11 @@ class TestNativePostgresCalendarSelection(unittest.TestCase):
             calendar_step["env"]["AGOM_CRITICAL_TEST_DB_NAME"],
             "cal02_institutional_calendar_qa",
         )
-        self.assertIn(self.browser_target, calendar_step["run"])
+        for target in self.native_targets:
+            self.assertIn(target, calendar_step["run"])
         self.assertIn("--create-db", calendar_step["run"])
+        self.assertIn("--migrations", calendar_step["run"])
+        self.assertNotIn("--no-migrations", calendar_step["run"])
 
 
 if __name__ == "__main__":

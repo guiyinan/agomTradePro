@@ -11,6 +11,7 @@ from django.db import transaction
 from django.db.models import QuerySet
 from django.http import HttpRequest
 
+from apps.data_center.application.calendar_catalog_bootstrap import CALENDAR_DATASET_KEY
 from apps.data_center.application.financial_capacity_contracts import FinancialCapacityWorkflowError
 from apps.data_center.application.financial_capacity_governance import (
     parse_financial_capacity_governance_record,
@@ -540,6 +541,15 @@ class DatasetContractAdmin(TypedModelAdmin[DatasetContractModel]):
 
         return False
 
+    def has_change_permission(
+        self, request: HttpRequest, obj: DatasetContractModel | None = None
+    ) -> bool:
+        """Keep calendar contracts viewable without permitting Admin saves."""
+
+        if obj is not None and obj.dataset_key == CALENDAR_DATASET_KEY:
+            return False
+        return super().has_change_permission(request, obj)
+
     def has_delete_permission(
         self,
         request: HttpRequest,
@@ -571,6 +581,15 @@ class DatasetProviderBindingAdmin(TypedModelAdmin[DatasetProviderBindingModel]):
         """Require catalog bootstrap/Application ownership for new rows."""
 
         return False
+
+    def has_change_permission(
+        self, request: HttpRequest, obj: DatasetProviderBindingModel | None = None
+    ) -> bool:
+        """Keep calendar provider bindings viewable without updating their clocks."""
+
+        if obj is not None and obj.dataset_key == CALENDAR_DATASET_KEY:
+            return False
+        return super().has_change_permission(request, obj)
 
     def has_delete_permission(
         self,
@@ -605,6 +624,15 @@ class DatasetPublicationPolicyAdmin(TypedModelAdmin[DatasetPublicationPolicyMode
 
         return False
 
+    def has_change_permission(
+        self, request: HttpRequest, obj: DatasetPublicationPolicyModel | None = None
+    ) -> bool:
+        """Keep calendar policies viewable without permitting Admin saves."""
+
+        if obj is not None and obj.dataset_key == CALENDAR_DATASET_KEY:
+            return False
+        return super().has_change_permission(request, obj)
+
     def has_delete_permission(
         self,
         request: HttpRequest,
@@ -635,6 +663,15 @@ class DataOwnerRegistrationAdmin(TypedModelAdmin[DataOwnerRegistrationModel]):
         """Require catalog bootstrap/Application ownership for new rows."""
 
         return False
+
+    def has_change_permission(
+        self, request: HttpRequest, obj: DataOwnerRegistrationModel | None = None
+    ) -> bool:
+        """Keep calendar owner rows viewable without updating their clocks."""
+
+        if obj is not None and obj.dataset_key == CALENDAR_DATASET_KEY:
+            return False
+        return super().has_change_permission(request, obj)
 
     def has_delete_permission(
         self,

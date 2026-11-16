@@ -10,6 +10,10 @@ from typing import Any
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError, CommandParser
 
+from apps.data_center.application.calendar_catalog_bootstrap import (
+    CALENDAR_DATASET_KEY,
+    CALENDAR_GENERIC_ENTRYPOINT_REJECTION_MESSAGE,
+)
 from apps.data_center.application.catalog_use_cases import (
     SynchronizeDataCenterCatalogUseCase,
 )
@@ -58,6 +62,15 @@ def _rows(payload: Mapping[str, object], key: str, path: Path) -> list[Mapping[s
             raise CommandError(f"catalog manifest {path} contains a non-object {key} row")
         rows.append(item)
     return rows
+
+
+def _reject_generic_calendar_rows(rows: list[Mapping[str, object]]) -> None:
+    """Reject the isolated calendar key before parsing generic catalog rows."""
+
+    for row in rows:
+        dataset_key = row.get("dataset_key")
+        if isinstance(dataset_key, str) and dataset_key.strip() == CALENDAR_DATASET_KEY:
+            raise CommandError(CALENDAR_GENERIC_ENTRYPOINT_REJECTION_MESSAGE)
 
 
 def _required_text(row: Mapping[str, object], key: str, context: str) -> str:
@@ -192,7 +205,9 @@ def _load_contracts(path: Path) -> list[DatasetContract]:
     payload = _read_object(path)
     manifest_owner = str(payload.get("owner") or "").strip()
     result: list[DatasetContract] = []
-    for row in _rows(payload, "contracts", path):
+    rows = _rows(payload, "contracts", path)
+    _reject_generic_calendar_rows(rows)
+    for row in rows:
         context = f"contract {row.get('dataset_key')!r}"
         fields_raw = row.get("fields")
         if not isinstance(fields_raw, list) or not fields_raw:
@@ -272,7 +287,9 @@ def _load_bindings(
     """Parse provider bindings and require a matching contract version."""
 
     result: list[ProviderBinding] = []
-    for row in _rows(_read_object(path), "bindings", path):
+    rows = _rows(_read_object(path), "bindings", path)
+    _reject_generic_calendar_rows(rows)
+    for row in rows:
         context = f"binding {row.get('dataset_key')!r}"
         key = _required_text(row, "dataset_key", context)
         contract = contracts.get(key)
@@ -308,7 +325,9 @@ def _load_policies(
     """Parse publication policies and require a matching contract version."""
 
     result: list[PublicationPolicy] = []
-    for row in _rows(_read_object(path), "policies", path):
+    rows = _rows(_read_object(path), "policies", path)
+    _reject_generic_calendar_rows(rows)
+    for row in rows:
         context = f"policy {row.get('dataset_key')!r}"
         key = _required_text(row, "dataset_key", context)
         contract = contracts.get(key)
@@ -356,7 +375,9 @@ def _load_owners(
 
     payload = _read_object(path)
     result: list[DataOwnerRegistration] = []
-    for row in _rows(payload, "datasets", path):
+    rows = _rows(payload, "datasets", path)
+    _reject_generic_calendar_rows(rows)
+    for row in rows:
         context = f"owner {row.get('dataset_key')!r}"
         key = _required_text(row, "dataset_key", context)
         if key not in contracts:

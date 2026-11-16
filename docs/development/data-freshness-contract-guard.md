@@ -1,5 +1,14 @@
 # 当前数据新鲜度契约与 CI 门禁
 
+## 2026-11-16 日历目录管理与同步边界
+
+`data_center.exchange_calendar_snapshot` 只通过显式 create-only bootstrap 建立；精确重放不能修复、
+覆盖或切换历史。四类目录 Admin 对日历对象保留只读 GET，拒绝保存 POST，避免
+`auto_now` 改写已发布目录的时间。通用清单和单行写入在任何 DML 前拒绝日历，
+全局 binding/owner disable 同步排除它。普通发布策略激活仍校验完整目录与指纹，
+只在推导 target 时排除日历；其 non-target 必须保持精确不变。
+这些保护不签发日历 Publication、来源时间或执行资格。
+
 ## 2026-11-16 已发布财务数值 schema 边界
 
 已发布财务响应带 `numeric_evidence` 或 `exact_value_text` 时，即使字段值为 null，

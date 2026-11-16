@@ -4,6 +4,10 @@ from __future__ import annotations
 
 from django.db import transaction
 
+from apps.data_center.application.calendar_catalog_bootstrap import (
+    CALENDAR_DATASET_KEY,
+    CALENDAR_GENERIC_ENTRYPOINT_REJECTION_MESSAGE,
+)
 from apps.data_center.domain.contracts import PublicationPolicy
 
 from .catalog_models import DatasetPublicationPolicyModel
@@ -51,6 +55,8 @@ class PublicationPolicyRepository:
     def save(self, policy: PublicationPolicy) -> PublicationPolicy:
         """Activate exact content, rejecting any rewrite of an existing version."""
 
+        if policy.dataset.value == CALENDAR_DATASET_KEY:
+            raise ValueError(CALENDAR_GENERIC_ENTRYPOINT_REJECTION_MESSAGE)
         with transaction.atomic():
             manager = DatasetPublicationPolicyModel._default_manager
             # Existing version locks serialize reactivation and protect its content.

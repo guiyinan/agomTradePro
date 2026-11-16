@@ -37,9 +37,6 @@ from apps.data_center.infrastructure.catalog_models import (
     DatasetProviderBindingModel,
     DatasetPublicationPolicyModel,
 )
-from apps.data_center.infrastructure.catalog_runtime_repositories import (
-    DatasetContractRepository,
-)
 from apps.data_center.infrastructure.publication_rollback_models import (
     CanonicalPublicationModel,
     CanonicalPublicationPointerModel,
@@ -436,17 +433,25 @@ def test_mixed_created_flags_conflict_and_rollback_around_non_atomic_catalog_wri
     with ThreadPoolExecutor(max_workers=1) as executor:
         future = executor.submit(execute)
         assert uow_ready.wait(timeout=10)
-        DatasetContractRepository().save(_candidate().contract)
+        competing_owner = _candidate().owner
+        DataOwnerRegistrationModel.objects.create(
+            dataset_key=competing_owner.dataset_key,
+            data_platform_owner=competing_owner.data_platform_owner,
+            business_owner=competing_owner.business_owner,
+            acceptance_owner=competing_owner.acceptance_owner,
+            active=competing_owner.active,
+        )
         external_row_committed.set()
         with pytest.raises(CalendarCatalogBootstrapError) as raised:
             future.result(timeout=20)
 
     assert raised.value.reason_code == "CALENDAR_CATALOG_HISTORY_CONFLICT"
     state = _target_rows()
-    assert len(state["contracts"]) == 1
+    assert state["contracts"] == []
     assert state["bindings"] == []
     assert state["policies"] == []
-    assert state["owners"] == []
+    assert len(state["owners"]) == 1
+    assert state["owners"][0]["dataset_key"] == _DATASET_KEY
 
 
 @pytest.mark.skipif(connection.vendor != "postgresql", reason="Requires native PostgreSQL races")

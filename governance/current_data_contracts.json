@@ -10960,7 +10960,14 @@
         "apps/data_center/infrastructure/calendar_catalog_history_guard.py",
         "apps/data_center/infrastructure/formal_exchange_calendar_publication_history_reader.py",
         "core/integration/calendar_formal_publication_history_audit.py",
-        "apps/data_center/calendar_publication_history_composition.py"
+        "apps/data_center/calendar_publication_history_composition.py",
+        "apps/data_center/application/calendar_catalog_bootstrap.py",
+        "apps/data_center/application/catalog_use_cases.py",
+        "apps/data_center/application/publication_policy_activation.py",
+        "apps/data_center/infrastructure/catalog_runtime_repositories.py",
+        "apps/data_center/infrastructure/publication_policy_repository.py",
+        "apps/data_center/interface/admin.py",
+        "apps/data_center/management/commands/initialize_data_center_catalog.py"
       ],
       "required_markers": {
         "apps/data_center/domain/formal_exchange_calendar_publication.py": [
@@ -11072,6 +11079,30 @@
         "apps/data_center/calendar_publication_history_composition.py": [
           "def read_exchange_calendar_publication_as_of(",
           "CALENDAR_HISTORY_TRANSACTION_OWNER_INVALID"
+        ],
+        "apps/data_center/application/calendar_catalog_bootstrap.py": [
+          "CALENDAR_GENERIC_ENTRYPOINT_REJECTION_MESSAGE"
+        ],
+        "apps/data_center/application/catalog_use_cases.py": [
+          "CALENDAR_GENERIC_ENTRYPOINT_REJECTION_MESSAGE"
+        ],
+        "apps/data_center/application/publication_policy_activation.py": [
+          "and policy.dataset.value != CALENDAR_DATASET_KEY"
+        ],
+        "apps/data_center/infrastructure/catalog_runtime_repositories.py": [
+          "dataset_key=CALENDAR_DATASET_KEY",
+          "CALENDAR_GENERIC_ENTRYPOINT_REJECTION_MESSAGE"
+        ],
+        "apps/data_center/infrastructure/publication_policy_repository.py": [
+          "CALENDAR_GENERIC_ENTRYPOINT_REJECTION_MESSAGE"
+        ],
+        "apps/data_center/interface/admin.py": [
+          "def has_change_permission(",
+          "obj.dataset_key == CALENDAR_DATASET_KEY"
+        ],
+        "apps/data_center/management/commands/initialize_data_center_catalog.py": [
+          "def _reject_generic_calendar_rows(",
+          "_reject_generic_calendar_rows(rows)"
         ]
       },
       "required_tests": [
@@ -11189,9 +11220,39 @@
           "case": "history_guard_exact_migration_and_unconditional_enabled_trigger",
           "test_file": "tests/component/data_center/test_formal_exchange_calendar_publication_history_pg.py",
           "test_function": "test_missing_or_tampered_guard_uses_strict_history_and_blocks_late_catalog"
+        },
+        {
+          "case": "calendar_four_admin_get_view_post_denial",
+          "test_file": "tests/component/data_center/test_calendar_catalog_admin_pg.py",
+          "test_function": "test_change_only_staff_can_view_but_cannot_post_guarded_calendar_catalog"
+        },
+        {
+          "case": "generic_default_sync_preserves_calendar_four_rows",
+          "test_file": "tests/component/data_center/test_generic_calendar_catalog_pg.py",
+          "test_function": "test_default_manifest_sync_preserves_all_calendar_rows_and_writes_ordinary_dataset"
+        },
+        {
+          "case": "ordinary_policy_activation_keeps_calendar_exact_non_target",
+          "test_file": "tests/component/data_center/test_generic_calendar_catalog_pg.py",
+          "test_function": "test_policy_activation_keeps_calendar_in_full_snapshot_as_exact_non_target"
+        },
+        {
+          "case": "calendar_non_target_drift_precedes_policy_write",
+          "test_file": "tests/component/data_center/test_generic_calendar_catalog_pg.py",
+          "test_function": "test_changed_calendar_non_target_is_rejected_before_any_catalog_write"
+        },
+        {
+          "case": "calendar_mixed_manifest_rejects_entire_batch",
+          "test_file": "tests/component/data_center/test_generic_calendar_catalog_pg.py",
+          "test_function": "test_mixed_calendar_manifest_batch_fails_before_any_catalog_write"
+        },
+        {
+          "case": "calendar_direct_generic_saves_reject_before_dml",
+          "test_file": "tests/component/data_center/test_generic_calendar_catalog_pg.py",
+          "test_function": "test_all_generic_single_row_saves_reject_calendar_before_catalog_mutation"
         }
       ],
-      "notes": "Current publication integrity joins the same-alias single outer transaction through a read-only scope, even when another audited operation already owns private Audit/Outbox append capabilities. It preserves the exact publication event/outbox selectors and locks, issues no new append capability or savepoint, and never extends source clocks, TTL, current policy or execution authority. Missing/corrupt halves remain blocking and are never repaired by a read. A separate exact-publication historical reference reconstructs original source/Audit within the original response TTL and half-open lifecycle. It requires actual record knowledge and relaxes later active/updated_at changes only for publications protected after the exact installed 0115 guard. Existing current-pointer and financial ANN gates stay strict; historical references provide no activation, current-pointer or execution claim."
+      "notes": "Current publication integrity joins the same-alias single outer transaction through a read-only scope, even when another audited operation already owns private Audit/Outbox append capabilities. It preserves the exact publication event/outbox selectors and locks, issues no new append capability or savepoint, and never extends source clocks, TTL, current policy or execution authority. Missing/corrupt halves remain blocking and are never repaired by a read. A separate exact-publication historical reference reconstructs original source/Audit within the original response TTL and half-open lifecycle. It requires actual record knowledge and relaxes later active/updated_at changes only for publications protected after the exact installed 0115 guard. Existing current-pointer and financial ANN gates stay strict; historical references provide no activation, current-pointer or execution claim. Calendar catalogs are isolated from generic writes and global binding/owner replacement. Full activation snapshots retain exact calendar rows as non-targets, while any non-target drift blocks before saves. All four calendar Admin objects retain normal Django change-only staff view access but reject POST before catalog DML. These are catalog safety contracts; synthetic persisted-state fixtures exercise installed SQL guards without claiming member/Audit or production qualification."
     },
     {
       "id": "simulated_trading.current_published_calendar_reference",

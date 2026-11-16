@@ -595,9 +595,11 @@ jobs:
       - name: Install Python browser runtime
         run: python -m playwright install --with-deps chromium
 
-      - name: Run six native PostgreSQL calendar browser journeys
+      - name: Run native calendar PostgreSQL safety and browser journeys
         run: >-
           python -m pytest -p django
           tests/component/data_center/test_institutional_calendar_browser.py
           tests/component/data_center/test_formal_exchange_calendar_publication_history_pg.py
+          tests/component/data_center/test_calendar_catalog_admin_pg.py
+          tests/component/data_center/test_generic_calendar_catalog_pg.py
           --create-db --migrations -q -o addopts=''

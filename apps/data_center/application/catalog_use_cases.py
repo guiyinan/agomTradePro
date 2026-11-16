@@ -5,6 +5,10 @@ from __future__ import annotations
 from collections.abc import Iterable
 from dataclasses import dataclass
 
+from apps.data_center.application.calendar_catalog_bootstrap import (
+    CALENDAR_DATASET_KEY,
+    CALENDAR_GENERIC_ENTRYPOINT_REJECTION_MESSAGE,
+)
 from apps.data_center.domain.contracts import (
     DataOwnerRegistration,
     DatasetContract,
@@ -59,6 +63,13 @@ class SynchronizeDataCenterCatalogUseCase:
         binding_rows = list(bindings)
         policy_rows = list(policies)
         owner_rows = list(owners)
+        if (
+            any(contract.key.value == CALENDAR_DATASET_KEY for contract in contract_rows)
+            or any(binding.dataset.value == CALENDAR_DATASET_KEY for binding in binding_rows)
+            or any(policy.dataset.value == CALENDAR_DATASET_KEY for policy in policy_rows)
+            or any(owner.dataset_key == CALENDAR_DATASET_KEY for owner in owner_rows)
+        ):
+            raise ValueError(CALENDAR_GENERIC_ENTRYPOINT_REJECTION_MESSAGE)
         if not contract_rows:
             raise ValueError("at least one Dataset Contract is required")
         contract_keys = {contract.key.value for contract in contract_rows}

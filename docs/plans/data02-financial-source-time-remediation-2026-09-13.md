@@ -1229,3 +1229,41 @@ Root 将隔离提案转为正式包 canonical imports，扩成 13 项边界用�
 全 universe 四 Publication 对账仍按前节落实。单元关闭或生产资格不能由这 51 项替代。
 开发回滚点为上述父候选；回滚会重新暴露 schema 降级缺口，不用于生产恢复。未部署、
 未使用财务 HTTP 预算、未写生产事实或交易，DATA-03 保持等待完整 DATA-02 退出。
+
+
+## 47. 日历目录管理与同步保护、自然审计周期观测（2026-11-16）
+
+前一候选 `3048076a52472727d9cd63950780ff245b1739ba` 的五条适用 CI 均已成功；
+纯 Equity mapper 路径未触发 Quote/Publication PostgreSQL workflow，不据此补算七条或新的
+全域覆盖率。本批在该父候选上收口日历配置隔离：四类 Admin 对日历对象保留只读 GET，
+真实 change-only staff POST 在 DML 前返回 403；通用清单与四类 repository 写入前拒绝日历，
+全局 disable 同步排除它。普通 publication policy 激活仍校验完整目录和指纹，只在推导
+target 时排除日历；不变的日历可随普通变更通过，被篡改的日历 non-target 在写入前拒绝。
+
+Root 的完整 PostgreSQL 合批为 133 passed / 4 opt-in skipped；四项要求独立空库的旧策略
+用例在同一未改动候选上另跑 4 passed / 0 skipped（专用五表夹具，不冒充全迁移历史门）。
+92 项本地回归（含一项隔离 SQLite 数据库用例）、
+8 个生产文件类型门禁及失败原件统一登记于既有验收索引 `followups[12]`。原生首轮因
+测试借用 core.urls 触发未启用 backtest 而失败；随后发现 available_apps 隐藏了真实 Admin
+注册所需应用，第二次测试失败也保留原件。测试改用实际 Admin 注册站点的隔离 URLconf
+并恢复完整应用注册，12 项新增契约先定向通过。完整合批又复现旧 forward-clock 夹具
+在慢机器上的知识时间竞争；改为先创建两份真实快照，再采第一发布时钟，原相等指针
+拒绝及加一秒切换断言不变。该用例定向通过。随后完整合批又出现并发 CAS 两个 contender 均受阻，原断言未保留
+阻断码；只加观测信息的定向重跑通过，不能编造其确切阻断码或断言根因已复现。该并发
+夹具也存在先冻结时钟、后创建来源的同类竞争，改为取两份来源记录时钟之后的明确时刻，
+并在失败断言中保留真实 contender 结果。定向验证通过后，整批在 Admin 夹具暴露前序 scoped-app 清理未重建标准 Permission 行。
+原生夹具清空 ContentType 缓存并调用 Django 标准 create_permissions，真实登录和权限后端
+保持；按 scoped native 用例后接 12 项新增契约验证后再跑最终整批。正式路由与时间门未改变。最终整批复用 Root 验证归属的已迁移专用 PostgreSQL，
+不跨候选拼接通过。Fast/Nightly 原生任务纳入两组新契约，SQLite 选择器排除四个专用模块。
+
+另一次实际生产只读观测于 05:31 UTC 取得 21 项权限窗口健康 noop，21 个 Beat due 和
+21 个 Worker task ID；选取的最近八轮均关联，包含最近两轮。未调用续期、未投递任务，
+也未重新调用 lease getter；该证据证明自然调度业务结果健康，不能宣称实际续期成功或未来
+镜像权限资格。完整 DATA-02 退出门与 DATA-03 依赖门保持不变。
+
+下一可提交事项为 D1 真实数值目录/Owner 事件及 qualified verifier；0116 逆迁移须先锁三表
+再检查空表，避免并发 capture 在检查与 DROP 间丢失。C2 治理按真实登录授权、来源锁和
+服务器时钟补齐，再接 date-only v3 producer/storage/consumer；八处构造注入、实际日历、
+受控 E1 与全 universe 四 Publication 对账仍未完成。财务 HTTP 预算使用 0/2；本批无部署、
+生产事实或交易写入。开发回滚点为上述父候选；回退将重新暴露日历管理/同步写入风险，
+不能作为已发布日历历史的生产恢复方案。

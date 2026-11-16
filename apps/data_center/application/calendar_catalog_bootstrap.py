@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Literal, Protocol
+from typing import Final, Literal, Protocol
 
 from apps.data_center.application.calendar_capture_configuration import (
     CALENDAR_CAPTURE_CAPABILITY,
@@ -20,6 +20,11 @@ from apps.data_center.domain.control_plane import CalendarNullableMemberCodecVer
 from core.exceptions import ValidationError
 
 CALENDAR_DATASET_KEY = "data_center.exchange_calendar_snapshot"
+CALENDAR_GENERIC_ENTRYPOINT_REJECTION_MESSAGE: Final[str] = (
+    "generic catalog writes do not support the exchange-calendar dataset; "
+    "the calendar bootstrap only creates an absent exact catalog or accepts "
+    "an exact replay, and cannot update, repair, or switch existing catalog history"
+)
 
 
 class CalendarCatalogBootstrapError(ValidationError):
@@ -158,6 +163,7 @@ class CreateCalendarCatalogBootstrapUseCase:
 
 __all__ = [
     "CALENDAR_DATASET_KEY",
+    "CALENDAR_GENERIC_ENTRYPOINT_REJECTION_MESSAGE",
     "CalendarCatalogBootstrapError",
     "CalendarCatalogBootstrapRepositoryPort",
     "CalendarCatalogBootstrapResult",
