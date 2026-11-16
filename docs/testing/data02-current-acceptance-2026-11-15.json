@@ -3601,7 +3601,7 @@
     {
       "date": "2026-11-16T18:08:48.512032+00:00",
       "kind": "e1_frozen_integrated_c2_numeric_v3_preparation",
-      "status": "development_committed_governance_fix_ready_for_exact_candidate_ci",
+      "status": "frozen_candidate_ci_passed_awaiting_s6_scope_budget",
       "base_head": "2529c3bd50b728ae87ad328c1ae5794907f5ea74",
       "scope": "Frozen single-security Main+Balance E1 critical path only; full DATA-02 universe and four Publication exit gates unchanged.",
       "delivery": {
@@ -3612,7 +3612,9 @@
         "development_acceptance_complete": true,
         "implementation_commit": "dc4e27e83be2ec583ae53aa76a0184310fbfe07c",
         "branch": "dev/next-development",
-        "required_acceptance_scope": "Exact-candidate CI and release prerequisites remain separate from completed local development acceptance."
+        "required_acceptance_scope": "Exact-candidate CI and release prerequisites remain separate from completed local development acceptance.",
+        "candidate_ci_complete": true,
+        "frozen_release_candidate_sha": "7955a814c4c50617c41b8b72ba9636877ace3852"
       },
       "implementation": [
         "Session-authenticated C2 apply/revoke and immutable Owner history",
@@ -3835,7 +3837,6 @@
         "Delivery registry check r1 identified timestamp updated_at where ISO date was required; metadata corrected to2026-11-17, production Source unchanged; raw log retained."
       ],
       "not_complete": [
-        "formal candidate commit and exact-candidate CI",
         "same-candidate S6/backup/staging and controlled deployment",
         "normal source/calendar/Owner preconditions",
         "real bounded E1 and actual-entry readback/raw reconciliation",
@@ -3976,7 +3977,8 @@
           "unit": "requests.Session dispatch, not a claim about lower-level wire retries",
           "financial_statement_budget_includes_market_dispatches": false
         },
-        "budget_basis": "S6 full-scope2N/4N plus separate one-security financial slice2logical/up to4physical; no cross-stage deduplication. Existing E1 max2 remains separate. Normal authenticated per-candidate scope authorization must still run; no discovered Owner authorization expands current scope to this full S6 ceiling."
+        "budget_basis": "S6 full-scope2N/4N plus separate one-security financial slice2logical/up to4physical; no cross-stage deduplication. Existing E1 max2 remains separate. Normal authenticated per-candidate scope authorization must still run; no discovered Owner authorization expands current scope to this full S6 ceiling.",
+        "decision_status": "Awaiting one explicit Owner decision on the requested standard S6 ceiling; credentials already available, no password requested; no provider calls started."
       },
       "native_r7_result": {
         "receipt": {
@@ -4027,7 +4029,17 @@
         "local_development_gate_complete": true,
         "ci_status_at_recording": "pending exact metadata candidate push",
         "production_deployed": false,
-        "e1_financial_http_used": 0
+        "e1_financial_http_used": 0,
+        "governance_ci_fix_commit": "7955a814c4c50617c41b8b72ba9636877ace3852",
+        "frozen_release_candidate_sha": "7955a814c4c50617c41b8b72ba9636877ace3852",
+        "ci_verified_receipt": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/corrected-candidate-ci-all-verified.receipt.json",
+          "sha256": "ff095ecb81fc0e2a88d30e4130a56a64e4d032da1a9a4c2b157baef7b4b5e174"
+        },
+        "ci_workflow_types_passed": 7,
+        "ci_runs_passed": 8,
+        "manual_full_runtime_validation_passed": true,
+        "later_evidence_commits_replace_frozen_candidate": false
       },
       "delivery_registry_check": {
         "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/delivery-registry-check-r2.log",
@@ -4037,7 +4049,7 @@
       },
       "candidate905e_ci_correction": {
         "candidate_sha": "905e22e8fdcca943407b6aef4dd7e7d538ebde95",
-        "status": "affected_local_checks_passed_precommit",
+        "status": "corrected_and_exact_new_candidate_ci_verified",
         "failed_workflows_or_jobs": [
           "Architecture Layer Guard REF01",
           "CI Fast Feedback incremental quality projection",
@@ -4093,8 +4105,17 @@
             0
           ],
           "e1_runtime_and_native_dependencies_changed": false
+        },
+        "original_model_delta_recheck": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/ref01-original-range-fixed-r1.receipt.json",
+          "sha256": "0a2a6e546951dbfd608b41f1eac2e1a1253ce1cc2c278e8167839a1e696cc4ef"
         }
-      }
+      },
+      "verified_predeploy_backup": {
+        "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/controlled-release-backup-r1.verified-summary.json",
+        "sha256": "4f781ca77eb1d1b53f9d5b7b46129caff28af138ecfdfcf6898af7288c3c952e"
+      },
+      "qualification_boundary": "Completed source implementation/local gates/exact candidate CI and verified current-production backup. S6, controlled deployment, real qualified E1/reconciliation, full-universe four Publications and DATA03 remain unproven. No later evidence-only commit changes the frozen7955 candidate; its S6 must use a clean exact7955 checkout."
     }
   ],
   "current_authority_followup": "followups[0] (2026-11-16); original 2026-11-15 snapshots remain historical",
