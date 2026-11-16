@@ -13,7 +13,10 @@ from apps.audit.application.calendar_publication_integrity import (
     CalendarPublicationAuditIntegrityReceipt,
     VerifyPublishedCalendarPublicationIntegrityUseCase,
 )
-from apps.audit.calendar_publication_composition import CalendarPublicationAuditCoordinator
+from apps.audit.calendar_publication_composition import (
+    CalendarPublicationAuditCoordinator,
+    build_calendar_publication_audit_coordinator,
+)
 from apps.audit.domain.calendar_publication_audit import (
     CalendarPublicationAuditEvidence,
     CalendarPublicationPublishedDetail,
@@ -47,7 +50,7 @@ class CoreCalendarFormalPublicationHistoricalAuditBridge:
         self,
         *,
         using: str,
-        coordinator: CalendarPublicationAuditCoordinator,
+        coordinator: CalendarPublicationAuditCoordinator | None = None,
     ) -> None:
         """Bind the existing exact Audit reader to the publication database alias."""
 
@@ -55,12 +58,17 @@ class CoreCalendarFormalPublicationHistoricalAuditBridge:
             raise CalendarPublicationAuditUnavailable(
                 "historical calendar Audit verification requires an explicit database alias"
             )
-        if coordinator.database_alias != using:
+        selected_coordinator = (
+            coordinator
+            if coordinator is not None
+            else build_calendar_publication_audit_coordinator(using=using)
+        )
+        if selected_coordinator.database_alias != using:
             raise CalendarPublicationAuditUnavailable(
                 "historical calendar Audit coordinator uses another database alias"
             )
         self._using = using
-        self._coordinator = coordinator
+        self._coordinator = selected_coordinator
 
     @property
     def database_alias(self) -> str:

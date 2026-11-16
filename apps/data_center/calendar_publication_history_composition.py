@@ -8,9 +8,6 @@ from django.db import DEFAULT_DB_ALIAS, connections, transaction
 from django.db.backends.base.base import BaseDatabaseWrapper
 from django.utils import timezone
 
-from apps.audit.calendar_publication_composition import (
-    build_calendar_publication_audit_coordinator,
-)
 from apps.data_center.application.calendar_formal_publication_audit_port import (
     CalendarFormalPublicationAuditPort,
 )
@@ -64,17 +61,14 @@ def read_exchange_calendar_publication_as_of(
     _require_unowned_read_boundary(connection)
     clock = _ServerClock()
     with transaction.atomic(using=DEFAULT_DB_ALIAS):
-        audit_coordinator = build_calendar_publication_audit_coordinator(using=DEFAULT_DB_ALIAS)
         publication_audit: CalendarFormalPublicationAuditPort = (
             CoreCalendarFormalPublicationAuditBridge(
                 using=DEFAULT_DB_ALIAS,
-                coordinator=audit_coordinator,
             )
         )
         historical_audit: CalendarHistoricalPublicationAuditPort = (
             CoreCalendarFormalPublicationHistoricalAuditBridge(
                 using=DEFAULT_DB_ALIAS,
-                coordinator=audit_coordinator,
             )
         )
         reader = DjangoFormalExchangeCalendarPublicationHistoryReader(

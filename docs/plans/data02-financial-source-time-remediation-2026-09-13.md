@@ -1184,3 +1184,25 @@ producer/consumer v3 接线、生产合格日历和四 Publication 全集验收�
 严格时钟或阻断，不改写目录内容或事实。尚无生产部署/事实写入，不能把本地通过写成生产
 资格。后续生产动作仍须同候选 S6、备份/staging、真实参数/权限及兼容读写者验收；如未来
 已有 native 财务行，不得回滚到不识别该数值 schema 的旧读写镜像。
+
+## 45. 历史日历 Audit 组装的实际 CI 纠正（2026-11-16）
+
+`8c998b69de4aba5c43ba60cdfdc48b4af32358c5` 的实际 Architecture 与 Fast Feedback
+均因同一新增模块循环失败：Data Center composition 直接导入 Audit composition，产生
+未获准的 App 边、双向依赖和扩大后的循环组件。原生日历 PostgreSQL/browser job 通过，
+不能抵销该失败；本地此前通过的 architecture delta 也不能代替模块循环门禁。
+
+本批将默认同库 Audit coordinator 的构造留在 Core integration；Data Center 只组装
+Core bridge。显式注入仍校验数据库别名，历史读取继续核对原始事件/outbox，不添加
+历史 pointer 或激活凭证。模块预算、白名单和架构规则均未放宽。本地验收流程补入实际
+CI 使用的模块循环检查；修正候选另跑 fresh 全量迁移 PostgreSQL、应用/CI 路由、
+增量类型与全库债务、投影/current/governance 门禁，结果及失败原件见唯一验收索引
+`docs/testing/data02-current-acceptance-2026-11-15.json` 的 `followups[10]`。
+新提交仍须独立完成实际 CI，不能以父候选其他已通过 job 拼接资格。
+
+DATA-02 的完整剩余及退出门继续遵循上一节。后续日历配置隔离必须保持普通数据集
+策略激活能力：全库快照允许原样携带日历，日历只能是精确不变的 non-target；通用
+写入口和实际激活目标应在首个 mutation 前拒绝日历改动。D1/C2 候选仍需真实目录、
+同库原件、认证 Owner、当前/PIT 和事务内撤销验证；不得以相同用户名或主键推造跨库
+认证。开发回滚点为本节父候选；其 CI 已失败，回滚只用于定位，不授予发布资格。
+本批不部署、不请求新财务响应、不写生产事实或交易，DATA-03 仍等待完整 DATA-02 退出。

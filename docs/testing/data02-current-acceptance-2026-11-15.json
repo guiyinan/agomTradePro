@@ -3027,6 +3027,91 @@
       "production_deployment": false,
       "data02_exit_met": false,
       "data03_started": false
+    },
+    {
+      "date": "2026-11-16",
+      "kind": "calendar_history_core_composition_cycle_correction",
+      "base_head": "8c998b69de4aba5c43ba60cdfdc48b4af32358c5",
+      "candidate": "Root formal working tree correction from this base; new exact commit and actual CI must be verified independently.",
+      "actual_ci_failure": {
+        "architecture_run": 43792522319,
+        "fast_feedback_run": 43792522371,
+        "cause": "Direct data_center import of audit composition introduced an unapproved App edge, bidirectional pair and enlarged SCC; both Python fast suites failed the same module-cycle guardrail.",
+        "native_calendar_job": {
+          "id": 133054061383,
+          "conclusion": "success"
+        },
+        "source_of_truth": "ci-8c998b69d-observed.json; failed logs retained without replacing prior local evidence"
+      },
+      "correction": [
+        "Data Center composition imports only the existing Core integration bridges; Core owns the default same-alias Audit coordinator factory.",
+        "No module cycle allowlist, edge budget or architecture rule was raised. Local acceptance now explicitly includes the CI module-cycle gate."
+      ],
+      "verification": {
+        "fresh_full_migration_postgres": {
+          "tests": 88,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        "source_changes_during_postgres": [],
+        "unit_and_ci_selection_passed": 85,
+        "incremental_production_files": 9,
+        "full_mypy_debt": 0,
+        "format_module_cycles_architecture_projections_current_governance_exit": 0,
+        "actual_new_candidate_ci": "pending exact commit/push; failed parent is not qualified"
+      },
+      "remaining": "Full DATA-02 exit remains open: guard-safe Admin/generic synchronization, D1 real catalog and same-UOW current/PIT qualification, C2 real governance/v3 wiring and production calendar, bounded E1 and full-universe reconciliation. DATA-03 remains waiting_dependency. No new financial HTTP, production facts/trades or deployment.",
+      "artifacts": [
+        {
+          "path": ".tmp/data02-current-20261115/20261116/calendar-history-cycle-fix-r1-format.receipt.json",
+          "sha256": "aa28ae73f5f73318cb6b57a1432c0577d85c9402538295bf9ca79df5f009884b"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/calendar-history-cycle-fix-r1-static.receipt.json",
+          "sha256": "fb01703b0b00ff70e2e573a05ce8efa3da394809d5592e20de0afec132f8217c"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/calendar-history-cycle-fix-r1-build.receipt.json",
+          "sha256": "40984c6ac471f14afe66fc5d9aea76c7f0a3ffab6e1c1c7e9b8cb4db604c5435"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/calendar-history-cycle-fix-r1-governance.receipt.json",
+          "sha256": "bd2db72aff7c22dda99942aebf15619c1a325d7895add2f1f554a00c804785b1"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/calendar-history-cycle-fix-r1-unit-final.receipt.json",
+          "sha256": "755c78afcfc9fcc5952dac51be7dc6a71c6597c6d406aa07749d1467bfba6a82"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/calendar-history-cycle-fix-pg-r1.receipt.json",
+          "sha256": "26063e1aa9b49fa9fb3a3ca25963aec43710c765c707ace7a51ecd6f86916ecc"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/calendar-history-cycle-fix-pg-r1.junit.xml",
+          "sha256": "64560cf50975cf12a5d222d03e85207b16ab9f6545962e390fc1cefd5cc81c40"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/calendar-history-cycle-fix-r1-unit.junit.xml",
+          "sha256": "a86e31ffe001cf053c2368e9e0726e2fe7b9dd2efe76262cacc29ce89d16c149"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/ci-8c998b69d-observed.json",
+          "sha256": "f55eb14af8f28ad093c29d40b475330ae318baa3bfdc6a115d81f81578fc774a"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/ci-8c998b69d-fast-jobs.json",
+          "sha256": "5af5331eeca3318d6a89b5cbfa5ea08321205d5fb16205b01a3ceba8a6212ec5"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/ci-8c998b69d-architecture-failed.log",
+          "sha256": "87ebcec50a8103993779579bc72b1b6db8bf8d32c2cc729d2fb4a42dce3e428a"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/ci-8c998b69d-fast-failed.log",
+          "sha256": "7934e90f32aedd68b4ab6a5c81db3e8d67c2e3265a5e060bdc573d9f0e6bee04"
+        }
+      ]
     }
   ],
   "current_authority_followup": "followups[0] (2026-11-16); original 2026-11-15 snapshots remain historical",

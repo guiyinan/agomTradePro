@@ -2386,9 +2386,6 @@
         "dashboard": {
           "imports": 1
         },
-        "data_center": {
-          "imports": 1
-        },
         "simulated_trading": {
           "imports": 47
         },
@@ -4178,14 +4175,6 @@
         },
         "valuation": {
           "imports": 2
-        }
-      },
-      "depends_on": {
-        "audit": {
-          "imports": 1,
-          "target_layers": [
-            "calendar_publication_composition"
-          ]
         }
       },
       "entrypoints": {
