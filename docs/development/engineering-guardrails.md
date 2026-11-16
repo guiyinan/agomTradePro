@@ -192,13 +192,13 @@ CI 的 Consistency/Fast Feedback 使用同一入口保留 fail-closed 校验。
    - 响应字段、状态码、错误口径
    - SDK 模块调用与示例
    - MCP 工具返回与示例
-   - OpenAPI 产物（`schema.yml`、`docs/testing/api/openapi.yaml`、`docs/testing/api/openapi.json`）
+   - OpenAPI 唯一版本化产物（`docs/testing/api/openapi.yaml`，从路由与 serializer 生成）
    - 用户可见提示文案（页面 / HTMX partial / Agent 输出说明）
 2. 如果 API 新增“降级 / 回退 / stale / fallback”语义，前端必须显式提示用户，MCP/SDK 文档必须说明解释规则。
 3. 合入前至少执行一次以下同步命令：
-   - `python manage.py spectacular --file schema.yml`
-   - `python manage.py spectacular --file docs/testing/api/openapi.yaml`
-   - `python manage.py spectacular --format openapi-json --file docs/testing/api/openapi.json`
+   - `python scripts/generate_openapi.py`（只更新权威 YAML，不手工编辑生成内容）
+   - `python scripts/generate_openapi.py --check`（重新生成比对，漂移或缺失返回非零，且不写入产物；默认使用 `core.settings.openapi` 的 PostgreSQL 元数据，无需业务数据库；生成与检查须使用相同依赖版本）
+   - 需要 JSON 时按需导出：`python scripts/generate_openapi.py --format json --output tmp/openapi.json`；临时副本不提交。
 4. 合入前至少执行一次以下护栏测试：
    - `pytest -q tests/unit/test_docs_route_alignment.py`
    - `pytest sdk/tests/test_mcp/test_tool_execution.py -q`

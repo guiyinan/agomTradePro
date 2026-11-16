@@ -344,7 +344,7 @@ def test_regime_dashboard_loads(authenticated_page):
 **API 改动附加门禁**: 只要接口路径、参数、响应字段、状态码或前端展示文案发生变化，除上表外还必须同步检查：
 - SDK 调用层与示例文档
 - MCP 工具返回结构与示例文档
-- OpenAPI 产物：`schema.yml`、`docs/testing/api/openapi.yaml`、`docs/testing/api/openapi.json`
+- OpenAPI 唯一版本化产物：`docs/testing/api/openapi.yaml`；统一运行 `python scripts/generate_openapi.py` 生成，运行 `python scripts/generate_openapi.py --check` 检查漂移。JSON 按需通过同一入口的 `--format json --output tmp/openapi.json` 导出，不提交重复副本。
 - 用户可见提示：模板、页面告警、fallback/stale 提示文案
 
 **执行入口**: 统一按 `docs/development/engineering-guardrails.md` 中的“API 改动同步门禁”执行，并在 `docs/development/quick-reference.md` 复核命令。

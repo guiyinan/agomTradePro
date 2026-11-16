@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytest
+
 
 def _read(path: str) -> str:
     return Path(path).read_text(encoding="utf-8")
@@ -104,7 +106,8 @@ def test_development_docs_include_api_change_sync_checklist() -> None:
 
     assert "API 改动同步门禁" in guardrails
     assert "是否已同步 SDK / MCP / OpenAPI / 文档 / 用户提示" in guardrails
-    assert "python manage.py spectacular --file schema.yml" in guardrails
+    assert "python scripts/generate_openapi.py" in guardrails
+    assert "python scripts/generate_openapi.py --check" in guardrails
     assert "engineering-guardrails.md" in index_doc
     assert "API 改动同步检查" in index_doc
     assert "API 改动同步检查" in quick_reference
@@ -113,3 +116,31 @@ def test_development_docs_include_api_change_sync_checklist() -> None:
     assert "SDK 调用层与示例文档" in outsourcing_guidelines
     assert "MCP 工具返回结构与示例文档" in outsourcing_guidelines
     assert "docs/development/engineering-guardrails.md" in outsourcing_guidelines
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "docs/development/engineering-guardrails.md",
+        "docs/development/quick-reference.md",
+        "docs/development/outsourcing-work-guidelines.md",
+        "docs/testing/api/API_REFERENCE.md",
+    ],
+)
+def test_openapi_docs_use_single_artifact_and_generation_entry(path: str) -> None:
+    content = _read(path)
+    assert "docs/testing/api/openapi.yaml" in content
+    assert "scripts/generate_openapi.py" in content
+    assert "manage.py spectacular" not in content
+    assert "`schema.yml`" not in content
+    assert "`docs/testing/api/openapi.json`" not in content
+
+
+def test_tui_openapi_exports_select_json_format_explicitly() -> None:
+    for path in (
+        "docs/development/quick-reference.md",
+        "docs/development/tui-metadata-promotion-guide.md",
+    ):
+        content = _read(path)
+        assert "scripts/generate_openapi.py --format json --output tmp" in content
+        assert "manage.py spectacular" not in content

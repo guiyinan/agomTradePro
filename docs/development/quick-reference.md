@@ -293,7 +293,7 @@ agomtradepro/Scripts/python manage.py list_models
 - 编译期可以用 API、SDK、MCP、classic 模板作为证据；运行时不得扫描源码、模板、SDK、MCP 或 URL resolver。
 - Django 宿主导出 compile-time 证据时，优先使用：
   - `agomtradepro\Scripts\python.exe manage.py export_tui_django_contracts --output tmp\tui_django_contracts.json`
-  - `agomtradepro\Scripts\python.exe manage.py spectacular --file tmp\tui_openapi.json`
+  - `agomtradepro\Scripts\python.exe scripts/generate_openapi.py --format json --output tmp\tui_openapi.json`
 - 普通 UI 不展示 endpoint、method、裸 JSON；原始响应只允许放在 Raw Response 调试抽屉。
 - 主题系统固定为三套运行时模式：`A` 冷色科研终端、`B` 中性金融专业终端（默认）、`C` 风控控制台；`Alt+T` 循环切换，切换时不得刷新页面或丢失当前 TUI 状态。
 - 所有颜色必须走统一 theme token：`background / panelBackground / primaryText / secondaryText / border / highlight / accent / success / warning / error / grid`；不得在组件内新增写死颜色。
@@ -308,7 +308,7 @@ agomtradepro/Scripts/python manage.py list_models
 agomtradepro\Scripts\python.exe manage.py export_tui_django_contracts --output tmp\tui_django_contracts.json
 
 # 导出 OpenAPI compile-time contracts
-agomtradepro\Scripts\python.exe manage.py spectacular --file tmp\tui_openapi.json
+agomtradepro\Scripts\python.exe scripts/generate_openapi.py --format json --output tmp\tui_openapi.json
 
 # 生成候选图，并将证据快照写到单独 evidence 文件
 agomtradepro\Scripts\python.exe tui-metadata-compiler\scripts\generate_tui_metadata.py --include-safe-api-actions 9999 --include-parameterized-api-actions 9999
@@ -567,10 +567,14 @@ python scripts/scaffold_application_providers.py --module prompt --provider get_
 如果本次提交修改了 API 路径、参数、响应字段、状态码或 fallback 语义，合入前额外执行：
 
 ```bash
-# 重新生成 OpenAPI 产物
-python manage.py spectacular --file schema.yml
-python manage.py spectacular --file docs/testing/api/openapi.yaml
-python manage.py spectacular --format openapi-json --file docs/testing/api/openapi.json
+# 重新生成唯一版本化 OpenAPI 产物：docs/testing/api/openapi.yaml
+python scripts/generate_openapi.py
+
+# 只读检查生成内容是否漂移（漂移或缺失返回非零）
+python scripts/generate_openapi.py --check
+
+# 按需导出临时 JSON，不提交重复产物
+python scripts/generate_openapi.py --format json --output tmp/openapi.json
 
 # 验证文档 / MCP / SDK 对齐
 pytest -q tests/unit/test_docs_route_alignment.py
@@ -579,6 +583,10 @@ pytest sdk/tests/test_mcp/test_tool_execution.py -q
 # 如果改了 SDK 契约或 canonical 路径，再执行
 pytest sdk/tests/test_sdk/test_extended_module_endpoints.py -q
 ```
+
+默认使用 `core.settings.openapi` 的 PostgreSQL 元数据，无需业务数据库；本地使用 SQLite
+也可复现正式整数字段范围。生成与 `--check` 须保持相同依赖版本。临时导出可通过 `--settings`
+显式选择其他 Django 环境；SQLite 范围与格式不同，不应据此覆盖正式 YAML。
 
 - 必须同步：API 实现、SDK、MCP、OpenAPI、用户提示文案。
 - 详细规则见 `docs/development/engineering-guardrails.md` 的“API 改动同步门禁”。
@@ -607,7 +615,7 @@ Celery 正常发布自动生成一次业务键；直接 `.run()` 或绕过任务
 > - 旧格式 (`/api/{module}/api/` 和 `/{module}/api/`) 仍保持向后兼容
 >
 > **Schema 生成说明**:
-> - `python manage.py spectacular --file schema.yml` 只输出规范化 `/api/*` 端点
+> - `python scripts/generate_openapi.py` 从路由与 serializer 生成 `docs/testing/api/openapi.yaml`，只输出规范化 `/api/*` 端点
 > - 枚举组件名已做稳定映射，避免生成带哈希后缀的临时 enum 名
 
 ### Regime API

@@ -45,10 +45,10 @@ For Django hosts, compile-time evidence should now be exported explicitly instea
 
 ```powershell
 agomtradepro\Scripts\python.exe manage.py export_tui_django_contracts --output tmp\tui_django_contracts.json
-agomtradepro\Scripts\python.exe manage.py spectacular --file tmp\tui_openapi.json
+agomtradepro\Scripts\python.exe scripts/generate_openapi.py --format json --output tmp\tui_openapi.json
 ```
 
-`export_tui_django_contracts` emits ORM model contracts plus selected domain dataclass contracts. `spectacular` emits the OpenAPI side of the same compile-time evidence bundle. These two artifacts are the preferred handoff into AgomTUI compiler `skill-request`.
+`export_tui_django_contracts` emits ORM model contracts plus selected domain dataclass contracts. `scripts/generate_openapi.py` exports the OpenAPI side of the same compile-time evidence bundle as JSON when `--format json` is selected. These two artifacts are the preferred handoff into AgomTUI compiler `skill-request`. The only versioned OpenAPI artifact is `docs/testing/api/openapi.yaml`; compile-time exports under `tmp/` are not committed.
 
 ## Evidence Snapshot
 
@@ -217,7 +217,7 @@ Run these checks after changing metadata or the TUI renderer:
 
 ```powershell
 agomtradepro\Scripts\python.exe manage.py export_tui_django_contracts --output tmp\tui_django_contracts.json
-agomtradepro\Scripts\python.exe manage.py spectacular --file tmp\tui_openapi.json
+agomtradepro\Scripts\python.exe scripts/generate_openapi.py --format json --output tmp\tui_openapi.json
 agomtradepro\Scripts\python.exe tui-metadata-compiler\scripts\validate_tui_metadata.py config\tui\published\tui_operation_graph.published.json
 agomtradepro\Scripts\python.exe tui-metadata-compiler\scripts\generate_tui_metadata.py --include-safe-api-actions 9999 --include-parameterized-api-actions 9999
 agomtradepro\Scripts\python.exe tui-metadata-compiler\scripts\generate_tui_metadata.py --include-safe-api-actions 9999 --include-parameterized-api-actions 9999 --publish-ready --output config\tui\published\tui_operation_graph.published.json

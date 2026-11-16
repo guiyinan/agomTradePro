@@ -656,7 +656,7 @@ result = client.post(
 )
 ```
 
-当前 SDK 没有组合风险专用方法，MCP 没有对应 capability；SDK 的 `risk_center` 情景管理与此处按账户运行退出压力核对是不同用途。OpenAPI 应由 Root 在正式整合时生成并核对 `schema.yml`、`docs/testing/api/openapi.yaml` 与 `docs/testing/api/openapi.json`。
+当前 SDK 没有组合风险专用方法，MCP 没有对应 capability；SDK 的 `risk_center` 情景管理与此处按账户运行退出压力核对是不同用途。OpenAPI 应在正式整合时通过 `python scripts/generate_openapi.py` 生成，并通过 `--check` 核对唯一版本化产物 `docs/testing/api/openapi.yaml`。
 
 ### 9.5 模拟调仓计划与逐笔订单旅程
 
@@ -684,7 +684,7 @@ result = client.post(
 | `503` | 当前服务/一致性读取不可用；不回退为许可 |
 | `405` | 对只读路径执行写方法，或调用不支持的方法 |
 
-Python SDK 的 `username/password` 会话模式可用通用 `get`/`post` 调用受支持端点并附带 CSRF；它没有计划专用方法。API Token 模式不能调用这些接口。MCP 没有计划管理、计划订单预览或计划执行 capability，也不能用普通 `trading.submit.simulated_order` 冒充计划绑定订单。OpenAPI 由 Root 正式整合时生成并核对 `schema.yml`、`docs/testing/api/openapi.yaml` 与 `docs/testing/api/openapi.json`。
+Python SDK 的 `username/password` 会话模式可用通用 `get`/`post` 调用受支持端点并附带 CSRF；它没有计划专用方法。API Token 模式不能调用这些接口。MCP 没有计划管理、计划订单预览或计划执行 capability，也不能用普通 `trading.submit.simulated_order` 冒充计划绑定订单。OpenAPI 在正式整合时通过 `python scripts/generate_openapi.py` 生成，并通过 `--check` 核对唯一版本化产物 `docs/testing/api/openapi.yaml`。
 
 ### 9.6 持仓证券财报披露资料核对
 
@@ -1184,9 +1184,18 @@ MCP 能力 `trading.start.simulated_auto_trading` 同样要求 `idempotency_key`
 ## OpenAPI 文档
 
 完整的 OpenAPI 3.0 规范文档请参考：
-- **Swagger UI**: `http://localhost:8000/api/schema/swagger-ui/`
-- **ReDoc**: `http://localhost:8000/api/schema/redoc/`
-- **OpenAPI YAML**: `docs/api/openapi.yaml`
+- **Swagger UI**: `/api/docs/`
+- **ReDoc**: `/api/redoc/`
+- **运行时规范**: `/api/schema/`
+- **唯一版本化 OpenAPI YAML**: `docs/testing/api/openapi.yaml`
+
+统一生成入口：`python scripts/generate_openapi.py`。用 `python scripts/generate_openapi.py --check`
+只读检查与当前路由、serializer 是否一致；生成失败、产物缺失或漂移均返回非零。
+需要 JSON 时使用 `python scripts/generate_openapi.py --format json --output tmp/openapi.json`，
+临时导出不提交。默认使用 `core.settings.openapi` 的 PostgreSQL 元数据，无需业务数据库；
+本地使用 SQLite 也可复现正式 YAML。生成与检查须保持相同依赖版本。
+SQLite 临时导出可传 `--settings core.settings.development_sqlite`，但整数字段范围与格式可能不同，
+不应据此覆盖正式 YAML。
 
 ---
 

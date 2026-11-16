@@ -113,6 +113,9 @@ media/
 
 # Generated evidence and local archives; commit reusable code and concise
 # receipts/indexes under scripts/, tests/ and docs/ (see docs/GIT_WORKFLOW.md).
+# OpenAPI has one tracked artifact: docs/testing/api/openapi.yaml.
+/schema.yml
+/docs/testing/api/openapi.json
 *.log
 *.log.gz
 /logs/

@@ -1,26 +1,22 @@
 """Check generated automatic-run transport contracts without database access."""
 
-import json
 import re
 from pathlib import Path
 
-import pytest
 import yaml
 
-SCHEMAS = ("schema.yml", "docs/testing/api/openapi.yaml", "docs/testing/api/openapi.json")
+SCHEMA = Path("docs/testing/api/openapi.yaml")
 ENDPOINT = "/api/simulated-trading/auto-trading/run/"
 
 
-def _operation(path: str) -> dict[str, object]:
-    """Read the generated operation in either published serialization."""
-    text = Path(path).read_text(encoding="utf-8")
-    schema = json.loads(text) if path.endswith(".json") else yaml.safe_load(text)
+def _operation() -> dict[str, object]:
+    """Read the generated operation from the canonical OpenAPI artifact."""
+    schema = yaml.safe_load(SCHEMA.read_text(encoding="utf-8"))
     return schema["paths"][ENDPOINT]["post"]
 
 
-@pytest.mark.parametrize("path", SCHEMAS)
-def test_auto_run_header_describes_exact_key_constraints(path: str) -> None:
-    operation = _operation(path)
+def test_auto_run_header_describes_exact_key_constraints() -> None:
+    operation = _operation()
     parameter = next(item for item in operation["parameters"] if item["name"] == "Idempotency-Key")
     schema = parameter["schema"]
     assert parameter["required"] is True
@@ -34,9 +30,8 @@ def test_auto_run_header_describes_exact_key_constraints(path: str) -> None:
         assert re.search(pattern, key) is None
 
 
-@pytest.mark.parametrize("path", SCHEMAS)
-def test_auto_run_describes_setup_failure_envelope(path: str) -> None:
-    operation = _operation(path)
+def test_auto_run_describes_setup_failure_envelope() -> None:
+    operation = _operation()
     response = operation["responses"].get("500")
     assert response is not None
     schema = response["content"]["application/json"]["schema"]
