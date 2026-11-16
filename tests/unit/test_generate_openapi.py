@@ -44,6 +44,7 @@ def test_default_generation_updates_only_canonical_yaml(
     assert not (tmp_path / "schema.yml").exists()
     assert not output.with_suffix(".json").exists()
     assert len(generated_schema) == 1
+    assert "--fail-on-warn" in generated_schema[0]
     assert generated_schema[0][-2:] == ["--settings", "core.settings.openapi"]
 
 
@@ -67,8 +68,9 @@ def test_check_reports_drift_without_writing(
     assert (output.read_bytes() if output.exists() else None) == before
 
 
+@pytest.mark.parametrize("check_mode", [False, True])
 def test_generation_failure_preserves_existing_output(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, check_mode: bool
 ) -> None:
     output = tmp_path / "openapi.yaml"
     output.write_text("existing schema\n", encoding="utf-8")
@@ -79,7 +81,10 @@ def test_generation_failure_preserves_existing_output(
 
     monkeypatch.setattr(generate_openapi.subprocess, "run", fail)
 
-    assert generate_openapi.main(["--output", str(output)]) == 2
+    arguments = ["--output", str(output)]
+    if check_mode:
+        arguments.append("--check")
+    assert generate_openapi.main(arguments) == 2
     assert output.read_text(encoding="utf-8") == "existing schema\n"
 
 

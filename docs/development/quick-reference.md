@@ -588,6 +588,10 @@ pytest sdk/tests/test_sdk/test_extended_module_endpoints.py -q
 也可复现正式整数字段范围。生成与 `--check` 须保持相同依赖版本。临时导出可通过 `--settings`
 显式选择其他 Django 环境；SQLite 范围与格式不同，不应据此覆盖正式 YAML。
 
+统一入口默认开启 `--fail-on-warn`：告警或错误均返回非零，且不覆盖原产物。枚举命名
+统一登记在 `SPECTACULAR_SETTINGS["ENUM_NAME_OVERRIDES"]`；自定义 serializer 字段须显式
+声明 OpenAPI 类型。回归入口：`pytest -q tests/unit/test_openapi_generation_contract.py tests/unit/test_generate_openapi.py`。
+
 - 必须同步：API 实现、SDK、MCP、OpenAPI、用户提示文案。
 - 详细规则见 `docs/development/engineering-guardrails.md` 的“API 改动同步门禁”。
 

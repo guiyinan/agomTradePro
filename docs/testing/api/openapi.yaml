@@ -9199,6 +9199,17 @@ paths:
       responses:
         '204':
           description: No response body
+  /api/data-center/institutional-calendar/:
+    get:
+      operationId: api_data_center_institutional_calendar_get
+      description: Validate all query keys and delegate source/time semantics to Application.
+      tags:
+      - data-center
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
   /api/data-center/macro/series/:
     get:
       operationId: api_data_center_macro_series_get
@@ -25904,9 +25915,8 @@ components:
           title: 温度参数
         max_tokens:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 2147483647
           minimum: 1
-          format: int64
           title: 最大Token数
         approval_mode:
           allOf:
@@ -25958,9 +25968,8 @@ components:
           title: 温度参数
         max_tokens:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 2147483647
           minimum: 1
-          format: int64
           title: 最大Token数
         approval_mode:
           allOf:
@@ -26277,14 +26286,6 @@ components:
       - total_value
       - unrealized_pnl
       - unrealized_pnl_pct
-    ActionEa8Enum:
-      enum:
-      - buy
-      - sell
-      type: string
-      description: |-
-        * `buy` - buy
-        * `sell` - sell
     ActionResponse:
       type: object
       description: 操作响应序列化器
@@ -27829,9 +27830,8 @@ components:
           title: 是否启用
         sort_order:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          maximum: 2147483647
+          minimum: -2147483648
           title: 排序
         children_count:
           type: integer
@@ -27875,9 +27875,8 @@ components:
           title: 是否启用
         sort_order:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          maximum: 2147483647
+          minimum: -2147483648
           title: 排序
       required:
       - code
@@ -28133,7 +28132,7 @@ components:
           type: integer
           minimum: 1
         outcome:
-          $ref: '#/components/schemas/Outcome537Enum'
+          $ref: '#/components/schemas/OperationOutcomeEnum'
         success:
           type: boolean
         buy_count:
@@ -28215,7 +28214,7 @@ components:
       description: Describe normalized account and trade counts from one API run.
       properties:
         outcome:
-          $ref: '#/components/schemas/Outcome537Enum'
+          $ref: '#/components/schemas/OperationOutcomeEnum'
         success:
           type: boolean
         requested:
@@ -28723,7 +28722,7 @@ components:
       description: Common success envelope for the capture response.
       properties:
         outcome:
-          $ref: '#/components/schemas/OutcomeE7cEnum'
+          $ref: '#/components/schemas/SuccessOutcomeEnum'
         success:
           type: boolean
         data:
@@ -28737,7 +28736,7 @@ components:
       description: Common success envelope for publish and exact replay responses.
       properties:
         outcome:
-          $ref: '#/components/schemas/OutcomeE7cEnum'
+          $ref: '#/components/schemas/SuccessOutcomeEnum'
         success:
           type: boolean
         data:
@@ -28810,7 +28809,7 @@ components:
       description: Common success envelope for the exact current-read response.
       properties:
         outcome:
-          $ref: '#/components/schemas/OutcomeE7cEnum'
+          $ref: '#/components/schemas/SuccessOutcomeEnum'
         success:
           type: boolean
         data:
@@ -28957,7 +28956,7 @@ components:
       description: Common success envelope for the preview response.
       properties:
         outcome:
-          $ref: '#/components/schemas/OutcomeE7cEnum'
+          $ref: '#/components/schemas/SuccessOutcomeEnum'
         success:
           type: boolean
         data:
@@ -29090,6 +29089,11 @@ components:
       - schema_version
       - snapshot_recorded_at
       - source_published_at
+    CalendarReferenceReliabilityEnum:
+      enum:
+      - audited_calendar_reference
+      type: string
+      description: '* `audited_calendar_reference` - audited_calendar_reference'
     CalendarSnapshotReferenceResponse:
       type: object
       description: Exact source and RawPayload identity returned by the capture stage.
@@ -29142,7 +29146,7 @@ components:
       description: Visible result of publishing without exposing internal identities.
       properties:
         publication_status:
-          $ref: '#/components/schemas/PublicationStatusE90Enum'
+          $ref: '#/components/schemas/PublishedStatusEnum'
         must_not_execute:
           type: boolean
         must_not_use_for_decision:
@@ -29152,7 +29156,7 @@ components:
         freshness:
           $ref: '#/components/schemas/_CalendarWorkbenchFreshness'
         reliability:
-          $ref: '#/components/schemas/Reliability847Enum'
+          $ref: '#/components/schemas/CalendarReferenceReliabilityEnum'
         exchange:
           type: string
         coverage_start:
@@ -29216,7 +29220,7 @@ components:
       description: Success response contains only the safe publication summary.
       properties:
         outcome:
-          $ref: '#/components/schemas/OutcomeE7cEnum'
+          $ref: '#/components/schemas/SuccessOutcomeEnum'
         success:
           type: boolean
         data:
@@ -29230,7 +29234,7 @@ components:
       description: Selected configuration and exact current-reference state.
       properties:
         configuration_status:
-          $ref: '#/components/schemas/ConfigurationStatusEnum'
+          $ref: '#/components/schemas/MetadataStatusEnum'
         current_status:
           $ref: '#/components/schemas/CurrentStatusEnum'
         blocked_reason:
@@ -29254,7 +29258,7 @@ components:
         kept explicit.
       properties:
         outcome:
-          $ref: '#/components/schemas/OutcomeE7cEnum'
+          $ref: '#/components/schemas/SuccessOutcomeEnum'
         success:
           type: boolean
         data:
@@ -29305,7 +29309,7 @@ components:
       description: Success shape with a separate hidden continuation for the TUI runtime.
       properties:
         outcome:
-          $ref: '#/components/schemas/OutcomeE7cEnum'
+          $ref: '#/components/schemas/SuccessOutcomeEnum'
         success:
           type: boolean
         data:
@@ -29458,7 +29462,7 @@ components:
         status.
       properties:
         outcome:
-          $ref: '#/components/schemas/OutcomeE7cEnum'
+          $ref: '#/components/schemas/SuccessOutcomeEnum'
         success:
           type: boolean
         data:
@@ -29891,7 +29895,7 @@ components:
           maxLength: 64
           minLength: 64
         side:
-          $ref: '#/components/schemas/SideEa8Enum'
+          $ref: '#/components/schemas/TradeSideEnum'
         asset_code:
           type: string
           maxLength: 192
@@ -30114,14 +30118,6 @@ components:
       - stock_code
       - stock_name
       - success
-    ConfigurationStatusEnum:
-      enum:
-      - metadata_selected
-      - blocked
-      type: string
-      description: |-
-        * `metadata_selected` - metadata_selected
-        * `blocked` - blocked
     ConfirmCalendarPublicationInputRequest:
       type: object
       description: Validate the exact preview echo required for publication confirmation.
@@ -30429,9 +30425,8 @@ components:
           title: 是否启用
         precision:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          maximum: 2147483647
+          minimum: -2147483648
           title: 小数位数
         created_at:
           type: string
@@ -31094,6 +31089,14 @@ components:
       required:
       - current_data
       - trigger_id
+    EvidenceCompletenessEnum:
+      enum:
+      - complete
+      - unknown
+      type: string
+      description: |-
+        * `complete` - complete
+        * `unknown` - unknown
     ExchangeRate:
       type: object
       description: 汇率序列化器
@@ -31882,7 +31885,7 @@ components:
         success:
           type: boolean
         outcome:
-          $ref: '#/components/schemas/OutcomeFa6Enum'
+          $ref: '#/components/schemas/PartialSuccessOutcomeEnum'
         message:
           type: string
         head:
@@ -32217,7 +32220,7 @@ components:
         success:
           type: boolean
         outcome:
-          $ref: '#/components/schemas/OutcomeE7cEnum'
+          $ref: '#/components/schemas/SuccessOutcomeEnum'
         recovery:
           $ref: '#/components/schemas/FeeCorrectionRecoveryPage'
       required:
@@ -32763,7 +32766,7 @@ components:
         outcome:
           $ref: '#/components/schemas/HoldingDisclosureResponseOutcomeEnum'
         scope:
-          $ref: '#/components/schemas/Scope818Enum'
+          $ref: '#/components/schemas/SimulationScopeEnum'
         must_not_use_for_decision:
           type: boolean
         must_not_execute:
@@ -33444,7 +33447,7 @@ components:
           type: string
           nullable: true
         publication_status:
-          $ref: '#/components/schemas/PublicationStatusE90Enum'
+          $ref: '#/components/schemas/PublishedStatusEnum'
         source_binding: {}
         risk_falsification: {}
       required:
@@ -33512,7 +33515,7 @@ components:
         asset_type:
           $ref: '#/components/schemas/AssetTypeEnum'
         action:
-          $ref: '#/components/schemas/ActionEa8Enum'
+          $ref: '#/components/schemas/TradeSideEnum'
         quantity:
           type: integer
           minimum: 1
@@ -33569,16 +33572,6 @@ components:
       description: |-
         * `local_simulation_only` - local_simulation_only
         * `close_snapshot_simulation` - close_snapshot_simulation
-    MaxStopLossApplicabilityEnum:
-      enum:
-      - applicable
-      - not_applicable
-      - unknown
-      type: string
-      description: |-
-        * `applicable` - applicable
-        * `not_applicable` - not_applicable
-        * `unknown` - unknown
     MetadataStatusEnum:
       enum:
       - metadata_selected
@@ -33973,6 +33966,20 @@ components:
       - page_size
       - success
       - total_count
+    OperationOutcomeEnum:
+      enum:
+      - success
+      - partial
+      - noop
+      - blocked
+      - failed
+      type: string
+      description: |-
+        * `success` - success
+        * `partial` - partial
+        * `noop` - noop
+        * `blocked` - blocked
+        * `failed` - failed
     OperationStats:
       type: object
       description: 操作统计序列化器
@@ -34104,7 +34111,7 @@ components:
           type: string
           format: date
         outcome:
-          $ref: '#/components/schemas/OutcomeB7aEnum'
+          $ref: '#/components/schemas/DecisionOutcomeEnum'
         matched_quantity:
           type: string
         matched_price:
@@ -34159,7 +34166,7 @@ components:
           type: string
           maxLength: 20
         side:
-          $ref: '#/components/schemas/SideEa8Enum'
+          $ref: '#/components/schemas/TradeSideEnum'
         quantity:
           type: string
           format: decimal
@@ -34205,7 +34212,7 @@ components:
           type: string
           maxLength: 100
         side:
-          $ref: '#/components/schemas/SideEa8Enum'
+          $ref: '#/components/schemas/TradeSideEnum'
         status:
           $ref: '#/components/schemas/OrderHistoryOrderStatusEnum'
         quantity:
@@ -34285,53 +34292,6 @@ components:
       - orders
       - read_at
       - success
-    Outcome537Enum:
-      enum:
-      - success
-      - partial
-      - noop
-      - blocked
-      - failed
-      type: string
-      description: |-
-        * `success` - success
-        * `partial` - partial
-        * `noop` - noop
-        * `blocked` - blocked
-        * `failed` - failed
-    Outcome667Enum:
-      enum:
-      - allowed
-      - blocked
-      - partial
-      - unknown
-      type: string
-      description: |-
-        * `allowed` - allowed
-        * `blocked` - blocked
-        * `partial` - partial
-        * `unknown` - unknown
-    OutcomeB7aEnum:
-      enum:
-      - matched
-      - no_match
-      type: string
-      description: |-
-        * `matched` - matched
-        * `no_match` - no_match
-    OutcomeE7cEnum:
-      enum:
-      - success
-      type: string
-      description: '* `success` - success'
-    OutcomeFa6Enum:
-      enum:
-      - success
-      - partial
-      type: string
-      description: |-
-        * `success` - success
-        * `partial` - partial
     OverallSignalEnum:
       enum:
       - strong_buy
@@ -34385,7 +34345,7 @@ components:
           nullable: true
           maxLength: 32
         status:
-          $ref: '#/components/schemas/Status216Enum'
+          $ref: '#/components/schemas/EvidenceCompletenessEnum'
         reason_code:
           type: string
           nullable: true
@@ -34657,7 +34617,7 @@ components:
           type: integer
           minimum: 1
         outcome:
-          $ref: '#/components/schemas/Outcome537Enum'
+          $ref: '#/components/schemas/OperationOutcomeEnum'
         summary:
           type: string
         blocking_reason:
@@ -34695,7 +34655,7 @@ components:
           nullable: true
         tax_coverage_status:
           allOf:
-          - $ref: '#/components/schemas/TaxCoverageStatusEnum'
+          - $ref: '#/components/schemas/EvidenceCompletenessEnum'
           default: unknown
         valuation_trade_dates:
           type: array
@@ -34759,7 +34719,7 @@ components:
           minLength: 1
           maxLength: 2000
         max_single_position_applicability:
-          $ref: '#/components/schemas/MaxStopLossApplicabilityEnum'
+          $ref: '#/components/schemas/RiskApplicabilityEnum'
         max_single_position_limit_pct:
           type: string
           format: decimal
@@ -34769,7 +34729,7 @@ components:
           type: string
           maxLength: 500
         max_total_position_applicability:
-          $ref: '#/components/schemas/MaxStopLossApplicabilityEnum'
+          $ref: '#/components/schemas/RiskApplicabilityEnum'
         max_total_position_limit_pct:
           type: string
           format: decimal
@@ -34779,7 +34739,7 @@ components:
           type: string
           maxLength: 500
         max_stop_loss_applicability:
-          $ref: '#/components/schemas/MaxStopLossApplicabilityEnum'
+          $ref: '#/components/schemas/RiskApplicabilityEnum'
         max_stop_loss_limit_pct:
           type: string
           format: decimal
@@ -34875,7 +34835,7 @@ components:
           minLength: 1
           maxLength: 100
         side:
-          $ref: '#/components/schemas/SideEa8Enum'
+          $ref: '#/components/schemas/TradeSideEnum'
         quantity:
           type: string
           format: decimal
@@ -34927,7 +34887,7 @@ components:
         asset_code:
           type: string
         side:
-          $ref: '#/components/schemas/SideEa8Enum'
+          $ref: '#/components/schemas/TradeSideEnum'
         quantity:
           type: string
         price:
@@ -35005,7 +34965,7 @@ components:
         success:
           type: boolean
         outcome:
-          $ref: '#/components/schemas/OutcomeE7cEnum'
+          $ref: '#/components/schemas/SuccessOutcomeEnum'
         account_id:
           type: integer
           minimum: 1
@@ -36037,6 +35997,14 @@ components:
       description: |-
         * `feedparser` - feedparser
         * `httpx` - httpx+manual
+    PartialSuccessOutcomeEnum:
+      enum:
+      - success
+      - partial
+      type: string
+      description: |-
+        * `success` - success
+        * `partial` - partial
     PatchedAIStrategyConfigRequest:
       type: object
       description: AI策略配置序列化器
@@ -36064,9 +36032,8 @@ components:
           title: 温度参数
         max_tokens:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 2147483647
           minimum: 1
-          format: int64
           title: 最大Token数
         approval_mode:
           allOf:
@@ -36206,9 +36173,8 @@ components:
           title: 是否启用
         sort_order:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          maximum: 2147483647
+          minimum: -2147483648
           title: 排序
     PatchedAssetClassRequest:
       type: object
@@ -36876,9 +36842,8 @@ components:
           title: 最大换手率
         lookback_period:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          maximum: 2147483647
+          minimum: -2147483648
           title: 回溯周期（天）
         regime_allocations:
           title: 象限配置
@@ -36886,9 +36851,8 @@ components:
           title: 动量周期
         top_n:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          maximum: 2147483647
+          minimum: -2147483648
           title: 选资产数量
         is_active:
           type: boolean
@@ -36927,9 +36891,8 @@ components:
           description: 空列表表示所有可投资产
         priority:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          maximum: 2147483647
+          minimum: -2147483648
           title: 优先级
         is_enabled:
           type: boolean
@@ -36967,9 +36930,8 @@ components:
       properties:
         account_id:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          maximum: 2147483647
+          minimum: -2147483648
           title: 关联账户ID
           description: 关联的模拟账户ID
         title:
@@ -37013,9 +36975,8 @@ components:
           description: 过期后无法访问
         max_access_count:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          maximum: 2147483647
+          minimum: -2147483648
           nullable: true
           title: 最大访问次数
           description: null 表示无限制
@@ -37041,9 +37002,8 @@ components:
           title: 策略类型
         version:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 2147483647
           minimum: 0
-          format: int64
           default: 1
           title: 版本号
         is_active:
@@ -37746,7 +37706,7 @@ components:
         success:
           type: boolean
         outcome:
-          $ref: '#/components/schemas/OutcomeFa6Enum'
+          $ref: '#/components/schemas/PartialSuccessOutcomeEnum'
         left_account:
           $ref: '#/components/schemas/ComparisonAccount'
         right_account:
@@ -37843,7 +37803,7 @@ components:
           items:
             $ref: '#/components/schemas/PortfolioPressureOptionResponse'
         scope:
-          $ref: '#/components/schemas/Scope818Enum'
+          $ref: '#/components/schemas/SimulationScopeEnum'
         read_only:
           type: boolean
       required:
@@ -37888,7 +37848,7 @@ components:
         dimension:
           type: string
         status:
-          $ref: '#/components/schemas/Status667Enum'
+          $ref: '#/components/schemas/RiskAssessmentOutcomeEnum'
         reason_codes:
           type: array
           items:
@@ -37919,7 +37879,7 @@ components:
         as_of:
           type: string
         outcome:
-          $ref: '#/components/schemas/Outcome667Enum'
+          $ref: '#/components/schemas/RiskAssessmentOutcomeEnum'
         policy_version:
           type: string
           nullable: true
@@ -37940,7 +37900,7 @@ components:
         must_not_use_for_decision:
           type: boolean
         scope:
-          $ref: '#/components/schemas/Scope818Enum'
+          $ref: '#/components/schemas/SimulationScopeEnum'
         must_not_execute:
           type: boolean
       required:
@@ -38456,9 +38416,8 @@ components:
           title: 来源
         source_id:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          maximum: 2147483647
+          minimum: -2147483648
           nullable: true
           title: 来源ID
       required:
@@ -38518,9 +38477,8 @@ components:
           title: 来源
         source_id:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          maximum: 2147483647
+          minimum: -2147483648
           nullable: true
           title: 来源ID
       required:
@@ -39225,7 +39183,7 @@ components:
         * `http` - HTTP
         * `https` - HTTPS
         * `socks5` - SOCKS5
-    PublicationStatusE90Enum:
+    PublishedStatusEnum:
       enum:
       - published
       type: string
@@ -39983,11 +39941,6 @@ components:
           minLength: 1
       required:
       - reason
-    Reliability847Enum:
-      enum:
-      - audited_calendar_reference
-      type: string
-      description: '* `audited_calendar_reference` - audited_calendar_reference'
     ResetQuotaRequestRequest:
       type: object
       description: 重置配额请求序列化器
@@ -40033,6 +39986,28 @@ components:
       - revoked
       type: string
       description: '* `revoked` - revoked'
+    RiskApplicabilityEnum:
+      enum:
+      - applicable
+      - not_applicable
+      - unknown
+      type: string
+      description: |-
+        * `applicable` - applicable
+        * `not_applicable` - not_applicable
+        * `unknown` - unknown
+    RiskAssessmentOutcomeEnum:
+      enum:
+      - allowed
+      - blocked
+      - partial
+      - unknown
+      type: string
+      description: |-
+        * `allowed` - allowed
+        * `blocked` - blocked
+        * `partial` - partial
+        * `unknown` - unknown
     RiskLevelEnum:
       enum:
       - LOW
@@ -40104,9 +40079,8 @@ components:
           title: 最大换手率
         lookback_period:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          maximum: 2147483647
+          minimum: -2147483648
           title: 回溯周期（天）
         regime_allocations:
           title: 象限配置
@@ -40114,9 +40088,8 @@ components:
           title: 动量周期
         top_n:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          maximum: 2147483647
+          minimum: -2147483648
           title: 选资产数量
         is_active:
           type: boolean
@@ -40170,9 +40143,8 @@ components:
           title: 最大换手率
         lookback_period:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          maximum: 2147483647
+          minimum: -2147483648
           title: 回溯周期（天）
         regime_allocations:
           title: 象限配置
@@ -40180,9 +40152,8 @@ components:
           title: 动量周期
         top_n:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          maximum: 2147483647
+          minimum: -2147483648
           title: 选资产数量
         is_active:
           type: boolean
@@ -40332,9 +40303,8 @@ components:
           readOnly: true
         display_order:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          maximum: 2147483647
+          minimum: -2147483648
           title: 展示顺序
       required:
       - key
@@ -40386,9 +40356,8 @@ components:
           description: 空列表表示所有可投资产
         priority:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          maximum: 2147483647
+          minimum: -2147483648
           title: 优先级
         is_enabled:
           type: boolean
@@ -40437,9 +40406,8 @@ components:
           title: 目标权重
         priority:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          maximum: 2147483647
+          minimum: -2147483648
           title: 优先级
         is_enabled:
           type: boolean
@@ -40482,9 +40450,8 @@ components:
           description: 空列表表示所有可投资产
         priority:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          maximum: 2147483647
+          minimum: -2147483648
           title: 优先级
         is_enabled:
           type: boolean
@@ -40765,11 +40732,6 @@ components:
       - scenario_key
       - scenario_set_revision_id
       - target_version
-    Scope818Enum:
-      enum:
-      - simulation_only
-      type: string
-      description: '* `simulation_only` - simulation_only'
     ScreenStocksRequestRequest:
       type: object
       description: 筛选个股请求序列化器
@@ -41252,9 +41214,8 @@ components:
           readOnly: true
         account_id:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          maximum: 2147483647
+          minimum: -2147483648
           title: 关联账户ID
           description: 关联的模拟账户ID
         short_code:
@@ -41306,9 +41267,8 @@ components:
           description: 过期后无法访问
         max_access_count:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          maximum: 2147483647
+          minimum: -2147483648
           nullable: true
           title: 最大访问次数
           description: null 表示无限制
@@ -41362,9 +41322,8 @@ components:
       properties:
         account_id:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          maximum: 2147483647
+          minimum: -2147483648
           title: 关联账户ID
           description: 关联的模拟账户ID
         title:
@@ -41408,9 +41367,8 @@ components:
           description: 过期后无法访问
         max_access_count:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          maximum: 2147483647
+          minimum: -2147483648
           nullable: true
           title: 最大访问次数
           description: null 表示无限制
@@ -41433,14 +41391,6 @@ components:
         * `revoked` - 已撤销
         * `expired` - 已过期
         * `disabled` - 已禁用
-    SideEa8Enum:
-      enum:
-      - buy
-      - sell
-      type: string
-      description: |-
-        * `buy` - buy
-        * `sell` - sell
     SignalEnum:
       enum:
       - undervalued
@@ -41656,6 +41606,11 @@ components:
       required:
       - confirmed
       - withdrawal_token
+    SimulationScopeEnum:
+      enum:
+      - simulation_only
+      type: string
+      description: '* `simulation_only` - simulation_only'
     SourceTimeStatusEnum:
       enum:
       - not_provided
@@ -41672,26 +41627,6 @@ components:
         * `completed` - completed
         * `unresolved` - unresolved
         * `fenced` - fenced
-        * `unknown` - unknown
-    Status216Enum:
-      enum:
-      - complete
-      - unknown
-      type: string
-      description: |-
-        * `complete` - complete
-        * `unknown` - unknown
-    Status667Enum:
-      enum:
-      - allowed
-      - blocked
-      - partial
-      - unknown
-      type: string
-      description: |-
-        * `allowed` - allowed
-        * `blocked` - blocked
-        * `partial` - partial
         * `unknown` - unknown
     Strategy:
       type: object
@@ -41713,9 +41648,8 @@ components:
           title: 策略类型
         version:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 2147483647
           minimum: 0
-          format: int64
           default: 1
           title: 版本号
         is_active:
@@ -41789,9 +41723,8 @@ components:
           title: 策略类型
         version:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 2147483647
           minimum: 0
-          format: int64
           default: 1
           title: 版本号
         is_active:
@@ -41865,9 +41798,8 @@ components:
           title: 执行时间
         execution_duration_ms:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          maximum: 2147483647
+          minimum: -2147483648
           title: 执行时长(ms)
         execution_result:
           description: 详细执行信息
@@ -41904,9 +41836,8 @@ components:
           title: 执行时间
         execution_duration_ms:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          maximum: 2147483647
+          minimum: -2147483648
           title: 执行时长(ms)
         is_success:
           type: boolean
@@ -41941,9 +41872,8 @@ components:
           title: 策略类型
         version:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 2147483647
           minimum: 0
-          format: int64
           default: 1
           title: 版本号
         is_active:
@@ -42094,6 +42024,11 @@ components:
       - asset_class
       - asset_code
       - direction
+    SuccessOutcomeEnum:
+      enum:
+      - success
+      type: string
+      description: '* `success` - success'
     SyncFinancialDataRequestRequest:
       type: object
       description: 财务数据同步请求序列化器
@@ -42189,7 +42124,7 @@ components:
           type: string
           format: date
         outcome:
-          $ref: '#/components/schemas/Outcome537Enum'
+          $ref: '#/components/schemas/OperationOutcomeEnum'
         requested_stock_count:
           type: integer
           minimum: 0
@@ -42605,14 +42540,6 @@ components:
           - $ref: '#/components/schemas/TaskAttempt'
           readOnly: true
           nullable: true
-    TaxCoverageStatusEnum:
-      enum:
-      - complete
-      - unknown
-      type: string
-      description: |-
-        * `complete` - complete
-        * `unknown` - unknown
     TechnicalChartResponse:
       type: object
       description: 技术图表响应序列化器。
@@ -42881,6 +42808,14 @@ components:
       - status
       - total_cost
       - trade_id
+    TradeSideEnum:
+      enum:
+      - buy
+      - sell
+      type: string
+      description: |-
+        * `buy` - buy
+        * `sell` - sell
     TradeStats:
       type: object
       properties:
@@ -44388,7 +44323,7 @@ components:
       description: Reference-only current publication details without technical identities.
       properties:
         publication_status:
-          $ref: '#/components/schemas/PublicationStatusE90Enum'
+          $ref: '#/components/schemas/PublishedStatusEnum'
         must_not_execute:
           type: boolean
         must_not_use_for_decision:
@@ -44398,7 +44333,7 @@ components:
         freshness:
           $ref: '#/components/schemas/_CalendarWorkbenchFreshness'
         reliability:
-          $ref: '#/components/schemas/Reliability847Enum'
+          $ref: '#/components/schemas/CalendarReferenceReliabilityEnum'
         exchange:
           type: string
         coverage_start:

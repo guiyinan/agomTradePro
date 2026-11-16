@@ -566,6 +566,20 @@ SPECTACULAR_SETTINGS = {
         "BacktestRebalanceFrequencyEnum": ["monthly", "quarterly", "yearly"],
         "FactorRebalanceFrequencyEnum": ["daily", "weekly", "monthly", "quarterly"],
         "RegimeEnum": ["Recovery", "Overheat", "Stagflation", "Deflation"],
+        # Schema-only names for choice sets already declared by serializers.
+        # Shared values have one name even when field names differ.
+        "TradeSideEnum": ["buy", "sell"],
+        "EvidenceCompletenessEnum": ["complete", "unknown"],
+        "RiskAssessmentOutcomeEnum": ["allowed", "blocked", "partial", "unknown"],
+        "OperationOutcomeEnum": ["success", "partial", "noop", "blocked", "failed"],
+        "SuccessOutcomeEnum": ["success"],
+        "PartialSuccessOutcomeEnum": ["success", "partial"],
+        "DecisionOutcomeEnum": ["matched", "no_match"],
+        "MetadataStatusEnum": ["metadata_selected", "blocked"],
+        "SimulationScopeEnum": ["simulation_only"],
+        "PublishedStatusEnum": ["published"],
+        "CalendarReferenceReliabilityEnum": ["audited_calendar_reference"],
+        "RiskApplicabilityEnum": ["applicable", "not_applicable", "unknown"],
     },
     # UI optimizations
     "SWAGGER_UI_SETTINGS": {

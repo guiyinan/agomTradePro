@@ -199,8 +199,10 @@ CI 的 Consistency/Fast Feedback 使用同一入口保留 fail-closed 校验。
    - `python scripts/generate_openapi.py`（只更新权威 YAML，不手工编辑生成内容）
    - `python scripts/generate_openapi.py --check`（重新生成比对，漂移或缺失返回非零，且不写入产物；默认使用 `core.settings.openapi` 的 PostgreSQL 元数据，无需业务数据库；生成与检查须使用相同依赖版本）
    - 需要 JSON 时按需导出：`python scripts/generate_openapi.py --format json --output tmp/openapi.json`；临时副本不提交。
+   - 统一入口始终启用 `--fail-on-warn`：任何生成告警或错误均失败，且保留原产物。共享枚举通过 `ENUM_NAME_OVERRIDES` 指定稳定名称；自定义 serializer 字段显式声明 schema 类型，禁止关闭告警来通过检查。
 4. 合入前至少执行一次以下护栏测试：
    - `pytest -q tests/unit/test_docs_route_alignment.py`
+   - `pytest -q tests/unit/test_openapi_generation_contract.py tests/unit/test_generate_openapi.py`（全量路由零告警、稳定枚举、自定义字段精度与生成失败保护）
    - `pytest sdk/tests/test_mcp/test_tool_execution.py -q`
    - 若改动 SDK 路径或参数契约，再执行 `pytest sdk/tests/test_sdk/test_extended_module_endpoints.py -q`
 

@@ -2,11 +2,18 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from datetime import date
-from typing import Any, cast
+from typing import Any, TypeVar, cast
 
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
+
+_SchemaDecorated = TypeVar("_SchemaDecorated")
+_schema_string_field = cast(
+    Callable[[_SchemaDecorated], _SchemaDecorated], extend_schema_field(OpenApiTypes.STR)
+)
 
 MAX_CONTINUATION_TOKEN_LENGTH = 65536
 
@@ -156,6 +163,7 @@ class OwnerCorporateActionWorkflowRefreshRequestSerializer(_StrictObjectSerializ
         return super().to_internal_value(normalized)
 
 
+@_schema_string_field
 class _StrictNullableTextField(serializers.Field[str | None, object, str | None, Any]):
     """Preserve money strings exactly and reject numeric formatting or coercion."""
 

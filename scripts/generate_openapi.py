@@ -27,6 +27,7 @@ def generate_openapi(
             sys.executable,
             str(REPO_ROOT / "manage.py"),
             "spectacular",
+            "--fail-on-warn",
             "--format",
             "openapi-json" if output_format == "json" else "openapi",
             "--file",
