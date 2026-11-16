@@ -3601,7 +3601,7 @@
     {
       "date": "2026-11-16T18:08:48.512032+00:00",
       "kind": "e1_frozen_integrated_c2_numeric_v3_preparation",
-      "status": "development_committed_ci_pending_not_production_qualified",
+      "status": "development_committed_governance_fix_ready_for_exact_candidate_ci",
       "base_head": "2529c3bd50b728ae87ad328c1ae5794907f5ea74",
       "scope": "Frozen single-security Main+Balance E1 critical path only; full DATA-02 universe and four Publication exit gates unchanged.",
       "delivery": {
@@ -4034,6 +4034,66 @@
         "sha256": "4aaa34d9a6a87256cb792e962152d83a8da72f8109de6322b5d2d1cc2f64c279",
         "exit_code": 0,
         "version": "2026-11-17.v618"
+      },
+      "candidate905e_ci_correction": {
+        "candidate_sha": "905e22e8fdcca943407b6aef4dd7e7d538ebde95",
+        "status": "affected_local_checks_passed_precommit",
+        "failed_workflows_or_jobs": [
+          "Architecture Layer Guard REF01",
+          "CI Fast Feedback incremental quality projection",
+          "Consistency Check projection"
+        ],
+        "causes": [
+          "The2529-base explanation rows were separated from the original table and lacked their own strict header; parser recognized0, corrected table recognizes all4.",
+          "Root tmp/openapi-warning-cleanup/head-source belonged to a separate task and was mistakenly included by inventory walker; clean CI lacked those53 phantom entries."
+        ],
+        "correction": "Add the strict second table header; exclude only repository-root tmp from static discovery; regression demonstrated failure before fix and focused pass after. Regenerate using the canonical generator; do not delete or edit the other task copy.",
+        "projection_before": {
+          "entries": 1557,
+          "management_commands": 105
+        },
+        "projection_after": {
+          "entries": 1504,
+          "management_commands": 54,
+          "root_tmp_entries": 0
+        },
+        "script_line_count_before": 2787,
+        "script_line_count_after": 2787,
+        "e1_production_runtime_source_changed": false,
+        "retained_failure_logs": [
+          {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/candidate905e-architecture-failed.log",
+            "sha256": "927b0e52b3bbba31d329b5e97cf916df4abc79940f7efa54015e60f5131bee1e"
+          },
+          {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/candidate905e-quality-failed.log",
+            "sha256": "e482e5858624cd4ecc0daf8cb250cc0b662721f216b7caa254d265db7b031f0d"
+          },
+          {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/candidate905e-consistency-failed.log",
+            "sha256": "467666bec84bdd6eb03a1330040f9476707f71b7d640f810916d9f401a98eb21"
+          },
+          {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/projection-tmp-exclusion-red-r1.log",
+            "sha256": "db3d1277eed602d5da55589f9927aca64c2bd42cae06b7e5cd2d8a7db8b72ef0"
+          }
+        ],
+        "qualification_limit": "Do not transfer any905e CI success to the corrected candidate. Original2529→corrected-head REF01 range must pass, then all exact corrected-candidate CI must pass.",
+        "validation": {
+          "receipt": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/projection-ci-fix-checks-r1.receipt.json",
+            "sha256": "ec4e45a6b4bd0596bdbcb61102a6080523aaddcaa7a711be709edcb639d55ed1"
+          },
+          "inventory_unit_tests_passed": 32,
+          "production_incremental_files": 1,
+          "full_mypy_errors": 0,
+          "format_and_lint_exit_codes": [
+            0,
+            0,
+            0
+          ],
+          "e1_runtime_and_native_dependencies_changed": false
+        }
       }
     }
   ],

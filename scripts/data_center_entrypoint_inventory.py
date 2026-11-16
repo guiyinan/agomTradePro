@@ -253,7 +253,7 @@ def _relative(path: Path) -> str:
 def _is_ignored_path(path: Path) -> bool:
     """Return whether a repository path belongs to generated or agent-local state."""
 
-    return any(
+    return path.relative_to(ROOT).parts[:1] == ("tmp",) or any(
         part in IGNORED_PATH_PARTS or part.startswith((".codex-", ".codex_"))
         for part in path.relative_to(ROOT).parts
     )

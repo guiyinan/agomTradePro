@@ -1372,6 +1372,8 @@ CI 路由检查通过；35 项覆盖检查与前述纯测试有重叠，不相�
 
 The intervening OpenAPI-only commits preserve the model baseline; the exact next development range uses these same four explanations:
 
+| base_sha | identity | change_kind | rationale | consumer_audit | compatibility_or_rollback |
+| --- | --- | --- | --- | --- | --- |
 | 2529c3bd50b728ae87ad328c1ae5794907f5ea74 | data_center.FinancialAvailabilityGovernanceRecordModel | added_concrete | Persist versioned opening-rule proposals and disclosure policy with native source references and explicit clocks, without phase or TTL defaults. | C2 application/current resolver and E1 temporal composition; all results remain reference-only until source and financial decision gates pass. | Additive0117; old v1/v2 hashes and payloads unchanged; no production config seed; nonempty reverse denied. |
 | 2529c3bd50b728ae87ad328c1ae5794907f5ea74 | data_center.FinancialAvailabilityOwnerEventModel | added_concrete | Bind each C2 apply/revoke to real Django session/User/Permission verification and exact record hash. | C2 normal authenticated request composition, locked current resolution and explicit historical cutoff reader; separate from formal publication Audit. | Append-only0117 Owner history, protected actor/predecessor relations; no synthetic approval or third authority; nonempty reverse denied. |
 | 2529c3bd50b728ae87ad328c1ae5794907f5ea74 | data_center._FinancialAvailabilityAppendOnlyModel | added_abstract | Share append-only ORM behavior for the two C2 records without creating a separate table. | Only the two C2 concrete model classes inherit this private technical base; no public query or business authority owns it. | Abstract only;0117 creates the two concrete tables and guards; no standalone storage, defaults or legacy rewrite. |
@@ -1398,3 +1400,9 @@ S6预算准备只读核对当前2026-11-16目标范围5573只、上市日期未�
 
 
 正式交付：实现已于开发分支提交 dc4e27e83be2ec583ae53aa76a0184310fbfe07c（feat: add governed financial E1 capture and verification）；其父提交2529c3bd50b728ae87ad328c1ae5794907f5ea74的独立OpenAPI修复已保留。代码、本批生成投影、对应测试和精简验收索引共同落入正式分支。后续元数据记录与该实现一起推送，仅实际最终候选CI可证明CI通过；仍未部署、未运行E1、财务HTTP0/2，DATA-02完整退出及DATA-03均未完成。
+
+
+候选905e22e8fdcca943407b6aef4dd7e7d538ebde95的实际CI中，REF-01因第二段说明表缺少独立表头而未识别四行，quality/Consistency因入口投影误扫本机根tmp下另一事项的源码副本而失败；此前本地通过不能覆盖这两项失败。修复限于表头及生成器根tmp排除规则，对应回归先红后绿，保留原副本和失败原件；重新生成清单将总数1557降为1504、management105降为54，去除53个非仓库运行入口。脚本保持2787行，E1生产运行代码不变。提交后复验原2529→修正HEAD完整模型差异，之后只认修正候选自己的CI；不缩小比较范围规避原失败。
+
+
+上述生成器修正的32个完整单测、1文件增量 mypy、全量债务0及生成投影总检查均通过，Black/isort/Ruff通过；E1运行与原生验收依赖未变。REF-01表头修正已使解析器识别原2529基准的全部4行，正式完整commit-pair检查在修正提交落地后执行，不能仅以新push不再含模型差异作为旧问题已解决的证据。

@@ -303,6 +303,18 @@ def test_management_command_discovery_ignores_generated_and_agent_temp_trees(
         / "commands"
         / "evidence_copy.py"
     )
+    local_snapshot = (
+        tmp_path
+        / "tmp"
+        / "snapshot"
+        / "apps"
+        / "data_center"
+        / "management"
+        / "commands"
+        / "copy.py"
+    )
+    local_snapshot.parent.mkdir(parents=True)
+    local_snapshot.write_text("from apps.data_center.application import public\n", encoding="utf-8")
     real_command.parent.mkdir(parents=True)
     copied_command.parent.mkdir(parents=True)
     agent_copy.parent.mkdir(parents=True)
