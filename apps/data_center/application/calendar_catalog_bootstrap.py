@@ -19,7 +19,7 @@ from apps.data_center.domain.contracts import (
 from apps.data_center.domain.control_plane import CalendarNullableMemberCodecVersion
 from core.exceptions import ValidationError
 
-_CALENDAR_DATASET_KEY = "data_center.exchange_calendar_snapshot"
+CALENDAR_DATASET_KEY = "data_center.exchange_calendar_snapshot"
 
 
 class CalendarCatalogBootstrapError(ValidationError):
@@ -94,7 +94,7 @@ def validate_calendar_catalog_bootstrap_rows(rows: CalendarCatalogBootstrapRows)
     for value in (contract, binding, policy, owner):
         value.__post_init__()
     key = contract.key
-    if key.value != _CALENDAR_DATASET_KEY:
+    if key.value != CALENDAR_DATASET_KEY:
         raise CalendarCatalogBootstrapError(
             "CALENDAR_CATALOG_DATASET_UNSUPPORTED", "only the exchange-calendar dataset is allowed"
         )
@@ -157,6 +157,7 @@ class CreateCalendarCatalogBootstrapUseCase:
 
 
 __all__ = [
+    "CALENDAR_DATASET_KEY",
     "CalendarCatalogBootstrapError",
     "CalendarCatalogBootstrapRepositoryPort",
     "CalendarCatalogBootstrapResult",

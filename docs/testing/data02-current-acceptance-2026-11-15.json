@@ -2826,11 +2826,213 @@
       "production_deployment": false,
       "data02_exit_met": false,
       "data03_started": false
+    },
+    {
+      "date": "2026-11-16",
+      "kind": "exact_calendar_history_reader_and_versioned_catalog_guard",
+      "base_head": "f961e9bf75188b5299d2402bdbf9ecf1ab42e6f8",
+      "candidate": "Root formal working tree from this base; exact committed identity/actual CI are recorded after commit, not inferred from the parent.",
+      "prior_candidate_actual_ci": {
+        "head_sha": "f961e9bf75188b5299d2402bdbf9ecf1ab42e6f8",
+        "workflow_count": 7,
+        "all_success": true,
+        "quality_tests_passed": 8127,
+        "quality_tests_skipped": 1,
+        "subtests_passed": 14,
+        "data_center_domain_lines": "11137/11804",
+        "data_center_domain_percent": 94.35
+      },
+      "authority_observation": {
+        "observed_at": "2026-11-16T00:18:52.896713+00:00",
+        "lease": {
+          "mode": "required",
+          "outbox_enabled": true,
+          "reason_code": null,
+          "valid_until": "2026-11-29T16:12:55.522488+00:00"
+        },
+        "business_dml_allowed": false,
+        "financial_provider_requests": 0,
+        "automatic_renewal_or_natural_worker_cycles_proved": false
+      },
+      "implementation": [
+        "Separate exact-publication as-of query/result/repository/Core Audit bridge; original source, seal, member, coverage, forward timeline and exact original Audit event/outbox are reconstructed in one same-alias UOW.",
+        "Historical result has no pointer or activation identity; current reader remains exact-current and unchanged. Rollback/reinstatement, missing successors, gaps and overlaps block.",
+        "0115 protects only published canonical-calendar contract/policy business content. Active/updated_at may change only through a real monotonic active transition. Historical relaxation requires publication after the exact applied migration and exact enabled unconditional public trigger/function definitions.",
+        "Original response TTL and actual record knowledge remain separate; publication logical time does not establish that row/Audit knowledge already existed. No ANN or source observation time is synthesized.",
+        "Native history PG module is excluded from SQLite fast selection and runs with the six native calendar browser journeys under explicit full migrations; 121 current contracts retain their count with four new calendar history requirements."
+      ],
+      "verification": {
+        "full_migration_postgres": {
+          "tests": 88,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        "postgres_duration_seconds": 610.48,
+        "source_changes_during_postgres": [],
+        "unit_and_ci_selection": {
+          "tests": 85,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        "production_files_incremental_mypy": 9,
+        "incremental_mypy_exit": 0,
+        "full_mypy_debt": 0,
+        "format_and_architecture_projection_current_governance_exit": 0,
+        "domain_source_unchanged_from_parent": true,
+        "independent_luna_review": "Exact source clocks/half-open windows reviewed; corrected suffix-only migration match to exact0115 and added renamed migration tamper case.",
+        "four_publication_cardinality_review": "All four datasets match distinct asset coverage and asset hash to the frozen universe; financial may have multiple metric members per asset. Total members equal the dataset sum. Existing grouped policy matrix and missing-required-metric guards remain; no gate was relaxed."
+      },
+      "diagnostic_failures_retained": [
+        "Expected red import before adoption; initial unit command referenced a nonexistent file and ran zero tests, then corrected.",
+        "First PG run: 67 setup errors from unbound percent in migration SQL. Fixed schema_editor.execute(..., params=None); full original log/JUnit retained.",
+        "Second broad run interrupted after failures; Root fixture used generic test.exchange_calendar and a cutoff before physical row knowledge. No complete pass is claimed for that run.",
+        "Diagnostic-r3 isolated the too-early cutoff; corrected fixture uses canonical calendar key and actual post-commit cutoffs. Separate 8/80 diagnostic passes are historical only; final-r6 alone proves the complete88-case fresh migration cohort."
+      ],
+      "remaining_before_production": [
+        "Read-only Admin still exposes a Save POST that would touch auto_now on calendar catalog; an isolated fix is prepared. Generic binding/owner synchronization must preserve the independently managed calendar key, and generic calendar mutations must block before DML. These are required before deploying/applying the guard.",
+        "D1 immutable capture/catalog/Owner-event six-module candidate is frozen with isolated35 tests, not formal-package/migration/PG acceptance. Qualification-aware context/current-revocation/transaction fencing and all eight constructor injections remain.",
+        "C2 rule/policy configuration plus local authenticated Owner apply/revoke events is being prepared. It does not reuse the special no-scope publication Audit channel or invent an Audit tenant; formal publication/E1 Audit gates remain.",
+        "Ordinary-company Main7+Balance3 remains a new unqualified composite; bank scope and custom security-filter/row semantics are not established by static docs. Balance parser24 synthetic tests are not a real financial response or production contract.",
+        "Native producer/consumer v3 integration, real retained documentation/capture/configuration, qualified production calendars, E1, full-universe four-Publication reconciliation and DATA03 remain incomplete. Concrete TTL/phase proposal is still pending the user's existing reply; no new defaults or precision exception are inferred.",
+        "Published financial mapper must reject native-only fields when numeric_schema is absent or forced legacy; isolated8 cases plus13 existing fact goldens are prepared, not adopted. Normal HTTP/SDK/MCP preserve the v2 canonical string/schema; existing Equity ratio fields remain float analytics, not an exact canonical D1 representation."
+      ],
+      "source_files": [
+        {
+          "path": "apps/data_center/application/calendar_catalog_bootstrap.py",
+          "sha256": "344c2fa3fdefcd197124708f1cfc6aeda1ff487735c57eafa85a5f76b9bad4c4"
+        },
+        {
+          "path": "apps/data_center/application/formal_exchange_calendar_publication_history.py",
+          "sha256": "6a175f0e0b2b0422f8efdcff24e0d41f1cb1fe1611fccaab9b45203bccf7ca2e"
+        },
+        {
+          "path": "apps/data_center/application/calendar_historical_publication_audit_port.py",
+          "sha256": "6f2f250c6763d09bdd0984f87400d70d4ebc2c33f17fa5fb18314c60ec542b36"
+        },
+        {
+          "path": "apps/data_center/infrastructure/calendar_catalog_history_guard.py",
+          "sha256": "d62b1d0301ef7fdf17385ec7636cc85aba3af812cb965bc042b92e0683f1aff0"
+        },
+        {
+          "path": "apps/data_center/infrastructure/formal_exchange_calendar_publication_history_reader.py",
+          "sha256": "54ecc1a254d50c167f3f53facd02bda7301ea192c7719828a9f6ae7fe546401d"
+        },
+        {
+          "path": "apps/data_center/infrastructure/formal_exchange_calendar_publication_support.py",
+          "sha256": "645c1f72275344b7cc7a00f7d99b6199e93d41058fa8fa8fd7b749ec744d0fd4"
+        },
+        {
+          "path": "core/integration/calendar_formal_publication_history_audit.py",
+          "sha256": "53e409415a8fa677b5805fddcab939ea4c0da8a6226fb4a34a354c6240cecc9a"
+        },
+        {
+          "path": "apps/data_center/calendar_publication_history_composition.py",
+          "sha256": "38700b35a00c01ef903d28d2d874e7be49d2147541a9e2a9c146c75c4e966e82"
+        },
+        {
+          "path": "scripts/select_tests.py",
+          "sha256": "094beb0d14efab13ebffea6c9d74f531212ed95958a42f18f398fd18c55e8e1b"
+        },
+        {
+          "path": "tests/unit/data_center/test_calendar_publication_history_application.py",
+          "sha256": "511ed438a1695e59c2596c9f939caf50fd5e753cbcd459c9a420167ea7c6e2e4"
+        },
+        {
+          "path": "tests/component/data_center/test_formal_exchange_calendar_publication_history_pg.py",
+          "sha256": "e4d665fe01f03c415e7a0014f97698adf723a4a4170fd5421082ed8ad4c0d3c1"
+        },
+        {
+          "path": "tests/unit/ci/test_select_tests.py",
+          "sha256": "42b38e432f8f86b27f806f6ba1c0247683a1a3fda2261977c0b1527a368af370"
+        },
+        {
+          "path": "apps/data_center/migrations/0115_calendar_history_catalog_immutability.py",
+          "sha256": "583de0d30a4c914497d44a1bb1f91591d8c1c3b4e0643b7e5de2c1e4982c81e3"
+        }
+      ],
+      "raw_artifacts": [
+        {
+          "path": ".tmp/data02-current-20261115/20261116/ci-f961e9bf7-final.json",
+          "sha256": "62fa5728b04ec3d213ad3068384dfdcc30534022d3a8a58a6f7f7608d9a632e4"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/ci-f961e9bf7-quality.log",
+          "sha256": "3fcb63dba80a6a13eada1052a187df4dc66c72c6b813ce9491c2e7dafb547ebb"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/lease_with_read_fences_next_cycle_probe.py.receipt.json",
+          "sha256": "244aac20113f4d5b9e4e84872251a60733be3bd3920fbd188925abf6749727cb"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/lease_with_read_fences_next_cycle_probe.py.stdout",
+          "sha256": "0747bfd76632d3a2065fc2d9fd4c05c40ea9339afdac65aab65fa902c9544af0"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/calendar-history-adoption.json",
+          "sha256": "cd676ad72a337b29fc6b42a4d43a29183a4e0875ecd34943933dd01eb6acd030"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/calendar-history-r4-format.receipt.json",
+          "sha256": "03708260111992de4ea119a43438f41fcdec0d18629ebc5eef04cde405996593"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/calendar-history-r5-static.receipt.json",
+          "sha256": "2f7d53070005c2c4977121f492129c35c9efed1df45e31439b78c4ff3e3d4a47"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/calendar-history-r4-build.receipt.json",
+          "sha256": "531d8800429c8393a8f540dabd5fe4336136e19d9700d9b5e631578d3714aeaa"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/calendar-history-r5-governance.receipt.json",
+          "sha256": "e461d654fb4f7c62f95e9d587778b7776c81b8ac0f8558946716c4b68f35611c"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/calendar-history-r6-unit-final.receipt.json",
+          "sha256": "7a825ff3f244ba1090b9fa1ad710023757d3d2c94ca5765a1794d71969f14e7f"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/calendar-history-pg-final-r6.receipt.json",
+          "sha256": "563d6f53683f4bc654c8875b09bc80bb5de794c061c8820ef2a8dd30d9591bef"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/calendar-history-pg-final-r6.junit.xml",
+          "sha256": "053ce37a0c0985e900ade742410ea7cc6dc68cf41188a0ef63478f25dccc079b"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/calendar-history-pg-final-r6.log",
+          "sha256": "46970f41f42c9a8d700f8c2a99c35dff002c73916044a7b49e8209447cdcf6dd"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/calendar-history-pg-r1.receipt.json",
+          "sha256": "46e46a50a18a2ad635070ce867ffabe954b6a72fb0dc2d53d4f4fcbf7f6181ec"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/calendar-history-pg-r2-interrupted.json",
+          "sha256": "f26640ba0acc2d4646b16246aa1009a706758c7ce1c945d7877ad93c2c7aa9d8"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/calendar-history-pg-diagnostic-r3.receipt.json",
+          "sha256": "92b93dc5128f1c9c4486d3801e50351af999f14d7202e3df036eb07ba598d4b1"
+        },
+        {
+          "path": ".tmp/data02-current-20261115/20261116/native-consumer-source-inventory-f961e9bf7.json",
+          "sha256": "c2b708b4fbf769f71acece0f9aafeb3d52202dc812436b4c21db932fd8a6625e"
+        }
+      ],
+      "new_candidate_actual_ci": "pending commit/push",
+      "financial_provider_requests": 0,
+      "production_deployment": false,
+      "data02_exit_met": false,
+      "data03_started": false
     }
   ],
   "current_authority_followup": "followups[0] (2026-11-16); original 2026-11-15 snapshots remain historical",
   "current_d1_c2_followup": "followups[1] (2026-11-16); original snapshots and all intermediate failures remain historical",
-  "current_goal_followup": "followups[8] (2026-11-16); goal active, source integration delivered separately from production qualification",
+  "current_goal_followup": "followups[9] (2026-11-16); fresh88-case C2 history cohort, full DATA02/03 exit unchanged",
   "current_native_storage_followup": "followups[5] (2026-11-16); development prerequisite only, full DATA02/03 exit gates unchanged",
-  "current_native_ci_followup": "followups[7] (2026-11-16); final source recovery cohort, corrected candidate CI remains separate"
+  "current_native_ci_followup": "followups[7] (2026-11-16); final source recovery cohort, corrected candidate CI remains separate",
+  "current_calendar_history_followup": "followups[9] (2026-11-16); development prerequisite only; production Admin/catalog isolation still required"
 }

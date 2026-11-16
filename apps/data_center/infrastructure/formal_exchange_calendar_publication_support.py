@@ -6,7 +6,7 @@ import re
 from collections.abc import Callable, Sequence
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
-from typing import Final
+from typing import Final, TypeGuard
 from uuid import UUID
 
 from django.db import DatabaseError, connections, router
@@ -955,7 +955,7 @@ def _parse_pg_lock_timeout_ms(value: str) -> Decimal:
     return Decimal(amount_text) * _LOCK_TIMEOUT_SECONDS[unit] * Decimal(1000)
 
 
-def _is_utc_datetime(value: object) -> bool:
+def _is_utc_datetime(value: object) -> TypeGuard[datetime]:
     """Return whether a value is an exact UTC-aware datetime."""
 
     if type(value) is not datetime or value.tzinfo is None:

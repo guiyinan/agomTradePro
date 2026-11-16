@@ -656,6 +656,9 @@ class TestNativePostgresCalendarSelection(unittest.TestCase):
     """Keep the calendar browser journey on its isolated PostgreSQL runner."""
 
     browser_target = "tests/component/data_center/test_institutional_calendar_browser.py"
+    history_target = (
+        "tests/component/data_center/test_formal_exchange_calendar_publication_history_pg.py"
+    )
 
     @staticmethod
     def _data_center_component_test_files() -> set[str]:
@@ -677,18 +680,25 @@ class TestNativePostgresCalendarSelection(unittest.TestCase):
         selected_component_tests = {
             target for target in targets if target.startswith("tests/component/data_center/")
         }
-        expected_component_tests = self._data_center_component_test_files() - {self.browser_target}
+        expected_component_tests = self._data_center_component_test_files() - {
+            self.browser_target,
+            self.history_target,
+        }
 
         self.assertEqual(selected_component_tests, expected_component_tests)
         self.assertNotIn("tests/component/data_center/", targets)
         self.assertNotIn(self.browser_target, targets)
+        self.assertNotIn(self.history_target, targets)
 
     def test_browser_test_only_change_routes_out_of_sqlite_selector(self):
-        targets = set(select_tests_func(set(), [self.browser_target], profile="logic_guardrails"))
+        for target in (self.browser_target, self.history_target):
+            with self.subTest(target=target):
+                targets = set(select_tests_func(set(), [target], profile="logic_guardrails"))
 
-        self.assertNotIn(self.browser_target, targets)
-        self.assertNotIn("tests/component/data_center/", targets)
-        self.assertTrue(set(CORE_GUARDRAIL_TESTS).issubset(targets))
+                self.assertNotIn(self.browser_target, targets)
+                self.assertNotIn(self.history_target, targets)
+                self.assertNotIn("tests/component/data_center/", targets)
+                self.assertTrue(set(CORE_GUARDRAIL_TESTS).issubset(targets))
 
     def test_raw_scope_detector_and_postgres_job_cover_test_only_changes(self):
         workflow_path = PROJECT_ROOT / ".github/workflows/ci-fast-feedback.yml"
@@ -754,7 +764,12 @@ class TestNativePostgresCalendarSelection(unittest.TestCase):
         self.assertLess(install_index, browser_index)
         browser_run = job["steps"][browser_index]["run"]
         self.assertIn(self.browser_target, browser_run)
+        self.assertIn(
+            "tests/component/data_center/test_formal_exchange_calendar_publication_history_pg.py",
+            browser_run,
+        )
         self.assertIn("--create-db", browser_run)
+        self.assertIn("--migrations", browser_run)
         self.assertNotIn("--no-migrations", browser_run)
 
     def test_nightly_sqlite_component_and_postgres_job_route_browser_as_a_pair(self):

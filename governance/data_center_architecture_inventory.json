@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 7464,
+    "current_surface_references": 7471,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -8919,6 +8919,10 @@
       "text": "\"\"\"Verify the original actor's unchanged event/outbox under current permission.\"\"\""
     },
     {
+      "path": "apps/data_center/application/calendar_historical_publication_audit_port.py",
+      "text": "\"\"\"Verify a published calendar record without requiring current activation.\"\"\""
+    },
+    {
       "path": "apps/data_center/application/calendar_publication_authority.py",
       "text": "\"\"\"Hold current session, identity, and permission witnesses until exit.\"\"\""
     },
@@ -9829,6 +9833,14 @@
     {
       "path": "apps/data_center/application/formal_exchange_calendar_publication.py",
       "text": "so the authority-owned outer transaction rolls back. An exact-current"
+    },
+    {
+      "path": "apps/data_center/application/formal_exchange_calendar_publication_history.py",
+      "text": "\"\"\"Return the current timezone-aware UTC instant.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/formal_exchange_calendar_publication_history.py",
+      "text": "event/outbox receipt. It deliberately contains no current pointer or"
     },
     {
       "path": "apps/data_center/application/full_market_publication_preflight.py",
@@ -11209,6 +11221,10 @@
     {
       "path": "apps/data_center/calendar_audit_read_authority_composition.py",
       "text": "\"\"\"Hold current read-permission witnesses while the caller reads its exact stream."
+    },
+    {
+      "path": "apps/data_center/calendar_publication_history_composition.py",
+      "text": "\"\"\"Return the current aware UTC time without normalizing bad values.\"\"\""
     },
     {
       "path": "apps/data_center/calendar_publication_operations_composition.py",
@@ -12705,6 +12721,18 @@
     {
       "path": "apps/data_center/infrastructure/financial_scope_manifest_current_pointer.py",
       "text": "updated_by=current.updated_by,"
+    },
+    {
+      "path": "apps/data_center/infrastructure/formal_exchange_calendar_publication_history_reader.py",
+      "text": "This method deliberately does not read the mutable current pointer. It"
+    },
+    {
+      "path": "apps/data_center/infrastructure/formal_exchange_calendar_publication_history_reader.py",
+      "text": "\"Formal calendar scope has more than one current lifecycle interval\","
+    },
+    {
+      "path": "apps/data_center/infrastructure/formal_exchange_calendar_publication_history_reader.py",
+      "text": "\"Historical current publication was updated after the requested cutoff\","
     },
     {
       "path": "apps/data_center/infrastructure/formal_exchange_calendar_publication_reader.py",

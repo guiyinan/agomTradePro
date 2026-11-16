@@ -1141,3 +1141,46 @@ C2 新增独立 v3 witness/codec，保留 NOTICE_DATE 与报告期为日期，�
 producer/consumer 接线及历史 publication reader，才能进入受控 E1。3600 秒与正式阶段的
 具体提案保持待明确答复，未知量纲、舍入、全 universe 与 DATA-03 退出门不变。
 Root 串行负责投影、index、Git 与重 QA；本批候选、复核和失败继续追加同一验收索引。
+
+## 44. 2026-11-16 独立历史日历读端与版本化目录保护
+
+本批目标是让已封存 v3 见证在日历换版后仍能按原知识截止点复验。新增独立的 exact
+publication 查询、Application/Repository、Core Audit bridge 和默认库单外层事务入口，
+重建原始正文、seal、member/coverage、连续 forward 生命周期及原发布事件/outbox 配对。
+结果不包含 current pointer 或 activation 身份；原 current 读端继续要求精确当前指针。
+rollback、reinstatement、缺后继、重叠与间断仍阻断，不追造历史激活凭证。
+
+`0115_calendar_history_catalog_immutability` 仅保护已发布正式日历引用的 contract/policy
+业务内容；真实 active 切换须同时推进合法 updated_at。历史读端只有在 publication 的创建
+和发布都晚于精确迁移安装点，且实际 public 触发器/函数完全匹配、启用、无 WHEN/列过滤时，
+才接受后续合法 active/updated_at 变化；其余记录沿用严格旧截止点检查。TTL 仍从原响应
+first_seen_at 起算，记录及 Audit 的真实知识时间另检。发布逻辑时刻不能替代行已写入的
+知识证据；验收使用真实提交之后的截止点，不为使边界测试通过而放松时间检查。
+
+父候选 `f961e9bf75188b5299d2402bdbf9ecf1ab42e6f8` 的七条实际 CI 均通过，质量 job
+记录 8,127 passed、1 skipped、14 subtests，Data Center Domain 行覆盖为 94.35%。本批
+最终从空的 Root 专用 PostgreSQL 测试库执行完整迁移，88 项全部通过、零跳过，期间 Python
+输入哈希不变；另有 85 项 Application/CI 路由检查、9 个生产文件增量类型及全库零债务，
+格式、架构、统一投影与 121 条 current contract 检查均通过。新 PG 历史用例进入原生日历
+浏览器 CI 任务，显式要求迁移，并从 SQLite 快检中排除。本批没有修改 Domain 源码。
+
+失败原件仍在唯一索引：迁移 SQL 首轮因百分号被参数绑定器解释而产生 67 个 setup error，
+修复为原始 DDL `params=None`；中间广包在新用例失败后中止，通用测试 dataset 与过早
+逻辑时刻均改为正式日历 key/真实提交后截止点。隔离诊断的 8/80 项通过不拼接为最终通过，
+仅最终 fresh 88 项作为本候选的数据库结论。生产审计 lease 于 00:18 UTC 再次实际复验为
+required/outbox enabled、无阻断，仍有效至 2026-11-29T16:12:55.522488Z；这不证明自动续期。
+
+剩余与风险按完整 DATA-02 保留：应用新 guard 前必须修复只读 Admin 仍可无变化 Save
+触发 auto_now 异常的问题，并隔离全局 binding/owner 同步对独立日历 key 的停用及通用
+配置写入；这两项正在隔离准备。D1 真目录/原件/认证 Owner 事件、当前与 PIT 数值复验及
+事务内撤销 fence、全部八个 Repository 构造入口、C2 规则/政策本地配置与真实 Owner 事件、
+producer/consumer v3 接线、生产合格日历和四 Publication 全集验收仍未完成。四类 Publication
+对齐 distinct asset coverage/全集 hash；financial 多指标成员可多于资产数，顶层成员数为
+各 dataset 之和，既有分组指标完整性门不改。普通企业 Main7+Balance3 是新待核组合，
+不追认旧 Main liability，也不把 24 项合成 parser 测试当作真实响应。具体 TTL/phase 提案
+仍待既有答复，E1 财务 HTTP 预算尚未使用。DATA-03 保持等待完整 DATA-02 退出。
+
+本切片开发回滚点为上述父候选；逆向 0115 只移除本批触发器/函数，历史读端随即回到
+严格时钟或阻断，不改写目录内容或事实。尚无生产部署/事实写入，不能把本地通过写成生产
+资格。后续生产动作仍须同候选 S6、备份/staging、真实参数/权限及兼容读写者验收；如未来
+已有 native 财务行，不得回滚到不识别该数值 schema 的旧读写镜像。

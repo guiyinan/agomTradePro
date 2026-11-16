@@ -410,7 +410,10 @@ LOGIC_GUARDRAILS_ALLOWED_PREFIXES = (
 )
 
 FAST_FEEDBACK_NATIVE_POSTGRES_ONLY_TARGETS = frozenset(
-    {"tests/component/data_center/test_institutional_calendar_browser.py"}
+    {
+        "tests/component/data_center/test_institutional_calendar_browser.py",
+        "tests/component/data_center/test_formal_exchange_calendar_publication_history_pg.py",
+    }
 )
 
 
@@ -427,7 +430,7 @@ def _is_logic_guardrails_target(path: str) -> bool:
 
 
 def _finalize_selected_tests(targets: set[str] | list[str], profile: str) -> list[str]:
-    """Keep PostgreSQL-only browser tests out of SQLite-backed fast feedback."""
+    """Route native PostgreSQL calendar acceptance out of SQLite-backed checks."""
 
     if profile != "logic_guardrails":
         return sorted(set(targets))

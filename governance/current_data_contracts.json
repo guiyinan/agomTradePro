@@ -10928,7 +10928,13 @@
         "apps/data_center/interface/calendar_publication_presenters.py",
         "apps/data_center/interface/calendar_publication_serializers.py",
         "apps/audit/application/calendar_publication_integrity.py",
-        "apps/audit/infrastructure/system_audit_event_outbox_coordinator.py"
+        "apps/audit/infrastructure/system_audit_event_outbox_coordinator.py",
+        "apps/data_center/application/formal_exchange_calendar_publication_history.py",
+        "apps/data_center/application/calendar_historical_publication_audit_port.py",
+        "apps/data_center/infrastructure/calendar_catalog_history_guard.py",
+        "apps/data_center/infrastructure/formal_exchange_calendar_publication_history_reader.py",
+        "core/integration/calendar_formal_publication_history_audit.py",
+        "apps/data_center/calendar_publication_history_composition.py"
       ],
       "required_markers": {
         "apps/data_center/domain/formal_exchange_calendar_publication.py": [
@@ -11013,6 +11019,33 @@
         "apps/audit/infrastructure/system_audit_event_outbox_coordinator.py": [
           "def caller_owned_readonly(",
           "self._read_active = False"
+        ],
+        "apps/data_center/application/formal_exchange_calendar_publication_history.py": [
+          "class ReadExchangeCalendarPublicationAsOfQuery:",
+          "class ReadExchangeCalendarPublicationAsOfUseCase:",
+          "CALENDAR_HISTORY_FUTURE_CUTOFF"
+        ],
+        "apps/data_center/application/calendar_historical_publication_audit_port.py": [
+          "def verify_historical_published_integrity("
+        ],
+        "apps/data_center/infrastructure/calendar_catalog_history_guard.py": [
+          "0115_calendar_history_catalog_immutability",
+          "t.tgqual IS NULL",
+          "t.tgattr::text = ''"
+        ],
+        "apps/data_center/infrastructure/formal_exchange_calendar_publication_history_reader.py": [
+          "guarded_history",
+          "_validate_scope_history",
+          "CALENDAR_HISTORY_TIMELINE_INVALID"
+        ],
+        "core/integration/calendar_formal_publication_history_audit.py": [
+          "CoreCalendarFormalPublicationHistoricalAuditBridge",
+          "VerifyPublishedCalendarPublicationIntegrityUseCase",
+          "receipt.recorded_at > as_of"
+        ],
+        "apps/data_center/calendar_publication_history_composition.py": [
+          "def read_exchange_calendar_publication_as_of(",
+          "CALENDAR_HISTORY_TRANSACTION_OWNER_INVALID"
         ]
       },
       "required_tests": [
@@ -11110,9 +11143,29 @@
           "case": "integrity_read_requires_one_outer_transaction",
           "test_file": "tests/component/audit/test_system_audit_event_outbox_coordinator.py",
           "test_function": "test_readonly_scope_requires_one_outer_transaction_and_refuses_nested_reads"
+        },
+        {
+          "case": "separate_exact_history_after_forward_and_legal_catalog_change",
+          "test_file": "tests/component/data_center/test_formal_exchange_calendar_publication_history_pg.py",
+          "test_function": "test_history_preserves_original_pair_after_forward_and_catalog_deactivation"
+        },
+        {
+          "case": "history_excludes_superseded_and_requires_real_record_knowledge",
+          "test_file": "tests/component/data_center/test_formal_exchange_calendar_publication_history_pg.py",
+          "test_function": "test_history_supersession_excludes_old_and_requires_known_successor"
+        },
+        {
+          "case": "published_calendar_catalog_content_is_database_immutable",
+          "test_file": "tests/component/data_center/test_formal_exchange_calendar_publication_history_pg.py",
+          "test_function": "test_published_calendar_catalog_content_and_deletion_are_db_protected"
+        },
+        {
+          "case": "history_guard_exact_migration_and_unconditional_enabled_trigger",
+          "test_file": "tests/component/data_center/test_formal_exchange_calendar_publication_history_pg.py",
+          "test_function": "test_missing_or_tampered_guard_uses_strict_history_and_blocks_late_catalog"
         }
       ],
-      "notes": "Current publication integrity joins the same-alias single outer transaction through a read-only scope, even when another audited operation already owns private Audit/Outbox append capabilities. It preserves the exact publication event/outbox selectors and locks, issues no new append capability or savepoint, and never extends source clocks, TTL, current policy or execution authority. Missing/corrupt halves remain blocking and are never repaired by a read."
+      "notes": "Current publication integrity joins the same-alias single outer transaction through a read-only scope, even when another audited operation already owns private Audit/Outbox append capabilities. It preserves the exact publication event/outbox selectors and locks, issues no new append capability or savepoint, and never extends source clocks, TTL, current policy or execution authority. Missing/corrupt halves remain blocking and are never repaired by a read. A separate exact-publication historical reference reconstructs original source/Audit within the original response TTL and half-open lifecycle. It requires actual record knowledge and relaxes later active/updated_at changes only for publications protected after the exact installed 0115 guard. Existing current-pointer and financial ANN gates stay strict; historical references provide no activation, current-pointer or execution claim."
     },
     {
       "id": "simulated_trading.current_published_calendar_reference",

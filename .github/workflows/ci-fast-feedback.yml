@@ -599,4 +599,5 @@ jobs:
         run: >-
           python -m pytest -p django
           tests/component/data_center/test_institutional_calendar_browser.py
-          --create-db -q -o addopts=''
+          tests/component/data_center/test_formal_exchange_calendar_publication_history_pg.py
+          --create-db --migrations -q -o addopts=''

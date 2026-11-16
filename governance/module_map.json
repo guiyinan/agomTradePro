@@ -2386,6 +2386,9 @@
         "dashboard": {
           "imports": 1
         },
+        "data_center": {
+          "imports": 1
+        },
         "simulated_trading": {
           "imports": 47
         },
@@ -4177,6 +4180,14 @@
           "imports": 2
         }
       },
+      "depends_on": {
+        "audit": {
+          "imports": 1,
+          "target_layers": [
+            "calendar_publication_composition"
+          ]
+        }
+      },
       "entrypoints": {
         "application/_market_thermometer_runtime.py": [
           "provider_timeout_overrides",
@@ -4253,6 +4264,9 @@
         ],
         "application/calendar_formal_publication_audit_port.py": [
           "CalendarFormalPublicationAuditPort"
+        ],
+        "application/calendar_historical_publication_audit_port.py": [
+          "CalendarHistoricalPublicationAuditPort"
         ],
         "application/calendar_preview_token.py": [
           "CalendarPreviewTokenCodec",
@@ -4789,6 +4803,14 @@
           "PublishExchangeCalendarSnapshotUseCase",
           "ReadCurrentExchangeCalendarPublicationQuery",
           "ReadCurrentExchangeCalendarPublicationUseCase"
+        ],
+        "application/formal_exchange_calendar_publication_history.py": [
+          "CalendarHistoricalPublicationReaderPort",
+          "CalendarHistoryClock",
+          "HistoricalCalendarPublicationRecord",
+          "HistoricalPublishedExchangeCalendar",
+          "ReadExchangeCalendarPublicationAsOfQuery",
+          "ReadExchangeCalendarPublicationAsOfUseCase"
         ],
         "application/full_market_publication_preflight.py": [
           "AuthorityCaptureProbeEvidence",
@@ -5770,12 +5792,12 @@
         ]
       },
       "layers": {
-        "application": 192,
+        "application": 194,
         "domain": 62,
-        "infrastructure": 255,
+        "infrastructure": 257,
         "interface": 34,
         "management": 43,
-        "root": 48
+        "root": 49
       },
       "orm_models": {
         "infrastructure/models.py": [
