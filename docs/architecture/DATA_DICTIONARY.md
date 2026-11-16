@@ -7,8 +7,8 @@
 ## 概览
 
 - App 数：42
-- 模型数：620
-- 字段数：9658
+- 模型数：623
+- 字段数：9685
 
 口径说明：仅覆盖 `apps/*/infrastructure/` 下的 `models.py`、`models/` 包与 `*_models.py`；字段为类体内显式赋值的 Django 字段，继承字段不展开，动态字段与隐式自增主键不在投影内。
 
@@ -5282,6 +5282,55 @@
 | `ingested_run_id` | `UUIDField` | 是 |  |  |  |  |
 | `available_at` | `DateTimeField` | 是 |  |  |  |  |
 
+### FinancialAvailabilityGovernanceRecordModel
+
+- 来源文件：`apps/data_center/infrastructure/financial_availability_governance_models.py`
+- 数据表：`data_center_financial_availability_governance_record`
+- 说明：One immutable explicit opening-rule or disclosure-policy version.
+
+| 字段 | 类型 | null | unique | 默认值 | 说明 | 关系目标 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `row_id` | `UUIDField` |  |  | uuid4 |  |  |
+| `record_id` | `CharField` |  |  |  |  |  |
+| `record_version` | `CharField` |  |  |  |  |  |
+| `exchange` | `CharField` |  |  |  |  |  |
+| `kind` | `CharField` |  |  |  |  |  |
+| `payload` | `JSONField` |  |  |  |  |  |
+| `content_sha256` | `CharField` |  |  |  |  |  |
+| `recorded_at` | `DateTimeField` |  |  |  |  |  |
+| `source_capture` | `ForeignKey` | 是 |  |  |  | StatutorySourceDocumentCaptureModel |
+
+### FinancialAvailabilityOwnerEventModel
+
+- 来源文件：`apps/data_center/infrastructure/financial_availability_governance_models.py`
+- 数据表：`data_center_financial_availability_owner_event`
+- 说明：One authenticated Django User apply/revoke event for an exact record.
+
+| 字段 | 类型 | null | unique | 默认值 | 说明 | 关系目标 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `event_id` | `UUIDField` |  |  |  |  |  |
+| `governance_record` | `ForeignKey` |  |  |  |  | FinancialAvailabilityGovernanceRecordModel |
+| `action` | `CharField` |  |  |  |  |  |
+| `event_sha256` | `CharField` |  |  |  |  |  |
+| `record_content_sha256` | `CharField` |  |  |  |  |  |
+| `resulting_content_sha256` | `CharField` |  |  |  |  |  |
+| `actor` | `ForeignKey` |  |  |  |  | settings.AUTH_USER_MODEL |
+| `permission` | `ForeignKey` |  |  |  |  | Permission |
+| `permission_app_label` | `CharField` |  |  |  |  |  |
+| `permission_codename` | `CharField` |  |  |  |  |  |
+| `permission_verified_at` | `DateTimeField` |  |  |  |  |  |
+| `occurred_at` | `DateTimeField` |  |  |  |  |  |
+| `recorded_at` | `DateTimeField` |  |  |  |  |  |
+| `reason` | `CharField` |  |  |  |  |  |
+| `predecessor_apply_event` | `OneToOneField` | 是 |  |  | self | self |
+| `predecessor_apply_event_sha256` | `CharField` | 是 |  |  |  |  |
+
+### _FinancialAvailabilityAppendOnlyModel
+
+- 来源文件：`apps/data_center/infrastructure/financial_availability_governance_models.py`
+- 抽象模型：是
+- 说明：Protect model-level writes while database triggers remain the final guard.
+
 ### FinancialFactModel
 
 - 来源文件：`apps/data_center/infrastructure/financial_fact_models.py`
@@ -5380,6 +5429,8 @@
 | `body_sha256` | `CharField` |  |  |  |  |  |
 | `body_size_bytes` | `PositiveBigIntegerField` |  |  |  |  |  |
 | `body_reference` | `CharField` |  |  |  |  |  |
+| `origin_snapshot` | `JSONField` | 是 |  |  |  |  |
+| `origin_snapshot_sha256` | `CharField` | 是 |  |  |  |  |
 
 ### InstitutionalCalendarEventModel
 

@@ -11,8 +11,15 @@ from uuid import UUID
 from django.db import IntegrityError, connection, transaction
 from django.db.models import Q
 
+from apps.data_center.application.financial_numeric_qualification import (
+    FinancialNumericVerificationPurpose,
+)
 from apps.data_center.application.financial_numeric_verification import (
     FinancialNumericEvidenceVerifier,
+)
+from apps.data_center.application.financial_v3_e1_verification import (
+    FinancialV3FactEvidenceVerifier,
+    FinancialV3FactVerificationRequest,
 )
 from apps.data_center.domain.entities import FinancialFact
 from apps.data_center.domain.financial_source_evidence import (
@@ -21,6 +28,9 @@ from apps.data_center.domain.financial_source_evidence import (
 )
 from apps.data_center.infrastructure.financial_decision_evidence_codec import (
     encode_financial_decision_evidence,
+)
+from apps.data_center.infrastructure.financial_v3_current_uow import (
+    financial_v3_current_operation_uow,
 )
 from apps.data_center.infrastructure.models import FinancialFactModel
 from apps.data_center.infrastructure.publication_fact_write_lock import publication_fact_write_lock
@@ -52,11 +62,13 @@ class FinancialFactProvenanceConflictError(DataValidationError):
     default_code = "FINANCIAL_FACT_PROVENANCE_CONFLICT"
 
 
-def bulk_upsert_financial_facts(
+def _bulk_upsert_financial_facts_impl(
     facts: list[FinancialFact],
     *,
     source_time_evidence_verifier: FinancialSourceTimeEvidenceVerifier | None = None,
     numeric_evidence_verifier: FinancialNumericEvidenceVerifier | None = None,
+    v3_evidence_verifier: FinancialV3FactEvidenceVerifier | None = None,
+    v3_verification_request: FinancialV3FactVerificationRequest | None = None,
     ingested_run_id: UUID | None = None,
 ) -> int:
     """Return actual inserts/updates, preserving unchanged rows and source proof."""
@@ -66,8 +78,26 @@ def bulk_upsert_financial_facts(
     if ingested_run_id is not None and not isinstance(ingested_run_id, UUID):
         raise FinancialFactProvenanceConflictError("ingested_run_id must be a UUID")
     _reject_duplicate_natural_keys(facts)
+    verified_v3_fact_ids: set[int] = set()
     for fact in facts:
         fact.__post_init__()
+        decision = fact.decision_evidence
+        is_v3 = decision is not None and decision.source_time_witness_v3 is not None
+        if is_v3:
+            _validate_fact_decision_evidence(fact)
+            if (
+                fact.numeric_schema != "native-decimal-v2"
+                or type(v3_verification_request) is not FinancialV3FactVerificationRequest
+                or v3_verification_request.purpose
+                is not FinancialNumericVerificationPurpose.CURRENT_WRITE
+                or v3_evidence_verifier is None
+                or not v3_evidence_verifier.verify(fact, v3_verification_request)
+            ):
+                raise FinancialFactProvenanceConflictError(
+                    "v3 financial fact requires exact-body and current qualified verification"
+                )
+            verified_v3_fact_ids.add(id(fact))
+            continue
         if fact.numeric_schema == "native-decimal-v2" and (
             numeric_evidence_verifier is None or not numeric_evidence_verifier(fact)
         ):
@@ -75,7 +105,6 @@ def bulk_upsert_financial_facts(
                 "native financial numeric evidence requires independent catalog and body verification"
             )
         _validate_fact_decision_evidence(fact)
-        decision = fact.decision_evidence
         if (
             decision is None
             or decision.source_time_witness is None
@@ -108,7 +137,12 @@ def bulk_upsert_financial_facts(
         for fact in facts:
             row = locked_before[_financial_natural_key(fact)]
             if row is not None:
-                _validate_existing_row_update(fact, row, ingested_run_id=ingested_run_id)
+                _validate_existing_row_update(
+                    fact,
+                    row,
+                    ingested_run_id=ingested_run_id,
+                    v3_evidence_verified=id(fact) in verified_v3_fact_ids,
+                )
 
         missing = [fact for fact in facts if locked_before[_financial_natural_key(fact)] is None]
         inserted_count = _insert_missing_facts(missing, ingested_run_id=ingested_run_id)
@@ -204,6 +238,47 @@ def bulk_upsert_financial_facts(
         if updated_count != len(normalized_updates) + len(source_updates):
             raise FinancialFactProvenanceConflictError("Financial fact update lost a locked row")
     return inserted_count + updated_count
+
+
+def bulk_upsert_financial_facts(
+    facts: list[FinancialFact],
+    *,
+    source_time_evidence_verifier: FinancialSourceTimeEvidenceVerifier | None = None,
+    numeric_evidence_verifier: FinancialNumericEvidenceVerifier | None = None,
+    v3_evidence_verifier: FinancialV3FactEvidenceVerifier | None = None,
+    v3_verification_request: FinancialV3FactVerificationRequest | None = None,
+    ingested_run_id: UUID | None = None,
+) -> int:
+    """Verify v3 under one current UOW, then preserve the canonical write path."""
+
+    has_v3_fact = any(
+        type(fact) is FinancialFact
+        and fact.decision_evidence is not None
+        and fact.decision_evidence.source_time_witness_v3 is not None
+        for fact in facts
+    )
+    if (
+        has_v3_fact
+        and type(v3_verification_request) is FinancialV3FactVerificationRequest
+        and v3_verification_request.purpose is FinancialNumericVerificationPurpose.CURRENT_WRITE
+    ):
+        with financial_v3_current_operation_uow():
+            return _bulk_upsert_financial_facts_impl(
+                facts,
+                source_time_evidence_verifier=source_time_evidence_verifier,
+                numeric_evidence_verifier=numeric_evidence_verifier,
+                v3_evidence_verifier=v3_evidence_verifier,
+                v3_verification_request=v3_verification_request,
+                ingested_run_id=ingested_run_id,
+            )
+    return _bulk_upsert_financial_facts_impl(
+        facts,
+        source_time_evidence_verifier=source_time_evidence_verifier,
+        numeric_evidence_verifier=numeric_evidence_verifier,
+        v3_evidence_verifier=v3_evidence_verifier,
+        v3_verification_request=v3_verification_request,
+        ingested_run_id=ingested_run_id,
+    )
 
 
 def _insert_missing_facts(
@@ -382,6 +457,38 @@ def _validate_fact_decision_evidence(fact: FinancialFact) -> None:
         )
     source = fact.source_evidence
     artifact = decision.artifact_reference.evidence
+    witness_v3 = decision.source_time_witness_v3
+    if witness_v3 is not None:
+        row = witness_v3.financial_row
+        if (
+            source is None
+            or source.announced_at is not None
+            or source.raw_payload_hash != artifact.body_sha256
+            or source.source_record_id != decision.native_row_id
+            or decision.native_asset_code != fact.asset_code
+            or decision.native_period_end != fact.period_end
+            or fact.numeric_schema != "native-decimal-v2"
+            or fact.available_at != witness_v3.available_at
+            or row.artifact_reference != decision.artifact_reference
+            or row.asset_code != fact.asset_code
+            or row.period_end != fact.period_end
+            or row.period_type is not fact.period_type
+            or row.metric_code != fact.metric_code
+            or row.native_row_id != decision.native_row_id
+            or row.notice_date != witness_v3.availability.source_date
+            or row.matched_row_count != 1
+        ):
+            raise FinancialFactProvenanceConflictError(
+                "v3 source-time row must bind its own fact, body, and date-only notice"
+            )
+        try:
+            decision.__post_init__()
+            witness_v3.__post_init__()
+        except (TypeError, ValueError) as error:
+            raise FinancialFactProvenanceConflictError(
+                "v3 source-time evidence is malformed"
+            ) from error
+        return
     if source is None or not source.is_complete:
         raise FinancialFactProvenanceConflictError(
             "financial decision evidence requires complete source evidence"
@@ -551,8 +658,14 @@ def _validate_existing_row_update(
     row: FinancialFactModel,
     *,
     ingested_run_id: UUID | None,
+    v3_evidence_verified: bool,
 ) -> None:
-    """Reject a value update that would retain or merge stale source proof."""
+    """Reject a value update that would retain or merge stale source proof.
+
+    Date-only source evidence is allowed to replace a persisted proof only for
+    a v3 fact whose exact body and current temporal gate already passed in this
+    canonical write call. The legacy completeness rule remains unchanged.
+    """
 
     if row.numeric_schema == "native-decimal-v2" and fact.numeric_schema != "native-decimal-v2":
         raise FinancialFactProvenanceConflictError(
@@ -577,6 +690,27 @@ def _validate_existing_row_update(
         return
     normalized_same = _normalized_fields_match(fact, row)
     evidence = fact.source_evidence
+    incoming_v3 = (
+        v3_evidence_verified
+        and fact.decision_evidence is not None
+        and fact.decision_evidence.source_time_witness_v3 is not None
+    )
+    if incoming_v3:
+        if evidence is None:
+            raise FinancialFactProvenanceConflictError(
+                "verified v3 source replacement requires typed source evidence"
+            )
+        if evidence.raw_payload_hash == row.raw_payload_hash:
+            if (
+                normalized_same
+                and _source_fields_match(fact, row)
+                and _decision_evidence_matches(fact, row)
+            ):
+                return
+            raise FinancialFactProvenanceConflictError(
+                "changed v3 financial evidence cannot reuse the same raw payload"
+            )
+        return
     if not normalized_same:
         if evidence is None or not evidence.is_complete:
             raise FinancialFactProvenanceConflictError(

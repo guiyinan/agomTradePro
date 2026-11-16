@@ -68,6 +68,10 @@ from apps.data_center.interface.calendar_workbench_api_views import (
     CalendarWorkbenchPrepareView,
     CalendarWorkbenchScopeView,
 )
+from apps.data_center.interface.financial_availability_governance_api import (
+    ApplyFinancialAvailabilityOwnerView,
+    RevokeFinancialAvailabilityOwnerView,
+)
 from apps.data_center.interface.institutional_calendar_api import InstitutionalCalendarView
 from apps.data_center.interface.price_limit_publication_api_views import (
     CurrentPriceLimitPublicationView,
@@ -222,6 +226,16 @@ urlpatterns = [
         "exchange-calendars/current/",
         CurrentCalendarView.as_view(),
         name="dc-calendar-current",
+    ),
+    path(
+        "financial-availability/governance/apply/",
+        ApplyFinancialAvailabilityOwnerView.as_view(),
+        name="dc-financial-availability-owner-apply",
+    ),
+    path(
+        "financial-availability/governance/revoke/",
+        RevokeFinancialAvailabilityOwnerView.as_view(),
+        name="dc-financial-availability-owner-revoke",
     ),
     path("egress/", include("apps.data_center.interface.egress_api_urls")),
     path("qmt-bridge/bindings/", QmtBindingsView.as_view(), name="qmt-bridge-bindings"),

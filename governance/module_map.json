@@ -4630,6 +4630,30 @@
           "QuerySectorConstituentsUseCase",
           "QueryValuationsUseCase"
         ],
+        "application/financial_availability_current.py": [
+          "CurrentFinancialAvailabilityGovernancePair",
+          "CurrentFinancialNextSessionTemporalCheck",
+          "ResolveCurrentFinancialAvailabilityGovernanceQuery",
+          "resolve_current_financial_availability_governance",
+          "validate_current_financial_next_session_temporal_binding"
+        ],
+        "application/financial_availability_governance.py": [
+          "FinancialAvailabilityGovernanceReadResult",
+          "append_and_apply_financial_availability_governance",
+          "append_financial_availability_revoke",
+          "materialize_financial_availability_record",
+          "read_financial_availability_governance"
+        ],
+        "application/financial_availability_governance_ports.py": [
+          "FinancialAvailabilityGovernanceRepositoryPort",
+          "FinancialAvailabilityOwnerEventRepositoryPort",
+          "FinancialAvailabilityPermissionAuthorizerPort",
+          "FinancialAvailabilitySessionRequestProof",
+          "FinancialAvailabilitySourceRead",
+          "FinancialAvailabilitySourceReaderPort",
+          "GetFinancialAvailabilityGovernanceQuery",
+          "LockedFinancialAvailabilityPrincipal"
+        ],
         "application/financial_capacity_formal_publication.py": [
           "FinancialCapacityFormalPublicationWorkflow"
         ],
@@ -4680,12 +4704,51 @@
         "application/financial_capacity_workflow_base.py": [
           "FinancialCapacityWorkflowBase"
         ],
+        "application/financial_e1_capture_use_case.py": [
+          "CaptureFinancialE1UseCase",
+          "FinancialE1BalanceCapture",
+          "FinancialE1CaptureError",
+          "FinancialE1CaptureGatewayPort",
+          "FinancialE1CaptureIdFactory",
+          "FinancialE1CaptureOutput",
+          "FinancialE1CaptureQualificationPort",
+          "FinancialE1CapturedPair",
+          "FinancialE1ClockPort",
+          "FinancialE1MainCapture",
+          "FinancialE1NativeRowIdentity",
+          "FinancialE1RetainedResponse",
+          "FinancialE1RoleReplay",
+          "FinancialE1RoleReplayerPort"
+        ],
+        "application/financial_e1_discovery_runner.py": [
+          "CaptureFinancialE1DiscoveryUseCase",
+          "FinancialE1DiscoveryCaptureIdFactory",
+          "FinancialE1DiscoveryClockPort",
+          "FinancialE1DiscoveryError",
+          "FinancialE1DiscoveryPreflightPort",
+          "FinancialE1DiscoveryRoleReplayerPort",
+          "FinancialE1DiscoveryRunResult",
+          "FinancialE1EndpointReplay",
+          "FinancialE1ExactQualificationResolverPort",
+          "FinancialE1ExecutionAuthorityPort",
+          "FinancialE1FactWriteCandidate",
+          "FinancialE1FactWriteReadbackPort",
+          "FinancialE1PreflightSnapshot"
+        ],
         "application/financial_numeric_catalog.py": [
           "CaptureFinancialNumericSourceDocumentUseCase",
           "FinancialNumericSourceCatalogRepositoryPort",
           "FinancialNumericSourceCatalogUseCase",
           "FinancialNumericSourceDocumentCaptureRepositoryPort",
           "ProviderDocumentFetchPort"
+        ],
+        "application/financial_numeric_qualification.py": [
+          "ContextualFinancialNumericEvidenceVerifier",
+          "FinancialNumericCatalogEntrySnapshotReadPort",
+          "FinancialNumericSourceQualificationCatalogPort",
+          "FinancialNumericSourceQualificationResolution",
+          "FinancialNumericVerificationContext",
+          "FinancialNumericVerificationPurpose"
         ],
         "application/financial_numeric_verification.py": [
           "FinancialMetricSourceContractCatalogPort",
@@ -4787,6 +4850,15 @@
           "FinancialSourceTimeContractMatcher",
           "FinancialSourceTimeContractReader",
           "FinancialSourceTimeEvidenceVerifier"
+        ],
+        "application/financial_v3_e1_verification.py": [
+          "FinancialV3FactEvidenceVerifier",
+          "FinancialV3FactVerificationRequest",
+          "FinancialV3OfficialSourceOriginSnapshot",
+          "FinancialV3OfficialSourceOriginSnapshotPort",
+          "FinancialV3OfficialSourceProfileExpectation",
+          "FinancialV3OfficialSourceQualificationObservation",
+          "FinancialV3OfficialSourceQualificationPort"
         ],
         "application/formal_exchange_calendar_publication.py": [
           "CalendarCurrentPublicationReaderPort",
@@ -5721,6 +5793,8 @@
           "exchange-calendars/publication-preview/",
           "exchange-calendars/publications/",
           "exchange-calendars/current/",
+          "financial-availability/governance/apply/",
+          "financial-availability/governance/revoke/",
           "egress/",
           "qmt-bridge/bindings/",
           "qmt-bridge/bindings/<uuid:binding_id>/",
@@ -5788,12 +5862,12 @@
         ]
       },
       "layers": {
-        "application": 195,
-        "domain": 63,
-        "infrastructure": 260,
-        "interface": 34,
-        "management": 44,
-        "root": 49
+        "application": 202,
+        "domain": 70,
+        "infrastructure": 289,
+        "interface": 35,
+        "management": 46,
+        "root": 51
       },
       "orm_models": {
         "infrastructure/models.py": [

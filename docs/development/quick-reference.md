@@ -837,6 +837,12 @@ GET /api/alpha/scores/?top_n=10&ai_filter=1
 | `/api/data-center/sync/sectors/constituents/` | POST | 同步板块成分到中台 |
 | `/api/data-center/sync/news/` | POST | 同步新闻到中台 |
 | `/api/data-center/sync/capital-flows/` | POST | 同步资金流到中台 |
+| `/api/data-center/financial-availability/governance/apply/` | POST | 已授权 Owner 追加可用性规则或披露策略 |
+| `/api/data-center/financial-availability/governance/revoke/` | POST | 已授权 Owner 追加治理记录撤销 |
+
+财务可用性治理路由仅接受真实 Django 登录 Session，并要求服务端 Owner 权限；浏览器 POST
+需通过 CSRF。SDK/API key 不会被当作登录会话。响应中的本地 `owner_event` 不是 System Audit，
+也不代表来源数值已通过 qualification 或具备 E1 发布/决策资格。
 
 ### Fund API
 

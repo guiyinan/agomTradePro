@@ -21,14 +21,20 @@ from apps.data_center.domain.financial_source_time_evidence import (
     FinancialSourceTimePrecision,
     FinancialSourceTimeWitness,
 )
+from apps.data_center.infrastructure.financial_next_session_witness_codec import (
+    decode_financial_next_session_witness_v3,
+    encode_financial_next_session_witness_v3,
+)
 from core.exceptions import DataValidationError
 
 _SCHEMA_V1 = "financial-fact-decision-evidence.v1"
 _SCHEMA_V2 = "financial-fact-decision-evidence.v2"
+_SCHEMA_V3 = "financial-fact-decision-evidence.v3"
 _ROOT_KEYS_V1 = frozenset(
     {"schema", "artifact_reference", "native_asset_code", "native_period_end", "native_row_id"}
 )
 _ROOT_KEYS_V2 = _ROOT_KEYS_V1 | {"source_time_witness"}
+_ROOT_KEYS_V3 = _ROOT_KEYS_V1 | {"source_time_witness_v3"}
 _REFERENCE_KEYS = frozenset(
     {
         "capture_id",
@@ -103,6 +109,18 @@ def encode_financial_decision_evidence(
 
     if evidence is None:
         return {}
+    if evidence.source_time_witness_v3 is not None:
+        evidence.__post_init__()
+        return {
+            "schema": _SCHEMA_V3,
+            "artifact_reference": evidence.artifact_reference.to_dict(),
+            "native_asset_code": evidence.native_asset_code,
+            "native_period_end": evidence.native_period_end.isoformat(),
+            "native_row_id": evidence.native_row_id,
+            "source_time_witness_v3": encode_financial_next_session_witness_v3(
+                evidence.source_time_witness_v3
+            ),
+        }
     payload: dict[str, object] = {
         "schema": _SCHEMA_V2 if evidence.source_time_witness is not None else _SCHEMA_V1,
         "artifact_reference": evidence.artifact_reference.to_dict(),
@@ -123,13 +141,21 @@ def decode_financial_decision_evidence(
     if raw is None or raw == {}:
         return None
     root = _mapping(raw, "decision_evidence")
-    schema = _text(root["schema"], "schema")
+    schema = _text(root.get("schema"), "schema")
     if schema == _SCHEMA_V1:
         _exact_keys(root, _ROOT_KEYS_V1, "decision_evidence")
         source_time_witness = None
+        source_time_witness_v3 = None
     elif schema == _SCHEMA_V2:
         _exact_keys(root, _ROOT_KEYS_V2, "decision_evidence")
         source_time_witness = _decode_source_time_witness(root["source_time_witness"])
+        source_time_witness_v3 = None
+    elif schema == _SCHEMA_V3:
+        _exact_keys(root, _ROOT_KEYS_V3, "decision_evidence")
+        source_time_witness = None
+        source_time_witness_v3 = decode_financial_next_session_witness_v3(
+            root["source_time_witness_v3"]
+        )
     else:
         raise FinancialDecisionEvidenceCodecError("financial decision evidence schema is invalid")
     reference = _decode_reference(root["artifact_reference"])
@@ -147,6 +173,7 @@ def decode_financial_decision_evidence(
         native_period_end=native_period_end,
         native_row_id=_text(root["native_row_id"], "native_row_id"),
         source_time_witness=source_time_witness,
+        source_time_witness_v3=source_time_witness_v3,
     )
 
 

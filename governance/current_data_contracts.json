@@ -6699,7 +6699,31 @@
         "apps/data_center/infrastructure/financial_fact_models.py",
         "apps/data_center/domain/financial_numeric_source_qualification.py",
         "apps/data_center/domain/financial_next_session_witness.py",
-        "apps/data_center/infrastructure/financial_next_session_witness_codec.py"
+        "apps/data_center/infrastructure/financial_next_session_witness_codec.py",
+        "apps/data_center/domain/financial_statutory_source_identity.py",
+        "apps/data_center/domain/financial_availability_governance.py",
+        "apps/data_center/application/financial_availability_governance.py",
+        "apps/data_center/application/financial_availability_current.py",
+        "apps/data_center/infrastructure/financial_availability_governance_authority.py",
+        "apps/data_center/infrastructure/financial_availability_governance_writer.py",
+        "apps/data_center/infrastructure/financial_statutory_numeric_capture_adapter.py",
+        "apps/data_center/domain/financial_e1_capture_contract.py",
+        "apps/data_center/application/financial_e1_capture_use_case.py",
+        "apps/data_center/infrastructure/financial_e1_capture_gateway.py",
+        "apps/data_center/infrastructure/financial_fact_v3_e1_verifier.py",
+        "apps/data_center/infrastructure/financial_v3_official_source_qualifier.py",
+        "apps/data_center/infrastructure/financial_v3_current_uow.py",
+        "apps/data_center/infrastructure/financial_numeric_origin_snapshot_reader.py",
+        "apps/data_center/infrastructure/financial_statutory_numeric_capture_retention.py",
+        "apps/data_center/financial_availability_e1_composition.py",
+        "apps/data_center/application/financial_e1_discovery_runner.py",
+        "apps/data_center/domain/financial_e1_execution_plan.py",
+        "apps/data_center/infrastructure/financial_e1_execution_plan_file.py",
+        "apps/data_center/infrastructure/financial_e1_discovery_v3_writer.py",
+        "apps/data_center/infrastructure/financial_e1_discovery_composition.py",
+        "apps/data_center/infrastructure/financial_e1_governed_execution.py",
+        "core/integration/financial_e1_simulated_account_owner.py",
+        "apps/data_center/management/commands/run_financial_e1_discovery.py"
       ],
       "required_markers": {
         "apps/data_center/application/current_fact_remediation.py": [
@@ -7606,6 +7630,92 @@
           "class FinancialNextSessionSourceTimeWitnessV3:",
           "def earliest_temporal_usability_at(",
           "return self.known_at <= as_of"
+        ],
+        "apps/data_center/domain/financial_statutory_source_identity.py": [
+          "class FinancialStatutorySourceIdentity"
+        ],
+        "apps/data_center/domain/financial_availability_governance.py": [
+          "class FinancialAvailabilityGovernanceRecord"
+        ],
+        "apps/data_center/application/financial_availability_governance.py": [
+          "def append_and_apply_financial_availability_governance("
+        ],
+        "apps/data_center/application/financial_availability_current.py": [
+          "def validate_current_financial_next_session_temporal_binding("
+        ],
+        "apps/data_center/infrastructure/financial_availability_governance_authority.py": [
+          "class DjangoFinancialAvailabilityPermissionAuthorizer"
+        ],
+        "apps/data_center/infrastructure/financial_availability_governance_writer.py": [
+          "class DjangoFinancialAvailabilityGovernanceRepository"
+        ],
+        "apps/data_center/infrastructure/financial_statutory_numeric_capture_adapter.py": [
+          "class DjangoFinancialStatutoryNumericCaptureAdapter"
+        ],
+        "apps/data_center/domain/financial_e1_capture_contract.py": [
+          "class FinancialE1CaptureContractV1"
+        ],
+        "apps/data_center/application/financial_e1_capture_use_case.py": [
+          "class CaptureFinancialE1UseCase"
+        ],
+        "apps/data_center/infrastructure/financial_e1_capture_gateway.py": [
+          "class FinancialE1RetainedCaptureGateway"
+        ],
+        "apps/data_center/infrastructure/financial_fact_v3_e1_verifier.py": [
+          "class FinancialFactV3E1EvidenceVerifier"
+        ],
+        "apps/data_center/infrastructure/financial_v3_official_source_qualifier.py": [
+          "class FinancialV3ConfiguredOfficialSourceQualifier"
+        ],
+        "apps/data_center/infrastructure/financial_v3_current_uow.py": [
+          "def financial_v3_current_operation_uow("
+        ],
+        "apps/data_center/infrastructure/financial_numeric_origin_snapshot_reader.py": [
+          "class DjangoFinancialNumericOriginSnapshotReader"
+        ],
+        "apps/data_center/infrastructure/financial_statutory_numeric_capture_retention.py": [
+          "class FinancialStatutoryNumericPairCaptureRepository"
+        ],
+        "apps/data_center/financial_availability_e1_composition.py": [
+          "def build_financial_next_session_witness_v3("
+        ],
+        "apps/data_center/application/financial_e1_discovery_runner.py": [
+          "class CaptureFinancialE1DiscoveryUseCase:",
+          "self._authority_guard.assert_current()",
+          "FinancialResponseAttemptBudget(plan.maximum_physical_attempts)"
+        ],
+        "apps/data_center/domain/financial_e1_execution_plan.py": [
+          "class FinancialE1PinnedExecutionPlan:",
+          "simulated_account_id: int",
+          "official_source_profile_pin: FinancialE1OfficialSourceProfilePin"
+        ],
+        "apps/data_center/infrastructure/financial_e1_execution_plan_file.py": [
+          "financial-e1-execution-plan.v3",
+          "expected_sha256"
+        ],
+        "apps/data_center/infrastructure/financial_e1_discovery_v3_writer.py": [
+          "FinancialNumericVerificationPurpose.CURRENT_WRITE",
+          "FinancialNumericVerificationPurpose.CURRENT_READ",
+          "self._data_fetch_audit_writer.write(observation)"
+        ],
+        "apps/data_center/infrastructure/financial_e1_discovery_composition.py": [
+          "FinancialFactV3E1EvidenceVerifier(",
+          "v3_evidence_verifier=v3_verifier"
+        ],
+        "apps/data_center/infrastructure/financial_e1_governed_execution.py": [
+          "Data02AuthorityLatch",
+          "start_django_financial_e1_sync_run",
+          "observation.is_simulated is not True",
+          "observation.is_active is not True"
+        ],
+        "core/integration/financial_e1_simulated_account_owner.py": [
+          "get_account_binding_identity(",
+          "AccountType.SIMULATED.value"
+        ],
+        "apps/data_center/management/commands/run_financial_e1_discovery.py": [
+          "--plan-sha256",
+          "pinned.simulated_account_id",
+          "--execute"
         ]
       },
       "required_tests": [
@@ -8988,8 +9098,99 @@
           "case": "frozen_calendar_supersession_context",
           "test_file": "tests/unit/data_center/test_financial_next_session_witness.py",
           "test_function": "test_codec_roundtrips_superseded_capture_context_without_rewriting_it"
+        },
+        {
+          "case": "c2_real_session_apply_revoke_pit",
+          "test_file": "tests/component/data_center/test_financial_availability_governance_pg.py",
+          "test_function": "test_normal_authenticated_request_applies_and_revokes_with_exact_pit_and_hashes"
+        },
+        {
+          "case": "c2_current_shared_scope_fence",
+          "test_file": "tests/component/data_center/test_financial_availability_governance_pg.py",
+          "test_function": "test_current_shared_scope_fence_excludes_apply_or_revoke_scope_writer"
+        },
+        {
+          "case": "c2_statutory_and_rule_record_clocks_remain_distinct",
+          "test_file": "tests/unit/data_center/test_financial_statutory_source_identity.py",
+          "test_function": "test_statutory_capture_and_rule_configuration_keep_distinct_record_clocks"
+        },
+        {
+          "case": "e1_no_financial_http_without_qualification",
+          "test_file": "tests/unit/data_center/test_financial_e1_capture_use_case.py",
+          "test_function": "test_missing_qualification_blocks_before_any_physical_request"
+        },
+        {
+          "case": "e1_physical_budget_caps_two_sends",
+          "test_file": "tests/unit/data_center/test_financial_e1_capture_use_case.py",
+          "test_function": "test_capture_budget_itself_refuses_a_third_physical_send"
+        },
+        {
+          "case": "e1_revocation_after_capture_blocks_pair",
+          "test_file": "tests/unit/data_center/test_financial_e1_capture_use_case.py",
+          "test_function": "test_post_capture_revocation_recheck_blocks_pair_but_keeps_both_audits"
+        },
+        {
+          "case": "v3_own_raw_notice_projection",
+          "test_file": "tests/unit/data_center/test_financial_v3_e1_verifier.py",
+          "test_function": "test_notice_text_from_body_cannot_be_replaced_by_other_endpoint_or_caller_date"
+        },
+        {
+          "case": "v3_pit_original_witness_and_query_cutoff",
+          "test_file": "tests/unit/data_center/test_financial_v3_e1_verifier.py",
+          "test_function": "test_pit_reuses_original_witness_known_at_and_uses_explicit_query_cutoff"
+        },
+        {
+          "case": "v3_ann_null_sql_and_missing_verifier_guard",
+          "test_file": "tests/component/data_center/test_financial_v3_e1_repository_postgres.py",
+          "test_function": "test_v3_readback_pit_selector_and_publication_guard_are_explicit"
+        },
+        {
+          "case": "v3_join_existing_outer_without_savepoint",
+          "test_file": "tests/component/data_center/test_financial_v3_current_uow_postgres.py",
+          "test_function": "test_v3_current_uow_joins_existing_outer_without_savepoint"
+        },
+        {
+          "case": "origin_snapshot_pit_does_not_use_live_profile",
+          "test_file": "tests/component/data_center/test_financial_numeric_origin_snapshot_pg.py",
+          "test_function": "test_point_in_time_uses_saved_profile_after_current_catalog_changes"
+        },
+        {
+          "case": "same_response_metadata_pair_atomicity",
+          "test_file": "tests/component/data_center/test_financial_numeric_origin_snapshot_pg.py",
+          "test_function": "test_numeric_append_failure_rolls_back_both_metadata_appends"
+        },
+        {
+          "case": "e1_actual_simulated_account_namespace",
+          "test_file": "tests/unit/data_center/test_financial_e1_governed_execution.py",
+          "test_function": "test_missing_simulated_binding_blocks_even_if_legacy_portfolio_uses_same_id"
+        },
+        {
+          "case": "e1_external_plan_raw_digest",
+          "test_file": "tests/unit/data_center/test_financial_e1_discovery_replay.py",
+          "test_function": "test_pinned_plan_file_requires_the_independent_raw_file_digest"
+        },
+        {
+          "case": "e1_actual_command_no_implicit_execution",
+          "test_file": "tests/unit/data_center/test_financial_e1_governed_execution.py",
+          "test_function": "test_real_command_imports_and_refuses_execution_before_reading_a_plan"
+        },
+        {
+          "case": "e1_audit_identity_before_transport",
+          "test_file": "tests/unit/data_center/test_financial_e1_capture_use_case.py",
+          "test_function": "test_upstream_query_cannot_replace_the_audit_endpoint_before_send"
+        },
+        {
+          "case": "e1_fact_run_audit_commit_atomicity",
+          "test_file": "tests/component/data_center/test_financial_v3_e1_repository_postgres.py",
+          "test_function": "test_e1_v3_writer_commits_fact_run_and_canonical_fetch_audit_pair"
+        },
+        {
+          "case": "e1_audit_failure_rolls_back_fact_and_success_run",
+          "test_file": "tests/component/data_center/test_financial_v3_e1_repository_postgres.py",
+          "test_function": "test_e1_audit_outbox_failure_rolls_back_fact_and_success_run_but_keeps_raw_audits"
         }
-      ]
+      ],
+      "notes": " C2 current reads retain one PostgreSQL RC scope fence, recheck real session/permission and independent source/rule clocks, and preserve the original historical calendar reference. Local Owner events and matching statutory/numeric captures remain reference-only; exact v3 source, numeric qualification and publication gates are independently required. E1 uses a shared two-send budget without implicit retry or pagination; missing qualification blocks before transport. The finite E1 runner pins a real simulated-account namespace and independently hashed execution/profile configuration, revalidates DATA02 authority per boundary, persists one actual Run and both RawAudits, then commits facts, exact readback, one primary-Main-referenced aggregate Fetch Audit and terminal Run in one default-PG RC UOW. This does not waive release or full-universe Publication gates."
     },
     {
       "id": "config_center.decision_runtime_fail_closed_activation",

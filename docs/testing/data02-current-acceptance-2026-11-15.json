@@ -3597,6 +3597,425 @@
           "sha256": "216d4b7f4f11a8cba1a70a30cf60a3cae274d1349ac4501cbee4da86ce9b0a75"
         }
       ]
+    },
+    {
+      "date": "2026-11-16T18:08:48.512032+00:00",
+      "kind": "e1_frozen_integrated_c2_numeric_v3_preparation",
+      "status": "development_acceptance_complete_not_production_qualified",
+      "base_head": "2529c3bd50b728ae87ad328c1ae5794907f5ea74",
+      "scope": "Frozen single-security Main+Balance E1 critical path only; full DATA-02 universe and four Publication exit gates unchanged.",
+      "delivery": {
+        "code_committed": false,
+        "required_acceptance_complete": false,
+        "production_deployed": false,
+        "e1_executed_and_reconciled": false,
+        "development_acceptance_complete": true
+      },
+      "implementation": [
+        "Session-authenticated C2 apply/revoke and immutable Owner history",
+        "Qualified Main/Balance numeric replay and fail-closed repository dispatch",
+        "Same-response statutory/numeric capture with immutable origin snapshot",
+        "V3 same-UOW current write/read and original-cutoff PIT verification",
+        "Canonical Source E1 coordinator with real simulated-account owner, independently pinned source profile/plan, persisted Run, two RawAudits and aggregate same-UOW fetch event; production preconditions remain unmet"
+      ],
+      "validation_receipts": [
+        {
+          "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/incremental-mypy-r7.receipt.json",
+          "sha256": "8a2f47ae81d78e5a4e3d9b9ac91ef968a28e191825fbe73a23f39d9a1005b10e",
+          "exit_code": 0,
+          "source_changes_during_run": [],
+          "status": "finished"
+        },
+        {
+          "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/full-mypy-debt-r3.receipt.json",
+          "sha256": "3bc3a99a75e0b6a4bd58a223ad0a82bfd0c29c64e233fe1762fdb4fe88f4fcb5",
+          "exit_code": 0,
+          "finished_at": "2026-11-16T15:52:35.313769+00:00",
+          "source_changes_during_run": [],
+          "status": "finished"
+        },
+        {
+          "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/core-final-r2.receipt.json",
+          "sha256": "f3b9bacd48135e37cda7ea63b527fbe760d86701d39e5b72b7e36b67c5b2d1e5",
+          "finished_at": "2026-11-16T16:03:56.139568+00:00",
+          "status": "finished",
+          "step_exit_codes": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/core-working-file-growth-r3.receipt.json",
+          "sha256": "1526f9515fc3397883b9320e72dcdf3bc527278a5fd4426358a38a98323dca10",
+          "status": "finished"
+        },
+        {
+          "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/projection-r4.receipt.json",
+          "sha256": "653469e68183e4ac363e232503836d64729a46e548bd6afa3e59ab4ab0a2ee74",
+          "status": "finished",
+          "step_exit_codes": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/runner-canonical-pure-r3.receipt.json",
+          "sha256": "51888d8de228fe43f37af63dc277a664f5683ec5508d3d30263d098647671b55",
+          "exit_code": 0,
+          "finished_at": "2026-11-16T15:48:10.859160+00:00",
+          "tests": {
+            "tests": 103,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          },
+          "source_changes_during_run": [],
+          "status": "finished"
+        },
+        {
+          "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/v3-current-gate-pure-r2.receipt.json",
+          "sha256": "0f45e63c8f6d350c8ff8637513fc34999d7329627a58acee06680b78fdad2840",
+          "exit_code": 0,
+          "finished_at": "2026-11-16T14:26:39.771797+00:00",
+          "tests": {
+            "tests": 12,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          },
+          "source_changes_during_run": [],
+          "status": "finished"
+        },
+        {
+          "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/final-format-r4.receipt.json",
+          "sha256": "fa9cfbaacb84a82c370f3839ee2809ad8d3815c517b54a531ff704ee62a2c3a5",
+          "finished_at": "2026-11-16T17:39:42.162581+00:00",
+          "status": "finished",
+          "step_exit_codes": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/integrated-native-r5.receipt.json",
+          "sha256": "1a3c2f014f770395b33fb9a19171814077aa98eb0fc0af55256dab735e807687",
+          "exit_code": 1,
+          "finished_at": "2026-11-16T16:52:36.882237+00:00",
+          "tests": {
+            "tests": 33,
+            "failures": 1,
+            "errors": 0,
+            "skipped": 0
+          },
+          "source_changes_during_run": [
+            "apps/data_center/composition.py",
+            "apps/data_center/infrastructure/financial_e1_capture_gateway.py",
+            "tests/component/data_center/test_financial_v3_e1_repository_postgres.py",
+            "tests/unit/data_center/test_financial_e1_capture_contract.py",
+            "tests/unit/data_center/test_financial_e1_capture_use_case.py"
+          ],
+          "status": "finished"
+        },
+        {
+          "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/integrated-native-r6.receipt.json",
+          "sha256": "e2009e9f3a4112743f84d76951ae3de8038a55d2452fd38e4a87d30f2bbd2d70",
+          "exit_code": 1,
+          "finished_at": "2026-11-16T17:09:34.397442+00:00",
+          "tests": {
+            "tests": 17,
+            "failures": 1,
+            "errors": 1,
+            "skipped": 0
+          },
+          "source_changes_during_run": [],
+          "status": "finished"
+        },
+        {
+          "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/integrated-native-r7.receipt.json",
+          "sha256": "36488a2bc22780cc90f44f6b8cde7cf059730bc9c73b4038aca5ac4a7a9d7dd7",
+          "exit_code": 1,
+          "finished_at": "2026-11-16T17:48:26.739634+00:00",
+          "tests": {
+            "tests": 6,
+            "failures": 0,
+            "errors": 2,
+            "skipped": 0
+          },
+          "source_changes_during_run": [],
+          "status": "finished"
+        },
+        {
+          "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/integrated-native-r8.receipt.json",
+          "sha256": "49bdd99a3e4bd708c25cc02dae0de58a213e7d1fffedba6a00ebf962b071edf0",
+          "exit_code": 0,
+          "finished_at": "2026-11-16T18:05:15.074339+00:00",
+          "tests": {
+            "tests": 7,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          },
+          "source_changes_during_run": [],
+          "status": "finished"
+        },
+        {
+          "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/integrated-native-r6.receipt.json",
+          "sha256": "e2009e9f3a4112743f84d76951ae3de8038a55d2452fd38e4a87d30f2bbd2d70",
+          "exit_code": 1,
+          "finished_at": "2026-11-16T17:09:34.397442+00:00",
+          "tests": {
+            "tests": 17,
+            "failures": 1,
+            "errors": 1,
+            "skipped": 0
+          },
+          "source_changes_during_run": [],
+          "status": "finished"
+        },
+        {
+          "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/integrated-native-r7.receipt.json",
+          "sha256": "36488a2bc22780cc90f44f6b8cde7cf059730bc9c73b4038aca5ac4a7a9d7dd7",
+          "exit_code": 1,
+          "finished_at": "2026-11-16T17:48:26.739634+00:00",
+          "tests": {
+            "tests": 6,
+            "failures": 0,
+            "errors": 2,
+            "skipped": 0
+          },
+          "source_changes_during_run": [],
+          "status": "finished"
+        },
+        {
+          "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/integrated-native-r8.receipt.json",
+          "sha256": "49bdd99a3e4bd708c25cc02dae0de58a213e7d1fffedba6a00ebf962b071edf0",
+          "exit_code": 0,
+          "finished_at": "2026-11-16T18:05:15.074339+00:00",
+          "tests": {
+            "tests": 7,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+          },
+          "source_changes_during_run": [],
+          "status": "finished"
+        }
+      ],
+      "validation_limit": "Development gates complete: canonical103 pure and12 current-gate tests pass,65 production incremental and full mypy debt0,95-file Black/isort/Ruff0, all required architecture/current/projection/cycle/growth checks0. Native R8 seven cases pass0skip with no Source changes;39 unique prior native passes reused only under recorded per-dependency proof, including the QA-only5→30-second bootstrap change.46 unique native cases total; not a single aggregate R5/R6 passing run and not release qualification. Exact formal candidate CI/S6/backup/deploy/E1 remain unproven.",
+      "production_observation": {
+        "path": ".tmp/data02-prod-current-20261116/remote_current_probe.json",
+        "sha256": "aa94ed44c5c5734c47456462b9fde6e6b81cbc2509d2b11097d74544ac196e18"
+      },
+      "production_observation_limit": "Forced outer READ ONLY/RR projection is excluded from authority qualification. Normal own-transaction no-write getter subsequently returned a valid required/outbox lease with no blocked reason. Original wrapper status bug and local corrected derivation are both retained; no remote rerun or renewal performed.",
+      "production_missing_prerequisites": [
+        "new native/statutory schema migrations",
+        "public_document provider/catalog",
+        "formal exchange-calendar current pointer",
+        "new candidate deployment and regular manifest file"
+      ],
+      "e1_financial_http": {
+        "used": 0,
+        "maximum": 2,
+        "automatic_retry_or_pagination_allowed": false
+      },
+      "retained_intermediate_results": [
+        "runner-canonical-pure-r1:65 passed/1 failed because a new test expected an internal collision code instead of the stable projection-blocked code; corrected test, no transport had run",
+        "incremental-mypy-r6:16 errors in5 files, including incorrect real-runtime URL import and nullable evidence; fixed without ignores/debt increases",
+        "isolated R7:legacy Portfolio namespace was wrong for simulated account631; corrected bridge/plan and same-id/wrong-type/owner/inactive cases; original25 tests were diagnostic, canonical Source103 now pass",
+        "prior native R4 interrupted by Docker environment loss; incomplete41 dots are not a pass",
+        "Native R5:32passed/1failed worker-start handshake; same test passed inR6.",
+        "Native R6:16passed/1failed/1teardownerror;13 Owner API cases redundant. Full reverse-chain preparation/cleanup corrected and R7 passed4 cases before one5-second connection bootstrap setup/teardown error; R8 seven affected/unexecuted cases pass with QA-only30-second bootstrap. Production and business constraints unchanged."
+      ],
+      "not_complete": [
+        "formal candidate commit and exact-candidate CI",
+        "same-candidate S6/backup/staging and controlled deployment",
+        "normal source/calendar/Owner preconditions",
+        "real bounded E1 and actual-entry readback/raw reconciliation",
+        "full-universe four-Publication DATA-02 exit",
+        "DATA-03 dependency and observation gates"
+      ],
+      "production_qualified": false,
+      "data02_exit_met": false,
+      "data03_started": false,
+      "current_manual_authority_lease": {
+        "result": {
+          "mode": "required",
+          "outbox_enabled": true,
+          "reason_code": null,
+          "valid_until": "2026-11-29T16:12:55.522488+00:00"
+        },
+        "observed_at_utc": "2026-11-16T14:53:01.194692+00:00",
+        "summary": {
+          "path": ".tmp/data02-prod-current-20261116/lease_formal_own_uow_preflight.corrected_summary.json",
+          "sha256": "9eff96a04c58b99b145c214a510133e14ffb280fa5d6789b6e84fd8c6a16ea85"
+        },
+        "raw": {
+          "path": ".tmp/data02-prod-current-20261116/lease_formal_own_uow_preflight.json",
+          "sha256": "42a5eeb0964e092f4194de4ca0c76fd9317894ce388f003d75d384c7dbbd6384"
+        },
+        "natural_renewal_proven": false,
+        "normal_own_transaction_contract": true,
+        "provider_calls": 0
+      },
+      "release_gate_review": {
+        "s6_required": true,
+        "e1_only_release_exception_found": false,
+        "partial_evidence_financial_refresh": false,
+        "full_scope_capacity_rule": "Frozen N assets; 2N logical reads, at most 4N physical attempts, at most 200 rows per asset; no fact/publication writes in this discovery stage.",
+        "authority_rule": "Existing active-superuser authentication through anonymous pipe for S6; production full financial refresh separately retains receipt, independent owner/reviewer events and valid ceiling. No new approval claimed.",
+        "scope_constraint": "Current frozen E1 financial budget remains at most two physical sends. Full S6 scope/budget must be resolved against existing authorization before broader provider work; no such requests have run.",
+        "references": [
+          "docs/development/quick-reference.md#发布预检与-s6-策略快照",
+          "docs/development/s6-rehearsal-recovery.md",
+          "governance/release_rehearsal_policy.json"
+        ],
+        "user_action_status": "Consolidate only after concrete candidate, validation and approved secure authentication method are verified; do not ask for passwords in chat."
+      },
+      "native_test_extension": {
+        "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/native-writer-test-extension.receipt.json",
+        "original_r5_definitions_unchanged": true,
+        "new_cases_not_collected_in_running_r5": true,
+        "required_next_run": "Only the two appended same-UOW commit/rollback cases on the already-owned warm DB after R5 finishes; no new database.",
+        "qualification": "Synthetic transaction mechanics and real canonical Audit ledger/outbox only."
+      },
+      "native_r5_result": {
+        "exit_code": 1,
+        "passed": 32,
+        "failed": 1,
+        "errors": 0,
+        "skipped": 0,
+        "elapsed_seconds": 11394.65,
+        "failed_case": "test_postgres_append_capture_clock_follows_body_and_fixed_table_locks",
+        "failure": "worker_started.wait(timeout=5.0) returned false before the worker PID was ready; root cause under diagnosis, not yet classified as product or environment.",
+        "next": "Reuse owned warm DB; first diagnose exact worker/bootstrap failure, then rerun affected case and not-yet-executed targets plus the two new audit cases. No fresh DB or native-skip waiver."
+      },
+      "native_r6_result": {
+        "receipt": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/integrated-native-r6.receipt.json",
+          "sha256": "e2009e9f3a4112743f84d76951ae3de8038a55d2452fd38e4a87d30f2bbd2d70"
+        },
+        "exit_code": 1,
+        "tests": {
+          "tests": 17,
+          "failures": 1,
+          "errors": 1,
+          "skipped": 0
+        },
+        "failure": "Concurrent reverse test counted migration state loading inside the 10-second lock window and skipped schema restoration while its thread was alive; teardown then failed on absent financial_availability_owner_event. Full reverse path retained; pre-lock rendezvous and all-app leaf restoration under targeted validation.",
+        "passed_unique_reusable": 3,
+        "redundant_owner_api_passes": 13,
+        "reuse_limit": "R5 32 unique passes plus R6 statutory clock and same-response pair 3 unique passes =35, not an aggregate passing run; failed migration case and unexecuted v3 modules require followup.",
+        "owned_database_recovery": "Restore all migration leaves and protected synthetic-data flush in the same owned test database; preserve authority generation; no recreation or source DB mutation."
+      },
+      "selected_e1_scope": {
+        "selection_authority": "Owner delegated account/security/provider/period selection to Root; this supersedes earlier exploratory000001.SZ proposals for the forthcoming execution only.",
+        "owner_user_id": 1,
+        "simulated_account_id": 631,
+        "asset_code": "000858.SZ",
+        "provider_id": 3,
+        "provider_name": "akshare",
+        "period_end": "2026-09-30",
+        "status": "selected_not_executed_or_qualified",
+        "physical_http_maximum": 2,
+        "max_attempts_per_request": 1,
+        "pagination_allowed": false,
+        "publication_activation_allowed": false,
+        "qualification_limit": "Nonfinancial single issuer selected for controlled Main7+Balance3 reconciliation; actual response currency/consolidation/source profile and current/PIT eligibility must still pass. Not a source-quality waiver or full-universe scope.",
+        "reporting_period_label": "2026Q3"
+      },
+      "bounded_luna_reviews": {
+        "entry": "Canonical command/closed-plan/owner bridge review found no concrete blocker; independent plan-hash approval remains an operational requirement. Review limited to four entry/plan/authority files, not transport proof.",
+        "native": "R6 initialization delay cannot be attributed to one call. Separated0118 descendant fence from0116 exact three-table lock; full executor chain retained. Worker is joined before all-app schema restoration and pytest flush; local followup process bounded45minutes.",
+        "transport": "Read-only actual chain review: formal composition injects RetainedCaptureGateway and execute_financial_response_request; one shared budget maximum2 is passed to Main/Balance, each request max_attempts1/one_response and exact attempt delta1. Egress candidate slicing honors1, financial transport calls _request_once once, GET/POST allow_redirects=False, redirect nonretryable and PinnedAddressAdapter max_retries0. First-page query is explicit; no page loop; Balance requires pages1/count1/one row. No HTTP/DB/tests/Git performed for this review. Files: financial_e1_discovery_composition.py322,425; financial_e1_capture_gateway.py163,209,250,264; financial_e1_discovery_runner.py360,407,465,536; egress_service.py713,788; egress_transport.py367,515,668,677; egress_target.py70."
+      },
+      "native_scoped_reuse": {
+        "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/native-scoped-reuse-r7.receipt.json",
+        "sha256": "ef859ead073d5862584ff590b8528799e31b408e582f4a449073f9f9cdb68782"
+      },
+      "native_r6_repair": {
+        "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/native-r6-repair.receipt.json",
+        "sha256": "d80d2771b51909bbf6bfa662e76a188dbad58d53e3fa64a98572433f25eafe45",
+        "exit_code": 0,
+        "authority_generation_before": 22,
+        "authority_generation_after": 44,
+        "database_recreated": false
+      },
+      "s6_scope_budget_preparation": {
+        "artifact": {
+          "path": ".tmp/data02-prod-current-20261116/s6-universe-preparation-readonly/persisted-target-scope.json",
+          "sha256": "a01d8160e8fe73115940cb48dbd588c33623b8674cbe5698365765a855a319a8"
+        },
+        "server_observed_at_utc": "2026-11-16T17:35:55.969399+00:00",
+        "target_trade_date_preparation_only": "2026-11-16",
+        "target_requested_count": 5573,
+        "target_requested_sha256": "9d950f2aa17301e825c63d2ce6ba4030c90108c4b7d0634a579f23d3b09dec8a",
+        "unknown_listing_date_count": 0,
+        "provider_calls": 0,
+        "sql_read_only": true,
+        "logical_reads_2N": 11146,
+        "maximum_physical_attempts_4N": 22292,
+        "approval_status": "Not covered by prior E1 max2; do not start financial_scope_capacity before distinct Owner authorization. Candidate/RC trade date still not frozen, report not a capacity qualification.",
+        "mcp_limit": "Persisted pool counters and18 rotation assets are not the full release universe; repository scope query used after MCP schema review proved insufficient.",
+        "normal_s6_financial_slice_logical_maximum": 2,
+        "normal_s6_financial_slice_physical_maximum": 4,
+        "normal_s6_financial_logical_total_maximum": 11148,
+        "normal_s6_financial_physical_total_maximum": 22296,
+        "separate_e1_physical_maximum": 2,
+        "s6_plus_e1_financial_physical_total_maximum": 22298,
+        "market_provider_dispatch_budget": {
+          "provider_probe": 100,
+          "full_universe_capacity": 100,
+          "unit": "requests.Session dispatch, not a claim about lower-level wire retries",
+          "financial_statement_budget_includes_market_dispatches": false
+        },
+        "budget_basis": "S6 full-scope2N/4N plus separate one-security financial slice2logical/up to4physical; no cross-stage deduplication. Existing E1 max2 remains separate. Normal authenticated per-candidate scope authorization must still run; no discovered Owner authorization expands current scope to this full S6 ceiling."
+      },
+      "native_r7_result": {
+        "receipt": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/integrated-native-r7.receipt.json",
+          "sha256": "36488a2bc22780cc90f44f6b8cde7cf059730bc9c73b4038aca5ac4a7a9d7dd7"
+        },
+        "exit_code": 1,
+        "junit_totals": {
+          "tests": 6,
+          "failures": 0,
+          "errors": 2,
+          "skipped": 0
+        },
+        "unique_new_passed": 4,
+        "failure": "One non-default-alias case hit psycopg5s connection bootstrap timeout in setup and teardown, before business assertions. Full reverse-chain and first3 current-UOW cases passed.",
+        "total_unique_passed_reusable": 39,
+        "remaining_followup_cases": 7,
+        "source_changes_during_run": []
+      },
+      "qa_connection_bootstrap_adjustment": {
+        "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/native-connect-budget-adjustment.receipt.json",
+        "sha256": "83884226fbcb33d240e149c7953c71d5c01b0043d68fc25f8f01c542ee4dad61",
+        "old_seconds": 5,
+        "new_seconds": 30,
+        "production_configuration_changed": false,
+        "business_timeout_or_tolerance_changed": false,
+        "scope": "Owned native QA bootstrap only; prior39 passes ran with the stricter5-second establishment budget."
+      },
+      "native_final_result": {
+        "receipt": {
+          "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/integrated-native-r8.receipt.json",
+          "sha256": "49bdd99a3e4bd708c25cc02dae0de58a213e7d1fffedba6a00ebf962b071edf0"
+        },
+        "exit_code": 0,
+        "newly_passed": 7,
+        "reused_unique_passed": 39,
+        "unique_total_passed": 46,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0,
+        "single_batch_claim": false,
+        "scope": "Local development only; R5/R6 failures and their original receipts remain retained."
+      }
     }
   ],
   "current_authority_followup": "followups[0] (2026-11-16); original 2026-11-15 snapshots remain historical",
@@ -3623,5 +4042,6 @@
     "financial_http_requests_used": 0,
     "financial_http_requests_maximum": 2
   },
-  "current_numeric_catalog_followup": 13
+  "current_numeric_catalog_followup": 13,
+  "current_e1_integrated_followup": "followups[14]"
 }

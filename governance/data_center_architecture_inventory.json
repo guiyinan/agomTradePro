@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 7477,
+    "current_surface_references": 7668,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -9615,6 +9615,258 @@
       "text": "raise ValueError(\"Execution quote contract resolution must identify current catalog\")"
     },
     {
+      "path": "apps/data_center/application/financial_availability_current.py",
+      "text": "Successful values from this module remain reference-only. They recheck current"
+    },
+    {
+      "path": "apps/data_center/application/financial_availability_current.py",
+      "text": "\"C2 current Owner event stream is missing or changed.\","
+    },
+    {
+      "path": "apps/data_center/application/financial_availability_current.py",
+      "text": "\"C2 current apply event does not bind its exact content.\","
+    },
+    {
+      "path": "apps/data_center/application/financial_availability_current.py",
+      "text": "\"C2 current configuration key is ambiguous.\","
+    },
+    {
+      "path": "apps/data_center/application/financial_availability_current.py",
+      "text": "\"C2 current configuration row is corrupt.\","
+    },
+    {
+      "path": "apps/data_center/application/financial_availability_current.py",
+      "text": "\"C2 current database clock moved backwards.\","
+    },
+    {
+      "path": "apps/data_center/application/financial_availability_current.py",
+      "text": "\"C2 current governance and source reads must share one alias.\","
+    },
+    {
+      "path": "apps/data_center/application/financial_availability_current.py",
+      "text": "\"C2 current lifecycle history failed exact revalidation.\","
+    },
+    {
+      "path": "apps/data_center/application/financial_availability_current.py",
+      "text": "\"C2 current repository crossed the requested scope.\","
+    },
+    {
+      "path": "apps/data_center/application/financial_availability_current.py",
+      "text": "\"C2 current repository returned an invalid locked event stream.\","
+    },
+    {
+      "path": "apps/data_center/application/financial_availability_current.py",
+      "text": "\"C2 current repository returned an invalid locked row set.\","
+    },
+    {
+      "path": "apps/data_center/application/financial_availability_current.py",
+      "text": "\"C2 current repository returned an untyped row.\","
+    },
+    {
+      "path": "apps/data_center/application/financial_availability_current.py",
+      "text": "\"C2 current resolution alias is invalid.\","
+    },
+    {
+      "path": "apps/data_center/application/financial_availability_current.py",
+      "text": "\"C2 current resolution query is invalid.\","
+    },
+    {
+      "path": "apps/data_center/application/financial_availability_current.py",
+      "text": "\"C2 current resolution requires an exact typed query.\","
+    },
+    {
+      "path": "apps/data_center/application/financial_availability_current.py",
+      "text": "\"C2 current scope row is missing or changed.\","
+    },
+    {
+      "path": "apps/data_center/application/financial_availability_current.py",
+      "text": "\"C2 opening rule source capture changed during current reread.\","
+    },
+    {
+      "path": "apps/data_center/application/financial_availability_current.py",
+      "text": "\"C2 temporal check requires an exact fresh current publication.\","
+    },
+    {
+      "path": "apps/data_center/application/financial_availability_current.py",
+      "text": "\"C2 temporal check requires one locked current governance pair.\","
+    },
+    {
+      "path": "apps/data_center/application/financial_availability_current.py",
+      "text": "\"Current Owner apply event differs from the exact v3 approval identity.\","
+    },
+    {
+      "path": "apps/data_center/application/financial_availability_current.py",
+      "text": "\"Current applied disclosure policy differs from the witness identity.\","
+    },
+    {
+      "path": "apps/data_center/application/financial_availability_current.py",
+      "text": "\"Current applied opening rule differs from the witness identity.\","
+    },
+    {
+      "path": "apps/data_center/application/financial_availability_current.py",
+      "text": "\"Current approved policy and fresh calendar TTL differ.\","
+    },
+    {
+      "path": "apps/data_center/application/financial_availability_current.py",
+      "text": "\"Current approved rule/policy does not match the fresh calendar binding.\","
+    },
+    {
+      "path": "apps/data_center/application/financial_availability_current.py",
+      "text": "\"Current calendar and governance reads use different operation cutoffs.\","
+    },
+    {
+      "path": "apps/data_center/application/financial_availability_current.py",
+      "text": "\"Current check cutoff predates one of its locked reads.\","
+    },
+    {
+      "path": "apps/data_center/application/financial_availability_current.py",
+      "text": "\"Current formal calendar is no longer exact and fresh at the check cutoff.\","
+    },
+    {
+      "path": "apps/data_center/application/financial_availability_current.py",
+      "text": "\"Current governance cutoff predates the original witness.\","
+    },
+    {
+      "path": "apps/data_center/application/financial_availability_current.py",
+      "text": "\"Multiple applied C2 versions overlap the current scope.\","
+    },
+    {
+      "path": "apps/data_center/application/financial_availability_current.py",
+      "text": "\"The current C2 version has a visible revoke event.\","
+    },
+    {
+      "path": "apps/data_center/application/financial_availability_current.py",
+      "text": "\"\"\"A separate qualified witness and current financial consumer gate remain required.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/financial_availability_current.py",
+      "text": "\"\"\"Bind both rows, both event streams, and clocks to one current scope.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/financial_availability_current.py",
+      "text": "\"\"\"Current temporal validation does not establish E1 or fact eligibility.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/financial_availability_current.py",
+      "text": "\"\"\"Current, fenced C2 governance reads and v3 temporal revalidation."
+    },
+    {
+      "path": "apps/data_center/application/financial_availability_current.py",
+      "text": "\"\"\"Evidence-only current remap while preserving the original v3 witness.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/financial_availability_current.py",
+      "text": "\"\"\"One locked, current opening-rule and policy pair with an unchanged cutoff.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/financial_availability_current.py",
+      "text": "\"\"\"Raise one stable current C2 block reason.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/financial_availability_current.py",
+      "text": "\"\"\"Re-read the witness's original calendar as-of and current fresh mapping."
+    },
+    {
+      "path": "apps/data_center/application/financial_availability_current.py",
+      "text": "\"\"\"Recheck the old exact as-of and the new current freshness boundary.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/financial_availability_current.py",
+      "text": "\"\"\"Reject incomplete current selectors; current time is sampled after locks.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/financial_availability_current.py",
+      "text": "\"\"\"Report that current database checks are not a decision qualification.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/financial_availability_current.py",
+      "text": "\"\"\"Require exact current rule, policy and both real local Owner events.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/financial_availability_current.py",
+      "text": "\"\"\"Select exactly one applied version from already locked current inputs.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/financial_availability_current.py",
+      "text": "calendar=FinancialCalendarPublicationReference.from_resolved_availability(current),"
+    },
+    {
+      "path": "apps/data_center/application/financial_availability_current.py",
+      "text": "current = resolve_financial_next_session_availability("
+    },
+    {
+      "path": "apps/data_center/application/financial_availability_current.py",
+      "text": "current.calendar_record.seal.calendar_response_max_age_seconds"
+    },
+    {
+      "path": "apps/data_center/application/financial_availability_current.py",
+      "text": "current.next_session != witness.availability.next_session"
+    },
+    {
+      "path": "apps/data_center/application/financial_availability_current.py",
+      "text": "next_session=current.next_session,"
+    },
+    {
+      "path": "apps/data_center/application/financial_availability_current.py",
+      "text": "or current.available_at != witness.availability.available_at"
+    },
+    {
+      "path": "apps/data_center/application/financial_availability_current.py",
+      "text": "raise ValueError(\"current governance check clock precedes its locked cutoff\")"
+    },
+    {
+      "path": "apps/data_center/application/financial_availability_current.py",
+      "text": "raise ValueError(\"current governance effective date is invalid\")"
+    },
+    {
+      "path": "apps/data_center/application/financial_availability_current.py",
+      "text": "raise ValueError(\"current governance exchange is invalid\")"
+    },
+    {
+      "path": "apps/data_center/application/financial_availability_current.py",
+      "text": "raise ValueError(\"current governance pair is outside its effective dates\")"
+    },
+    {
+      "path": "apps/data_center/application/financial_availability_current.py",
+      "text": "raise ValueError(\"current governance pair requires exact typed read results\")"
+    },
+    {
+      "path": "apps/data_center/application/financial_availability_current.py",
+      "text": "raise ValueError(\"current governance pair scope or cutoff differs\")"
+    },
+    {
+      "path": "apps/data_center/application/financial_availability_current.py",
+      "text": "raise ValueError(\"current temporal check differs from its recomputed availability\")"
+    },
+    {
+      "path": "apps/data_center/application/financial_availability_current.py",
+      "text": "recalculates NOTICE_DATE against the current fresh calendar and exact"
+    },
+    {
+      "path": "apps/data_center/application/financial_availability_current.py",
+      "text": "return current"
+    },
+    {
+      "path": "apps/data_center/application/financial_availability_governance.py",
+      "text": "rule. It never uses a mutable current pointer or latest-row fallback."
+    },
+    {
+      "path": "apps/data_center/application/financial_availability_governance_ports.py",
+      "text": "\"\"\"Acquire shared scope locks before current selection and row locks.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/financial_availability_governance_ports.py",
+      "text": "\"\"\"Explicit scope and point-in-time selector with no current-time default.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/financial_availability_governance_ports.py",
+      "text": "\"\"\"Lock and re-decode every immutable row in one current scope.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/financial_availability_governance_ports.py",
+      "text": "\"\"\"Lock and rehash every event in one current lifecycle stream.\"\"\""
+    },
+    {
       "path": "apps/data_center/application/financial_capacity_models.py",
       "text": "\"\"\"Exact staged candidate and member seal saved before current-pointer activation.\"\"\""
     },
@@ -9683,8 +9935,48 @@
       "text": "return self._result(latest)"
     },
     {
+      "path": "apps/data_center/application/financial_e1_capture_use_case.py",
+      "text": "\"\"\"Recheck exact catalog, source response clocks, contexts, and current Owner state.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/financial_e1_capture_use_case.py",
+      "text": "\"\"\"Return the current server UTC instant without using a request clock.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/financial_e1_discovery_runner.py",
+      "text": "\"\"\"Raise before egress unless exactly the requested entries are current.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/financial_e1_discovery_runner.py",
+      "text": "\"\"\"Require exact selected identities and current Owner/effective metadata.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/financial_e1_discovery_runner.py",
+      "text": "\"\"\"Require exact zero-offset UTC at current capture/knowledge boundaries.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/financial_e1_discovery_runner.py",
+      "text": "\"\"\"Return current server UTC time, never a request or report timestamp.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/financial_e1_discovery_runner.py",
+      "text": "\"\"\"Revalidate the current task actor and selected simulated-account owner.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/financial_e1_discovery_runner.py",
+      "text": "document bytes, provider identity, and current clocks. This metadata is a"
+    },
+    {
+      "path": "apps/data_center/application/financial_e1_discovery_runner.py",
+      "text": "raise ValueError(\"actual response context has no exact current catalog qualification\")"
+    },
+    {
       "path": "apps/data_center/application/financial_numeric_catalog.py",
       "text": "Current use must fail closed when known_at is stale relative to a newly"
+    },
+    {
+      "path": "apps/data_center/application/financial_numeric_qualification.py",
+      "text": "Current callers must supply their server UTC clock; PIT callers supply the"
     },
     {
       "path": "apps/data_center/application/financial_scope_capacity_input.py",
@@ -9773,6 +10065,34 @@
     {
       "path": "apps/data_center/application/financial_slice_sync.py",
       "text": "return previous + current"
+    },
+    {
+      "path": "apps/data_center/application/financial_v3_e1_verification.py",
+      "text": "Current cutoffs are acquired by the trusted gate after it has joined and"
+    },
+    {
+      "path": "apps/data_center/application/financial_v3_e1_verification.py",
+      "text": "\"\"\"Lock and compare current configuration with the immutable saved snapshot.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/financial_v3_e1_verification.py",
+      "text": "\"\"\"Read current configured-origin evidence in the caller's current UOW.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/financial_v3_e1_verification.py",
+      "text": "\"\"\"Reject implicit current clocks and implicit historical cutoffs.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/financial_v3_e1_verification.py",
+      "text": "\"\"\"Select one explicit current operation or historical PIT cutoff."
+    },
+    {
+      "path": "apps/data_center/application/financial_v3_e1_verification.py",
+      "text": "locked the caller's current UOW. PIT callers provide their exact cutoff;"
+    },
+    {
+      "path": "apps/data_center/application/financial_v3_e1_verification.py",
+      "text": "raise ValueError(\"current financial requests obtain their cutoff inside the UOW\")"
     },
     {
       "path": "apps/data_center/application/formal_exchange_calendar_publication.py",
@@ -11711,6 +12031,114 @@
       "text": "\"\"\"Read one quote through the exact current execution gate and TTL contract.\"\"\""
     },
     {
+      "path": "apps/data_center/financial_availability_e1_composition.py",
+      "text": "This candidate uses the existing formal calendar current/history readers and"
+    },
+    {
+      "path": "apps/data_center/financial_availability_e1_composition.py",
+      "text": "\"C2 current composition clock must be aware UTC\","
+    },
+    {
+      "path": "apps/data_center/financial_availability_e1_composition.py",
+      "text": "\"Current C2 Owner apply event cannot bind exact content.\","
+    },
+    {
+      "path": "apps/data_center/financial_availability_e1_composition.py",
+      "text": "\"Current C2 evidence could not form an exact date-only v3 witness.\","
+    },
+    {
+      "path": "apps/data_center/financial_availability_e1_composition.py",
+      "text": "\"Current C2 governance pair is malformed.\","
+    },
+    {
+      "path": "apps/data_center/financial_availability_e1_composition.py",
+      "text": "\"Current C2 rule and formal calendar cannot resolve the exact next opening.\","
+    },
+    {
+      "path": "apps/data_center/financial_availability_e1_composition.py",
+      "text": "\"Current applied C2 disclosure policy is unavailable.\","
+    },
+    {
+      "path": "apps/data_center/financial_availability_e1_composition.py",
+      "text": "\"Current applied C2 opening rule is unavailable.\","
+    },
+    {
+      "path": "apps/data_center/financial_availability_e1_composition.py",
+      "text": "\"Current calendar mapping changed while C2 scope was being resolved.\","
+    },
+    {
+      "path": "apps/data_center/financial_availability_e1_composition.py",
+      "text": "\"Current formal calendar cannot prove the next open session after NOTICE_DATE.\","
+    },
+    {
+      "path": "apps/data_center/financial_availability_e1_composition.py",
+      "text": "\"Current formal calendar failed exact revalidation.\","
+    },
+    {
+      "path": "apps/data_center/financial_availability_e1_composition.py",
+      "text": "\"Current formal calendar is absent, expired, or changed.\", code=code"
+    },
+    {
+      "path": "apps/data_center/financial_availability_e1_composition.py",
+      "text": "\"Current formal calendar is absent, expired, or changed.\","
+    },
+    {
+      "path": "apps/data_center/financial_availability_e1_composition.py",
+      "text": "\"Current formal calendar read crossed its exact scope or cutoff.\","
+    },
+    {
+      "path": "apps/data_center/financial_availability_e1_composition.py",
+      "text": "\"Current governance scope differs from the computed next session.\","
+    },
+    {
+      "path": "apps/data_center/financial_availability_e1_composition.py",
+      "text": "\"Current opening rule has no exact retained source read.\","
+    },
+    {
+      "path": "apps/data_center/financial_availability_e1_composition.py",
+      "text": "\"Current opening-rule source identity is invalid.\","
+    },
+    {
+      "path": "apps/data_center/financial_availability_e1_composition.py",
+      "text": "\"\"\"Build one reference-only v3 witness from current C2 and calendar reads."
+    },
+    {
+      "path": "apps/data_center/financial_availability_e1_composition.py",
+      "text": "\"\"\"Join the actual current-calendar reader and Core Audit bridge to ambient UOW.\"\"\""
+    },
+    {
+      "path": "apps/data_center/financial_availability_e1_composition.py",
+      "text": "\"\"\"Re-read old calendar at its original cutoff and current fresh remapping."
+    },
+    {
+      "path": "apps/data_center/financial_availability_e1_composition.py",
+      "text": "\"\"\"Read the exact current formal calendar in the ambient same-alias UOW.\"\"\""
+    },
+    {
+      "path": "apps/data_center/financial_availability_e1_composition.py",
+      "text": "\"\"\"Require the exact current calendar to cover the first session after NOTICE_DATE.\"\"\""
+    },
+    {
+      "path": "apps/data_center/financial_availability_e1_composition.py",
+      "text": "\"\"\"Trusted same-UOW composition for current C2/E1 evidence checks and Owner writes."
+    },
+    {
+      "path": "apps/data_center/financial_availability_e1_composition.py",
+      "text": "raise ValueError(\"current Owner apply event differs from its exact record\")"
+    },
+    {
+      "path": "apps/data_center/financial_availability_e1_composition.py",
+      "text": "revalidate source bytes/audits, current governance, calendar, and the raw"
+    },
+    {
+      "path": "apps/data_center/financial_availability_e1_composition.py",
+      "text": "session. The current C2 pair is then resolved under its normal scope/event"
+    },
+    {
+      "path": "apps/data_center/financial_availability_e1_composition.py",
+      "text": "transaction. The existing current calendar composition joins this UOW; the"
+    },
+    {
       "path": "apps/data_center/full_market_publication_preflight_composition.py",
       "text": "\"\"\"Compose the production current-market bundle without staging anything.\"\"\""
     },
@@ -12495,6 +12923,50 @@
       "text": "summary = models.TextField(blank=True)"
     },
     {
+      "path": "apps/data_center/infrastructure/financial_availability_governance_writer.py",
+      "text": "\"C2 current exchange is invalid.\","
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_availability_governance_writer.py",
+      "text": "\"C2 current record kind is invalid.\","
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_availability_governance_writer.py",
+      "text": "\"C2 current resolution requires explicit scopes.\","
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_availability_governance_writer.py",
+      "text": "\"C2 current resolution requires one caller-owned same-alias transaction.\","
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_availability_governance_writer.py",
+      "text": "\"C2 current scope is being changed by another transaction.\","
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_availability_governance_writer.py",
+      "text": "\"C2 scope is being resolved by a current financial consumer.\","
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_availability_governance_writer.py",
+      "text": "\"\"\"Acquire shared C2 scope locks before any current row/event selection.\"\"\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_availability_governance_writer.py",
+      "text": "\"\"\"Build the shared stable key for C2 current reads, apply and revoke.\"\"\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_availability_governance_writer.py",
+      "text": "\"\"\"Lock and re-decode the complete current lifecycle stream for a row.\"\"\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_availability_governance_writer.py",
+      "text": "\"\"\"Require exactly one ambient transaction for calendar-current composition.\"\"\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_availability_source_reader.py",
+      "text": "which the current public source repository result objects do not expose."
+    },
+    {
       "path": "apps/data_center/infrastructure/financial_capacity_publisher_runtime.py",
       "text": "\"\"\"Read and validate the current financial publication pointer pair.\"\"\""
     },
@@ -12527,6 +12999,82 @@
       "text": "_PUBLICATION_KEY = \"current\""
     },
     {
+      "path": "apps/data_center/infrastructure/financial_e1_discovery_composition.py",
+      "text": "\"\"\"Append one exact RawAudit only while the authorized Account is current.\"\"\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_e1_discovery_composition.py",
+      "text": "\"\"\"Append one rejected-body RawAudit only while authority remains current.\"\"\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_e1_discovery_composition.py",
+      "text": "\"\"\"Bind the existing artifact adapter to the current E1 guard.\"\"\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_e1_discovery_composition.py",
+      "text": "\"\"\"Require the same current repositories later used by the v3 gate.\"\"\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_e1_discovery_composition.py",
+      "text": "raise TypeError(\"a current DATA02 actor/account guard is required\")"
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_e1_discovery_runtime.py",
+      "text": "\"\"\"Cross-check the typed app snapshot at its exact current preflight clock.\"\"\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_e1_discovery_runtime.py",
+      "text": "\"\"\"Require one real apply and no recorded revoke at the current cutoff.\"\"\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_e1_discovery_runtime.py",
+      "text": "\"\"\"Supply current UTC instants from PostgreSQL rather than request clocks.\"\"\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_e1_discovery_runtime.py",
+      "text": "\"\"\"Verify every explicit identity, current event, source doc, config, and route.\"\"\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_e1_discovery_runtime.py",
+      "text": "return _require_utc(row[0], \"database current timestamp\")"
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_e1_discovery_v3_writer.py",
+      "text": "\"E1 exact fact revision failed current verified readback.\","
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_e1_discovery_v3_writer.py",
+      "text": "\"\"\"Resolve real current C2 records in the caller-owned transaction.\"\"\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_e1_discovery_v3_writer.py",
+      "text": "\"\"\"Return each requested revision after current same-UOW verification.\"\"\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_e1_governed_execution.py",
+      "text": "\"The DATA02 task authority is no longer current.\","
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_e1_governed_execution.py",
+      "text": "\"The current DATA02 authority is not bound to an authenticated staff actor.\","
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_e1_governed_execution.py",
+      "text": "\"The pinned active simulated account is not owned by the current DATA02 actor.\","
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_e1_governed_execution.py",
+      "text": "\"\"\"Revalidate DATA02 and the current simulated-account binding per boundary.\"\"\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_e1_governed_execution.py",
+      "text": "f\"The current DATA02 task authority is unavailable ({reason or 'unknown'}).\","
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_e1_governed_execution.py",
+      "text": "raise ValueError(\"operator must be the exact current server actor identity\")"
+    },
+    {
       "path": "apps/data_center/infrastructure/financial_fact_publication_helpers.py",
       "text": "\"\"\"Resolve input facts to latest persisted rows with source availability.\"\"\""
     },
@@ -12536,7 +13084,11 @@
     },
     {
       "path": "apps/data_center/infrastructure/financial_fact_repository.py",
-      "text": "\"\"\"Return the latest source period and revision for an asset.\"\"\""
+      "text": "The current repository uses Django's default manager for financial-fact"
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_fact_repository.py",
+      "text": "\"\"\"Return the latest source period with current v3 verification when requested.\"\"\""
     },
     {
       "path": "apps/data_center/infrastructure/financial_fact_repository.py",
@@ -12544,7 +13096,27 @@
     },
     {
       "path": "apps/data_center/infrastructure/financial_fact_repository.py",
-      "text": "\"\"\"Select latest revisions within the requested historical knowledge scope.\"\"\""
+      "text": "\"\"\"Select latest revisions and independently verify explicit v3 reads.\"\"\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_fact_repository.py",
+      "text": "\"\"\"Select one latest row and verify it before returning it.\"\"\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_fact_repository.py",
+      "text": "\"financial fact read request must match its current or exact PIT scope\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_fact_repository.py",
+      "text": "\"latest financial reads require CURRENT_READ verification purpose\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_fact_repository.py",
+      "text": "\"v3 financial publication requires current exact-body and temporal verification\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_fact_repository.py",
+      "text": "alias; its catalog adapter must use the same alias. Current write/read"
     },
     {
       "path": "apps/data_center/infrastructure/financial_fact_repository.py",
@@ -12553,6 +13125,62 @@
     {
       "path": "apps/data_center/infrastructure/financial_fact_repository.py",
       "text": "qs = qs.filter(pk=Subquery(latest))"
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_fact_repository.py",
+      "text": "raise AssertionError(\"current reads with a qualified verifier must use the outer UOW\")"
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_fact_v3_e1_verifier.py",
+      "text": "The current branch joins the caller's one default-alias PostgreSQL READ"
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_fact_v3_e1_verifier.py",
+      "text": "\"C2 current resolver did not return the exact reference-only witness check.\","
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_fact_v3_e1_verifier.py",
+      "text": "\"Current calendar or opening rule expired during qualified source verification.\","
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_fact_v3_e1_verifier.py",
+      "text": "\"\"\"Bind all current and historical evidence readers to one exact alias.\"\"\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_fact_v3_e1_verifier.py",
+      "text": "\"\"\"Combine current C2 revalidation with the exact statutory dual capture.\"\"\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_fact_v3_e1_verifier.py",
+      "text": "\"\"\"Lock and recheck both bodies inside the caller's current RC UOW.\"\"\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_fact_v3_e1_verifier.py",
+      "text": "\"\"\"Require one explicit UTC value for a current or historical lookup.\"\"\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_fact_v3_e1_verifier.py",
+      "text": "\"\"\"Require the full qualified C2 current or original-cutoff revalidation.\"\"\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_fact_v3_e1_verifier.py",
+      "text": "\"\"\"Resolve qualified source time while retaining caller-owned current locks.\"\"\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_fact_v3_e1_verifier.py",
+      "text": "raise ValueError(\"current temporal gate requires an explicit current purpose\")"
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_fact_write_guard.py",
+      "text": "\"\"\"Verify v3 under one current UOW, then preserve the canonical write path.\"\"\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_fact_write_guard.py",
+      "text": "\"v3 financial fact requires exact-body and current qualified verification\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_fact_write_guard.py",
+      "text": "a v3 fact whose exact body and current temporal gate already passed in this"
     },
     {
       "path": "apps/data_center/infrastructure/financial_native_numeric_verifier.py",
@@ -12577,6 +13205,70 @@
     {
       "path": "apps/data_center/infrastructure/financial_numeric_catalog_repository.py",
       "text": "this repository's database alias. Current purposes block if any catalog"
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_numeric_origin_snapshot_capture.py",
+      "text": "\"\"\"Lock and validate matching current config before the capture record clock is sampled.\"\"\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_numeric_origin_snapshot_capture.py",
+      "text": "\"\"\"Validated current profile and locked non-secret provider/publisher facts.\"\"\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_numeric_origin_snapshot_reader.py",
+      "text": "\"Current origin cutoff is later than the database clock\", \"ORIGIN_FUTURE_CUTOFF\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_numeric_origin_snapshot_reader.py",
+      "text": "\"Current source configuration differs from capture-time snapshot\","
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_numeric_origin_snapshot_reader.py",
+      "text": "\"Current source configuration no longer matches its snapshot\","
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_numeric_origin_snapshot_reader.py",
+      "text": "current = make_origin_snapshot("
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_numeric_origin_snapshot_reader.py",
+      "text": "current_payload, current_digest = encode_origin_snapshot(current)"
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_numeric_qualification/balance_verifier.py",
+      "text": "Current read and PIT callers may use the route only as evidence/as-of"
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_numeric_qualification/balance_verifier.py",
+      "text": "``source_type``. Current activation is intentionally irrelevant to reading"
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_numeric_qualification/balance_verifier.py",
+      "text": "the catalog's caller-owned UOW/current-revocation fence through commit."
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_numeric_qualification/balance_verifier.py",
+      "text": "verification. Current decision reads, writes, and Publications still need"
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_numeric_qualification/catalog_adapter.py",
+      "text": "All current purposes use the repository's lock-retaining UOW resolver."
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_numeric_qualification/catalog_adapter.py",
+      "text": "The adapter never starts or ends the caller's current-use transaction,"
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_numeric_qualification/catalog_adapter.py",
+      "text": "\"\"\"Map every current-use purpose to the matching catalog UOW fence.\"\"\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_numeric_qualification/catalog_adapter.py",
+      "text": "raise ValueError(\"point-in-time purpose does not use the current UOW resolver\")"
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_numeric_qualification/django_catalog_adapter.py",
+      "text": "transaction. Current write and Publication callers must retain their own"
     },
     {
       "path": "apps/data_center/infrastructure/financial_publication_capacity_runtime.py",
@@ -12745,6 +13437,74 @@
     {
       "path": "apps/data_center/infrastructure/financial_scope_manifest_current_pointer.py",
       "text": "updated_by=current.updated_by,"
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_source_body_runtime.py",
+      "text": "\"\"\"Return a store backed by the current explicit runtime configuration.\"\"\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_statutory_numeric_capture_adapter.py",
+      "text": "\"\"\"Reverify the exact response while holding current PostgreSQL row locks."
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_statutory_numeric_capture_adapter.py",
+      "text": "def _require_read_committed_uow(self, *, current: bool) -> None:"
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_statutory_numeric_capture_adapter.py",
+      "text": "or (current and len(connection.atomic_blocks) != 1)"
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_statutory_numeric_capture_adapter.py",
+      "text": "self._require_read_committed_uow(current=False)"
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_statutory_numeric_capture_adapter.py",
+      "text": "self._require_read_committed_uow(current=True)"
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_v3_current_uow.py",
+      "text": "\"Current E1 v3 cannot verify PostgreSQL transaction isolation.\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_v3_current_uow.py",
+      "text": "\"Current E1 v3 requires exactly one default-alias PostgreSQL UOW.\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_v3_current_uow.py",
+      "text": "\"\"\"Raised when a current E1 v3 operation lacks its exact PostgreSQL UOW.\"\"\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_v3_current_uow.py",
+      "text": "\"\"\"Strict E1 v3 CURRENT transaction boundary for canonical fact operations.\"\"\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_v3_current_uow.py",
+      "text": "default_message = \"Current financial E1 verification requires one PostgreSQL UOW.\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_v3_current_uow.py",
+      "text": "raise FinancialV3CurrentUowBlocked(\"Current E1 v3 requires READ COMMITTED isolation.\")"
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_v3_current_uow.py",
+      "text": "raise FinancialV3CurrentUowBlocked(\"Current E1 v3 requires the default database alias.\")"
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_v3_official_source_qualifier.py",
+      "text": "Current verification locks ProviderConfig and PublisherCatalog rows inside"
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_v3_official_source_qualifier.py",
+      "text": "\"The current configured source profile is malformed.\","
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_v3_official_source_qualifier.py",
+      "text": "\"\"\"Sample PostgreSQL time after the current profile/audit reads.\"\"\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_v3_official_source_qualifier.py",
+      "text": "the supplied cutoff; it never falls back to current configuration."
     },
     {
       "path": "apps/data_center/infrastructure/formal_exchange_calendar_publication_history_reader.py",
@@ -14149,6 +14909,10 @@
     {
       "path": "apps/data_center/management/commands/repair_decision_data_reliability.py",
       "text": "return {\"status\": \"skipped\", \"message\": \"No realtime quote provider is available.\"}"
+    },
+    {
+      "path": "apps/data_center/management/commands/run_financial_e1_discovery.py",
+      "text": "\"\"\"Require an external plan pin, current actor, and explicit execute flag.\"\"\""
     },
     {
       "path": "apps/data_center/management/commands/setup_full_market_publications.py",

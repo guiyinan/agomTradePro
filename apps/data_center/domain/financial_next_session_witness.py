@@ -29,6 +29,9 @@ from apps.data_center.domain.financial_next_session_availability import (
 )
 from apps.data_center.domain.financial_response_artifact import FinancialResponseArtifactRef
 from apps.data_center.domain.financial_response_evidence import FinancialResponseScopeBasis
+from apps.data_center.domain.financial_statutory_source_identity import (
+    FinancialStatutorySourceIdentity,
+)
 from apps.data_center.domain.formal_exchange_calendar_publication import (
     exchange_calendar_publication_key,
     validate_current_calendar_publication,
@@ -651,7 +654,7 @@ class FinancialNextSessionGovernanceBinding:
     """
 
     opening_rule_record_id: str
-    official_source: FinancialOfficialSourceIdentity
+    official_source: FinancialOfficialSourceIdentity | FinancialStatutorySourceIdentity
     opening_rule_approval: FinancialApprovalIdentity
     policy: FinancialDisclosureAvailabilityPolicy
     policy_approval: FinancialApprovalIdentity
@@ -660,7 +663,10 @@ class FinancialNextSessionGovernanceBinding:
         """Require exact hash and clock bindings across governance references."""
 
         _bounded_text(self.opening_rule_record_id, "opening_rule_record_id", 200)
-        if type(self.official_source) is not FinancialOfficialSourceIdentity:
+        if type(self.official_source) not in (
+            FinancialOfficialSourceIdentity,
+            FinancialStatutorySourceIdentity,
+        ):
             raise TypeError("opening rule requires an official source identity")
         if type(self.opening_rule_approval) is not FinancialApprovalIdentity:
             raise TypeError("opening rule requires an approval identity")
@@ -695,11 +701,16 @@ class FinancialNextSessionGovernanceBinding:
         opening_rule.__post_init__()
         _require_date(next_session, "next_session")
         _require_utc(known_at, "known_at")
+        source_recorded_matches_rule = (
+            self.official_source.recorded_at <= opening_rule.recorded_at
+            if type(self.official_source) is FinancialStatutorySourceIdentity
+            else self.official_source.recorded_at == opening_rule.recorded_at
+        )
         if (
             self.official_source.source_uri != opening_rule.source_uri
             or self.official_source.body_sha256 != opening_rule.source_body_sha256
             or self.official_source.first_seen_at != opening_rule.first_seen_at
-            or self.official_source.recorded_at != opening_rule.recorded_at
+            or not source_recorded_matches_rule
         ):
             raise ValueError("opening rule does not match its official source identity")
         if (

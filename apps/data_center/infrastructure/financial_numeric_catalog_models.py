@@ -53,6 +53,8 @@ class FinancialNumericSourceDocumentCaptureModel(_StatutorySourceImmutableModel)
     body_sha256 = models.CharField(max_length=64)
     body_size_bytes = models.PositiveBigIntegerField()
     body_reference = models.CharField(max_length=1024)
+    origin_snapshot = models.JSONField(null=True, blank=True)
+    origin_snapshot_sha256 = models.CharField(max_length=64, null=True, blank=True)
     objects: _StatutorySourceManager[Self] = _StatutorySourceManager()
 
     class Meta:
@@ -91,6 +93,20 @@ class FinancialNumericSourceDocumentCaptureModel(_StatutorySourceImmutableModel)
                     body_sha256__regex=r"^[0-9a-f]{64}$",
                 ),
                 name="dc_fin_num_doc_integrity_ck",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(
+                        origin_snapshot__isnull=True,
+                        origin_snapshot_sha256__isnull=True,
+                    )
+                    | models.Q(
+                        origin_snapshot__isnull=False,
+                        origin_snapshot_sha256__isnull=False,
+                        origin_snapshot_sha256__regex=r"^[0-9a-f]{64}$",
+                    )
+                ),
+                name="dc_fin_num_origin_snapshot_pair_ck",
             ),
         ]
 

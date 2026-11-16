@@ -38,7 +38,7 @@ from apps.data_center.infrastructure.financial_numeric_catalog_models import (
     FinancialMetricSourceCatalogOwnerEventModel,
 )
 from apps.data_center.infrastructure.financial_source_time_matchers import (
-    AKSHARE_MAIN_FINANCIAL_DATA_ENDPOINT,
+    AKSHARE_FINANCIAL_NUMERIC_ENDPOINTS,
 )
 
 _MAX_OWNER_USERNAME_LENGTH = 150
@@ -195,9 +195,9 @@ class DjangoFinancialMetricSourceCatalogRepository(FinancialNumericSourceCatalog
 
         if type(qualification) is not FinancialNumericSourceQualification:
             raise _invalid("A complete typed financial source qualification is required.")
-        if qualification.endpoint != AKSHARE_MAIN_FINANCIAL_DATA_ENDPOINT:
+        if qualification.endpoint not in AKSHARE_FINANCIAL_NUMERIC_ENDPOINTS:
             raise _invalid(
-                "Only the approved Main financial-data endpoint is supported.",
+                "Only an explicitly supported Main or Balance endpoint is supported.",
                 "FINANCIAL_NUMERIC_ENDPOINT_UNSUPPORTED",
             )
         qualification_payload = qualification.to_dict()
@@ -399,7 +399,7 @@ class DjangoFinancialMetricSourceCatalogRepository(FinancialNumericSourceCatalog
             or contract.provider != row.contract_provider
             or contract.dataset_key != row.dataset_key
             or contract.metric_code != row.metric_code
-            or qualification.endpoint != AKSHARE_MAIN_FINANCIAL_DATA_ENDPOINT
+            or qualification.endpoint not in AKSHARE_FINANCIAL_NUMERIC_ENDPOINTS
             or qualification.document_capture.capture_id != row.document_capture_id
             or qualification.effective_from != row.effective_from
             or qualification.effective_until != row.effective_until
@@ -486,7 +486,8 @@ class DjangoFinancialMetricSourceCatalogRepository(FinancialNumericSourceCatalog
             or not contract_identity
             or contract_identity != contract_identity.strip()
             or len(contract_identity) > 160
-            or endpoint != AKSHARE_MAIN_FINANCIAL_DATA_ENDPOINT
+            or type(endpoint) is not str
+            or endpoint not in AKSHARE_FINANCIAL_NUMERIC_ENDPOINTS
             or not isinstance(source_context, Mapping)
             or any(type(key) is not str for key in source_context)
             or type(source_response_completed_at) is not datetime
@@ -576,7 +577,7 @@ class DjangoFinancialMetricSourceCatalogRepository(FinancialNumericSourceCatalog
             or contract_identity != contract_identity.strip()
             or len(contract_identity) > 160
             or type(endpoint) is not str
-            or endpoint != AKSHARE_MAIN_FINANCIAL_DATA_ENDPOINT
+            or endpoint not in AKSHARE_FINANCIAL_NUMERIC_ENDPOINTS
             or not isinstance(source_context, Mapping)
             or any(type(key) is not str for key in source_context)
             or type(purpose) is not FinancialNumericCatalogResolutionPurpose

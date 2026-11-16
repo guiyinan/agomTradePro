@@ -33,6 +33,11 @@ from apps.data_center.domain.financial_response_evidence import (
     FinancialResponseScope,
     FinancialResponseScopeBasis,
 )
+from apps.data_center.domain.financial_statutory_source_identity import (
+    FINANCIAL_STATUTORY_SOURCE_IDENTITY_SCHEMA,
+    FinancialStatutorySourceIdentity,
+)
+from apps.data_center.domain.statutory_source_documents import StatutorySourceBodyReference
 from core.exceptions import DataValidationError
 
 _SCHEMA_V3 = "financial-next-session-source-time-witness.v3"
@@ -442,7 +447,6 @@ def _decode_governance(raw: object) -> FinancialNextSessionGovernanceBinding:
     approval_raw = _mapping(governance["opening_rule_approval"], "opening_rule_approval")
     policy_raw = _mapping(governance["policy"], "policy")
     policy_approval_raw = _mapping(governance["policy_approval"], "policy_approval")
-    _exact_keys(source_raw, _SOURCE_KEYS, "official_source")
     _exact_keys(approval_raw, _APPROVAL_KEYS, "opening_rule_approval")
     _exact_keys(policy_raw, _POLICY_KEYS, "policy")
     _exact_keys(policy_approval_raw, _APPROVAL_KEYS, "policy_approval")
@@ -467,27 +471,85 @@ def _decode_governance(raw: object) -> FinancialNextSessionGovernanceBinding:
         opening_rule_record_id=_text(
             governance["opening_rule_record_id"], "opening_rule_record_id"
         ),
-        official_source=FinancialOfficialSourceIdentity(
-            document_record_id=_text(source_raw["document_record_id"], "source.document_record_id"),
-            capture_id=_uuid(source_raw["capture_id"], "source.capture_id"),
-            source_uri=_text(source_raw["source_uri"], "source.source_uri"),
-            body_sha256=_text(source_raw["body_sha256"], "source.body_sha256"),
-            body_size_bytes=_integer(source_raw["body_size_bytes"], "source.body_size_bytes"),
-            artifact_location=_text(source_raw["artifact_location"], "source.artifact_location"),
-            format_version=_text(source_raw["format_version"], "source.format_version"),
-            encryption_algorithm=_text(
-                source_raw["encryption_algorithm"], "source.encryption_algorithm"
-            ),
-            encryption_key_ref=_text(source_raw["encryption_key_ref"], "source.encryption_key_ref"),
-            encryption_key_version=_text(
-                source_raw["encryption_key_version"], "source.encryption_key_version"
-            ),
-            first_seen_at=_datetime(source_raw["first_seen_at"], "source.first_seen_at"),
-            recorded_at=_datetime(source_raw["recorded_at"], "source.recorded_at"),
-        ),
+        official_source=_decode_official_source(source_raw),
         opening_rule_approval=_decode_approval(approval_raw),
         policy=policy,
         policy_approval=_decode_approval(policy_approval_raw),
+    )
+
+
+def _decode_official_source(
+    source_raw: Mapping[str, object],
+) -> FinancialOfficialSourceIdentity | FinancialStatutorySourceIdentity:
+    """Decode one explicit retained-storage identity without inventing encryption."""
+
+    if "schema" in source_raw:
+        schema = _text(source_raw["schema"], "source.schema")
+        if schema != FINANCIAL_STATUTORY_SOURCE_IDENTITY_SCHEMA:
+            raise FinancialNextSessionWitnessCodecError("official source storage schema is invalid")
+        _exact_keys(
+            source_raw,
+            frozenset(
+                {
+                    "schema",
+                    "issuer",
+                    "document_id",
+                    "source_version",
+                    "source_revision_sha256",
+                    "source_uri",
+                    "capture_id",
+                    "body_reference",
+                    "body_sha256",
+                    "body_size_bytes",
+                    "first_seen_at",
+                    "revision_recorded_at",
+                    "capture_observed_at",
+                    "recorded_at",
+                }
+            ),
+            "official_source",
+        )
+        return FinancialStatutorySourceIdentity(
+            issuer=_text(source_raw["issuer"], "source.issuer"),
+            document_id=_text(source_raw["document_id"], "source.document_id"),
+            source_version=_text(source_raw["source_version"], "source.source_version"),
+            source_revision_sha256=_text(
+                source_raw["source_revision_sha256"], "source.source_revision_sha256"
+            ),
+            source_uri=_text(source_raw["source_uri"], "source.source_uri"),
+            body_reference=StatutorySourceBodyReference(
+                capture_id=_uuid(source_raw["capture_id"], "source.capture_id"),
+                reference=_text(source_raw["body_reference"], "source.body_reference"),
+                body_sha256=_text(source_raw["body_sha256"], "source.body_sha256"),
+                body_size_bytes=_integer(source_raw["body_size_bytes"], "source.body_size_bytes"),
+            ),
+            first_seen_at=_datetime(source_raw["first_seen_at"], "source.first_seen_at"),
+            revision_recorded_at=_datetime(
+                source_raw["revision_recorded_at"], "source.revision_recorded_at"
+            ),
+            capture_observed_at=_datetime(
+                source_raw["capture_observed_at"], "source.capture_observed_at"
+            ),
+            recorded_at=_datetime(source_raw["recorded_at"], "source.recorded_at"),
+        )
+    _exact_keys(source_raw, _SOURCE_KEYS, "official_source")
+    return FinancialOfficialSourceIdentity(
+        document_record_id=_text(source_raw["document_record_id"], "source.document_record_id"),
+        capture_id=_uuid(source_raw["capture_id"], "source.capture_id"),
+        source_uri=_text(source_raw["source_uri"], "source.source_uri"),
+        body_sha256=_text(source_raw["body_sha256"], "source.body_sha256"),
+        body_size_bytes=_integer(source_raw["body_size_bytes"], "source.body_size_bytes"),
+        artifact_location=_text(source_raw["artifact_location"], "source.artifact_location"),
+        format_version=_text(source_raw["format_version"], "source.format_version"),
+        encryption_algorithm=_text(
+            source_raw["encryption_algorithm"], "source.encryption_algorithm"
+        ),
+        encryption_key_ref=_text(source_raw["encryption_key_ref"], "source.encryption_key_ref"),
+        encryption_key_version=_text(
+            source_raw["encryption_key_version"], "source.encryption_key_version"
+        ),
+        first_seen_at=_datetime(source_raw["first_seen_at"], "source.first_seen_at"),
+        recorded_at=_datetime(source_raw["recorded_at"], "source.recorded_at"),
     )
 
 

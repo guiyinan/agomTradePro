@@ -9,15 +9,18 @@ from pathlib import Path
 from typing import Protocol, cast
 from uuid import UUID
 
-from django.conf import settings
 from django.contrib.auth import authenticate, get_user_model
 from django.core.management.base import BaseCommand, CommandError
-from django.db import DEFAULT_DB_ALIAS
+from django.db import DEFAULT_DB_ALIAS, connections
 
 from apps.data_center.application.egress_service import execute_provider_document_request
 from apps.data_center.application.financial_numeric_catalog import (
     CaptureFinancialNumericSourceDocumentUseCase,
     FinancialNumericSourceCatalogUseCase,
+    FinancialNumericSourceDocumentCaptureRepositoryPort,
+)
+from apps.data_center.application.statutory_source_documents import (
+    RetainStatutorySourceDocumentUseCase,
 )
 from apps.data_center.domain.financial_numeric_source_qualification import (
     FinancialNumericSourceDocumentCaptureReference,
@@ -29,8 +32,19 @@ from apps.data_center.infrastructure.financial_numeric_catalog_capture_repositor
 from apps.data_center.infrastructure.financial_numeric_catalog_repository import (
     DjangoFinancialMetricSourceCatalogRepository,
 )
-from apps.data_center.infrastructure.statutory_source_body_store import (
-    StatutorySourceBodyStore,
+from apps.data_center.infrastructure.financial_source_body_runtime import (
+    LazyStatutorySourceBodyStore,
+    build_statutory_source_body_store,
+    resolve_statutory_source_body_storage_config,
+)
+from apps.data_center.infrastructure.financial_statutory_numeric_capture_retention import (
+    FinancialStatutoryNumericPairCaptureRepository,
+)
+from apps.data_center.infrastructure.statutory_source_repository import (
+    DjangoStatutorySourceRepository,
+)
+from apps.data_center.statutory_source_capture_composition import (
+    ConfiguredStatutorySourceCaptureService,
 )
 from core.exceptions import DataFetchError, DataValidationError
 
@@ -70,6 +84,10 @@ class Command(BaseCommand):
         parser.add_argument("--url")
         parser.add_argument("--max-bytes", type=int)
         parser.add_argument("--media-type", action="append")
+        parser.add_argument(
+            "--statutory-source-version",
+            help="Also retain the same response under this exact configured native source version",
+        )
         parser.add_argument("--entry-id")
         parser.add_argument("--qualification-identity")
         parser.add_argument("--qualification-sha256")
@@ -206,20 +224,9 @@ class Command(BaseCommand):
 
     @staticmethod
     def _service(database: str) -> FinancialNumericSourceCatalogUseCase:
-        """Build the command-only service from explicit retained-body settings."""
+        """Build a service whose source store is resolved only for body operations."""
 
-        raw_root: object = getattr(settings, "FINANCIAL_NUMERIC_SOURCE_BODY_ROOT", None)
-        raw_limit: object = getattr(settings, "FINANCIAL_NUMERIC_SOURCE_BODY_MAX_BYTES", None)
-        if (
-            not isinstance(raw_root, (str, Path))
-            or not str(raw_root).strip()
-            or type(raw_limit) is not int
-            or raw_limit <= 0
-        ):
-            raise CommandError(
-                "financial numeric retained-body root and positive byte limit are not configured"
-            )
-        body_store = StatutorySourceBodyStore(Path(raw_root), max_body_bytes=raw_limit)
+        body_store = LazyStatutorySourceBodyStore()
         capture_repository = DjangoFinancialNumericSourceCaptureRepository(
             body_store=body_store,
             using=database,
@@ -259,26 +266,71 @@ class Command(BaseCommand):
             raise CommandError(
                 "capture requires provider, dataset, region, issuer, document id, URL, byte limit, and media type"
             )
-        root_raw: object = getattr(settings, "FINANCIAL_NUMERIC_SOURCE_BODY_ROOT", None)
-        store_limit: object = getattr(settings, "FINANCIAL_NUMERIC_SOURCE_BODY_MAX_BYTES", None)
-        if (
-            not isinstance(root_raw, (str, Path))
-            or not str(root_raw).strip()
-            or type(store_limit) is not int
-            or store_limit <= 0
-            or max_bytes > store_limit
-        ):
+        try:
+            runtime_config = resolve_statutory_source_body_storage_config()
+        except DataValidationError as error:
             raise CommandError(
-                "financial numeric retained-body root or sufficient positive byte limit is not configured"
+                "statutory source body root and maximum size are not configured"
+            ) from error
+        if max_bytes > runtime_config.max_body_bytes:
+            raise CommandError(
+                "capture body limit exceeds the configured retained-source body maximum"
             )
-        body_store = StatutorySourceBodyStore(Path(root_raw), max_body_bytes=store_limit)
+        body_store = build_statutory_source_body_store(runtime_config=runtime_config)
         capture_repository = DjangoFinancialNumericSourceCaptureRepository(
             body_store=body_store,
             using=database,
         )
+        capture_port: FinancialNumericSourceDocumentCaptureRepositoryPort = capture_repository
+        source_version = options.get("statutory_source_version")
+        if source_version is not None:
+            if dataset_key != "statutory_source_documents":
+                raise CommandError(
+                    "paired statutory capture requires dataset statutory_source_documents"
+                )
+            if (
+                type(source_version) is not str
+                or not source_version
+                or source_version != source_version.strip()
+                or connections[database].in_atomic_block
+            ):
+                raise CommandError(
+                    "paired capture requires an exact configured source version and no transaction"
+                )
+            profile = ConfiguredStatutorySourceCaptureService(
+                provider_id=provider_id,
+                body_store_root=runtime_config.root,
+                deployment_region=deployment_region,
+                using=database,
+            ).read_catalog()
+            matches = tuple(
+                rule
+                for rule in profile.documents
+                if rule.revision.identity_key == (issuer, document_id, source_version)
+                and rule.revision.canonical_url == canonical_url
+            )
+            media_types = frozenset(cast(list[str], raw_media_types))
+            if (
+                len(matches) != 1
+                or not matches[0].revision.body_size_bytes <= max_bytes <= matches[0].max_bytes
+                or not media_types
+                or not media_types.issubset(matches[0].allowed_media_types)
+            ):
+                raise CommandError("paired capture differs from its configured native rule")
+            capture_port = FinancialStatutoryNumericPairCaptureRepository(
+                revision=matches[0].revision,
+                source_retainer=RetainStatutorySourceDocumentUseCase(
+                    body_store=body_store,
+                    document_repository=DjangoStatutorySourceRepository(
+                        body_store=body_store, using=database
+                    ),
+                ),
+                numeric_repository=capture_repository,
+                using=database,
+            )
         use_case = CaptureFinancialNumericSourceDocumentUseCase(
             document_fetch=execute_provider_document_request,
-            capture_repository=capture_repository,
+            capture_repository=capture_port,
             provider_id=provider_id,
             dataset_key=dataset_key,
             deployment_region=deployment_region,
@@ -290,6 +342,7 @@ class Command(BaseCommand):
                 canonical_url=canonical_url,
                 max_bytes=max_bytes,
                 allowed_media_types=frozenset(cast(list[str], raw_media_types)),
+                max_attempts=1 if source_version is not None else 2,
             )
         except (DataFetchError, DataValidationError, OSError, ValueError) as error:
             raise CommandError("controlled document capture was blocked") from error

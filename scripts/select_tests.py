@@ -416,6 +416,12 @@ FAST_FEEDBACK_NATIVE_POSTGRES_ONLY_TARGETS = frozenset(
         "tests/component/data_center/test_calendar_catalog_admin_pg.py",
         "tests/component/data_center/test_generic_calendar_catalog_pg.py",
         "tests/component/data_center/test_financial_numeric_catalog_postgres.py",
+        "tests/component/data_center/test_financial_availability_governance_pg.py",
+        "tests/component/data_center/test_financial_statutory_numeric_capture_pg.py",
+        "tests/component/data_center/test_statutory_source_append_clock_pg.py",
+        "tests/component/data_center/test_financial_numeric_origin_snapshot_pg.py",
+        "tests/component/data_center/test_financial_v3_current_uow_postgres.py",
+        "tests/component/data_center/test_financial_v3_e1_repository_postgres.py",
     }
 )
 

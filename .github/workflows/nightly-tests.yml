@@ -372,6 +372,12 @@ jobs:
               --ignore=tests/component/data_center/test_calendar_catalog_admin_pg.py \
               --ignore=tests/component/data_center/test_generic_calendar_catalog_pg.py \
               --ignore=tests/component/data_center/test_financial_numeric_catalog_postgres.py \
+              --ignore=tests/component/data_center/test_financial_availability_governance_pg.py \
+              --ignore=tests/component/data_center/test_financial_statutory_numeric_capture_pg.py \
+              --ignore=tests/component/data_center/test_statutory_source_append_clock_pg.py \
+              --ignore=tests/component/data_center/test_financial_numeric_origin_snapshot_pg.py \
+              --ignore=tests/component/data_center/test_financial_v3_current_uow_postgres.py \
+              --ignore=tests/component/data_center/test_financial_v3_e1_repository_postgres.py \
               -n 2 \
               --dist=load \
               --max-worker-restart=0 \
@@ -736,6 +742,23 @@ jobs:
           --migrations
           -q -o addopts=''
 
+      - name: Run C2 financial availability PostgreSQL contracts
+        env:
+          DATABASE_URL: postgresql://agomtradepro:critical-test-password@127.0.0.1:5432/agomtradepro_critical
+          DJANGO_SETTINGS_MODULE: core.settings.critical_postgres_test
+          AGOM_CRITICAL_TEST_DB_NAME: test_c2_financial_availability_nightly
+        run: >-
+          python -m pytest
+          tests/component/data_center/test_financial_availability_governance_pg.py
+          tests/component/data_center/test_financial_statutory_numeric_capture_pg.py
+          tests/component/data_center/test_statutory_source_append_clock_pg.py
+          tests/component/data_center/test_financial_numeric_origin_snapshot_pg.py
+          tests/component/data_center/test_financial_v3_current_uow_postgres.py
+          tests/component/data_center/test_financial_v3_e1_repository_postgres.py
+          --ds=core.settings.critical_postgres_test
+          --create-db
+          --migrations
+          -q -o addopts=''
       - name: Record applied migration plan
         run: python manage.py showmigrations --plan > reports/quality/postgres/migration-plan.txt
 

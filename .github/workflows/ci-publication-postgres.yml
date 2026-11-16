@@ -143,6 +143,23 @@ jobs:
           --create-db
           --migrations
           -q -o addopts=''
+      - name: Run C2 financial availability PostgreSQL contracts
+        env:
+          DATABASE_URL: postgresql://contract_test:disposable_ci_only@127.0.0.1:5432/agom_release_rehearsal_ci
+          DJANGO_SETTINGS_MODULE: core.settings.critical_postgres_test
+          AGOM_CRITICAL_TEST_DB_NAME: c2_financial_availability_publication_test
+        run: >-
+          python -m pytest
+          tests/component/data_center/test_financial_availability_governance_pg.py
+          tests/component/data_center/test_financial_statutory_numeric_capture_pg.py
+          tests/component/data_center/test_statutory_source_append_clock_pg.py
+          tests/component/data_center/test_financial_numeric_origin_snapshot_pg.py
+          tests/component/data_center/test_financial_v3_current_uow_postgres.py
+          tests/component/data_center/test_financial_v3_e1_repository_postgres.py
+          --ds=core.settings.critical_postgres_test
+          --create-db
+          --migrations
+          -q -o addopts=''
       - name: Exercise financial capacity non-PostgreSQL gate contracts
         run: >-
           python -m pytest

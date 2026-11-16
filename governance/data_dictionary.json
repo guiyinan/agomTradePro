@@ -34089,6 +34089,277 @@
         },
         {
           "bases": [
+            "_FinancialAvailabilityAppendOnlyModel"
+          ],
+          "class_name": "FinancialAvailabilityGovernanceRecordModel",
+          "docstring": "One immutable explicit opening-rule or disclosure-policy version.",
+          "fields": [
+            {
+              "field_type": "UUIDField",
+              "kwargs": {
+                "default": "uuid4",
+                "editable": false,
+                "primary_key": true
+              },
+              "name": "row_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 200
+              },
+              "name": "record_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 200
+              },
+              "name": "record_version",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 32
+              },
+              "name": "exchange",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "choices": "KIND_CHOICES",
+                "max_length": 32
+              },
+              "name": "kind",
+              "positional_args": []
+            },
+            {
+              "field_type": "JSONField",
+              "name": "payload",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "content_sha256",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "name": "recorded_at",
+              "positional_args": []
+            },
+            {
+              "field_type": "ForeignKey",
+              "kwargs": {
+                "blank": true,
+                "null": true,
+                "on_delete": "models.PROTECT",
+                "related_name": "financial_availability_governance_records"
+              },
+              "name": "source_capture",
+              "null": true,
+              "positional_args": [
+                "StatutorySourceDocumentCaptureModel"
+              ]
+            }
+          ],
+          "meta": {
+            "app_label": "data_center",
+            "constraints": "[models.UniqueConstraint(fields=('record_id', 'record_version'), name='dc_fin_avail_record_version_uniq'), models.CheckConstraint(condition=models.Q(kind='opening_rule', source_capture__isnull=False) | models.Q(kind='disclosure_policy', source_capture__isnull=True), name='dc_fin_avail_record_source_shape_ck'), models.CheckConstraint(condition=models.Q(content_sha256__regex='^[0-9a-f]{64}$'), name='dc_fin_avail_record_hash_ck')]",
+            "db_table": "data_center_financial_availability_governance_record",
+            "ordering": [
+              "record_id",
+              "record_version"
+            ],
+            "permissions": [
+              [
+                "manage_financial_availability_governance",
+                "Can manage financial availability governance"
+              ]
+            ]
+          },
+          "source_file": "infrastructure/financial_availability_governance_models.py"
+        },
+        {
+          "bases": [
+            "_FinancialAvailabilityAppendOnlyModel"
+          ],
+          "class_name": "FinancialAvailabilityOwnerEventModel",
+          "docstring": "One authenticated Django User apply/revoke event for an exact record.",
+          "fields": [
+            {
+              "field_type": "UUIDField",
+              "kwargs": {
+                "editable": false,
+                "primary_key": true
+              },
+              "name": "event_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "ForeignKey",
+              "kwargs": {
+                "on_delete": "models.PROTECT",
+                "related_name": "owner_events"
+              },
+              "name": "governance_record",
+              "positional_args": [
+                "FinancialAvailabilityGovernanceRecordModel"
+              ]
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "choices": "ACTION_CHOICES",
+                "max_length": 16
+              },
+              "name": "action",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "event_sha256",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "record_content_sha256",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "resulting_content_sha256",
+              "positional_args": []
+            },
+            {
+              "field_type": "ForeignKey",
+              "kwargs": {
+                "on_delete": "models.PROTECT",
+                "related_name": "financial_availability_owner_events"
+              },
+              "name": "actor",
+              "positional_args": [
+                "settings.AUTH_USER_MODEL"
+              ]
+            },
+            {
+              "field_type": "ForeignKey",
+              "kwargs": {
+                "on_delete": "models.PROTECT",
+                "related_name": "financial_availability_owner_events"
+              },
+              "name": "permission",
+              "positional_args": [
+                "Permission"
+              ]
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 100
+              },
+              "name": "permission_app_label",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 100
+              },
+              "name": "permission_codename",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "name": "permission_verified_at",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "name": "occurred_at",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "name": "recorded_at",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 1000
+              },
+              "name": "reason",
+              "positional_args": []
+            },
+            {
+              "field_type": "OneToOneField",
+              "kwargs": {
+                "blank": true,
+                "null": true,
+                "on_delete": "models.PROTECT",
+                "related_name": "revoke_event"
+              },
+              "name": "predecessor_apply_event",
+              "null": true,
+              "positional_args": [
+                "'self'"
+              ]
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 64,
+                "null": true
+              },
+              "name": "predecessor_apply_event_sha256",
+              "null": true,
+              "positional_args": []
+            }
+          ],
+          "meta": {
+            "app_label": "data_center",
+            "constraints": "[models.UniqueConstraint(fields=('governance_record', 'action'), name='dc_fin_avail_record_action_uniq'), models.CheckConstraint(condition=models.Q(action='apply', predecessor_apply_event__isnull=True, predecessor_apply_event_sha256__isnull=True) | models.Q(action='revoke', predecessor_apply_event__isnull=False, predecessor_apply_event_sha256__isnull=False), name='dc_fin_avail_event_predecessor_ck'), models.CheckConstraint(condition=models.Q(permission_app_label='data_center', permission_codename='manage_financial_availability_governance'), name='dc_fin_avail_event_permission_ck'), models.CheckConstraint(condition=models.Q(event_sha256__regex='^[0-9a-f]{64}$', record_content_sha256__regex='^[0-9a-f]{64}$', resulting_content_sha256__regex='^[0-9a-f]{64}$'), name='dc_fin_avail_event_hashes_ck'), models.CheckConstraint(condition=models.Q(occurred_at__gte=models.F('permission_verified_at')), name='dc_fin_avail_event_verified_clock_ck'), models.CheckConstraint(condition=models.Q(recorded_at__gte=models.F('occurred_at')), name='dc_fin_avail_event_record_clock_ck')]",
+            "db_table": "data_center_financial_availability_owner_event",
+            "ordering": [
+              "governance_record_id",
+              "recorded_at",
+              "event_id"
+            ]
+          },
+          "source_file": "infrastructure/financial_availability_governance_models.py"
+        },
+        {
+          "abstract": true,
+          "bases": [
+            "models.Model"
+          ],
+          "class_name": "_FinancialAvailabilityAppendOnlyModel",
+          "docstring": "Protect model-level writes while database triggers remain the final guard.",
+          "meta": {
+            "abstract": true
+          },
+          "source_file": "infrastructure/financial_availability_governance_models.py"
+        },
+        {
+          "bases": [
             "models.Model"
           ],
           "class_name": "FinancialFactModel",
@@ -34726,11 +34997,32 @@
               },
               "name": "body_reference",
               "positional_args": []
+            },
+            {
+              "field_type": "JSONField",
+              "kwargs": {
+                "blank": true,
+                "null": true
+              },
+              "name": "origin_snapshot",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 64,
+                "null": true
+              },
+              "name": "origin_snapshot_sha256",
+              "null": true,
+              "positional_args": []
             }
           ],
           "meta": {
             "base_manager_name": "objects",
-            "constraints": "[models.CheckConstraint(condition=models.Q(provider_source_type_snapshot=PUBLIC_DOCUMENT_SOURCE_TYPE), name='dc_fin_num_doc_provider_ck'), models.CheckConstraint(condition=models.Q(transport='egress'), name='dc_fin_num_doc_transport_ck'), models.CheckConstraint(condition=models.Q(status_code__gte=200, status_code__lt=300), name='dc_fin_num_doc_status_ck'), models.CheckConstraint(condition=models.Q(request_attempt__gte=1, body_size_bytes__gt=0), name='dc_fin_num_doc_size_ck'), models.CheckConstraint(condition=models.Q(recorded_at__gte=models.F('response_completed_at'), target_url_sha256__regex='^[0-9a-f]{64}$', body_sha256__regex='^[0-9a-f]{64}$'), name='dc_fin_num_doc_integrity_ck')]",
+            "constraints": "[models.CheckConstraint(condition=models.Q(provider_source_type_snapshot=PUBLIC_DOCUMENT_SOURCE_TYPE), name='dc_fin_num_doc_provider_ck'), models.CheckConstraint(condition=models.Q(transport='egress'), name='dc_fin_num_doc_transport_ck'), models.CheckConstraint(condition=models.Q(status_code__gte=200, status_code__lt=300), name='dc_fin_num_doc_status_ck'), models.CheckConstraint(condition=models.Q(request_attempt__gte=1, body_size_bytes__gt=0), name='dc_fin_num_doc_size_ck'), models.CheckConstraint(condition=models.Q(recorded_at__gte=models.F('response_completed_at'), target_url_sha256__regex='^[0-9a-f]{64}$', body_sha256__regex='^[0-9a-f]{64}$'), name='dc_fin_num_doc_integrity_ck'), models.CheckConstraint(condition=models.Q(origin_snapshot__isnull=True, origin_snapshot_sha256__isnull=True) | models.Q(origin_snapshot__isnull=False, origin_snapshot_sha256__isnull=False, origin_snapshot_sha256__regex='^[0-9a-f]{64}$'), name='dc_fin_num_origin_snapshot_pair_ck')]",
             "db_table": "data_center_fin_numeric_doc_capture",
             "default_manager_name": "objects",
             "indexes": "[models.Index(fields=('provider', 'dataset_key', 'response_completed_at'), name='dc_fin_num_doc_scope_idx'), models.Index(fields=('body_sha256',), name='dc_fin_num_doc_body_idx')]",

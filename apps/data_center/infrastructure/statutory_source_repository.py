@@ -177,11 +177,32 @@ class DjangoStatutorySourceRepository(
         _lookup_text(using, 128)
         self._using = using
         self._body_store = body_store
-        self._clock = clock or timezone.now
+        self._clock = clock
+
+    @property
+    def database_alias(self) -> str:
+        """Return the database alias used by exact statutory source reads."""
+
+        return self._using
 
     def _now(self) -> datetime:
         """Reject missing, naive or unrepresentable trusted recording instants."""
-        value = self._clock()
+        if self._clock is not None:
+            value = self._clock()
+        else:
+            database = connections[self._using]
+            if database.vendor == "postgresql":
+                with database.cursor() as cursor:
+                    cursor.execute("SELECT clock_timestamp()")
+                    row = cursor.fetchone()
+                if row is None:
+                    raise _invalid(
+                        "Statutory source recording clock is unavailable.",
+                        "STATUTORY_SOURCE_CLOCK_INVALID",
+                    )
+                value = row[0]
+            else:
+                value = timezone.now()
         if type(value) is not datetime or value.tzinfo is None or value.utcoffset() is None:
             raise _invalid(
                 "Statutory source recording clock is invalid.", "STATUTORY_SOURCE_CLOCK_INVALID"
@@ -217,6 +238,50 @@ class DjangoStatutorySourceRepository(
                 "STATUTORY_SOURCE_ISOLATION_UNSUPPORTED",
             )
 
+    def _lock_capture_append_tables(self) -> None:
+        """Fence PostgreSQL PIT readers before recording source append clocks."""
+        connection = connections[self._using]
+        if connection.vendor != "postgresql":
+            return
+        table_names = (
+            (
+                StatutorySourceDocumentRevisionModel._meta.db_table,
+                "dc_statutory_source_revision",
+            ),
+            (
+                StatutorySourceDocumentCaptureModel._meta.db_table,
+                "dc_statutory_source_capture",
+            ),
+        )
+        with connection.cursor() as cursor:
+            for actual_table, expected_table in table_names:
+                if actual_table != expected_table or "." in actual_table:
+                    raise _invalid("Statutory source table identity is unexpected.")
+                qualified_table = f"public.{actual_table}"
+                cursor.execute(
+                    "SELECT to_regclass(%s)::oid, to_regclass(%s)::oid",
+                    [actual_table, qualified_table],
+                )
+                before_lock = cursor.fetchone()
+                if (
+                    before_lock is None
+                    or before_lock[0] is None
+                    or before_lock[1] is None
+                    or before_lock[0] != before_lock[1]
+                ):
+                    raise _invalid("Statutory source table resolution is ambiguous.")
+                quoted_table = (
+                    f"{connection.ops.quote_name('public')}"
+                    f".{connection.ops.quote_name(actual_table)}"
+                )
+                cursor.execute(f"LOCK TABLE {quoted_table} IN SHARE ROW EXCLUSIVE MODE")
+                cursor.execute(
+                    "SELECT to_regclass(%s)::oid, to_regclass(%s)::oid",
+                    [actual_table, qualified_table],
+                )
+                if cursor.fetchone() != before_lock:
+                    raise _invalid("Statutory source table identity changed.")
+
     def append_capture(
         self,
         revision: StatutorySourceDocumentRevision,
@@ -232,19 +297,34 @@ class DjangoStatutorySourceRepository(
             raise StatutorySourceRevisionConflictError()
         if revision.body_size_bytes > sys.maxsize:
             raise _invalid("Statutory source body size exceeds storage capacity.")
-        recorded_at = self._now()
-        if capture.captured_at > recorded_at:
-            raise _invalid(
-                "Statutory source capture cannot be recorded in its future.",
-                "STATUTORY_SOURCE_CLOCK_INVALID",
-            )
         self._verify_body(capture)
         with transaction.atomic(using=self._using):
             self._require_write_isolation()
-            revision_row = self._append_revision(revision, recorded_at)
+            self._lock_capture_append_tables()
+            revision_identity = {
+                "issuer": revision.issuer,
+                "document_id": revision.document_id,
+                "source_version": revision.source_version,
+            }
+            revision_row = (
+                StatutorySourceDocumentRevisionModel._default_manager.using(self._using)
+                .select_for_update()
+                .filter(**revision_identity)
+                .first()
+            )
+            if revision_row is not None and _restore_revision(revision_row) != revision:
+                raise StatutorySourceRevisionConflictError()
             existing = self._locked_capture(capture.capture_id)
+            recorded_at = self._now()
+            if capture.captured_at > recorded_at:
+                raise _invalid(
+                    "Statutory source capture cannot be recorded in its future.",
+                    "STATUTORY_SOURCE_CLOCK_INVALID",
+                )
             if existing is not None:
                 return self._capture_winner(existing, revision, capture)
+            if revision_row is None:
+                revision_row = self._append_revision(revision, recorded_at)
             try:
                 with transaction.atomic(using=self._using):
                     created = _insert_claimed(

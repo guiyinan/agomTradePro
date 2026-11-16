@@ -666,7 +666,15 @@ class TestNativePostgresCalendarSelection(unittest.TestCase):
     financial_catalog_target = (
         "tests/component/data_center/test_financial_numeric_catalog_postgres.py"
     )
-    sqlite_excluded_targets = (*native_targets, financial_catalog_target)
+    c2_native_targets = (
+        "tests/component/data_center/test_financial_availability_governance_pg.py",
+        "tests/component/data_center/test_financial_statutory_numeric_capture_pg.py",
+        "tests/component/data_center/test_statutory_source_append_clock_pg.py",
+        "tests/component/data_center/test_financial_numeric_origin_snapshot_pg.py",
+        "tests/component/data_center/test_financial_v3_current_uow_postgres.py",
+        "tests/component/data_center/test_financial_v3_e1_repository_postgres.py",
+    )
+    sqlite_excluded_targets = (*native_targets, financial_catalog_target, *c2_native_targets)
 
     @staticmethod
     def _data_center_component_test_files() -> set[str]:
@@ -701,7 +709,7 @@ class TestNativePostgresCalendarSelection(unittest.TestCase):
             with self.subTest(target=target):
                 targets = set(select_tests_func(set(), [target], profile="logic_guardrails"))
 
-                self.assertTrue(set(self.native_targets).isdisjoint(targets))
+                self.assertTrue(set(self.sqlite_excluded_targets).isdisjoint(targets))
                 self.assertNotIn("tests/component/data_center/", targets)
                 self.assertTrue(set(CORE_GUARDRAIL_TESTS).issubset(targets))
 
@@ -738,7 +746,7 @@ class TestNativePostgresCalendarSelection(unittest.TestCase):
         )
         self.assertIn("tests/component/data_center/*", native_path_case)
         finance_exception = native_path_case.index(
-            "tests/component/data_center/test_financial_numeric_catalog_postgres.py)"
+            "tests/component/data_center/test_financial_numeric_catalog_postgres.py"
         )
         generic_component_route = native_path_case.index("tests/component/data_center/*")
         self.assertLess(finance_exception, generic_component_route)
@@ -816,6 +824,8 @@ class TestNativePostgresCalendarSelection(unittest.TestCase):
         for target in self.native_targets:
             self.assertIn(target, calendar_step["run"])
         self.assertNotIn(self.financial_catalog_target, calendar_step["run"])
+        for target in self.c2_native_targets:
+            self.assertNotIn(target, calendar_step["run"])
         self.assertIn("--create-db", calendar_step["run"])
         self.assertIn("--migrations", calendar_step["run"])
         self.assertNotIn("--no-migrations", calendar_step["run"])
@@ -863,6 +873,86 @@ class TestNativePostgresCalendarSelection(unittest.TestCase):
             self.assertIn("--create-db", run)
             self.assertIn("--migrations", run)
             self.assertNotIn("--no-migrations", run)
+
+    def test_c2_test_only_changes_use_publication_and_nightly_postgres_not_calendar(self):
+        fast_feedback = yaml.load(
+            (PROJECT_ROOT / ".github/workflows/ci-fast-feedback.yml").read_text(encoding="utf-8"),
+            Loader=yaml.BaseLoader,
+        )
+        publication = yaml.load(
+            (PROJECT_ROOT / ".github/workflows/ci-publication-postgres.yml").read_text(
+                encoding="utf-8"
+            ),
+            Loader=yaml.BaseLoader,
+        )
+        nightly = yaml.load(
+            (PROJECT_ROOT / ".github/workflows/nightly-tests.yml").read_text(encoding="utf-8"),
+            Loader=yaml.BaseLoader,
+        )
+
+        detector = next(
+            step
+            for step in fast_feedback["jobs"]["detect-tests"]["steps"]
+            if step.get("name") == "Detect native calendar PostgreSQL scope"
+        )
+        native_case = detector["run"].split('case "${changed_path}" in', 1)[1].split("esac", 1)[0]
+        generic_route = native_case.index("tests/component/data_center/*")
+        for target in self.c2_native_targets:
+            exact_case = native_case.index(target)
+            self.assertLess(exact_case, generic_route)
+            self.assertIn("continue", native_case[exact_case:generic_route])
+            selected = set(select_tests_func(set(), [target], profile="logic_guardrails"))
+            self.assertNotIn(target, selected)
+            self.assertNotIn("tests/component/data_center/", selected)
+
+        for event in ("pull_request", "push"):
+            self.assertIn(
+                "tests/component/data_center/**",
+                publication["on"][event]["paths"],
+            )
+
+        publication_step = next(
+            step
+            for step in publication["jobs"]["publication-postgres"]["steps"]
+            if step.get("name") == "Run C2 financial availability PostgreSQL contracts"
+        )
+        nightly_steps = nightly["jobs"]["critical-postgres"]["steps"]
+        nightly_step = next(
+            step
+            for step in nightly_steps
+            if step.get("name") == "Run C2 financial availability PostgreSQL contracts"
+        )
+        for step, source_database in (
+            (publication_step, "agom_release_rehearsal_ci"),
+            (nightly_step, "agomtradepro_critical"),
+        ):
+            env = step["env"]
+            self.assertEqual(env["DJANGO_SETTINGS_MODULE"], "core.settings.critical_postgres_test")
+            test_database = env["AGOM_CRITICAL_TEST_DB_NAME"]
+            self.assertTrue(test_database)
+            self.assertNotEqual(urlsplit(env["DATABASE_URL"]).path.lstrip("/"), test_database)
+            self.assertEqual(urlsplit(env["DATABASE_URL"]).path.lstrip("/"), source_database)
+            for target in self.c2_native_targets:
+                self.assertIn(target, step["run"])
+            self.assertIn("--ds=core.settings.critical_postgres_test", step["run"])
+            self.assertIn("--create-db", step["run"])
+            self.assertIn("--migrations", step["run"])
+            self.assertNotIn("--no-migrations", step["run"])
+
+        sqlite_component = next(
+            step
+            for step in nightly["jobs"]["nightly"]["steps"]
+            if step.get("name") == "Run Component Tests"
+        )
+        for target in self.c2_native_targets:
+            self.assertIn(f"--ignore={target}", sqlite_component["run"])
+        calendar_job_run = next(
+            step["run"]
+            for step in fast_feedback["jobs"]["institutional-calendar-postgres"]["steps"]
+            if step.get("name") == "Run native calendar PostgreSQL safety and browser journeys"
+        )
+        for target in self.c2_native_targets:
+            self.assertNotIn(target, calendar_job_run)
 
 
 if __name__ == "__main__":

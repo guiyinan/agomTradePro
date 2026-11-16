@@ -223,16 +223,22 @@ def test_database_rejects_incomplete_or_mixed_native_storage(changes: dict[str, 
 
 @pytest.mark.django_db(transaction=True)
 def test_reverse_migration_refuses_before_discarding_native_columns() -> None:
+    """Refuse native data loss and restore all initially applied descendants."""
+
     if connection.vendor == "postgresql":
         assert_native_postgres_test_database()
-    repository = _repository()
-    repository.bulk_upsert([_as_native(_publication_fact())])
-    with pytest.raises(IrreversibleError, match="Native financial rows exist"):
-        MigrationExecutor(connection).migrate([("data_center", "0113_institutional_calendar")])
-    assert ("data_center", "0114_financial_native_decimal_storage") in MigrationRecorder(
-        connection
-    ).applied_migrations()
-    assert FinancialFactModel.objects.get().exact_value_text == "1.775599913526"
+    original_leaf_targets = MigrationExecutor(connection).loader.graph.leaf_nodes()
+    try:
+        repository = _repository()
+        repository.bulk_upsert([_as_native(_publication_fact())])
+        with pytest.raises(IrreversibleError, match="Native financial rows exist"):
+            MigrationExecutor(connection).migrate([("data_center", "0113_institutional_calendar")])
+        assert ("data_center", "0114_financial_native_decimal_storage") in MigrationRecorder(
+            connection
+        ).applied_migrations()
+        assert FinancialFactModel.objects.get().exact_value_text == "1.775599913526"
+    finally:
+        MigrationExecutor(connection).migrate(original_leaf_targets)
 
 
 @pytest.mark.django_db(transaction=True)
@@ -241,15 +247,16 @@ def test_migration_preserves_populated_legacy_facts_and_frozen_members() -> None
     if connection.vendor == "postgresql":
         assert_native_postgres_test_database()
     executor = MigrationExecutor(connection)
-    executor.migrate([("data_center", "0113_institutional_calendar")])
-    historical = executor.loader.project_state(
-        [("data_center", "0113_institutional_calendar")]
-    ).apps
-    old_model = historical.get_model("data_center", "FinancialFactModel")
-    old_member = historical.get_model("data_center", "PublicationMemberModel")
-    assert len(old_model._meta.concrete_fields) == 21
+    original_leaf_targets = executor.loader.graph.leaf_nodes()
     expected: list[tuple[int, Decimal, str, str]] = []
     try:
+        executor.migrate([("data_center", "0113_institutional_calendar")])
+        historical = executor.loader.project_state(
+            [("data_center", "0113_institutional_calendar")]
+        ).apps
+        old_model = historical.get_model("data_center", "FinancialFactModel")
+        old_member = historical.get_model("data_center", "PublicationMemberModel")
+        assert len(old_model._meta.concrete_fields) == 21
         for number, value in enumerate(("12.3400", "0.0000", "-0.0100", "9999999999999.9999")):
             row = old_model.objects.create(
                 asset_code="000001.SZ",
@@ -292,9 +299,7 @@ def test_migration_preserves_populated_legacy_facts_and_frozen_members() -> None
             )
             expected.append((row.pk, row.value, old_hash, fallback))
     finally:
-        MigrationExecutor(connection).migrate(
-            [("data_center", "0114_financial_native_decimal_storage")]
-        )
+        MigrationExecutor(connection).migrate(original_leaf_targets)
     for primary_key, value, digest, fallback in expected:
         migrated = FinancialFactModel.objects.get(pk=primary_key)
         assert migrated.value == value

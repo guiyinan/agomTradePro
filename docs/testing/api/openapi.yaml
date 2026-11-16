@@ -8988,6 +8988,110 @@ paths:
               schema:
                 $ref: '#/components/schemas/CalendarWorkbenchApiErrorResponse'
           description: The selected configuration or current evidence is unavailable.
+  /api/data-center/financial-availability/governance/apply/:
+    post:
+      operationId: applyFinancialAvailabilityGovernance
+      description: Validate an exact record and delegate principal proof to trusted
+        composition.
+      tags:
+      - Data Center Financial Availability
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApplyFinancialAvailabilityOwnerRequestRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/_ApplySuccess'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/_ErrorResponse'
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/_ErrorResponse'
+          description: ''
+        '405':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/_ErrorResponse'
+          description: ''
+        '415':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/_ErrorResponse'
+          description: ''
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/_ErrorResponse'
+          description: ''
+  /api/data-center/financial-availability/governance/revoke/:
+    post:
+      operationId: revokeFinancialAvailabilityGovernance
+      description: Resolve target identities from the database and append a server-clocked
+        revoke.
+      tags:
+      - Data Center Financial Availability
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RevokeFinancialAvailabilityOwnerRequestRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/_RevokeSuccess'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/_ErrorResponse'
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/_ErrorResponse'
+          description: ''
+        '405':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/_ErrorResponse'
+          description: ''
+        '415':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/_ErrorResponse'
+          description: ''
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/_ErrorResponse'
+          description: ''
   /api/data-center/financials/:
     get:
       operationId: api_data_center_financials_get
@@ -27771,6 +27875,20 @@ components:
         * `dual` - dual
         * `responses_only` - responses_only
         * `chat_only` - chat_only
+    ApplyFinancialAvailabilityOwnerRequestRequest:
+      type: object
+      description: Validate one serialized record and reason; no request principal
+        fields.
+      properties:
+        record:
+          $ref: '#/components/schemas/_OwnerRecordRequest'
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 1000
+      required:
+      - reason
+      - record
     ApprovalModeEnum:
       enum:
       - always
@@ -28173,7 +28291,7 @@ components:
       description: Expose only stable, user-safe issue details from one account result.
       properties:
         kind:
-          $ref: '#/components/schemas/KindEnum'
+          $ref: '#/components/schemas/AutoTradingIssueResponseKindEnum'
         stage:
           type: string
         code:
@@ -28189,6 +28307,14 @@ components:
       - effects_indeterminate
       - kind
       - stage
+    AutoTradingIssueResponseKindEnum:
+      enum:
+      - blocked
+      - failed
+      type: string
+      description: |-
+        * `blocked` - blocked
+        * `failed` - failed
     AutoTradingRunRequestRequest:
       type: object
       description: 执行自动交易请求序列化器
@@ -33237,14 +33363,6 @@ components:
           maxLength: 2000
         target_regime:
           $ref: '#/components/schemas/RegimeEnum'
-    KindEnum:
-      enum:
-      - blocked
-      - failed
-      type: string
-      description: |-
-        * `blocked` - blocked
-        * `failed` - failed
     KnowledgeSemanticsEnum:
       enum:
       - currently_known_reference_holding
@@ -39986,6 +40104,20 @@ components:
       - revoked
       type: string
       description: '* `revoked` - revoked'
+    RevokeFinancialAvailabilityOwnerRequestRequest:
+      type: object
+      description: Validate the persisted record/apply identity and explicit reason
+        only.
+      properties:
+        target:
+          $ref: '#/components/schemas/_RevokeTargetRequest'
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 1000
+      required:
+      - reason
+      - target
     RiskApplicabilityEnum:
       enum:
       - applicable
@@ -44318,6 +44450,23 @@ components:
       required:
       - effective_events_recent_30d
       - sentiment_recent_30d
+    _ApplySuccess:
+      type: object
+      description: Document the immutable configuration row and its local Owner event.
+      properties:
+        outcome:
+          $ref: '#/components/schemas/SuccessOutcomeEnum'
+        success:
+          type: boolean
+        record:
+          $ref: '#/components/schemas/_RecordResponse'
+        owner_event:
+          $ref: '#/components/schemas/_OwnerEventResponse'
+      required:
+      - outcome
+      - owner_event
+      - record
+      - success
     _CalendarWorkbenchCurrentPublication:
       type: object
       description: Reference-only current publication details without technical identities.
@@ -44413,6 +44562,18 @@ components:
       - source_available_at
       - source_observed_at
       - source_time_status
+    _ErrorResponse:
+      type: object
+      description: Document the shared JSON error shape.
+      properties:
+        error:
+          type: string
+        code:
+          type: string
+        details: {}
+      required:
+      - code
+      - error
     _FeeComponents:
       type: object
       description: Render exact Domain fee values as decimal strings, never JSON floats.
@@ -44497,6 +44658,121 @@ components:
       - stamp_duty
       - total_fee_delta
       - transfer_fee
+    _OwnerEventResponse:
+      type: object
+      description: Document the local apply/revoke event returned by the configuration
+        write.
+      properties:
+        action:
+          type: string
+        event_id:
+          type: string
+          format: uuid
+        event_sha256:
+          type: string
+        record_id:
+          type: string
+        record_version:
+          type: string
+        record_content_sha256:
+          type: string
+        resulting_content_sha256:
+          type: string
+        actor_user_id:
+          type: integer
+        permission_id:
+          type: integer
+        permission_app_label:
+          type: string
+        permission_codename:
+          type: string
+        permission_verified_at:
+          type: string
+          format: date-time
+        occurred_at:
+          type: string
+          format: date-time
+        recorded_at:
+          type: string
+          format: date-time
+        reason:
+          type: string
+        predecessor_apply_event_id:
+          type: string
+          format: uuid
+          nullable: true
+        predecessor_apply_event_sha256:
+          type: string
+          nullable: true
+      required:
+      - action
+      - actor_user_id
+      - event_id
+      - event_sha256
+      - occurred_at
+      - permission_app_label
+      - permission_codename
+      - permission_id
+      - permission_verified_at
+      - predecessor_apply_event_id
+      - predecessor_apply_event_sha256
+      - reason
+      - record_content_sha256
+      - record_id
+      - record_version
+      - recorded_at
+      - resulting_content_sha256
+    _OwnerRecordKindEnum:
+      enum:
+      - opening_rule
+      - disclosure_policy
+      type: string
+      description: |-
+        * `opening_rule` - opening_rule
+        * `disclosure_policy` - disclosure_policy
+    _OwnerRecordRequest:
+      type: object
+      description: Validate the exact stored-record envelope before Core codec decoding.
+      properties:
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 80
+        record_id:
+          type: string
+          minLength: 1
+          maxLength: 200
+        record_version:
+          type: string
+          minLength: 1
+          maxLength: 64
+        exchange:
+          type: string
+          minLength: 1
+          maxLength: 32
+        kind:
+          $ref: '#/components/schemas/_OwnerRecordKindEnum'
+        recorded_at:
+          type: string
+          minLength: 1
+          maxLength: 40
+        content: {}
+        content_sha256:
+          type: string
+          minLength: 64
+          maxLength: 64
+        source:
+          nullable: true
+      required:
+      - content
+      - content_sha256
+      - exchange
+      - kind
+      - record_id
+      - record_version
+      - recorded_at
+      - schema
+      - source
     _PointerExpectationRequest:
       type: object
       description: Validate the complete current-pointer compare-and-swap identity.
@@ -44573,6 +44849,83 @@ components:
       - policy_identity
       - policy_version
       - schema_version
+    _RecordResponse:
+      type: object
+      description: Document the exact persisted row returned after server-side restamping.
+      properties:
+        schema:
+          type: string
+        record_id:
+          type: string
+        record_version:
+          type: string
+        exchange:
+          type: string
+        kind:
+          type: string
+        recorded_at:
+          type: string
+          format: date-time
+        content: {}
+        content_sha256:
+          type: string
+        source:
+          nullable: true
+      required:
+      - content
+      - content_sha256
+      - exchange
+      - kind
+      - record_id
+      - record_version
+      - recorded_at
+      - schema
+      - source
+    _RevokeSuccess:
+      type: object
+      description: Document one appended local revoke event.
+      properties:
+        outcome:
+          $ref: '#/components/schemas/SuccessOutcomeEnum'
+        success:
+          type: boolean
+        owner_event:
+          $ref: '#/components/schemas/_OwnerEventResponse'
+      required:
+      - outcome
+      - owner_event
+      - success
+    _RevokeTargetRequest:
+      type: object
+      description: Validate only exact immutable identities used to locate the real
+        apply.
+      properties:
+        record_id:
+          type: string
+          minLength: 1
+          maxLength: 200
+        record_version:
+          type: string
+          minLength: 1
+          maxLength: 64
+        record_content_sha256:
+          type: string
+          minLength: 64
+          maxLength: 64
+        apply_event_id:
+          type: string
+          minLength: 36
+          maxLength: 36
+        apply_event_sha256:
+          type: string
+          minLength: 64
+          maxLength: 64
+      required:
+      - apply_event_id
+      - apply_event_sha256
+      - record_content_sha256
+      - record_id
+      - record_version
     _SnapshotReferenceRequest:
       type: object
       description: Validate the complete persisted snapshot and raw-source reference.

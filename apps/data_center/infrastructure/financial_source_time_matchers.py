@@ -27,6 +27,12 @@ AKSHARE_PROVIDER_NAME = "akshare"
 AKSHARE_MAIN_FINANCIAL_DATA_ENDPOINT = (
     "datacenter.eastmoney.com/securities/api/data/get?type=RPT_F10_FINANCE_MAINFINADATA"
 )
+AKSHARE_BALANCE_FINANCIAL_DATA_ENDPOINT = (
+    "https://datacenter-web.eastmoney.com/api/data/v1/get?reportName=RPT_DMSK_FN_BALANCE"
+)
+AKSHARE_FINANCIAL_NUMERIC_ENDPOINTS = frozenset(
+    {AKSHARE_MAIN_FINANCIAL_DATA_ENDPOINT, AKSHARE_BALANCE_FINANCIAL_DATA_ENDPOINT}
+)
 AKSHARE_NOTICE_DATE_CONTRACT_ID = "akshare.financial-main-data.notice-date"
 AKSHARE_NOTICE_DATE_CONTRACT_VERSION = "2026-10-04.v1"
 AKSHARE_NOTICE_DATE_PARSER_VERSION = "akshare-eastmoney-main-financial-data.v1"

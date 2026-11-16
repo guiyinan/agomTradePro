@@ -30,6 +30,10 @@ from apps.data_center.infrastructure.egress_models import EgressRequestAuditMode
 from apps.data_center.infrastructure.financial_numeric_catalog_models import (
     FinancialNumericSourceDocumentCaptureModel,
 )
+from apps.data_center.infrastructure.financial_numeric_origin_snapshot_capture import (
+    derive_origin_snapshot_for_capture,
+    prepare_origin_snapshot_seed_for_capture,
+)
 from apps.data_center.infrastructure.models import ProviderConfigModel
 from apps.data_center.infrastructure.statutory_source_models import (
     _activate_statutory_source_uow,
@@ -392,12 +396,24 @@ class DjangoFinancialNumericSourceCaptureRepository:
                     raise _invalid(
                         "Source document body store failed exact write/readback verification."
                     )
+                origin_seed = prepare_origin_snapshot_seed_for_capture(
+                    provider=provider,
+                    capture_reference=reference,
+                    using=self._using,
+                )
                 now = self._now()
                 if response.response_completed_at > now or audit.created_at > now:
                     raise _invalid(
                         "Document response and successful audit must be known at capture time.",
                         "FINANCIAL_NUMERIC_CATALOG_CLOCK_INVALID",
                     )
+                origin_snapshot, origin_snapshot_digest = derive_origin_snapshot_for_capture(
+                    seed=origin_seed,
+                    capture_reference=reference,
+                    dataset_key=dataset_key,
+                    deployment_region=deployment_region,
+                    recorded_at=now,
+                )
                 values: dict[str, object] = {
                     "capture_id": response.request_id,
                     "provider_id": provider_id,
@@ -419,6 +435,8 @@ class DjangoFinancialNumericSourceCaptureRepository:
                     "body_sha256": response.body_sha256,
                     "body_size_bytes": response.body_size_bytes,
                     "body_reference": body_reference.reference,
+                    "origin_snapshot": origin_snapshot,
+                    "origin_snapshot_sha256": origin_snapshot_digest,
                     "recorded_at": now,
                 }
                 with transaction.atomic(using=self._using):

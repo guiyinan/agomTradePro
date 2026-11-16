@@ -367,7 +367,11 @@ def test_reverse_migration_waits_for_capture_writer_then_refuses_committed_row(
 
     from django.db.migrations.executor import MigrationExecutor
 
+    original_leaf_targets = MigrationExecutor(connection).loader.graph.leaf_nodes()
+    migration_ready = threading.Event()
+    allow_migration = threading.Event()
     lock_requested = threading.Event()
+    catalog_lock_requested = threading.Event()
     migration_finished = threading.Event()
     lock_statements: list[str] = []
     migration_errors: list[Exception] = []
@@ -385,7 +389,7 @@ def test_reverse_migration_waits_for_capture_writer_then_refuses_committed_row(
             many: bool,
             context: object,
         ) -> object:
-            """Signal before blocking on all three table locks."""
+            """Observe descendant capture locks and the exact three-table catalog lock."""
 
             upper_sql = sql.upper()
             expected_tables = (
@@ -393,15 +397,26 @@ def test_reverse_migration_waits_for_capture_writer_then_refuses_committed_row(
                 "DATA_CENTER_FIN_METRIC_SOURCE_ENTRY",
                 "DATA_CENTER_FIN_METRIC_SOURCE_OWNER_EVENT",
             )
-            if "LOCK TABLE" in upper_sql and all(
-                table_name in upper_sql for table_name in expected_tables
+            if (
+                "LOCK TABLE" in upper_sql
+                and "DATA_CENTER_FIN_NUMERIC_DOC_CAPTURE" in upper_sql
+                and "ACCESS EXCLUSIVE" in upper_sql
             ):
-                lock_statements.append(sql)
+                if not migration_ready.is_set():
+                    migration_ready.set()
+                    if not allow_migration.wait(timeout=60):
+                        raise AssertionError(
+                            "capture writer did not release the prepared migration"
+                        )
                 lock_requested.set()
+                if all(table_name in upper_sql for table_name in expected_tables):
+                    catalog_lock_requested.set()
+                    lock_statements.append(sql)
             elif (
                 "SELECT 1" in upper_sql
-                and "DATA_CENTER_FIN_NUMERIC_DOC_CAPTURE" in upper_sql
-                and not lock_requested.is_set()
+                and any(table_name in upper_sql for table_name in expected_tables)
+                and "ORIGIN_SNAPSHOT" not in upper_sql
+                and not catalog_lock_requested.is_set()
             ):
                 raise AssertionError("reverse guard checked rows before locking catalog tables")
             return execute(sql, params, many, context)
@@ -424,18 +439,25 @@ def test_reverse_migration_waits_for_capture_writer_then_refuses_committed_row(
     lock_was_requested = False
     migration_finished_before_writer_release = False
     try:
+        migration_thread.start()
+        assert migration_ready.wait(timeout=60), migration_errors
         with transaction.atomic(using="default"):
             reference, _provider, _body, _recorded_at = _capture(body_store=counting_body_store)
-            migration_thread.start()
+            allow_migration.set()
             lock_was_requested = lock_requested.wait(timeout=10)
             migration_finished_before_writer_release = migration_finished.wait(timeout=0.2)
     finally:
+        allow_migration.set()
         if migration_thread.ident is not None:
-            migration_thread.join(timeout=10)
+            # The writer transaction has exited: finish the worker before any schema
+            # restoration or pytest flush; the outer native runner bounds the process.
+            migration_thread.join()
+        MigrationExecutor(connection).migrate(original_leaf_targets)
 
     assert not migration_thread.is_alive()
     assert lock_was_requested
     assert not migration_finished_before_writer_release
+    assert catalog_lock_requested.is_set()
     assert len(lock_statements) == 1
     lock_sql = lock_statements[0].upper()
     assert "ACCESS EXCLUSIVE" in lock_sql

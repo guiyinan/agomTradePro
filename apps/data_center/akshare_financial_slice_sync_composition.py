@@ -5,6 +5,9 @@ from __future__ import annotations
 from pathlib import Path
 from uuid import UUID
 
+from apps.data_center.application.financial_numeric_qualification import (
+    ContextualFinancialNumericEvidenceVerifier,
+)
 from apps.data_center.application.financial_slice_sync import (
     FinancialSliceFetcherProtocol,
     SyncAkshareFinancialSlicesUseCase,
@@ -25,12 +28,26 @@ from apps.data_center.infrastructure.akshare_financial_slice_sync import (
     build_akshare_financial_slice_fetcher,
     load_akshare_financial_slice_sync_budget,
 )
+from apps.data_center.infrastructure.financial_numeric_qualification.balance_raw_boundary import (
+    BalanceCandidateContract,
+)
+from apps.data_center.infrastructure.financial_numeric_qualification.composition import (
+    build_django_financial_numeric_endpoint_verifier,
+)
 
 
 def make_sync_akshare_financial_slices_use_case(
-    *, artifact_storage_root: Path | None = None, max_route_attempts: int = 2
+    *,
+    artifact_storage_root: Path | None = None,
+    max_route_attempts: int = 2,
+    balance_parser_contract: BalanceCandidateContract | None = None,
 ) -> SyncAkshareFinancialSlicesUseCase:
-    """Build the explicit, one-provider AKShare financial slice sync entrypoint."""
+    """Build the one-provider sync, enabling native v2 only with an explicit schema.
+
+    When no Balance parser contract is supplied the repository receives no
+    qualified numeric verifier and continues to reject native v2 values. The
+    optional typed input never supplies a missing unit or source approval.
+    """
 
     def build_fetcher(
         config: ProviderConfig,
@@ -83,9 +100,17 @@ def make_sync_akshare_financial_slices_use_case(
         if artifact_storage_root is None
         else verify_retained_evidence
     )
+    qualified_numeric_evidence_verifier: ContextualFinancialNumericEvidenceVerifier | None = (
+        None
+        if balance_parser_contract is None
+        else build_django_financial_numeric_endpoint_verifier(
+            balance_parser_contract=balance_parser_contract,
+        )
+    )
     provider_repo = get_provider_config_repository()
     financial_repository = FinancialFactRepository(
-        source_time_evidence_verifier=retained_evidence_verifier
+        source_time_evidence_verifier=retained_evidence_verifier,
+        qualified_numeric_evidence_verifier=qualified_numeric_evidence_verifier,
     )
     return SyncAkshareFinancialSlicesUseCase(
         provider_repo=provider_repo,

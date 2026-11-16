@@ -11,6 +11,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date, datetime
 
+from apps.data_center.domain.financial_next_session_witness import (
+    FinancialNextSessionSourceTimeWitnessV3,
+)
 from apps.data_center.domain.financial_response_artifact import FinancialResponseArtifactRef
 from apps.data_center.domain.financial_response_evidence import FinancialResponseScopeBasis
 from apps.data_center.domain.financial_source_time_evidence import FinancialSourceTimeWitness
@@ -85,6 +88,7 @@ class FinancialFactDecisionEvidence:
     native_period_end: date
     native_row_id: str
     source_time_witness: FinancialSourceTimeWitness | None = None
+    source_time_witness_v3: FinancialNextSessionSourceTimeWitnessV3 | None = None
 
     def __post_init__(self) -> None:
         """Require body-verified response scope and exact native row dimensions."""
@@ -116,6 +120,9 @@ class FinancialFactDecisionEvidence:
         if self.native_period_end not in response_scope.period_ends:
             raise ValueError("financial decision evidence period is outside response scope")
         witness = self.source_time_witness
+        witness_v3 = self.source_time_witness_v3
+        if witness is not None and witness_v3 is not None:
+            raise ValueError("financial decision evidence cannot mix source-time witness versions")
         if witness is not None:
             if not isinstance(witness, FinancialSourceTimeWitness):
                 raise ValueError("financial source-time witness must be typed")
@@ -127,6 +134,18 @@ class FinancialFactDecisionEvidence:
                 != self.artifact_reference.evidence.request_scope.provider_name
             ):
                 raise ValueError("financial source-time witness dimensions do not match")
+        if witness_v3 is not None:
+            if type(witness_v3) is not FinancialNextSessionSourceTimeWitnessV3:
+                raise ValueError("financial next-session source-time witness must be typed")
+            witness_v3.__post_init__()
+            row = witness_v3.financial_row
+            if (
+                row.artifact_reference != self.artifact_reference
+                or row.asset_code != self.native_asset_code
+                or row.period_end != self.native_period_end
+                or row.native_row_id != self.native_row_id
+            ):
+                raise ValueError("financial next-session witness dimensions do not match")
 
     def to_dict(self) -> dict[str, object]:
         """Return the bounded binding without storage location or key metadata."""
@@ -143,6 +162,8 @@ class FinancialFactDecisionEvidence:
         }
         if self.source_time_witness is not None:
             payload["source_time_witness"] = self.source_time_witness.to_dict()
+        if self.source_time_witness_v3 is not None:
+            payload["source_time_witness_v3"] = self.source_time_witness_v3.to_dict()
         return payload
 
 

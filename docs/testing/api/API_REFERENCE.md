@@ -124,6 +124,8 @@ POST /api/data-center/sync/macro/
 | `/api/data-center/sync/sectors/constituents/` | POST | 同步板块成分 |
 | `/api/data-center/sync/news/` | POST | 同步新闻 |
 | `/api/data-center/sync/capital-flows/` | POST | 同步资金流 |
+| `/api/data-center/financial-availability/governance/apply/` | POST | 由已授权 Owner 追加财务可用性规则或披露策略 |
+| `/api/data-center/financial-availability/governance/revoke/` | POST | 由已授权 Owner 追加指定财务可用性记录的撤销事件 |
 
 #### 请求示例
 
@@ -138,6 +140,22 @@ POST /api/data-center/sync/macro/
   "end": "2025-03-15"
 }
 ```
+
+#### 财务可用性治理（Owner）
+
+两个治理路由都使用 JSON `POST`。apply 请求包含版本化 `record` 和 `reason`；record
+使用 `data_center.financial-availability-record.v1` schema，并提供 `record_id`、
+`record_version`、`exchange`、`kind`、`recorded_at`、`content`、`source` 和
+`content_sha256`。`kind` 仅接受 `opening_rule` 或 `disclosure_policy`。revoke 请求包含
+精确 `target` 记录（`record_id`、`record_version`、`record_content_sha256`、
+`apply_event_id`、`apply_event_sha256`）和 `reason`；未知字段会被拒绝。成功返回 HTTP 201
+和本地 `owner_event`。
+
+调用者必须使用已登录的 Django Session，并通过服务端 Owner 权限检查；浏览器 POST 须携带
+CSRF。此路由只启用 `SessionAuthentication`，SDK/API key 不构成登录会话。
+
+`owner_event` 仅证明这次本地治理配置操作；它不等同于 System Audit、来源原件证明、
+数值目录资格或 E1 发布/决策资格。
 
 财务事实保留旧格式的数值输出。原生精确格式通过 `numeric_schema: "native-decimal-v2"`
 显式区分，`value` 为无损十进制字符串，并附 `numeric_evidence` 的原始字段、量纲和精度

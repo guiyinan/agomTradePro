@@ -1347,3 +1347,51 @@ CI 路由检查通过；35 项覆盖检查与前述纯测试有重叠，不相�
 生产写入资格；其它接口、C2 治理与 v3 存储/消费仍按 E1 必需范围整合。财务 HTTP
 保持 0/2，未部署、未写生产事实或交易，DATA-03 仍等待完整 DATA-02 退出。开发回滚
 点为父候选；一旦目录已有记录，0116 逆迁移会拒绝丢弃它们，不以回退清除历史。
+
+
+### 48.3 REF-01 模型说明与实际 CI 纠正
+
+数值目录候选 `6a858fdfd1d5c94b04da14f750343b3734b02e1c` 的实际 Architecture
+因缺少三项 REF-01 结构说明失败；Fast 的旧迁移测试之后出现 SQLite 缺表，失败原件
+已保留。父候选的七条成功不能转移给本候选。此处补说明，不提高模型或架构债务预算。
+下表同时列出从 88d400 整合范围的五项 concrete 及一项 abstract 新增，以及当前直接父候选之后的两项 C2 concrete、共享 abstract 基类及既有 capture 的可空原始配置字段，
+让精确 commit pair 可以核对各自适用行；当前 WIP 尚不授予生产资格。
+
+| base_sha | identity | change_kind | rationale | consumer_audit | compatibility_or_rollback |
+| --- | --- | --- | --- | --- | --- |
+| 88d40015256cdfa9e7b9ace675f69df879565cbd | data_center.FinancialNumericSourceDocumentCaptureModel | added_concrete | Retain actual public-document response, provider snapshot, exact Egress Audit binding and immutable original independently of business qualification. | Numeric capture repository/normal authenticated command and upcoming same-UOW C2 source adapter; existing statutory native revisions lack this exact transport/audit metadata. | Additive0116; no seeds or legacy-row rewrite; nonempty reverse denied under ordered AEX locks. |
+| 88d40015256cdfa9e7b9ace675f69df879565cbd | data_center.FinancialMetricSourceCatalogEntryModel | added_concrete | Persist exact metric field/unit/scale/context/version and effective-window qualification rather than hardcoded financial units. | Financial numeric catalog resolver and qualified E1 verifier; macro IndicatorCatalog remains separate and unchanged. | Additive0116; empty catalog blocks native decisions; old stored fact hashes and decimal columns unchanged. |
+| 88d40015256cdfa9e7b9ace675f69df879565cbd | data_center.FinancialMetricSourceCatalogOwnerEventModel | added_concrete | Persist authenticated local apply/revoke history bound to exact qualification content and capture. | Normal Django Owner command and current/PIT catalog reader; this is not SystemAudit/outbox or a substitute for release authority. | Append-only local events; UPDATE/DELETE guards and protected actor relation; reverse denied when history exists. |
+| 88d40015256cdfa9e7b9ace675f69df879565cbd | data_center.FinancialAvailabilityGovernanceRecordModel | added_concrete | Persist versioned opening-rule proposals and disclosure policy with native source references and explicit clocks, without phase or TTL defaults. | C2 application/current resolver and E1 temporal composition; all results remain reference-only until source and financial decision gates pass. | Additive0117; old v1/v2 hashes and payloads unchanged; no production config seed; nonempty reverse denied. |
+| 88d40015256cdfa9e7b9ace675f69df879565cbd | data_center.FinancialAvailabilityOwnerEventModel | added_concrete | Bind each C2 apply/revoke to real Django session/User/Permission verification and exact record hash. | C2 normal authenticated request composition, locked current resolution and explicit historical cutoff reader; separate from formal publication Audit. | Append-only0117 Owner history, protected actor/predecessor relations; no synthetic approval or third authority; nonempty reverse denied. |
+| 6a858fdfd1d5c94b04da14f750343b3734b02e1c | data_center.FinancialAvailabilityGovernanceRecordModel | added_concrete | Persist versioned opening-rule proposals and disclosure policy with native source references and explicit clocks, without phase or TTL defaults. | C2 application/current resolver and E1 temporal composition; all results remain reference-only until source and financial decision gates pass. | Additive0117; old v1/v2 hashes and payloads unchanged; no production config seed; nonempty reverse denied. |
+| 6a858fdfd1d5c94b04da14f750343b3734b02e1c | data_center.FinancialAvailabilityOwnerEventModel | added_concrete | Bind each C2 apply/revoke to real Django session/User/Permission verification and exact record hash. | C2 normal authenticated request composition, locked current resolution and explicit historical cutoff reader; separate from formal publication Audit. | Append-only0117 Owner history, protected actor/predecessor relations; no synthetic approval or third authority; nonempty reverse denied. |
+| 88d40015256cdfa9e7b9ace675f69df879565cbd | data_center._FinancialAvailabilityAppendOnlyModel | added_abstract | Share append-only ORM behavior for the two C2 records without creating a separate table. | Only the two C2 concrete model classes inherit this private technical base; no public query or business authority owns it. | Abstract only;0117 creates the two concrete tables and guards; no standalone storage, defaults or legacy rewrite. |
+| 6a858fdfd1d5c94b04da14f750343b3734b02e1c | data_center._FinancialAvailabilityAppendOnlyModel | added_abstract | Share append-only ORM behavior for the two C2 records without creating a separate table. | Only the two C2 concrete model classes inherit this private technical base; no public query or business authority owns it. | Abstract only;0117 creates the two concrete tables and guards; no standalone storage, defaults or legacy rewrite. |
+| 6a858fdfd1d5c94b04da14f750343b3734b02e1c | data_center.FinancialNumericSourceDocumentCaptureModel | model_change | Preserve capture-time provider, publisher and selected native source-profile facts in optional origin metadata so PIT never borrows current configuration. | Same-response statutory/numeric retention and exact current/PIT v3 source readers; no caller-supplied origin snapshot, Owner event or legal-status authority. | Additive nullable0118 with paired-null CHECK and existing append-only triggers; old captures remain unqualified with NULL metadata; reverse takes AEX before refusing any non-NULL metadata. |
+
+The intervening OpenAPI-only commits preserve the model baseline; the exact next development range uses these same four explanations:
+
+| 2529c3bd50b728ae87ad328c1ae5794907f5ea74 | data_center.FinancialAvailabilityGovernanceRecordModel | added_concrete | Persist versioned opening-rule proposals and disclosure policy with native source references and explicit clocks, without phase or TTL defaults. | C2 application/current resolver and E1 temporal composition; all results remain reference-only until source and financial decision gates pass. | Additive0117; old v1/v2 hashes and payloads unchanged; no production config seed; nonempty reverse denied. |
+| 2529c3bd50b728ae87ad328c1ae5794907f5ea74 | data_center.FinancialAvailabilityOwnerEventModel | added_concrete | Bind each C2 apply/revoke to real Django session/User/Permission verification and exact record hash. | C2 normal authenticated request composition, locked current resolution and explicit historical cutoff reader; separate from formal publication Audit. | Append-only0117 Owner history, protected actor/predecessor relations; no synthetic approval or third authority; nonempty reverse denied. |
+| 2529c3bd50b728ae87ad328c1ae5794907f5ea74 | data_center._FinancialAvailabilityAppendOnlyModel | added_abstract | Share append-only ORM behavior for the two C2 records without creating a separate table. | Only the two C2 concrete model classes inherit this private technical base; no public query or business authority owns it. | Abstract only;0117 creates the two concrete tables and guards; no standalone storage, defaults or legacy rewrite. |
+| 2529c3bd50b728ae87ad328c1ae5794907f5ea74 | data_center.FinancialNumericSourceDocumentCaptureModel | model_change | Preserve capture-time provider, publisher and selected native source-profile facts in optional origin metadata so PIT never borrows current configuration. | Same-response statutory/numeric retention and exact current/PIT v3 source readers; no caller-supplied origin snapshot, Owner event or legal-status authority. | Additive nullable0118 with paired-null CHECK and existing append-only triggers; old captures remain unqualified with NULL metadata; reverse takes AEX before refusing any non-NULL metadata. |
+
+
+### 48.4 E1 冻结后的最小整合边界
+
+Owner 要求冻结当前 E1 候选，只修必要验收、受控部署与真实单证券闭环的阻断；其余证券、来源、历史、界面与性能扩展后移。当前整合负责人仍为 Root，Luna Max 仅做隔离实现或只读复核。通用仓储入口中 E1 不使用的可选接线已撤下，保留原入口的阻断行为。
+
+最近可提交事项为 C2 治理、双原件数值资格、来源快照和 v3 同事务写入/读回；执行入口只复用现有审计权限、账户查询、真实 Run 与 Fetch Audit，不另建审批或工作流。必要检查通过后及时提交；部署与真实请求仍分别经过同候选 CI/S6、备份、staging、正常权限及兼容/回滚门。已通过且相关输入未变的证据按绑定复用，不能把不同候选的成功拼成发布资格。
+
+当前原件、真实失败、环境中断、复用依据和待完成检查统一追加既有验收索引 docs/testing/data02-current-acceptance-2026-11-15.json 的 ollowups[14]。该条持续区分正式提交、验收、部署、真实 E1 回填及对账；E1 仍不替代全 universe 四 Publication 与 DATA-02 完整退出，DATA-03 继续等待。
+
+
+2026-11-17 原生验收补充：R5/R6 失败原件保留；当前有35个不重复通过用例，可按实际依赖未变的范围复用。回滚并发用例的原10秒窗口混入迁移状态装载，且未等线程结束便进入清理，造成0117表缺失；改为第一捕获表锁前 rendezvous，分别观测0118单表锁与0116三表锁，并在线程完全退出后恢复全部 App 原叶节点。锁竞争断言仍为10秒，本机后续进程使用与 PostgreSQL CI 相同的45分钟上限；只有该受影响用例和未执行的两个 v3 模块进入后续原生验收。恢复和清理限于既有隔离测试库，未重建库、未操作生产。
+
+E1 具体执行选择由 Owner 委托 Root 决定：用户1的模拟账户631、000858.SZ、AKShare provider3、报告期2026-09-30；替代早期000001.SZ探索提案，仅用于后续受控执行，仍须实际来源资格与真实计划哈希审核。两次实际财务发送额度、无重试/分页、无 Publication 激活以及完整 DATA-02 退出门不变。
+
+
+2026-11-17 本批本地开发验收收口：规范 Source 纯测103例及 current gate12例通过；65个生产文件增量 mypy、全量债务、95文件格式/静态与专项治理门禁均通过。原生 R8 剩余7例全部通过；结合依赖未变且按索引限定复用的39例，共46个不重复用例，不声称R5/R6/R7整批通过。R7的连接建立超时保留原件；只把隔离QA连接建立预算由5秒改为30秒，生产配置、业务时限和容差不变。审计正常提交及outbox失败回滚两条真实PG机械用例均已执行通过，仍不构成真实来源/生产资格。下一步是本批正式提交及精确候选CI。
+
+S6预算准备只读核对当前2026-11-16目标范围5573只、上市日期未知0、universe哈希9d950f2aa17301e825c63d2ce6ba4030c90108c4b7d0634a579f23d3b09dec8a，未调用provider。完整scope discovery为11146个逻辑请求/最多22292次实际尝试，常规S6另含单证券切片2个逻辑请求/最多4次尝试；S6财报合计上限11148逻辑/22296实际，既有E1两次额度另保留。行情/估值两个stage各固定默认100次Session dispatch，不混称财报物理次数。该读查不是候选capacity资格；未发现Owner已批准全范围额度，候选验收与提交完成后统一明确所需决定，不静默扩大E1。
