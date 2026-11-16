@@ -3601,15 +3601,18 @@
     {
       "date": "2026-11-16T18:08:48.512032+00:00",
       "kind": "e1_frozen_integrated_c2_numeric_v3_preparation",
-      "status": "development_acceptance_complete_not_production_qualified",
+      "status": "development_committed_ci_pending_not_production_qualified",
       "base_head": "2529c3bd50b728ae87ad328c1ae5794907f5ea74",
       "scope": "Frozen single-security Main+Balance E1 critical path only; full DATA-02 universe and four Publication exit gates unchanged.",
       "delivery": {
-        "code_committed": false,
+        "code_committed": true,
         "required_acceptance_complete": false,
         "production_deployed": false,
         "e1_executed_and_reconciled": false,
-        "development_acceptance_complete": true
+        "development_acceptance_complete": true,
+        "implementation_commit": "dc4e27e83be2ec583ae53aa76a0184310fbfe07c",
+        "branch": "dev/next-development",
+        "required_acceptance_scope": "Exact-candidate CI and release prerequisites remain separate from completed local development acceptance."
       },
       "implementation": [
         "Session-authenticated C2 apply/revoke and immutable Owner history",
@@ -3828,7 +3831,8 @@
         "isolated R7:legacy Portfolio namespace was wrong for simulated account631; corrected bridge/plan and same-id/wrong-type/owner/inactive cases; original25 tests were diagnostic, canonical Source103 now pass",
         "prior native R4 interrupted by Docker environment loss; incomplete41 dots are not a pass",
         "Native R5:32passed/1failed worker-start handshake; same test passed inR6.",
-        "Native R6:16passed/1failed/1teardownerror;13 Owner API cases redundant. Full reverse-chain preparation/cleanup corrected and R7 passed4 cases before one5-second connection bootstrap setup/teardown error; R8 seven affected/unexecuted cases pass with QA-only30-second bootstrap. Production and business constraints unchanged."
+        "Native R6:16passed/1failed/1teardownerror;13 Owner API cases redundant. Full reverse-chain preparation/cleanup corrected and R7 passed4 cases before one5-second connection bootstrap setup/teardown error; R8 seven affected/unexecuted cases pass with QA-only30-second bootstrap. Production and business constraints unchanged.",
+        "Delivery registry check r1 identified timestamp updated_at where ISO date was required; metadata corrected to2026-11-17, production Source unchanged; raw log retained."
       ],
       "not_complete": [
         "formal candidate commit and exact-candidate CI",
@@ -4015,6 +4019,21 @@
         "skipped": 0,
         "single_batch_claim": false,
         "scope": "Local development only; R5/R6 failures and their original receipts remain retained."
+      },
+      "formal_delivery": {
+        "implementation_commit": "dc4e27e83be2ec583ae53aa76a0184310fbfe07c",
+        "parent_commit": "2529c3bd50b728ae87ad328c1ae5794907f5ea74",
+        "subject": "feat: add governed financial E1 capture and verification",
+        "local_development_gate_complete": true,
+        "ci_status_at_recording": "pending exact metadata candidate push",
+        "production_deployed": false,
+        "e1_financial_http_used": 0
+      },
+      "delivery_registry_check": {
+        "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/delivery-registry-check-r2.log",
+        "sha256": "4aaa34d9a6a87256cb792e962152d83a8da72f8109de6322b5d2d1cc2f64c279",
+        "exit_code": 0,
+        "version": "2026-11-17.v618"
       }
     }
   ],
