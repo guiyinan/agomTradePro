@@ -4599,7 +4599,7 @@
       },
       "legacy_observed_controlled_deploy_development": {
         "scope": "Explicit opt-in observed legacy baseline path; standard v1 deployment unchanged; no fabricated old build metadata",
-        "candidate_status": "reviewed projection sync and signal-test isolation complete; freeze next commit for exact-SHA CI/native QA/S6",
+        "candidate_status": "only child -I fix and truthful evidence update remain; freeze next exact SHA for complete release gates",
         "production_changed": false,
         "provider_dispatches": 0,
         "e1_physical_attempts": 0,
@@ -4781,7 +4781,8 @@
           "same_test_case_counts_overlap": true,
           "external_docker_database_http_faked": true,
           "production_code_changed": false,
-          "ruff_black_isort_exit_zero": true
+          "ruff_black_isort_exit_zero": true,
+          "actual_root_cause_supersedes_hypothesis": "Subprocess script path put tests/unit first; repository signal package shadowed Python standard library. pause loop remains defensive test improvement, not demonstrated CI cause."
         },
         "final_registry_check": {
           "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/observed-final-registry.log",
@@ -4791,7 +4792,74 @@
           "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/legacy-native-failed-r1-stop.receipt.json",
           "sha256": "1f36b23d4bf10349c287cd4ced25437d7f2203fa8ba05071e02bc50c6080d742"
         },
-        "qa_r2_operator_sha256": "586cf7b8661a61672af3474cefb5920e95cc0a0e208cc9c0fa09bdbf6ebffa9d"
+        "qa_r2_operator_sha256": "586cf7b8661a61672af3474cefb5920e95cc0a0e208cc9c0fa09bdbf6ebffa9d",
+        "44e8_signal_shadow_failure": {
+          "candidate_sha": "44e80b9251dd7dc7b4d6e9cbda8670a6332033ba",
+          "push_run": 44031189597,
+          "manual_full_run": 44031235261,
+          "failed_push_log": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/observed-44e8-push-fast-feedback-failure.log",
+            "sha256": "5cdc9ee580986ba41970d40dfcb2a2bcf38033504a02884fdd0e5f7d26c7e762"
+          },
+          "root_cause": "tests/unit/signal/__init__.py shadowed stdlib in script subprocess",
+          "correction": "one test child argv adds Python -I; production code unchanged",
+          "linux_matching_shadow_layout_red": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/legacy-observed-real-posix-sigterm-r4.receipt.json",
+            "sha256": "77a62472dd262edbada60aebe10d1dd86a7c006a5a2625bbe93c3383ed5e3594"
+          },
+          "linux_matching_shadow_layout_green": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/legacy-observed-real-posix-sigterm-r5.receipt.json",
+            "sha256": "e023cb6a4f8d42f049a4acc35a629614301a2939a311081036ad7207f0006ea6"
+          },
+          "style": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/observed-signal-shadow-style.receipt.json",
+            "sha256": "87ab8e48bf35feab3320aa968f0ce65a1e8589c68b594d84f9ed506d112dea83"
+          },
+          "incremental_quality_gate_succeeded_on_44e8": true,
+          "qualification_transferred": false
+        },
+        "44e8_unstarted_s6_reservation": {
+          "attempt_id": "ffe028ce9ce94dc587248e3c9a8a824c",
+          "receipt": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/s6-44e8-fresh-reserve.receipt.json",
+            "sha256": "a3d46bca4dba53c48ab6a72a75aaa8097ae21f8f4230b98d0bd5aa05bdff579f"
+          },
+          "status": "retired_unstarted_due_to_required_test_isolation_fix",
+          "prepare_started": false,
+          "provider_dispatches": 0,
+          "credentials_written": false,
+          "resume_or_rebinding_performed": false
+        },
+        "44e8_native_qa_progress": {
+          "preflight": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/legacy-native-actual-44e80b9251-preflight.receipt.json",
+            "sha256": "06b4d579ec5199ffd01831ae637c19e6e8d2e5389f70974e1f5598ea63a663df"
+          },
+          "execution_failure": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/legacy-native-actual-44e80b9251-execute.receipt.json",
+            "sha256": "71bbf85a970b7169e27dc8bb9bb6b2774d6c4a988bbcb0bd258a63c223727779"
+          },
+          "backup_restore_and_template_clone_succeeded": true,
+          "candidate_migrations_started": false,
+          "failed_stage": "07 legacy readonly summary: celery_beat_file points into readonly application root",
+          "qa_bind_permissions": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/legacy-native-44e8-qa-bind-permissions.receipt.json",
+            "sha256": "b319be5594ee9ac630b56364b0e0cb89568a066a8711f0a976eb8aa6e3089781"
+          },
+          "next_step": "reuse verified unmigrated isolated restore as an input; new actual probe/migrations bind final clean candidate, QA log directory uses existing AGOM_LOG_DIR knob",
+          "production_changed": false,
+          "compatibility_qualified": false
+        },
+        "fresh_pre_dispatch_scope": {
+          "receipt": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/s6-44e8-pre-dispatch-scope-readonly.receipt.json",
+            "sha256": "8bd3adb30448a53f0a89b7695c829cbb4e9726a204532074a5bbf0714cc98878"
+          },
+          "nov16_nov17_count": 5573,
+          "unknown_listing_dates": 0,
+          "provider_calls": 0,
+          "capacity_qualification": false
+        }
       }
     }
   ],

@@ -220,6 +220,7 @@ class RealSignalHandlerSubprocessTests(unittest.TestCase):
             config_path.write_text(json.dumps(values), encoding="utf-8")
             command = (
                 sys.executable,
+                "-I",
                 str(Path(__file__).resolve()),
                 "--child",
                 str(FORMAL_EXECUTOR),
