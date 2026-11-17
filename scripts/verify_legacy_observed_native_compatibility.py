@@ -237,7 +237,10 @@ def _source_graph_verified(pending: dict[str, object], candidate_root: Path) -> 
     )
     expected: dict[str, tuple[str, str]] = {}
     replaced: set[str] = set()
-    for path in (candidate_root / "apps").glob("*/migrations/*.py"):
+    for path in (
+        *(candidate_root / "apps").glob("*/migrations/*.py"),
+        *(candidate_root / "shared/migrations").glob("*.py"),
+    ):
         if re.fullmatch(r"[0-9]{4}_.+", path.stem) is None:
             continue
         relative = path.relative_to(candidate_root).as_posix()
@@ -295,7 +298,8 @@ def _source_graph_verified(pending: dict[str, object], candidate_root: Path) -> 
             child != parent and child in nodes and parent in nodes,
             "OBSERVED_NATIVE_MIGRATION_GRAPH_INVALID",
         )
-        parents.add(parent)
+        if child.partition(".")[0] == parent.partition(".")[0]:
+            parents.add(parent)
     _require(
         {key for key, _digest in expected.values()}.issubset(set(nodes) | replaced),
         "OBSERVED_NATIVE_MIGRATION_GRAPH_INCOMPLETE",

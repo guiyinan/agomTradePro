@@ -3601,7 +3601,7 @@
     {
       "date": "2026-11-16T18:08:48.512032+00:00",
       "kind": "e1_frozen_integrated_c2_numeric_v3_preparation",
-      "status": "necessary_observed_two_phase_migration_fix_in_development_not_frozen",
+      "status": "necessary_source_graph_verifier_correction_in_development_no_production_release",
       "base_head": "2529c3bd50b728ae87ad328c1ae5794907f5ea74",
       "scope": "Frozen single-security Main+Balance E1 critical path only; full DATA-02 universe and four Publication exit gates unchanged.",
       "delivery": {
@@ -4120,7 +4120,7 @@
         "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/controlled-release-backup-r1.verified-summary.json",
         "sha256": "4f781ca77eb1d1b53f9d5b7b46129caff28af138ecfdfcf6898af7288c3c952e"
       },
-      "qualification_boundary": "Historical exact-candidate CI remains historical. Current necessary phasing fix is not frozen or released; actual PA prototype proves feasibility only. Provider requests and E1 remain zero; full DATA-02 exit and DATA-03 dependency gates unchanged.",
+      "qualification_boundary": "0f52 exact CI and real native execution succeeded; formal data-proof validation found two source-graph verifier omissions. Only graph verifier/tests correction is in development. No previous CI or native candidate identity transfers to the next candidate; original inputs can be reused with true provenance. Full DATA-02 and DATA-03 gates unchanged.",
       "s6_owner_budget_authorization": {
         "recorded_at": "2026-11-17T01:23:20.552212+00:00",
         "owner_reply": "批准同额预算绑定到 6086（推荐）",
@@ -4972,6 +4972,98 @@
           },
           "scope": "Exact existing internal isolated QA PG only; production existing encryption key resolved through getter into private non-Git runtime input; no value logged or regenerated. Test migrator/owner roles verified; grants do not qualify production permissions. Phase B not run."
         }
+      },
+      "source_graph_verifier_correction": {
+        "observed_execution_candidate": "0f521a07501ff45553f76a1e606fa9a9889dfa13",
+        "same_sha_ci": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/observed-phased-all-ci-verified.receipt.json",
+          "sha256": "9022393812dbc20deea5ec77ef9bff9b8f42a8a0250b9ce2e5948bdc14ac4bb5"
+        },
+        "actual_qa": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/phased-native-v2-result.receipt.json",
+          "sha256": "858fb5a0a7cba29599efdb80cc013318084de6ad32a71b6b58bfb88f60a2626c"
+        },
+        "execution_exit_code": 0,
+        "candidate_release_qualified": false,
+        "exact_difference": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/phased-native-v2-source-module-difference.receipt.json",
+          "sha256": "c55c2c218aa9a9667239c407d421873ae725bc3b961d280b5a99a033cdfb139c"
+        },
+        "reasons": [
+          "Candidate shared/migrations four historical modules omitted from expected inventory; all543 app modules already match.",
+          "Django leaf_nodes uses per-app children; old global leaf formula omitted5 legitimate cross-app-referenced leaves."
+        ],
+        "fix": "Verify all app and historical shared migration module bytes; subtract parent nodes only for same-app dependency edges. No module trace deletion or @root relabeling.",
+        "real_originals_proposal_check": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/native-shared-proposal-real-originals-check-r2.receipt.json",
+          "sha256": "ebd926856bdcaaee7f59138a9cc55e6165aadfadab12b6762b4b188694ca6c3f"
+        },
+        "real_originals_proposal_qualification": false,
+        "shared_counterexamples": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/native-shared-modules-red-snapshot-r2.receipt.json",
+          "sha256": "ca612e150136d1a898ae2dae42d635b5f2f90ee7d5234f4bd96d24142db222b6"
+        },
+        "cross_app_red_log": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/native-cross-app-leaf-red-r1.log",
+          "sha256": "6567560fb955a368ba13d88e3d4b20540ff7c4c24885b6ad41e0adc646d273ec"
+        },
+        "development": {
+          "black": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/native-graph-final-black-r1.receipt.json",
+            "sha256": "c2f694038648f92a5385813c799e0940d3f50090f1fe4fe6cfb5ec5b980c9345"
+          },
+          "isort": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/native-graph-final-isort-r1.receipt.json",
+            "sha256": "bd7e0ada1b053010e7d660e8b6da20fa78e82de8d6d8a4dbbfaf048d0b178491"
+          },
+          "ruff": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/native-graph-final-ruff-r1.receipt.json",
+            "sha256": "a786f1b64611a163d2d567bc85a53040afdd992d217b310d1b78a000c0b5b0fb"
+          },
+          "tests": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/native-graph-final-tests-r1.receipt.json",
+            "sha256": "ca765f982461fbe052c4ae499416c628bb40003e3f14b9abb3f0a6be24b25a1e"
+          },
+          "mypy": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/native-graph-final-mypy-r1.receipt.json",
+            "sha256": "9a247c8c5c10ac46ebf235df339b0e33314b1433309624cbae3272d71decc5d3"
+          },
+          "entrypoint-check": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/native-graph-final-entrypoint-check-r1.receipt.json",
+            "sha256": "b8908e80fb8dbf964a9c140cb72bb6e9a5a08a0b0b0298da6f4312bd1e0f9d3b"
+          },
+          "registry": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/native-graph-final-registry-r1.receipt.json",
+            "sha256": "d76c6a1e16cb5862b1f4fc05f7f9f97d5b8a002a39709e3db6c56e926e7cf892"
+          },
+          "governance": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/native-graph-final-governance-r1.receipt.json",
+            "sha256": "24ca13d627d9500fbf82d54de0d88a5f5f1ba871b46314c240e29eb1215dda85"
+          }
+        },
+        "unit_tests_passed": 32,
+        "unit_tests_skipped": 0,
+        "debt_reuse": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/native-graph-debt-reuse.receipt.json",
+          "sha256": "2c8437aabde6f7cbaa476e60dbc13859c6dae03c0c1215b8b4550c09e91d091d"
+        },
+        "review": "Independent Luna review matched all four shared LF Git blob hashes, recomputed49 Django leaves versus44 global leaves, verified seven artifact hashes and remaining pure data/numeric/member/calendar/pending checks; no other observed blocker. Full verifier awaits genuine build manifest; none fabricated.",
+        "next_execution": "New exact candidate CI and fresh PA/B from a fresh untouched-template clone. Preserve old migrated DB by rename; measured projected3 DB total8344269893 bytes <=10GiB. Record clone OIDs/ledger/schema hashes. Do not relabel0f physical execution as new candidate.",
+        "clone_capacity_readonly": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/native-shared-fresh-clone-size-readonly.receipt.json",
+          "sha256": "47680c9ed19f05ead0295ddc9c7903e22d70b3710e07d4b625020a540968c66c"
+        },
+        "s6_0f52_reservation": {
+          "attempt_id": "9c54493042694151b65b594c9fdd7435",
+          "prepare_started": false,
+          "credentials_transferred": false,
+          "provider_calls": 0,
+          "will_not_be_executed_after_source_revision": true
+        },
+        "budget_unchanged": true,
+        "e1_used": 0,
+        "production_changed": false,
+        "data03_started": false
       }
     }
   ],

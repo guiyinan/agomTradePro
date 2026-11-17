@@ -194,6 +194,67 @@ def test_complete_synthetic_proof_round_trip(tmp_path: Path) -> None:
     )
 
 
+@pytest.mark.parametrize("mutation", ["none", "missing", "changed", "wrong_key"])
+def test_candidate_shared_migrations_require_complete_exact_source_trace(
+    tmp_path: Path, mutation: str
+) -> None:
+    _, candidate, _, artifacts = _proof(tmp_path)
+    migration = candidate / "shared/migrations/0001_history.py"
+    migration.parent.mkdir(parents=True)
+    migration.write_text("# historical shared migration\n", encoding="utf-8")
+    pending = artifacts["pending_migrations"]
+    pending["migration_graph"]["nodes"].append("shared.0001_history")
+    pending["migration_graph"]["nodes"].sort()
+    pending["leaf_migrations"].append("shared.0001_history")
+    pending["leaf_migrations"].sort()
+    if mutation != "missing":
+        pending["migration_source_trace"]["loaded_app_migrations"].append(
+            {
+                "key": "other.0001_history" if mutation == "wrong_key" else "shared.0001_history",
+                "relative_path": "shared/migrations/0001_history.py",
+                "sha256": hashlib.sha256(migration.read_bytes()).hexdigest(),
+            }
+        )
+    if mutation == "changed":
+        migration.write_text("# changed historical migration\n", encoding="utf-8")
+    if mutation == "none":
+        verifier._source_graph_verified(pending, candidate)
+    else:
+        with pytest.raises(ValueError, match="OBSERVED_NATIVE_MIGRATION_MODULES_INCOMPLETE"):
+            verifier._source_graph_verified(pending, candidate)
+
+
+@pytest.mark.parametrize("omit_referenced_app_leaf", [False, True])
+def test_migration_leaves_follow_django_per_app_dependency_semantics(
+    tmp_path: Path, omit_referenced_app_leaf: bool
+) -> None:
+    _, candidate, _, artifacts = _proof(tmp_path)
+    migration = candidate / "apps/account/migrations/0001_history.py"
+    migration.parent.mkdir(parents=True)
+    migration.write_text("# synthetic cross-app dependency\n", encoding="utf-8")
+    pending = artifacts["pending_migrations"]
+    trace = pending["migration_source_trace"]
+    trace["migration_tree_sha256"] = verifier.migration_tree_digest(candidate)
+    trace["loaded_app_migrations"].append(
+        {
+            "key": "account.0001_history",
+            "relative_path": "apps/account/migrations/0001_history.py",
+            "sha256": hashlib.sha256(migration.read_bytes()).hexdigest(),
+        }
+    )
+    pending["migration_graph"] = {
+        "nodes": ["account.0001_history", "data_center.0118_example"],
+        "edges": [["account.0001_history", "data_center.0118_example"]],
+    }
+    pending["leaf_migrations"] = ["account.0001_history", "data_center.0118_example"]
+    if omit_referenced_app_leaf:
+        pending["leaf_migrations"].remove("data_center.0118_example")
+        with pytest.raises(ValueError, match="OBSERVED_NATIVE_MIGRATION_LEAF_INVENTORY_INCOMPLETE"):
+            verifier._source_graph_verified(pending, candidate)
+    else:
+        verifier._source_graph_verified(pending, candidate)
+
+
 def _phased_proof(
     tmp_path: Path,
 ) -> tuple[Path, Path, dict[str, object], dict[str, dict[str, object]]]:
