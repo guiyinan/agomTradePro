@@ -425,6 +425,52 @@ class ExecutorSuccessTests(ExecutorFixture):
 
 
 class ExecutorFailureTests(ExecutorFixture):
+    def test_unverified_old_runtime_is_stopped_after_restore_identity_failure(self) -> None:
+        config, _, target, _, _ = self.make_fixture()
+
+        class DriftRunner(FakeRunner):
+            def run(self, argv: Sequence[str], *, timeout: int = 3600) -> Result:
+                if "after_restore" in argv:
+                    self.commands.append(tuple(argv))
+                    return Result(1, stderr="injected legacy runtime drift")
+                return super().run(argv, timeout=timeout)
+
+        runner = DriftRunner(failure="check_encryption_readiness")
+        with FakePointers(target):
+            code = Executor(config, runner).execute()
+        self.assertEqual(code, 70)
+        self.assertFalse(runner.running_services)
+        commands = [" ".join(command) for command in runner.commands]
+        drift = next(i for i, text in enumerate(commands) if "after_restore" in text)
+        stopped = next(
+            i for i, text in enumerate(commands) if i > drift and " stop web celery_worker" in text
+        )
+        self.assertTrue(any("writers-stopped" in text for text in commands[stopped + 1 :]))
+
+    def test_failed_old_restore_stop_reports_unquiesced_writers(self) -> None:
+        config, _, target, _, _ = self.make_fixture()
+
+        class UnquiescedRunner(FakeRunner):
+            def run(self, argv: Sequence[str], *, timeout: int = 3600) -> Result:
+                old_stop = "stop" in argv and "20261101013730" in " ".join(argv)
+                if "after_restore" in argv or old_stop:
+                    self.commands.append(tuple(argv))
+                    return Result(1, stderr="injected recovery failure")
+                if "writers-stopped" in argv and self.running_services:
+                    self.commands.append(tuple(argv))
+                    return Result(1, stderr="injected writers still running")
+                return super().run(argv, timeout=timeout)
+
+        runner = UnquiescedRunner(failure="check_encryption_readiness")
+        with FakePointers(target):
+            code = Executor(config, runner).execute()
+        self.assertEqual(code, 70)
+        self.assertTrue(runner.running_services)
+        report = json.loads(
+            next(config.report_dir.glob("agomtradepro-observed-deploy-*.json")).read_text()
+        )
+        self.assertEqual(report["reason_code"], "OBSERVED_LEGACY_RECOVERY_WRITERS_NOT_QUIESCED")
+
     def test_running_writer_gate_blocks_backup_and_restores_legacy_apps(self) -> None:
         config, runner, target, old, _ = self.make_fixture(failure="writers-stopped")
         with FakePointers(target) as pointers:

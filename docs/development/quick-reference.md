@@ -186,7 +186,7 @@ exec 3<&-
   它们分别绑定实际只读运行态及隔离备份上的全叶迁移/旧 ORM 兼容原件；未知旧 build 字段保持 null，
   不是补造旧 v1 清单。只接受 prebuilt upgrade、保留 catalog、正常备份和自动恢复，不支持清库、SQLite
   导入或 decision/alpha repair。PhaseA 停五个 writer，在原 PostgreSQL 上迁移并核对全部旧 data-center
-  列/行摘要；仅 web 以 DB 只读及 `/app/data` 只读方式验收，随后切换并退休旧基线。PhaseB 才执行延后的
+  列/行摘要；仅 web 以 DB 只读及 `sqlite_data` 应用数据卷只读方式验收，随后切换并退休旧基线。PhaseB 才执行延后的
   metadata/static/bootstrap 并启用五服务；失败保留现代 current，不能回旧镜像或恢复旧数据库。
   Wrapper 即使收到非零退出码也下载并校验同 attempt 的 observed report；只有 `outcome=deployed` 才能
   继续 E1，`partial` 仍需向前修复。这一路径不授予 Publication 资格，其余部署继续走原标准入口。

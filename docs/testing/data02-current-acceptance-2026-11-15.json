@@ -4599,7 +4599,7 @@
       },
       "legacy_observed_controlled_deploy_development": {
         "scope": "Explicit opt-in observed legacy baseline path; standard v1 deployment unchanged; no fabricated old build metadata",
-        "candidate_status": "development checks passed; independent final review pending then commit and freeze",
+        "candidate_status": "final review and applicable development checks complete; freeze this next commit for exact-SHA release validation",
         "production_changed": false,
         "provider_dispatches": 0,
         "e1_physical_attempts": 0,
@@ -4684,6 +4684,58 @@
             "sha256": "b095c43e8fd35cea1bea6d56e373e6e87056a068f1067fca23395719848e18d0"
           },
           "extra_signal_test_ruff_exit_zero": true
+        },
+        "development_delivery_commit": "422db4b01736317752dd91ae84cf8973698e74f6",
+        "final_independent_review": {
+          "reviewer": "Luna Max native balance",
+          "restored_legacy_identity_failure_stops_all_five_writers": true,
+          "stopped_state_readback_attempted_even_when_stop_fails": true,
+          "remaining_triggered_safety_blockers": 0,
+          "diagnostic_limit": "A nonzero stop command conservatively retains unquiesced reason even if later readback succeeds; never qualifies recovery"
+        },
+        "restore_quiesce_fix": {
+          "production_lines_added": 12,
+          "executor_tests_passed": 16,
+          "new_failure_cases": 2,
+          "tests_exit_code": 0,
+          "tests_log": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/legacy-observed-restore-quiesce-tests.log",
+            "sha256": "0365d186ea7d4e61dc944f7e1592952ed21dd9414346a1ac85c55dc26f679b3e"
+          },
+          "incremental_mypy_exit_code": 0,
+          "incremental_mypy_log": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/legacy-observed-restore-quiesce-mypy.log",
+            "sha256": "1696369e79514135c6c84d87d82a0fc9c6a7026a4b6fda77e8a7e9b50eef135b"
+          },
+          "ruff_isort_exit_code": 0
+        },
+        "development_422d_ci_failure": {
+          "run_id": 44027068224,
+          "workflow": "Consistency Check",
+          "reason": "Documentation filesystem path was interpreted as missing Django route",
+          "log": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/observed-422d-consistency-failure.log",
+            "sha256": "ab30f8fe2f34a2a0ddde0b44b2aa6399554e2c54cd2393ef00884da9ee7c50a3"
+          },
+          "correction": "Refer to sqlite_data volume by name; no route scanner waiver",
+          "release_qualified": false,
+          "corrected_local_check": {
+            "exit_code": 0,
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/legacy-observed-doc-route-final-utf8.log",
+            "sha256": "c3464f408d7d9a35ef13fdc4078de7549fb37ca51931507fbf9680ba152a09de"
+          },
+          "retained_operator_encoding_failure": "legacy-observed-doc-route-final.log: child lacked UTF-8, corrected with explicit -X utf8; no checker source waiver"
+        },
+        "native_preflight_initial_failure": {
+          "candidate_sha": "422db4b01736317752dd91ae84cf8973698e74f6",
+          "receipt": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/legacy-native-actual-422db4b017-preflight.receipt.json",
+            "sha256": "5c9ef37ef04019605628cacbcc5d412d64adf3fd98d2c770856bef3264c26ff6"
+          },
+          "qa_resources_created": false,
+          "reason": "Nullable PostgreSQL image OCI Labels dereferenced by Docker Go template",
+          "operator_only_correction_sha256": "17d0852e1447398161544db4d3678a5b21c7e1dba034bc79d574655589e54b3d",
+          "candidate_production_source_changed_by_operator_correction": false
         }
       }
     }

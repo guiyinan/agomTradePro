@@ -700,6 +700,18 @@ class Executor:
             self.infra_compare()
         except BaseException:
             valid = False
+        if not valid:
+            quiesced = True
+            try:
+                self.compose_run(self.c.old, "stop", *SERVICES)
+            except BaseException:
+                quiesced = False
+            try:
+                self.helper("observed_deploy_runtime_checks.py", "writers-stopped")
+            except BaseException:
+                quiesced = False
+            if not quiesced:
+                self.reason = "OBSERVED_LEGACY_RECOVERY_WRITERS_NOT_QUIESCED"
         return valid
 
     def recover_modern_web(self) -> bool:
