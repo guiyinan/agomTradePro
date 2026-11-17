@@ -7,6 +7,7 @@ import argparse
 import datetime
 import hashlib
 import json
+import math
 import os
 import re
 import stat
@@ -39,6 +40,8 @@ _EXPORT_FAILURE_CODES = {
     "contract": "S6_CANDIDATE_EXPORT_CONTRACT_FAILED",
 }
 _GRAPH_REFRESH_FAILURE_CODE = "S6_GRAPH_REFRESH_COMMAND_FAILED"
+_GRAPH_REFRESH_MAX_DISPATCHES = 50
+_GRAPH_REFRESH_MAX_SECONDS = 3600.0
 
 
 def _is_relative_to(path: Path, parent: Path) -> bool:
@@ -462,8 +465,16 @@ def validate_final_prepare_receipt(context: _FinalPrepareValidation) -> dict[str
             all(graph_receipt.get(key) == value for key, value in expected_graph_identity.items()),
             "S6_GRAPH_REFRESH_IDENTITY_INVALID",
         )
+        _validate_market_graph_refresh_report(
+            graph_receipt,
+            candidate_sha=context.candidate_sha,
+            attempt_id=cast(str, plan["attempt_id"]),
+            attempt_plan_sha256=attempt_plan_sha256,
+            database=expected_database,
+            task_id=f"s6-market-refresh-{plan['attempt_id']}",
+        )
         _validation_require(
-            graph_receipt.get("schema") == "release.s6-isolated-market-graph-refresh.v1"
+            graph_receipt.get("schema") == "release.s6-isolated-market-graph-refresh.v2"
             and graph_receipt.get("outcome") == "success"
             and graph_receipt.get("target_trade_date") == target_trade_date,
             "S6_GRAPH_REFRESH_RECEIPT_MISMATCH",
@@ -1325,6 +1336,56 @@ def run_candidate_export(
         raise CandidateSourceSnapshotError(error_code) from exc
 
 
+def _validate_market_graph_refresh_report(
+    value: object,
+    *,
+    candidate_sha: str,
+    attempt_id: str,
+    attempt_plan_sha256: str,
+    database: str,
+    task_id: str,
+) -> None:
+    """Require the expected graph receipt and the exact bounded transport summary."""
+    http_capture = value.get("http_capture") if isinstance(value, dict) else None
+    if (
+        not isinstance(value, dict)
+        or value.get("schema") != "release.s6-isolated-market-graph-refresh.v2"
+        or value.get("outcome") != "success"
+        or value.get("candidate_sha") != candidate_sha
+        or value.get("attempt_id") != attempt_id
+        or value.get("attempt_plan_sha256") != attempt_plan_sha256
+        or value.get("database") != database
+        or value.get("task_id") != task_id
+        or not isinstance(http_capture, dict)
+        or set(http_capture)
+        != {
+            "count_unit",
+            "dispatch_count",
+            "rejected_dispatch_count",
+            "guard_failure_code",
+            "max_dispatches",
+            "max_seconds",
+            "elapsed_seconds",
+        }
+        or http_capture.get("count_unit") != "requests_session_dispatch"
+        or type(http_capture.get("dispatch_count")) is not int
+        or http_capture["dispatch_count"] < 0
+        or type(http_capture.get("rejected_dispatch_count")) is not int
+        or http_capture["rejected_dispatch_count"] != 0
+        or http_capture.get("guard_failure_code") is not None
+        or http_capture.get("max_dispatches") != _GRAPH_REFRESH_MAX_DISPATCHES
+        or isinstance(http_capture.get("max_seconds"), bool)
+        or not isinstance(http_capture.get("max_seconds"), (int, float))
+        or http_capture["max_seconds"] != _GRAPH_REFRESH_MAX_SECONDS
+        or http_capture["dispatch_count"] > _GRAPH_REFRESH_MAX_DISPATCHES
+        or isinstance(http_capture.get("elapsed_seconds"), bool)
+        or not isinstance(http_capture.get("elapsed_seconds"), (int, float))
+        or not math.isfinite(http_capture["elapsed_seconds"])
+        or http_capture["elapsed_seconds"] < 0
+    ):
+        raise CandidateSourceSnapshotError("S6_GRAPH_REFRESH_RECEIPT_INVALID")
+
+
 def run_candidate_market_graph_refresh(
     *,
     docker_argv: Sequence[str],
@@ -1455,6 +1516,10 @@ def run_candidate_market_graph_refresh(
         execution_image,
         "--task-id",
         task_id,
+        "--max-dispatches",
+        str(_GRAPH_REFRESH_MAX_DISPATCHES),
+        "--max-seconds",
+        "3600",
     ]
     if list(docker_argv) != expected_argv:
         raise CandidateSourceSnapshotError("S6_GRAPH_REFRESH_COMMAND_INVALID")
@@ -1493,17 +1558,14 @@ def run_candidate_market_graph_refresh(
         if not stat.S_ISREG(metadata.st_mode) or stat.S_IMODE(metadata.st_mode) != 0o600:
             raise CandidateSourceSnapshotError("S6_GRAPH_REFRESH_RECEIPT_INVALID")
         value = json.loads(expected_report.read_text(encoding="utf-8"))
-        if (
-            not isinstance(value, dict)
-            or value.get("schema") != "release.s6-isolated-market-graph-refresh.v1"
-            or value.get("outcome") != "success"
-            or value.get("candidate_sha") != candidate_sha
-            or value.get("attempt_id") != attempt_id
-            or value.get("attempt_plan_sha256") != attempt_plan_sha256
-            or value.get("database") != database
-            or value.get("task_id") != task_id
-        ):
-            raise CandidateSourceSnapshotError("S6_GRAPH_REFRESH_RECEIPT_INVALID")
+        _validate_market_graph_refresh_report(
+            value,
+            candidate_sha=candidate_sha,
+            attempt_id=attempt_id,
+            attempt_plan_sha256=attempt_plan_sha256,
+            database=database,
+            task_id=task_id,
+        )
     except CandidateSourceSnapshotError:
         raise
     except (OSError, UnicodeError, json.JSONDecodeError) as exc:

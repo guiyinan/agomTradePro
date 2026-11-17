@@ -247,6 +247,10 @@ def _valid_refresh_argv(
         EXECUTION_IMAGE_ID,
         "--task-id",
         f"s6-market-refresh-{attempt_id}",
+        "--max-dispatches",
+        "50",
+        "--max-seconds",
+        "3600",
     ]
 
 
@@ -409,13 +413,22 @@ def test_opt_in_refresh_runs_only_the_fixed_isolated_candidate_command(
     log_path = output_root / "refresh.log"
     attempt_id = "c" * 32
     report = {
-        "schema": "release.s6-isolated-market-graph-refresh.v1",
+        "schema": "release.s6-isolated-market-graph-refresh.v2",
         "outcome": "success",
         "candidate_sha": candidate_sha,
         "attempt_id": attempt_id,
         "attempt_plan_sha256": "d" * 64,
         "database": "agom_release_rehearsal_" + "e" * 32,
         "task_id": f"s6-market-refresh-{attempt_id}",
+        "http_capture": {
+            "count_unit": "requests_session_dispatch",
+            "dispatch_count": 2,
+            "rejected_dispatch_count": 0,
+            "guard_failure_code": None,
+            "max_dispatches": 50,
+            "max_seconds": 3600.0,
+            "elapsed_seconds": 4.5,
+        },
     }
     docker_argv = _valid_refresh_argv(
         destination=destination,
@@ -520,13 +533,22 @@ def test_opt_in_refresh_rejects_command_or_receipt_identity_drift(
         bad_report.write_text(
             json.dumps(
                 {
-                    "schema": "release.s6-isolated-market-graph-refresh.v1",
+                    "schema": "release.s6-isolated-market-graph-refresh.v2",
                     "outcome": "success",
                     "candidate_sha": candidate_sha,
                     "attempt_id": "9" * 32,
                     "attempt_plan_sha256": "d" * 64,
                     "database": "agom_release_rehearsal_" + "e" * 32,
                     "task_id": "s6-market-refresh-" + "9" * 32,
+                    "http_capture": {
+                        "count_unit": "requests_session_dispatch",
+                        "dispatch_count": 2,
+                        "rejected_dispatch_count": 0,
+                        "guard_failure_code": None,
+                        "max_dispatches": 50,
+                        "max_seconds": 3600.0,
+                        "elapsed_seconds": 4.5,
+                    },
                 }
             ),
             encoding="utf-8",

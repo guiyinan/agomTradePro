@@ -10,6 +10,7 @@ from contextlib import contextmanager
 from contextvars import ContextVar, Token
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
+from threading import RLock
 from types import TracebackType
 from typing import Any, cast
 from urllib.parse import urlsplit
@@ -22,6 +23,18 @@ from .rehearsal_response_store import (
     RehearsalResponseArtifactRef,
     RehearsalResponseContext,
     RehearsalResponseStore,
+)
+
+_GUARD_FAILURE_CODES = frozenset(
+    {
+        "REHEARSAL_BODY_LIMIT",
+        "REHEARSAL_HTTP_BUDGET_EXCEEDED",
+        "REHEARSAL_HIDDEN_RETRIES",
+        "REHEARSAL_REDIRECT_BLOCKED",
+        "REHEARSAL_RESPONSE_SCOPE_NESTED",
+        "REHEARSAL_RESPONSE_STORE_UNAVAILABLE",
+        "REHEARSAL_TRANSPORT_UNOBSERVABLE",
+    }
 )
 
 
@@ -73,8 +86,21 @@ class RehearsalHttpCapture:
         )
         self.receipts: list[RehearsalHttpReceipt] = []
         self.dispatches = 0
+        self.rejected_dispatches = 0
+        self.guard_failure_code: str | None = None
         self.started = 0.0
+        self._dispatch_lock = RLock()
+        self._receipt_lock = RLock()
+        self._receipts_by_dispatch: dict[int, RehearsalHttpReceipt] = {}
         self._original_send: Callable[..., requests.Response] | None = None
+
+    def _mark_guard_failure(self, error_code: str, *, rejected_dispatch: bool = False) -> None:
+        """Record a safe transport guard failure without retaining request details."""
+        with self._dispatch_lock:
+            if rejected_dispatch:
+                self.rejected_dispatches += 1
+            if self.guard_failure_code is None:
+                self.guard_failure_code = error_code
 
     @contextmanager
     def provider_probe(self, context: RehearsalResponseContext) -> Iterator[None]:
@@ -104,22 +130,32 @@ class RehearsalHttpCapture:
         def send(
             session: requests.Session, request: requests.PreparedRequest, **kwargs: Any
         ) -> requests.Response:
-            remaining = self.max_seconds - (time.monotonic() - self.started)
-            if self.dispatches >= self.max_dispatches or remaining <= 0:
-                raise DataFetchError(
-                    "Rehearsal HTTP budget exhausted", code="REHEARSAL_HTTP_BUDGET_EXCEEDED"
-                )
             adapter = session.get_adapter(str(request.url))
             if not isinstance(adapter, requests.adapters.HTTPAdapter):
+                self._mark_guard_failure("REHEARSAL_TRANSPORT_UNOBSERVABLE", rejected_dispatch=True)
                 raise DataFetchError(
                     "Unobservable HTTP adapter", code="REHEARSAL_TRANSPORT_UNOBSERVABLE"
                 )
             retries = adapter.max_retries
             if retries.total not in (0, False):
+                self._mark_guard_failure("REHEARSAL_HIDDEN_RETRIES", rejected_dispatch=True)
                 raise DataFetchError(
                     "Unobservable transport retries", code="REHEARSAL_HIDDEN_RETRIES"
                 )
-            self.dispatches += 1
+            # Reserve one observable dispatch atomically, but release the lock
+            # before invoking network code so independent requests are not serialized.
+            with self._dispatch_lock:
+                remaining = self.max_seconds - (time.monotonic() - self.started)
+                if self.dispatches >= self.max_dispatches or remaining <= 0:
+                    self._mark_guard_failure(
+                        "REHEARSAL_HTTP_BUDGET_EXCEEDED", rejected_dispatch=True
+                    )
+                    raise DataFetchError(
+                        "Rehearsal HTTP budget exhausted",
+                        code="REHEARSAL_HTTP_BUDGET_EXCEEDED",
+                    )
+                dispatch_index = self.dispatches
+                self.dispatches += 1
             started_at = datetime.now(UTC).isoformat()
             url = urlsplit(str(request.url))
             timeout: object = kwargs.get("timeout")
@@ -173,7 +209,7 @@ class RehearsalHttpCapture:
                         )
                     response_artifact = store.persist_response(
                         context,
-                        receipt_index=len(self.receipts),
+                        receipt_index=dispatch_index,
                         host=url.hostname or "",
                         path_sha256=hashlib.sha256(url.path.encode()).hexdigest(),
                         method=str(request.method or ""),
@@ -187,13 +223,15 @@ class RehearsalHttpCapture:
                 error_code = (
                     exc.code if isinstance(exc, DataFetchError) else "REHEARSAL_HTTP_FAILED"
                 )
+                if error_code in _GUARD_FAILURE_CODES:
+                    self._mark_guard_failure(error_code)
                 if response is not None:
                     response.close()
                 raise
             finally:
                 finished_at = finished_at or datetime.now(UTC).isoformat()
-                self.receipts.append(
-                    RehearsalHttpReceipt(
+                with self._receipt_lock:
+                    self._receipts_by_dispatch[dispatch_index] = RehearsalHttpReceipt(
                         host=url.hostname or "",
                         path_sha256=hashlib.sha256(url.path.encode()).hexdigest(),
                         method=str(request.method or ""),
@@ -205,7 +243,10 @@ class RehearsalHttpCapture:
                         error_code=error_code,
                         response_artifact=response_artifact,
                     )
-                )
+                    self.receipts[:] = [
+                        self._receipts_by_dispatch[index]
+                        for index in sorted(self._receipts_by_dispatch)
+                    ]
 
         cast(Any, requests.Session).send = send  # scoped third-party transport instrumentation
         return self
@@ -224,6 +265,8 @@ class RehearsalHttpCapture:
         """Return observed evidence, distinguishing dispatches from provider quota units."""
         return {
             "dispatch_count": self.dispatches,
+            "rejected_dispatch_count": self.rejected_dispatches,
+            "guard_failure_code": self.guard_failure_code,
             "count_unit": "requests_session_dispatch",
             "max_dispatches": self.max_dispatches,
             "max_seconds": self.max_seconds,

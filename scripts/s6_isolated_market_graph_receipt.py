@@ -30,6 +30,8 @@ _CORE_DATASETS = (
 )
 _TASK_NAME = "data_center.refresh_full_market_publications"
 _RECEIPT_NAME = "current-market-graph-refresh.json"
+_MAX_HTTP_DISPATCHES = 50
+_MAX_HTTP_SECONDS = 3600.0
 
 
 class MarketGraphReceiptError(ValueError):
@@ -267,7 +269,60 @@ def _context_fields(context: Mapping[str, str]) -> dict[str, str]:
     return cast(dict[str, str], dict(context))
 
 
-def capture_current_market_graph(*, context: Mapping[str, str], task_id: str) -> dict[str, object]:
+def _validated_http_capture(value: object) -> dict[str, object]:
+    """Validate the bounded, secret-free observer summary from the refresh process."""
+    if not isinstance(value, Mapping) or set(value) != {
+        "count_unit",
+        "dispatch_count",
+        "rejected_dispatch_count",
+        "guard_failure_code",
+        "max_dispatches",
+        "max_seconds",
+        "elapsed_seconds",
+    }:
+        raise MarketGraphReceiptError("S6_GRAPH_REFRESH_HTTP_CAPTURE_INVALID")
+    dispatch_count = value.get("dispatch_count")
+    rejected_count = value.get("rejected_dispatch_count")
+    max_dispatches = value.get("max_dispatches")
+    max_seconds = value.get("max_seconds")
+    elapsed = value.get("elapsed_seconds")
+    if (
+        value.get("count_unit") != "requests_session_dispatch"
+        or type(dispatch_count) is not int
+        or dispatch_count < 0
+        or type(rejected_count) is not int
+        or rejected_count != 0
+        or type(max_dispatches) is not int
+        or not 1 <= max_dispatches <= _MAX_HTTP_DISPATCHES
+        or isinstance(max_seconds, bool)
+        or not isinstance(max_seconds, (int, float))
+        or not math.isfinite(max_seconds)
+        or not 0 < max_seconds <= _MAX_HTTP_SECONDS
+        or isinstance(elapsed, bool)
+        or not isinstance(elapsed, (int, float))
+        or not math.isfinite(elapsed)
+        or elapsed < 0
+        or dispatch_count > max_dispatches
+        or value.get("guard_failure_code") is not None
+    ):
+        raise MarketGraphReceiptError("S6_GRAPH_REFRESH_HTTP_CAPTURE_INVALID")
+    return {
+        "count_unit": "requests_session_dispatch",
+        "dispatch_count": dispatch_count,
+        "rejected_dispatch_count": rejected_count,
+        "guard_failure_code": None,
+        "max_dispatches": max_dispatches,
+        "max_seconds": float(max_seconds),
+        "elapsed_seconds": float(elapsed),
+    }
+
+
+def capture_current_market_graph(
+    *,
+    context: Mapping[str, str],
+    task_id: str,
+    http_capture: Mapping[str, object],
+) -> dict[str, object]:
     """Read one fully validated current graph and produce its deterministic evidence."""
 
     from django.db import connection
@@ -281,6 +336,7 @@ def capture_current_market_graph(*, context: Mapping[str, str], task_id: str) ->
     from scripts import export_s6_rehearsal_inputs as exporter
 
     identity = _context_fields(context)
+    transport_evidence = _validated_http_capture(http_capture)
     if task_id != f"s6-market-refresh-{identity['attempt_id']}":
         raise MarketGraphReceiptError("S6_GRAPH_REFRESH_TASK_ID_INVALID")
     if connection.settings_dict.get("NAME") != identity["database"]:
@@ -319,6 +375,8 @@ def capture_current_market_graph(*, context: Mapping[str, str], task_id: str) ->
         or parsed_result.get("_task_attempt_id") != task_attempt_id
         or parsed_result.get("_task_status") != "success"
     ):
+        raise MarketGraphReceiptError("S6_GRAPH_REFRESH_TASK_RESULT_INVALID")
+    if parsed_result.get("outcome") not in {"success", "partial"}:
         raise MarketGraphReceiptError("S6_GRAPH_REFRESH_TASK_RESULT_INVALID")
 
     try:
@@ -541,9 +599,10 @@ def capture_current_market_graph(*, context: Mapping[str, str], task_id: str) ->
         for item in publications
     ]
     payload: dict[str, object] = {
-        "schema": "release.s6-isolated-market-graph-refresh.v1",
+        "schema": "release.s6-isolated-market-graph-refresh.v2",
         "outcome": "success",
         **identity,
+        "http_capture": transport_evidence,
         "task_name": _TASK_NAME,
         "task_id": task_id,
         "task_attempt_id": task_attempt_id,
@@ -595,7 +654,12 @@ def read_and_validate_refresh_receipt(
     task_id = receipt.get("task_id")
     if not isinstance(task_id, str):
         raise MarketGraphReceiptError("S6_GRAPH_REFRESH_RECEIPT_INVALID")
-    expected = capture_current_market_graph(context=context, task_id=task_id)
+    transport_evidence = _validated_http_capture(receipt.get("http_capture"))
+    expected = capture_current_market_graph(
+        context=context,
+        task_id=task_id,
+        http_capture=transport_evidence,
+    )
     if receipt != expected:
         raise MarketGraphReceiptError("S6_GRAPH_REFRESH_RECEIPT_MISMATCH")
     return receipt
@@ -609,13 +673,14 @@ def write_success_receipt(path: Path, payload: Mapping[str, object]) -> None:
     output = dict(payload)
     receipt_hash = output.pop("receipt_sha256", None)
     if (
-        output.get("schema") != "release.s6-isolated-market-graph-refresh.v1"
+        output.get("schema") != "release.s6-isolated-market-graph-refresh.v2"
         or output.get("outcome") != "success"
         or not isinstance(receipt_hash, str)
         or _SHA256_RE.fullmatch(receipt_hash) is None
         or receipt_hash != _sha256(output)
     ):
         raise MarketGraphReceiptError("S6_GRAPH_REFRESH_RECEIPT_INVALID")
+    _validated_http_capture(output.get("http_capture"))
     output["receipt_sha256"] = receipt_hash
     raw = _canonical_json(output)
     if path.is_symlink() or path.exists():

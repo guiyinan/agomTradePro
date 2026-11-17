@@ -584,7 +584,7 @@ def _final_validation_context(
             for publication in publications
         ]
         graph_receipt: dict[str, object] = {
-            "schema": "release.s6-isolated-market-graph-refresh.v1",
+            "schema": "release.s6-isolated-market-graph-refresh.v2",
             "outcome": "success",
             "candidate_sha": candidate_sha,
             "attempt_id": plan["attempt_id"],
@@ -635,6 +635,15 @@ def _final_validation_context(
             "target_trade_date": "2026-10-10",
             "source_time_min": "2026-10-09T08:00:00+00:00",
             "source_time_max": "2026-10-10T08:00:00+00:00",
+            "http_capture": {
+                "count_unit": "requests_session_dispatch",
+                "dispatch_count": 2,
+                "rejected_dispatch_count": 0,
+                "guard_failure_code": None,
+                "max_dispatches": 50,
+                "max_seconds": 3600.0,
+                "elapsed_seconds": 4.5,
+            },
             "pointers": pointers,
             "publications": publications,
             "member_hashes": member_hashes,

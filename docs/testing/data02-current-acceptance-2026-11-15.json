@@ -3601,7 +3601,7 @@
     {
       "date": "2026-11-16T18:08:48.512032+00:00",
       "kind": "e1_frozen_integrated_c2_numeric_v3_preparation",
-      "status": "frozen_6086_ci_passed_awaiting_same_budget_binding_and_legacy_baseline_recovery",
+      "status": "6086_prepare_failed_zero_provider_requests_minimal_input_and_rollback_gate_fixes_in_preparation",
       "base_head": "2529c3bd50b728ae87ad328c1ae5794907f5ea74",
       "scope": "Frozen single-security Main+Balance E1 critical path only; full DATA-02 universe and four Publication exit gates unchanged.",
       "delivery": {
@@ -4120,12 +4120,13 @@
         "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/controlled-release-backup-r1.verified-summary.json",
         "sha256": "4f781ca77eb1d1b53f9d5b7b46129caff28af138ecfdfcf6898af7288c3c952e"
       },
-      "qualification_boundary": "Frozen6086 source implementation,58 related local tests,typing/governance gates,exact7 CI types/8 successful runs,original cumulative4 model deltas and actual old-image import diagnostic passed. S6,controlled deployment,real qualified E1/reconciliation,full-universe four Publications and DATA03 remain incomplete. Original7955 budget is not transferred; same-size6086 fresh-S6 binding is requested. Legacy numeric production release/empty-directory manifest blocks normal rollback eligibility and needs a truthful recovery path,not a fabricated build history.",
+      "qualification_boundary": "Frozen6086 exact CI/local gates passed and same-size S6 budget was explicitly rebound by Owner. Fresh9d5 prepare passed production export and failed universe input qualification before any provider request. Both failed attempts remain terminal. Necessary bounded isolated graph refresh and truthful observed-runtime rollback support are being prepared,without waiving input/rollback gates or fabricating old build history. Any replacement candidate requires its own CI/fresh S6/budget binding;6086 evidence is not transferred. No production deployment/facts/trades/Publication activation;DATA02 full exit and DATA03 incomplete.",
       "s6_owner_budget_authorization": {
-        "recorded_at_utc": "2026-11-16T23:20:14.337190+00:00",
-        "owner_reply": "批准本候选标准 S6 预算（推荐）",
-        "question_reference": "request_user_input_async/call_f431f9ccb434415c8ffb9646e0a3266c/0",
-        "candidate_sha": "7955a814c4c50617c41b8b72ba9636877ace3852",
+        "recorded_at": "2026-11-17T01:23:20.552212+00:00",
+        "owner_reply": "批准同额预算绑定到 6086（推荐）",
+        "question_reference": "request_user_input_async/call_6b0ab54b0a4a43ae927ab3c3de930584/0",
+        "candidate_sha": "608653bc0af97582122e15e52a2960818a4ccfac",
+        "attempt_id": "9d5b95e8de8944d48aef1a6403c9797d",
         "standard_s6_attempts_authorized": 1,
         "universe_count_ceiling": 5573,
         "financial_scope_physical_attempt_ceiling": 22292,
@@ -4135,9 +4136,15 @@
         "market_full_universe_session_dispatch_ceiling": 100,
         "e1_separate_physical_ceiling": 2,
         "e1_auto_retry_or_pagination_allowed": false,
-        "universe_growth_action": "stop_without_automatic_budget_increase",
         "advance_isolated_market_graph": false,
-        "qualification_boundary": "Budget approval only; normal fresh-attempt isolation, per-candidate authenticated scope authorization, all S6 reports and controlled deployment gates remain required. No failed-attempt replay or production publication grant."
+        "failed_attempt_replay_allowed": false,
+        "universe_growth_action": "stop_without_automatic_budget_increase",
+        "prior7955_requests_consumed": 0,
+        "prior7955_attempt_remains_terminal": true,
+        "full_candidate_ci_receipt": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/parser-fix-candidate-ci-all-verified.receipt.json",
+        "old_build_original_owner_reply": "我不知道 你看着办",
+        "old_build_history_remains_unknown": true,
+        "production_review_or_publication_granted": false
       },
       "s6_first_fresh_prepare": {
         "candidate_sha": "7955a814c4c50617c41b8b72ba9636877ace3852",
@@ -4345,7 +4352,247 @@
         "older_source_release_manifest_found": "source-20261008050500 (d3fdbd6f1ce8a1b77c4ba4fec923d651f4a2b7df), not current4149 identity and not yet qualified as rollback target",
         "normal_deploy_blocker": "Current realpath basename20261101013730 and empty manifest directory; no production mutation or waiver performed.",
         "recovery_review_limit": "Independent Luna Max rejects no-op FROM image reuse mislabeled as git-clone v1 provenance. No current pointer/directory repair,baseline activation,old build timestamps/source_mode reconstruction or release gate waiver performed.",
-        "missing_original_input_requested": "User asked for original4149/8fb Nov1 release manifest or build report location,or confirmation unavailable; no password requested."
+        "missing_original_input_requested": "User asked for original4149/8fb Nov1 release manifest or build report location,or confirmation unavailable; no password requested.",
+        "original_history_owner_reply": "我不知道 你看着办",
+        "original_history_unknown_preserved": true
+      },
+      "s6_owner_budget_authorization_history": [
+        {
+          "recorded_at_utc": "2026-11-16T23:20:14.337190+00:00",
+          "owner_reply": "批准本候选标准 S6 预算（推荐）",
+          "question_reference": "request_user_input_async/call_f431f9ccb434415c8ffb9646e0a3266c/0",
+          "candidate_sha": "7955a814c4c50617c41b8b72ba9636877ace3852",
+          "standard_s6_attempts_authorized": 1,
+          "universe_count_ceiling": 5573,
+          "financial_scope_physical_attempt_ceiling": 22292,
+          "financial_slice_physical_attempt_ceiling": 4,
+          "financial_s6_total_physical_attempt_ceiling": 22296,
+          "market_provider_probe_session_dispatch_ceiling": 100,
+          "market_full_universe_session_dispatch_ceiling": 100,
+          "e1_separate_physical_ceiling": 2,
+          "e1_auto_retry_or_pagination_allowed": false,
+          "universe_growth_action": "stop_without_automatic_budget_increase",
+          "advance_isolated_market_graph": false,
+          "qualification_boundary": "Budget approval only; normal fresh-attempt isolation, per-candidate authenticated scope authorization, all S6 reports and controlled deployment gates remain required. No failed-attempt replay or production publication grant."
+        }
+      ],
+      "s6_6086_fresh_prepare": {
+        "attempt_id": "9d5b95e8de8944d48aef1a6403c9797d",
+        "candidate_sha": "608653bc0af97582122e15e52a2960818a4ccfac",
+        "plan": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/s6-6086-fresh-attempt-plan.canonical.json",
+          "sha256": "89fdadfbd3ff6be5b439719d8b713eca7c3febe0fa046a5537f25b09e9e80948"
+        },
+        "reserve": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/s6-6086-fresh-reserve.receipt.json",
+          "sha256": "1078f12546bc11cc2d62f95757a2443444ba9b6654868099ea260b8b33a69c73"
+        },
+        "launch": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/s6-6086-fresh-prepare-launch.receipt.json",
+          "sha256": "7a111b18780533b2aea47edb455d22a4fc4e350d49ab5e280dd6d6b12c8512a3"
+        },
+        "state": "failed",
+        "phase": "candidate_exports",
+        "exit_code": 60,
+        "stable_code": "S6_CANDIDATE_EXPORT_UNIVERSE_FAILED",
+        "underlying_code": "S6_CURRENT_MARKET_PUBLICATION_TARGET_INVALID",
+        "production_export_passed": true,
+        "universe_export_failed": true,
+        "failure_originals": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/s6-6086-prepare-universe-failure-originals.json",
+          "sha256": "3332868bcb1c4180fb86909b58f5b572f05bc84333f12306f589a04b735d3e0d"
+        },
+        "read_only_diagnostic": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/s6-6086-current-market-target-readonly-diagnostic.json",
+          "sha256": "b5461ba2d2834c446cfa519a00ad8dab5d866455887db070b69d45b673bc3aa2"
+        },
+        "failed_guard": "activation_ids != {uuid5(NAMESPACE_URL, agomtradepro:current-market-activation:<run_id>)}",
+        "guard_source": "scripts/export_s6_rehearsal_inputs.py:1028",
+        "diagnostic_limits": "Read-only isolated qualifier only,provider HTTP disabled; no exporter or S6 stage replay. Do not rewrite production activation IDs to pass.",
+        "provider_stages_started": false,
+        "provider_requests": 0,
+        "financial_physical_attempts": 0,
+        "old_failed_attempt_replayed": false,
+        "owner_password_transferred_or_stored": false
+      },
+      "necessary_candidate_revision": {
+        "status": "minimal_required_fixes_in_formal_working_tree_not_frozen_or_released",
+        "previous_candidate_sha": "608653bc0af97582122e15e52a2960818a4ccfac",
+        "reasons": [
+          "fresh prepare universe guard requires a normally produced isolated market activation graph",
+          "candidate-owned deploy path rejects authentic numeric legacy current and empty manifest directory; old build facts remain unknown"
+        ],
+        "owner_instruction": "freeze6086 unless a real new blocker requires runtime candidate changes; proceed within approved unchanged scope/budget, do not re-ask known history/password",
+        "new_exact_sha_ci_and_fresh_s6_required": true,
+        "old_ci_or_attempt_qualification_transferred": false,
+        "market_dispatch_allocation": {
+          "graph_refresh": 50,
+          "provider_probe": 50,
+          "full_universe_capacity": 50,
+          "total": 150,
+          "original_total_ceiling": 200,
+          "count_unit": "requests_session_dispatch"
+        },
+        "financial_total_physical_attempt_ceiling": 22296,
+        "universe_ceiling": 5573,
+        "production_e1_separate_physical_ceiling": 2,
+        "data02_full_exit_unchanged": true,
+        "data03_started": false
+      },
+      "isolated_graph_budget_development": {
+        "scope": "candidate-owned transport budget reservation, guard failure retention, deterministic concurrent receipt ordering, v2 graph receipt and three-layer prepare validation",
+        "formal_tests": {
+          "passed": 62,
+          "skipped_local": 9,
+          "log": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/graph-budget-r3-formal-tests.log",
+            "sha256": "d2a66150bc3e1fd9ca86bd96bacfd604587746ce0b1112a381f6e8a4204c4706"
+          }
+        },
+        "existing_transport_artifact_tests": {
+          "passed": 41,
+          "skipped": 0,
+          "log": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/graph-budget-r3-http-regression.log",
+            "sha256": "0dc2afdcddf07c58509c93f3c90e1d4dea96b02e742547b3e436b3bd0ad05d7f"
+          }
+        },
+        "mypy": [
+          {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/graph-budget-r3-mypy-refresh.log",
+            "sha256": "1696369e79514135c6c84d87d82a0fc9c6a7026a4b6fda77e8a7e9b50eef135b"
+          },
+          {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/graph-budget-r3-mypy-modules.log",
+            "sha256": "5ba4fad13a81b04a0a55439e46f84ebb25f1dcefaf8a0f67d0e71ba1266e2e69"
+          },
+          {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/graph-budget-r3-mypy-capture.log",
+            "sha256": "1696369e79514135c6c84d87d82a0fc9c6a7026a4b6fda77e8a7e9b50eef135b"
+          }
+        ],
+        "mypy_initial_batch_failure": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/graph-budget-r3-mypy.log",
+          "sha256": "dac171e1fb6287d532a7be40194b53c65addf323175b2ec619233344eda8cd72"
+        },
+        "mypy_module_selection_note": "scripts is a namespace package; -m scripts.module avoids duplicate file/module identities without changing mypy configuration or debt baseline",
+        "format": [
+          {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/graph-budget-r3-formal-ruff.log",
+            "sha256": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0"
+          },
+          {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/graph-budget-r3-black.log",
+            "sha256": "555e1c5b96b9a5560a570bc43c0342f9785f5038e526f64aa1848a84cb357132"
+          },
+          {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/graph-budget-r3-isort.log",
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        ],
+        "provider_dispatches": 0,
+        "s6_passed": false,
+        "development_gates_passed": true,
+        "mypy_debt_errors": 0,
+        "governance_checks": [
+          {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/graph-budget-r3-mypy-debt.log",
+            "sha256": "def6c561b37227470bcda90c8450d9837ca85dd34af34d05e7d6af2afdf85ab1"
+          },
+          {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/graph-budget-r3-module-build.log",
+            "sha256": "9f0b6e0bc5060c1f3cb1b97bb8401a0a428193c67fcf976a694b23836eb7af4c"
+          },
+          {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/graph-budget-r3-module-check.log",
+            "sha256": "50ba91f9d0e2baa1aeda94701d7695e45116e1326f5651784377318792b43759"
+          },
+          {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/graph-budget-r3-architecture-working-tree.log",
+            "sha256": "90672c9a12a181baafa76ae7379691c45355d48a77ac7140e2c4afb583a3526a"
+          },
+          {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/graph-budget-r3-registry.log",
+            "sha256": "ab63b78bd1ef21018c8d521c7375d6dc7a0b4b83018a4dd1606c4ed90d913056"
+          },
+          {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/graph-budget-r3-governance.log",
+            "sha256": "50824cda33db620929040684fffe76d54284292edfd06fd75b4dedc034571c6b"
+          }
+        ]
+      },
+      "legacy_observed_baseline_development": {
+        "purpose": "observed_runtime_rollback_only_not_v1_release_provenance",
+        "historical_build": {
+          "source_mode": null,
+          "build_started_at": null,
+          "build_finished_at": null
+        },
+        "initial_capture": {
+          "receipt": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/legacy-observed-runtime-actual-capture-r1.receipt.json",
+            "sha256": "28a03b5ee8b37d21fab3d12552e262b07d91aec4bd38faaf22b8f9aa0a5847b2"
+          },
+          "baseline": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/legacy-observed-runtime-actual-baseline-r1.json",
+            "sha256": "2e2fda2c421f75a09382d545cee54adc333aaf318cb06c9dea9c227dadffe700"
+          },
+          "qualification": "diagnostic_only_superseded_due_to_nested_code_scope_omission_and_missing_effective_process_digest"
+        },
+        "scope_red": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/legacy-observed-scope-red.log",
+          "sha256": "1db554eee32654d5d8b30734eb496f8a38f241e9ee5cde92fb70849eb63eb3d8"
+        },
+        "process_red": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/legacy-observed-process-red.log",
+          "sha256": "fe82d2d48f94246d4bb6504b1f093ca04466a539d8bfed585c1ab40b3bbad5b6"
+        },
+        "actual_capture": {
+          "receipt": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/legacy-observed-runtime-actual-capture-r2.receipt.json",
+            "sha256": "e709b0f10a5edc9c5330322008d514af9591a7abe007ab165e78932c5d14a137"
+          },
+          "baseline": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/legacy-observed-runtime-actual-baseline-r2.json",
+            "sha256": "cc6e07b15dfe76c8e1ca625e520fe8c260f1b2cdfd24f1006d9f03cde0bcbc1b"
+          },
+          "services": 5,
+          "runtime_code_matches_immutable_image": true,
+          "mounts_and_effective_configuration_bound": true
+        },
+        "independent_review": "Luna Max reviewed the final four observer/codec files read-only and found no remaining triggered false-acceptance blocker; not deployment/native DB qualification",
+        "production_container_database_pointer_or_legacy_directory_mutated": false,
+        "still_required": [
+          "exact-candidate typed/source checks",
+          "candidate-owned controlled deployment branch",
+          "isolated migrated legacy native compatibility proof",
+          "failure recovery rehearsal",
+          "fresh exact-SHA CI/S6",
+          "pre-cutover live baseline comparison"
+        ],
+        "publication_or_release_qualification_granted": false,
+        "actual_live_recomparison": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/legacy-observed-runtime-actual-compare-r2.receipt.json",
+          "sha256": "758b714f331554c879889fa8b60d9c4d6fb523bf315e22e843a4d53da1b16766"
+        },
+        "codec_capture_tests": {
+          "first_corrected_batch_passed": 27,
+          "final_capture_module_passed": 12,
+          "logs": [
+            {
+              "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/legacy-observed-codec-capture-tests-r2.log",
+              "sha256": "6dd58348b20bf86cb97b14020cb8a27795110f39ed6892b29856b6bd4f31a710"
+            },
+            {
+              "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/legacy-observed-capture-final-tests.log",
+              "sha256": "98b91fa0136aa205c042c8fce946e51ef17301ccf3363929b4a1dd855f8e43c3"
+            }
+          ]
+        },
+        "mypy": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/legacy-observed-mypy-r2.log",
+          "sha256": "3fbd8281856ab7351acb81214ce6b1c9ab4bd26e2ed26d2995c306a1aa11a800"
+        }
       }
     }
   ],

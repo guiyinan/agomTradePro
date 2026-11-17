@@ -4,13 +4,18 @@
 from __future__ import annotations
 
 import argparse
+import math
 import os
 import re
 import sys
 from collections.abc import Callable, Sequence
 from datetime import UTC, date, datetime
 from pathlib import Path
+from typing import TYPE_CHECKING
 from urllib.parse import urlparse
+
+if TYPE_CHECKING:
+    from apps.data_center.infrastructure.rehearsal_http_capture import RehearsalHttpCapture
 
 _SHA1_RE = re.compile(r"[0-9a-f]{40}\Z")
 _SHA256_RE = re.compile(r"[0-9a-f]{64}\Z")
@@ -24,6 +29,8 @@ _REDIS_CONTAINER_RE = re.compile(r"agom-s6-redis-[a-f0-9]{32}\Z")
 _REPORT = Path("/candidate-output/current-market-graph-refresh.json")
 _CANDIDATE_SOURCE = Path("/candidate-src")
 _ISOLATED_PROVIDER_SOURCE = "tushare"
+_MAX_HTTP_DISPATCHES = 50
+_MAX_HTTP_SECONDS = 3600.0
 _KNOWN_FAILURE_CODES = frozenset(
     {
         "S6_GRAPH_REFRESH_ENVIRONMENT_INVALID",
@@ -31,20 +38,76 @@ _KNOWN_FAILURE_CODES = frozenset(
         "S6_GRAPH_REFRESH_IDENTITY_INVALID",
         "S6_GRAPH_REFRESH_CANDIDATE_SOURCE_INVALID",
         "S6_GRAPH_REFRESH_TARGET_SESSION_UNAVAILABLE",
+        "S6_GRAPH_REFRESH_HTTP_BUDGET_INVALID",
     }
 )
 
 
-def _blocked(error_code: str) -> int:
+def _blocked(error_code: str, *, capture: RehearsalHttpCapture | None = None) -> int:
     """Print one safe stable error code and return the standard blocked status."""
 
-    print(f"S6_GRAPH_REFRESH_BLOCKED code={error_code}", file=sys.stderr, flush=True)
+    details = ""
+    if capture is not None and capture.started > 0:
+        evidence = _http_capture_summary(capture)
+        details = (
+            f" dispatch_count={evidence['dispatch_count']}"
+            f" rejected_dispatch_count={evidence['rejected_dispatch_count']}"
+            f" max_dispatches={evidence['max_dispatches']}"
+            f" elapsed_seconds={evidence['elapsed_seconds']}"
+            f" max_seconds={evidence['max_seconds']}"
+        )
+    print(f"S6_GRAPH_REFRESH_BLOCKED code={error_code}{details}", file=sys.stderr, flush=True)
     return 2
+
+
+def _validate_http_budget(max_dispatches: object, max_seconds: object) -> None:
+    """Reject invalid or widened technical request bounds before any side effect."""
+    if (
+        type(max_dispatches) is not int
+        or max_dispatches < 1
+        or max_dispatches > _MAX_HTTP_DISPATCHES
+        or isinstance(max_seconds, bool)
+        or not isinstance(max_seconds, (int, float))
+        or not math.isfinite(max_seconds)
+        or max_seconds <= 0
+        or max_seconds > _MAX_HTTP_SECONDS
+    ):
+        raise ValueError("S6_GRAPH_REFRESH_HTTP_BUDGET_INVALID")
+
+
+def _http_capture_summary(capture: RehearsalHttpCapture) -> dict[str, object]:
+    """Project only safe counts and bounds from the real transport observer."""
+    observed = capture.to_dict()
+    return {
+        "count_unit": observed["count_unit"],
+        "dispatch_count": observed["dispatch_count"],
+        "rejected_dispatch_count": observed["rejected_dispatch_count"],
+        "guard_failure_code": observed["guard_failure_code"],
+        "max_dispatches": observed["max_dispatches"],
+        "max_seconds": observed["max_seconds"],
+        "elapsed_seconds": observed["elapsed_seconds"],
+    }
+
+
+def _capture_failure_code(capture: RehearsalHttpCapture) -> str | None:
+    """Map a swallowed transport guard failure to a stable refresh diagnostic."""
+    if capture.guard_failure_code is None:
+        return None
+    if capture.guard_failure_code == "REHEARSAL_HTTP_BUDGET_EXCEEDED":
+        return "S6_GRAPH_REFRESH_HTTP_BUDGET_EXCEEDED"
+    return "S6_GRAPH_REFRESH_HTTP_OBSERVATION_FAILED"
+
+
+def _execute_captured_task(task: Callable[[], object], *, capture: RehearsalHttpCapture) -> object:
+    """Run one task under the actual requests transport observer."""
+    with capture:
+        return task()
 
 
 def _validate_runtime_identity(args: argparse.Namespace, environ: dict[str, str]) -> None:
     """Require an exact, isolated database/runtime identity before provider access."""
 
+    _validate_http_budget(args.max_dispatches, args.max_seconds)
     if (
         environ.get("AGOM_RELEASE_REHEARSAL_DATABASE") != "1"
         or environ.get("S6_GRAPH_REFRESH_ENABLED") != "1"
@@ -141,6 +204,8 @@ def _run(args: argparse.Namespace, environ: dict[str, str]) -> int:
     _prepare_candidate_imports()
     import django
 
+    from apps.data_center.infrastructure.rehearsal_http_capture import RehearsalHttpCapture
+
     django.setup()
 
     from django.db import connection
@@ -173,8 +238,10 @@ def _run(args: argparse.Namespace, environ: dict[str, str]) -> int:
 
     task_module = sys.modules.get("apps.data_center.application.tasks")
     receipt_module = sys.modules.get("scripts.s6_isolated_market_graph_receipt")
+    capture_module = sys.modules.get("apps.data_center.infrastructure.rehearsal_http_capture")
     task_module_file = getattr(task_module, "__file__", None)
     receipt_module_file = getattr(receipt_module, "__file__", None)
+    capture_module_file = getattr(capture_module, "__file__", None)
     if (
         task_module is None
         or not isinstance(task_module_file, str)
@@ -182,6 +249,9 @@ def _run(args: argparse.Namespace, environ: dict[str, str]) -> int:
         or receipt_module is None
         or not isinstance(receipt_module_file, str)
         or not _is_within(Path(receipt_module_file), _CANDIDATE_SOURCE)
+        or capture_module is None
+        or not isinstance(capture_module_file, str)
+        or not _is_within(Path(capture_module_file), _CANDIDATE_SOURCE)
     ):
         return _blocked("S6_GRAPH_REFRESH_CANDIDATE_IMPORT_INVALID")
 
@@ -193,20 +263,36 @@ def _run(args: argparse.Namespace, environ: dict[str, str]) -> int:
             ready_after=FULL_MARKET_PROVIDER_READY_AFTER,
         ),
     )
+    capture = RehearsalHttpCapture(
+        max_dispatches=args.max_dispatches,
+        max_seconds=args.max_seconds,
+    )
     try:
         with isolated_s6_full_market_provider_session(
             target_session,
             triggered_at=triggered_at,
         ):
-            result = refresh_full_market_publications_task.apply(
-                task_id=args.task_id,
-                kwargs=_isolated_task_kwargs(),
-                throw=False,
+            result = _execute_captured_task(
+                lambda: refresh_full_market_publications_task.apply(
+                    task_id=args.task_id,
+                    kwargs=_isolated_task_kwargs(),
+                    throw=False,
+                ),
+                capture=capture,
             )
     except Exception:
-        return _blocked("S6_GRAPH_REFRESH_TASK_EXECUTION_FAILED")
-    if result.state != "SUCCESS" or not isinstance(result.result, dict):
-        return _blocked("S6_GRAPH_REFRESH_TASK_EXECUTION_FAILED")
+        guard_failure = _capture_failure_code(capture)
+        return _blocked(
+            guard_failure or "S6_GRAPH_REFRESH_TASK_EXECUTION_FAILED",
+            capture=capture,
+        )
+    guard_failure = _capture_failure_code(capture)
+    if guard_failure is not None:
+        return _blocked(guard_failure, capture=capture)
+    if getattr(result, "state", None) != "SUCCESS" or not isinstance(
+        getattr(result, "result", None), dict
+    ):
+        return _blocked("S6_GRAPH_REFRESH_TASK_EXECUTION_FAILED", capture=capture)
 
     context = {
         "candidate_sha": args.candidate_sha,
@@ -222,14 +308,23 @@ def _run(args: argparse.Namespace, environ: dict[str, str]) -> int:
         "execution_image_id": args.execution_image_id,
     }
     try:
-        payload = capture_current_market_graph(context=context, task_id=args.task_id)
+        payload = capture_current_market_graph(
+            context=context,
+            task_id=args.task_id,
+            http_capture=_http_capture_summary(capture),
+        )
         write_success_receipt(_REPORT, payload)
     except MarketGraphReceiptError as exc:
-        return _blocked(exc.error_code)
+        return _blocked(exc.error_code, capture=capture)
+    except Exception:
+        return _blocked("S6_GRAPH_REFRESH_RUNTIME_FAILED", capture=capture)
     print(
         "S6_GRAPH_REFRESH_COMPLETE "
         f"target_trade_date={payload['target_trade_date']} "
-        f"task_id={args.task_id} receipt_sha256={payload['receipt_sha256']}",
+        f"task_id={args.task_id} "
+        f"dispatch_count={capture.dispatches} "
+        f"max_dispatches={capture.max_dispatches} "
+        f"receipt_sha256={payload['receipt_sha256']}",
         flush=True,
     )
     return 0
@@ -251,6 +346,8 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--network-id", required=True)
     parser.add_argument("--execution-image-id", required=True)
     parser.add_argument("--task-id", required=True)
+    parser.add_argument("--max-dispatches", type=int, default=_MAX_HTTP_DISPATCHES)
+    parser.add_argument("--max-seconds", type=float, default=_MAX_HTTP_SECONDS)
     return parser
 
 

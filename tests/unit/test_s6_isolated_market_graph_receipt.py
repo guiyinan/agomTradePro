@@ -42,9 +42,18 @@ def _payload() -> dict[str, object]:
     """Build a deterministic receipt payload for the reader boundary."""
 
     payload: dict[str, object] = {
-        "schema": "release.s6-isolated-market-graph-refresh.v1",
+        "schema": "release.s6-isolated-market-graph-refresh.v2",
         "outcome": "success",
         **_context(),
+        "http_capture": {
+            "count_unit": "requests_session_dispatch",
+            "dispatch_count": 50,
+            "rejected_dispatch_count": 0,
+            "guard_failure_code": None,
+            "max_dispatches": 50,
+            "max_seconds": 3600.0,
+            "elapsed_seconds": 17.5,
+        },
         "task_name": "data_center.refresh_full_market_publications",
         "task_id": f"s6-market-refresh-{_ATTEMPT_ID}",
         "task_attempt_id": "4" * 32,
@@ -183,7 +192,7 @@ def test_read_rechecks_plan_bound_current_graph_and_source_time_bounds(
     monkeypatch.setattr(
         receipt,
         "capture_current_market_graph",
-        lambda *, context, task_id: payload,
+        lambda *, context, task_id, http_capture: payload,
     )
 
     assert receipt.read_and_validate_refresh_receipt(path, context=_context()) == payload
@@ -193,7 +202,7 @@ def test_read_rechecks_plan_bound_current_graph_and_source_time_bounds(
     monkeypatch.setattr(
         receipt,
         "capture_current_market_graph",
-        lambda *, context, task_id: changed,
+        lambda *, context, task_id, http_capture: changed,
     )
     with pytest.raises(receipt.MarketGraphReceiptError, match="S6_GRAPH_REFRESH_RECEIPT_MISMATCH"):
         receipt.read_and_validate_refresh_receipt(path, context=_context())

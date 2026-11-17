@@ -1428,3 +1428,11 @@ Root按已委托的技术口径选择，把后续标准S6容量测量参数固�
 受控部署准备另有真实legacy阻断：生产current解析到releases/20261101013730（非source-*），其清单为空目录；正常runner会在备份、迁移与切换前退出42。五个服务仍8fb镜像/4149源码，旧目录和绑定未改。Luna Max确认旧bundle与固定EVID09不能替代身份/回滚门。只读发现更早source-20261008050500的v1原清单，但它不是当前4149身份；当前构建mode/start/end原件尚未在已审范围找回，image Created不能补作build起止，首次元数据搜索有30000文件上限，不能声称原件全无。恢复方案须使用真实来源与有效回滚锚点，不能编造旧build或偷换manifest语义；生产保持不动，先完成新候选S6前置。失败793c隔离PG/Redis已停，持久卷、网络、Source和原件保留，本机tmpfs原生QA未停。
 
 legacy原件第二轮只读元数据查询已排除Source快照/venv，遍历4404文件、剪枝689目录、深度4，未触发计数上限；该限定范围仍未找回4149/8fb的真实构建原件，不扩写为全盘不存在。已请Owner仅指向其他保存位置或确认没有；不索取密码。独立Luna Max明确拒绝把no-op FROM旧镜像包装冒充标准git-clone v1构建来源，未实施这种方案、未改current或旧挂载。若原件确实不可用，须另行准备由正式合同/验证器支持的legacy恢复方案，不能让包装或未知时间绕过回滚资格。
+
+Owner随后明确批准6086同额fresh S6，并对旧构建原件回复“我不知道 你看着办”；旧历史继续标未知。新attempt9d5b95e8de8944d48aef1a6403c9797d已按标准入口准备，production导出通过，universe导出在01:43:24Z以S6_CURRENT_MARKET_PUBLICATION_TARGET_INVALID停止；只读、禁HTTP诊断精确定位到exporter第1028行的producer activation UUID一致性门，未重跑exporter/S6，也不改生产activation ID来放行。runner/provider均未开始，实际请求仍0。
+
+下一最小合批仅修真实前置：为正常隔离图refresh补实际Session硬预算及安全计数（拟graph≤50、probe≤50、capacity≤100，行情总≤200不增，但新增stage用途/新候选绑定仍待最终明确），以及由正式verifier/deploy链显式支持的observed-runtime rollback baseline。默认v1路径不松，原numeric目录/空manifest及未知build历史不改；baseline只证明当前实际旧运行态，不授予S6/Publication/决策资格，并须完整迁移后兼容与失败恢复机械验收。旧bootstrap回滚在现代canonical切换验收后退休，不能用于native v2事实/新治理证据写入后的应用回退；不逆迁移或恢复旧DB。Root掌管正式Source/Git，Luna Max只在指定.tmp准备最小patch或只读复核，不扩业务面/新框架。必要变更完成后统一冻结下一候选并执行同SHA门禁，不拼6086的绿灯/批准。
+
+2026-11-17 同一前置修复继续收敛：独立复核确认6086的candidate-owned标准deploy入口在numeric current/空manifest处必然阻断，外部说明或transport hash不能替代，故仅为该真实阻断准备最小新候选；6086与失败9d5b均不续跑或转记资格。沿用Owner最新指示中的同额预算与必要调整授权，不重复索取密码或旧build原件。Root选择graph/probe/capacity分别最多50次Session dispatch，行情总最多150（低于原200），财报22296、范围5573、生产E1两次不变；容量测量原100次窗口及15%余量标准不抬高。全量DATA-02退出门不变。
+
+隔离图正式Source回归已通过62例（本机9例跳过），既有transport/原件41例通过；部署既有133例通过（本机2例跳过）。只读实测旧运行态采集R1曾漏掉嵌套同名源码目录，独立复核发现后以失败反例修正scope及遍历错误阻断，R1只保留诊断；R2已实测通过5服务、完整mount、命令/安全/资源/网络配置摘要与immutable image代码一致性。历史构建mode/start/end仍为null；此观察基线不是旧release manifest或迁移后恢复资格。后续在隔离备份副本验证旧代码对全部候选迁移的兼容，生产切换前再次采集比较。旧回退只限现代运行态提交前，期间必须隔离新writer；提交后退休旧基线，延后元数据/任务启用失败只允许现代候选向前修复，不逆迁移或恢复旧DB。原件与真实源码身份记录在既有索引followups[14]。

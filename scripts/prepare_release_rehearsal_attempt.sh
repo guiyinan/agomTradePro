@@ -806,6 +806,8 @@ run_candidate_market_graph_refresh() {
     --network-id "$isolated_network_id"
     --execution-image-id "$execution_image"
     --task-id "s6-market-refresh-$attempt_id"
+    --max-dispatches 50
+    --max-seconds 3600
   )
   helper_argv=(
     --candidate-sha "$sha" --destination "$candidate_source"
