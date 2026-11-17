@@ -3601,7 +3601,7 @@
     {
       "date": "2026-11-16T18:08:48.512032+00:00",
       "kind": "e1_frozen_integrated_c2_numeric_v3_preparation",
-      "status": "parser_runtime_fix_development_passed_replacement_candidate_ci_pending",
+      "status": "frozen_6086_ci_passed_awaiting_same_budget_binding_and_legacy_baseline_recovery",
       "base_head": "2529c3bd50b728ae87ad328c1ae5794907f5ea74",
       "scope": "Frozen single-security Main+Balance E1 critical path only; full DATA-02 universe and four Publication exit gates unchanged.",
       "delivery": {
@@ -3614,7 +3614,7 @@
         "branch": "dev/next-development",
         "required_acceptance_scope": "Exact-candidate CI and release prerequisites remain separate from completed local development acceptance.",
         "candidate_ci_complete": true,
-        "frozen_release_candidate_sha": "7955a814c4c50617c41b8b72ba9636877ace3852"
+        "frozen_release_candidate_sha": "608653bc0af97582122e15e52a2960818a4ccfac"
       },
       "implementation": [
         "Session-authenticated C2 apply/revoke and immutable Owner history",
@@ -3878,7 +3878,7 @@
           "docs/development/s6-rehearsal-recovery.md",
           "governance/release_rehearsal_policy.json"
         ],
-        "user_action_status": "Consolidate only after concrete candidate, validation and approved secure authentication method are verified; do not ask for passwords in chat."
+        "user_action_status": "6086 same-size fresh-S6 budget binding requested. Original7955 attempt consumed no provider requests. No password requested; all candidate CI must pass before execution."
       },
       "native_test_extension": {
         "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/native-writer-test-extension.receipt.json",
@@ -4027,19 +4027,24 @@
         "parent_commit": "2529c3bd50b728ae87ad328c1ae5794907f5ea74",
         "subject": "feat: add governed financial E1 capture and verification",
         "local_development_gate_complete": true,
-        "ci_status_at_recording": "pending exact metadata candidate push",
+        "ci_status_at_recording": "all_7_workflow_types_8_runs_success",
         "production_deployed": false,
         "e1_financial_http_used": 0,
         "governance_ci_fix_commit": "7955a814c4c50617c41b8b72ba9636877ace3852",
-        "frozen_release_candidate_sha": "7955a814c4c50617c41b8b72ba9636877ace3852",
+        "frozen_release_candidate_sha": "608653bc0af97582122e15e52a2960818a4ccfac",
+        "later_evidence_commits_replace_frozen_candidate": false,
+        "parser_runtime_fix_commit": "608653bc0af97582122e15e52a2960818a4ccfac",
+        "candidate_source_commit_receipt": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/pypdf-lazy-fix-commit.receipt.json",
+          "sha256": "5019ea99561b20ef3c279189eeb4f1d615d1997fc42e9c820702d19c27e56de2"
+        },
         "ci_verified_receipt": {
-          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/corrected-candidate-ci-all-verified.receipt.json",
-          "sha256": "ff095ecb81fc0e2a88d30e4130a56a64e4d032da1a9a4c2b157baef7b4b5e174"
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/parser-fix-candidate-ci-all-verified.receipt.json",
+          "sha256": "798cb5db372440221bdba0fa9aadfddd5e60df91f01d6b9ffbd22a79d2dd8dd5"
         },
         "ci_workflow_types_passed": 7,
         "ci_runs_passed": 8,
-        "manual_full_runtime_validation_passed": true,
-        "later_evidence_commits_replace_frozen_candidate": false
+        "manual_full_runtime_validation_passed": true
       },
       "delivery_registry_check": {
         "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/delivery-registry-check-r2.log",
@@ -4115,7 +4120,7 @@
         "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/controlled-release-backup-r1.verified-summary.json",
         "sha256": "4f781ca77eb1d1b53f9d5b7b46129caff28af138ecfdfcf6898af7288c3c952e"
       },
-      "qualification_boundary": "Completed source implementation/local gates/exact candidate CI and verified current-production backup. S6, controlled deployment, real qualified E1/reconciliation, full-universe four Publications and DATA03 remain unproven. No later evidence-only commit changes the frozen7955 candidate; its S6 must use a clean exact7955 checkout.",
+      "qualification_boundary": "Frozen6086 source implementation,58 related local tests,typing/governance gates,exact7 CI types/8 successful runs,original cumulative4 model deltas and actual old-image import diagnostic passed. S6,controlled deployment,real qualified E1/reconciliation,full-universe four Publications and DATA03 remain incomplete. Original7955 budget is not transferred; same-size6086 fresh-S6 binding is requested. Legacy numeric production release/empty-directory manifest blocks normal rollback eligibility and needs a truthful recovery path,not a fabricated build history.",
       "s6_owner_budget_authorization": {
         "recorded_at_utc": "2026-11-16T23:20:14.337190+00:00",
         "owner_reply": "批准本候选标准 S6 预算（推荐）",
@@ -4143,7 +4148,6 @@
         "stable_code": "S6_CANDIDATE_EXPORT_PRODUCTION_FAILED",
         "cause": "S6_CANDIDATE_IMPORT_PROVENANCE_INVALID caused by missing pypdf in old production dependency execution image during django.setup",
         "execution_image_id": "sha256:8fb8281c9551f28611ee9a0cf6d5503792077eeddff9a917aee1793d8559ea92",
-        "candidate_source_tree_sha256": "b7bcd13f85bb2dc1f15c554fd97a62a34b3cbe20294c242d8f9a9735251ed5b0",
         "candidate_source_files": 11723,
         "provider_stages_started": false,
         "financial_physical_attempts": 0,
@@ -4165,7 +4169,18 @@
         "temporary_bootstrap_authentication_files_removed": {
           "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/s6-failed-prepare-private-bootstrap-cleanup.receipt.json",
           "sha256": "9d12a9e8c644c61b26f5f1125c5bf110e90d4cd4d92910b8f03de7b0096a42e6"
-        }
+        },
+        "exporter_verified_copy_tree_sha256": "b7bcd13f85bb2dc1f15c554fd97a62a34b3cbe20294c242d8f9a9735251ed5b0",
+        "sealed_snapshot_receipt": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/s6-first-source-receipt.canonical.json",
+          "sha256": "0220d1021c1ebfd8bc64ea11e60b00d59088cf07762b3540195d0bed1b746df4"
+        },
+        "sealed_snapshot_tree_sha256": "4d144446273f5aeea2c5ebf2fe5be91dd67f8f332fea14118db03242c1d404da",
+        "stopped_isolated_resources": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/s6-failed-prepare-isolated-resource-stop.receipt.json",
+          "sha256": "9954cca5e1478f3597c9fd130f5c85c728acdbc537b3be439b07c8a704cb0263"
+        },
+        "failed_postgres_redis_state": "stopped_after_import_diagnostic; volumes_network_source_and_failure_evidence_retained; no_resume"
       },
       "parser_runtime_fix": {
         "scope": "Infrastructure lazy loading only at five actual PDF parse paths. pypdf remains a required dependency. Missing dependency raises OfficialDisclosureCaptureError and cannot qualify or append source facts. Production containers and failed attempt unchanged.",
@@ -4220,7 +4235,41 @@
           "sha256": "50824cda33db620929040684fffe76d54284292edfd06fd75b4dedc034571c6b"
         },
         "mypy_debt_errors": 0,
-        "module_projection_changed": false
+        "module_projection_changed": false,
+        "replacement_candidate_sha": "608653bc0af97582122e15e52a2960818a4ccfac",
+        "original_model_delta_check": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/parser-fix-candidate-original-ref01.receipt.json",
+          "sha256": "01645691a972ebbdaceb8fbc63fbae55abfc46e52d297508c4d01bded5bce2d2"
+        },
+        "old_execution_image_import_diagnostic": {
+          "receipt": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/parser-fix-old-image-import-diagnostic.receipt.json",
+            "sha256": "9650aa1cd5ad82c8b738d9e617f9f516d4bb842d267ef4700fa98236f1b74dae"
+          },
+          "sealed_snapshot_receipt": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/parser-fix-preflight-source-receipt.canonical.json",
+            "sha256": "cc98f4bc1eb9ab63e5ca7264fd5890a11d99b7eecf95f349a90bd983316e1a32"
+          },
+          "sealed_snapshot_tree_sha256": "5168a6656db049d2be24c3e71691ee585349086caf2615b3040f3cbeec5163dd",
+          "exporter_verified_copy_tree_sha256": "ddecef45a2efff8fcbf3e38b52360d3679205f79636cfc930f6fe7ce6c393ab1",
+          "digest_scope_note": "Snapshot helper hashes Path-sorted entries; exporter independently hashes relative POSIX-string-sorted entries. Separate digest algorithms; values must not be interchanged.",
+          "files": 11723,
+          "outcome": "imports_ok",
+          "database_and_provider_io_disabled": true,
+          "s6_attempt_started": false,
+          "provider_requests": 0
+        },
+        "candidate_official_postgres_evidence": {
+          "receipt": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/parser-fix-publication-official-download.receipt.json",
+            "sha256": "da162d1e84e253f793ca29fb6b16444f9da8af1b1a5ea9b0c59c5d9d988e4c01"
+          },
+          "run_id": 43987101136,
+          "artifact_id": 14287676723,
+          "c2_v3_passed": 32,
+          "c2_v3_skipped": 0,
+          "c2_result_source": "official complete log; no separate C2 XML archived"
+        }
       },
       "s6_internal_capacity_envelope": {
         "decision_owner": "Root under delegated technical choices",
@@ -4242,6 +4291,61 @@
         "financial_budget_changed": false,
         "provider_requests_started": false,
         "review_agent": "/root/luna_max_d1_precision"
+      },
+      "previous_frozen_candidates": [
+        {
+          "candidate_sha": "7955a814c4c50617c41b8b72ba9636877ace3852",
+          "ci_verified_receipt": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/corrected-candidate-ci-all-verified.receipt.json",
+            "sha256": "ff095ecb81fc0e2a88d30e4130a56a64e4d032da1a9a4c2b157baef7b4b5e174"
+          },
+          "workflow_types_passed": 7,
+          "runs_passed": 8,
+          "manual_full_runtime_validation_passed": true,
+          "prepare_outcome": "failed_candidate_exports",
+          "owner_budget_remains_bound_to_this_sha": true
+        }
+      ],
+      "controlled_release_readonly_preparation": {
+        "receipt": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/controlled-deploy-manifest-directory-readonly.receipt.json",
+          "sha256": "14bc6cf716498856cea91386ebb189633ca40b6cdcb15292e2385748de551fab"
+        },
+        "production_git_sha": "4149a9cf4a3738f38d0ca62979fa9bfed56a6a07",
+        "production_application_image_id": "sha256:8fb8281c9551f28611ee9a0cf6d5503792077eeddff9a917aee1793d8559ea92",
+        "application_services_observed_running": 5,
+        "manifest_path": "/opt/agomtradepro/current/.agom-release-manifest.json",
+        "resolved_manifest_path": "/opt/agomtradepro/releases/20261101013730/.agom-release-manifest.json",
+        "manifest_is_empty_directory": true,
+        "manifest_is_symlink": false,
+        "in_place_manifest_repair_performed": false,
+        "production_deployment_or_service_change_performed": false,
+        "normal_staging_rollback_review": "Luna Max confirmed normal deploy rejects non-source-* current path before backup/migrate/switch, then strict v1 manifest identity. Old bundle/EVID09 paths do not supply a general safe bypass.",
+        "legacy_metadata_discovery": [
+          {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/legacy-release-metadata-discovery-readonly.receipt.json",
+            "sha256": "87c408b8368fcce65821931c4cf7f506b167679a77db9f0ff5f575fe3312d02d"
+          },
+          {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/legacy-release-metadata-discovery-readonly-r2.receipt.json",
+            "sha256": "54df157ac4a7457b5f9b3d1ea17faec34725e9a0e9a575580d3e778225a10e16"
+          },
+          {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/legacy-build-original-discovery-readonly-r3.receipt.json",
+            "sha256": "237dbc1dc97d5d3d677fe60f4f5c090496f16d624121ff24039255ec9812e52c"
+          },
+          {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/legacy-build-original-discovery-readonly-r4.receipt.json",
+            "sha256": "120fc17fe1d44fab2bfd6c85df4ce5c19e6d20a339b2c02dcde1cfe1523020bf"
+          }
+        ],
+        "discovery_limit": "Second metadata-only search excluded source snapshots/venvs,visited4404 files,pruned689 directories,depth4,and did not hit count limit. No current4149/8fb build original found in this bounded set; not proof of absence outside these roots/depth.",
+        "old_build_mode_and_start_finish_known": false,
+        "image_created_is_not_build_start_finish": true,
+        "older_source_release_manifest_found": "source-20261008050500 (d3fdbd6f1ce8a1b77c4ba4fec923d651f4a2b7df), not current4149 identity and not yet qualified as rollback target",
+        "normal_deploy_blocker": "Current realpath basename20261101013730 and empty manifest directory; no production mutation or waiver performed.",
+        "recovery_review_limit": "Independent Luna Max rejects no-op FROM image reuse mislabeled as git-clone v1 provenance. No current pointer/directory repair,baseline activation,old build timestamps/source_mode reconstruction or release gate waiver performed.",
+        "missing_original_input_requested": "User asked for original4149/8fb Nov1 release manifest or build report location,or confirmation unavailable; no password requested."
       }
     }
   ],
