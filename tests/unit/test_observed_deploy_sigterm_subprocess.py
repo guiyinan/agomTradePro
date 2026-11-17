@@ -116,10 +116,13 @@ class SignalFakeRunner:
             }
             event["kind"] = "migrator_blocked"
             event["job_name"] = name
+            event["sigterm_handler"] = getattr(signal.getsignal(signal.SIGTERM), "__name__", "")
             _append_json_line(self.log_path, event)
             self.ready_path.write_text("ready\n", encoding="utf-8")
-            signal.pause()
-            raise AssertionError("signal.pause returned without a delivered signal")
+            while True:
+                signal.pause()
+                # A handled nonterminal signal may wake pause without raising.
+                self.ready_path.with_suffix(".resumed").write_text("resumed\n", encoding="utf-8")
         _append_json_line(self.log_path, event)
         return self._result(0)
 
@@ -166,6 +169,11 @@ def _child_main(
         original_handler(signum, frame)
 
     module._handle_interrupt = recording_handler
+
+    def nonterminal_handler(signum: int, frame: object) -> None:
+        _append_json_line(log_path, {"kind": "nonterminal_signal", "signum": signum})
+
+    signal.signal(signal.SIGUSR1, nonterminal_handler)
     module.Config.load = classmethod(lambda cls, env: config)
     fake_runner = SignalFakeRunner(log_path, ready_path, module.Result)
     module.SubprocessRunner = lambda: fake_runner
@@ -226,6 +234,7 @@ class RealSignalHandlerSubprocessTests(unittest.TestCase):
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
+                start_new_session=True,
             )
             try:
                 deadline = time.monotonic() + 15
@@ -236,6 +245,20 @@ class RealSignalHandlerSubprocessTests(unittest.TestCase):
                     if time.monotonic() >= deadline:
                         self.fail("child did not reach the blocked migrator")
                     time.sleep(0.02)
+                os.kill(process.pid, signal.SIGUSR1)
+                resume_deadline = time.monotonic() + 5
+                while not ready_path.with_suffix(".resumed").exists():
+                    if process.poll() is not None:
+                        stdout, stderr = process.communicate()
+                        self.fail(f"nonterminal signal ended child: {stdout}\n{stderr}")
+                    if time.monotonic() >= resume_deadline:
+                        self.fail("child did not resume waiting after nonterminal signal")
+                    time.sleep(0.01)
+                self.assertIsNone(process.poll(), "child exited before direct SIGTERM")
+                self.assertFalse(
+                    list(config.report_dir.glob("agomtradepro-observed-deploy-*.json")),
+                    "nonterminal signal prematurely produced a deployment report",
+                )
                 os.kill(process.pid, signal.SIGTERM)
                 stdout, stderr = process.communicate(timeout=15)
             finally:
@@ -253,15 +276,23 @@ class RealSignalHandlerSubprocessTests(unittest.TestCase):
                 for i, event in enumerate(events)
                 if event.get("kind") == "signal_received" and event.get("signum") == signal.SIGTERM
             )
+            nonterminal_index = next(
+                i
+                for i, event in enumerate(events)
+                if event.get("kind") == "nonterminal_signal"
+                and event.get("signum") == signal.SIGUSR1
+            )
             migrator_index = next(
                 i for i, event in enumerate(events) if event.get("kind") == "migrator_blocked"
             )
+            self.assertEqual(events[migrator_index]["sigterm_handler"], "recording_handler")
             stop_index = next(
                 i
                 for i, event in enumerate(events)
                 if event.get("argv", [])[:2] == ["docker", "stop"]
             )
             self.assertLess(migrator_index, signal_index)
+            self.assertLess(nonterminal_index, signal_index)
             self.assertLess(signal_index, stop_index)
             self.assertTrue(
                 any(

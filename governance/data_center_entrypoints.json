@@ -15,9 +15,9 @@
       "management_command_edge": 65,
       "mcp_tool": 40,
       "migration_evidence": 14,
-      "operational_dispatch_edge": 74,
-      "operational_script": 40,
-      "orchestration_entry": 18,
+      "operational_dispatch_edge": 75,
+      "operational_script": 41,
+      "orchestration_entry": 21,
       "public_port": 99,
       "rest_url": 93,
       "runbook": 7,
@@ -26,17 +26,17 @@
       "script": 20,
       "sdk": 57,
       "terminal_tui": 32,
-      "test_evidence": 164,
+      "test_evidence": 166,
       "workflow_step": 11
     },
     "by_status": {
-      "active_public": 936,
-      "adjacent_operational": 346,
+      "active_public": 941,
+      "adjacent_operational": 348,
       "candidate-review": 83,
       "compatibility": 139,
       "retired_blocked": 0
     },
-    "total": 1504
+    "total": 1511
   },
   "entries": [
     {
@@ -8442,6 +8442,16 @@
     {
       "category": "operational_dispatch_edge",
       "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
+      "id": "operational_dispatch_edge:scripts/deploy_legacy_observed_runtime.py:vps-backup.sh:token:vps-backup.sh",
+      "locator": "token:vps-backup.sh",
+      "path": "scripts/deploy_legacy_observed_runtime.py",
+      "status": "adjacent_operational",
+      "symbol": "vps-backup.sh",
+      "target": "scripts/vps-backup.sh"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
       "id": "operational_dispatch_edge:scripts/deploy_vps_verify.py:deploy-vps.ps1:token:deploy-vps.ps1",
       "locator": "token:deploy-vps.ps1",
       "path": "scripts/deploy_vps_verify.py",
@@ -9082,6 +9092,16 @@
     {
       "category": "operational_script",
       "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
+      "id": "operational_script:scripts/deploy_legacy_observed_runtime.py:__main__:",
+      "locator": "",
+      "path": "scripts/deploy_legacy_observed_runtime.py",
+      "status": "adjacent_operational",
+      "symbol": "__main__",
+      "target": "scripts/vps-backup.sh"
+    },
+    {
+      "category": "operational_script",
+      "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
       "id": "operational_script:scripts/deploy_vps_verify.py:__main__:",
       "locator": "",
       "path": "scripts/deploy_vps_verify.py",
@@ -9395,6 +9415,36 @@
       "id": "orchestration_entry:scripts/deploy-on-vps.sh:verify_canonical_schema:semantic:verify_canonical_schema",
       "locator": "semantic:verify_canonical_schema",
       "path": "scripts/deploy-on-vps.sh",
+      "status": "active_public",
+      "symbol": "verify_canonical_schema",
+      "target": ""
+    },
+    {
+      "category": "orchestration_entry",
+      "evidence": "script/workflow delegates to a governed Django command",
+      "id": "orchestration_entry:scripts/deploy_legacy_observed_runtime.py:init_macro_indicator_governance:semantic:init_macro_indicator_governance",
+      "locator": "semantic:init_macro_indicator_governance",
+      "path": "scripts/deploy_legacy_observed_runtime.py",
+      "status": "active_public",
+      "symbol": "init_macro_indicator_governance",
+      "target": ""
+    },
+    {
+      "category": "orchestration_entry",
+      "evidence": "script/workflow delegates to a governed Django command",
+      "id": "orchestration_entry:scripts/deploy_legacy_observed_runtime.py:normalize_macro_fact_units:semantic:normalize_macro_fact_units",
+      "locator": "semantic:normalize_macro_fact_units",
+      "path": "scripts/deploy_legacy_observed_runtime.py",
+      "status": "active_public",
+      "symbol": "normalize_macro_fact_units",
+      "target": ""
+    },
+    {
+      "category": "orchestration_entry",
+      "evidence": "script/workflow delegates to a governed Django command",
+      "id": "orchestration_entry:scripts/deploy_legacy_observed_runtime.py:verify_canonical_schema:semantic:verify_canonical_schema",
+      "locator": "semantic:verify_canonical_schema",
+      "path": "scripts/deploy_legacy_observed_runtime.py",
       "status": "active_public",
       "symbol": "verify_canonical_schema",
       "target": ""
@@ -14842,6 +14892,16 @@
     {
       "category": "test_evidence",
       "evidence": "registered executable evidence for database backup, restore, archive, retention, or deployment behavior",
+      "id": "test_evidence:tests/unit/test_deploy_legacy_observed_runtime.py:test_deploy_legacy_observed_runtime:",
+      "locator": "",
+      "path": "tests/unit/test_deploy_legacy_observed_runtime.py",
+      "status": "active_public",
+      "symbol": "test_deploy_legacy_observed_runtime",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "registered executable evidence for database backup, restore, archive, retention, or deployment behavior",
       "id": "test_evidence:tests/unit/test_deploy_vps_verify.py:test_deploy_vps_verify:",
       "locator": "",
       "path": "tests/unit/test_deploy_vps_verify.py",
@@ -14897,6 +14957,16 @@
       "path": "tests/unit/test_native_postgres_database.py",
       "status": "adjacent_operational",
       "symbol": "test_native_postgres_database",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "registered executable evidence for database backup, restore, archive, retention, or deployment behavior",
+      "id": "test_evidence:tests/unit/test_observed_deploy_sigterm_subprocess.py:test_observed_deploy_sigterm_subprocess:",
+      "locator": "",
+      "path": "tests/unit/test_observed_deploy_sigterm_subprocess.py",
+      "status": "active_public",
+      "symbol": "test_observed_deploy_sigterm_subprocess",
       "target": ""
     },
     {

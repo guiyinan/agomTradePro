@@ -147,7 +147,8 @@
         "scripts/vps-backup.sh",
         "scripts/vps-restore.sh",
         "start.bat",
-        "venv.bat"
+        "venv.bat",
+        "scripts/deploy_legacy_observed_runtime.py"
       ],
       "status": "adjacent_operational"
     },
@@ -242,7 +243,9 @@
         "tests/unit/test_vps_web_watchdog.py",
         "tests/unit/ci/test_publication_postgres_workflow.py",
         "tests/unit/ci/test_select_tests.py",
-        "tests/unit/test_verify_postgres_backup_restore.py"
+        "tests/unit/test_verify_postgres_backup_restore.py",
+        "tests/unit/test_deploy_legacy_observed_runtime.py",
+        "tests/unit/test_observed_deploy_sigterm_subprocess.py"
       ],
       "status": "active_public"
     },

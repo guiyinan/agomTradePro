@@ -4599,7 +4599,7 @@
       },
       "legacy_observed_controlled_deploy_development": {
         "scope": "Explicit opt-in observed legacy baseline path; standard v1 deployment unchanged; no fabricated old build metadata",
-        "candidate_status": "final review and applicable development checks complete; freeze this next commit for exact-SHA release validation",
+        "candidate_status": "reviewed projection sync and signal-test isolation complete; freeze next commit for exact-SHA CI/native QA/S6",
         "production_changed": false,
         "provider_dispatches": 0,
         "e1_physical_attempts": 0,
@@ -4736,7 +4736,62 @@
           "reason": "Nullable PostgreSQL image OCI Labels dereferenced by Docker Go template",
           "operator_only_correction_sha256": "17d0852e1447398161544db4d3678a5b21c7e1dba034bc79d574655589e54b3d",
           "candidate_production_source_changed_by_operator_correction": false
-        }
+        },
+        "0132_generated_projection_gate_failure": {
+          "candidate_sha": "01323b532174b8ea3491d84b1d064444efe3c92b",
+          "run_id": 44027827611,
+          "reason": "Generated Data Center entrypoint inventory stale after new controlled deploy entrypoint and tests",
+          "log": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/observed-0132-consistency-failure.log",
+            "sha256": "ad7dc2f3e2c451392ffa85958a21fc68e385fae087d7095f5779ddd43048ca74"
+          },
+          "production_code_change_required": false,
+          "correction": "Register exact adjacent operational executor and executable test evidence; regenerate canonical inventory",
+          "qualification_transferred": false,
+          "generator_exit_code": 0,
+          "generator_log": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/observed-entrypoint-projection-reviewed-write.log",
+            "sha256": "b69d280ddb7b1273a9b2e72e9050c43e396ed543c105405a1134c0e08b233983"
+          },
+          "fresh_check_exit_code": 0,
+          "fresh_check_log": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/observed-final-entrypoint-fresh.log",
+            "sha256": "b69d280ddb7b1273a9b2e72e9050c43e396ed543c105405a1134c0e08b233983"
+          }
+        },
+        "0132_parallel_signal_test_failure": {
+          "manual_full_ci_run": 44027867447,
+          "log": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/observed-0132-full-ci-failure.log",
+            "sha256": "7182f38af73c2b02454996da4eae6688abb4bb47b94c8cece46ad93be9f2ac4b"
+          },
+          "python_311": "signal_received event absent after exit70",
+          "python_313": "child exit -15 after report output",
+          "concrete_test_defect": "single signal.pause return was interpreted as deployment failure even for a nonterminal handled signal",
+          "actual_ci_interfering_signal": "unknown; no causal claim about coverage",
+          "correction": "keep waiting after nonterminal wakeup; private child session; verify installed production SIGTERM wrapper and live child/no report before direct TERM",
+          "real_linux_bare_test": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/legacy-observed-real-posix-sigterm-r3.receipt.json",
+            "sha256": "eb41c61727f4d3e66ebeaa2ac48177f31b2e81676a219c18115d500b4b2b2ef1"
+          },
+          "real_linux_two_worker_pytest": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/legacy-observed-real-posix-sigterm-pytest-parallel-r3.receipt.json",
+            "sha256": "4d04aacb96674a72fa3d5a59c5d410f4e299ccdfc4a0fb11c0f2c5914716d91b"
+          },
+          "same_test_case_counts_overlap": true,
+          "external_docker_database_http_faked": true,
+          "production_code_changed": false,
+          "ruff_black_isort_exit_zero": true
+        },
+        "final_registry_check": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/observed-final-registry.log",
+          "sha256": "ab63b78bd1ef21018c8d521c7375d6dc7a0b4b83018a4dd1606c4ed90d913056"
+        },
+        "retained_first_actual_qa_stop": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/legacy-native-failed-r1-stop.receipt.json",
+          "sha256": "1f36b23d4bf10349c287cd4ced25437d7f2203fa8ba05071e02bc50c6080d742"
+        },
+        "qa_r2_operator_sha256": "586cf7b8661a61672af3474cefb5920e95cc0a0e208cc9c0fa09bdbf6ebffa9d"
       }
     }
   ],
