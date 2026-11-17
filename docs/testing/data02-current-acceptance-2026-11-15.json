@@ -3601,7 +3601,7 @@
     {
       "date": "2026-11-16T18:08:48.512032+00:00",
       "kind": "e1_frozen_integrated_c2_numeric_v3_preparation",
-      "status": "necessary_source_graph_verifier_correction_in_development_no_production_release",
+      "status": "s6_startup_initialization_and_calendar_budget_correction_in_development",
       "base_head": "2529c3bd50b728ae87ad328c1ae5794907f5ea74",
       "scope": "Frozen single-security Main+Balance E1 critical path only; full DATA-02 universe and four Publication exit gates unchanged.",
       "delivery": {
@@ -4120,7 +4120,7 @@
         "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/controlled-release-backup-r1.verified-summary.json",
         "sha256": "4f781ca77eb1d1b53f9d5b7b46129caff28af138ecfdfcf6898af7288c3c952e"
       },
-      "qualification_boundary": "0f52 exact CI and real native execution succeeded; formal data-proof validation found two source-graph verifier omissions. Only graph verifier/tests correction is in development. No previous CI or native candidate identity transfers to the next candidate; original inputs can be reused with true provenance. Full DATA-02 and DATA-03 gates unchanged.",
+      "qualification_boundary": "747a exact CI and real PA/B data checks passed; fresh standard S6 prepare94ff failed before a graph receipt. No production deployment/E1 or full DATA02 exit. Necessary startup-order and shared calendar/task HTTP-budget corrections need their own exact candidate gates.",
       "s6_owner_budget_authorization": {
         "recorded_at": "2026-11-17T01:23:20.552212+00:00",
         "owner_reply": "批准同额预算绑定到 6086（推荐）",
@@ -5064,6 +5064,157 @@
         "e1_used": 0,
         "production_changed": false,
         "data03_started": false
+      },
+      "s6_startup_correction": {
+        "observed_candidate_sha": "747a53d472b8d3f53c0c3aab3310f93b03148e7d",
+        "candidate_ci": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/native-graph-all-ci-verified.receipt.json",
+          "sha256": "3b08c0615856a51786c7ff086d96742be83c6b8363ad8516ccce25c600b695ad"
+        },
+        "official_publication": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/native-747a-official-publication-download.receipt.json",
+          "sha256": "b4153e4109083c1f7da4feb3bb312797bd6ba66e62216416086326ba71e004d3"
+        },
+        "native_pa_b_actual": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/native-747a-phased-v2-r2-result.receipt.json",
+          "sha256": "a74c47499ceaf7f9af2131d50b3b5c1d8a9087ef0e67ca7e618475030d9823f3"
+        },
+        "native_prebuild_data_check": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/native-747a-prebuild-data-verification.receipt.json",
+          "sha256": "1034ae5b7fcca7ba174ac8ae30ed23decb9763e908d072c2c9c7eaabd4ec9c4d"
+        },
+        "native_full_build_bound_qualification": false,
+        "native_qa_stopped": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/native-747a-qa-stopped.receipt.json",
+          "sha256": "be085a97a4a3ebf26d65b57b704e79a5730849c951b45fb9a6253078a5e95937"
+        },
+        "failed_attempt_id": "94ff204249f34789bcc2d3f9468ab5a1",
+        "failed_prepare": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/s6-747a-prepare-result.receipt.json",
+          "sha256": "771c25e0fc25eecfca887e26b76e5d66bde289ba92f609b32175454d0d6527a1"
+        },
+        "failure_originals": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/s6-747a-graph-failure-originals.receipt.json",
+          "sha256": "8ebb5532c06b2aa3f841771e45ff379b432ae970d2093d2f8654c7ffbd40e2de"
+        },
+        "cold_readonly_no_http_diagnostic": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/s6-747a-startup-no-http-diagnostic.receipt.json",
+          "sha256": "622dca1842aec7106a992edf36641d972b20604baa7d9b2c176850048ae7ace2"
+        },
+        "minimal_order_proposal_no_http_diagnostic": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/s6-747a-startup-order-proposal-no-http-diagnostic.receipt.json",
+          "sha256": "86b2358b0ff0c58003359f439f4f9da6135d765b6fde79051e260c0c36b77c3e"
+        },
+        "cause": "RehearsalHttpCapture imported core.exceptions/DRF/default account authentication models before django.setup, raising AppRegistryNotReady. Reordering passed real old-image startup with read-only DB and external sockets denied.",
+        "calendar_budget_gap": "Provider-backed target-session discovery ran before Capture; denied-network diagnostic observed4 attempted external sockets. Include it in the same single capture/deadline as task.apply, preserving50 total and known target-unavailable code.",
+        "failed_attempt_dispatch_count": null,
+        "dispatch_count_limit": "Original failed CLI emitted no counter; startup-only denied-network reproduction has no dispatch. Do not invent a measured original counter or use the failed attempt again.",
+        "secure_stop": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/s6-747a-failed-prepare-secure-stop-r2.receipt.json",
+          "sha256": "e5a517b00c94b8c2943832f06ba7941ed8fc7689ad8adec127f7973af2edc211"
+        },
+        "original_stop_rejection": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/s6-747a-failed-prepare-secure-stop.receipt.json",
+          "sha256": "1f0f75244b347ed2e105586f2c30efddf3c376888cde937c103f1d92fdb9a8e3"
+        },
+        "owned_pg_redis_stopped": true,
+        "private_credentials_deleted": true,
+        "volumes_networks_originals_kept": true,
+        "production_changed": false,
+        "e1_http_used": 0,
+        "e1_http_ceiling": 2,
+        "data02_exit_met": false,
+        "data03_started": false,
+        "next": "Finish bounded regressions/type/governance checks and independent review; commit minimal correction, then new exact SHA CI and fresh S6. No retry/resume of94ff, no widened scope/budget, no invented legacy build manifest.",
+        "market_cumulative_conservative_budget": {
+          "owner_original_total_ceiling": 200,
+          "retired_94ff_graph_charged": 50,
+          "retired_94ff_measured_dispatch_count": null,
+          "fresh_graph_maximum": 50,
+          "fresh_probe_maximum": 50,
+          "fresh_capacity_maximum": 50,
+          "cumulative_conservative_maximum": 200,
+          "financial_task_not_entered": true,
+          "financial_physical_used": 0,
+          "financial_physical_maximum": 22296,
+          "production_e1_used": 0,
+          "production_e1_maximum": 2
+        },
+        "independent_luna_review": "Actual no-HTTP startup reproduction confirms initialization fault; real Capture import after setup and shared calendar/task budget have no observed code blocker. Cold-process regression derives actual Django dependency root for -I user-site isolation. Conservative50+150<=200 budget confirmed; no measured-zero claim.",
+        "retained_local_test_preparations": [
+          "cold-r1: -I hides user-site Django; pass derived real dependency root",
+          "cold-r2: production test settings rejected insecure SECRET_KEY; use generated ephemeral hex and dummy PostgreSQL URL",
+          "cold-r3/r4: blanket socket.connect deny blocked Windows asyncio/Twisted internal wakeup pipes; deny actual HTTP transports and outbound create_connection instead",
+          "cold-r5: real cold initialization/default authentication succeeds; database and HTTP denied, no task/resolver invoked"
+        ],
+        "development": {
+          "debt": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/s6-startup-debt.receipt.json",
+            "sha256": "f3f139d9f51ea38c84e5a17b19d38e07b39c2e0eb3ddd59a5ae7b46e4bc69746",
+            "exit_code": 0
+          },
+          "entrypoint": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/s6-startup-entrypoint.receipt.json",
+            "sha256": "0b20fd5d25df6b4ff09760ce97560e340e29c4556cc36cbc960eb1266b6023b6",
+            "exit_code": 0
+          },
+          "current-contracts": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/s6-startup-current-contracts.receipt.json",
+            "sha256": "9da2d13dad93cb76ecc0cfb566ab889f46a231440090ed42f084356216b126e5",
+            "exit_code": 0
+          },
+          "registry": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/s6-startup-registry.receipt.json",
+            "sha256": "4ba2db418931f5ea72c842305224f507535b6141a4f0fe0087aff615929eacea",
+            "exit_code": 0
+          },
+          "governance": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/s6-startup-governance.receipt.json",
+            "sha256": "ed06563fe783af7f3f7bab29a6d180cb49e1d1486b8603b7d3bcbebe3e3f059e",
+            "exit_code": 0
+          },
+          "black": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/s6-startup-final-black.receipt.json",
+            "sha256": "ff134f740f66fd47b712efd532035bf60fa6651d3b9289b93b5a1439fcb4ea90",
+            "exit_code": 0
+          },
+          "isort": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/s6-startup-final-isort.receipt.json",
+            "sha256": "cd19e54f6beb1b771e64aba29256ca3895e0db6f3b074840fd434cc2bdc9c65c",
+            "exit_code": 0
+          },
+          "ruff": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/s6-startup-final-ruff.receipt.json",
+            "sha256": "be0ad2893686a8b414c604d2b511149ccbce915ceace277048553f0ee7d78f69",
+            "exit_code": 0
+          },
+          "tests": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/s6-startup-final-tests.receipt.json",
+            "sha256": "75153b5d2b4d4c9b68616abb70af9f11d1c7992b35584bdcb9d44306b8c95893",
+            "exit_code": 0
+          },
+          "optional_preflight_cli": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/s6-startup-final-preflight.receipt.json",
+            "sha256": "468a950b9e36f4e0f0b76958da98b016f135f4eb9eebf81a26927d7d16321be1",
+            "exit_code": 2,
+            "error_code": "S6_PREFLIGHT_TESTS_UNAVAILABLE",
+            "limit": "Default non-live focused CLI exceeded its unchanged180s local test subprocess budget. No provider worker started; not a passing preflight."
+          },
+          "optional_focus_memory_timeout": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/s6-startup-final-focus-memory.timeout.receipt.json",
+            "sha256": "7676564f1dfc52291ae887d7d6865d3f4f13b7c903ac3eff404b37e4ba6d30b7"
+          },
+          "mypy": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/s6-startup-final-mypy.receipt.json",
+            "sha256": "3936f50a1d3f2f4092d4922cc2aa7e72cdbde77d5b44477ef3721d2657b4bbde",
+            "exit_code": 0
+          }
+        },
+        "unit_tests_passed": 17,
+        "unit_tests_skipped": 0,
+        "development_scope_limit": "17 targeted no-DB startup/dispatch regressions and static/governance gates are local development evidence. Optional unchanged broad focused-preflight subprocess hit180s local timeout and is not called passed; exact-candidate complete CI and official PostgreSQL qualification still required. No source timeout/QA bypass introduced.",
+        "development_complete_for_minimal_correction": true,
+        "new_exact_candidate_release_qualification": false
       }
     }
   ],

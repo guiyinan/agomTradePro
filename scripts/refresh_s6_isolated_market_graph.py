@@ -204,11 +204,11 @@ def _run(args: argparse.Namespace, environ: dict[str, str]) -> int:
     _prepare_candidate_imports()
     import django
 
-    from apps.data_center.infrastructure.rehearsal_http_capture import RehearsalHttpCapture
-
     django.setup()
 
     from django.db import connection
+
+    from apps.data_center.infrastructure.rehearsal_http_capture import RehearsalHttpCapture
 
     if (
         connection.settings_dict.get("NAME") != args.database
@@ -256,30 +256,38 @@ def _run(args: argparse.Namespace, environ: dict[str, str]) -> int:
         return _blocked("S6_GRAPH_REFRESH_CANDIDATE_IMPORT_INVALID")
 
     triggered_at = datetime.now(UTC)
-    target_session = _require_isolated_target_session(
-        triggered_at,
-        resolver=lambda now: latest_cn_market_session_ready_after(
-            now,
-            ready_after=FULL_MARKET_PROVIDER_READY_AFTER,
-        ),
-    )
     capture = RehearsalHttpCapture(
         max_dispatches=args.max_dispatches,
         max_seconds=args.max_seconds,
     )
     try:
-        with isolated_s6_full_market_provider_session(
-            target_session,
-            triggered_at=triggered_at,
-        ):
-            result = _execute_captured_task(
-                lambda: refresh_full_market_publications_task.apply(
+        # Calendar discovery can dispatch provider HTTP too; share one budget
+        # and deadline with the market refresh instead of opening a second scope.
+        with capture:
+            target_session = _require_isolated_target_session(
+                triggered_at,
+                resolver=lambda now: latest_cn_market_session_ready_after(
+                    now,
+                    ready_after=FULL_MARKET_PROVIDER_READY_AFTER,
+                ),
+            )
+            with isolated_s6_full_market_provider_session(
+                target_session,
+                triggered_at=triggered_at,
+            ):
+                result = refresh_full_market_publications_task.apply(
                     task_id=args.task_id,
                     kwargs=_isolated_task_kwargs(),
                     throw=False,
-                ),
-                capture=capture,
-            )
+                )
+    except ValueError as exc:
+        guard_failure = _capture_failure_code(capture)
+        failure = (
+            "S6_GRAPH_REFRESH_TARGET_SESSION_UNAVAILABLE"
+            if str(exc) == "S6_GRAPH_REFRESH_TARGET_SESSION_UNAVAILABLE"
+            else "S6_GRAPH_REFRESH_TASK_EXECUTION_FAILED"
+        )
+        return _blocked(guard_failure or failure, capture=capture)
     except Exception:
         guard_failure = _capture_failure_code(capture)
         return _blocked(

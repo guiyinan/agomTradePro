@@ -7,6 +7,7 @@ import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 import requests
@@ -398,3 +399,87 @@ def test_prepare_shell_passes_exact_reviewed_dispatch_bounds() -> None:
     )
     assert "--max-dispatches 50" in shell
     assert "--max-seconds 3600" in shell
+
+
+@pytest.mark.parametrize("calendar_available", [True, False])
+def test_calendar_discovery_and_task_share_one_transport_budget(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    calendar_available: bool,
+) -> None:
+    """The real launcher counts calendar requests even when no target is found."""
+    from datetime import date
+
+    import django
+    import django.db
+
+    from apps.data_center.application import market_calendar, tasks
+
+    sends = [0]
+    lock = threading.Lock()
+    monkeypatch.setattr(requests.Session, "send", _fake_send(sends, lock))
+    monkeypatch.setattr(_REFRESH, "_validate_runtime_identity", lambda *_args: None)
+    monkeypatch.setattr(_REFRESH, "_prepare_candidate_imports", lambda: None)
+    monkeypatch.setattr(_REFRESH, "_is_within", lambda *_args: True)
+    monkeypatch.setattr(django, "setup", lambda: None)
+
+    class Cursor:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return None
+
+        def execute(self, _query):
+            return None
+
+        def fetchone(self):
+            return ("isolated", "off", "off")
+
+    monkeypatch.setattr(
+        django.db,
+        "connection",
+        SimpleNamespace(settings_dict={"NAME": "isolated", "HOST": "isolated"}, cursor=Cursor),
+    )
+
+    def resolve(_now, *, ready_after):
+        with requests.Session() as session:
+            _dispatch(session)
+        return date(2026, 11, 17) if calendar_available else None
+
+    task_calls = []
+
+    def apply(**_kwargs):
+        task_calls.append(True)
+        with requests.Session() as session:
+            for _ in range(50):
+                try:
+                    _dispatch(session)
+                except DataFetchError:
+                    break
+        return SimpleNamespace(state="FAILURE")
+
+    monkeypatch.setattr(market_calendar, "latest_cn_market_session_ready_after", resolve)
+    monkeypatch.setattr(tasks.refresh_full_market_publications_task, "apply", apply)
+    args = SimpleNamespace(
+        database="isolated",
+        postgres_container="isolated",
+        max_dispatches=50,
+        max_seconds=30,
+        task_id="test-isolated",
+    )
+    assert _REFRESH._run(args, {}) == 2
+    output = capsys.readouterr().err
+    if calendar_available:
+        assert task_calls == [True]
+        assert sends[0] == 50
+        assert "S6_GRAPH_REFRESH_HTTP_BUDGET_EXCEEDED" in output
+        assert "dispatch_count=50" in output
+        assert "rejected_dispatch_count=1" in output
+    else:
+        assert not task_calls
+        assert sends[0] == 1
+        assert "S6_GRAPH_REFRESH_TARGET_SESSION_UNAVAILABLE" in output
+        assert "dispatch_count=1" in output
+    assert "provider.invalid" not in output
+    assert "credential=private" not in output
