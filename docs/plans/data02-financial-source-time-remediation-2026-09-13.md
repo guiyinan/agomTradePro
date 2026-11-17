@@ -1436,3 +1436,7 @@ Owner随后明确批准6086同额fresh S6，并对旧构建原件回复“我不
 2026-11-17 同一前置修复继续收敛：独立复核确认6086的candidate-owned标准deploy入口在numeric current/空manifest处必然阻断，外部说明或transport hash不能替代，故仅为该真实阻断准备最小新候选；6086与失败9d5b均不续跑或转记资格。沿用Owner最新指示中的同额预算与必要调整授权，不重复索取密码或旧build原件。Root选择graph/probe/capacity分别最多50次Session dispatch，行情总最多150（低于原200），财报22296、范围5573、生产E1两次不变；容量测量原100次窗口及15%余量标准不抬高。全量DATA-02退出门不变。
 
 隔离图正式Source回归已通过62例（本机9例跳过），既有transport/原件41例通过；部署既有133例通过（本机2例跳过）。只读实测旧运行态采集R1曾漏掉嵌套同名源码目录，独立复核发现后以失败反例修正scope及遍历错误阻断，R1只保留诊断；R2已实测通过5服务、完整mount、命令/安全/资源/网络配置摘要与immutable image代码一致性。历史构建mode/start/end仍为null；此观察基线不是旧release manifest或迁移后恢复资格。后续在隔离备份副本验证旧代码对全部候选迁移的兼容，生产切换前再次采集比较。旧回退只限现代运行态提交前，期间必须隔离新writer；提交后退休旧基线，延后元数据/任务启用失败只允许现代候选向前修复，不逆迁移或恢复旧DB。原件与真实源码身份记录在既有索引followups[14]。
+
+2026-11-17 受控旧运行态部署分支已进入正式Source待提交：严格绑定实际旧image/code/mount/process配置与R2观察原件，候选全部迁移须在独立备份副本验证后才允许切换。迁移开始但未完成兼容/数据保留校验时保持writer停止；现代canonical提交后旧基线退休，PhaseB失败先停止4个后台写服务再仅向前恢复。部署补齐public HTTPS、服务角色及Qlib运行态核对，同次attempt报告保留23/70等真实结果。组合回归197通过/本机2skip，原生proof反例16通过（与组合有重叠），8模块增量mypy零错误；格式修正保留AST等价证明。真实隔离数据库与真实信号中断测试、下一精确候选CI/S6尚待执行，不把机械测试记为生产恢复或Publication资格。图预算提交68213df45c6eef6d486485527a32b9740aa9a2b1的七类push CI已通过；生产服务、DB和指针未改，E1仍0/2。详见既有验收索引followups[14]。
+
+同日真实Linux子进程SIGTERM测试已通过1例：正式main/handler接收实际信号后停止本次命名migrator并复查exited，以70/forward recovery报告退出且不启动旧writer；Docker/DB/HTTP为替身，此结论仅证明信号处理与恢复编排，不冒充真实容器故障演练。Black/isort/Ruff、registry及治理一致性均通过。

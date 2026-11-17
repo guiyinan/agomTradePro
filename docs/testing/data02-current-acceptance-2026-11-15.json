@@ -4519,7 +4519,10 @@
             "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/graph-budget-r3-governance.log",
             "sha256": "50824cda33db620929040684fffe76d54284292edfd06fd75b4dedc034571c6b"
           }
-        ]
+        ],
+        "formal_source_commit": "68213df45c6eef6d486485527a32b9740aa9a2b1",
+        "seven_push_workflow_types_passed": true,
+        "publication_workflow_run": 44015148801
       },
       "legacy_observed_baseline_development": {
         "purpose": "observed_runtime_rollback_only_not_v1_release_provenance",
@@ -4592,6 +4595,95 @@
         "mypy": {
           "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/legacy-observed-mypy-r2.log",
           "sha256": "3fbd8281856ab7351acb81214ce6b1c9ab4bd26e2ed26d2995c306a1aa11a800"
+        }
+      },
+      "legacy_observed_controlled_deploy_development": {
+        "scope": "Explicit opt-in observed legacy baseline path; standard v1 deployment unchanged; no fabricated old build metadata",
+        "candidate_status": "development checks passed; independent final review pending then commit and freeze",
+        "production_changed": false,
+        "provider_dispatches": 0,
+        "e1_physical_attempts": 0,
+        "source_controls": [
+          "baseline code/image/full mounts/effective process configuration comparison",
+          "isolated native migration proof with full migration source graph, cluster identifier and old ORM inventory",
+          "no ambient application or Compose environment in child processes",
+          "named and labelled one-off jobs quiesced before recovery",
+          "migration started but unverified never restarts old writers",
+          "PhaseA database and /app/data read-only until modern anchor commit",
+          "old bootstrap baseline retired at modern commit; PhaseB worker stop and forward-only recovery",
+          "public HTTPS, candidate service roles, infrastructure and Qlib runtime checks",
+          "same-attempt report pins and preserved failure exit codes"
+        ],
+        "combined_regression": {
+          "passed": 197,
+          "skipped_local": 2,
+          "exit_code": 0,
+          "log": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/legacy-observed-whole-tests-r3.log",
+            "sha256": "7527d855c207ea09aeee2ac2c613d17b91492e0e08cff63a474d685e8a580033"
+          }
+        },
+        "native_proof_semantic_negative_regression": {
+          "passed": 16,
+          "exit_code": 0,
+          "log": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/legacy-observed-native-proof-tests-r4.log",
+            "sha256": "bae29c99277435dd05c6eedc0c8f02f9a9126853ef2e2e9de5926370aaadfb42"
+          },
+          "note": "Includes six added cases after combined regression; counts overlap and are not additive"
+        },
+        "incremental_mypy": {
+          "modules": 8,
+          "new_errors": 0,
+          "exit_code": 0,
+          "log": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/legacy-observed-whole-mypy-r2.log",
+            "sha256": "3dcc2b03ede346698db5ad7d1699e8ab37ed54cc019fe7ec2be04295e1bb6d60"
+          },
+          "source_identity": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/legacy-observed-whole-mypy-r2.inputs.json",
+            "sha256": "df10d98e3300e995ea7c2350acc7dd820cb76f20119aeb9f27fca58556e53827"
+          }
+        },
+        "format_only_ast_preservation": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/legacy-observed-format-ast-preservation.receipt.json",
+          "sha256": "bf64d0d9eb7c19db58f5c786b0a88f2a7efae38f92a75d14696e39ad31728ca8"
+        },
+        "mypy_debt_reuse": {
+          "errors": 0,
+          "input_roots": "apps/core/shared unchanged since 68213 graph checks",
+          "log": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/graph-budget-r3-mypy-debt.log",
+            "sha256": "def6c561b37227470bcda90c8450d9837ca85dd34af34d05e7d6af2afdf85ab1"
+          }
+        },
+        "real_native_database_compatibility_verified": false,
+        "real_docker_failure_recovery_verified": false,
+        "real_sigterm_child_test": {
+          "passed": 1,
+          "platform": "actual Linux POSIX child process",
+          "production_main_handler_executed": true,
+          "docker_db_http_faked": true,
+          "receipt": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/legacy-observed-real-posix-sigterm-r1.receipt.json",
+            "sha256": "e23160a63afc2605f14c05487b2947e5bd01062d09e7a3ccd5bf14c273b14200"
+          }
+        },
+        "fresh_exact_sha_ci_s6_verified": false,
+        "release_or_publication_qualification": false,
+        "retained_failed_runs": [
+          "legacy-observed-whole-tests-r1.log",
+          "legacy-observed-whole-tests-r2.log",
+          "legacy-observed-final-black-r1.log",
+          "legacy-observed-mypy-module-name-operator-error.log"
+        ],
+        "final_style_registry_governance": {
+          "all_exit_zero": true,
+          "receipt": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/legacy-observed-final-checks-r2.receipt.json",
+            "sha256": "b095c43e8fd35cea1bea6d56e373e6e87056a068f1067fca23395719848e18d0"
+          },
+          "extra_signal_test_ruff_exit_zero": true
         }
       }
     }

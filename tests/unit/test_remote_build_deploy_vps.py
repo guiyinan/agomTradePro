@@ -2,15 +2,17 @@ from __future__ import annotations
 
 import ast
 import importlib.util
+import io
 import json
 import os
 import shutil
+import stat
 import subprocess
 import sys
 import time
 from collections.abc import Callable
 from pathlib import Path
-from types import ModuleType
+from types import ModuleType, SimpleNamespace
 from typing import Any
 
 import pytest
@@ -2259,7 +2261,7 @@ def test_built_image_download_overlaps_deploy_and_is_joined_before_cleanup() -> 
     )
     deploy_phase = 'deploy_cmd = f"{deploy_exports} bash -lc'
     join = "download_future.result()"
-    report_download = "if args.download_report and report_path:"
+    report_download = "if not observed_rollback and args.download_report and report_path:"
     cleanup_call = "            _cleanup_remote_build_artifacts("
     assert source.index("download_pool.submit(") < source.index(deploy_phase)
     assert source.index(deploy_phase) < source.index(join) < source.index(report_download)
@@ -2330,3 +2332,201 @@ def test_download_and_package_built_image_uses_dedicated_ssh_connection(
     assert fake_ssh.closed
     assert fake_ssh.sftp.closed
     assert image_path.parent.is_dir()
+
+
+def _observed_deploy_options(**overrides: object) -> dict[str, object]:
+    """Use a pinned bootstrap proposal with ordinary mutating shortcuts closed."""
+
+    options: dict[str, object] = {
+        "baseline_path": "/opt/agomtradepro/recovery/baseline.json",
+        "baseline_sha256": "a" * 64,
+        "compatibility_report_path": "/opt/agomtradepro/recovery/compatibility.json",
+        "compatibility_report_sha256": "b" * 64,
+        "prebuilt": True,
+        "action": "upgrade",
+        "skip_backup": False,
+        "auto_rollback": True,
+        "preserve_catalog": True,
+        "wipe_docker": False,
+        "wipe_volumes": False,
+        "include_sqlite": False,
+        "bootstrap_decision_repair": False,
+    }
+    options.update(overrides)
+    return options
+
+
+def test_observed_deploy_requires_pinned_prebuilt_and_native_compatibility_proof() -> None:
+    """Observed legacy identity never licenses an unrehearsed build or unknown proof."""
+
+    assert remote_build_deploy_vps._validate_observed_rollback_deploy_options(
+        **_observed_deploy_options()
+    )
+
+
+@pytest.mark.parametrize(
+    "changes",
+    [
+        {"prebuilt": False},
+        {"action": "fresh"},
+        {"skip_backup": True},
+        {"auto_rollback": False},
+        {"preserve_catalog": False},
+        {"wipe_docker": True},
+        {"wipe_volumes": True},
+        {"include_sqlite": True},
+        {"bootstrap_decision_repair": True},
+        {"baseline_path": "../baseline.json"},
+        {"baseline_path": "/opt/agomtradepro/../baseline.json"},
+        {"baseline_sha256": "unknown"},
+        {"compatibility_report_path": ""},
+        {"compatibility_report_sha256": ""},
+    ],
+)
+def test_observed_deploy_rejects_unsafe_shortcuts_before_remote_mutation(
+    changes: dict[str, object],
+) -> None:
+    with pytest.raises(ValueError, match="OBSERVED_RUNTIME"):
+        remote_build_deploy_vps._validate_observed_rollback_deploy_options(
+            **_observed_deploy_options(**changes)
+        )
+
+
+def test_normal_deploy_does_not_implicitly_select_observed_recovery() -> None:
+    """The ordinary v1 deployment path retains its existing contract."""
+
+    assert not remote_build_deploy_vps._validate_observed_rollback_deploy_options(
+        **_observed_deploy_options(
+            baseline_path="",
+            baseline_sha256="",
+            compatibility_report_path="",
+            compatibility_report_sha256="",
+            prebuilt=False,
+            action="fresh",
+            preserve_catalog=False,
+        )
+    )
+
+
+def test_main_rejects_candidate_drift_before_reading_deployment_inputs(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Recovery integration must preserve the original exact-candidate stop line."""
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "remote_build_deploy_vps.py",
+            "--host",
+            "vps.invalid",
+            "--expected-source-commit",
+            "b" * 40,
+        ],
+    )
+    monkeypatch.setattr(
+        remote_build_deploy_vps.subprocess,
+        "check_output",
+        lambda *args, **kwargs: "a" * 40,
+    )
+    with pytest.raises(SystemExit):
+        remote_build_deploy_vps.main()
+    assert "Local source commit changed after release validation" in capsys.readouterr().err
+
+
+def _observed_report_download_fixture(
+    tmp_path: Path, *, outcome: str = "partial"
+) -> tuple[dict[str, Any], bytes]:
+    tag, attempt = "20261117120000", "a" * 32
+    payload = {
+        "schema": "legacy-observed-deploy-result.v1",
+        "release_tag": tag,
+        "attempt_id": attempt,
+        "candidate_sha": "b" * 40,
+        "image_id": "sha256:" + "c" * 64,
+        "release_rehearsal_sha256": "d" * 64,
+        "baseline_sha256": "e" * 64,
+        "compatibility_sha256": "f" * 64,
+        "outcome": outcome,
+        "baseline_retired": outcome in {"deployed", "partial"},
+        "migration_started": True,
+        "legacy_schema_verified": True,
+        "forward_recovery_required": outcome == "partial",
+    }
+    raw = json.dumps(payload).encode()
+    arguments = {
+        "output": f"OBSERVED_REPORT_PATH=/tmp/agomtradepro-observed-deploy-{tag}-{attempt}.json\n",
+        "report_dir": tmp_path,
+        "release_tag": tag,
+        "attempt_id": attempt,
+        "candidate_sha": payload["candidate_sha"],
+        "image_id": payload["image_id"],
+        "rehearsal_sha256": payload["release_rehearsal_sha256"],
+        "baseline_sha256": payload["baseline_sha256"],
+        "compatibility_sha256": payload["compatibility_sha256"],
+        "remote_exit_code": 23,
+    }
+    return arguments, raw
+
+
+def _observed_report_ssh(raw: bytes) -> SimpleNamespace:
+    class Transfer:
+        def lstat(self, path: str) -> SimpleNamespace:
+            return SimpleNamespace(st_mode=stat.S_IFREG | 0o600, st_size=len(raw))
+
+        def open(self, path: str, mode: str) -> io.BytesIO:
+            return io.BytesIO(raw)
+
+        def close(self) -> None:
+            pass
+
+    return SimpleNamespace(open_sftp=Transfer)
+
+
+def test_partial_observed_report_is_retrieved_with_failure_outcome_intact(tmp_path: Path) -> None:
+    arguments, raw = _observed_report_download_fixture(tmp_path)
+    downloaded = remote_build_deploy_vps._download_observed_deploy_report(
+        _observed_report_ssh(raw), **arguments
+    )
+    assert downloaded.read_bytes() == raw
+    assert json.loads(downloaded.read_bytes())["outcome"] == "partial"
+
+
+def test_observed_report_cannot_claim_success_after_nonzero_remote_exit(tmp_path: Path) -> None:
+    arguments, raw = _observed_report_download_fixture(tmp_path, outcome="deployed")
+    with pytest.raises(ValueError, match="OBSERVED_DEPLOY_REPORT_EXIT_MISMATCH"):
+        remote_build_deploy_vps._download_observed_deploy_report(
+            _observed_report_ssh(raw), **arguments
+        )
+    assert not list(tmp_path.iterdir())
+
+
+def test_observed_report_cannot_be_borrowed_from_another_attempt(tmp_path: Path) -> None:
+    arguments, raw = _observed_report_download_fixture(tmp_path)
+    arguments["attempt_id"] = "9" * 32
+    with pytest.raises(ValueError, match="OBSERVED_DEPLOY_REPORT_PATH_INVALID"):
+        remote_build_deploy_vps._download_observed_deploy_report(
+            _observed_report_ssh(raw), **arguments
+        )
+    assert not list(tmp_path.iterdir())
+
+
+@pytest.mark.parametrize("committed", [False, True])
+def test_unverified_recovery_report_preserves_forward_only_requirement(
+    tmp_path: Path, committed: bool
+) -> None:
+    arguments, raw = _observed_report_download_fixture(tmp_path, outcome="restore_unverified")
+    payload = json.loads(raw)
+    payload.update(
+        baseline_retired=committed,
+        phase="phase_b" if committed else "phase_a",
+        migration_started=True,
+        legacy_schema_verified=committed,
+        forward_recovery_required=True,
+    )
+    arguments["remote_exit_code"] = 70
+    downloaded = remote_build_deploy_vps._download_observed_deploy_report(
+        _observed_report_ssh(json.dumps(payload).encode()), **arguments
+    )
+    saved = json.loads(downloaded.read_bytes())
+    assert saved["outcome"] == "restore_unverified" and saved["forward_recovery_required"] is True

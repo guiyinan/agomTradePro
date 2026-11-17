@@ -18,6 +18,7 @@ import posixpath
 import re
 import secrets
 import shlex
+import stat
 import subprocess
 import sys
 import tarfile
@@ -30,6 +31,13 @@ from pathlib import Path
 from typing import Any, NoReturn, cast
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from scripts.observed_runtime_deploy_contract import (  # noqa: E402
+    validate_observed_rollback_deploy_options as _validate_observed_rollback_deploy_options,
+)
+
 REMOTE_SOURCE_UPLOAD_DIR = "/tmp/agomtradepro-source-upload"
 REMOTE_TEMP_ARTIFACT_MIN_AGE_SECONDS = 60 * 60
 REMOTE_TEMP_ARTIFACT_MAX_RETAINED_PER_KIND = 2
@@ -327,6 +335,110 @@ def _local_build_report_path(report_dir: Path, release_tag: str, attempt_id: str
     """Return a unique, path-safe local report name for one build attempt."""
     _remote_build_report_path(release_tag, attempt_id)
     return report_dir / f"remote-build-report-{release_tag}-{attempt_id}.json"
+
+
+def _download_observed_deploy_report(
+    ssh: Any,
+    *,
+    output: str,
+    report_dir: Path,
+    release_tag: str,
+    attempt_id: str,
+    candidate_sha: str,
+    image_id: str,
+    rehearsal_sha256: str,
+    baseline_sha256: str,
+    compatibility_sha256: str,
+    remote_exit_code: int,
+) -> Path:
+    """Retrieve and bind the observed result even when remote deployment failed.
+
+    Raw Docker/DB output is never included. A partial result remains a failure;
+    downloading its receipt cannot convert a retired legacy baseline to rollback.
+    ``ssh`` is the dynamic Paramiko transport boundary.
+    """
+    _remote_build_report_path(release_tag, attempt_id)
+    paths = [
+        line.partition("=")[2].strip()
+        for line in output.splitlines()
+        if line.startswith("OBSERVED_REPORT_PATH=")
+    ]
+    if (
+        len(paths) != 1
+        or re.fullmatch(
+            rf"/tmp/agomtradepro-observed-deploy-{re.escape(release_tag)}-{re.escape(attempt_id)}\.json",
+            paths[0],
+        )
+        is None
+    ):
+        raise ValueError("OBSERVED_DEPLOY_REPORT_PATH_INVALID")
+    remote = paths[0]
+    sftp = ssh.open_sftp()
+    try:
+        metadata = sftp.lstat(remote)
+        if not stat.S_ISREG(metadata.st_mode) or not 0 < metadata.st_size <= 65536:
+            raise ValueError("OBSERVED_DEPLOY_REPORT_FILE_INVALID")
+        with sftp.open(remote, "rb") as stream:
+            raw: bytes = stream.read(65537)
+    finally:
+        sftp.close()
+    if type(raw) is not bytes or len(raw) > 65536:
+        raise ValueError("OBSERVED_DEPLOY_REPORT_FILE_INVALID")
+    payload: object = json.loads(raw)
+    if not isinstance(payload, dict) or any(
+        payload.get(key) != value
+        for key, value in {
+            "schema": "legacy-observed-deploy-result.v1",
+            "release_tag": release_tag,
+            "attempt_id": attempt_id,
+            "candidate_sha": candidate_sha,
+            "image_id": image_id,
+            "release_rehearsal_sha256": rehearsal_sha256,
+            "baseline_sha256": baseline_sha256,
+            "compatibility_sha256": compatibility_sha256,
+        }.items()
+    ):
+        raise ValueError("OBSERVED_DEPLOY_REPORT_IDENTITY_MISMATCH")
+    outcome = payload.get("outcome")
+    if outcome not in {
+        "deployed",
+        "failed_preflight",
+        "failed_restored",
+        "restore_unverified",
+        "partial",
+    }:
+        raise ValueError("OBSERVED_DEPLOY_REPORT_OUTCOME_INVALID")
+    if (remote_exit_code == 0) != (outcome == "deployed"):
+        raise ValueError("OBSERVED_DEPLOY_REPORT_EXIT_MISMATCH")
+    if (
+        type(payload.get("baseline_retired")) is not bool
+        or type(payload.get("forward_recovery_required")) is not bool
+    ):
+        raise ValueError("OBSERVED_DEPLOY_REPORT_RETIREMENT_INVALID")
+    committed = (
+        payload["baseline_retired"]
+        if outcome == "restore_unverified"
+        else outcome in {"deployed", "partial"}
+    )
+    if outcome == "restore_unverified" and committed and payload.get("phase") != "phase_b":
+        raise ValueError("OBSERVED_DEPLOY_REPORT_RETIREMENT_INVALID")
+    if (
+        type(payload.get("migration_started")) is not bool
+        or type(payload.get("legacy_schema_verified")) is not bool
+    ):
+        raise ValueError("OBSERVED_DEPLOY_REPORT_MIGRATION_STATE_INVALID")
+    partial_schema = payload["migration_started"] and not payload["legacy_schema_verified"]
+    expected_forward = outcome != "deployed" and (committed or partial_schema)
+    if (
+        payload["baseline_retired"] is not committed
+        or payload["forward_recovery_required"] is not expected_forward
+    ):
+        raise ValueError("OBSERVED_DEPLOY_REPORT_RETIREMENT_INVALID")
+    report_dir.mkdir(parents=True, exist_ok=True)
+    destination = report_dir / Path(remote).name
+    with destination.open("xb") as stream:
+        stream.write(raw)
+    return destination
 
 
 if str(PROJECT_ROOT) not in sys.path:
@@ -2337,6 +2449,11 @@ then
   echo "[ERROR] release provenance validation failed before deployment mutation" >&2
   exit 1
 fi
+if [ -n "${OBSERVED_ROLLBACK_BASELINE_JSON:-}${OBSERVED_ROLLBACK_BASELINE_SHA256:-}${OBSERVED_ROLLBACK_COMPATIBILITY_JSON:-}${OBSERVED_ROLLBACK_COMPATIBILITY_SHA256:-}" ]; then
+  # This candidate owns the one-off numeric legacy path. Never fall through
+  # into normal env preparation, generic rollback, migration or pointer logic.
+  exec python3 "$RELEASE_DIR/scripts/deploy_legacy_observed_runtime.py"
+fi
 PREVIOUS_RELEASE=""
 if [ -L "$TARGET_DIR/current" ]; then
   PREVIOUS_RELEASE="$(readlink -f "$TARGET_DIR/current" 2>/dev/null || true)"
@@ -3350,6 +3467,8 @@ echo "REPORT_PATH=/tmp/agomtradepro-deploy-report.json"
 
 
 def main() -> int:
+    """Build or deploy one exact candidate through the selected verified path."""
+
     ap = argparse.ArgumentParser(description="Upload source to a VPS, build there, and deploy.")
     ap.add_argument("--host", default=os.environ.get("AGOM_VPS_HOST", "").strip() or None)
     ap.add_argument("--port", type=int, default=int(os.environ.get("AGOM_VPS_PORT", "22")))
@@ -3432,6 +3551,10 @@ def main() -> int:
     ap.add_argument("--prebuilt-image-id", default="")
     ap.add_argument("--release-rehearsal-sha256", default="")
     ap.add_argument("--release-rehearsal-receipt", default="")
+    ap.add_argument("--observed-rollback-baseline-json", default="")
+    ap.add_argument("--observed-rollback-baseline-sha256", default="")
+    ap.add_argument("--observed-rollback-compatibility-json", default="")
+    ap.add_argument("--observed-rollback-compatibility-sha256", default="")
     args = ap.parse_args()
     if args.http_port is None:
         args.http_port = _optional_env_int("AGOM_VPS_HTTP_PORT")
@@ -3479,6 +3602,27 @@ def main() -> int:
                 )
         except ValueError as exc:
             _die(str(exc))
+    try:
+        observed_rollback = _validate_observed_rollback_deploy_options(
+            baseline_path=args.observed_rollback_baseline_json,
+            baseline_sha256=args.observed_rollback_baseline_sha256,
+            compatibility_report_path=args.observed_rollback_compatibility_json,
+            compatibility_report_sha256=args.observed_rollback_compatibility_sha256,
+            prebuilt=prebuilt,
+            action=args.action,
+            skip_backup=args.skip_predeploy_backup,
+            auto_rollback=not args.disable_auto_rollback,
+            preserve_catalog=args.preserve_data_center_catalog,
+            wipe_docker=args.wipe_docker,
+            wipe_volumes=args.wipe_volumes,
+            include_sqlite=args.include_sqlite,
+            bootstrap_decision_repair=args.bootstrap_decision_repair,
+            bootstrap_alpha=os.environ.get("AGOMTRADEPRO_BOOTSTRAP_WITH_ALPHA", "").lower()
+            in {"1", "true", "yes", "on"},
+            enable_celery=not args.disable_celery,
+        )
+    except ValueError as exc:
+        _die(str(exc))
     try:
         docker_build_policy = load_docker_build_policy(
             project_root / "governance" / "release_rehearsal_policy.json"
@@ -3871,17 +4015,62 @@ def main() -> int:
                 "AGOMTRADEPRO_PASSWORD": sdk_password,
                 "RELEASE_REHEARSAL_SHA256": args.release_rehearsal_sha256,
                 "REHEARSAL_IMAGE_ID": args.prebuilt_image_id,
+                "OBSERVED_ROLLBACK_BASELINE_JSON": (
+                    args.observed_rollback_baseline_json if observed_rollback else ""
+                ),
+                "OBSERVED_DEPLOY_ATTEMPT_ID": report_attempt_id if observed_rollback else "",
+                "OBSERVED_ROLLBACK_BASELINE_SHA256": args.observed_rollback_baseline_sha256,
+                "OBSERVED_ROLLBACK_COMPATIBILITY_JSON": args.observed_rollback_compatibility_json,
+                "OBSERVED_ROLLBACK_COMPATIBILITY_SHA256": (
+                    args.observed_rollback_compatibility_sha256
+                ),
                 **docker_engine_environment,
             }
+            if observed_rollback:
+                # This path preserves the existing private runtime env verbatim.
+                # It has no credential bootstrap transaction and must not carry
+                # SDK owner passwords or API/encryption secrets in SSH exports.
+                for unused_secret in (
+                    "AGOMTRADEPRO_API_TOKEN",
+                    "AGOMTRADEPRO_USERNAME",
+                    "AGOMTRADEPRO_PASSWORD",
+                    "PRESET_ENCRYPTION_KEY",
+                ):
+                    deploy_env.pop(unused_secret, None)
             deploy_exports = " ".join(
                 f"{key}={shlex.quote(value)}" for key, value in deploy_env.items()
             )
             deploy_cmd = f"{deploy_exports} bash -lc {shlex.quote(remote_deploy_script)}"
             _info("Running remote deploy")
             code, deploy_out, deploy_err = _run(ssh, deploy_cmd, timeout=args.timeout)
+            if observed_rollback:
+                try:
+                    local_observed_report = _download_observed_deploy_report(
+                        ssh,
+                        output=deploy_out,
+                        report_dir=(project_root / args.report_dir).resolve(),
+                        release_tag=tag,
+                        attempt_id=report_attempt_id,
+                        candidate_sha=source_commit,
+                        image_id=args.prebuilt_image_id,
+                        rehearsal_sha256=args.release_rehearsal_sha256,
+                        baseline_sha256=args.observed_rollback_baseline_sha256,
+                        compatibility_sha256=args.observed_rollback_compatibility_sha256,
+                        remote_exit_code=code,
+                    )
+                    _info(
+                        f"Downloaded verified observed deployment result: {local_observed_report}"
+                    )
+                except (OSError, ValueError, TypeError):
+                    _die(
+                        "OBSERVED_DEPLOY_REPORT_RETRIEVAL_OR_VALIDATION_FAILED; inspect the retained remote attempt"
+                    )
             if code != 0:
                 _warn(deploy_out.strip())
-                _die(f"Remote deploy failed. Exit={code}. Stderr={deploy_err.strip()}")
+                _die(
+                    f"Remote deploy failed. Exit={code}. Stderr={deploy_err.strip()}",
+                    code=code if observed_rollback else 1,
+                )
             out = f"{out.rstrip()}\n{deploy_out.strip()}".strip()
             for line in deploy_out.splitlines():
                 if line.startswith("REPORT_PATH="):
@@ -3898,7 +4087,7 @@ def main() -> int:
             elif not args.keep_remote_temp:
                 _run(ssh, f"rm -f {shlex.quote(remote_image_tar)}", timeout=args.timeout)
 
-        if args.download_report and report_path:
+        if not observed_rollback and args.download_report and report_path:
             report_dir = (project_root / args.report_dir).resolve()
             report_dir.mkdir(parents=True, exist_ok=True)
             local_report = _local_build_report_path(report_dir, tag, report_attempt_id)
@@ -3908,7 +4097,7 @@ def main() -> int:
                 sftp.get(report_path, str(local_report))
             finally:
                 sftp.close()
-        elif args.download_report and build_report_path:
+        elif not observed_rollback and args.download_report and build_report_path:
             report_dir = (project_root / args.report_dir).resolve()
             report_dir.mkdir(parents=True, exist_ok=True)
             local_report = _local_build_report_path(report_dir, tag, report_attempt_id)
