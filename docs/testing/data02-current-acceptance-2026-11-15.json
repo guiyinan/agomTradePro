@@ -5391,6 +5391,110 @@
           "owner_transferred": false,
           "runner_started": false
         }
+      },
+      "post_freeze_0582_observations": {
+        "observed_at": "2026-11-17T17:38:22.980944+00:00",
+        "runtime_candidate_sha": "0582e94f48bcfc1f5c05412596726f98ed649c6c",
+        "exact_sha_ci": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/count-candidate-all-ci-verified.receipt.json",
+          "sha256": "9e1854866fcc373ddd1c734229e08ab92747c1fa82e34642b046436d399e3f3a"
+        },
+        "official_postgresql": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/native-count-official-publication-download.receipt.json",
+          "sha256": "f46a13fc28224786b28f744008a2c30b8aa530432851803b02ec842f1b7eba08"
+        },
+        "native_pa_b": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/native-count-phased-result.receipt.json",
+          "sha256": "78f41ee629db07dae8a3b6b8173deb5215067997b413fcaf2a58f1898c52b544"
+        },
+        "native_formal_helpers": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/native-count-prebuild-data-verification.receipt.json",
+          "sha256": "d119e77cd0637e83a34c59b584d8eb75aa65831235e8d2bf695a43ebfba00534"
+        },
+        "native_full_originals": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/native-count-phased-originals.references.json",
+          "sha256": "ba4568a56e97c68e4b4b10784a5c053f946c3c1f0e1649587f59165eaa436d70"
+        },
+        "native_full_build_binding_completed": false,
+        "fresh_failed_s6_attempt": "c62c505c786649ff91ca3097658c52c5",
+        "failed_prepare_originals": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/s6-count-prepare-failure-originals.sha256.json",
+          "sha256": "f4a8ec5cf1d131200b9283b027182057456e3dca9ce7a662ffc382fa901dc5db"
+        },
+        "secure_stop": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/s6-count-failed-prepare-secure-stop.receipt.json",
+          "sha256": "e315062308e9dcf60084d6f98c179d06eac54e7ff63844eafb4713a1a7af59ae"
+        },
+        "actual_c62_session_dispatches": 8,
+        "guard_failure_code": "REHEARSAL_REDIRECT_BLOCKED",
+        "original_redirect_origin": "unknown; later component probes did not reproduce, no inference",
+        "new_readonly_diagnostics": [
+          {
+            "component": "sse",
+            "actual_session_dispatches": 1,
+            "guard_failure_code": null,
+            "evidence": {
+              "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/s6-count-redirect-sse-readonly-diagnostic.receipt.json",
+              "sha256": "a189a91b7dcf2a61af5c2e1ee69448dc230be7c29f797bd97c76cbd0e60707b3"
+            }
+          },
+          {
+            "component": "sse_shape",
+            "actual_session_dispatches": 1,
+            "guard_failure_code": null,
+            "evidence": {
+              "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/s6-count-sse-shape-readonly-diagnostic.receipt.json",
+              "sha256": "93ca6d5ce600f15bae6c862ba290921156e31665a8b8110111ce4616de6321c1"
+            }
+          },
+          {
+            "component": "calendar",
+            "actual_session_dispatches": 2,
+            "guard_failure_code": null,
+            "evidence": {
+              "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/s6-count-calendar-readonly-diagnostic.receipt.json",
+              "sha256": "2b0b651e54f905161604e57cd45bf61052a34d6063b843f2f354c8d1308a7fde"
+            }
+          },
+          {
+            "component": "sh_main",
+            "actual_session_dispatches": 1,
+            "guard_failure_code": null,
+            "evidence": {
+              "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/s6-count-akshare-sh-readonly-diagnostic.receipt.json",
+              "sha256": "a2a24bce7732fa63ffe614198ce4072033bb7d8aab33443a9fcf92a1dea56528"
+            }
+          },
+          {
+            "component": "sz_two_attempts",
+            "actual_session_dispatches": 2,
+            "guard_failure_code": null,
+            "evidence": {
+              "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/s6-count-akshare-sz-retry-readonly-diagnostic.receipt.json",
+              "sha256": "e1814646f511891f1d81f81a1cc05101d5f54a5d5b975031229e21d34f0a87ce"
+            }
+          }
+        ],
+        "market_charged_total": 78,
+        "market_original_ceiling": 200,
+        "market_remaining": 122,
+        "upstream_contract_defect": "HTTP200/code0 stock_basic SSE response: exact int count0 versus2319 raw items, has_morefalse; strict client correctly raises MODEL_MARKET_INCOMPLETE_RESULT. No count, pagination, coverage or redirect gate relaxed.",
+        "upstream_route_owner": "Caddy matching route includes external111.170.140.159:8020; not current VPS address, no local8020 listener, no relevant local implementation found by bounded search.",
+        "configured_alternatives": "Only provider2 active; provider4 inactive, same host/mode. No verified independent substitute.",
+        "upstream_action_review": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/data02-upstream-action-review.json",
+          "sha256": "0d5e36cb21c807efa0d462a127c7e42dc3371d44525e1aa5f8acf616b6cdbb0a"
+        },
+        "external_input_requested": "Upstream source repository or maintenance entrypoint; no password requested.",
+        "financial_physical_used": 0,
+        "financial_physical_ceiling": 22296,
+        "production_e1_used": 0,
+        "production_e1_ceiling": 2,
+        "full_standard_s6_runner_started": false,
+        "owner_credential_transferred": false,
+        "production_deployed_or_written": false,
+        "data02_exit_met": false,
+        "data03_started": false
       }
     }
   ],
