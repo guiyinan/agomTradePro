@@ -1,11 +1,15 @@
 """Official PDF transport and immutable body retention boundaries."""
 
+import subprocess
+import sys
+import textwrap
 from datetime import date
 from decimal import Decimal
 from io import BytesIO
 from pathlib import Path
 from types import SimpleNamespace
 
+import pypdf
 import pytest
 import requests
 
@@ -27,6 +31,73 @@ _URL = (
     "37e23922-f64d-4203-9d27-9ed981a8f799.PDF"
 )
 _BODY = b"%PDF-1.4\nsource bytes\n%%EOF\n"
+
+
+def test_pdf_storage_import_does_not_require_parser_but_parsing_fails_closed(
+    tmp_path: Path,
+) -> None:
+    """A runtime without the parser can retain bytes but cannot qualify PDF text."""
+
+    probe = textwrap.dedent("""
+        import hashlib
+        import importlib.abc
+        import os
+        import sys
+        from datetime import datetime, timezone
+        from pathlib import Path
+
+        class MissingParser(importlib.abc.MetaPathFinder):
+            def find_spec(self, fullname, path=None, target=None):
+                if fullname == 'pypdf' or fullname.startswith('pypdf.'):
+                    raise ModuleNotFoundError('parser deliberately absent', name=fullname)
+                return None
+
+        sys.meta_path.insert(0, MissingParser())
+        os.environ['AGOM_LOG_DIR'] = str(Path(sys.argv[1]) / 'logs')
+        from django.db.backends.base.base import BaseDatabaseWrapper
+        import requests
+
+        def deny_io(*args, **kwargs):
+            raise AssertionError('startup must not access the database or providers')
+
+        BaseDatabaseWrapper.ensure_connection = deny_io
+        requests.sessions.Session.request = deny_io
+        import django
+        django.setup()
+        from apps.data_center.infrastructure.official_szse_pdf_capture import (
+            CapturedOfficialSzsePdf, OfficialDisclosureCaptureError,
+            OfficialSzsePdfBodyStore, verify_szse_pdf_security_code,
+        )
+
+        body = b'%PDF-1.4\\nsource bytes\\n%%EOF\\n'
+        captured = CapturedOfficialSzsePdf(
+            source_url='https://disc.static.szse.cn/source.PDF',
+            source_document_id='37e23922-f64d-4203-9d27-9ed981a8f799',
+            first_seen_at=datetime.now(timezone.utc),
+            body_sha256=hashlib.sha256(body).hexdigest(), body=body,
+        )
+        store = OfficialSzsePdfBodyStore(Path(sys.argv[1]))
+        store.retain(captured)
+        assert store.read(captured.body_sha256) == body
+        try:
+            verify_szse_pdf_security_code(captured, '002727')
+        except OfficialDisclosureCaptureError as exc:
+            assert 'parser dependency' in str(exc)
+            assert isinstance(exc.__cause__, ModuleNotFoundError)
+        else:
+            raise AssertionError('missing parser must block qualification')
+        print('STORAGE_OK_PARSING_BLOCKED')
+        """)
+    result = subprocess.run(
+        [sys.executable, "-c", probe, str(tmp_path / "pdf-store")],
+        cwd=Path(__file__).resolve().parents[3],
+        capture_output=True,
+        text=True,
+        timeout=60,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip() == "STORAGE_OK_PARSING_BLOCKED"
 
 
 def _response(body: bytes, *, content_type: str = "application/pdf") -> requests.Response:
@@ -99,7 +170,7 @@ def test_pdf_header_must_match_exact_security(
     monkeypatch.setattr(requests, "get", lambda *args, **kwargs: _response(_BODY))
     capture = capture_official_szse_pdf(_URL)
     monkeypatch.setattr(
-        capture_module,
+        pypdf,
         "PdfReader",
         lambda *args, **kwargs: SimpleNamespace(
             pages=(SimpleNamespace(extract_text=lambda: "股票代码：002727 股票简称：一心堂"),)
@@ -120,7 +191,7 @@ def test_full_first_page_issuer_name_can_bind_pdf_without_a_code(
     capture = capture_official_szse_pdf(_URL)
     first_page = "普通文本" * 180 + "杭州和顺科技股份有限公司法律意见书"
     monkeypatch.setattr(
-        capture_module,
+        pypdf,
         "PdfReader",
         lambda *args, **kwargs: SimpleNamespace(
             pages=(SimpleNamespace(extract_text=lambda: first_page),)
@@ -136,7 +207,7 @@ def test_full_first_page_issuer_name_can_bind_pdf_without_a_code(
         == "301237"
     )
     monkeypatch.setattr(
-        capture_module,
+        pypdf,
         "PdfReader",
         lambda *args, **kwargs: SimpleNamespace(
             pages=(SimpleNamespace(extract_text=lambda: "一份无关公司的法律文件"),)
@@ -158,7 +229,7 @@ def test_conflicting_first_page_code_cannot_be_overridden_by_issuer_name(
     monkeypatch.setattr(requests, "get", lambda *args, **kwargs: _response(_BODY))
     capture = capture_official_szse_pdf(_URL)
     monkeypatch.setattr(
-        capture_module,
+        pypdf,
         "PdfReader",
         lambda *args, **kwargs: SimpleNamespace(
             pages=(
@@ -201,7 +272,7 @@ def test_ambiguous_corporate_action_stays_unknown(
         lambda value, security_code: security_code,
     )
     monkeypatch.setattr(
-        capture_module,
+        pypdf,
         "PdfReader",
         lambda *args, **kwargs: SimpleNamespace(
             pages=(SimpleNamespace(extract_text=lambda: f"2026 年中期权益分派实施公告\n{terms}"),)
@@ -230,7 +301,7 @@ def test_verified_legal_opinion_title_is_other(
     )
     title = "2026 年第二次临时股东会法律意见书"
     monkeypatch.setattr(
-        capture_module,
+        pypdf,
         "PdfReader",
         lambda *args, **kwargs: SimpleNamespace(
             pages=(
@@ -265,7 +336,7 @@ def test_same_security_pdf_with_unmatched_listing_title_is_blocked(
         "证券代码：301237\n关于财务总监、董事会秘书辞任暨董事长代行董事会\n" "秘书职责的公告"
     )
     monkeypatch.setattr(
-        capture_module,
+        pypdf,
         "PdfReader",
         lambda *args, **kwargs: SimpleNamespace(
             pages=(SimpleNamespace(extract_text=lambda: page_text),)
@@ -339,7 +410,7 @@ def test_non_distribution_classification_requires_bounded_topic_evidence(
         lambda value, security_code: security_code,
     )
     monkeypatch.setattr(
-        capture_module,
+        pypdf,
         "PdfReader",
         lambda *args, **kwargs: SimpleNamespace(
             pages=(
@@ -384,7 +455,7 @@ def test_corrected_distribution_and_correction_notice_have_distinct_types(
         lambda value, security_code: security_code,
     )
     monkeypatch.setattr(
-        capture_module,
+        pypdf,
         "PdfReader",
         lambda *args, **kwargs: SimpleNamespace(
             pages=(SimpleNamespace(extract_text=lambda: f"{title}\n每10股派发现金红利2元"),)
@@ -408,7 +479,7 @@ def test_distribution_dates_preserve_source_date_precision(
         lambda value, security_code: security_code,
     )
     monkeypatch.setattr(
-        capture_module,
+        pypdf,
         "PdfReader",
         lambda *args, **kwargs: SimpleNamespace(
             pages=(
@@ -442,7 +513,7 @@ def test_exact_cash_payout_wording_preserves_gross_terms_and_source_dates(
         "现金红利将于2026年11月13日派发。暂不扣缴个人所得税，待个人转让股票时计算。"
     )
     monkeypatch.setattr(
-        capture_module,
+        pypdf,
         "PdfReader",
         lambda *args, **kwargs: SimpleNamespace(
             pages=(SimpleNamespace(extract_text=lambda: text),)
@@ -486,7 +557,7 @@ def test_postfix_cash_wording_cannot_hide_a_conflicting_earlier_proposal(
         "现金红利将于2026年11月13日派发。暂不扣缴个人所得税，待个人转让股票时计算。"
     )
     monkeypatch.setattr(
-        capture_module,
+        pypdf,
         "PdfReader",
         lambda *args, **kwargs: SimpleNamespace(
             pages=(SimpleNamespace(extract_text=lambda: text),)
@@ -527,7 +598,7 @@ def test_share_delivery_and_sellable_dates_are_independent_explicit_facts(
         "股权登记日为：2026年9月23日。除权除息日为：2026年9月24日。" + date_text
     )
     monkeypatch.setattr(
-        capture_module,
+        pypdf,
         "PdfReader",
         lambda *a, **kw: SimpleNamespace(pages=(SimpleNamespace(extract_text=lambda: text),)),
     )
@@ -543,7 +614,7 @@ def test_notification_title_can_be_read_without_promoting_unknown_category(monke
     captured = capture_official_szse_pdf(_URL)
     text = "证券代码：002727\n关于召开2026年第五次临时股东会的通知\n会议时间及投票方式。"
     monkeypatch.setattr(
-        capture_module,
+        pypdf,
         "PdfReader",
         lambda *a, **kw: SimpleNamespace(pages=(SimpleNamespace(extract_text=lambda: text),)),
     )
@@ -566,7 +637,7 @@ def _source_wording_capture(
     captured = capture_official_szse_pdf(_URL)
     text = "证券代码：002727\n" + title + "\n" + distribution_dates + wording
     monkeypatch.setattr(
-        capture_module,
+        pypdf,
         "PdfReader",
         lambda *args, **kwargs: SimpleNamespace(
             pages=(SimpleNamespace(extract_text=lambda: text),)

@@ -1414,3 +1414,9 @@ S6预算准备只读核对当前2026-11-16目标范围5573只、上市日期未�
 
 
 2026-11-17 Owner已明确回复“批准本候选标准 S6 预算（推荐）”，解除上述预算等待：冻结候选7955a814、范围上限5573只，一次标准S6财报实际尝试合计≤22296（完整scope≤22292、独立slice≤4），market probe/full capacity各≤100次Session调用；生产E1仍另限2次、不重试、不分页。正式范围增加时停止，不自动加额；不启用advance-isolated-market-graph额外刷新，也不重跑失败attempt。按正常fresh prepare、独立数据库、现有active-superuser匿名pipe/FD授权与候选CI/image/report契约执行；该预算批准不是生产manifest双人review或Publication放行。
+
+2026-11-17 该授权后的首次 fresh prepare（attempt 793ccc7e92a94f09847b93fcf3cdef0b）实际止于 candidate_exports，exit60；未启动 runner/provider 阶段，财报与行情请求均为0。只读隔离诊断确认旧生产 execution image 缺少候选已声明的 pypdf，Django ready 的组合导入链因此失败；原 attempt、日志与隔离资源保留，不续跑或伪记通过。必要修复仅把 Infrastructure PDF parser 推迟至真实解析入口加载，依赖声明不变，缺包仍抛出明确业务异常并阻断来源事实。新增独立进程回归先复现旧导入失败，最终完整 Django 启动在禁止数据库/HTTP且隐藏 pypdf 时通过，字节留存可用但解析资格被阻断；PDF模块53例通过，Luna Max只读复核无阻断项。完整开发门禁与原件身份继续写同一验收索引；修复提交产生新候选，须取得该SHA的CI、fresh attempt和适用预算绑定，不能转移7955的通过证据或批准。
+
+Root按已委托的技术口径选择，把后续标准S6容量测量参数固定为内部验收目标：每stage硬上限100次Session dispatch，合并quote/valuation的测量窗口3600秒、窗口上限100、任务及stage期限各3600秒、采样锁等待上限1秒。沿用15%余量门，峰值须≤85次、实测用时≤3060秒、采样锁等待≤0.85秒才能通过；不为通过而抬高分母。这里是Owner请求预算下的内部试验限额与本次技术目标，不是供应商官方配额或既有生产SLO；Session dispatch不等于wire重试次数。锁等待只是现有采样器的事后验收，不能声称已强制1秒数据库锁超时。该具体参数选择不扩大财报预算、不启动新候选请求，也不改变发布策略。
+
+本次parser运行时阻断修复的开发验收已完成：PDF53例、编排5例、1生产文件增量mypy与全量债务0、Black/isort/Ruff、模块投影生成及核验、架构/registry/治理检查均通过，投影无变化。失败prepare的临时GitHub/SSH认证文件已在确认进程终止后按精确私有路径删除，失败原件和隔离资源保留；无生产容器修改或provider请求。下一步冻结该修复提交并执行同SHA完整CI，之后再明确新候选的fresh S6预算绑定。

@@ -11,13 +11,12 @@ from datetime import date, datetime
 from decimal import Decimal
 from io import BytesIO
 from pathlib import Path
+from typing import TYPE_CHECKING
 from urllib.parse import urlsplit
 from uuid import UUID, uuid4
 
 import requests
 from django.utils import timezone
-from pypdf import PdfReader
-from pypdf.errors import PdfReadError
 
 from apps.data_center.domain.security_disclosure_event import (
     SecurityDisclosureEventType,
@@ -30,6 +29,10 @@ from apps.data_center.infrastructure.official_szse_rights_terms import (
 )
 from core.exceptions import DataFetchError
 from shared.numeric import safe_float
+
+if TYPE_CHECKING:
+    from pypdf import PdfReader
+    from pypdf.errors import PdfReadError
 
 _PATH = re.compile(
     r"^/(?:download/)?disc/disk[0-9]+/finalpage/[0-9]{4}-[0-9]{2}-[0-9]{2}/"
@@ -79,6 +82,17 @@ class OfficialDisclosureCaptureError(DataFetchError):
 
     default_message = "交易所公告原文无法核验。"
     default_code = "OFFICIAL_DISCLOSURE_CAPTURE_INVALID"
+
+
+def _pdf_parser() -> tuple[type[PdfReader], type[PdfReadError]]:
+    """Load the required parser only when qualifying PDF text, failing closed."""
+
+    try:
+        from pypdf import PdfReader
+        from pypdf.errors import PdfReadError
+    except ImportError as exc:
+        raise OfficialDisclosureCaptureError("SZSE PDF parser dependency is unavailable") from exc
+    return PdfReader, PdfReadError
 
 
 @dataclass(frozen=True, slots=True)
@@ -178,14 +192,15 @@ def verify_szse_pdf_security_code(
         raise OfficialDisclosureCaptureError("expected security code is invalid")
     if hashlib.sha256(capture.body).hexdigest() != capture.body_sha256:
         raise OfficialDisclosureCaptureError("PDF body hash mismatch")
+    reader_type, read_error_type = _pdf_parser()
     try:
-        reader = PdfReader(BytesIO(capture.body), strict=True)
+        reader = reader_type(BytesIO(capture.body), strict=True)
         if not reader.pages or len(reader.pages) > 100:
             raise OfficialDisclosureCaptureError("SZSE PDF page count is invalid")
         header = reader.pages[0].extract_text()
     except OfficialDisclosureCaptureError:
         raise
-    except (OSError, TypeError, ValueError, KeyError, PdfReadError) as exc:
+    except (OSError, TypeError, ValueError, KeyError, read_error_type) as exc:
         raise OfficialDisclosureCaptureError("SZSE PDF text cannot be verified") from exc
     if type(header) is not str:
         raise OfficialDisclosureCaptureError("SZSE PDF text cannot be verified")
@@ -349,10 +364,11 @@ def classify_szse_pdf_disclosure(
             expected_security_code,
             expected_issuer_name=expected_issuer_name,
         )
+    reader_type, read_error_type = _pdf_parser()
     try:
-        reader = PdfReader(BytesIO(capture.body), strict=True)
+        reader = reader_type(BytesIO(capture.body), strict=True)
         pages = tuple(page.extract_text() for page in reader.pages)
-    except (OSError, TypeError, ValueError, KeyError, PdfReadError) as exc:
+    except (OSError, TypeError, ValueError, KeyError, read_error_type) as exc:
         raise OfficialDisclosureCaptureError("SZSE PDF text cannot be classified") from exc
     if any(type(page) is not str for page in pages):
         raise OfficialDisclosureCaptureError("SZSE PDF page text is unavailable")
@@ -427,9 +443,10 @@ def extract_szse_rights_completion(
 ) -> SzseRightsCompletionTerms | None:
     """Read confirmed rights-result facts from an exact security-bound original PDF."""
     verify_szse_pdf_security_code(capture, expected_security_code)
+    reader_type, read_error_type = _pdf_parser()
     try:
-        text = "\n".join(page.extract_text() for page in PdfReader(BytesIO(capture.body)).pages)
-    except (OSError, TypeError, ValueError, KeyError, PdfReadError) as exc:
+        text = "\n".join(page.extract_text() for page in reader_type(BytesIO(capture.body)).pages)
+    except (OSError, TypeError, ValueError, KeyError, read_error_type) as exc:
         raise OfficialDisclosureCaptureError("SZSE rights result cannot be read") from exc
     return extract_szse_rights_completion_terms(text, source_security_code=expected_security_code)
 
@@ -440,9 +457,10 @@ def extract_szse_distribution_dates(
     """Retain date-only record/ex clocks only when the PDF states them unambiguously."""
 
     verify_szse_pdf_security_code(capture, expected_security_code)
+    reader_type, read_error_type = _pdf_parser()
     try:
-        text = "\n".join(page.extract_text() for page in PdfReader(BytesIO(capture.body)).pages)
-    except (OSError, TypeError, ValueError, KeyError, PdfReadError) as exc:
+        text = "\n".join(page.extract_text() for page in reader_type(BytesIO(capture.body)).pages)
+    except (OSError, TypeError, ValueError, KeyError, read_error_type) as exc:
         raise OfficialDisclosureCaptureError("SZSE PDF dates cannot be read") from exc
 
     def unique_date(pattern: re.Pattern[str]) -> date | None:
@@ -511,9 +529,10 @@ def extract_szse_distribution_terms(
         or ex_date is None
     ):
         return None
+    reader_type, read_error_type = _pdf_parser()
     try:
-        text = "\n".join(page.extract_text() for page in PdfReader(BytesIO(capture.body)).pages)
-    except (OSError, TypeError, ValueError, KeyError, PdfReadError) as exc:
+        text = "\n".join(page.extract_text() for page in reader_type(BytesIO(capture.body)).pages)
+    except (OSError, TypeError, ValueError, KeyError, read_error_type) as exc:
         raise OfficialDisclosureCaptureError("SZSE PDF economic terms cannot be read") from exc
 
     def unique_amount(patterns: tuple[re.Pattern[str], ...]) -> Decimal | None:

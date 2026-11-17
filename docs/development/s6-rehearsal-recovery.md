@@ -46,6 +46,11 @@ receipt 不包含源码或秘密，记录 candidate SHA、快照 tree SHA-256、
 候选代码身份由只读 source snapshot 与 receipt 绑定，不能把 execution image 记作候选镜像。候选镜像随后由 S6 build 阶段生成，
 继续接受独立的 revision/image/receipt 校验。export manifest 必须分别记录 execution image ID、candidate SHA、source tree digest
 和每个输出摘要。生产 Dockerfile 当前将 `appuser` 固定为 UID 1000。
+候选新增依赖而旧 execution image 尚未安装时，不得临时替换该镜像或向生产容器安装包。
+与导出无关的 PDF 解析器只在 Infrastructure 的实际解析入口加载；缺少必需的 `pypdf`
+必须抛出 `OfficialDisclosureCaptureError`，不能用空文本、UNKNOWN 或未核验来源事实代替。
+这只保证只读准备的启动边界，候选构建镜像仍须安装声明依赖并独立通过后续阶段。
+修改源码后使用新候选 CI 与 fresh attempt；失败 attempt、原候选证据及其预算绑定保留。
 导出 stdout/stderr 进入 attempt 私有日志文件，命令只向 wrapper 返回稳定错误码：
 `S6_CANDIDATE_EXPORT_PRODUCTION_FAILED`、`S6_CANDIDATE_EXPORT_UNIVERSE_FAILED` 或
 `S6_CANDIDATE_EXPORT_CONTRACT_FAILED`。Shell wrapper 应直接消费 CLI 错误码；兼容 wrapper 必须 source

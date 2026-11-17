@@ -3601,7 +3601,7 @@
     {
       "date": "2026-11-16T18:08:48.512032+00:00",
       "kind": "e1_frozen_integrated_c2_numeric_v3_preparation",
-      "status": "owner_approved_standard_s6_fresh_preparation",
+      "status": "parser_runtime_fix_development_passed_replacement_candidate_ci_pending",
       "base_head": "2529c3bd50b728ae87ad328c1ae5794907f5ea74",
       "scope": "Frozen single-security Main+Balance E1 critical path only; full DATA-02 universe and four Publication exit gates unchanged.",
       "delivery": {
@@ -4133,6 +4133,115 @@
         "universe_growth_action": "stop_without_automatic_budget_increase",
         "advance_isolated_market_graph": false,
         "qualification_boundary": "Budget approval only; normal fresh-attempt isolation, per-candidate authenticated scope authorization, all S6 reports and controlled deployment gates remain required. No failed-attempt replay or production publication grant."
+      },
+      "s6_first_fresh_prepare": {
+        "candidate_sha": "7955a814c4c50617c41b8b72ba9636877ace3852",
+        "attempt_id": "793ccc7e92a94f09847b93fcf3cdef0b",
+        "state": "failed",
+        "phase": "candidate_exports",
+        "exit_code": 60,
+        "stable_code": "S6_CANDIDATE_EXPORT_PRODUCTION_FAILED",
+        "cause": "S6_CANDIDATE_IMPORT_PROVENANCE_INVALID caused by missing pypdf in old production dependency execution image during django.setup",
+        "execution_image_id": "sha256:8fb8281c9551f28611ee9a0cf6d5503792077eeddff9a917aee1793d8559ea92",
+        "candidate_source_tree_sha256": "b7bcd13f85bb2dc1f15c554fd97a62a34b3cbe20294c242d8f9a9735251ed5b0",
+        "candidate_source_files": 11723,
+        "provider_stages_started": false,
+        "financial_physical_attempts": 0,
+        "market_session_dispatches": 0,
+        "failed_attempt_restarted": false,
+        "diagnostic_provider_http_disabled": true,
+        "retained_plan": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/s6-fresh-attempt-plan.canonical.json",
+          "sha256": "38f7e26cf32584416888606699ed88987f20deaa276da480aa9943c7fc2d59a5"
+        },
+        "failure": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/s6-prepare-first-failure-detail.json",
+          "sha256": "80e66743d2b43e3b9ddbaf197366fe57039f24afc3e86559a7e998002b96e147"
+        },
+        "diagnostic": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/s6-import-readonly-diagnostic-r3.json",
+          "sha256": "070b1b4c077f4749a493e2a6e70ace8fce5e73a88f0b8e7fd0f3eb93634f9425"
+        },
+        "temporary_bootstrap_authentication_files_removed": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/s6-failed-prepare-private-bootstrap-cleanup.receipt.json",
+          "sha256": "9d12a9e8c644c61b26f5f1125c5bf110e90d4cd4d92910b8f03de7b0096a42e6"
+        }
+      },
+      "parser_runtime_fix": {
+        "scope": "Infrastructure lazy loading only at five actual PDF parse paths. pypdf remains a required dependency. Missing dependency raises OfficialDisclosureCaptureError and cannot qualify or append source facts. Production containers and failed attempt unchanged.",
+        "local_tests": {
+          "passed": 53,
+          "skipped": 0,
+          "log": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/pypdf-lazy-full-tests-r2.log",
+            "sha256": "9a366f1a7c46b260596ce71a1bce67ff56df599e4f255f6af22610f02239ab4b"
+          }
+        },
+        "retained_red": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/pypdf-lazy-regression-red.log",
+          "sha256": "9efe752bd71f0871ef8d5d4427ddf4dd7a01d29638c264e37f87b12f966d816d"
+        },
+        "retained_probe_setup_failure": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/pypdf-lazy-full-tests.log",
+          "sha256": "6947359bdd05ca106c5c53ce8dc51f0d288f2e4fc2f29f48aecb31e8efc2c01d"
+        },
+        "startup_probe": "Fresh interpreter hides pypdf, denies database and requests HTTP, executes full django.setup; exact byte store/read succeeds and PDF security qualification fails closed.",
+        "independent_review": {
+          "agent": "/root/luna_max_audit",
+          "mode": "read_only_diff_and_caller_review",
+          "blocking_findings": 0,
+          "tests_run_by_reviewer": false
+        },
+        "development_gate_status": "passed",
+        "replacement_candidate_ci_required": true,
+        "original_7955_budget_transferred": false,
+        "production_deployed": false,
+        "development_checks_receipt": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/pypdf-lazy-development-checks.receipt.json",
+          "sha256": "68c0f02050659f5f7de4e2033f1d8bebc911075e33223bd98bfb23d31246a5f7"
+        },
+        "composition_tests": {
+          "passed": 5,
+          "log": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/pypdf-lazy-composition-tests.log",
+            "sha256": "5c26bba44b8c855fc75f2fb9114754b8d4c35bc17e8b8d1c7555d09dbdf5d61e"
+          }
+        },
+        "architecture_check": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/pypdf-lazy-architecture.log",
+          "sha256": "996e1de8261cc2d68343b1b9f947adc86d5bc437b19a1693802fd00fc3128114"
+        },
+        "registry_check": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/pypdf-lazy-registry.log",
+          "sha256": "8d7f156fa5aada958a2aeea89412f16f3a289bfea8194840bf49a6835c8113e9"
+        },
+        "governance_check": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/pypdf-lazy-governance.log",
+          "sha256": "50824cda33db620929040684fffe76d54284292edfd06fd75b4dedc034571c6b"
+        },
+        "mypy_debt_errors": 0,
+        "module_projection_changed": false
+      },
+      "s6_internal_capacity_envelope": {
+        "decision_owner": "Root under delegated technical choices",
+        "status": "selected_not_executed",
+        "max_dispatches_per_market_stage": 100,
+        "provider_request_limit_per_window": 100,
+        "provider_window_seconds": 3600,
+        "task_deadline_seconds": 3600,
+        "stage_timeout_seconds": 3600,
+        "lock_wait_limit_seconds": 1,
+        "minimum_capacity_margin_ratio": 0.15,
+        "effective_peak_dispatch_limit": 85,
+        "effective_elapsed_limit_seconds": 3060,
+        "effective_sampled_lock_wait_limit_seconds": 0.85,
+        "units": "combined quote/valuation requests_session_dispatch",
+        "limit_origin": "Owner-approved internal stage budget, not vendor official quota",
+        "lock_wait_origin": "Root-selected technical acceptance target, not an existing production SLO",
+        "lock_wait_enforcement": "post-measurement sampled gate; does not set a one-second PostgreSQL lock_timeout",
+        "financial_budget_changed": false,
+        "provider_requests_started": false,
+        "review_agent": "/root/luna_max_d1_precision"
       }
     }
   ],
