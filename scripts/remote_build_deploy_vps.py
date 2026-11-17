@@ -27,6 +27,7 @@ import time
 import zipfile
 from collections.abc import Callable, Iterable
 from concurrent.futures import Future, ThreadPoolExecutor
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, NoReturn, cast
 
@@ -388,7 +389,7 @@ def _download_observed_deploy_report(
     if not isinstance(payload, dict) or any(
         payload.get(key) != value
         for key, value in {
-            "schema": "legacy-observed-deploy-result.v1",
+            "schema": "legacy-observed-deploy-result.v2",
             "release_tag": release_tag,
             "attempt_id": attempt_id,
             "candidate_sha": candidate_sha,
@@ -427,6 +428,13 @@ def _download_observed_deploy_report(
         or type(payload.get("legacy_schema_verified")) is not bool
     ):
         raise ValueError("OBSERVED_DEPLOY_REPORT_MIGRATION_STATE_INVALID")
+    if outcome == "deployed" and (
+        payload["migration_started"] is not True
+        or payload["legacy_schema_verified"] is not True
+        or payload.get("ownjobs_quiesced") is not True
+        or payload.get("phase") != "phase_b"
+    ):
+        raise ValueError("OBSERVED_DEPLOY_REPORT_COMPLETION_INVALID")
     partial_schema = payload["migration_started"] and not payload["legacy_schema_verified"]
     expected_forward = outcome != "deployed" and (committed or partial_schema)
     if (
@@ -434,6 +442,44 @@ def _download_observed_deploy_report(
         or payload["forward_recovery_required"] is not expected_forward
     ):
         raise ValueError("OBSERVED_DEPLOY_REPORT_RETIREMENT_INVALID")
+    retired_at = payload.get("baseline_retired_at")
+    if committed:
+        if not isinstance(retired_at, str):
+            raise ValueError("OBSERVED_DEPLOY_REPORT_RETIREMENT_INVALID")
+        try:
+            retired_time = datetime.fromisoformat(retired_at.replace("Z", "+00:00"))
+        except ValueError:
+            raise ValueError("OBSERVED_DEPLOY_REPORT_RETIREMENT_INVALID") from None
+        if retired_time.tzinfo is None or retired_time.utcoffset() != timedelta(0):
+            raise ValueError("OBSERVED_DEPLOY_REPORT_RETIREMENT_INVALID")
+    elif retired_at is not None:
+        raise ValueError("OBSERVED_DEPLOY_REPORT_RETIREMENT_INVALID")
+    for field in (
+        "phase_b_migration_started",
+        "full_schema_verified",
+        "readonly_override_retained",
+    ):
+        if type(payload.get(field)) is not bool:
+            raise ValueError("OBSERVED_DEPLOY_REPORT_FULL_SCHEMA_INVALID")
+    phase_b_started = payload["phase_b_migration_started"]
+    schema_verified = payload["full_schema_verified"]
+    readonly_retained = payload["readonly_override_retained"]
+    if (
+        (phase_b_started and not committed)
+        or (schema_verified and not (committed and phase_b_started))
+        or (outcome == "deployed" and not schema_verified)
+        or (readonly_retained and (not committed or schema_verified))
+        or (outcome == "partial" and not schema_verified and not readonly_retained)
+    ):
+        raise ValueError("OBSERVED_DEPLOY_REPORT_FULL_SCHEMA_INVALID")
+    overlay_path = payload.get("readonly_override_path")
+    if not isinstance(overlay_path, str) or (
+        re.fullmatch(r"/opt/agomtradepro/\.observed-phase-a-[0-9a-f]{32}\.yml", overlay_path)
+        is None
+        if readonly_retained
+        else overlay_path != ""
+    ):
+        raise ValueError("OBSERVED_DEPLOY_REPORT_READONLY_OVERLAY_INVALID")
     report_dir.mkdir(parents=True, exist_ok=True)
     destination = report_dir / Path(remote).name
     with destination.open("xb") as stream:

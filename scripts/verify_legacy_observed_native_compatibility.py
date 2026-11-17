@@ -25,6 +25,9 @@ from scripts.legacy_observed_runtime_baseline import (  # noqa: E402
 )
 
 _REPORT_SCHEMA = "ops.data02-legacy-native-compatibility.v1"
+_PHASED_REPORT_SCHEMA = "ops.data02-legacy-native-compatibility.v2"
+_DEFERRED_MIGRATION = "ai_provider.0005_drop_plaintext_api_key"
+_DEFERRED_PATH = "apps/ai_provider/migrations/0005_drop_plaintext_api_key.py"
 _SUMMARY_SCHEMA = "ops.data02-legacy-native-compat.proof.v1"
 _ARTIFACTS = frozenset(
     {
@@ -35,6 +38,7 @@ _ARTIFACTS = frozenset(
         "legacy_readonly_boot",
     }
 )
+_PHASED_ARTIFACTS = _ARTIFACTS | {"phase_a_migrations", "phase_a_summary"}
 _ROW_SCOPES = frozenset(
     {
         "financial_facts",
@@ -302,6 +306,168 @@ def _source_graph_verified(pending: dict[str, object], candidate_root: Path) -> 
     )
 
 
+def _phased_bootstrap_verified(
+    report: dict[str, object],
+    originals: dict[str, dict[str, object]],
+    references: dict[str, object],
+    candidate_root: Path,
+    system_id: str,
+    migrated_db: str,
+) -> None:
+    """Prove old compatibility before retirement and complete current schema afterwards."""
+    plan = observer._object(report.get("bootstrap_migration_plan"))
+    deferred_file = candidate_root / _DEFERRED_PATH
+    _require(
+        set(plan)
+        == {
+            "schema",
+            "deferred_migration",
+            "deferred_migration_sha256",
+            "phase_a_post_migrate_signals_deferred",
+            "retire_baseline_before_phase_b",
+        }
+        and plan.get("schema") == "ops.observed-bootstrap-migration-plan.v1"
+        and plan.get("deferred_migration") == _DEFERRED_MIGRATION
+        and deferred_file.is_file()
+        and plan.get("deferred_migration_sha256")
+        == hashlib.sha256(deferred_file.read_bytes()).hexdigest()
+        and plan.get("phase_a_post_migrate_signals_deferred") is True
+        and plan.get("retire_baseline_before_phase_b") is True,
+        "OBSERVED_NATIVE_PHASE_PLAN_INVALID",
+    )
+    phase_a = originals["phase_a_summary"]
+    state = originals["phase_a_migrations"]
+    legacy, migrated = originals["legacy_summary"], originals["migrated_summary"]
+    for artifact in (phase_a, state):
+        identity = observer._object(artifact.get("database_identity"))
+        _require(
+            identity.get("system_identifier") == system_id,
+            "OBSERVED_NATIVE_CLUSTER_IDENTITY_MISMATCH",
+        )
+        _require(
+            artifact.get("schema") == _SUMMARY_SCHEMA
+            and identity.get("database_name") == migrated_db,
+            "OBSERVED_NATIVE_SUMMARY_IDENTITY_MISMATCH",
+        )
+    _source_graph_verified(state, candidate_root)
+    final_state = originals["pending_migrations"]
+    _require(
+        state.get("migration_graph") == final_state.get("migration_graph")
+        and state.get("migration_source_trace") == final_state.get("migration_source_trace"),
+        "OBSERVED_NATIVE_PHASE_PLAN_INVALID",
+    )
+    leaves = [observer._string(value) for value in observer._array(state.get("leaf_migrations"))]
+    _require(
+        _DEFERRED_MIGRATION in leaves
+        and state.get("leaf_migration_count") == len(leaves)
+        and type(state.get("pending_migration_count")) is int
+        and state.get("pending_migration_count") == 1
+        and state.get("pending_migrations") == [_DEFERRED_MIGRATION]
+        and state.get("applied_leaf_migrations")
+        == [leaf for leaf in leaves if leaf != _DEFERRED_MIGRATION],
+        "OBSERVED_NATIVE_PHASE_A_PENDING_INVALID",
+    )
+    parents: dict[str, list[str]] = {}
+    for raw in observer._array(observer._object(state.get("migration_graph")).get("edges")):
+        child, parent = [observer._string(value) for value in observer._array(raw)]
+        parents.setdefault(child, []).append(parent)
+    for leaf in leaves:
+        if leaf == _DEFERRED_MIGRATION:
+            continue
+        remaining, seen = list(parents.get(leaf, [])), set[str]()
+        while remaining:
+            node = remaining.pop()
+            _require(node != _DEFERRED_MIGRATION, "OBSERVED_NATIVE_PHASE_PLAN_INVALID")
+            if node not in seen:
+                seen.add(node)
+                remaining.extend(parents.get(node, []))
+    _require(
+        phase_a.get("side") == "migrated"
+        and phase_a.get("native_numeric_columns_present") is True
+        and _rows(phase_a) == _rows(legacy)
+        and phase_a.get("field_sets") == legacy.get("field_sets")
+        and phase_a.get("member_fact_hash_pairs") == legacy.get("member_fact_hash_pairs")
+        and phase_a.get("numeric_state") == migrated.get("numeric_state")
+        and phase_a.get("new_evidence_and_governance_table_rows")
+        == migrated.get("new_evidence_and_governance_table_rows"),
+        "OBSERVED_NATIVE_PHASE_A_ROWS_CHANGED",
+    )
+    _catalog_preserved(legacy, phase_a)
+    boot = originals["legacy_readonly_boot"]
+    _require(
+        boot.get("compatibility_phase") == "phase_a"
+        and boot.get("phase_a_migrations_sha256")
+        == observer._object(references.get("phase_a_migrations")).get("sha256"),
+        "OBSERVED_NATIVE_PHASE_A_OLD_BOOT_UNVERIFIED",
+    )
+    inventory = _orm_inventory(phase_a.get("runtime_orm_inventory"))
+    check = observer._object(migrated.get("current_orm_schema_check"))
+    _require(
+        type(check.get("managed_models_checked")) is int
+        and check.get("managed_models_checked") == len(inventory)
+        and check.get("checked_inventory") == inventory
+        and check.get("missing_tables_or_columns") == [],
+        "OBSERVED_NATIVE_CURRENT_ORM_SCHEMA_UNVERIFIED",
+    )
+    old_ai = [
+        observer._object(row)
+        for row in _orm_inventory(legacy.get("legacy_orm_inventory"))
+        if observer._object(row).get("table") == "ai_provider_config"
+    ]
+    new_ai = [
+        observer._object(row)
+        for row in inventory
+        if observer._object(row).get("table") == "ai_provider_config"
+    ]
+    _require(
+        len(old_ai) == len(new_ai) == 1
+        and "api_key" in observer._array(old_ai[0].get("columns"))
+        and "api_key" not in observer._array(new_ai[0].get("columns"))
+        and "api_key_encrypted" in observer._array(new_ai[0].get("columns")),
+        "OBSERVED_NATIVE_RETIREMENT_SCHEMA_UNVERIFIED",
+    )
+    states = []
+    for summary, present in ((phase_a, True), (migrated, False)):
+        identity = observer._object(summary.get("database_identity"))
+        column = observer._object(summary.get("retired_legacy_column"))
+        _require(
+            identity.get("default_transaction_read_only") == "on"
+            and identity.get("transaction_read_only") == "on"
+            and set(column)
+            == {
+                "table",
+                "column",
+                "present",
+                "encrypted_column",
+                "encrypted_column_present",
+                "nonempty_plaintext_rows",
+                "row_count",
+                "encrypted_values_sha256",
+            }
+            and column.get("table") == "ai_provider_config"
+            and column.get("column") == "api_key"
+            and column.get("present") is present
+            and column.get("encrypted_column") == "api_key_encrypted"
+            and column.get("encrypted_column_present") is True
+            and (
+                (
+                    type(column.get("nonempty_plaintext_rows")) is int
+                    and column.get("nonempty_plaintext_rows") == 0
+                )
+                if present
+                else column.get("nonempty_plaintext_rows") is None
+            )
+            and re.fullmatch(
+                r"[0-9a-f]{64}", observer._string(column.get("encrypted_values_sha256"))
+            )
+            is not None,
+            "OBSERVED_NATIVE_RETIREMENT_SCHEMA_UNVERIFIED",
+        )
+        observer._integer(column.get("row_count"))
+        states.append((column.get("row_count"), column.get("encrypted_values_sha256")))
+    _require(states[0] == states[1], "OBSERVED_NATIVE_RETIREMENT_SCHEMA_UNVERIFIED")
+
+
 def verify_compatibility(
     report_path: Path,
     *,
@@ -311,6 +477,7 @@ def verify_compatibility(
 ) -> None:
     """Validate same-source isolated originals; grant only pre-native bootstrap safety."""
     report = _load(report_path, sha256=sha256)
+    phased = report.get("schema") == _PHASED_REPORT_SCHEMA
     expected_keys = {
         "schema",
         "candidate_source_commit",
@@ -324,9 +491,16 @@ def verify_compatibility(
         "artifacts",
         "production_qualification",
     }
+    if phased:
+        expected_keys.add("bootstrap_migration_plan")
     _require(
-        set(report) == expected_keys and report.get("schema") == _REPORT_SCHEMA,
+        set(report) == expected_keys
+        and report.get("schema") in {_REPORT_SCHEMA, _PHASED_REPORT_SCHEMA},
         "OBSERVED_NATIVE_REPORT_SCHEMA_INVALID",
+    )
+    _require(
+        phased or not (candidate_root / _DEFERRED_PATH).exists(),
+        "OBSERVED_NATIVE_PHASED_PROOF_REQUIRED",
     )
     _require(
         report.get("production_qualification") is False,
@@ -395,7 +569,10 @@ def verify_compatibility(
         "OBSERVED_NATIVE_DATABASE_ISOLATION_INVALID",
     )
     artifact_refs = observer._object(report.get("artifacts"))
-    _require(set(artifact_refs) == _ARTIFACTS, "OBSERVED_NATIVE_ARTIFACTS_INCOMPLETE")
+    _require(
+        set(artifact_refs) == (_PHASED_ARTIFACTS if phased else _ARTIFACTS),
+        "OBSERVED_NATIVE_ARTIFACTS_INCOMPLETE",
+    )
     originals: dict[str, dict[str, object]] = {}
     for name, value in artifact_refs.items():
         ref = observer._object(value)
@@ -414,6 +591,10 @@ def verify_compatibility(
         )
     legacy = originals["legacy_summary"]
     migrated = originals["migrated_summary"]
+    if phased:
+        _phased_bootstrap_verified(
+            report, originals, artifact_refs, candidate_root, system_id, migrated_db
+        )
     for summary, side, database in (
         (legacy, "legacy", legacy_db),
         (migrated, "migrated", migrated_db),

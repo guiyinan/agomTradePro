@@ -2439,7 +2439,7 @@ def _observed_report_download_fixture(
 ) -> tuple[dict[str, Any], bytes]:
     tag, attempt = "20261117120000", "a" * 32
     payload = {
-        "schema": "legacy-observed-deploy-result.v1",
+        "schema": "legacy-observed-deploy-result.v2",
         "release_tag": tag,
         "attempt_id": attempt,
         "candidate_sha": "b" * 40,
@@ -2449,8 +2449,21 @@ def _observed_report_download_fixture(
         "compatibility_sha256": "f" * 64,
         "outcome": outcome,
         "baseline_retired": outcome in {"deployed", "partial"},
+        "baseline_retired_at": (
+            "2026-11-17T12:00:00+00:00" if outcome in {"deployed", "partial"} else None
+        ),
         "migration_started": True,
         "legacy_schema_verified": True,
+        "ownjobs_quiesced": True,
+        "phase": "phase_b" if outcome in {"deployed", "partial"} else "phase_a",
+        "phase_b_migration_started": outcome in {"deployed", "partial"},
+        "full_schema_verified": outcome == "deployed",
+        "readonly_override_retained": outcome == "partial",
+        "readonly_override_path": (
+            "/opt/agomtradepro/.observed-phase-a-" + "1" * 32 + ".yml"
+            if outcome == "partial"
+            else ""
+        ),
         "forward_recovery_required": outcome == "partial",
     }
     raw = json.dumps(payload).encode()
@@ -2501,6 +2514,29 @@ def test_observed_report_cannot_claim_success_after_nonzero_remote_exit(tmp_path
     assert not list(tmp_path.iterdir())
 
 
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("migration_started", False),
+        ("legacy_schema_verified", False),
+        ("ownjobs_quiesced", False),
+        ("phase", "phase_a"),
+    ],
+)
+def test_deployed_observed_report_requires_completed_execution_state(
+    tmp_path: Path, field: str, value: object
+) -> None:
+    arguments, raw = _observed_report_download_fixture(tmp_path, outcome="deployed")
+    payload = json.loads(raw)
+    payload[field] = value
+    arguments["remote_exit_code"] = 0
+    with pytest.raises(ValueError, match="OBSERVED_DEPLOY_REPORT_COMPLETION_INVALID"):
+        remote_build_deploy_vps._download_observed_deploy_report(
+            _observed_report_ssh(json.dumps(payload).encode()), **arguments
+        )
+    assert not list(tmp_path.iterdir())
+
+
 def test_observed_report_cannot_be_borrowed_from_another_attempt(tmp_path: Path) -> None:
     arguments, raw = _observed_report_download_fixture(tmp_path)
     arguments["attempt_id"] = "9" * 32
@@ -2519,6 +2555,8 @@ def test_unverified_recovery_report_preserves_forward_only_requirement(
     payload = json.loads(raw)
     payload.update(
         baseline_retired=committed,
+        baseline_retired_at="2026-11-17T12:00:00Z" if committed else None,
+        phase_b_migration_started=committed,
         phase="phase_b" if committed else "phase_a",
         migration_started=True,
         legacy_schema_verified=committed,
@@ -2530,3 +2568,38 @@ def test_unverified_recovery_report_preserves_forward_only_requirement(
     )
     saved = json.loads(downloaded.read_bytes())
     assert saved["outcome"] == "restore_unverified" and saved["forward_recovery_required"] is True
+
+
+@pytest.mark.parametrize(
+    "mutation,code",
+    [
+        ("schema_not_verified", "OBSERVED_DEPLOY_REPORT_FULL_SCHEMA_INVALID"),
+        ("readonly_config_lost", "OBSERVED_DEPLOY_REPORT_FULL_SCHEMA_INVALID"),
+        ("unrelated_overlay", "OBSERVED_DEPLOY_REPORT_READONLY_OVERLAY_INVALID"),
+        ("naive_retirement", "OBSERVED_DEPLOY_REPORT_RETIREMENT_INVALID"),
+    ],
+)
+def test_phased_observed_report_requires_verified_schema_or_retained_readonly_recovery(
+    tmp_path: Path, mutation: str, code: str
+) -> None:
+    arguments, raw = _observed_report_download_fixture(tmp_path)
+    payload = json.loads(raw)
+    if mutation == "schema_not_verified":
+        payload.update(
+            outcome="deployed",
+            forward_recovery_required=False,
+            readonly_override_retained=False,
+            readonly_override_path="",
+        )
+        arguments["remote_exit_code"] = 0
+    elif mutation == "readonly_config_lost":
+        payload.update(readonly_override_retained=False, readonly_override_path="")
+    elif mutation == "unrelated_overlay":
+        payload["readonly_override_path"] = "/opt/agomtradepro/secrets.env"
+    elif mutation == "naive_retirement":
+        payload["baseline_retired_at"] = "2026-11-17T12:00:00"
+    with pytest.raises(ValueError, match=code):
+        remote_build_deploy_vps._download_observed_deploy_report(
+            _observed_report_ssh(json.dumps(payload).encode()), **arguments
+        )
+    assert not list(tmp_path.iterdir())

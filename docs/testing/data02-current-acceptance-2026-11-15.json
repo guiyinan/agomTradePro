@@ -3601,7 +3601,7 @@
     {
       "date": "2026-11-16T18:08:48.512032+00:00",
       "kind": "e1_frozen_integrated_c2_numeric_v3_preparation",
-      "status": "6086_prepare_failed_zero_provider_requests_minimal_input_and_rollback_gate_fixes_in_preparation",
+      "status": "necessary_observed_two_phase_migration_fix_in_development_not_frozen",
       "base_head": "2529c3bd50b728ae87ad328c1ae5794907f5ea74",
       "scope": "Frozen single-security Main+Balance E1 critical path only; full DATA-02 universe and four Publication exit gates unchanged.",
       "delivery": {
@@ -4120,7 +4120,7 @@
         "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/controlled-release-backup-r1.verified-summary.json",
         "sha256": "4f781ca77eb1d1b53f9d5b7b46129caff28af138ecfdfcf6898af7288c3c952e"
       },
-      "qualification_boundary": "Frozen6086 exact CI/local gates passed and same-size S6 budget was explicitly rebound by Owner. Fresh9d5 prepare passed production export and failed universe input qualification before any provider request. Both failed attempts remain terminal. Necessary bounded isolated graph refresh and truthful observed-runtime rollback support are being prepared,without waiving input/rollback gates or fabricating old build history. Any replacement candidate requires its own CI/fresh S6/budget binding;6086 evidence is not transferred. No production deployment/facts/trades/Publication activation;DATA02 full exit and DATA03 incomplete.",
+      "qualification_boundary": "Historical exact-candidate CI remains historical. Current necessary phasing fix is not frozen or released; actual PA prototype proves feasibility only. Provider requests and E1 remain zero; full DATA-02 exit and DATA-03 dependency gates unchanged.",
       "s6_owner_budget_authorization": {
         "recorded_at": "2026-11-17T01:23:20.552212+00:00",
         "owner_reply": "批准同额预算绑定到 6086（推荐）",
@@ -4599,7 +4599,7 @@
       },
       "legacy_observed_controlled_deploy_development": {
         "scope": "Explicit opt-in observed legacy baseline path; standard v1 deployment unchanged; no fabricated old build metadata",
-        "candidate_status": "only child -I fix and truthful evidence update remain; freeze next exact SHA for complete release gates",
+        "candidate_status": "necessary two-phase migration proof/forward recovery fix in formal Source; freeze only after applicable development gates",
         "production_changed": false,
         "provider_dispatches": 0,
         "e1_physical_attempts": 0,
@@ -4859,6 +4859,118 @@
           "unknown_listing_dates": 0,
           "provider_calls": 0,
           "capacity_qualification": false
+        }
+      },
+      "observed_bootstrap_phasing_blocker": {
+        "candidate_sha": "2a93285c3bfa5539b41da9a4b305df2043788502",
+        "same_sha_ci": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/observed-2a93-all-ci-verified.receipt.json",
+          "sha256": "1e318e311ee750b4764e47cf6ff7633d5bf6a544b8950ee49aebcccaf3292446"
+        },
+        "native_full_legacy_protocol_qualification": false,
+        "actual_pending_destructive_inventory": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/legacy-actual-inventory-pending-removals.receipt.json",
+          "sha256": "e8033eaa67cb64855f4e3b2b352ec0a17895629bf4ff0a93ea25ae633b24312e"
+        },
+        "actual_native_failure": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/native-continuation-2a93-sql170-result.receipt.json",
+          "sha256": "0db07845c068da667c1c83aabe95f41800a082afa22fd0770572f71d85c53218"
+        },
+        "reason": "AI0005 first needs existing encryption key, then intentionally removes api_key column still required by immutable4149 ORM; all-leaf oldboot compatibility is impossible",
+        "phase_a": "exactly defer AI0005; all other leaves applied; defer management signals; actual full legacy ORM and original data preserved; only readonly modern web before anchor",
+        "retirement_boundary": "modern current/previous anchor commit after readonly checks; old baseline retired before destructive PhaseB",
+        "phase_b": "normal full migrate including unchanged AI0005 cryptographic guard; zero pending and schema readback before metadata/worker/RW web; failure before full schema recovers readonly modern web only",
+        "key_policy": "reuse existing production field encryption key only in private QA runtime input; never regenerate or print; not Owner password",
+        "same_request_budget_unchanged": true,
+        "s6_attempt_f54833cff9bd4b9ca32379063cb971ac": "reserved only; no prepare or credentials or provider calls; retire when necessary new code candidate is frozen",
+        "production_changed": false,
+        "e1_attempts": 0,
+        "data03_started": false,
+        "phase_a_feasibility": {
+          "source_commit": "2a93285c3bfa5539b41da9a4b305df2043788502",
+          "actual_exit_code": 0,
+          "result": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/native-phase-a-prototype-result.receipt.json",
+            "sha256": "3a160cfd7b3d23df71a70035b4e6c0b6d6c455c93028924bf7ded029d3142163"
+          },
+          "originals": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/native-phase-a-prototype-originals-download.receipt.json",
+            "sha256": "f74039e09df6802e440685c8c6110843bcf8d2e73d43257734a71ac80c4dd19a"
+          },
+          "only_pending": "ai_provider.0005_drop_plaintext_api_key",
+          "legacy_image_complete_orm_readonly_boot": true,
+          "phase_b_executed": false,
+          "production_qualification": false
+        },
+        "development_validation": {
+          "tests": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/observed-phased-tests-r2.receipt.json",
+            "sha256": "0f4aa42c6c60b506400c5c6ec4e6b379ce530b8085ddc851750382dfac0d5da4"
+          },
+          "passed": 211,
+          "skipped": 2,
+          "incremental_mypy": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/observed-phased-mypy-r2.receipt.json",
+            "sha256": "261874d577ddaadac6cde6467575dc0d8f781746d52222c22ae90f15d7bf1430"
+          },
+          "production_modules": 4,
+          "remaining": "Exact-source CI, genuine phased native proof, fresh S6, controlled deployment/E1; full DATA-02 exit remains separate.",
+          "final_report_tests": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/observed-phased-report-tests-r3.receipt.json",
+            "sha256": "373d6738e74e309b18744797be4334f26541355aa311545d1d806365128c7f1a"
+          },
+          "final_report_passed": 146,
+          "final_report_skipped": 2,
+          "final_report_mypy": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/observed-phased-report-mypy-r3.receipt.json",
+            "sha256": "50ece7cc29c8f10b3247edddd5df333b3cc8564f9f99b80904b9073cfce7bfd2"
+          },
+          "mypy_debt": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/observed-phased-debt-r2.receipt.json",
+            "sha256": "bb2b984fa47bde4a6a4ec16d405012fa0578159af3c147f21063d12ef0b0a4da"
+          },
+          "registry": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/observed-phased-final-registry-r1.receipt.json",
+            "sha256": "433685cfcb3f6a84a7c8b75e405ee6eef689cd9954b9f55eb07fecf3e7e02cb2"
+          },
+          "governance": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/observed-phased-final-governance-r1.receipt.json",
+            "sha256": "c6a4c838b8a77e1d3c470d1cb4411a314c59892996cbb626e39a9d35d8de69d2"
+          },
+          "test_tier": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/observed-phased-final-test-tier-r1.receipt.json",
+            "sha256": "55f50dc06033a65439ff87f47cb358e6f6de648d007457b98f93b775d9bacba2"
+          },
+          "formatters": {
+            "black": {
+              "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/observed-phased-final-black-r1.receipt.json",
+              "sha256": "f39da5aebb81e993325bcacdc3da560bfeee9c1d0e5210f52b9e6c9ccc4bede2"
+            },
+            "isort": {
+              "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/observed-phased-final-isort-r1.receipt.json",
+              "sha256": "36da0e2c7174ab169e6c681021b25c9d916e5d22c81c1d2bf6daf0e523f88f37"
+            },
+            "ruff": {
+              "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/observed-phased-final-ruff-r1.receipt.json",
+              "sha256": "09f2f94bd17b34f975b036a91784df53571161cf2c5efd83933ecb2c2818b6bf"
+            }
+          },
+          "review": "Luna Max read-only review found one deployed report internal-state inconsistency. Four red counterexamples reproduced it; parser now requires migration_started, legacy_schema_verified, ownjobs_quiesced and phase_b before accepting deployed. Other reviewed phasing/proof/recovery boundaries had no blocker. Tests overlap; counts must not be summed.",
+          "entrypoint-write": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/observed-phased-final-entrypoint-write-r1.receipt.json",
+            "sha256": "ee983f027468deb3122d8f7014f85929dde371fe545dd44e926861fa879d7a43"
+          },
+          "entrypoint-check": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/observed-phased-final-entrypoint-check-r1.receipt.json",
+            "sha256": "0e40b6ea41c96dad7fd3cf1d45ef62820654963292c980c8ca5ed6353d91bf62"
+          }
+        },
+        "private_qa_bootstrap": {
+          "receipt": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/phased-native-private-input-r2.receipt.json",
+            "sha256": "a379f8fdeadc93317da80d46763880eabe0ba3c1330e7f431450c44567841b7d"
+          },
+          "scope": "Exact existing internal isolated QA PG only; production existing encryption key resolved through getter into private non-Git runtime input; no value logged or regenerated. Test migrator/owner roles verified; grants do not qualify production permissions. Phase B not run."
         }
       }
     }

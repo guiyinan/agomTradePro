@@ -353,7 +353,7 @@ class ExecutorSuccessTests(ExecutorFixture):
             for command in runner.commands[:phase_b_start]
             if "run" in command and "web" in command
         ]
-        self.assertEqual(len(phase_a_web_runs), 2)
+        self.assertEqual(len(phase_a_web_runs), 3)
         self.assertTrue(
             all(".observed-phase-a-" in " ".join(command) for command in phase_a_web_runs)
         )
@@ -425,6 +425,38 @@ class ExecutorSuccessTests(ExecutorFixture):
 
 
 class ExecutorFailureTests(ExecutorFixture):
+    def test_phase_b_schema_failure_reads_back_readonly_fence_before_partial_report(self) -> None:
+        config, _, target, _, _ = self.make_fixture()
+
+        class PhaseBRunner(FakeRunner):
+            def run(self, argv: Sequence[str], *, timeout: int = 3600) -> Result:
+                if "AGOM_OBSERVED_MIGRATION_PHASE=phase_b" in argv:
+                    self.commands.append(tuple(argv))
+                    return Result(1, stderr="injected deferred migration failure")
+                return super().run(argv, timeout=timeout)
+
+        runner = PhaseBRunner()
+        with FakePointers(target):
+            status = Executor(config, runner).execute()
+        self.assertEqual(status, 23)
+        report = json.loads(
+            next(config.report_dir.glob("agomtradepro-observed-deploy-*.json")).read_text()
+        )
+        self.assertFalse(report["full_schema_verified"])
+        self.assertTrue(report["readonly_override_retained"])
+        self.assertIsNotNone(report["baseline_retired_at"])
+        commands = [" ".join(command) for command in runner.commands]
+        failed = next(
+            i for i, text in enumerate(commands) if "AGOM_OBSERVED_MIGRATION_PHASE=phase_b" in text
+        )
+        self.assertTrue(
+            any(
+                "candidate-app-check" in text and "--phase a" in text
+                for text in commands[failed + 1 :]
+            )
+        )
+        self.assertEqual(runner.running_services, {"web"})
+
     def test_unverified_old_runtime_is_stopped_after_restore_identity_failure(self) -> None:
         config, _, target, _, _ = self.make_fixture()
 

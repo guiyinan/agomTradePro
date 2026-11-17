@@ -204,6 +204,7 @@ class Executor:
         self.backup_sha = ""
         self.rollback_armed = False
         self.committed = False
+        self.baseline_retired_at: str | None = None
         self.phase = "preflight"
         self.reason = ""
         self.override_created = False
@@ -212,6 +213,9 @@ class Executor:
         self.ownjobs_quiesced = True
         self.migration_started = False
         self.legacy_schema_verified = False
+        self.phase_b_migration_started = False
+        self.full_schema_verified = False
+        self.readonly_override_retained = False
         self.qlib_version: str | None = None
 
     def execute(self) -> int:
@@ -226,6 +230,8 @@ class Executor:
             self.phase_a()
             self.phase = "phase_b"
             self.phase_b()
+            if not self.full_schema_verified:
+                raise Blocked("OBSERVED_FULL_SCHEMA_VERIFICATION_MISSING")
             self.ownjobs_quiesced = True
             outcome, status, self.reason = "deployed", 0, "OBSERVED_PHASE_B_COMPLETE"
         except BaseException as exc:
@@ -234,7 +240,7 @@ class Executor:
                 workers_stopped = self.stop_phase_b_workers()
                 jobs_quiet = self.quiesce_owned_jobs()
                 if workers_stopped and jobs_quiet:
-                    web_verified = self.recover_modern_web()
+                    web_verified = self.recover_modern_web(read_only=not self.full_schema_verified)
                     outcome, status = (
                         ("partial", 23) if web_verified else ("restore_unverified", 70)
                     )
@@ -259,7 +265,15 @@ class Executor:
             else:
                 outcome, status = "failed_preflight", 2
         finally:
-            if self.override_created:
+            retain_readonly_override = self.committed and not self.full_schema_verified
+            if self.override_created and retain_readonly_override:
+                self.readonly_override_retained = (
+                    self.override.is_file() and not self.override.is_symlink()
+                )
+                if not self.readonly_override_retained and outcome == "partial":
+                    outcome, status = "restore_unverified", 70
+                    self.reason = "OBSERVED_READONLY_RECOVERY_OVERRIDE_MISSING"
+            elif self.override_created:
                 self.override.unlink(missing_ok=True)
             try:
                 self.write_report(outcome)
@@ -508,8 +522,7 @@ class Executor:
             str(self.preservation),
         )
         self.native_check()
-        self.migration_started = True
-        self.compose_run(self.c.release, "run", "--rm", "--no-deps", "migrator")
+        self.apply_phase_a_migrations()
         self.compose_override(
             "run",
             "--rm",
@@ -561,8 +574,22 @@ class Executor:
         self.wait_public_health()
         self.commit()
 
+    def apply_phase_a_migrations(self) -> None:
+        """Apply all proven-compatible leaves while retaining the guarded AI005 leaf."""
+        self.migration_started = True
+        self.compose_run(
+            self.c.release,
+            "run",
+            "--rm",
+            "--no-deps",
+            "-e",
+            "AGOM_OBSERVED_MIGRATION_PHASE=phase_a",
+            "migrator",
+        )
+
     def phase_b(self) -> None:
         """Run deferred metadata/bootstrap steps and start all five app services."""
+        self.complete_phase_b_migrations()
         self.compose_run(
             self.c.release,
             "run",
@@ -676,6 +703,32 @@ class Executor:
         self.check_qlib_identity()
         self.wait_public_health()
 
+    def complete_phase_b_migrations(self) -> None:
+        """Apply the deferred guarded migration before any PhaseB metadata or writer."""
+        self.phase_b_migration_started = True
+        self.compose_run(
+            self.c.release,
+            "run",
+            "--rm",
+            "--no-deps",
+            "-e",
+            "AGOM_OBSERVED_MIGRATION_PHASE=phase_b",
+            "migrator",
+        )
+        self.compose_override(
+            "run",
+            "--rm",
+            "--no-deps",
+            "-e",
+            "PGOPTIONS=-c default_transaction_read_only=on",
+            "web",
+            "python",
+            "manage.py",
+            "verify_canonical_schema",
+            "--json",
+        )
+        self.full_schema_verified = True
+
     def commit(self) -> None:
         """Atomically set current and previous to the same modern candidate."""
         link = str(Path("releases") / f"source-{self.c.tag}")
@@ -686,6 +739,7 @@ class Executor:
             self.restore_pointers()
             raise
         self.committed = True
+        self.baseline_retired_at = datetime.now(UTC).isoformat()
 
     def restore_old_apps(self) -> bool:
         """Restore only legacy app services and verify legacy plus infra identity."""
@@ -714,12 +768,18 @@ class Executor:
                 self.reason = "OBSERVED_LEGACY_RECOVERY_WRITERS_NOT_QUIESCED"
         return valid
 
-    def recover_modern_web(self) -> bool:
-        """Try only the modern web service after PhaseB failure; keep workers stopped."""
+    def recover_modern_web(self, *, read_only: bool) -> bool:
+        """Try the modern web service with the required database/secret write fence."""
         try:
-            self.compose_run(self.c.release, "up", "-d", "--no-deps", "web")
+            if read_only:
+                self.compose_override("up", "-d", "--no-deps", "web")
+            else:
+                self.compose_run(self.c.release, "up", "-d", "--no-deps", "web")
             self.wait_web()
             self.show_identity()
+            if read_only:
+                self.candidate_check("a")
+                self.infra_compare()
             return True
         except BaseException:
             self.reason = "OBSERVED_PHASE_B_FORWARD_RECOVERY_REQUIRED"
@@ -1100,7 +1160,7 @@ class Executor:
     def write_report(self, outcome: str) -> None:
         """Write the private, secret-free outcome report for wrapper retrieval."""
         payload = {
-            "schema": "legacy-observed-deploy-result.v1",
+            "schema": "legacy-observed-deploy-result.v2",
             "outcome": outcome,
             "phase": self.phase,
             "reason_code": self.reason,
@@ -1115,8 +1175,13 @@ class Executor:
             "attempt_id": self.c.attempt_id,
             "ownjobs_quiesced": self.ownjobs_quiesced,
             "baseline_retired": self.committed,
+            "baseline_retired_at": self.baseline_retired_at,
             "migration_started": self.migration_started,
             "legacy_schema_verified": self.legacy_schema_verified,
+            "phase_b_migration_started": self.phase_b_migration_started,
+            "full_schema_verified": self.full_schema_verified,
+            "readonly_override_retained": self.readonly_override_retained,
+            "readonly_override_path": str(self.override) if self.readonly_override_retained else "",
             "qlib_version": self.qlib_version,
             "forward_recovery_required": outcome != "deployed"
             and (self.committed or (self.migration_started and not self.legacy_schema_verified)),

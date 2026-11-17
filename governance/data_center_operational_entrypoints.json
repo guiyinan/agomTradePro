@@ -245,7 +245,8 @@
         "tests/unit/ci/test_select_tests.py",
         "tests/unit/test_verify_postgres_backup_restore.py",
         "tests/unit/test_deploy_legacy_observed_runtime.py",
-        "tests/unit/test_observed_deploy_sigterm_subprocess.py"
+        "tests/unit/test_observed_deploy_sigterm_subprocess.py",
+        "tests/unit/test_observed_migration_phasing.py"
       ],
       "status": "active_public"
     },

@@ -12,22 +12,41 @@ from typing import cast
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "core.settings.production")
 
-import django
+import django  # noqa: E402 - select deployment settings before Django imports
 
 django.setup()
 
-from django.core.management import execute_from_command_line
-from django.db import connection, connections
-from django.db.backends.base.base import BaseDatabaseWrapper
-from django.db.backends.signals import connection_created
-from django.db.migrations.executor import MigrationExecutor
-from django.db.migrations.recorder import MigrationRecorder
+from django.core.management import (  # noqa: E402 - Django setup must precede migration imports
+    execute_from_command_line,
+)
+from django.db import (  # noqa: E402 - Django setup must precede migration imports
+    connection,
+    connections,
+)
+from django.db.backends.base.base import (  # noqa: E402 - Django setup must precede migration imports
+    BaseDatabaseWrapper,
+)
+from django.db.backends.signals import (  # noqa: E402 - Django setup must precede migration imports
+    connection_created,
+)
+from django.db.migrations.executor import (  # noqa: E402 - Django setup must precede migration imports
+    MigrationExecutor,
+)
+from django.db.migrations.recorder import (  # noqa: E402 - Django setup must precede migration imports
+    MigrationRecorder,
+)
 
 _OWNER_ROLE = "agomtradepro_owner"
 _MIGRATOR_ROLE = "agomtradepro_migrator"
 _ALLOWED_COMMANDS = frozenset({"migrate", "flush", "loaddata"})
 _S6_MIGRATION_RESULT_SCHEMA = "release.s6-isolated-database-migration-result.v1"
 _S6_MIGRATION_RESULT_PATH = "/run/agom/stage/migration-command-result.json"
+_OBSERVED_MIGRATION_PHASE_ENV = "AGOM_OBSERVED_MIGRATION_PHASE"
+_OBSERVED_DEFERRED_MIGRATION = ("ai_provider", "0005_drop_plaintext_api_key")
+_OBSERVED_REQUIRED_PREDECESSOR = (
+    "ai_provider",
+    "0004_aiuserfallbackquota_aiproviderconfig_owner_user_and_more",
+)
 
 
 def _assert_s6_rehearsal_scope() -> tuple[int, str] | None:
@@ -92,6 +111,59 @@ def _migration_state() -> tuple[list[str], list[str]]:
     return pending, applied
 
 
+def _observed_phase_a_targets() -> list[tuple[str, str]]:
+    """Return other leaves plus AIProviderConfig's schema predecessor, fail-closed."""
+    executor = MigrationExecutor(connection)
+    graph = executor.loader.graph
+    leaves = sorted(graph.leaf_nodes())
+    deferred = _OBSERVED_DEFERRED_MIGRATION
+    if deferred not in graph.node_map or deferred not in leaves:
+        raise SystemExit("OBSERVED_PHASE_A_DEFERRED_MIGRATION_INVALID")
+    if _OBSERVED_REQUIRED_PREDECESSOR not in graph.node_map:
+        raise SystemExit("OBSERVED_PHASE_A_REQUIRED_PREDECESSOR_ABSENT")
+    if _OBSERVED_REQUIRED_PREDECESSOR not in graph.forwards_plan(deferred):
+        raise SystemExit("OBSERVED_PHASE_A_REQUIRED_PREDECESSOR_MISMATCH")
+    dependents = sorted(leaf for leaf in leaves if deferred in graph.forwards_plan(leaf))
+    if dependents != [deferred]:
+        raise SystemExit("OBSERVED_PHASE_A_DEFERRED_MIGRATION_HAS_DEPENDENTS")
+
+    targets = [leaf for leaf in leaves if leaf != deferred]
+    targets.append(_OBSERVED_REQUIRED_PREDECESSOR)
+    targets = sorted(set(targets))
+    plan = executor.migration_plan(targets)
+    if any(backwards for _, backwards in plan):
+        raise SystemExit("OBSERVED_PHASE_A_REVERSE_PLAN_UNSAFE")
+    if any((migration.app_label, migration.name) == deferred for migration, _ in plan):
+        raise SystemExit("OBSERVED_PHASE_A_TARGET_PLAN_INCLUDES_DEFERRED_MIGRATION")
+    return targets
+
+
+def _run_observed_phase_a() -> None:
+    """Apply every safe leaf while retaining exactly the guarded plaintext-column migration."""
+    deferred_name = ".".join(_OBSERVED_DEFERRED_MIGRATION)
+    pending_before, _ = _migration_state()
+    if deferred_name not in pending_before:
+        raise SystemExit("OBSERVED_PHASE_A_DEFERRED_MIGRATION_NOT_PENDING")
+
+    executor = MigrationExecutor(connection)
+    targets = _observed_phase_a_targets()
+    executor.migrate(targets)
+
+    pending_after, applied_after = _migration_state()
+    if pending_after != [deferred_name] or deferred_name in applied_after:
+        raise SystemExit("OBSERVED_PHASE_A_MIGRATION_STATE_INVALID")
+    if ".".join(_OBSERVED_REQUIRED_PREDECESSOR) not in applied_after:
+        raise SystemExit("OBSERVED_PHASE_A_PREDECESSOR_NOT_APPLIED")
+
+
+def _run_observed_phase_b() -> None:
+    """Run the ordinary full migrate command and verify every graph leaf is applied."""
+    execute_from_command_line(["manage.py", "migrate", "--noinput"])
+    pending_after, applied_after = _migration_state()
+    if pending_after or ".".join(_OBSERVED_DEFERRED_MIGRATION) not in applied_after:
+        raise SystemExit("OBSERVED_PHASE_B_SCHEMA_INCOMPLETE")
+
+
 def _write_s6_migration_result(
     *,
     pending_before: list[str],
@@ -147,6 +219,11 @@ def main(argv: list[str] | None = None) -> int:
         raise SystemExit(f"only these deployment database commands are allowed: {allowed}")
 
     s6_migration = os.environ.get("AGOM_S6_ISOLATED_DATABASE_MIGRATION") == "1"
+    observed_phase = os.environ.get(_OBSERVED_MIGRATION_PHASE_ENV, "")
+    if observed_phase not in {"", "phase_a", "phase_b"}:
+        raise SystemExit("observed migration phase is unsupported")
+    if observed_phase and (arguments != ["migrate", "--noinput"] or s6_migration):
+        raise SystemExit("observed migration phase requires the standard non-S6 migrate command")
     if s6_migration and arguments != ["migrate", "--noinput"]:
         raise SystemExit("isolated S6 migration must use migrate --noinput")
     connection_created.connect(_set_owner_role, weak=False)
@@ -154,7 +231,11 @@ def main(argv: list[str] | None = None) -> int:
     validated_database_endpoint = _assert_s6_rehearsal_scope() if s6_migration else None
     if s6_migration and validated_database_endpoint is None:
         raise SystemExit("isolated S6 migration database identity is unavailable")
-    if arguments[0] == "loaddata":
+    if observed_phase == "phase_a":
+        _run_observed_phase_a()
+    elif observed_phase == "phase_b":
+        _run_observed_phase_b()
+    elif arguments[0] == "loaddata":
         from apps.data_center.infrastructure.candidate_raw_audit_manifest_models import (
             _allow_candidate_manifest_fixture_restore,
         )

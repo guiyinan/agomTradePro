@@ -12,12 +12,12 @@
       "current_data_surface": 121,
       "dynamic_import_edge": 15,
       "management_command": 54,
-      "management_command_edge": 65,
+      "management_command_edge": 66,
       "mcp_tool": 40,
       "migration_evidence": 14,
       "operational_dispatch_edge": 75,
       "operational_script": 41,
-      "orchestration_entry": 21,
+      "orchestration_entry": 22,
       "public_port": 99,
       "rest_url": 93,
       "runbook": 7,
@@ -26,17 +26,17 @@
       "script": 20,
       "sdk": 57,
       "terminal_tui": 32,
-      "test_evidence": 166,
+      "test_evidence": 167,
       "workflow_step": 11
     },
     "by_status": {
-      "active_public": 941,
-      "adjacent_operational": 348,
+      "active_public": 943,
+      "adjacent_operational": 349,
       "candidate-review": 83,
       "compatibility": 139,
       "retired_blocked": 0
     },
-    "total": 1511
+    "total": 1514
   },
   "entries": [
     {
@@ -7672,8 +7672,18 @@
     {
       "category": "management_command_edge",
       "evidence": "execute_from_command_line target is external or runtime-selected",
-      "id": "management_command_edge:scripts/manage_vps_migrations.py:migrate:semantic:migrate",
-      "locator": "semantic:migrate",
+      "id": "management_command_edge:scripts/manage_vps_migrations.py:migrate:semantic:migrate:occurrence:1",
+      "locator": "semantic:migrate:occurrence:1",
+      "path": "scripts/manage_vps_migrations.py",
+      "status": "adjacent_operational",
+      "symbol": "migrate",
+      "target": "migrate"
+    },
+    {
+      "category": "management_command_edge",
+      "evidence": "execute_from_command_line target is external or runtime-selected",
+      "id": "management_command_edge:scripts/manage_vps_migrations.py:migrate:semantic:migrate:occurrence:2",
+      "locator": "semantic:migrate:occurrence:2",
       "path": "scripts/manage_vps_migrations.py",
       "status": "adjacent_operational",
       "symbol": "migrate",
@@ -9442,8 +9452,18 @@
     {
       "category": "orchestration_entry",
       "evidence": "script/workflow delegates to a governed Django command",
-      "id": "orchestration_entry:scripts/deploy_legacy_observed_runtime.py:verify_canonical_schema:semantic:verify_canonical_schema",
-      "locator": "semantic:verify_canonical_schema",
+      "id": "orchestration_entry:scripts/deploy_legacy_observed_runtime.py:verify_canonical_schema:semantic:verify_canonical_schema:occurrence:1",
+      "locator": "semantic:verify_canonical_schema:occurrence:1",
+      "path": "scripts/deploy_legacy_observed_runtime.py",
+      "status": "active_public",
+      "symbol": "verify_canonical_schema",
+      "target": ""
+    },
+    {
+      "category": "orchestration_entry",
+      "evidence": "script/workflow delegates to a governed Django command",
+      "id": "orchestration_entry:scripts/deploy_legacy_observed_runtime.py:verify_canonical_schema:semantic:verify_canonical_schema:occurrence:2",
+      "locator": "semantic:verify_canonical_schema:occurrence:2",
       "path": "scripts/deploy_legacy_observed_runtime.py",
       "status": "active_public",
       "symbol": "verify_canonical_schema",
@@ -14967,6 +14987,16 @@
       "path": "tests/unit/test_observed_deploy_sigterm_subprocess.py",
       "status": "active_public",
       "symbol": "test_observed_deploy_sigterm_subprocess",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "registered executable evidence for database backup, restore, archive, retention, or deployment behavior",
+      "id": "test_evidence:tests/unit/test_observed_migration_phasing.py:test_observed_migration_phasing:",
+      "locator": "",
+      "path": "tests/unit/test_observed_migration_phasing.py",
+      "status": "active_public",
+      "symbol": "test_observed_migration_phasing",
       "target": ""
     },
     {

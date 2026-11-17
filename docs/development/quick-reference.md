@@ -183,11 +183,15 @@ exec 3<&-
 
 - 仅当前 `4149/8fb`、`releases/20261101013730` 与空目录 manifest 的一次 legacy bootstrap，允许在
   标准候选 v1/S6/image 校验之后显式提供四项 `--observed-rollback-{baseline,compatibility}-{json,sha256}`。
-  它们分别绑定实际只读运行态及隔离备份上的全叶迁移/旧 ORM 兼容原件；未知旧 build 字段保持 null，
+  它们分别绑定实际只读运行态及隔离备份上的 v2 两阶段迁移原件；未知旧 build 字段保持 null，
   不是补造旧 v1 清单。只接受 prebuilt upgrade、保留 catalog、正常备份和自动恢复，不支持清库、SQLite
-  导入或 decision/alpha repair。PhaseA 停五个 writer，在原 PostgreSQL 上迁移并核对全部旧 data-center
-  列/行摘要；仅 web 以 DB 只读及 `sqlite_data` 应用数据卷只读方式验收，随后切换并退休旧基线。PhaseB 才执行延后的
-  metadata/static/bootstrap 并启用五服务；失败保留现代 current，不能回旧镜像或恢复旧数据库。
+  导入或 decision/alpha repair。PhaseA 停五个 writer，一次 MigrationExecutor 精确保留独立叶节点
+  `ai_provider.0005_drop_plaintext_api_key`，迁移其他叶节点且不发送 pre/post_migrate；唯一 pending 必须为该项。
+  核对全部旧 Data Center 列/行、旧镜像完整 ORM 和新版只读 web 后，切换现代 anchor 并退休旧基线。
+  PhaseB 第一项执行标准全量 migrate（保留原密钥校验、原子事务和表锁），零 pending 与 canonical schema
+  验收后才执行 metadata/static/bootstrap 并启用五服务。schema 未证实时，失败仅恢复带数据库及
+  `sqlite_data` 只读约束的现代 web，并保留只读 overlay、停止 workers；不能回旧镜像或恢复旧数据库。
+  常规迁移和 S6 不使用该两阶段模式。兼容原件还必须证明明文字段确实移除、密文值未变及当前完整 ORM schema。
   Wrapper 即使收到非零退出码也下载并校验同 attempt 的 observed report；只有 `outcome=deployed` 才能
   继续 E1，`partial` 仍需向前修复。这一路径不授予 Publication 资格，其余部署继续走原标准入口。
 

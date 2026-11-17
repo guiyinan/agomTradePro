@@ -194,6 +194,153 @@ def test_complete_synthetic_proof_round_trip(tmp_path: Path) -> None:
     )
 
 
+def _phased_proof(
+    tmp_path: Path,
+) -> tuple[Path, Path, dict[str, object], dict[str, dict[str, object]]]:
+    path, candidate, report, artifacts = _proof(tmp_path)
+    folder = candidate / "apps/ai_provider/migrations"
+    folder.mkdir(parents=True)
+    for name in (
+        "0004_aiuserfallbackquota_aiproviderconfig_owner_user_and_more",
+        "0005_drop_plaintext_api_key",
+    ):
+        (folder / f"{name}.py").write_text("class Migration:\n    pass\n", encoding="utf-8")
+    deferred = "ai_provider.0005_drop_plaintext_api_key"
+    predecessor = "ai_provider.0004_aiuserfallbackquota_aiproviderconfig_owner_user_and_more"
+    tree_hash = verifier.migration_tree_digest(candidate)
+    pending = artifacts["pending_migrations"]
+    pending["migration_source_trace"]["migration_tree_sha256"] = tree_hash
+    for module in sorted(folder.glob("*.py")):
+        pending["migration_source_trace"]["loaded_app_migrations"].append(
+            {
+                "key": f"ai_provider.{module.stem}",
+                "relative_path": module.relative_to(candidate).as_posix(),
+                "sha256": hashlib.sha256(module.read_bytes()).hexdigest(),
+            }
+        )
+    leaves = sorted([deferred, "data_center.0118_example"])
+    pending.update(leaf_migration_count=2, leaf_migrations=leaves, applied_leaf_migrations=leaves)
+    pending["migration_graph"] = {
+        "nodes": sorted([predecessor, *leaves]),
+        "edges": [[deferred, predecessor]],
+    }
+    phase_a_state = copy.deepcopy(pending)
+    phase_a_state.update(
+        pending_migration_count=1,
+        pending_migrations=[deferred],
+        applied_leaf_migrations=["data_center.0118_example"],
+    )
+    phase_a = copy.deepcopy(artifacts["migrated_summary"])
+    old_inventory = artifacts["legacy_summary"]["legacy_orm_inventory"]
+    old_inventory.insert(
+        0,
+        {
+            "model": "ai_provider.AIProviderConfig",
+            "table": "ai_provider_config",
+            "columns": ["id", "api_key", "api_key_encrypted"],
+        },
+    )
+    boot = artifacts["legacy_readonly_boot"]
+    boot["old_orm_schema_check"]["managed_models_checked"] = len(old_inventory)
+    current_inventory = copy.deepcopy(old_inventory)
+    current_inventory[0]["columns"].remove("api_key")
+    phase_a["runtime_orm_inventory"] = current_inventory
+    for summary, present in ((phase_a, True), (artifacts["migrated_summary"], False)):
+        summary["retired_legacy_column"] = {
+            "table": "ai_provider_config",
+            "column": "api_key",
+            "present": present,
+            "encrypted_column": "api_key_encrypted",
+            "encrypted_column_present": True,
+            "nonempty_plaintext_rows": 0 if present else None,
+            "row_count": 1,
+            "encrypted_values_sha256": "e" * 64,
+        }
+        summary["database_identity"].update(
+            default_transaction_read_only="on", transaction_read_only="on"
+        )
+    artifacts["migrated_summary"]["current_orm_schema_check"] = {
+        "managed_models_checked": len(current_inventory),
+        "checked_inventory": current_inventory,
+        "missing_tables_or_columns": [],
+    }
+    boot.update(
+        compatibility_phase="phase_a",
+        phase_a_migrations_sha256=hashlib.sha256(
+            json.dumps(phase_a_state, sort_keys=True).encode()
+        ).hexdigest(),
+    )
+    artifacts.update(phase_a_migrations=phase_a_state, phase_a_summary=phase_a)
+    report.update(
+        schema="ops.data02-legacy-native-compatibility.v2",
+        migration_tree_sha256=tree_hash,
+        bootstrap_migration_plan={
+            "schema": "ops.observed-bootstrap-migration-plan.v1",
+            "deferred_migration": deferred,
+            "deferred_migration_sha256": hashlib.sha256(
+                (folder / "0005_drop_plaintext_api_key.py").read_bytes()
+            ).hexdigest(),
+            "phase_a_post_migrate_signals_deferred": True,
+            "retire_baseline_before_phase_b": True,
+        },
+    )
+    return path, candidate, report, artifacts
+
+
+def test_phased_bootstrap_proof_preserves_old_schema_before_retirement(tmp_path: Path) -> None:
+    path, candidate, report, artifacts = _phased_proof(tmp_path)
+    digest = _write(path, report, artifacts)
+    verifier.verify_compatibility(
+        path, sha256=digest, candidate_root=candidate, baseline_sha256="3" * 64
+    )
+
+
+@pytest.mark.parametrize(
+    "mutation,code",
+    [
+        ("unretired_baseline", "OBSERVED_NATIVE_PHASE_PLAN_INVALID"),
+        ("wrong_deferred_source", "OBSERVED_NATIVE_PHASE_PLAN_INVALID"),
+        ("extra_phase_a_pending", "OBSERVED_NATIVE_PHASE_A_PENDING_INVALID"),
+        ("old_boot_after_retirement", "OBSERVED_NATIVE_PHASE_A_OLD_BOOT_UNVERIFIED"),
+        ("phase_b_old_column_remains", "OBSERVED_NATIVE_RETIREMENT_SCHEMA_UNVERIFIED"),
+        ("encrypted_values_changed", "OBSERVED_NATIVE_RETIREMENT_SCHEMA_UNVERIFIED"),
+        ("phase_b_current_schema_missing", "OBSERVED_NATIVE_CURRENT_ORM_SCHEMA_UNVERIFIED"),
+        ("phase_a_rows_changed", "OBSERVED_NATIVE_PHASE_A_ROWS_CHANGED"),
+        ("phase_a_other_cluster", "OBSERVED_NATIVE_CLUSTER_IDENTITY_MISMATCH"),
+    ],
+)
+def test_phased_bootstrap_rejects_incomplete_or_misbound_phases(
+    tmp_path: Path, mutation: str, code: str
+) -> None:
+    path, candidate, report, artifacts = _phased_proof(tmp_path)
+    if mutation == "unretired_baseline":
+        report["bootstrap_migration_plan"]["retire_baseline_before_phase_b"] = False
+    elif mutation == "wrong_deferred_source":
+        report["bootstrap_migration_plan"]["deferred_migration_sha256"] = "0" * 64
+    elif mutation == "extra_phase_a_pending":
+        artifacts["phase_a_migrations"]["pending_migrations"].append("other.0001")
+        artifacts["phase_a_migrations"]["pending_migration_count"] = 2
+    elif mutation == "old_boot_after_retirement":
+        artifacts["legacy_readonly_boot"]["compatibility_phase"] = "phase_b"
+    elif mutation == "phase_b_old_column_remains":
+        artifacts["migrated_summary"]["retired_legacy_column"]["present"] = True
+    elif mutation == "encrypted_values_changed":
+        artifacts["migrated_summary"]["retired_legacy_column"]["encrypted_values_sha256"] = "0" * 64
+    elif mutation == "phase_b_current_schema_missing":
+        artifacts["migrated_summary"]["current_orm_schema_check"]["missing_tables_or_columns"] = [
+            "missing"
+        ]
+    elif mutation == "phase_a_rows_changed":
+        artifacts["phase_a_summary"]["row_evidence"]["financial_facts"]["row_count"] = 2
+    elif mutation == "phase_a_other_cluster":
+        artifacts["phase_a_migrations"]["database_identity"]["system_identifier"] = "999"
+    digest = _write(path, report, artifacts)
+    with pytest.raises(ValueError, match=code):
+        verifier.verify_compatibility(
+            path, sha256=digest, candidate_root=candidate, baseline_sha256="3" * 64
+        )
+
+
 @pytest.mark.parametrize(
     "mutation,code",
     [
