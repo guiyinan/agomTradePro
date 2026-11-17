@@ -622,3 +622,58 @@ def test_context_rejects_noncanonical_identity_and_sample(proposal_modules: Any)
     for fields in invalid_values:
         with pytest.raises(ValueError):
             context_type(**fields)
+
+
+@pytest.mark.parametrize(
+    ("count", "error_code"),
+    [
+        (2, None),
+        (True, "REHEARSAL_RESPONSE_SCHEMA_INVALID"),
+        (2.0, "REHEARSAL_RESPONSE_SCHEMA_INVALID"),
+        ("2", "REHEARSAL_RESPONSE_SCHEMA_INVALID"),
+        (None, "REHEARSAL_RESPONSE_SCHEMA_INVALID"),
+        (-1, "REHEARSAL_RESPONSE_SCHEMA_INVALID"),
+        (1, "REHEARSAL_RESPONSE_INCOMPLETE"),
+        (3, "REHEARSAL_RESPONSE_INCOMPLETE"),
+    ],
+)
+def test_optional_tushare_count_is_exact_and_matches_items(
+    proposal_modules: Any, count: object, error_code: str | None
+) -> None:
+    """Accept only an exact nonnegative integer count equal to returned rows."""
+    envelope = json.loads(_body())
+    data = envelope["data"]
+    assert isinstance(data, dict)
+    data["count"] = count
+    body = json.dumps(envelope, separators=(",", ":")).encode("utf-8")
+    context = _context(proposal_modules)
+
+    if error_code is None:
+        rows = proposal_modules[0].parse_validate_tushare_response(body, context)
+        assert len(rows) == 2
+    else:
+        with pytest.raises(ValueError, match=f"^{error_code}$"):
+            proposal_modules[0].parse_validate_tushare_response(body, context)
+
+
+def test_optional_tushare_count_keeps_pagination_and_unknown_key_guards(
+    proposal_modules: Any,
+) -> None:
+    """A count does not override has_more or permit unknown table envelope keys."""
+    context = _context(proposal_modules)
+    paged_envelope = json.loads(_body(has_more=True))
+    paged_data = paged_envelope["data"]
+    assert isinstance(paged_data, dict)
+    paged_data["count"] = 2
+    paged_body = json.dumps(paged_envelope, separators=(",", ":")).encode("utf-8")
+    with pytest.raises(ValueError, match="^REHEARSAL_RESPONSE_INCOMPLETE$"):
+        proposal_modules[0].parse_validate_tushare_response(paged_body, context)
+
+    unknown_envelope = json.loads(_body())
+    unknown_data = unknown_envelope["data"]
+    assert isinstance(unknown_data, dict)
+    unknown_data["count"] = 2
+    unknown_data["cursor"] = "next-page"
+    unknown_body = json.dumps(unknown_envelope, separators=(",", ":")).encode("utf-8")
+    with pytest.raises(ValueError, match="^REHEARSAL_RESPONSE_SCHEMA_INVALID$"):
+        proposal_modules[0].parse_validate_tushare_response(unknown_body, context)

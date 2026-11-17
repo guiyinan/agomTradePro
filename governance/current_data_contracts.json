@@ -3305,13 +3305,16 @@
     },
     {
       "id": "data_center.tushare_full_market_empty_response",
-      "surface": "Full-session Tushare daily and daily_basic reads reject successful-empty and malformed tables; requested quote identities cannot be silently deduplicated before fact writes",
+      "surface": "Tushare table metadata preserves full-session daily/daily_basic completeness and exact retained-source binding; optional count must be a nonnegative exact integer matching all raw items before normalization; requested quote identities cannot be silently deduplicated",
       "source_files": [
         "apps/data_center/infrastructure/tushare_client.py",
         "apps/data_center/infrastructure/gateways/tushare_gateway.py",
         "apps/data_center/infrastructure/_provider_adapter_tushare.py",
         "apps/data_center/infrastructure/rehearsal_response_store.py",
-        "apps/data_center/infrastructure/provider_registry.py"
+        "apps/data_center/infrastructure/provider_registry.py",
+        "apps/data_center/application/price_response_capture.py",
+        "apps/data_center/application/price_limit_response_capture.py",
+        "apps/data_center/infrastructure/tushare_instrument_reference_source.py"
       ],
       "required_markers": {
         "apps/data_center/infrastructure/tushare_client.py": [
@@ -3319,7 +3322,10 @@
           "def _validated_provider_table(",
           "TUSHARE_DATA_NOT_YET_AVAILABLE",
           "TUSHARE_INVALID_PAYLOAD",
-          "MODEL_MARKET_INCOMPLETE_RESULT"
+          "MODEL_MARKET_INCOMPLETE_RESULT",
+          "if \"count\" in data:",
+          "type(count) is not int or count < 0",
+          "count != len(items)"
         ],
         "apps/data_center/infrastructure/gateways/tushare_gateway.py": [
           "目标交易日的行情数据尚未可用",
@@ -3333,11 +3339,25 @@
         ],
         "apps/data_center/infrastructure/rehearsal_response_store.py": [
           "TUSHARE_DATA_NOT_YET_AVAILABLE",
-          "def persist_response("
+          "def persist_response(",
+          "if \"count\" in data:",
+          "count != len(raw_items)"
         ],
         "apps/data_center/infrastructure/provider_registry.py": [
           "returned no data for",
           "marking failure and trying next"
+        ],
+        "apps/data_center/application/price_response_capture.py": [
+          "count_value = data.get(\"count\")",
+          "type(count_value) is not int"
+        ],
+        "apps/data_center/application/price_limit_response_capture.py": [
+          "count_value = data.get(\"count\")",
+          "type(count_value) is not int"
+        ],
+        "apps/data_center/infrastructure/tushare_instrument_reference_source.py": [
+          "if \"count\" in data:",
+          "count != len(items)"
         ]
       },
       "required_tests": [
@@ -3380,6 +3400,71 @@
           "case": "provider_failover_continues_after_successful_empty_response",
           "test_file": "tests/unit/data_center/test_source_registry.py",
           "test_function": "test_successful_empty_tushare_snapshot_continues_to_next_provider"
+        },
+        {
+          "case": "routed_stock_basic_accepts_complete_count_or_official_no_count",
+          "test_file": "tests/unit/data_center/test_egress_tushare_transport.py",
+          "test_function": "test_stock_basic_accepts_exact_count_and_legacy_no_count"
+        },
+        {
+          "case": "routed_stock_basic_rejects_invalid_count_type_or_negative",
+          "test_file": "tests/unit/data_center/test_egress_tushare_transport.py",
+          "test_function": "test_stock_basic_rejects_invalid_count_types_and_negative"
+        },
+        {
+          "case": "routed_stock_basic_rejects_mismatched_count_and_pagination",
+          "test_file": "tests/unit/data_center/test_egress_tushare_transport.py",
+          "test_function": "test_stock_basic_rejects_count_mismatch_and_has_more"
+        },
+        {
+          "case": "count_support_does_not_accept_unknown_envelope_keys",
+          "test_file": "tests/unit/data_center/test_egress_tushare_transport.py",
+          "test_function": "test_stock_basic_still_rejects_unknown_envelope_keys"
+        },
+        {
+          "case": "exact_price_values_reject_invalid_provider_count",
+          "test_file": "tests/unit/data_center/test_tushare_exact_price_capture.py",
+          "test_function": "test_exact_price_values_reject_invalid_provider_count"
+        },
+        {
+          "case": "exact_price_values_accept_matching_provider_count",
+          "test_file": "tests/unit/data_center/test_tushare_exact_price_capture.py",
+          "test_function": "test_exact_price_values_accept_matching_provider_count"
+        },
+        {
+          "case": "exact_price_count_does_not_weaken_other_envelope_rules",
+          "test_file": "tests/unit/data_center/test_tushare_exact_price_capture.py",
+          "test_function": "test_exact_price_count_does_not_weaken_other_envelope_rules"
+        },
+        {
+          "case": "exact_price_limit_values_reject_invalid_provider_count",
+          "test_file": "tests/unit/data_center/test_tushare_exact_price_limit_capture.py",
+          "test_function": "test_exact_price_limit_values_reject_invalid_provider_count"
+        },
+        {
+          "case": "exact_price_limit_values_accept_matching_provider_count",
+          "test_file": "tests/unit/data_center/test_tushare_exact_price_limit_capture.py",
+          "test_function": "test_exact_price_limit_values_accept_matching_provider_count"
+        },
+        {
+          "case": "exact_price_limit_count_does_not_weaken_other_envelope_rules",
+          "test_file": "tests/unit/data_center/test_tushare_exact_price_limit_capture.py",
+          "test_function": "test_exact_price_limit_count_does_not_weaken_other_envelope_rules"
+        },
+        {
+          "case": "optional_tushare_count_is_exact_and_matches_items",
+          "test_file": "tests/unit/data_center/test_rehearsal_response_store.py",
+          "test_function": "test_optional_tushare_count_is_exact_and_matches_items"
+        },
+        {
+          "case": "optional_tushare_count_keeps_pagination_and_unknown_key_guards",
+          "test_file": "tests/unit/data_center/test_rehearsal_response_store.py",
+          "test_function": "test_optional_tushare_count_keeps_pagination_and_unknown_key_guards"
+        },
+        {
+          "case": "optional_stock_basic_count_is_exact_and_matches_items",
+          "test_file": "tests/unit/data_center/test_tushare_instrument_reference_source.py",
+          "test_function": "test_optional_stock_basic_count_is_exact_and_matches_items"
         }
       ]
     },

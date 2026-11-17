@@ -368,6 +368,7 @@ def _exact_price_row_from_payload(
     fields = data.get("fields")
     rows = data.get("items")
     has_more = data.get("has_more", False)
+    count_value = data.get("count")
     required_fields = {
         "ts_code",
         "trade_date",
@@ -379,7 +380,7 @@ def _exact_price_row_from_payload(
         "amount",
     }
     if (
-        set(data) - {"fields", "items", "has_more"}
+        set(data) - {"fields", "items", "has_more", "count"}
         or not isinstance(fields, list)
         or not all(isinstance(field_name, str) and field_name.strip() for field_name in fields)
         or len(set(fields)) != len(fields)
@@ -387,6 +388,14 @@ def _exact_price_row_from_payload(
         or type(has_more) is not bool
         or has_more
         or not isinstance(rows, list)
+        or (
+            "count" in data
+            and (
+                type(count_value) is not int
+                or count_value < 0
+                or count_value != len(cast(list[object], rows))
+            )
+        )
         or len(rows) != 1
         or not isinstance(rows[0], list)
         or len(rows[0]) != len(fields)

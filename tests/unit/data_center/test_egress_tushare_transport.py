@@ -3,6 +3,7 @@
 import os
 from datetime import UTC, date, datetime
 from types import SimpleNamespace
+from typing import Any
 from unittest.mock import Mock
 from uuid import UUID
 
@@ -25,6 +26,7 @@ from apps.data_center.domain.financial_response_evidence import (
     FinancialResponseScopeBasis,
 )
 from apps.data_center.infrastructure import tushare_client
+from core.exceptions import TushareError
 
 
 def _retained_financial_reference() -> FinancialResponseArtifactRef:
@@ -572,3 +574,98 @@ def test_operation_cache_does_not_cross_distinct_governed_routes(
     assert execute.call_count == 2
     assert stats.provider_queries == {"daily": 2}
     assert stats.cache_hits == {}
+
+
+def _count_envelope_client(
+    monkeypatch: pytest.MonkeyPatch, mode: str, data: dict[str, object]
+) -> Any:
+    settings = tushare_client.TushareRuntimeSettings(
+        token=f"test-token-{mode}", http_url="https://market.example.invalid/pro", request_mode=mode
+    )
+    monkeypatch.setattr(tushare_client, "resolve_tushare_runtime_settings", lambda **_: settings)
+    sdk = Mock()
+    sdk._DataApi__http_url = settings.http_url
+    sdk_module = SimpleNamespace(pro_api=lambda _token: sdk)
+    original_import = tushare_client.import_module
+    monkeypatch.setattr(
+        tushare_client,
+        "import_module",
+        lambda name: sdk_module if name == "tushare" else original_import(name),
+    )
+    session = Mock()
+    session.headers = {}
+    monkeypatch.setattr(tushare_client, "_create_requests_session", lambda: session)
+    monkeypatch.setattr(
+        egress_service,
+        "preview_route",
+        Mock(return_value=EgressRouteDecision(5, EgressStrategy.FIXED, (9,), "matched_rule")),
+    )
+    monkeypatch.setattr(
+        egress_service,
+        "execute_provider_request",
+        Mock(return_value={"code": 0, "data": data}),
+    )
+    return tushare_client.create_tushare_pro_client(
+        provider_id=3, deployment_region="overseas", dataset_key="tushare.stock_basic"
+    )
+
+
+@pytest.mark.parametrize("mode", ["sdk_path", "rest_path", "unified_relay"])
+@pytest.mark.parametrize("include_count", [False, True])
+def test_stock_basic_accepts_exact_count_and_legacy_no_count(
+    monkeypatch: pytest.MonkeyPatch, mode: str, include_count: bool
+) -> None:
+    data: dict[str, object] = {"fields": ["ts_code", "name"], "items": [["600000.SH", "Ping An"]]}
+    if include_count:
+        data["count"] = 1
+    result = _count_envelope_client(monkeypatch, mode, data).stock_basic(
+        exchange="SSE", list_status="L"
+    )
+    assert result.iloc[0]["ts_code"] == "600000.SH"
+
+
+@pytest.mark.parametrize("mode", ["sdk_path", "rest_path", "unified_relay"])
+@pytest.mark.parametrize("count", [True, False, 1.0, "1", None, -1])
+def test_stock_basic_rejects_invalid_count_types_and_negative(
+    monkeypatch: pytest.MonkeyPatch, mode: str, count: object
+) -> None:
+    with pytest.raises(TushareError) as caught:
+        _count_envelope_client(
+            monkeypatch,
+            mode,
+            {"fields": ["ts_code"], "items": [["600000.SH"]], "count": count},
+        ).stock_basic(exchange="SSE", list_status="L")
+    assert caught.value.code == "TUSHARE_INVALID_PAYLOAD"
+
+
+@pytest.mark.parametrize("mode", ["sdk_path", "rest_path", "unified_relay"])
+def test_stock_basic_rejects_count_mismatch_and_has_more(
+    monkeypatch: pytest.MonkeyPatch, mode: str
+) -> None:
+    with pytest.raises(TushareError) as mismatch:
+        _count_envelope_client(
+            monkeypatch,
+            mode,
+            {"fields": ["ts_code"], "items": [["600000.SH"]], "count": 2},
+        ).stock_basic(exchange="SSE", list_status="L")
+    assert mismatch.value.code == "MODEL_MARKET_INCOMPLETE_RESULT"
+    with pytest.raises(TushareError) as partial:
+        _count_envelope_client(
+            monkeypatch,
+            mode,
+            {"fields": ["ts_code"], "items": [["600000.SH"]], "count": 1, "has_more": True},
+        ).stock_basic(exchange="SSE", list_status="L")
+    assert partial.value.code == "MODEL_MARKET_INCOMPLETE_RESULT"
+
+
+@pytest.mark.parametrize("mode", ["sdk_path", "rest_path", "unified_relay"])
+def test_stock_basic_still_rejects_unknown_envelope_keys(
+    monkeypatch: pytest.MonkeyPatch, mode: str
+) -> None:
+    with pytest.raises(TushareError) as caught:
+        _count_envelope_client(
+            monkeypatch,
+            mode,
+            {"fields": ["ts_code"], "items": [["600000.SH"]], "count": 1, "extra": 1},
+        ).stock_basic(exchange="SSE", list_status="L")
+    assert caught.value.code == "TUSHARE_INVALID_PAYLOAD"

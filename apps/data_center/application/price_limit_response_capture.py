@@ -187,8 +187,9 @@ def _exact_price_limit_row(
     fields_value = data.get("fields")
     items_value = data.get("items")
     has_more = data.get("has_more", False)
+    count_value = data.get("count")
     if (
-        set(data) - {"fields", "items", "has_more"}
+        set(data) - {"fields", "items", "has_more", "count"}
         or type(fields_value) is not list
         or not all(type(name) is str and name.strip() for name in fields_value)
         or len(set(fields_value)) != len(fields_value)
@@ -196,6 +197,14 @@ def _exact_price_limit_row(
         or type(has_more) is not bool
         or has_more
         or type(items_value) is not list
+        or (
+            "count" in data
+            and (
+                type(count_value) is not int
+                or count_value < 0
+                or count_value != len(cast(list[object], items_value))
+            )
+        )
         or len(items_value) != 1
         or type(items_value[0]) is not list
         or len(items_value[0]) != len(fields_value)

@@ -518,3 +518,45 @@ def test_exact_price_capture_rejects_frame_values_detached_from_raw_body(
 
     with pytest.raises(TushareError):
         _adapter().fetch_price_bar_with_capture("600000.SH", _TARGET_DATE)
+
+
+# Append to tests/unit/data_center/test_tushare_exact_price_capture.py.
+
+
+@pytest.mark.parametrize("count", [True, 1.0, "1", None, -1, 0, 2])
+def test_exact_price_values_reject_invalid_provider_count(count: object) -> None:
+    """Optional count must be an exact nonnegative int matching all returned rows."""
+    with pytest.raises(DataFetchError) as error:
+        extract_exact_tushare_price_values(
+            _exact_payload([_row()], extra_data={"count": count}),
+            request_scope=_scope(),
+        )
+    assert error.value.code == "PRICE_EXACT_DAILY_CAPTURE_BODY_INVALID"
+
+
+def test_exact_price_values_accept_matching_provider_count() -> None:
+    """A matching count is accepted without changing exact value normalization."""
+    values = extract_exact_tushare_price_values(
+        _exact_payload([_row()], extra_data={"count": 1}),
+        request_scope=_scope(),
+    )
+    assert values.close == Decimal("12.5")
+    assert values.volume == Decimal("25000")
+
+
+@pytest.mark.parametrize(
+    "extra_data",
+    [
+        {"count": 1, "has_more": True},
+        {"count": 1, "unexpected": "still rejected"},
+    ],
+)
+def test_exact_price_count_does_not_weaken_other_envelope_rules(
+    extra_data: dict[str, object],
+) -> None:
+    with pytest.raises(DataFetchError) as error:
+        extract_exact_tushare_price_values(
+            _exact_payload([_row()], extra_data=extra_data),
+            request_scope=_scope(),
+        )
+    assert error.value.code == "PRICE_EXACT_DAILY_CAPTURE_BODY_INVALID"

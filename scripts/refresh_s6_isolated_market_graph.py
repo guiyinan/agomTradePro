@@ -53,6 +53,7 @@ def _blocked(error_code: str, *, capture: RehearsalHttpCapture | None = None) ->
             f" dispatch_count={evidence['dispatch_count']}"
             f" rejected_dispatch_count={evidence['rejected_dispatch_count']}"
             f" max_dispatches={evidence['max_dispatches']}"
+            f" guard_failure_code={evidence['guard_failure_code']}"
             f" elapsed_seconds={evidence['elapsed_seconds']}"
             f" max_seconds={evidence['max_seconds']}"
         )

@@ -468,7 +468,10 @@ def _parse_stock_basic_rows(
             code="INSTRUMENT_REFERENCE_PROVIDER_REJECTED",
         )
     data = _strict_object(response.get("data"), "provider data")
-    if set(data) - {"fields", "items", "has_more"} or data.get("has_more", False) is not False:
+    if (
+        set(data) - {"fields", "items", "has_more", "count"}
+        or data.get("has_more", False) is not False
+    ):
         raise InstrumentReferenceSourceError(
             "stock_basic response is incomplete or has unknown table fields",
             code="INSTRUMENT_REFERENCE_RESPONSE_SCHEMA_INVALID",
@@ -485,6 +488,13 @@ def _parse_stock_basic_rows(
             "stock_basic rows are not a list",
             code="INSTRUMENT_REFERENCE_RESPONSE_SCHEMA_INVALID",
         )
+    if "count" in data:
+        count = data["count"]
+        if type(count) is not int or count < 0 or count != len(items):
+            raise InstrumentReferenceSourceError(
+                "stock_basic count does not match returned items",
+                code="INSTRUMENT_REFERENCE_RESPONSE_SCHEMA_INVALID",
+            )
     rows: list[dict[str, object]] = []
     for item in items:
         if type(item) is not list or len(item) != len(provider_contract.fields):

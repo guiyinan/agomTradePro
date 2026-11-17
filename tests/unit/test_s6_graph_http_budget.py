@@ -483,3 +483,29 @@ def test_calendar_discovery_and_task_share_one_transport_budget(
         assert "dispatch_count=1" in output
     assert "provider.invalid" not in output
     assert "credential=private" not in output
+
+
+def test_failed_graph_reports_guard_code_without_transport_secrets(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A post-dispatch redirect is identifiable without publishing its URL or query."""
+    sends = [0]
+    fake = _fake_send(sends, threading.Lock())
+
+    def redirect(session, request, **kwargs):
+        response = fake(session, request, **kwargs)
+        response.status_code = 302
+        response.headers["Location"] = "https://provider.invalid/private?token=private"
+        return response
+
+    monkeypatch.setattr(requests.Session, "send", redirect)
+    capture = RehearsalHttpCapture(max_dispatches=2, max_seconds=30)
+    with pytest.raises(DataFetchError):
+        _REFRESH._execute_captured_task(lambda: _dispatch(requests.Session()), capture=capture)
+    assert _REFRESH._blocked("S6_GRAPH_REFRESH_HTTP_OBSERVATION_FAILED", capture=capture) == 2
+    output = capsys.readouterr().err
+    assert "dispatch_count=1" in output
+    assert "rejected_dispatch_count=0" in output
+    assert "guard_failure_code=REHEARSAL_REDIRECT_BLOCKED" in output
+    assert "provider.invalid" not in output and "private" not in output

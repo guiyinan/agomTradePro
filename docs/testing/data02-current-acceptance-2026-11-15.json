@@ -3601,7 +3601,7 @@
     {
       "date": "2026-11-16T18:08:48.512032+00:00",
       "kind": "e1_frozen_integrated_c2_numeric_v3_preparation",
-      "status": "s6_startup_initialization_and_calendar_budget_correction_in_development",
+      "status": "optional_count_wire_correction_development_gates_passed_ready_for_frozen_candidate",
       "base_head": "2529c3bd50b728ae87ad328c1ae5794907f5ea74",
       "scope": "Frozen single-security Main+Balance E1 critical path only; full DATA-02 universe and four Publication exit gates unchanged.",
       "delivery": {
@@ -4120,7 +4120,7 @@
         "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/controlled-release-backup-r1.verified-summary.json",
         "sha256": "4f781ca77eb1d1b53f9d5b7b46129caff28af138ecfdfcf6898af7288c3c952e"
       },
-      "qualification_boundary": "747a exact CI and real PA/B data checks passed; fresh standard S6 prepare94ff failed before a graph receipt. No production deployment/E1 or full DATA02 exit. Necessary startup-order and shared calendar/task HTTP-budget corrections need their own exact candidate gates.",
+      "qualification_boundary": "b118 exact CI and actual PA/B/data proof passed; standard preparef85 failed at market-universe upstream with8 measured Session dispatches. Valid provider count metadata is rejected by5 existing validators; minimal coherent correction underway. No release/full verifier/production E1/DATA02 exit or DATA03.",
       "s6_owner_budget_authorization": {
         "recorded_at": "2026-11-17T01:23:20.552212+00:00",
         "owner_reply": "批准同额预算绑定到 6086（推荐）",
@@ -5215,6 +5215,182 @@
         "development_scope_limit": "17 targeted no-DB startup/dispatch regressions and static/governance gates are local development evidence. Optional unchanged broad focused-preflight subprocess hit180s local timeout and is not called passed; exact-candidate complete CI and official PostgreSQL qualification still required. No source timeout/QA bypass introduced.",
         "development_complete_for_minimal_correction": true,
         "new_exact_candidate_release_qualification": false
+      },
+      "optional_count_wire_correction": {
+        "observed_candidate_sha": "b118e54f652543f899ae958199a77878f47107b1",
+        "same_sha_ci": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/s6-startup-all-ci-verified.receipt.json",
+          "sha256": "3e7284aa93c7f3d49d76fc4ac2e43de2b5033c8fd040b5d3107819bbab7a6d4e"
+        },
+        "official_postgresql": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/native-b118-official-publication-download.receipt.json",
+          "sha256": "a97b4d043044c26f0be80402c3840d4883db20e62160944dc0556b5b8e2fd073"
+        },
+        "actual_native_pa_b": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/native-b118-phased-v2-r2-result.receipt.json",
+          "sha256": "7e5abf51006f472e2514295c85fc37796fca2d425325ebf3192fdd8b5417a8b7"
+        },
+        "native_prebuild_helpers": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/native-b118-prebuild-data-verification.receipt.json",
+          "sha256": "135b8673d7b115f2f7b93f90196c104e69ca12bb93858301915c01f96f6883d6"
+        },
+        "native_review": "Independent Luna verified7 artifact hashes, old589/current609 models missing0, PAonlyAI005/PBzero,487624 legacy rows/member/catalog/crypto preserved; fullbuild binding notclaimed.",
+        "failed_s6_attempt": "f85e29812e044a978dc714ab3ce96dfb",
+        "failure_originals": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/s6-b118-prepare-failure-originals.sha256.json",
+          "sha256": "dc6075764c8fae296e64de2509c91c15e9264a545deacb3b233cfa798f29ef69"
+        },
+        "tushare_same_route_diagnostic": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/s6-b118-tushare-sse-readonly-diagnostic.receipt.json",
+          "sha256": "a718705d88b17635f7b00300131dc5093aa48433f7c4fc12fb728cbe2b9c887d"
+        },
+        "tushare_raw_shape_diagnostic": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/s6-b118-tushare-sse-shape-readonly-diagnostic.receipt.json",
+          "sha256": "3ae8a2000a1e3586769f5230b219c885323d993ab351c93a0915dccc773dadbf"
+        },
+        "akshare_sz_diagnostic": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/s6-b118-akshare-sz-readonly-diagnostic.receipt.json",
+          "sha256": "dc43c9d533b928fe28af8ac5d6e8021cdd5f658adb779eb340747932cb5ea6cf"
+        },
+        "calendar_diagnostic": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/s6-b118-calendar-readonly-diagnostic.receipt.json",
+          "sha256": "acf1e716af204418362f38fd27a2a2b1f41b598af34ee82960a854116628e30c"
+        },
+        "observed_wire": "HTTP200/code0 integer, data fields/items/has_more/count; SSE2319 rows5 fields; commonvalidator line316 rejects optionalcount.",
+        "original_guard_failure": "Not available beyond observation_failed; new readonlydiagnostics guardNone. Do not infer redirect/bodylimit for original.",
+        "secure_stop": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/s6-b118-failed-prepare-secure-stop.receipt.json",
+          "sha256": "03f601ef0e4435cc51dc8bae0b56d38a4078339b0799d1c08cd21535ac49a700"
+        },
+        "market_budget": {
+          "original_ceiling": 200,
+          "retired94ff_conservative_charge": 50,
+          "f85_measured_dispatches": 8,
+          "new_diagnostic_measured_dispatches": 5,
+          "charged_total": 63,
+          "next_graph_maximum": 50,
+          "next_probe_maximum": 40,
+          "next_capacity_maximum": 40,
+          "cumulative_prospective_maximum": 193
+        },
+        "financial_used": 0,
+        "financial_ceiling": 22296,
+        "e1_used": 0,
+        "e1_ceiling": 2,
+        "universe_ceiling": 5573,
+        "count_rule": "Optional count only; exact int excludesbool/float/string/None, nonnegative, equals rawitems length. Preserve has_more/unknownkeys/shape/date/unit/scope and immutable body.",
+        "affected_existing_consumers": [
+          "tushare_client",
+          "rehearsal_response_store",
+          "tushare_instrument_reference_source",
+          "price_response_capture",
+          "price_limit_response_capture"
+        ],
+        "new_exact_sha_ci_and_fresh_s6_required": true,
+        "failed_attempt_resumed": false,
+        "production_changed": false,
+        "data02_exit_met": false,
+        "data03_started": false,
+        "local_initial_test_setup_failure": "Formal redr1 renamed create_tushare_pro_client erroneously; retained as test-preparation error, not claimed productred. Luna source-red-contract.log beforeSourcepatch is genuine baseline red;89 integrated tests subsequently passed.",
+        "development_checks": {
+          "focused_count_route_retention_startup_tests": {
+            "passed": 238,
+            "receipt": {
+              "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/tushare-count-final-tests.receipt.json",
+              "sha256": "5a84cef1ee0578263090c7503100d98e326471a79dad96e1f650da5d66a0656d"
+            }
+          },
+          "first_mypy_failed_redundant_casts": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/tushare-count-final-mypy.receipt.json",
+            "sha256": "0ae8d95b53488d534715f47f62dcd689666dd10c9cb426a8afc801a691ca49e3"
+          },
+          "correction": "Removed four redundant int casts identified by mypy; strict type and raw-item count checks unchanged.",
+          "post_correction_application_tests": {
+            "passed": 77,
+            "receipt": {
+              "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/tushare-count-r2-apps-tests.receipt.json",
+              "sha256": "2f142ae7e9674576c73cd49f5ce7cb013cf768b9804c24785b68aced009e6553"
+            }
+          },
+          "post_correction_incremental_mypy": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/tushare-count-r2-mypy.receipt.json",
+            "sha256": "2de92388986604b2e33aad01d7388843f32f23b255f62d780155af41707cafca"
+          },
+          "final_required_gates": [
+            {
+              "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/tushare-count-r2-format.receipt.json",
+              "sha256": "188dbdcc831f3ca9a32c4c07965f2a35e47e10438126f804b5006289fdcd94f0",
+              "exit_code": 0
+            },
+            {
+              "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/tushare-count-r2-ruff.receipt.json",
+              "sha256": "494fb31a24173a06ae176e7a65f7966344153011daa2d93c49957ccc779a0d8e",
+              "exit_code": 0
+            },
+            {
+              "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/tushare-count-r2-apps-tests.receipt.json",
+              "sha256": "2f142ae7e9674576c73cd49f5ce7cb013cf768b9804c24785b68aced009e6553",
+              "exit_code": 0
+            },
+            {
+              "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/tushare-count-r2-mypy.receipt.json",
+              "sha256": "2de92388986604b2e33aad01d7388843f32f23b255f62d780155af41707cafca",
+              "exit_code": 0
+            },
+            {
+              "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/tushare-count-r2-debt.receipt.json",
+              "sha256": "4c7c71b0a7b2cfa1e3f378db29afae70247bf614733d821ae1e9e2fa0ff482c3",
+              "exit_code": 0
+            },
+            {
+              "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/tushare-count-r2-current-contracts.receipt.json",
+              "sha256": "5c4f70ce3655853dd738487e68a985db96a13ff209de4f72e84b9bdd6f8ab72e",
+              "exit_code": 0
+            },
+            {
+              "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/tushare-count-r2-module-map.receipt.json",
+              "sha256": "b770a6c3f1755a1c100c8caa201046422d6e5b7053a65ef6231d2aacfadf8afa",
+              "exit_code": 0
+            },
+            {
+              "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/tushare-count-r3-entrypoint-generation.receipt.json",
+              "sha256": "0fcd55a2be6b88d2e2db19cdbca4ea7a85dea58739500ac9c43107af3d975893",
+              "exit_code": 0
+            },
+            {
+              "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/tushare-count-r3-active-registry.receipt.json",
+              "sha256": "debbea20128b9c7d3169798dbfb971bc38b331922e363c30e7ef1f17c2e9f3cc",
+              "exit_code": 0
+            }
+          ],
+          "full_mypy_debt_errors": 0,
+          "entrypoint_stale_failure": {
+            "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/tushare-count-r2-governance-projections.receipt.json",
+            "sha256": "a3c6435baaef846b0363808292258307151169e4512d2a6a70b74ca491d01c71",
+            "exit_code": 1,
+            "correction": "Existing generator validates and writes current projection in one successful execution; unchanged architecture inventory and module-map components passed original combined check; same-SHA CI checks generated projection again."
+          },
+          "production_files": {
+            "apps/data_center/infrastructure/tushare_client.py": "00edb62b284e1fbc96f7e78b022ae9d37954c9e23837aadaefb6e97b80deadde",
+            "apps/data_center/application/price_response_capture.py": "5438b0ce172644f8ced19769c5efc9e17e595e2eb81a37db60c3a164761d8646",
+            "apps/data_center/application/price_limit_response_capture.py": "0f577b2fcbbacfc6753eb0e44df4ee07d15b7c2d1cb6fb08fe37fc34661b514b",
+            "apps/data_center/infrastructure/rehearsal_response_store.py": "40d843b05d61edfe0b4da9507019c96ad61a36e2ecca35749ad50fd5e2783460",
+            "apps/data_center/infrastructure/tushare_instrument_reference_source.py": "6aa3d681f1a3ceb0ab871d51f91d56d3f49f8b8a315ce7e24e91b7a8b6d6e50f",
+            "scripts/refresh_s6_isolated_market_graph.py": "01c75ef065a7c60213ace4444ecfdfb2fb93a2f3a8daa411daf32c549da48fa7"
+          }
+        },
+        "standard_runner_preparation": {
+          "launcher": {
+            "path": ".tmp/data02-current-20261115/20261116/legacy-native-compat-proposal/ops/launch_standard_s6_runner_minimal.py",
+            "sha256": "4fe0f14e05215f3742ad17617c4f74e29c07540e41b41cd6a4eba8e5aad14b6b"
+          },
+          "mechanical_tests_passed": 5,
+          "format_tools_exit_code": 0,
+          "probe_dispatch_ceiling": 40,
+          "capacity_dispatch_ceiling": 40,
+          "owner_transferred": false,
+          "runner_started": false
+        }
       }
     }
   ],

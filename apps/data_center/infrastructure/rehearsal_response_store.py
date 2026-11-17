@@ -221,7 +221,7 @@ def parse_validate_tushare_response(
     ):
         raise ValueError("REHEARSAL_RESPONSE_SCHEMA_INVALID")
     data = _as_object(envelope.get("data"))
-    if set(data) - {"fields", "items", "has_more"}:
+    if set(data) - {"fields", "items", "has_more", "count"}:
         raise ValueError("REHEARSAL_RESPONSE_SCHEMA_INVALID")
     if "fields" not in data or "items" not in data:
         raise ValueError("REHEARSAL_RESPONSE_SCHEMA_INVALID")
@@ -232,6 +232,12 @@ def parse_validate_tushare_response(
     raw_items = data["items"]
     if not isinstance(raw_fields, list) or not isinstance(raw_items, list):
         raise ValueError("REHEARSAL_RESPONSE_SCHEMA_INVALID")
+    if "count" in data:
+        count = data["count"]
+        if type(count) is not int or count < 0:
+            raise ValueError("REHEARSAL_RESPONSE_SCHEMA_INVALID")
+        if count != len(raw_items):
+            raise ValueError("REHEARSAL_RESPONSE_INCOMPLETE")
     if not raw_fields and not raw_items:
         raise ValueError("TUSHARE_DATA_NOT_YET_AVAILABLE")
     if not raw_fields:

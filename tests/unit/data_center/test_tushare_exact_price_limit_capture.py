@@ -13,6 +13,7 @@ from apps.data_center.application.price_limit_response_capture import (
     CapturedPriceLimitResponse,
     ExactPriceLimitRequestScope,
     ExactPriceLimitValues,
+    extract_exact_tushare_price_limit_values,
     validate_exact_price_limit_capture,
 )
 from apps.data_center.domain.entities import ProviderConfig
@@ -472,3 +473,42 @@ def test_direct_adapter_call_for_inactive_config_never_creates_provider_client(
         adapter.fetch_price_limit_with_capture("600000.SH", _TRADE_DATE)
 
     assert client_calls == []
+
+
+# Append to tests/unit/data_center/test_tushare_exact_price_limit_capture.py.
+# Add extract_exact_tushare_price_limit_values to the existing import block.
+
+
+@pytest.mark.parametrize("count", [True, 1.0, "1", None, -1, 0, 2])
+def test_exact_price_limit_values_reject_invalid_provider_count(count: object) -> None:
+    """Optional count must be an exact nonnegative int matching all returned rows."""
+    payload = _make_capture([_row()], extra_data={"count": count}).payload
+    with pytest.raises(DataFetchError) as error:
+        extract_exact_tushare_price_limit_values(payload, scope=_scope())
+    assert error.value.code == "PRICE_EXACT_LIMIT_RESPONSE_INVALID"
+
+
+def test_exact_price_limit_values_accept_matching_provider_count() -> None:
+    """A matching count preserves exact source-native decimal bounds."""
+    payload = _make_capture([_row()], extra_data={"count": 1}).payload
+    values = extract_exact_tushare_price_limit_values(payload, scope=_scope())
+    assert values == ExactPriceLimitValues(
+        lower_limit_price=Decimal("9.50"),
+        upper_limit_price=Decimal("12.50"),
+    )
+
+
+@pytest.mark.parametrize(
+    "extra_data",
+    [
+        {"count": 1, "has_more": True},
+        {"count": 1, "unexpected": "still rejected"},
+    ],
+)
+def test_exact_price_limit_count_does_not_weaken_other_envelope_rules(
+    extra_data: dict[str, object],
+) -> None:
+    payload = _make_capture([_row()], extra_data=extra_data).payload
+    with pytest.raises(DataFetchError) as error:
+        extract_exact_tushare_price_limit_values(payload, scope=_scope())
+    assert error.value.code == "PRICE_EXACT_LIMIT_RESPONSE_INVALID"

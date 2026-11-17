@@ -47,6 +47,7 @@ _FIELDS_WITH_CURRENCY = (*_FIELDS, "curr_type")
 _COMPLETED_AT = datetime(2026, 10, 16, 1, 0, tzinfo=UTC)
 _RUN_ID = UUID("0f84554d-6341-43f9-b4dd-1eaed9d39d00")
 _INGESTED_RUN_ID = UUID("205ab56d-9f75-487b-996e-7e7b1c86d2e1")
+_COUNT_NOT_SUPPLIED = object()
 
 
 class InMemoryRawPayloadRepository:
@@ -117,12 +118,14 @@ class CapturedStockBasicClient:
         returned_fields: tuple[str, ...] = _FIELDS,
         request_params_override: dict[str, object] | None = None,
         missing_reference: bool = False,
+        response_count: object = _COUNT_NOT_SUPPLIED,
     ) -> None:
         self.payload_repository = payload_repository
         self.rows = rows
         self.returned_fields = returned_fields
         self.request_params_override = request_params_override
         self.missing_reference = missing_reference
+        self.response_count = response_count
         self.calls: list[dict[str, object]] = []
 
     def stock_basic(self, *, exchange: str, list_status: str, fields: str) -> CapturedFrame:
@@ -140,12 +143,14 @@ class CapturedStockBasicClient:
                     None,
                 ]
             ]
+        response_data: dict[str, object] = {
+            "fields": list(self.returned_fields),
+            "items": source_rows,
+        }
+        if self.response_count is not _COUNT_NOT_SUPPLIED:
+            response_data["count"] = self.response_count
         body = json.dumps(
-            {
-                "code": 0,
-                "msg": None,
-                "data": {"fields": list(self.returned_fields), "items": source_rows},
-            },
+            {"code": 0, "msg": None, "data": response_data},
             ensure_ascii=False,
             separators=(",", ":"),
         ).encode("utf-8")
@@ -218,6 +223,7 @@ def _build_source(
     request_params_override: dict[str, object] | None = None,
     missing_reference: bool = False,
     contract: InstrumentReferenceProviderContract | None = None,
+    response_count: object = _COUNT_NOT_SUPPLIED,
 ) -> tuple[
     TushareInstrumentReferenceSource,
     CapturedStockBasicClient,
@@ -231,6 +237,7 @@ def _build_source(
         returned_fields=returned_fields,
         request_params_override=request_params_override,
         missing_reference=missing_reference,
+        response_count=response_count,
     )
     audit_repository = InMemoryRawAuditRepository()
     writer = DjangoInstrumentReferenceRawAuditOccurrenceWriter(audit_repository)
@@ -477,3 +484,32 @@ def test_actual_recorder_rejects_wrong_default_alias_and_missing_exact_row() -> 
     with pytest.raises(DataFetchError) as caught:
         source.fetch_candidate(run_id=_RUN_ID, ingested_run_id=_INGESTED_RUN_ID)
     assert caught.value.code == "INSTRUMENT_REFERENCE_RAW_AUDIT_UNAVAILABLE"
+
+
+@pytest.mark.parametrize(
+    ("count", "error_code"),
+    [
+        (_COUNT_NOT_SUPPLIED, None),
+        (1, None),
+        (True, "INSTRUMENT_REFERENCE_RESPONSE_SCHEMA_INVALID"),
+        (1.0, "INSTRUMENT_REFERENCE_RESPONSE_SCHEMA_INVALID"),
+        ("1", "INSTRUMENT_REFERENCE_RESPONSE_SCHEMA_INVALID"),
+        (None, "INSTRUMENT_REFERENCE_RESPONSE_SCHEMA_INVALID"),
+        (-1, "INSTRUMENT_REFERENCE_RESPONSE_SCHEMA_INVALID"),
+        (0, "INSTRUMENT_REFERENCE_RESPONSE_SCHEMA_INVALID"),
+        (2, "INSTRUMENT_REFERENCE_RESPONSE_SCHEMA_INVALID"),
+    ],
+)
+def test_optional_stock_basic_count_is_exact_and_matches_items(
+    count: object, error_code: str | None
+) -> None:
+    """Accept absent or exact count while preserving the source's schema error code."""
+    source, _client, _payloads, _audits = _build_source(response_count=count)
+
+    if error_code is None:
+        candidate = source.fetch_candidate(run_id=_RUN_ID, ingested_run_id=_INGESTED_RUN_ID)
+        assert len(candidate.records) == 1
+    else:
+        with pytest.raises(DataFetchError) as caught:
+            source.fetch_candidate(run_id=_RUN_ID, ingested_run_id=_INGESTED_RUN_ID)
+        assert caught.value.code == error_code
