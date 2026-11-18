@@ -6522,7 +6522,7 @@
         "next_prospective_cumulative_maximum": 196
       },
       "independent_asset_active_scope_maintenance": {
-        "status": "real_production_maintenance_closed_fresh_c5_s6_preparation_launched",
+        "status": "production_maintenance_closed_standard_s6_build_running_after_prebuild_recovery",
         "application_release_candidate_sha": "c5b42e20cc97a7e166e6d3f88254d05b0605667a",
         "application_candidate_unchanged_by_independent_job": true,
         "application_ci": {
@@ -6758,9 +6758,9 @@
         },
         "backup_sha256": "ab167e01f5f4be7c610e7b3587b323903110a8caec87d4201b92972f0878f708",
         "backup_bytes": 284570298,
-        "market_actual_charged": 120,
+        "market_actual_charged": 147,
         "market_ceiling": 200,
-        "market_remaining": 80,
+        "market_remaining": 53,
         "planned_source_calls_staging_max": 2,
         "planned_source_calls_production_max": 2,
         "financial_used": 0,
@@ -6773,7 +6773,7 @@
         "production_services_replaced": false,
         "data02_exit_met": false,
         "data03_started": false,
-        "next": "observe this fresh c5 standard prepare; review actual graph/clone/build receipts, derive equal probe/capacity budget while keeping 18 calls for post-S6 production work, then launch the complete runner; no DATA02 closure or DATA03 start",
+        "next": "observe the current standard S6 build and all downstream mandatory stages, preserve actual failures and counters; then real C2/D1/E1 prerequisites, full native financial matrix and production four-Publication exit before DATA03",
         "frozen_candidate_receipt": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/asset-maintenance-public-ports-frozen-candidate.receipt.json",
         "previous_tool_candidates": [
           {
@@ -6981,19 +6981,49 @@
             "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-postrepair-s6-proposal/s6-c5-postrepair-transport.receipt.json",
             "sha256": "4e1c23cd98d8f1df003c782d1f5c5a797651909ffa060e5fcb1b6eed0b41d52b"
           },
-          "status": "prepare_started_no_result_yet",
+          "status": "build_only_running_after_standard_prebuild_recovery",
           "prepare_pid": 660138,
           "root": "/opt/agomtradepro/rehearsals/s6-c5b42e20cc-d24274f998aa4f8ba0260c956d76f714",
           "production_source": "standard prepare snapshots then-current production PostgreSQL after actual exact-five maintenance; snapshot/restore completion is not yet verified",
           "market_charged_before_attempt": 120,
           "market_graph_max": 50,
-          "graph_dispatch_count": null,
+          "graph_dispatch_count": 27,
           "financial_runner_started": false,
           "financial_used": 0,
           "e1_used": 0,
           "post_s6_market_reserve": 18,
           "failed_attempt_resumed": false,
-          "application_deployed": false
+          "application_deployed": false,
+          "prepare_verified": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-postrepair-s6-prepare-root-verified.receipt.json",
+            "sha256": "970397ce3589108dd07fa5d6fa4f15424ba7889451756f65ad0805c4d5304787"
+          },
+          "target_trade_date": "2026-11-18",
+          "actual_universe_count": 5580,
+          "market_charged_after_graph": 147,
+          "standard_runner_launched": true,
+          "runner_pid": 728853,
+          "runner_launch": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-postrepair-s6-proposal/s6-c5-postrepair-runner-launch-r2.receipt.json",
+            "sha256": "1ad6286504cdf6d13174b0e1025844e70410963f466d75bbfa6eda0b45031a8a"
+          },
+          "prebuild_blocker": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-postrepair-s6-prebuild-blocked.original.json",
+            "sha256": "899dba472accbee96f14fbff9b33aa0b62186019c394c9018168af1712b4ddc9"
+          },
+          "actual_prebuild_free_disk_bytes": 23445929984,
+          "required_prebuild_free_disk_bytes": 25769803776,
+          "completed_stages": [],
+          "migration_executed": false,
+          "financial_provider_attempts": 0,
+          "additional_market_attempts_after_graph": 0,
+          "standard_s6_passed": false,
+          "build_execution_started": true,
+          "latest_observation": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-postrepair-s6-runner-observation-r2.json",
+            "sha256": "5465e39bd1729d6a0ff2d58abbde41c2e1f8636c7c32cf865fa192904808e7e8"
+          },
+          "initial_prebuild_stop_build_executed": false
         },
         "remaining_full_universe_d1_gap": {
           "status": "readonly_gap_identified_not_implemented",
@@ -7005,6 +7035,74 @@
           "same_source_zero_tolerance_already_owner_approved": true,
           "production_financial_budget_separate_from_s6": true,
           "implementation_waits_for_real_e1_minimal_closure": true
+        },
+        "runner_preview_correction": {
+          "failed_preview": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-postrepair-s6-proposal/s6-c5-postrepair-runner-preview.receipt.json",
+            "sha256": "f06fa1c199ef55fb0d022b7e507be3d87fa753f8bfd2a6f74e06c5d55429c5be"
+          },
+          "cause": "operator compared source receipt file SHA to canonical internal receipt digest; formal producer stores the latter",
+          "corrected_operator_sha256": "50a9826b4a4cb1450ba0430b62cbc838c0f60405fda18ac04086995666b4b19c",
+          "public_snapshot_verifier_used": true,
+          "passed_preview": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-postrepair-s6-proposal/s6-c5-postrepair-runner-preview-r2.receipt.json",
+            "sha256": "0a24d83d17519639cca961dd260214212c207a0541ae83fdf75860465bddae08"
+          },
+          "source_and_business_inputs_unchanged": true,
+          "original_preflight_retained": true
+        },
+        "completed_native_qa_retirement": {
+          "host_receipt": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/native-headroom-qa-retirement/30703bafd5864968b35c9e59843c1cf3/host-receipt.json",
+            "sha256": "75e3a4acb0e2e9ad5b33983929848b209b3cec404d234e0ac979890b2b8c1a15"
+          },
+          "closed_native_compat_proof": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/native-headroom-phased-result.receipt.json",
+            "sha256": "236ff2b544240c96a63515f413c4b7fec4eef64156becefa77d08e8156e1d626"
+          },
+          "archive_path": "/opt/agomtradepro/diagnostics/asset-active-maintenance-qa-archives/asset-active-maintenance-30703bafd5864968b35c9e59843c1cf3/maintenance-qa.dump",
+          "archive_sha256": "971f8368c0519b642712854a5568e4ef05e1b4ae6e6842cb8d51901c4d084d6f",
+          "archive_size_bytes": 284684004,
+          "archive_full_read_exit_code": 0,
+          "archive_location": "vps_only",
+          "dropped_database": "data02_compat_migrated",
+          "dropped_oid": 56683,
+          "untouched_oid_16384_preserved": true,
+          "current_s6_database_preserved": true,
+          "old_qa_postgres_stopped_verified": true,
+          "production_mutated": false,
+          "provider_calls": 0
+        },
+        "prebuild_standard_recovery": {
+          "status": "started",
+          "authorization_basis": "existing Owner-approved S6 budget and delegated execution; current fresh attempt only, unchanged candidate/inputs/budget, no completed stages or migrations",
+          "new_owner_approval_claimed": false,
+          "prior_failed_candidates_not_reused": true,
+          "original_failure_preserved": true,
+          "strict_original_checkpoint_hash": "cd163ac9673889ac7af364f11aab2a8a8db3f439c90dd89a9e30266ae0210774",
+          "all_original_input_bindings_unchanged": true,
+          "standard_resume_flag": "--resume",
+          "preflight_review": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-s6-prebuild-resume-2.receipt.json",
+            "sha256": "4a2d7701348c390efbd9183b0dbda1908ce79fa3b3023b32a9998feabcac3c48"
+          },
+          "execution": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-s6-prebuild-resume-3.receipt.json",
+            "sha256": "1b6d585ed2808ad462c912d6d21588cb69976558a15cfc78da9f992851aa675f"
+          },
+          "authorization_record": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-s6-standard-prebuild-recovery-authorization.json",
+            "sha256": "6667f5e7810ba5d1571fadd3ad4059e74574404420043bb2b99bf9c89e77c485"
+          },
+          "runner_pid": 755393,
+          "runner_log": "/opt/agomtradepro/rehearsals/s6-c5b42e20cc-d24274f998aa4f8ba0260c956d76f714/runner-prebuild-resume-r1.log",
+          "free_disk_bytes_at_recovery": 25933123584,
+          "minimum_free_disk_bytes": 25769803776,
+          "new_graph_requests": 0,
+          "market_used_before_recovery": 147,
+          "market_ceiling": 200,
+          "financial_ceiling": 22344,
+          "e1_separate_ceiling": 2
         }
       }
     }
