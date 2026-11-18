@@ -6522,7 +6522,7 @@
         "next_prospective_cumulative_maximum": 196
       },
       "independent_asset_active_scope_maintenance": {
-        "status": "production_maintenance_closed_image_bound_s6_provider_probe_running",
+        "status": "production_maintenance_closed_s6_provider_probe_blocked_on_underestimated_market_budget",
         "application_release_candidate_sha": "c5b42e20cc97a7e166e6d3f88254d05b0605667a",
         "application_candidate_unchanged_by_independent_job": true,
         "application_ci": {
@@ -6939,7 +6939,9 @@
           "financial_ceiling": 22344,
           "production_e1_used": 0,
           "production_e1_separate_ceiling": 2,
-          "new_s6_started": true
+          "new_s6_started": true,
+          "market_used": 162,
+          "market_remaining": 38
         },
         "maintenance_qa_retirement": {
           "status": "success",
@@ -6981,7 +6983,7 @@
             "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-postrepair-s6-proposal/s6-c5-postrepair-transport.receipt.json",
             "sha256": "4e1c23cd98d8f1df003c782d1f5c5a797651909ffa060e5fcb1b6eed0b41d52b"
           },
-          "status": "provider_probe_running_after_image_migrations_and_scope_authorization",
+          "status": "blocked_provider_probe_http_budget_exceeded",
           "prepare_pid": 660138,
           "root": "/opt/agomtradepro/rehearsals/s6-c5b42e20cc-d24274f998aa4f8ba0260c956d76f714",
           "production_source": "standard prepare completed from then-current production after exact-five maintenance; cloned restore and graph receipt verified; not production data qualification",
@@ -7021,16 +7023,16 @@
           ],
           "migration_executed": true,
           "financial_provider_attempts": 0,
-          "additional_market_attempts_after_graph": null,
+          "additional_market_attempts_after_graph": 15,
           "standard_s6_passed": false,
           "build_execution_started": true,
           "latest_observation": {
-            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-s6-public-reports-r2/run-status.json",
-            "sha256": "8d34b88d0868223f6b21c56b665d7036d83f242becb0cf092bbe826eb098e806"
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-s6-public-reports-r4/run-status.json",
+            "sha256": "9e72aee508e7b1fe9b1632d7da6568a22c2f915b30fbfec22e60e5e5bd5a8c2d"
           },
           "initial_prebuild_stop_build_executed": false,
           "active_runner_pid": 755393,
-          "market_usage_status": "147 confirmed through prepare; provider probe in progress, actual additional usage awaits its report",
+          "market_usage_status": "162/200 actual physical calls; one over-limit dispatch rejected before send; no further financial/E1 calls",
           "milestone_observed_at": "2026-11-18T16:41:11.256413+00:00",
           "image_bound_build_and_migrations": {
             "candidate_image_id": "sha256:5881c8e8f7d68b2a8885e9e7fb98c019b9966561933f56f84b179cfeb38143b7",
@@ -7059,6 +7061,25 @@
             },
             "full_s6_complete": false,
             "production_deployed": false
+          },
+          "market_charged_after_probe": 162,
+          "provider_probe_blocker": {
+            "report": {
+              "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-s6-public-reports-r4/provider-probe/probe.json",
+              "sha256": "d8921c5efe2eb58d14378c57d2ea638b316aae8562b1c9417d6bee796622f4a6"
+            },
+            "diagnostic": {
+              "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-s6-public-reports-r4/diagnostics/provider_probe-b7545af355cc4a15bd3e2bc76b268a52.json",
+              "sha256": "4c09468037d1cd0c0acf9772a7445e0d6fb8f96fe65441f391b13630ce01b10c"
+            },
+            "actual_error": "REHEARSAL_HTTP_BUDGET_EXCEEDED",
+            "actual_dispatches": 15,
+            "rejected_before_dispatch": 1,
+            "root_cause": "Operator cap15 underestimated the full-universe valuation prerequisite; 5580 requested securities with configured Tencent batch200 require at least28 valuation calls before quote probes",
+            "financial_requests": 0,
+            "production_e1_requests": 0,
+            "production_deployed": false,
+            "new_provider_execution_started": false
           }
         },
         "remaining_full_universe_d1_gap": {
@@ -7171,10 +7192,58 @@
         "official_url": "https://static.cninfo.com.cn/finalpage/2026-10-28/1225630063.PDF",
         "status": "retained_official_comparison_candidate_not_catalog_qualification",
         "scope": "000858.SZ / 2026-09-30 consolidated balance sheet; report declares yuan",
-        "currency_cny_directly_established": false,
         "actual_balance_response_verified": false,
         "external_report_to_response_value_binding_implemented": false,
-        "provider_financial_requests": 0
+        "provider_financial_requests": 0,
+        "english_document": {
+          "path": ".tmp/data02-current-20261115/20261116/source-originals/wuliangye-2026-q3-en-000858-cninfo-20261107-1225662322.pdf",
+          "sha256": "32db2186112ff09cfb124af3a4345d06488a4d36f6f3a1f7cb7cf0501c25fdf0"
+        },
+        "english_official_url": "https://static.cninfo.com.cn/finalpage/2026-11-07/1225662322.PDF",
+        "paired_document_scope": "Same issuer000858 / announcement2026-045 / period2026-09-30; English consolidated statement explicitly declares Unit:RMB",
+        "statutory_reporting_currency": "RMB",
+        "actual_response_currency_qualified": false,
+        "xbrl_instance_obtained": false,
+        "root_visual_review_pages": {
+          "english_consolidated_balance_sheet": [
+            5,
+            6,
+            7
+          ]
+        },
+        "independent_three_value_response_comparison": "pending real response; explicit recorded independent comparison, not a newly required automated PDF-verifier framework"
+      },
+      "market_budget_revision_pending_owner": {
+        "proposal": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-market-budget-revision-proposal.json",
+          "sha256": "c79f24758a4bb01446a53aacac93884c2281cc6fb1716264d4b5044477a5adce"
+        },
+        "status": "owner_question_pending_no_provider_execution",
+        "current_market_used": 162,
+        "current_market_ceiling": 200,
+        "proposed_market_ceiling": 340,
+        "maximum_proposed_cumulative_allocation": 332,
+        "new_approval_claimed": false,
+        "independent_static_review": "probe/capacity each30 verified; 162+50+30+30+60=332; production/C2 reserve60 is a hard stop, not a success guarantee"
+      },
+      "c2_szse_rule_document_review": {
+        "document": {
+          "path": ".tmp/data02-current-20261115/20261116/source-originals/szse-trading-rules-2026.pdf",
+          "sha256": "9b66f8b0db70f84a25ef1ccb4ee2351001724e408117552d75f6d8993483c586"
+        },
+        "official_url": "https://docs.static.szse.cn/www/lawrules/rule/trade/current/W020260424690713155663.pdf",
+        "document_title": "深圳证券交易所交易规则（2026年修订）",
+        "continuous_auction_open_time": "09:30",
+        "opening_section": "2.3.2",
+        "effective_from": "2026-07-06",
+        "effective_section": "10.9",
+        "root_visual_review_pages": [
+          7,
+          40
+        ],
+        "production_document_capture_qualified": false,
+        "owner_apply_event_created": false,
+        "calendar_publication_qualified": false
       }
     }
   ],
