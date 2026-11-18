@@ -5816,6 +5816,226 @@
         "production_changed": false,
         "data02_exit_met": false,
         "data03_started": false
+      },
+      "observer_stream_release_preparation": {
+        "recorded_at_utc": "2026-11-18T03:34:40.860665+00:00",
+        "release_candidate_sha": "e010f654442a673bd799eb357f74d242069be45a",
+        "status": "awaiting_owner_scope_and_financial_ceiling_adjustment",
+        "exact_sha_ci_passed": 8,
+        "official_publication_junit": {
+          "tests": 303,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        "security_first_attempt": "pip-audit produced no report; same-SHA failed jobs rerun succeeded. First failure logs/artifacts retained; no dependency exception or guard change.",
+        "native_actual_result": {
+          "candidate_sha": "e010f654442a673bd799eb357f74d242069be45a",
+          "started_at": "2026-11-18T02:43:03.707331+00:00",
+          "finished_at": "2026-11-18T03:03:57.972471+00:00",
+          "exit_code": 0,
+          "owned_jobs_quiesced": true,
+          "qa_postgres_stopped": true,
+          "private_key_copy_removed": true,
+          "production_mutated": false,
+          "provider_http_requests": 0,
+          "build_bound_qualification": false
+        },
+        "native_formal_prebuild_helpers": {
+          "candidate_sha": "e010f654442a673bd799eb357f74d242069be45a",
+          "artifact_sha256_checks": 7,
+          "data_catalog_and_rows_preserved": true,
+          "phased_formal_helpers_passed": true,
+          "phase_a_pending": [
+            "ai_provider.0005_drop_plaintext_api_key"
+          ],
+          "phase_b_pending": [],
+          "owned_containers_verified_quiesced": true,
+          "full_compatibility_verifier_run": false,
+          "genuine_build_binding_still_required": true,
+          "production_qualified": false,
+          "report_sha256": "d26f20cf669f556fa2e91bd96e752cafb7495cdf366e85254d488e08bae7d6fa"
+        },
+        "genuine_candidate_build_binding_still_required": true,
+        "scope_observation": {
+          "target_date": "2026-11-17",
+          "target_requested_count": 5585,
+          "target_requested_sha256": "1db3cb4dfd1a089bf513c521e63d7a165412659eb7ae50cacd4144bd99f9ab3c",
+          "unknown_listing_date_count": 0,
+          "excluded_not_yet_listed_count": 0,
+          "added_count_vs_prequery": 12,
+          "removed_count_vs_prequery": 0,
+          "scope_logic_matches_candidate_git_blobs": true,
+          "observation_candidate_sha": "5394fae874359a3fab3f9acc30ec3eda131cca7a",
+          "budget_planning_only_not_release_qualification": true
+        },
+        "retired_failed_s6_postgres_archives": [
+          {
+            "slug": "747a",
+            "candidate_sha": "747a53d472b8d3f53c0c3aab3310f93b03148e7d",
+            "attempt_id": "94ff204249f34789bcc2d3f9468ab5a1",
+            "dump": {
+              "mode": "0600",
+              "path": "/opt/agomtradepro/diagnostics/s6-failed-postgres-archives/747a-747a53d472-94ff204249f34789bcc2d3f9468ab5a1/agom_release_rehearsal_cbc9e4e91278467a2a4e79b018235cf3.dump",
+              "sha256": "3aed998acf62600c8acf12c0e51bd7a3f27565509a707e79113b9c89a149255f",
+              "size_bytes": 284970096
+            },
+            "globals": {
+              "mode": "0600",
+              "path": "/opt/agomtradepro/diagnostics/s6-failed-postgres-archives/747a-747a53d472-94ff204249f34789bcc2d3f9468ab5a1/globals-no-role-passwords.sql",
+              "role_passwords_included": false,
+              "sha256": "b66402ddb0a2322f14c796fef1d6272a44eb326ecb520b0a2f386b4c19664d6d",
+              "size_bytes": 1392
+            },
+            "archive_list": {
+              "mode": "0600",
+              "path": "/opt/agomtradepro/diagnostics/s6-failed-postgres-archives/747a-747a53d472-94ff204249f34789bcc2d3f9468ab5a1/archive.list",
+              "sha256": "2ea068c8f3a28c3e8252eb268ee5ae55368c4829b77d5661a152f4fcb29da820",
+              "size_bytes": 912370
+            },
+            "remote_archive_dir": "/opt/agomtradepro/diagnostics/s6-failed-postgres-archives/747a-747a53d472-94ff204249f34789bcc2d3f9468ab5a1",
+            "postgres_container_removed": true,
+            "postgres_volume_removed": true,
+            "redis_and_networks_retained": true,
+            "free_bytes_after": 24944324608,
+            "receipt": {
+              "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/s6-747a-pg-archive-operation.json",
+              "sha256": "1d07b4c181b859013255e8557d786b35c18af832787b265889ea4013f9def3c5"
+            }
+          },
+          {
+            "slug": "b118",
+            "candidate_sha": "b118e54f652543f899ae958199a77878f47107b1",
+            "attempt_id": "f85e29812e044a978dc714ab3ce96dfb",
+            "dump": {
+              "mode": "0600",
+              "path": "/opt/agomtradepro/diagnostics/s6-failed-postgres-archives/b118-b118e54f65-f85e29812e044a978dc714ab3ce96dfb/agom_release_rehearsal_e250cb0e9ac31c95b85c3dec1f8dc6a6.dump",
+              "sha256": "45776d5079f447cf8ed3687bcb72ed9361a7beea04c2d816c34d11dde0e9a767",
+              "size_bytes": 285085227
+            },
+            "globals": {
+              "mode": "0600",
+              "path": "/opt/agomtradepro/diagnostics/s6-failed-postgres-archives/b118-b118e54f65-f85e29812e044a978dc714ab3ce96dfb/globals-no-role-passwords.sql",
+              "role_passwords_included": false,
+              "sha256": "e97e6a364056ac721c2fa4baf5cdbb7d78330001ada05513558f0c70c944d627",
+              "size_bytes": 1392
+            },
+            "archive_list": {
+              "mode": "0600",
+              "path": "/opt/agomtradepro/diagnostics/s6-failed-postgres-archives/b118-b118e54f65-f85e29812e044a978dc714ab3ce96dfb/archive.list",
+              "sha256": "2c44df65677cc106fe0533e061dba522c0889d7ee685a02a5dc6c33fe5018d91",
+              "size_bytes": 912370
+            },
+            "remote_archive_dir": "/opt/agomtradepro/diagnostics/s6-failed-postgres-archives/b118-b118e54f65-f85e29812e044a978dc714ab3ce96dfb",
+            "postgres_container_removed": true,
+            "postgres_volume_removed": true,
+            "redis_and_networks_retained": true,
+            "free_bytes_after": 28536102912,
+            "receipt": {
+              "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/s6-b118-pg-archive-operation.json",
+              "sha256": "f5f1c2aeaab5a49ed487257fe744befd3ecae4fee79286159443b690546565f2"
+            }
+          }
+        ],
+        "docker_free_bytes_after": 28536102912,
+        "standard_prepare_24GiB_headroom_passed": true,
+        "owner_adjustment_proposal": {
+          "approved": false,
+          "reason": "Fresh target-date scope increased by 12 from the explicitly approved 5573 ceiling. Necessary-candidate delegation does not raise scope or financial attempt ceilings.",
+          "candidate_only_reapproval_required": false,
+          "existing_universe_ceiling": 5573,
+          "proposed_universe_ceiling": 5585,
+          "existing_financial_attempt_ceiling": 22296,
+          "proposed_financial_attempt_ceiling": 22344,
+          "financial_attempt_increment": 48,
+          "financial_used": 0,
+          "market_already_charged": 89,
+          "market_original_ceiling": 200,
+          "market_next_maxima": {
+            "graph": 50,
+            "probe": 30,
+            "capacity": 30
+          },
+          "market_prospective_cumulative_maximum": 199,
+          "production_e1_used": 0,
+          "production_e1_separate_ceiling": 2,
+          "scope_increase_or_new_candidate_outside_authorization_stops": true
+        },
+        "inactive_launcher_proposal": {
+          "path": ".tmp/data02-current-20261115/20261116/legacy-native-compat-proposal/ops/launch_standard_s6_runner_stream_proposed.py",
+          "sha256": "c62a466da1d9195d04109c7f23f6dfe9cff092409bf6785f251f93794432f3bf",
+          "mechanical_tests_passed": 5,
+          "uploaded_or_executed": false
+        },
+        "failed_post_307_config_observation": {
+          "query_exit_code": 0,
+          "configured_target_or_proxy_fingerprint_matches": 0,
+          "caller_or_redirect_destination_attributed": false,
+          "redirect_guard_unchanged": true,
+          "provider_http_denied": true
+        },
+        "native_backup_input": "Historical verified 2026-11-16 original; not relabeled fresh. A fresh verified production rollback backup remains required before production deployment.",
+        "new_s6_attempt_reserved": false,
+        "full_s6_started": false,
+        "owner_password_transferred": false,
+        "production_changed": false,
+        "financial_publication_activated": false,
+        "data02_exit_met": false,
+        "data03_started": false,
+        "originals": [
+          {
+            "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/observer-stream-frozen-candidate.receipt.json",
+            "sha256": "594df0b123b6d9b60978386ba3cad4ee04a543f49f53b6b6c6e4de47f62b543f"
+          },
+          {
+            "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/observer-candidate-all-ci-verified.receipt.json",
+            "sha256": "756ea7c80344d0b7043c1707c272cbb40218f0e0ea31bf0c7fbb186af0e98843"
+          },
+          {
+            "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/native-stream-official-publication-download.receipt.json",
+            "sha256": "46af90d73849af27957fcd1b87c196aa9ba2bc6aa86d3a0a46722ae6149862d0"
+          },
+          {
+            "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/observer-security-failure.log",
+            "sha256": "c1744413b510a7bfd80d07ef8d5600db1e21055238216a783438a79cadbb251b"
+          },
+          {
+            "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/native-stream-phased-result.receipt.json",
+            "sha256": "b427f40a71666299171828a90025b9215a67c9591a50595296ba11382e43b439"
+          },
+          {
+            "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/native-stream-phased-originals.references.json",
+            "sha256": "72146a09b2a8a33452a5970c5aa36608b3365ed62b86763e587b3ec5e06d839b"
+          },
+          {
+            "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/native-stream-prebuild-data-verification.receipt.json",
+            "sha256": "f3127c4a9ccbf3b4dd6a16e89756d669bd8e64cba85a4237636731a70e2fe2bc"
+          },
+          {
+            "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/native-0582-output-archive-for-stream-original.json",
+            "sha256": "68af57f2c2cb79f43e6805cf15cd9291afcabca268926664e33f4787ffc45822"
+          },
+          {
+            "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/native-stream-fresh-clone-contract.json",
+            "sha256": "17f7dee574f7f2e5a2eb43530f796583436c054af1a0b3d352175a32f1bcab63"
+          },
+          {
+            "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/s6-zero-r2-persisted-scope-diagnostic.receipt.json",
+            "sha256": "c70faeed778fb32c7dc90bb20ef120af80313eb712865f2a47aada7093cdbee2"
+          },
+          {
+            "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/s6-zero-r2-persisted-scope-diagnostic-r2.receipt.json",
+            "sha256": "e0616a0c06929b7218200d2d104bbad51518720bb0d31d7eafe9071e68a9d3fd"
+          },
+          {
+            "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/s6-zero-r2-persisted-scope-diagnostic-r3.receipt.json",
+            "sha256": "15848f79876e5ed202a38149b488ee73c32c9218b83587c2a66f8c54370aac2f"
+          },
+          {
+            "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/r2-url-egress-fingerprint-readonly.receipt.json",
+            "sha256": "cf9d03058f24827a07da2d78e85f8d7c4d932ff1793df0a4cf0e9f73d7248d8a"
+          }
+        ]
       }
     }
   ],
