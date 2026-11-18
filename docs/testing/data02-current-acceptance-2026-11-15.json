@@ -5598,6 +5598,224 @@
         "next_standard_launcher_sha256": "f06a09f275d118be219d586c361d6519123f08c2a2b7ac01d38fb3b54aa19cec",
         "existing_launcher_mechanical_tests_passed": 5,
         "fresh_exact_sha_ci_native_and_s6_still_required": true
+      },
+      "post_freeze_5394_observations": {
+        "candidate_sha": "5394fae874359a3fab3f9acc30ec3eda131cca7a",
+        "exact_sha_ci_runs_passed": 8,
+        "official_publication_tests": 303,
+        "official_publication_failures_errors_skipped": 0,
+        "native_phased_exit_code": 0,
+        "native_prebuild_helpers_exit_code": 0,
+        "native_genuine_build_binding_still_required": true,
+        "attempts": [
+          {
+            "attempt_id": "28477c101b584710a98c0ab78a29f26d",
+            "terminal": "failed",
+            "phase": "preflight",
+            "error_code": "S6_DOCKER_DISK_HEADROOM_INSUFFICIENT",
+            "runner_and_graph_not_started": true,
+            "private_credentials_removed": true
+          },
+          {
+            "attempt_id": "ccf6c514836d4057a06feaee7dc43734",
+            "terminal": "failed",
+            "phase": "candidate_exports",
+            "error_code": "S6_GRAPH_REFRESH_COMMAND_FAILED",
+            "dispatch_count": 11,
+            "max_dispatches": 50,
+            "rejected_dispatch_count": 0,
+            "elapsed_seconds": 352.031826,
+            "guard_failure_code": "REHEARSAL_REDIRECT_BLOCKED",
+            "business_outcome": "partial",
+            "business_error_code": "PROVIDER_RESPONSE_BODY_TRUNCATED",
+            "business_phase": "quote",
+            "valuation_requested": 5585,
+            "valuation_succeeded": 5573,
+            "valuation_failed": 12,
+            "quote_requested": 5585,
+            "private_credentials_removed": true,
+            "isolated_postgres_and_redis_stopped": true
+          }
+        ],
+        "old_unused_build_cache_reclamation": {
+          "minimum_age_hours": 168,
+          "before_free_bytes": 21145796608,
+          "after_free_bytes": 26449178624,
+          "containers_images_mounts_running_states_unchanged": true,
+          "production_data_unchanged": true
+        },
+        "live_zero_count_compatibility_returned_rows": [
+          46,
+          2319,
+          2905,
+          356,
+          5573
+        ],
+        "redirect_origin": "Unknown; hashed host/path alone do not bind the POST 307 to stock_basic, quote or retry. Do not substitute old provider configuration.",
+        "observer_stream_issue": "Offline memory-only real requests/urllib3 response reproduces raw-stream exhaustion followed by formal provider capture BODY_TRUNCATED; positive regression and minimum observer fix in preparation. Length/encoding/redirect guards remain.",
+        "owner_authorization_carried_forward": "Prior Owner side-chat authorized necessary blocker candidates only within the existing cumulative scope and ceilings; no repeated candidate-only rebind is required.",
+        "market_charged_before_attempts": 78,
+        "market_actual_additional_dispatches": 11,
+        "market_cumulative_charged": 89,
+        "market_original_ceiling": 200,
+        "market_remaining": 111,
+        "financial_used": 0,
+        "financial_existing_ceiling": 22296,
+        "financial_existing_universe_ceiling": 5573,
+        "scope_growth": {
+          "observed_target_requested_count": 5585,
+          "pre_refresh_readonly_target_count": 5573,
+          "difference": 12,
+          "not_target_date_exclusions": true,
+          "member_identity_and_persisted_scope_read_pending": true,
+          "proposed_financial_physical_ceiling_if_scope_confirmed": 22344,
+          "proposed_only_not_authorized": true,
+          "new_provider_attempts_stopped_pending_scope_resolution": true
+        },
+        "production_e1_used": 0,
+        "production_e1_separate_ceiling": 2,
+        "full_s6_started": false,
+        "owner_password_transferred": false,
+        "production_changed": false,
+        "data02_exit_met": false,
+        "data03_started": false,
+        "originals": [
+          {
+            "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/zero-candidate-all-ci-verified.receipt.json",
+            "sha256": "835fe2e539696107668028a455ac8698c2b0f5d35a45b54c71e32bffe18041fc"
+          },
+          {
+            "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/native-zero-official-publication-download.receipt.json",
+            "sha256": "baa81f60c1e67206e6077489de092e281ec905b11397e371bfed86044d7364dd"
+          },
+          {
+            "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/native-zero-phased-result.receipt.json",
+            "sha256": "2fb0f4bdeca7d4a048b350204323c8a96e78b11ac3171b33f99e073268ef1040"
+          },
+          {
+            "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/native-zero-prebuild-data-verification.receipt.json",
+            "sha256": "ab6f466b53b87e0e0af71de3022edf329bc9851a621095cd1cb40dc112d16fd3"
+          },
+          {
+            "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/s6-zero-state.json",
+            "sha256": "8e56a4868a177ed6e1676e4aae8a01fc76e835d0e3d3103869a30ca289000918"
+          },
+          {
+            "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/s6-zero-prepare-failure-originals.sha256.json",
+            "sha256": "48c02d21be30f3e79c318d1a60ca898f325602c14e6fb3e54de65eccc566930e"
+          },
+          {
+            "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/s6-zero-preflight-secure-retirement.receipt.json",
+            "sha256": "11611282591c0bd3db9d38354527f5fa62b86f86d3a7bc616e152b9688a728bf"
+          },
+          {
+            "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/s6-zero-old-build-cache-reclamation.receipt.json",
+            "sha256": "a60844399d7aca132d5835b174105d577ea268e8f1dd71c4bb9bbbc624c98acc"
+          },
+          {
+            "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/s6-zero-r2-state.json",
+            "sha256": "770c1896579029aa3cde9b0bcb6640baeef87f824f7349b71fa2b46a0fa2c4bf"
+          },
+          {
+            "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/s6-zero-r2-prepare-failure-originals.sha256.json",
+            "sha256": "21848aaa252a646afbeb47165ebafc56d005ccbcef1d6606cbd19da977bc50bb"
+          },
+          {
+            "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/s6-zero-r2-failed-prepare-secure-stop.receipt.json",
+            "sha256": "e838f7fcfa7fb20f9692cba053cce47e693b25d473ac77803a3ab3aa5a784655"
+          }
+        ]
+      },
+      "observer_stream_correction": {
+        "runtime_parent_sha": "5394fae874359a3fab3f9acc30ec3eda131cca7a",
+        "production_modules": [
+          "apps/data_center/infrastructure/rehearsal_http_capture.py"
+        ],
+        "policy": "Only identity or absent content encoding restores a raw stream from the same bounded observed bytes, with unchanged headers/status/request method; length, encoding, redirect, body, time and dispatch gates unchanged. Financial iter_content and normal JSON retain the original cached bytes. No provider call added.",
+        "positive_expected_red": {
+          "path": ".tmp/data02-current-20261115/20261116/s6-observer-stream-proposal/red-expected-success.log",
+          "exit_code": 1,
+          "error_code": "PROVIDER_RESPONSE_BODY_TRUNCATED"
+        },
+        "local_focused_tests": {
+          "tests": 127,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        "incremental_mypy_regressions": 0,
+        "full_mypy_debt_errors": 0,
+        "independent_offline_review": "No blocking findings; no repeated tests or provider operations.",
+        "development_checks": [
+          {
+            "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/observer-stream-fix-black.receipt.json",
+            "sha256": "e47d991bdbdc46a13a7699d595819656342c15a637756d681797ae180a3eab36",
+            "exit_code": 0
+          },
+          {
+            "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/observer-stream-fix-isort.receipt.json",
+            "sha256": "5ba77510bda1d3510768ca83b3c50e8379ef15f015843eae6052c94854353995",
+            "exit_code": 0
+          },
+          {
+            "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/observer-stream-fix-ruff.receipt.json",
+            "sha256": "5fb65c3797a97fb0a6b7f923d4b1954fcac700c13472a7e768701e3c008db928",
+            "exit_code": 0
+          },
+          {
+            "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/observer-stream-fix-tests.receipt.json",
+            "sha256": "fa6e6653e21208076fb94d60cc27c85bbafa939902ecdc87f9bdb9563c1f140f",
+            "exit_code": 0
+          },
+          {
+            "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/observer-stream-fix-mypy.receipt.json",
+            "sha256": "e260b28ef5c5a5e6de3cb2eb17d94730e0eb0be6b433d1be63449e5c0bcc5c34",
+            "exit_code": 0
+          },
+          {
+            "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/observer-stream-fix-debt.receipt.json",
+            "sha256": "2ab5dab1e443bc64e159591ed6341b2e1f3b1288882d24ab61d3b0bbdc60bf3f",
+            "exit_code": 0
+          },
+          {
+            "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/observer-stream-fix-current-contracts.receipt.json",
+            "sha256": "a2b5c4c38ec5ed5315c6eed63cd196cc89b1fc05a33a0580379d49467f812ecb",
+            "exit_code": 0
+          },
+          {
+            "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/observer-stream-fix-architecture-projection.receipt.json",
+            "sha256": "5b5da693fa7e20ad702100270b1dd5381e3aa1ca65c2f08d390303ec4b701a21",
+            "exit_code": 0
+          },
+          {
+            "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/observer-stream-fix-module-map.receipt.json",
+            "sha256": "c93a8a75d3c3d0876b6c0432064b4def7b27c787c77ba22b27cf33533f120fd0",
+            "exit_code": 0
+          },
+          {
+            "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/observer-stream-fix-entrypoint-generation.receipt.json",
+            "sha256": "530e6c9b6cec91ec1bdd99ba8443a303fad13cb282e542c02cf83fdf943ae012",
+            "exit_code": 0
+          },
+          {
+            "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/observer-stream-fix-active-registry.receipt.json",
+            "sha256": "314c9e544a972a00840f25bca88bf3a11f38fbcf2b0eef223eb8bcaa6774160a",
+            "exit_code": 0
+          }
+        ],
+        "scope_resolution_separate": true,
+        "market_charged": 89,
+        "market_original_ceiling": 200,
+        "financial_used": 0,
+        "financial_existing_ceiling": 22296,
+        "universe_existing_ceiling": 5573,
+        "production_e1_used": 0,
+        "production_e1_ceiling": 2,
+        "new_scope_or_financial_ceiling_not_authorized": true,
+        "same_sha_ci_native_build_binding_and_full_s6_still_required": true,
+        "production_changed": false,
+        "data02_exit_met": false,
+        "data03_started": false
       }
     }
   ],

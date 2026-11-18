@@ -10,12 +10,14 @@ from contextlib import contextmanager
 from contextvars import ContextVar, Token
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
+from io import BytesIO
 from threading import RLock
 from types import TracebackType
 from typing import Any, cast
 from urllib.parse import urlsplit
 
 import requests
+from urllib3.response import HTTPResponse
 
 from core.exceptions import DataFetchError
 
@@ -198,6 +200,20 @@ class RehearsalHttpCapture:
                 # requests normally exposes this same decoded body to provider parsers.
                 response._content = bytes(body)
                 cast(Any, response)._content_consumed = True  # requests' private buffering boundary
+                if response.headers.get("Content-Encoding", "").strip().casefold() in {
+                    "",
+                    "identity",
+                }:
+                    # Exact-byte readers still need a raw stream after observation.
+                    # Keep the original headers so length checks remain independent.
+                    response.raw = HTTPResponse(
+                        body=BytesIO(bytes(body)),
+                        headers=response.headers,
+                        status=response.status_code,
+                        preload_content=False,
+                        decode_content=False,
+                        request_method=request.method,
+                    )
                 finished_at = datetime.now(UTC).isoformat()
                 context = self._response_context.get()
                 if response.status_code == 200 and context is not None:

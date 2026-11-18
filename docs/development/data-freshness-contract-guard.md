@@ -493,6 +493,8 @@ Tushare `daily` 的源字段 `vol` 为手、`amount` 为千元。行情快照和
 2026-11-18 Owner 要求在本层兼容代理异常并继续支持正常 Tushare；接受唯一零值哨兵例外：原始 `count` 必须仍为非负的精确整数，仅当 `count=0`、原始 `items` 非空且响应明确给出 `has_more=false` 时，将该数量元数据视为未提供。客户端记录 `TUSHARE_COUNT_UNSPECIFIED` 与实际返回行数，原件及原始 count 不改写，返回行数不等于完整范围证明。无 count、正确计数的正常 Tushare 行为不变；正数不符、坏类型/负数、零值但缺少明确 false、分页、未知字段、坏行形、日期/单位/唯一性/覆盖率缺口仍阻断。线上解析、精确数值读取、原件验证及重放使用同一政策；独立的全 universe 和 Publication 门继续决定完整性。S6 失败另输出失败请求的 method、host 哈希、path 哈希、状态码和稳定错误码；不公开 URL、query、正文或凭证，也不放宽重定向限制。
 
 
+S6 HTTP 观察器消费响应后，须为 identity 编码响应恢复由同一已观测 bytes 构成的 raw stream，并保留原始 headers，使后续精确 provider 捕获读取完整原件。不得通过删改 Content-Length、接受压缩响应、跳过截断或重定向检查来消除观察器导致的二次读取失败；财报的 iter_content 路径和普通 JSON 读取须保持原样字节。该流恢复只在有界预演进程生效，不新增 HTTP dispatch 或提供数据完整性资格。
+
 全市场行情快照必须按 `trade_date` 批量读取 Tushare `daily` 截面，并在有限的最近自然日窗口内寻找每只请求资产的最近完整交易日。禁止按股票逐只调用 `daily`，否则全市场任务会把一次发布放大为数千次外部请求并耗尽时限或配额。候选响应回执相应绑定 `full_market_trade_date` 范围；授权错误必须向任务层传播并形成可见阻断，不能被空列表掩盖。
 
 2026-09-28 全市场快照只按任务/目标交易日预取一次：Application 冻结 provider identity、目标日期、规范化响应行 hash、真实可用的响应 body SHA-256/完成时间和完整 universe hash，再由每个事实写入批次读取该对象中的精确子集。该快照不得进入全局或跨任务缓存；下一任务必须重新向 provider 读取。响应 identity、日期、来源时间不完整或 provider 失败时，不得写 quote fact；不得把部分返回解释成停牌或缩小 current Publication 分母。

@@ -1,19 +1,166 @@
 """Exercise the rehearsal observer against a real loopback HTTP server, not provider evidence."""
 
+import gzip
 import hashlib
 import json
+from collections.abc import Callable
 from datetime import UTC, datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from io import BytesIO
 from threading import Thread
+from typing import Any
 from zoneinfo import ZoneInfo
 
 import pytest
 import requests
+from urllib3.response import HTTPResponse
 
+from apps.data_center.domain.financial_response_evidence import (
+    FinancialRequestScope,
+    FinancialResponseScope,
+)
+from apps.data_center.domain.provider_response import ProviderResponseTransport
+from apps.data_center.infrastructure.financial_response_capture import (
+    FinancialResponseCaptureError,
+    capture_financial_response,
+)
+from apps.data_center.infrastructure.provider_response_capture import (
+    ProviderResponseCaptureError,
+    capture_provider_response_body,
+)
 from apps.data_center.infrastructure.rehearsal_http_capture import RehearsalHttpCapture
 from core.exceptions import DataFetchError
 
 BODY = b'{"data":[12.5,30.2]}'
+
+
+def _stream_response(
+    body: bytes = BODY,
+    *,
+    content_encoding: str | None = None,
+    declared_size: int | None = None,
+) -> requests.Response:
+    response = requests.Response()
+    response.status_code = 200
+    response.headers["Content-Type"] = "application/json"
+    response.headers["Content-Length"] = str(len(body) if declared_size is None else declared_size)
+    if content_encoding is not None:
+        response.headers["Content-Encoding"] = content_encoding
+    response.raw = HTTPResponse(
+        body=BytesIO(body),
+        headers=response.headers,
+        status=200,
+        preload_content=False,
+        decode_content=False,
+    )
+    return response
+
+
+def _observe_memory_response(
+    monkeypatch: pytest.MonkeyPatch,
+    response_factory: Callable[[], requests.Response] = _stream_response,
+) -> requests.Response:
+    def memory_send(
+        session: requests.Session, request: requests.PreparedRequest, **kwargs: Any
+    ) -> requests.Response:
+        del session, kwargs
+        response = response_factory()
+        response.request = request
+        return response
+
+    monkeypatch.setattr(requests.Session, "send", memory_send)
+    with RehearsalHttpCapture(max_dispatches=1, max_seconds=5.0) as capture:
+        response = requests.get("https://provider.invalid/exact-body", timeout=1.0)
+    assert capture.dispatches == 1
+    assert capture.guard_failure_code is None
+    assert capture.receipts[0].body_sha256 == hashlib.sha256(BODY).hexdigest()
+    return response
+
+
+@pytest.mark.parametrize("content_encoding", [None, "identity"])
+def test_observed_identity_body_remains_readable_by_exact_provider_capture(
+    monkeypatch: pytest.MonkeyPatch, content_encoding: str | None
+) -> None:
+    response = _observe_memory_response(
+        monkeypatch, lambda: _stream_response(content_encoding=content_encoding)
+    )
+    captured = capture_provider_response_body(
+        response, transport=ProviderResponseTransport.EGRESS, max_bytes=1024
+    )
+    assert captured.body == BODY
+    assert captured.body_sha256 == hashlib.sha256(BODY).hexdigest()
+    assert response.headers["Content-Length"] == str(len(BODY))
+    assert response.json() == {"data": [12.5, 30.2]}
+
+
+def test_observed_identity_body_keeps_financial_reader_bytes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    response = _observe_memory_response(monkeypatch)
+    captured = capture_financial_response(
+        response,
+        request_scope=FinancialRequestScope(
+            provider_name="AKShare",
+            dataset_key="test.dataset",
+            asset_code="000001.SZ",
+            period_limit=1,
+        ),
+        response_scope=FinancialResponseScope(
+            asset_codes=("000001.SZ",), period_ends=(), row_count=1
+        ),
+        decode=lambda body: body,
+        clock=lambda: datetime(2026, 11, 18, tzinfo=UTC),
+    )
+    assert captured.raw_body == BODY
+    assert captured.evidence.body_sha256 == hashlib.sha256(BODY).hexdigest()
+
+
+def test_observed_gzip_still_fails_both_exact_capture_readers(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    response = _observe_memory_response(
+        monkeypatch, lambda: _stream_response(gzip.compress(BODY), content_encoding="gzip")
+    )
+    with pytest.raises(ProviderResponseCaptureError) as provider_error:
+        capture_provider_response_body(
+            response, transport=ProviderResponseTransport.EGRESS, max_bytes=1024
+        )
+    assert provider_error.value.code == "PROVIDER_RESPONSE_ENCODING_UNSUPPORTED"
+    with pytest.raises(FinancialResponseCaptureError) as financial_error:
+        capture_financial_response(
+            response,
+            request_scope=FinancialRequestScope(
+                provider_name="AKShare",
+                dataset_key="test.dataset",
+                asset_code="000001.SZ",
+                period_limit=1,
+            ),
+            response_scope=FinancialResponseScope(
+                asset_codes=("000001.SZ",), period_ends=(), row_count=1
+            ),
+            decode=lambda body: body,
+        )
+    assert financial_error.value.code == "FINANCIAL_RESPONSE_ENCODING_UNSUPPORTED"
+
+
+def test_observer_rejects_a_real_short_body_before_replaying_it(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def memory_send(
+        session: requests.Session, request: requests.PreparedRequest, **kwargs: Any
+    ) -> requests.Response:
+        del session, kwargs
+        response = _stream_response(BODY[:-3], declared_size=len(BODY))
+        response.request = request
+        return response
+
+    monkeypatch.setattr(requests.Session, "send", memory_send)
+    with RehearsalHttpCapture(max_dispatches=1, max_seconds=5.0) as capture:
+        with pytest.raises(requests.exceptions.ChunkedEncodingError):
+            requests.get("https://provider.invalid/short-body", timeout=1.0)
+    assert capture.dispatches == 1
+    assert capture.receipts[0].error_code == "REHEARSAL_HTTP_FAILED"
+    assert capture.receipts[0].body_sha256 == ""
 
 
 @pytest.fixture
