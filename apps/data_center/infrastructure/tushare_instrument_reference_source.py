@@ -490,7 +490,14 @@ def _parse_stock_basic_rows(
         )
     if "count" in data:
         count = data["count"]
-        if type(count) is not int or count < 0 or count != len(items):
+        if type(count) is not int or count < 0:
+            raise InstrumentReferenceSourceError(
+                "stock_basic count does not match returned items",
+                code="INSTRUMENT_REFERENCE_RESPONSE_SCHEMA_INVALID",
+            )
+        if count != len(items) and not (
+            count == 0 and bool(items) and data.get("has_more") is False
+        ):
             raise InstrumentReferenceSourceError(
                 "stock_basic count does not match returned items",
                 code="INSTRUMENT_REFERENCE_RESPONSE_SCHEMA_INVALID",

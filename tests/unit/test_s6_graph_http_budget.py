@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import threading
 import time
@@ -509,3 +510,18 @@ def test_failed_graph_reports_guard_code_without_transport_secrets(
     assert "rejected_dispatch_count=0" in output
     assert "guard_failure_code=REHEARSAL_REDIRECT_BLOCKED" in output
     assert "provider.invalid" not in output and "private" not in output
+    diagnostics = next(
+        (
+            line
+            for line in output.splitlines()
+            if line.startswith("S6_GRAPH_REFRESH_HTTP_FAILURES ")
+        ),
+        None,
+    )
+    assert diagnostics is not None
+    failures = json.loads(diagnostics.split(" ", 1)[1])
+    assert len(failures) == 1
+    assert failures[0]["host_sha256"] == hashlib.sha256(b"provider.invalid").hexdigest()
+    assert failures[0]["path_sha256"] == capture.receipts[0].path_sha256
+    assert failures[0]["status_code"] == 302
+    assert failures[0]["error_code"] == "REHEARSAL_REDIRECT_BLOCKED"

@@ -444,3 +444,57 @@ def test_reference_scope_rejects_wrong_provider_or_dataset() -> None:
 
     with pytest.raises(DataFetchError):
         validate_exact_price_limit_payload_reference(reference, scope=wrong_scope)
+
+
+# Append to tests/unit/data_center/test_price_limit_response_capture.py.
+
+
+@pytest.mark.parametrize("extra_data", [None, {"count": 1}])
+def test_extractor_accepts_missing_or_matching_provider_count(
+    extra_data: Mapping[str, object] | None,
+) -> None:
+    """An absent count or an exact matching count leaves strict extraction intact."""
+    values = extract_exact_tushare_price_limit_values(
+        _payload(extra_data=extra_data),
+        scope=_scope(),
+    )
+    assert values == ExactPriceLimitValues(
+        lower_limit_price=Decimal("9.50"),
+        upper_limit_price=Decimal("12.50"),
+    )
+
+
+def test_extractor_accepts_zero_count_only_as_explicit_no_more_metadata() -> None:
+    """A zero sentinel is tolerated without rewriting the original source envelope."""
+    extra_data = {"count": 0, "has_more": False}
+    payload = _payload(extra_data=extra_data)
+    before = canonical_provider_response_json(payload)
+
+    values = extract_exact_tushare_price_limit_values(payload, scope=_scope())
+
+    assert values == ExactPriceLimitValues(
+        lower_limit_price=Decimal("9.50"),
+        upper_limit_price=Decimal("12.50"),
+    )
+    assert canonical_provider_response_json(payload) == before
+    assert '"count":0' in before
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        _payload(has_more=None, extra_data={"count": 0}),
+        _payload(has_more=True, extra_data={"count": 0}),
+        _payload(extra_data={"count": True}),
+        _payload(extra_data={"count": 1.0}),
+        _payload(extra_data={"count": "1"}),
+        _payload(extra_data={"count": None}),
+        _payload(extra_data={"count": -1}),
+        _payload(extra_data={"count": 2}),
+    ],
+)
+def test_extractor_rejects_other_count_mismatches_or_types(payload: object) -> None:
+    """Only the explicit zero sentinel exception is accepted."""
+    with pytest.raises(DataFetchError) as error:
+        extract_exact_tushare_price_limit_values(payload, scope=_scope())
+    assert error.value.code == "PRICE_EXACT_LIMIT_RESPONSE_INVALID"

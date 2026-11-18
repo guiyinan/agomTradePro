@@ -6,6 +6,7 @@ relay.  The shared package no longer owns financial-provider transport.
 
 from __future__ import annotations
 
+import logging
 import os
 import re
 from collections.abc import Iterator, Mapping
@@ -332,10 +333,15 @@ def _validated_provider_table(
         if type(count) is not int or count < 0:
             raise TushareError("Tushare table count is invalid", code="TUSHARE_INVALID_PAYLOAD")
         if count != len(items):
-            raise TushareError(
-                "Tushare table count does not match rows",
-                code="MODEL_MARKET_INCOMPLETE_RESULT",
-            )
+            if count == 0 and len(items) > 0 and "has_more" in data and data["has_more"] is False:
+                logging.getLogger(__name__).warning(
+                    "TUSHARE_COUNT_UNSPECIFIED returned_rows=%d", len(items)
+                )
+            else:
+                raise TushareError(
+                    "Tushare table count does not match rows",
+                    code="MODEL_MARKET_INCOMPLETE_RESULT",
+                )
     if not all(isinstance(row, list) and len(row) == len(columns) for row in items):
         raise TushareError("Tushare table row shape is invalid", code="TUSHARE_INVALID_PAYLOAD")
     if (

@@ -560,3 +560,60 @@ def test_exact_price_count_does_not_weaken_other_envelope_rules(
             request_scope=_scope(),
         )
     assert error.value.code == "PRICE_EXACT_DAILY_CAPTURE_BODY_INVALID"
+
+
+# Append to tests/unit/data_center/test_tushare_exact_price_capture.py.
+
+
+@pytest.mark.parametrize("extra_data", [None, {"count": 1}])
+def test_exact_price_values_accept_missing_or_matching_provider_count(
+    extra_data: dict[str, object] | None,
+) -> None:
+    """An absent count or an exact matching count leaves normal extraction intact."""
+    values = extract_exact_tushare_price_values(
+        _exact_payload([_row()], extra_data=extra_data),
+        request_scope=_scope(),
+    )
+    assert values.close == Decimal("12.5")
+    assert values.volume == Decimal("25000")
+    assert values.amount == Decimal("123450.00")
+
+
+def test_exact_price_values_accepts_zero_count_only_as_explicit_no_more_metadata() -> None:
+    """A zero sentinel is tolerated without rewriting the original source envelope."""
+    extra_data = {"count": 0, "has_more": False}
+    payload = _exact_payload([_row()], extra_data=extra_data)
+    before = canonical_provider_response_json(payload)
+
+    values = extract_exact_tushare_price_values(payload, request_scope=_scope())
+
+    assert values.close == Decimal("12.5")
+    assert values.volume == Decimal("25000")
+    assert values.amount == Decimal("123450.00")
+    assert canonical_provider_response_json(payload) == before
+    assert '"count":0' in before
+
+
+@pytest.mark.parametrize(
+    "extra_data",
+    [
+        {"count": 0},
+        {"count": 0, "has_more": True},
+        {"count": True, "has_more": False},
+        {"count": 1.0, "has_more": False},
+        {"count": "1", "has_more": False},
+        {"count": None, "has_more": False},
+        {"count": -1, "has_more": False},
+        {"count": 2, "has_more": False},
+    ],
+)
+def test_exact_price_values_rejects_other_count_mismatches_or_types(
+    extra_data: dict[str, object],
+) -> None:
+    """Only the explicit zero sentinel exception is accepted."""
+    with pytest.raises(DataFetchError) as error:
+        extract_exact_tushare_price_values(
+            _exact_payload([_row()], extra_data=extra_data),
+            request_scope=_scope(),
+        )
+    assert error.value.code == "PRICE_EXACT_DAILY_CAPTURE_BODY_INVALID"

@@ -202,7 +202,14 @@ def _exact_price_limit_row(
             and (
                 type(count_value) is not int
                 or count_value < 0
-                or count_value != len(cast(list[object], items_value))
+                or (
+                    count_value != len(cast(list[object], items_value))
+                    and not (
+                        count_value == 0
+                        and len(cast(list[object], items_value)) > 0
+                        and data.get("has_more") is False
+                    )
+                )
             )
         )
         or len(items_value) != 1

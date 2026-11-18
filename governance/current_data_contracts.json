@@ -3305,7 +3305,7 @@
     },
     {
       "id": "data_center.tushare_full_market_empty_response",
-      "surface": "Tushare table metadata preserves full-session daily/daily_basic completeness and exact retained-source binding; optional count must be a nonnegative exact integer matching all raw items before normalization; requested quote identities cannot be silently deduplicated",
+      "surface": "Tushare tables preserve raw-body and complete-session scope binding; optional count stays a strict nonnegative integer, with nonempty zero plus explicit has_more false treated as unavailable metadata; positive mismatches remain blocked",
       "source_files": [
         "apps/data_center/infrastructure/tushare_client.py",
         "apps/data_center/infrastructure/gateways/tushare_gateway.py",
@@ -3325,7 +3325,9 @@
           "MODEL_MARKET_INCOMPLETE_RESULT",
           "if \"count\" in data:",
           "type(count) is not int or count < 0",
-          "count != len(items)"
+          "count != len(items)",
+          "TUSHARE_COUNT_UNSPECIFIED",
+          "\"has_more\" in data"
         ],
         "apps/data_center/infrastructure/gateways/tushare_gateway.py": [
           "目标交易日的行情数据尚未可用",
@@ -3341,7 +3343,8 @@
           "TUSHARE_DATA_NOT_YET_AVAILABLE",
           "def persist_response(",
           "if \"count\" in data:",
-          "count != len(raw_items)"
+          "count != len(raw_items)",
+          "data.get(\"has_more\") is False"
         ],
         "apps/data_center/infrastructure/provider_registry.py": [
           "returned no data for",
@@ -3349,15 +3352,18 @@
         ],
         "apps/data_center/application/price_response_capture.py": [
           "count_value = data.get(\"count\")",
-          "type(count_value) is not int"
+          "type(count_value) is not int",
+          "data.get(\"has_more\") is False"
         ],
         "apps/data_center/application/price_limit_response_capture.py": [
           "count_value = data.get(\"count\")",
-          "type(count_value) is not int"
+          "type(count_value) is not int",
+          "data.get(\"has_more\") is False"
         ],
         "apps/data_center/infrastructure/tushare_instrument_reference_source.py": [
           "if \"count\" in data:",
-          "count != len(items)"
+          "count != len(items)",
+          "data.get(\"has_more\") is False"
         ]
       },
       "required_tests": [
@@ -3465,6 +3471,41 @@
           "case": "optional_stock_basic_count_is_exact_and_matches_items",
           "test_file": "tests/unit/data_center/test_tushare_instrument_reference_source.py",
           "test_function": "test_optional_stock_basic_count_is_exact_and_matches_items"
+        },
+        {
+          "case": "stock_basic_accepts_zero_count_only_with_explicit_complete_marker",
+          "test_file": "tests/unit/data_center/test_egress_tushare_transport.py",
+          "test_function": "test_stock_basic_accepts_zero_count_only_with_explicit_complete_marker"
+        },
+        {
+          "case": "stock_basic_rejects_zero_count_without_explicit_complete_marker",
+          "test_file": "tests/unit/data_center/test_egress_tushare_transport.py",
+          "test_function": "test_stock_basic_rejects_zero_count_without_explicit_complete_marker"
+        },
+        {
+          "case": "exact_price_values_accepts_zero_count_only_as_explicit_no_more_metadata",
+          "test_file": "tests/unit/data_center/test_tushare_exact_price_capture.py",
+          "test_function": "test_exact_price_values_accepts_zero_count_only_as_explicit_no_more_metadata"
+        },
+        {
+          "case": "exact_price_values_rejects_other_count_mismatches_or_types",
+          "test_file": "tests/unit/data_center/test_tushare_exact_price_capture.py",
+          "test_function": "test_exact_price_values_rejects_other_count_mismatches_or_types"
+        },
+        {
+          "case": "extractor_accepts_zero_count_only_as_explicit_no_more_metadata",
+          "test_file": "tests/unit/data_center/test_price_limit_response_capture.py",
+          "test_function": "test_extractor_accepts_zero_count_only_as_explicit_no_more_metadata"
+        },
+        {
+          "case": "extractor_rejects_other_count_mismatches_or_types",
+          "test_file": "tests/unit/data_center/test_price_limit_response_capture.py",
+          "test_function": "test_extractor_rejects_other_count_mismatches_or_types"
+        },
+        {
+          "case": "zero_count_sentinel_requires_explicit_has_more_false",
+          "test_file": "tests/unit/data_center/test_rehearsal_response_store.py",
+          "test_function": "test_zero_count_sentinel_requires_explicit_has_more_false"
         }
       ]
     },

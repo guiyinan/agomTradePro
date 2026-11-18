@@ -393,7 +393,14 @@ def _exact_price_row_from_payload(
             and (
                 type(count_value) is not int
                 or count_value < 0
-                or count_value != len(cast(list[object], rows))
+                or (
+                    count_value != len(cast(list[object], rows))
+                    and not (
+                        count_value == 0
+                        and len(cast(list[object], rows)) > 0
+                        and data.get("has_more") is False
+                    )
+                )
             )
         )
         or len(rows) != 1

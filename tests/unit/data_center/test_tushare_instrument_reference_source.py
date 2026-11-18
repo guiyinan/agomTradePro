@@ -119,6 +119,7 @@ class CapturedStockBasicClient:
         request_params_override: dict[str, object] | None = None,
         missing_reference: bool = False,
         response_count: object = _COUNT_NOT_SUPPLIED,
+        response_has_more: object = _COUNT_NOT_SUPPLIED,
     ) -> None:
         self.payload_repository = payload_repository
         self.rows = rows
@@ -126,6 +127,7 @@ class CapturedStockBasicClient:
         self.request_params_override = request_params_override
         self.missing_reference = missing_reference
         self.response_count = response_count
+        self.response_has_more = response_has_more
         self.calls: list[dict[str, object]] = []
 
     def stock_basic(self, *, exchange: str, list_status: str, fields: str) -> CapturedFrame:
@@ -149,6 +151,8 @@ class CapturedStockBasicClient:
         }
         if self.response_count is not _COUNT_NOT_SUPPLIED:
             response_data["count"] = self.response_count
+        if self.response_has_more is not _COUNT_NOT_SUPPLIED:
+            response_data["has_more"] = self.response_has_more
         body = json.dumps(
             {"code": 0, "msg": None, "data": response_data},
             ensure_ascii=False,
@@ -224,6 +228,7 @@ def _build_source(
     missing_reference: bool = False,
     contract: InstrumentReferenceProviderContract | None = None,
     response_count: object = _COUNT_NOT_SUPPLIED,
+    response_has_more: object = _COUNT_NOT_SUPPLIED,
 ) -> tuple[
     TushareInstrumentReferenceSource,
     CapturedStockBasicClient,
@@ -238,6 +243,7 @@ def _build_source(
         request_params_override=request_params_override,
         missing_reference=missing_reference,
         response_count=response_count,
+        response_has_more=response_has_more,
     )
     audit_repository = InMemoryRawAuditRepository()
     writer = DjangoInstrumentReferenceRawAuditOccurrenceWriter(audit_repository)
@@ -487,24 +493,28 @@ def test_actual_recorder_rejects_wrong_default_alias_and_missing_exact_row() -> 
 
 
 @pytest.mark.parametrize(
-    ("count", "error_code"),
+    ("count", "has_more", "error_code"),
     [
-        (_COUNT_NOT_SUPPLIED, None),
-        (1, None),
-        (True, "INSTRUMENT_REFERENCE_RESPONSE_SCHEMA_INVALID"),
-        (1.0, "INSTRUMENT_REFERENCE_RESPONSE_SCHEMA_INVALID"),
-        ("1", "INSTRUMENT_REFERENCE_RESPONSE_SCHEMA_INVALID"),
-        (None, "INSTRUMENT_REFERENCE_RESPONSE_SCHEMA_INVALID"),
-        (-1, "INSTRUMENT_REFERENCE_RESPONSE_SCHEMA_INVALID"),
-        (0, "INSTRUMENT_REFERENCE_RESPONSE_SCHEMA_INVALID"),
-        (2, "INSTRUMENT_REFERENCE_RESPONSE_SCHEMA_INVALID"),
+        (_COUNT_NOT_SUPPLIED, _COUNT_NOT_SUPPLIED, None),
+        (1, _COUNT_NOT_SUPPLIED, None),
+        (0, False, None),
+        (0, _COUNT_NOT_SUPPLIED, "INSTRUMENT_REFERENCE_RESPONSE_SCHEMA_INVALID"),
+        (0, True, "INSTRUMENT_REFERENCE_RESPONSE_SCHEMA_INVALID"),
+        (True, _COUNT_NOT_SUPPLIED, "INSTRUMENT_REFERENCE_RESPONSE_SCHEMA_INVALID"),
+        (1.0, _COUNT_NOT_SUPPLIED, "INSTRUMENT_REFERENCE_RESPONSE_SCHEMA_INVALID"),
+        ("1", _COUNT_NOT_SUPPLIED, "INSTRUMENT_REFERENCE_RESPONSE_SCHEMA_INVALID"),
+        (None, _COUNT_NOT_SUPPLIED, "INSTRUMENT_REFERENCE_RESPONSE_SCHEMA_INVALID"),
+        (-1, _COUNT_NOT_SUPPLIED, "INSTRUMENT_REFERENCE_RESPONSE_SCHEMA_INVALID"),
+        (2, False, "INSTRUMENT_REFERENCE_RESPONSE_SCHEMA_INVALID"),
     ],
 )
 def test_optional_stock_basic_count_is_exact_and_matches_items(
-    count: object, error_code: str | None
+    count: object, has_more: object, error_code: str | None
 ) -> None:
-    """Accept absent or exact count while preserving the source's schema error code."""
-    source, _client, _payloads, _audits = _build_source(response_count=count)
+    """Accept absent, matching, or explicit zero-sentinel counts with original error codes."""
+    source, _client, _payloads, _audits = _build_source(
+        response_count=count, response_has_more=has_more
+    )
 
     if error_code is None:
         candidate = source.fetch_candidate(run_id=_RUN_ID, ingested_run_id=_INGESTED_RUN_ID)

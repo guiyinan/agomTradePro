@@ -625,6 +625,47 @@ def test_stock_basic_accepts_exact_count_and_legacy_no_count(
 
 
 @pytest.mark.parametrize("mode", ["sdk_path", "rest_path", "unified_relay"])
+def test_stock_basic_accepts_zero_count_only_with_explicit_complete_marker(
+    monkeypatch: pytest.MonkeyPatch, mode: str, caplog: pytest.LogCaptureFixture
+) -> None:
+    data: dict[str, object] = {
+        "fields": ["ts_code", "name"],
+        "items": [["600000.SH", "Ping An"]],
+        "count": 0,
+        "has_more": False,
+    }
+    caplog.set_level("WARNING", logger="apps.data_center.infrastructure.tushare_client")
+    result = _count_envelope_client(monkeypatch, mode, data).stock_basic(
+        exchange="SSE", list_status="L"
+    )
+    assert result.iloc[0]["ts_code"] == "600000.SH"
+    assert data["count"] == 0
+    assert caplog.text.count("TUSHARE_COUNT_UNSPECIFIED returned_rows=1") == 1
+    assert "Ping An" not in caplog.text
+    assert "test-token" not in caplog.text
+
+
+@pytest.mark.parametrize("mode", ["sdk_path", "rest_path", "unified_relay"])
+@pytest.mark.parametrize(("include_has_more", "has_more"), [(False, False), (True, True)])
+def test_stock_basic_rejects_zero_count_without_explicit_complete_marker(
+    monkeypatch: pytest.MonkeyPatch,
+    mode: str,
+    include_has_more: bool,
+    has_more: bool,
+) -> None:
+    data: dict[str, object] = {
+        "fields": ["ts_code"],
+        "items": [["600000.SH"]],
+        "count": 0,
+    }
+    if include_has_more:
+        data["has_more"] = has_more
+    with pytest.raises(TushareError) as caught:
+        _count_envelope_client(monkeypatch, mode, data).stock_basic(exchange="SSE", list_status="L")
+    assert caught.value.code == "MODEL_MARKET_INCOMPLETE_RESULT"
+
+
+@pytest.mark.parametrize("mode", ["sdk_path", "rest_path", "unified_relay"])
 @pytest.mark.parametrize("count", [True, False, 1.0, "1", None, -1])
 def test_stock_basic_rejects_invalid_count_types_and_negative(
     monkeypatch: pytest.MonkeyPatch, mode: str, count: object

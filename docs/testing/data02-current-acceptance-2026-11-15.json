@@ -5495,6 +5495,109 @@
         "production_deployed_or_written": false,
         "data02_exit_met": false,
         "data03_started": false
+      },
+      "zero_count_client_compatibility": {
+        "owner_instruction": "2026-11-18 user: upstream implementation not available; repair or tolerate metadata in our layer while supporting ordinary Tushare",
+        "upstream_source_access_is_not_a_required_precondition": true,
+        "policy": "Exact nonnegative integer count retained. Only zero with nonempty raw items and explicit has_more false is unavailable count metadata; no raw-body/count rewrite, no completeness claim. Positive mismatches and all other shape/date/unit/scope/pagination guards remain.",
+        "normal_tushare_supported": [
+          "absent optional count",
+          "exact matching count",
+          "sdk_path",
+          "rest_path",
+          "unified_relay"
+        ],
+        "live_warning": "TUSHARE_COUNT_UNSPECIFIED with actual returned row count only",
+        "all_consumers_updated": [
+          "tushare_client",
+          "rehearsal_response_store",
+          "tushare_instrument_reference_source",
+          "price_response_capture",
+          "price_limit_response_capture"
+        ],
+        "redirect_guard_unchanged": true,
+        "failure_diagnostics": "method, hashed host/path, status and stable code only; no URL/query/body/credentials",
+        "market_charged_before_new_candidate": 78,
+        "original_market_ceiling": 200,
+        "next_maximum_allocations": {
+          "graph": 50,
+          "probe": 35,
+          "capacity": 35
+        },
+        "cumulative_prospective_maximum": 198,
+        "financial_used": 0,
+        "financial_ceiling": 22296,
+        "production_e1_used": 0,
+        "production_e1_ceiling": 2,
+        "universe_ceiling": 5573,
+        "checks_pending": false,
+        "production_changed": false,
+        "data02_exit_met": false,
+        "data03_started": false,
+        "focused_tests_passed": 321,
+        "incremental_mypy_regressions": 0,
+        "full_mypy_debt_errors": 0,
+        "development_checks": [
+          {
+            "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/zero-count-compatibility-black.receipt.json",
+            "sha256": "18f1d66e1a66a41f1efb0f7560feb914ee907ef5ca134b7a6cac0226700ddeff",
+            "exit_code": 0
+          },
+          {
+            "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/zero-count-compatibility-isort.receipt.json",
+            "sha256": "26b7d29522c4ca8f357df2794a93623ac00f190c05c89c899f4a787d491ac5e4",
+            "exit_code": 0
+          },
+          {
+            "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/zero-count-compatibility-ruff.receipt.json",
+            "sha256": "970ca6dd8c5d927343ba56796b4d8416933cfc125f0b699c61ee0f55d24ea81a",
+            "exit_code": 0
+          },
+          {
+            "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/zero-count-compatibility-tests.receipt.json",
+            "sha256": "fa4a06e57423e6192cb5cf4f95d4a31072b1aecedc318d2e9778199e1f2e4e97",
+            "exit_code": 0
+          },
+          {
+            "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/zero-count-compatibility-mypy.receipt.json",
+            "sha256": "847b70e8105c4b2c81002a68bd2ab0e502cd481a32775ca8ec5765dce0f05abc",
+            "exit_code": 0
+          },
+          {
+            "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/zero-count-compatibility-debt.receipt.json",
+            "sha256": "7debb14529ce90b4ef1e6e9b1b7572b9a4f2c38ebc9b58d9faa7b1e29bd0b0f0",
+            "exit_code": 0
+          },
+          {
+            "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/zero-count-compatibility-current-contracts.receipt.json",
+            "sha256": "b6baceb641753e7ba0d1f81cf25008fca4cc3da85a8fab05c51dffb49f91d714",
+            "exit_code": 0
+          },
+          {
+            "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/zero-count-compatibility-architecture-projection.receipt.json",
+            "sha256": "ac857e4d0e274f7b9b7a79474afeedcf2fd11a3ab96330c38e557fe5f9a9b99d",
+            "exit_code": 0
+          },
+          {
+            "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/zero-count-compatibility-module-map.receipt.json",
+            "sha256": "4c16292f5261020b5c04b9f62d5a628dd868e63c7620be557d1f43ce8c7452fb",
+            "exit_code": 0
+          },
+          {
+            "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/zero-count-compatibility-entrypoint-generation.receipt.json",
+            "sha256": "558020e181ebae5811d924ebd47de60d3b4515a054846da8dcefde28ca9342f1",
+            "exit_code": 0
+          },
+          {
+            "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/zero-count-compatibility-active-registry.receipt.json",
+            "sha256": "8d8fc310a0990ed4b57b481661af6904a5375332a93412e9907ec6b9f311fdfa",
+            "exit_code": 0
+          }
+        ],
+        "runtime_parent_sha": "2d6ef37eef5694e93c35dc00b1283930774e8908",
+        "next_standard_launcher_sha256": "f06a09f275d118be219d586c361d6519123f08c2a2b7ac01d38fb3b54aa19cec",
+        "existing_launcher_mechanical_tests_passed": 5,
+        "fresh_exact_sha_ci_native_and_s6_still_required": true
       }
     }
   ],

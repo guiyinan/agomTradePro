@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
+import json
 import math
 import os
 import re
@@ -57,6 +59,24 @@ def _blocked(error_code: str, *, capture: RehearsalHttpCapture | None = None) ->
             f" elapsed_seconds={evidence['elapsed_seconds']}"
             f" max_seconds={evidence['max_seconds']}"
         )
+        failures = [
+            {
+                "host_sha256": hashlib.sha256(receipt.host.encode()).hexdigest(),
+                "path_sha256": receipt.path_sha256,
+                "method": receipt.method,
+                "status_code": receipt.status_code,
+                "error_code": receipt.error_code,
+            }
+            for receipt in capture.receipts
+            if receipt.error_code
+        ]
+        if failures:
+            print(
+                "S6_GRAPH_REFRESH_HTTP_FAILURES "
+                + json.dumps(failures, sort_keys=True, separators=(",", ":")),
+                file=sys.stderr,
+                flush=True,
+            )
     print(f"S6_GRAPH_REFRESH_BLOCKED code={error_code}{details}", file=sys.stderr, flush=True)
     return 2
 

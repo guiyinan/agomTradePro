@@ -628,6 +628,7 @@ def test_context_rejects_noncanonical_identity_and_sample(proposal_modules: Any)
     ("count", "error_code"),
     [
         (2, None),
+        (0, None),
         (True, "REHEARSAL_RESPONSE_SCHEMA_INVALID"),
         (2.0, "REHEARSAL_RESPONSE_SCHEMA_INVALID"),
         ("2", "REHEARSAL_RESPONSE_SCHEMA_INVALID"),
@@ -640,7 +641,7 @@ def test_context_rejects_noncanonical_identity_and_sample(proposal_modules: Any)
 def test_optional_tushare_count_is_exact_and_matches_items(
     proposal_modules: Any, count: object, error_code: str | None
 ) -> None:
-    """Accept only an exact nonnegative integer count equal to returned rows."""
+    """Accept exact counts or an explicit zero sentinel; reject other mismatches."""
     envelope = json.loads(_body())
     data = envelope["data"]
     assert isinstance(data, dict)
@@ -654,6 +655,35 @@ def test_optional_tushare_count_is_exact_and_matches_items(
     else:
         with pytest.raises(ValueError, match=f"^{error_code}$"):
             proposal_modules[0].parse_validate_tushare_response(body, context)
+
+
+def test_zero_count_sentinel_requires_explicit_has_more_false(proposal_modules: Any) -> None:
+    """Only explicit final-page evidence permits a zero count with returned rows."""
+    context = _context(proposal_modules)
+
+    explicit_false = json.loads(_body())
+    false_data = explicit_false["data"]
+    assert isinstance(false_data, dict)
+    false_data["count"] = 0
+    false_body = json.dumps(explicit_false, separators=(",", ":")).encode("utf-8")
+    assert len(proposal_modules[0].parse_validate_tushare_response(false_body, context)) == 2
+
+    missing = json.loads(_body())
+    missing_data = missing["data"]
+    assert isinstance(missing_data, dict)
+    missing_data["count"] = 0
+    del missing_data["has_more"]
+    missing_body = json.dumps(missing, separators=(",", ":")).encode("utf-8")
+    with pytest.raises(ValueError, match="^REHEARSAL_RESPONSE_INCOMPLETE$"):
+        proposal_modules[0].parse_validate_tushare_response(missing_body, context)
+
+    paged = json.loads(_body(has_more=True))
+    paged_data = paged["data"]
+    assert isinstance(paged_data, dict)
+    paged_data["count"] = 0
+    paged_body = json.dumps(paged, separators=(",", ":")).encode("utf-8")
+    with pytest.raises(ValueError, match="^REHEARSAL_RESPONSE_INCOMPLETE$"):
+        proposal_modules[0].parse_validate_tushare_response(paged_body, context)
 
 
 def test_optional_tushare_count_keeps_pagination_and_unknown_key_guards(

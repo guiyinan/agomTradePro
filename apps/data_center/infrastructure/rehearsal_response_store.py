@@ -236,7 +236,9 @@ def parse_validate_tushare_response(
         count = data["count"]
         if type(count) is not int or count < 0:
             raise ValueError("REHEARSAL_RESPONSE_SCHEMA_INVALID")
-        if count != len(raw_items):
+        if count != len(raw_items) and not (
+            count == 0 and bool(raw_items) and data.get("has_more") is False
+        ):
             raise ValueError("REHEARSAL_RESPONSE_INCOMPLETE")
     if not raw_fields and not raw_items:
         raise ValueError("TUSHARE_DATA_NOT_YET_AVAILABLE")
