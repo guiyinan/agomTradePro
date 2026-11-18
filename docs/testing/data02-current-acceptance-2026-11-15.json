@@ -6522,7 +6522,7 @@
         "next_prospective_cumulative_maximum": 196
       },
       "independent_asset_active_scope_maintenance": {
-        "status": "production_maintenance_closed_standard_s6_build_running_after_prebuild_recovery",
+        "status": "production_maintenance_closed_image_bound_s6_provider_probe_running",
         "application_release_candidate_sha": "c5b42e20cc97a7e166e6d3f88254d05b0605667a",
         "application_candidate_unchanged_by_independent_job": true,
         "application_ci": {
@@ -6981,10 +6981,10 @@
             "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-postrepair-s6-proposal/s6-c5-postrepair-transport.receipt.json",
             "sha256": "4e1c23cd98d8f1df003c782d1f5c5a797651909ffa060e5fcb1b6eed0b41d52b"
           },
-          "status": "build_only_running_after_standard_prebuild_recovery",
+          "status": "provider_probe_running_after_image_migrations_and_scope_authorization",
           "prepare_pid": 660138,
           "root": "/opt/agomtradepro/rehearsals/s6-c5b42e20cc-d24274f998aa4f8ba0260c956d76f714",
-          "production_source": "standard prepare snapshots then-current production PostgreSQL after actual exact-five maintenance; snapshot/restore completion is not yet verified",
+          "production_source": "standard prepare completed from then-current production after exact-five maintenance; cloned restore and graph receipt verified; not production data qualification",
           "market_charged_before_attempt": 120,
           "market_graph_max": 50,
           "graph_dispatch_count": 27,
@@ -7013,17 +7013,53 @@
           },
           "actual_prebuild_free_disk_bytes": 23445929984,
           "required_prebuild_free_disk_bytes": 25769803776,
-          "completed_stages": [],
-          "migration_executed": false,
+          "completed_stages": [
+            "build_only",
+            "docker_identity",
+            "isolated_database_migrations",
+            "financial_scope_authorization"
+          ],
+          "migration_executed": true,
           "financial_provider_attempts": 0,
-          "additional_market_attempts_after_graph": 0,
+          "additional_market_attempts_after_graph": null,
           "standard_s6_passed": false,
           "build_execution_started": true,
           "latest_observation": {
-            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-postrepair-s6-runner-observation-r2.json",
-            "sha256": "5465e39bd1729d6a0ff2d58abbde41c2e1f8636c7c32cf865fa192904808e7e8"
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-s6-public-reports-r2/run-status.json",
+            "sha256": "8d34b88d0868223f6b21c56b665d7036d83f242becb0cf092bbe826eb098e806"
           },
-          "initial_prebuild_stop_build_executed": false
+          "initial_prebuild_stop_build_executed": false,
+          "active_runner_pid": 755393,
+          "market_usage_status": "147 confirmed through prepare; provider probe in progress, actual additional usage awaits its report",
+          "milestone_observed_at": "2026-11-18T16:41:11.256413+00:00",
+          "image_bound_build_and_migrations": {
+            "candidate_image_id": "sha256:5881c8e8f7d68b2a8885e9e7fb98c019b9966561933f56f84b179cfeb38143b7",
+            "release_tag": "20261118170303",
+            "build_report": {
+              "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-s6-public-reports-r2/build-report/remote-build-report-20261118170303-d21135fe1bed80eb7a461003ec994dfc.json",
+              "sha256": "8197687fd7107502a3f33d284ca6185f536dfd2ece69aa18bc7746717df0cecf"
+            },
+            "candidate_identity": {
+              "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-s6-public-reports-r2/inputs/candidate-identity.json",
+              "sha256": "b68ef87e90eacfdfe45be6e7e906b82327a69d90284d8eae12e16d3dba854181"
+            },
+            "candidate_manifest": {
+              "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-s6-public-reports-r2/inputs/candidate-release-manifest.json",
+              "sha256": "b15d46e6964ab0ca1150cb500800ab0d17086a01c3b5bda6950d5aca192ec82e"
+            },
+            "isolated_migration_report": {
+              "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-s6-public-reports-r2/isolated_database_migrations/isolated-database-migrations.json",
+              "sha256": "ff2e2ce90367851098b373fe6c7d68a6e484951fb4a7b472aca2e88b64858ecb"
+            },
+            "applied_migrations": 23,
+            "pending_after": [],
+            "financial_scope_authorization_report": {
+              "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-s6-public-reports-r2/financial_scope_authorization/financial-scope-authorization.json",
+              "sha256": "b89c9e4e43c6fd46c089f254df82627398ea18fbbc8ce4ed9e1faa0663e9dacb"
+            },
+            "full_s6_complete": false,
+            "production_deployed": false
+          }
         },
         "remaining_full_universe_d1_gap": {
           "status": "readonly_gap_identified_not_implemented",
@@ -7104,6 +7140,41 @@
           "financial_ceiling": 22344,
           "e1_separate_ceiling": 2
         }
+      },
+      "e1_c2_pre_send_readiness_probe": {
+        "status": "ignored_operator_preparation_verified_offline_not_executed_against_database",
+        "operator": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/e1_c2_readonly_preflight.py",
+          "sha256": "534196f0df197c5c7e547897d9ed8cdd545003a27a41c143742d5170c21168d1"
+        },
+        "tests": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/test_e1_c2_readonly_preflight.py",
+          "sha256": "82bc45b3e6b8e19fa5049580f5ac93381e823f701e7cf6a8d90667b50995ec11"
+        },
+        "pytest_log": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/e1-c2-preflight-final-pytest.log",
+          "sha256": "e8ba77f470ffe3ab7afb49a222b14f5c5182ae1d44816cb8069faa383fd92725"
+        },
+        "offline_tests_passed": 6,
+        "live_database_verified": false,
+        "provider_requests": 0,
+        "exact_notice_binding": false,
+        "authorizes_e1": false,
+        "purpose": "Reject missing current C2 rule/calendar/pointer/policy before the two financial calls; explicit probe date cannot replace actual Main NOTICE_DATE replay",
+        "scope": "Root-reviewed complete operator; existing public readers and real account/Owner/catalog checks; no application Source modification"
+      },
+      "e1_balance_statutory_comparison_candidate": {
+        "document": {
+          "path": ".tmp/data02-current-20261115/20261116/source-originals/wuliangye-2026-q3-000858-cninfo-20261028.pdf",
+          "sha256": "6339022f1c23933e20f84c200e66bcf79f62eab16beb8fbd8ee3865ba21bd1a7"
+        },
+        "official_url": "https://static.cninfo.com.cn/finalpage/2026-10-28/1225630063.PDF",
+        "status": "retained_official_comparison_candidate_not_catalog_qualification",
+        "scope": "000858.SZ / 2026-09-30 consolidated balance sheet; report declares yuan",
+        "currency_cny_directly_established": false,
+        "actual_balance_response_verified": false,
+        "external_report_to_response_value_binding_implemented": false,
+        "provider_financial_requests": 0
       }
     }
   ],
