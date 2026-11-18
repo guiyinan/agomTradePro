@@ -7080,7 +7080,22 @@
             "production_e1_requests": 0,
             "production_deployed": false,
             "new_provider_execution_started": false
-          }
+          },
+          "old_attempt_retired_after_verified_archive": true,
+          "old_attempt_resume_allowed": false,
+          "isolated_database_archive": "/opt/agomtradepro/diagnostics/data02-closed-s6-archives/d24274f998aa4f8ba0260c956d76f714-6e35211bf2be4e40af9bc4b9bc0f0ba2/database.dump",
+          "isolated_database_archive_sha256": "4d0a4f142453cef8796a4964b1b9bd9099f915c00cde6a53239990026c394019",
+          "isolated_database_retired": true,
+          "candidate_image_currently_loaded": false,
+          "original_image_retained_in_runtime_zip": {
+            "path": "/opt/agomtradepro/rehearsals/s6-c5b42e20cc-d24274f998aa4f8ba0260c956d76f714/evidence/images/agomtradepro-local-runtime-20261118170303.zip",
+            "name": "agomtradepro-local-runtime-20261118170303.zip",
+            "bytes": 663755622,
+            "sha256": "1fa756f78b0fe20066528082a636ac111c3b63b702cd447cdf53ef301fe195b5"
+          },
+          "original_image_tar_zip_member": "agomtradepro-local-runtime-20261118170303/images/agomtradepro-web-20261118170303.tar",
+          "original_image_tar_sha256": "8e3ddf57ff10dc65fa116bd7c087a558c624b49963632d89d58c02bcf73fdb94",
+          "current_checkpoint_resumable": false
         },
         "remaining_full_universe_d1_gap": {
           "status": "readonly_gap_identified_not_implemented",
@@ -7224,7 +7239,37 @@
         "proposed_market_ceiling": 340,
         "maximum_proposed_cumulative_allocation": 332,
         "new_approval_claimed": false,
-        "independent_static_review": "probe/capacity each30 verified; 162+50+30+30+60=332; production/C2 reserve60 is a hard stop, not a success guarantee"
+        "independent_static_review": "probe/capacity each30 verified; 162+50+30+30+60=332; production/C2 reserve60 is a hard stop, not a success guarantee",
+        "controls_prepared": true,
+        "common": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-postrepair-s6-proposal/c5_postrepair_s6_common.py",
+          "sha256": "96ac2d963dc9c2348963b835dd5255dd40ad0c5136779ef19b17c850efa3d007"
+        },
+        "original_common_preserved": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-budget-revised-s6/c5_postrepair_s6_common.original.py",
+          "sha256": "993f72698021cbaa25cd365ee9e4274747ff8aaa4ae90808fe864fb1d4960f55"
+        },
+        "derived_runner": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-budget-revised-s6/launch_standard_s6_runner_c5_postrepair_dynamic.py",
+          "sha256": "931c7544be96706a2b6d04e3c2d22d9b223489cafa7d2f9c37827ed67fd7ca6f"
+        },
+        "usage_ledger": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-budget-revised-s6/s6-c5-market-usage-revision-ledger.json",
+          "sha256": "f4a6dfbf745d3eff0dd48b95d996809e87aa7fa93958d744ef15ade48b1e4761"
+        },
+        "offline_tests": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-budget-revised-s6/test_c5_budget_revision.py",
+          "sha256": "2e2f70fb724cb1c8e3064e6a86b49eaecf293af2bc23fee76dfbe13c47202583"
+        },
+        "offline_tests_passed": 6,
+        "real_reserve_entry_missing_approval_check": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-budget-revision-unauthorized-reserve-expected-block.log",
+          "sha256": "f844c18da9225928d39f683771ad89d46e9c4a10f0c34864f8ef2ea728d13fb4"
+        },
+        "real_reserve_entry_result": "expected exit1 C5_MARKET_BUDGET_OWNER_AUTHORIZATION_REQUIRED; no reserve intent or new attempt",
+        "owner_authorization_file_present": false,
+        "original_maintenance_usage_still_120": true,
+        "current_162_is_explicit_derived_ledger": true
       },
       "c2_szse_rule_document_review": {
         "document": {
@@ -7244,6 +7289,79 @@
         "production_document_capture_qualified": false,
         "owner_apply_event_created": false,
         "calendar_publication_qualified": false
+      },
+      "closed_s6_resource_recovery": {
+        "status": "closed_attempt_archived_and_owned_derived_cache_reclaimed_no_provider_requests",
+        "builder_input_identity_proof": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-builder-input-identity-proof.receipt.json",
+          "sha256": "42c601caf64d84e069b9c303f1ad9e299e2462d2bf026ab35a68420bde85f7c4"
+        },
+        "proven_builder_reclaim": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-proven-builder-image-reclaim.receipt.json",
+          "sha256": "5640af3eb55de97a04869b196d9bebb63c16715012ce31c4c14eed7a7bf92585"
+        },
+        "database_retirement": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-failed-s6-database-retirement-execute.receipt.json",
+          "sha256": "df896305c3e4a27beaed6054eb2274356ce1842f336ba0eff1ab46a27e53a989"
+        },
+        "database_identity": {
+          "database": "agom_release_rehearsal_899c488cc06bf9076ba1859a1c14be40",
+          "oid": "16384",
+          "system_identifier": "7709515290830614562",
+          "bytes": 2822847511,
+          "other_clients": 0
+        },
+        "database_archive_size_bytes": 290169347,
+        "database_archive_list_and_full_read_passed": true,
+        "postgres_redis_stopped_volumes_network_retained": true,
+        "image_consolidation": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-closed-image-consolidation-execute.receipt.json",
+          "sha256": "342fff13d4d97b8533840bb54bd3a329256b3b8cc7d86f8913b436c8f6ae9cd4"
+        },
+        "zip_crc_original_tar_sha_and_all_oci_blobs_verified": true,
+        "archive_location": "VPS only; complete original image tar retained inside unchanged runtime ZIP; local SFTP partial is not an original archive",
+        "labelled_cache_reclaim": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-labelled-cache-reclaim-r2.receipt.json",
+          "sha256": "a2391d1b481ac065c1abf9027d01be964e7d9bff878a7ec1715510a70207813f"
+        },
+        "base_cache_reclaim": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-base-cache-reclaim-r2.receipt.json",
+          "sha256": "a096f6ba10f6af0f7151562bcca71d9f0bc31e8e117574ce214bddfadd963cd2"
+        },
+        "free_bytes_after_recovery": 29894225920,
+        "formal_prebuild_minimum_bytes_unchanged": 25769803776,
+        "last_observed_prepare_footprint_bytes": 3886456832,
+        "fresh_pre_and_post_prepare_headroom_checks_required": true,
+        "headroom_after_next_prepare_not_yet_verified": true,
+        "production_identity_unchanged": true,
+        "provider_requests": 0,
+        "failure_or_cancel_originals": [
+          {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-image-transfer-cancelled.json",
+            "sha256": "efa599cfc0e49569899ef60d3606cf04be9b69c3802425838e6386b2ef022d8f"
+          },
+          {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-image-archive-ssh-stream-benchmark.log",
+            "sha256": "9a8191d4d46db888f8035316a375d0b340c95b146bdf026b1ce2dd9694ce55d0"
+          },
+          {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-closed-image-consolidation-preview.receipt.json",
+            "sha256": "76bca4eda8afc971c036db5d561b3f649d4668d3ad637ea9d92f720febc83e5d"
+          },
+          {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-closed-image-consolidation-preview-r2.receipt.json",
+            "sha256": "613d3a78381cee0c5de50aeca912a5ae6580a27f186b2aaf9f140c447771d19f"
+          },
+          {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-labelled-cache-reclaim.receipt.json",
+            "sha256": "3b628759edbdbb2c829f2ef9a10fd8c571a9100e0c88f933538e85abefcb5dcf"
+          },
+          {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-base-cache-reclaim.receipt.json",
+            "sha256": "16be7977719342df3133f761df999eed7188f1eccd7db464856a556a4102b1a7"
+          }
+        ],
+        "operator_corrections": "Saved OCI image ID is the manifest digest, separately binding config digest and every blob. Containerd legacy cache parents required explicit guarded removal; earlier safe failures retained."
       }
     }
   ],
