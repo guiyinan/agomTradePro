@@ -219,6 +219,8 @@ def refresh_market_price_inputs(
             )
         collect_bindings(member_bindings, evidence_port.model_history_audit_bindings(rows))
 
+    history_candidates: list[str] = []
+    verified_suspension_errors: dict[str, DataFetchError] = {}
     for code in asset_codes:
         try:
             rows = port.stock_history(code, target_date, target_date)
@@ -228,58 +230,60 @@ def refresh_market_price_inputs(
                 )
             collect_references(rows)
         except DataFetchError as exc:
-            suspension_error: DataFetchError | None = None
             if exc.code == "MODEL_MARKET_SUSPENDED":
                 if (
                     exc.details.get("asset_code") != code
                     or exc.details.get("suspended_through") != target_date.isoformat()
                 ):
                     raise
-                suspension_error = exc
-            else:
-                if exc.code not in {"MODEL_MARKET_UNAVAILABLE", "MODEL_MARKET_STALE"}:
+                verified_suspension_errors[code] = exc
+                continue
+            if exc.code not in {"MODEL_MARKET_UNAVAILABLE", "MODEL_MARKET_STALE"}:
+                raise
+            history_candidates.append(code)
+
+    # Prepare only the members whose target-day read was unavailable or stale.
+    # The Data Center service still enforces its explicit route, scope and audit gates.
+    history_scope = tuple(sorted(set(history_candidates)))
+    if history_scope:
+        if isinstance(port, ModelHistoryPreparationPort):
+            port.prepare_stock_history(history_scope, history_start, target_date)
+        for code in history_scope:
+            try:
+                rows = port.stock_history(code, history_start, target_date)
+                if rows and max(row.trade_date for row in rows) == target_date:
+                    collect_references(rows)
+                    continue
+                raise DataFetchError(
+                    "Current price observations missing", code="MODEL_MARKET_STALE"
+                )
+            except DataFetchError as history_error:
+                if (
+                    history_error.code != "MODEL_MARKET_SUSPENDED"
+                    or history_error.details.get("asset_code") != code
+                    or history_error.details.get("suspended_through") != target_date.isoformat()
+                ):
                     raise
-                try:
-                    if isinstance(port, ModelHistoryPreparationPort):
-                        port.prepare_stock_history((code,), history_start, target_date)
-                    rows = port.stock_history(code, history_start, target_date)
-                    if rows and max(row.trade_date for row in rows) == target_date:
-                        collect_references(rows)
-                        continue
-                    raise DataFetchError(
-                        "Current price observations missing", code="MODEL_MARKET_STALE"
-                    )
-                except DataFetchError as history_error:
-                    if (
-                        history_error.code != "MODEL_MARKET_SUSPENDED"
-                        or history_error.details.get("asset_code") != code
-                        or history_error.details.get("suspended_through") != target_date.isoformat()
-                    ):
-                        raise
-                    suspension_error = history_error
-            if suspension_error is None:
-                raise DataFetchError(
-                    "Target-session suspension evidence is unavailable",
-                    code="MODEL_MARKET_SUSPENSION_EVIDENCE_INVALID",
-                    details={"asset_code": code, "target_trade_date": target_date.isoformat()},
-                ) from exc
-            evidence_source = suspension_error.details.get("source")
-            if (
-                not isinstance(evidence_source, str)
-                or not evidence_source
-                or evidence_source != evidence_source.strip()
-            ):
-                raise DataFetchError(
-                    "Target-session suspension evidence lacks a canonical provider source",
-                    code="MODEL_MARKET_SUSPENSION_EVIDENCE_INVALID",
-                    details={"asset_code": code, "target_trade_date": target_date.isoformat()},
-                ) from exc
-            suspended.append(code)
-            suspension_evidence[code] = MarketPriceSuspensionEvidence(
-                asset_code=code,
-                target_trade_date=target_date,
-                evidence_source=evidence_source,
-            )
+                verified_suspension_errors[code] = history_error
+
+    for code, suspension_error in verified_suspension_errors.items():
+        evidence_source = suspension_error.details.get("source")
+        if (
+            not isinstance(evidence_source, str)
+            or not evidence_source
+            or evidence_source != evidence_source.strip()
+        ):
+            raise DataFetchError(
+                "Target-session suspension evidence lacks a canonical provider source",
+                code="MODEL_MARKET_SUSPENSION_EVIDENCE_INVALID",
+                details={"asset_code": code, "target_trade_date": target_date.isoformat()},
+            ) from suspension_error
+        suspended.append(code)
+        suspension_evidence[code] = MarketPriceSuspensionEvidence(
+            asset_code=code,
+            target_trade_date=target_date,
+            evidence_source=evidence_source,
+        )
     if audit_evidence is not None:
         collect_bindings(
             diagnostic_bindings,

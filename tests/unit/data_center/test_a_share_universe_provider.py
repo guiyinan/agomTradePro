@@ -619,3 +619,109 @@ def test_universe_failover_blocks_scope_drift_before_any_write():
     assert caught.value.details["difference_ratio"] > 0.01
     assert repository.assets == {}
     assert repository.aliases == []
+
+
+def test_explicit_tushare_universe_primary_does_not_call_healthy_akshare_fallback() -> None:
+    calls: list[str] = []
+
+    class TusharePrimary:
+        source_name = "tushare.stock_basic[explicit]"
+
+        def load_code_names(self) -> list[dict[str, str]]:
+            calls.append("tushare")
+            return [
+                {"code": "000001.SZ", "name": "平安银行"},
+                {"code": "600000.SH", "name": "浦发银行"},
+            ]
+
+    class AkshareFallback:
+        source_name = "akshare.stock_info"
+
+        def load_code_names(self) -> list[dict[str, str]]:
+            calls.append("akshare")
+            return []
+
+    repository = _MemoryAssetRepository({"000001.SZ", "600000.SH"})
+    report = AShareUniverseSyncService(
+        provider=TusharePrimary(),
+        fallback_provider=AkshareFallback(),
+        asset_repo=repository,
+    ).sync()
+
+    assert calls == ["tushare"]
+    assert report.source == "tushare.stock_basic[explicit]"
+    assert report.failover_from is None
+    assert set(repository.assets) == repository._active_codes
+
+
+def test_explicit_tushare_failure_uses_akshare_fallback_scope_gate_before_write() -> None:
+    calls: list[str] = []
+
+    class TusharePrimary:
+        source_name = "tushare.stock_basic[explicit]"
+
+        def load_code_names(self) -> list[dict[str, str]]:
+            calls.append("tushare")
+            raise ConnectionError("primary unavailable")
+
+    class AkshareFallback:
+        source_name = "akshare.stock_info"
+
+        def load_code_names(self) -> list[dict[str, str]]:
+            calls.append("akshare")
+            return [{"code": "000001.SZ", "name": "平安银行"}]
+
+    repository = _MemoryAssetRepository({"000001.SZ", "000002.SZ", "000003.SZ"})
+    service = AShareUniverseSyncService(
+        provider=TusharePrimary(),
+        fallback_provider=AkshareFallback(),
+        asset_repo=repository,
+    )
+
+    with pytest.raises(AShareUniverseSyncError) as caught:
+        service.sync()
+
+    assert calls == ["tushare", "akshare"]
+    assert caught.value.code == "A_SHARE_UNIVERSE_FAILOVER_INCONSISTENT"
+    assert caught.value.details["difference_ratio"] > 0.01
+    assert repository.assets == {}
+    assert repository.aliases == []
+
+
+def test_composition_preserves_default_and_selects_explicit_universe_provider_pair(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from apps.data_center import composition
+    from apps.data_center.infrastructure import a_share_universe_sync as providers
+
+    service_kwargs: list[dict[str, object]] = []
+
+    class FakeAkshareProvider:
+        pass
+
+    class FakeTushareProvider:
+        pass
+
+    class FakeService:
+        def __init__(self, **kwargs: object) -> None:
+            service_kwargs.append(kwargs)
+
+        def sync(self, *, deactivate_missing: bool) -> SimpleNamespace:
+            assert deactivate_missing is False
+            return SimpleNamespace(to_dict=lambda: {"called": True})
+
+    monkeypatch.setattr(providers, "AShareUniverseSyncService", FakeService)
+    monkeypatch.setattr(providers, "AkshareAshareCodeNameProvider", FakeAkshareProvider)
+    monkeypatch.setattr(providers, "TushareAshareCodeNameProvider", FakeTushareProvider)
+
+    assert composition.sync_active_a_share_universe() == {"called": True}
+    assert service_kwargs[-1] == {}
+    assert composition.sync_active_a_share_universe(source="akshare") == {"called": True}
+    assert service_kwargs[-1] == {}
+    assert composition.sync_active_a_share_universe(source="tushare") == {"called": True}
+    assert type(service_kwargs[-1]["provider"]) is FakeTushareProvider
+    assert type(service_kwargs[-1]["fallback_provider"]) is FakeAkshareProvider
+
+    with pytest.raises(ValueError, match="unsupported A-share universe source"):
+        composition.sync_active_a_share_universe(source="invalid")
+    assert len(service_kwargs) == 3

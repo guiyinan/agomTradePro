@@ -857,14 +857,25 @@ def backfill_asset_master_codes(
     )
 
 
-def sync_active_a_share_universe() -> dict[str, object]:
-    """Refresh active A-share identities before a complete-market publication."""
+def sync_active_a_share_universe(source: str | None = None) -> dict[str, object]:
+    """Refresh active A-share identities using the selected primary and safe fallback."""
 
     from apps.data_center.infrastructure.a_share_universe_sync import (
+        AkshareAshareCodeNameProvider,
         AShareUniverseSyncService,
+        TushareAshareCodeNameProvider,
     )
 
-    return AShareUniverseSyncService().sync(deactivate_missing=False).to_dict()
+    if source is None or source == "akshare":
+        service = AShareUniverseSyncService()
+    elif source == "tushare":
+        service = AShareUniverseSyncService(
+            provider=TushareAshareCodeNameProvider(),
+            fallback_provider=AkshareAshareCodeNameProvider(),
+        )
+    else:
+        raise ValueError("unsupported A-share universe source")
+    return service.sync(deactivate_missing=False).to_dict()
 
 
 def get_alpha_price_coverage_sync_service() -> object:

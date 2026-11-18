@@ -695,6 +695,21 @@
           "case": "wide_market_preparation",
           "test_file": "tests/unit/data_center/test_model_history_preparation.py",
           "test_function": "test_wide_scope_prefetches_by_session_and_retains_exact_stock_windows"
+        },
+        {
+          "case": "empty_primary_preserves_error_and_prepares_exact_missing_batch",
+          "test_file": "tests/unit/data_center/test_missing_quote_bulk_preparation.py",
+          "test_function": "test_empty_target_cache_keeps_primary_error_then_uses_one_history_batch"
+        },
+        {
+          "case": "failed_missing_batch_remains_blocked_without_per_asset_fetch",
+          "test_file": "tests/unit/data_center/test_missing_quote_bulk_preparation.py",
+          "test_function": "test_failed_group_history_batch_never_excludes_missing_quotes"
+      },
+      {
+        "case": "missing_batch_retains_successful_target_member_audit",
+        "test_file": "tests/unit/data_center/test_missing_quote_bulk_preparation.py",
+        "test_function": "test_target_success_audit_bindings_survive_exact_missing_quote_batch"
         }
       ]
     },
@@ -10379,6 +10394,11 @@
           "case": "release_validator_recomputes_unknown_listing_date_digest",
           "test_file": "tests/unit/test_validate_release_rehearsal.py",
           "test_function": "test_validator_recomputes_unknown_listing_date_digest_from_full_scope"
+        },
+        {
+          "case": "explicit_task_source_selects_universe_primary",
+          "test_file": "tests/unit/data_center/test_market_publication_refresh.py",
+          "test_function": "test_task_binds_explicit_source_to_zero_argument_universe_dependency"
         }
       ]
     },

@@ -179,6 +179,13 @@ def refresh_full_market_publications_task(
         return full_market_refresh_lease.full_market_refresh_lease_busy_result()
 
     try:
+
+        def sync_universe_for_task_source() -> dict[str, object]:
+            """Use the task source for the universe primary when explicitly selected."""
+            if source is None:
+                return sync_active_a_share_universe()
+            return sync_active_a_share_universe(source=source)
+
         return run_full_market_publication_refresh(
             source=source,
             batch_size=batch_size,
@@ -195,7 +202,7 @@ def refresh_full_market_publications_task(
                 make_valuation_sync_use_case=(make_backfill_sync_current_valuation_batch_use_case),
                 make_current_market_publication_bundle=(_make_full_market_publication_bundle),
                 latest_closed_market_session=latest_closed_cn_market_session,
-                sync_active_universe=sync_active_a_share_universe,
+                sync_active_universe=sync_universe_for_task_source,
                 target_date_universe_scope=build_target_date_a_share_universe_scope,
                 publication_policy_repository=get_publication_policy_repository,
                 record_progress=record_current_task_progress,

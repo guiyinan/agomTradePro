@@ -148,20 +148,25 @@ class ModelMarketDataReads(ModelMarketDataServiceState):
                 else False
             )
             if audit_fetch and not is_prepared_cache and not allow_per_asset_fetch:
-                last_error = DataFetchError(
-                    "Per-asset model-history fetch requires an explicit configured limit",
-                    code="MODEL_MARKET_BULK_PREPARATION_REQUIRED",
-                )
+                # Keep an observed primary error when this route is skipped by policy.
+                # This does not permit a fetch; the caller's next explicit preparation
+                # request is still checked against the scope and route capability gate.
+                if last_error is None:
+                    last_error = DataFetchError(
+                        "Per-asset model-history fetch requires an explicit configured limit",
+                        code="MODEL_MARKET_BULK_PREPARATION_REQUIRED",
+                    )
                 continue
             if (
                 audit_fetch
                 and not is_prepared_cache
                 and not isinstance(route.port, ModelHistorySingleFetchAuditPort)
             ):
-                last_error = DataFetchError(
-                    "Provider route does not expose an auditable per-asset fetch",
-                    code="MODEL_MARKET_BULK_PREPARATION_REQUIRED",
-                )
+                if last_error is None:
+                    last_error = DataFetchError(
+                        "Provider route does not expose an auditable per-asset fetch",
+                        code="MODEL_MARKET_BULK_PREPARATION_REQUIRED",
+                    )
                 continue
             fetch_persistence_started = False
             fetch_audit_written = False

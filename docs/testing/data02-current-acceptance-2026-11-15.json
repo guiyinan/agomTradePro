@@ -5820,7 +5820,7 @@
       "observer_stream_release_preparation": {
         "recorded_at_utc": "2026-11-18T03:34:40.860665+00:00",
         "release_candidate_sha": "e010f654442a673bd799eb357f74d242069be45a",
-        "status": "awaiting_owner_scope_and_financial_ceiling_adjustment",
+        "status": "authorized_fresh_prepare_failed_preserved_stopped_minimum_repair_investigation",
         "exact_sha_ci_passed": 8,
         "official_publication_junit": {
           "tests": 303,
@@ -5940,7 +5940,7 @@
         "docker_free_bytes_after": 28536102912,
         "standard_prepare_24GiB_headroom_passed": true,
         "owner_adjustment_proposal": {
-          "approved": false,
+          "approved": true,
           "reason": "Fresh target-date scope increased by 12 from the explicitly approved 5573 ceiling. Necessary-candidate delegation does not raise scope or financial attempt ceilings.",
           "candidate_only_reapproval_required": false,
           "existing_universe_ceiling": 5573,
@@ -5975,7 +5975,7 @@
           "provider_http_denied": true
         },
         "native_backup_input": "Historical verified 2026-11-16 original; not relabeled fresh. A fresh verified production rollback backup remains required before production deployment.",
-        "new_s6_attempt_reserved": false,
+        "new_s6_attempt_reserved": true,
         "full_s6_started": false,
         "owner_password_transferred": false,
         "production_changed": false,
@@ -6035,7 +6035,284 @@
             "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/r2-url-egress-fingerprint-readonly.receipt.json",
             "sha256": "cf9d03058f24827a07da2d78e85f8d7c4d932ff1793df0a4cf0e9f73d7248d8a"
           }
-        ]
+        ],
+        "owner_adjustment_authorization": {
+          "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/s6-stream-owner-budget-authorization.json",
+          "sha256": "9a3a05003bc5ae82d5fe083bcc3615179f14a36463053b2a076c2d59fdada878",
+          "recorded_at_utc": "2026-11-18T04:06:50.851128+00:00",
+          "candidate_sha": "e010f654442a673bd799eb357f74d242069be45a",
+          "authorization_source": "actual user reply to request_user_input_async call_96b78ff90fdb433c8d39e2860109020e item 0",
+          "answer": "批准本次范围与财报上限调整（推荐）",
+          "fresh_standard_s6_runs": 1,
+          "universe_ceiling": 5585,
+          "financial_cumulative_attempt_ceiling": 22344,
+          "financial_used": 0,
+          "market_original_cumulative_ceiling": 200,
+          "market_already_charged": 89,
+          "market_allocations": {
+            "graph": 50,
+            "probe": 30,
+            "capacity": 30
+          },
+          "market_prospective_cumulative_maximum": 199,
+          "production_e1_separate_ceiling": 2,
+          "scope_increase_stops": true,
+          "normal_owner_and_reviewer_gates_remain": true,
+          "production_financial_publication_authorized": false
+        },
+        "authorized_fresh_s6": {
+          "candidate_sha": "e010f654442a673bd799eb357f74d242069be45a",
+          "attempt_id": "4e40356f53e1466a82f9f8ffc6a902f6",
+          "canonical_plan_sha256": "4f95fb2f4bee8cb816eb5b12a8c72a25d816d15656aee1d51726acc9766dadfc",
+          "root": "/opt/agomtradepro/rehearsals/s6-e010f65444-4e40356f53e1466a82f9f8ffc6a902f6",
+          "prepare_launched_at": "2026-11-18T04:12:48.379262+00:00",
+          "market_charged_before_attempt": 89,
+          "market_dispatch_allocations": {
+            "graph": 50,
+            "probe": 30,
+            "capacity": 30
+          },
+          "financial_cumulative_ceiling": 22344,
+          "financial_used": 0,
+          "universe_ceiling": 5585,
+          "e1_separate_ceiling": 2,
+          "full_runner_started": false,
+          "owner_credential_transferred": false,
+          "production_changed": false,
+          "originals": [
+            {
+              "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/s6-stream-owner-budget-authorization.json",
+              "sha256": "9a3a05003bc5ae82d5fe083bcc3615179f14a36463053b2a076c2d59fdada878"
+            },
+            {
+              "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/s6-stream-runtime-readonly.receipt.json",
+              "sha256": "c04bb77ff09ea91e72be9f10d1d37c597b4f59994be2351d03d8cae619dd5060"
+            },
+            {
+              "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/s6-stream-fresh-reserve.intent.json",
+              "sha256": "b7a0ef52eb49d7f4fc0833a6f9ce14755826e149041426bb6078b8a4125dcbae"
+            },
+            {
+              "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/s6-stream-fresh-reserve.receipt.json",
+              "sha256": "e221900dba1c0d0e3e07d9822c15a4183777b726013250dd5b189be196085db0"
+            },
+            {
+              "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/s6-stream-attempt-plan.canonical.json",
+              "sha256": "4f95fb2f4bee8cb816eb5b12a8c72a25d816d15656aee1d51726acc9766dadfc"
+            },
+            {
+              "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/s6-stream-owner-transport-staging.receipt.json",
+              "sha256": "9b0e7915f84b0b8e57550acbbcae985b57ac72550791c40a508a9889ed1427cf"
+            },
+            {
+              "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/s6-stream-fresh-prepare-launch.receipt.json",
+              "sha256": "980979eb5ea483e324e2947772de8e4547fe019f3b825e451d0b42c4d654e6ee"
+            }
+          ],
+          "prepare_terminal": "failed",
+          "phase": "candidate_exports",
+          "error_code": "S6_GRAPH_REFRESH_COMMAND_FAILED",
+          "measured_market_dispatches": 25,
+          "market_cumulative_charged": 114,
+          "market_remaining": 86,
+          "business_outcome": "partial",
+          "business_phase": "quote",
+          "business_error_code": "MODEL_MARKET_BULK_PREPARATION_REQUIRED",
+          "prior_body_truncated_error_not_observed": true,
+          "guard_failure_code": "REHEARSAL_REDIRECT_BLOCKED",
+          "elapsed_seconds": 563.900069,
+          "production_e1_used": 0,
+          "failed_attempt_will_not_resume": true,
+          "isolated_postgres_and_redis_verified_stopped": true,
+          "private_bootstrap_credentials_removed": true,
+          "originals_preserved": true,
+          "failure_originals": {
+            "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/s6-stream-prepare-failure-originals.sha256.json",
+            "sha256": "e1adb12eeab06f5e4dbd6910c3b8e40546c992e91e8701131d9b59a84229d8b8"
+          },
+          "secure_stop": {
+            "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/s6-stream-failed-prepare-secure-stop.receipt.json",
+            "sha256": "0015b08a37ea4788737f41332843e4cb96bffbe4fba80bc1b41cd17d653cef60"
+          }
+        },
+        "same_budget_minimum_repair_next_preparation": {
+          "scope_and_financial_limits_unchanged": true,
+          "market_charged": 115,
+          "original_market_ceiling": 200,
+          "remaining_market": 85,
+          "possible_next_allocations": {
+            "graph": 40,
+            "probe": 20,
+            "capacity": 20
+          },
+          "maximum_cumulative_if_next_allocated": 195,
+          "financial_used": 0,
+          "financial_ceiling": 22344,
+          "e1_used": 0,
+          "e1_separate_ceiling": 2,
+          "universe_ceiling": 5585,
+          "plan": "Read exact missing-quote suspension/bulk contracts and identify the independently blocked POST 307; no expanded provider/history scope, no relaxed guards, no financial publication."
+        },
+        "bj_one_shot_runtime_diagnostic": {
+          "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/bj-one-shot-runtime-r2.receipt.json",
+          "sha256": "6388ab2bbdb0cb2c14e76b90686f26ee25ca05df0a31dd1833f684a453c51f29",
+          "r1_actual_dispatches": 0,
+          "r1_safe_error": "DIAGNOSTIC_TypeError",
+          "r2_actual_dispatches": 1,
+          "function": "stock_info_bj_name_code",
+          "status_code": 307,
+          "request_scheme": "https",
+          "same_host": true,
+          "same_path": true,
+          "https_upgrade_only": false,
+          "redirect_followed": false,
+          "market_cumulative_charged": 115,
+          "financial_used": 0,
+          "production_e1_used": 0,
+          "release_qualification": false,
+          "production_mutated": false
+        }
+      },
+      "minimum_market_blocker_correction": {
+        "development_parent_sha": "52422a4a8529c9a412280e2d0f03a3ec0961f72c",
+        "previous_runtime_candidate_sha": "e010f654442a673bd799eb357f74d242069be45a",
+        "failed_s6_attempt": "4e40356f53e1466a82f9f8ffc6a902f6",
+        "policy": "Preserve audited primary no-data/stale errors when an unprepared fallback is skipped; prepare the exact missing subset once over the existing 120-day history window. Direct explicit generic task source selects the universe primary; omitted source and PeriodicTask kwargs keep existing defaults. Audited batch/scope, suspension, retained audit bindings, 1% consistency and HTTP redirect guards remain mandatory.",
+        "expected_red": [
+          {
+            "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/source-selection-red.log",
+            "sha256": "aebf7c347d4c753e63d7aba3760c0ddfe2385f6ef8e69bfe5230f104e75a74cc",
+            "exit_code": 1
+          },
+          {
+            "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/missing-quote-red.log",
+            "sha256": "942fe3ee0be8feb6d6278e0cbdd8b111ea2e92e23b6ee1661ebbca46cc3ad261",
+            "exit_code": 1
+          }
+        ],
+        "focused_tests": {
+          "tests": 254,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        "development_checks": [
+          {
+            "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/minimum-market-blockers-final-black.receipt.json",
+            "sha256": "f16ee6ebb832cd84a0a41d2ac33c943e5ba1ed78cf937bf5d536ba268fb83590",
+            "exit_code": 0
+          },
+          {
+            "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/minimum-market-blockers-final-isort.receipt.json",
+            "sha256": "02697ded71d0c86cd504604ad24d1e1285b7c5b1cb52575dab245bd2cbeaae8f",
+            "exit_code": 0
+          },
+          {
+            "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/minimum-market-blockers-r2-ruff.receipt.json",
+            "sha256": "9b74ddf8d5b14af4d2a47139ac6a5364fa6f1f533d727aba16a957e65a915237",
+            "exit_code": 0
+          },
+          {
+            "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/minimum-market-blockers-r2-tests.receipt.json",
+            "sha256": "d35c3db606f65b08ca4a87fcbef2eb3b361257a6e3bac5a166040b0d27d50112",
+            "exit_code": 0
+          },
+          {
+            "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/minimum-market-blockers-r2-mypy.receipt.json",
+            "sha256": "616dd18e2c644fae646e56f5d9e921532c8a2bdb268cf4cc6d4b09c3560623ca",
+            "exit_code": 0
+          },
+          {
+            "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/minimum-market-blockers-r2-debt.receipt.json",
+            "sha256": "cfd666db3f3b1801e3cf2fed8989389cb21e3148f88084b93361a5f61e450603",
+            "exit_code": 0
+          },
+          {
+            "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/minimum-market-blockers-r2-current-contracts.receipt.json",
+            "sha256": "1b243cb8e02ae0eaa2acfd2423d910d6d989c3848c8acd1e994691d3fb2e38b4",
+            "exit_code": 0
+          },
+          {
+            "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/minimum-market-blockers-r2-celery-contracts.receipt.json",
+            "sha256": "f3001eba176bc4096476db2e0c170e3598475d225a8e2d98fbbd679700a394d0",
+            "exit_code": 0
+          },
+          {
+            "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/minimum-market-blockers-r2-architecture-projection.receipt.json",
+            "sha256": "c6df621ffcd82859801d427aa2568564e9fdf6059b40e24deb52ed4a85cec656",
+            "exit_code": 0
+          },
+          {
+            "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/minimum-market-blockers-r2-module-map.receipt.json",
+            "sha256": "fe520f36b43fe23201aca00ffa4e2a4851b09bc12172379f32bf95de98e80ed0",
+            "exit_code": 0
+          },
+          {
+            "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/minimum-market-blockers-r2-entrypoint-generation.receipt.json",
+            "sha256": "0faf9d21545b0d382663a137c60fb123de38b8dbb14173128d6b534e72d1e99c",
+            "exit_code": 0
+          },
+          {
+            "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/minimum-market-blockers-r2-active-registry.receipt.json",
+            "sha256": "7f96560eb5349a237ce921825e202d02dc9ce7ac37f4560c5d0fdec50cefede4",
+            "exit_code": 0
+          }
+        ],
+        "independent_review": {
+          "reviewer": "luna_max_audit",
+          "blocking_findings_remaining": 0,
+          "explicit_preparation_error_cache_verified": true,
+          "target_and_history_reads_hit_exact_prepared_rows_or_errors": true,
+          "initial_fallback_routing_finding_withdrawn_after_full_cache_path_review": true,
+          "scope_and_suspension_and_audit_guards_preserved": true,
+          "mixed_target_member_audit_positive_test_provided": true,
+          "review_only_no_remote_or_provider_calls": true,
+          "production_changed_by_reviewer": false,
+          "note": "No additional broad QA requested; Root final suite covers existing incomplete suspension rejection and all three real-service missing-quote scenarios."
+        },
+        "read_only_task_observation": {
+          "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/stream-task-result-readonly.receipt.json",
+          "sha256": "aafd892d3f34248a918e436562acdd7e4c4233e437323c2ee6330b9b21a89f75",
+          "exit_code": 0,
+          "provider_http": 0,
+          "isolated_postgres_stopped": true,
+          "worker_and_private_env_removed": true,
+          "no_suspension_raw_rows_inferred": true,
+          "qualification": false
+        },
+        "market_cumulative_charged": 115,
+        "market_ceiling": 200,
+        "next_possible_allocation": {
+          "graph": 40,
+          "probe": 20,
+          "capacity": 20
+        },
+        "next_prospective_cumulative_maximum": 195,
+        "financial_used": 0,
+        "financial_cumulative_ceiling": 22344,
+        "universe_ceiling": 5585,
+        "production_e1_used": 0,
+        "production_e1_separate_ceiling": 2,
+        "same_sha_ci_native_build_binding_and_full_s6_still_required": true,
+        "production_changed": false,
+        "data02_exit_met": false,
+        "data03_started": false,
+        "closed_c62_postgres_archive": {
+          "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/s6-count-pg-archive-operation.json",
+          "sha256": "6e5a098b17624577a867df2728ddc44cbed2efb5894e5823729884d95ee17f15",
+          "candidate_sha": "0582e94f48bcfc1f5c05412596726f98ed649c6c",
+          "attempt_id": "c62c505c786649ff91ca3097658c52c5",
+          "status": "archived_removed",
+          "archive_sha256": "c38c3cab7261b5d3ee11f66ad2834c322fd24365a0854d4ffc19209b876e18bb",
+          "archive_size_bytes": 285293735,
+          "globals_size_bytes": 1392,
+          "free_bytes_after": 27914137600,
+          "provider_http": 0,
+          "production_mutated": false,
+          "only_exact_postgres_container_and_volume_removed": true,
+          "redis_network_and_other_qa_preserved": true,
+          "full_custom_archive_list_and_read_verified_before_removal": true
+        }
       }
     }
   ],

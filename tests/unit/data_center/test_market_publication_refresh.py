@@ -3888,3 +3888,30 @@ def test_task_uses_verified_target_date_scope_and_keeps_unknown_provider_gap_req
         "301716.SZ",
         "920202.BJ",
     ]
+
+
+def test_task_binds_explicit_source_to_zero_argument_universe_dependency(monkeypatch) -> None:
+    from apps.data_center.application import tasks
+
+    captured: dict[str, object] = {}
+    monkeypatch.setattr(
+        tasks.full_market_refresh_lease, "claim_full_market_refresh_lease", lambda *_: True
+    )
+    monkeypatch.setattr(
+        tasks.full_market_refresh_lease, "release_full_market_refresh_lease", lambda *_: True
+    )
+
+    def sync_universe(*, source: str | None = None) -> dict[str, object]:
+        return {"source": source}
+
+    def capture_refresh(**kwargs: object) -> dict[str, object]:
+        captured["dependencies"] = kwargs["dependencies"]
+        return {"outcome": "noop"}
+
+    monkeypatch.setattr(tasks, "sync_active_a_share_universe", sync_universe)
+    monkeypatch.setattr(tasks, "run_full_market_publication_refresh", capture_refresh)
+    result = tasks.refresh_full_market_publications_task.run(source="tushare")
+    dependencies = captured["dependencies"]
+
+    assert result["outcome"] == "noop"
+    assert dependencies.sync_active_universe() == {"source": "tushare"}
