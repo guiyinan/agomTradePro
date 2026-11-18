@@ -6522,7 +6522,7 @@
         "next_prospective_cumulative_maximum": 196
       },
       "independent_asset_active_scope_maintenance": {
-        "status": "own_ci_and_real_old_schema_qa_passed_awaiting_bounded_production_maintenance",
+        "status": "real_exact_five_production_maintenance_passed_awaiting_new_c5_s6",
         "application_release_candidate_sha": "c5b42e20cc97a7e166e6d3f88254d05b0605667a",
         "application_candidate_unchanged_by_independent_job": true,
         "application_ci": {
@@ -6609,14 +6609,26 @@
           "source_run_id": "a489ff8e-f7e3-4811-8bb0-e5785cebe719",
           "source_run_status": "stored",
           "source_run_outcome": "success",
-          "source_run_requested_fetched_validated_succeeded_stored": [2, 2, 2, 2, 2],
-          "raw_audit_ids": [71907, 71908],
+          "source_run_requested_fetched_validated_succeeded_stored": [
+            2,
+            2,
+            2,
+            2,
+            2
+          ],
+          "raw_audit_ids": [
+            71907,
+            71908
+          ],
           "retained_payload_count": 2,
           "original_http_capture_report_available": false,
           "actual_provider_dispatches_proven_by_successful_run_branch_and_retained_occurrences": 2,
           "readonly_recovery_receipt": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/asset-active-maintenance-20261118/capture-r3/retained-source-readonly-recovery.receipt.json",
           "readonly_recovery_receipt_sha256": "a2dec388380a7a47f94bf595821c5b0313f02b223e1322f1d9aa755d999a4158",
-          "proof_directory_uid_gid_repaired": [1000, 1000],
+          "proof_directory_uid_gid_repaired": [
+            1000,
+            1000
+          ],
           "proof_directory_mode": "0700",
           "qa_postgres_stopped_verified": true,
           "production_mutated": false,
@@ -6746,9 +6758,9 @@
         },
         "backup_sha256": "ab167e01f5f4be7c610e7b3587b323903110a8caec87d4201b92972f0878f708",
         "backup_bytes": 284570298,
-        "market_actual_charged": 118,
+        "market_actual_charged": 120,
         "market_ceiling": 200,
-        "market_remaining": 82,
+        "market_remaining": 80,
         "planned_source_calls_staging_max": 2,
         "planned_source_calls_production_max": 2,
         "financial_used": 0,
@@ -6756,12 +6768,12 @@
         "universe_ceiling": 5585,
         "production_e1_used": 0,
         "production_e1_separate_ceiling": 2,
-        "new_provider_requests": 2,
-        "production_master_mutated": false,
+        "new_provider_requests": 4,
+        "production_master_mutated": true,
         "production_services_replaced": false,
         "data02_exit_met": false,
         "data03_started": false,
-        "next": "perform the independently qualified exact-five normal Owner production maintenance, then a new c5 full S6 from real repaired production input; no failed attempt resume",
+        "next": "archive and remove only the completed owned maintenance QA database for headroom, then fresh standard c5 S6 from actual repaired production; reserve 18 market dispatches for post-S6 C2/production refresh; no failed attempt resume",
         "frozen_candidate_receipt": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/asset-maintenance-public-ports-frozen-candidate.receipt.json",
         "previous_tool_candidates": [
           {
@@ -6825,6 +6837,105 @@
           "exit_code": 0,
           "tests": 1,
           "original": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/asset-maintenance-public-ports-guardrail.receipt.json"
+        },
+        "production_maintenance": {
+          "status": "success",
+          "observed_at": "2026-11-18T13:49:55.654760+00:00",
+          "capture_host": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/asset-active-maintenance-20261118/production-runs/capture-plan-8d74a195550f4abf95559db2f5d2c636/host-receipt.json",
+            "sha256": "5c3bb49b365ddce228c287595527b2ec01aa18833a93ae6bf71b07f9ee4f79ab"
+          },
+          "plan": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/asset-active-maintenance-20261118/production-runs/capture-plan-8d74a195550f4abf95559db2f5d2c636/owner-plan.json",
+            "sha256": "6b3651a549300e7e015dc40ae728e7a3df92fd2cf9a7d3853f492eb216e9d67d"
+          },
+          "capture_report": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/asset-active-maintenance-20261118/production-runs/capture-plan-8d74a195550f4abf95559db2f5d2c636/capture-report.json",
+            "sha256": "11a586c15fc3b457d67f91912efb66b173f8823bbb075a5e9105a4af76ddf063"
+          },
+          "apply_host": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/asset-active-maintenance-20261118/production-runs/apply-41747daa5d514743af5824036026f775/host-receipt.json",
+            "sha256": "798871e7be6cc330a99572053eb253c8c7e38f1ab0eb68351b3da58bf1349b46"
+          },
+          "apply_report": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/asset-active-maintenance-20261118/production-runs/apply-41747daa5d514743af5824036026f775/apply-report.json",
+            "sha256": "5b18bf8212ce6511855711ead46614e6f3913a7873215766793407224b242d6e"
+          },
+          "root_verified_aggregate": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/asset-active-maintenance-20261118/c5-postrepair-production-maintenance.receipt.json",
+            "sha256": "1894db131aeeb2e51cf31fb37a5345c4ea51a7641c055d4d55a9dd7921bbf1bc"
+          },
+          "operator_sha256": "66fe97007d66127043485929c8cbe1d87672df915785a0aab1a6bb05c600b3b4",
+          "runner_sha256": "6248f983ce3a3276f603d63a1cd3389abc4fc24882bb53995dca6b62bf793ef1",
+          "runtime_capture_helper_sha256": "419ca57061ec1ab1e483f8106671db072016111f629a91f7f51d1ec8a20f7172",
+          "source_run_id": "a11c5bda-713d-4df2-967f-c2e3596e19b9",
+          "raw_audit_ids": [
+            "72056",
+            "72058"
+          ],
+          "target_count": 5,
+          "write_outcome": {
+            "event_id": "asset-master-scope-maintenance:9c83038af857bcb57d6b3fc3327f22fc93a29bb60a37cd806453613e50f9f00a",
+            "failed": 0,
+            "outcome": "success",
+            "plan_digest": "9c83038af857bcb57d6b3fc3327f22fc93a29bb60a37cd806453613e50f9f00a",
+            "requested": 5,
+            "stored": 5,
+            "succeeded": 5
+          },
+          "noop_outcome": {
+            "event_id": "asset-master-scope-maintenance:9c83038af857bcb57d6b3fc3327f22fc93a29bb60a37cd806453613e50f9f00a",
+            "failed": 0,
+            "outcome": "noop",
+            "plan_digest": "9c83038af857bcb57d6b3fc3327f22fc93a29bb60a37cd806453613e50f9f00a",
+            "requested": 5,
+            "stored": 0,
+            "succeeded": 5
+          },
+          "event_outbox_counts": [
+            1,
+            1
+          ],
+          "provider_capture_dispatches": 2,
+          "provider_apply_and_noop_dispatches": 0,
+          "database_oid": 43995,
+          "schema_and_ledger_unchanged": true,
+          "non_target_master_and_linked_history_unchanged": true,
+          "production_services_identity_before_and_after_verified": true,
+          "worker_and_temporary_secret_environment_cleanup_verified": true,
+          "metadata_maintenance_does_not_qualify_legal_pit_or_tradability": true,
+          "application_native_evidence_predates_this_mutation": true
+        },
+        "production_predispatch_failures": {
+          "local_pipe_r1": "Owner password input was not an anonymous pipe; no SSH or provider request",
+          "capture_r2": "Docker none-network inspect shape falsely rejected the UID probe; exact owned never-started probe removed and verified",
+          "capture_r3": "SSH protocol negotiation failed before remote phase; no provider dispatch",
+          "capture_r4": "Docker created worker has an empty attached NetworkID and tmpfs is in HostConfig; no worker start or provider call; exact never-started worker cleanup verified",
+          "original_outcomes_not_rewritten": true,
+          "corrective_network_checks": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/production-maintenance-created-network-regression.receipt.json",
+            "sha256": "fd1a76bc26beec373c8b7a4e610f04c69dcd81dea48644a943a1a1ac5dc51c87"
+          },
+          "corrective_tmpfs_checks": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/production-maintenance-tmpfs-regression.receipt.json",
+            "sha256": "a9a3dcedeab772c9f4ad69eb9939768518fc508aa3cf4c40c6f555f276bf38a6"
+          },
+          "r4_owned_cleanup": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/asset-active-maintenance-20261118/production-runs/capture-plan-c46bd7b72e524602b3d854fc82a419f4/worker-cleanup-operation-root-r2.json",
+            "sha256": "8b215405fb176407db09941856b41b671af91a07859173e953eeb2be75456958"
+          }
+        },
+        "postrepair_s6_budget": {
+          "market_charged_before_s6": 120,
+          "market_ceiling": 200,
+          "post_s6_c2_and_production_refresh_reserve": 18,
+          "s6_graph_max": 50,
+          "s6_probe_and_capacity_each_cap": "min(15, floor((200 - actual charged_before_s6 - 18 - actual graph dispatches) / 2)), minimum 6; unchanged sample50/full universe; exhaustion blocks",
+          "financial_used": 0,
+          "financial_ceiling": 22344,
+          "production_e1_used": 0,
+          "production_e1_separate_ceiling": 2,
+          "new_s6_started": false
         }
       }
     }
