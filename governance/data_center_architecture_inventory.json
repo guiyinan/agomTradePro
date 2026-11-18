@@ -39,9 +39,9 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 7668,
+    "current_surface_references": 7693,
     "data_write_task_decorators": 66,
-    "direct_data_center_imports_outside_data_center": 0,
+    "direct_data_center_imports_outside_data_center": 2,
     "external_http_imports_for_review": 0,
     "legacy_fact_references": 0,
     "provider_imports_outside_data_center": 0,
@@ -8895,6 +8895,38 @@
       "text": "self._observed_provider_requests = current + attempts"
     },
     {
+      "path": "apps/data_center/application/asset_active_maintenance.py",
+      "text": "\"\"\"Require the current real user, active state, and exact model permission.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/asset_active_maintenance.py",
+      "text": "\"\"\"Resolve current DATA02 authority and bind it to the authenticated user.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/asset_active_maintenance.py",
+      "text": "\"\"\"Return a current authority scope bound to the exact real user.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/asset_active_maintenance.py",
+      "text": "\"\"\"Revalidate the provider-issued authority at the exact current boundary.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/asset_active_maintenance.py",
+      "text": "current: tuple[AssetMasterRowSnapshot, ...],"
+    },
+    {
+      "path": "apps/data_center/application/asset_active_maintenance.py",
+      "text": "current=before,"
+    },
+    {
+      "path": "apps/data_center/application/asset_active_maintenance.py",
+      "text": "current_by_code = {row.code: row for row in current}"
+    },
+    {
+      "path": "apps/data_center/application/asset_active_maintenance.py",
+      "text": "if set(transition_by_code) != set(target_by_code) or len(current) != 5:"
+    },
+    {
       "path": "apps/data_center/application/business_runtime_gateway.py",
       "text": "\"\"\"Fetch latest prices, returning no fallback rows when Realtime is absent.\"\"\""
     },
@@ -11739,6 +11771,10 @@
       "text": "publication_key: str = \"current\","
     },
     {
+      "path": "apps/data_center/domain/asset_active_maintenance.py",
+      "text": "\"\"\"One authenticated real Django user and its current narrow permission.\"\"\""
+    },
+    {
       "path": "apps/data_center/domain/contracts.py",
       "text": "raise ValueError(\"current DataEnvelope requires publication_id\")"
     },
@@ -12229,6 +12265,10 @@
     {
       "path": "apps/data_center/infrastructure/archive_repositories.py",
       "text": "\"\"\"Authorize deletion only when DB coverage and current cold bytes agree.\"\"\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/asset_active_maintenance_plan.py",
+      "text": "\"\"\"Decode one exact planned asset row and current delist-date expectation.\"\"\""
     },
     {
       "path": "apps/data_center/infrastructure/asset_master_backfill.py",
@@ -30055,6 +30095,66 @@
       "text": "return Regime.objects.latest('observed_at')"
     },
     {
+      "path": "core/integration/asset_active_maintenance_composition.py",
+      "text": "\"\"\"Check the current configured backend for one exact model permission.\"\"\""
+    },
+    {
+      "path": "core/integration/asset_active_maintenance_composition.py",
+      "text": "\"\"\"Compose current Owner/authority, old-table repositories, and SystemAudit UOW.\"\"\""
+    },
+    {
+      "path": "core/integration/asset_active_maintenance_composition.py",
+      "text": "\"\"\"Reload the same active user and materialize current permission state.\"\"\""
+    },
+    {
+      "path": "core/integration/asset_active_maintenance_composition.py",
+      "text": "\"\"\"Return the current UTC-aware local maintenance timestamp.\"\"\""
+    },
+    {
+      "path": "core/integration/asset_active_maintenance_composition.py",
+      "text": "\"\"\"Reuse current provider-issued DATA02 authority and its bounded revalidator.\"\"\""
+    },
+    {
+      "path": "core/integration/asset_active_maintenance_composition.py",
+      "text": "\"\"\"Start without an authority until a real current preflight succeeds.\"\"\""
+    },
+    {
+      "path": "core/integration/asset_active_maintenance_composition.py",
+      "text": "and current == reader_context"
+    },
+    {
+      "path": "core/integration/asset_active_maintenance_composition.py",
+      "text": "and current is not None"
+    },
+    {
+      "path": "core/integration/asset_active_maintenance_composition.py",
+      "text": "and current.actor_id == expected.actor_id"
+    },
+    {
+      "path": "core/integration/asset_active_maintenance_composition.py",
+      "text": "and current.can_read_at(as_of)"
+    },
+    {
+      "path": "core/integration/asset_active_maintenance_composition.py",
+      "text": "and current.is_authorized"
+    },
+    {
+      "path": "core/integration/asset_active_maintenance_composition.py",
+      "text": "and current.username == expected.username"
+    },
+    {
+      "path": "core/integration/asset_active_maintenance_composition.py",
+      "text": "current = self.current_owner()"
+    },
+    {
+      "path": "core/integration/asset_active_maintenance_composition.py",
+      "text": "current, failure = preflight_data02_task_authority("
+    },
+    {
+      "path": "core/integration/asset_active_maintenance_composition.py",
+      "text": "current.user_id == expected.user_id"
+    },
+    {
       "path": "core/integration/bound_single_owner_policy_publication.py",
       "text": "current = _current_inputs(self.environment)"
     },
@@ -31177,7 +31277,16 @@
       "text": "@shared_task"
     }
   ],
-  "direct_data_center_imports_outside_data_center": [],
+  "direct_data_center_imports_outside_data_center": [
+    {
+      "import": "apps.data_center.infrastructure.asset_active_maintenance",
+      "path": "core/integration/asset_active_maintenance_composition.py"
+    },
+    {
+      "import": "apps.data_center.infrastructure.audited_sync_runtime",
+      "path": "core/integration/asset_active_maintenance_composition.py"
+    }
+  ],
   "external_http_imports_for_review": [],
   "legacy_fact_references": {},
   "provider_imports_outside_data_center": [],

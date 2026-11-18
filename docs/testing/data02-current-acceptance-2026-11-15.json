@@ -6520,6 +6520,117 @@
           "capacity": 20
         },
         "next_prospective_cumulative_maximum": 196
+      },
+      "independent_asset_active_scope_maintenance": {
+        "status": "development_passed_awaiting_own_ci_and_old_schema_qa",
+        "application_release_candidate_sha": "c5b42e20cc97a7e166e6d3f88254d05b0605667a",
+        "application_candidate_unchanged_by_independent_job": true,
+        "application_ci": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/market-headroom-candidate-all-ci-verified.receipt.json",
+          "sha256": "8468c7654dccf7b9882c43e74b960558eebd7f8d17b1490fdcf0e28ac65733ca"
+        },
+        "application_ci_success_runs": 8,
+        "application_native": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/native-headroom-phased-result.receipt.json",
+          "sha256": "236ff2b544240c96a63515f413c4b7fec4eef64156becefa77d08e8156e1d626"
+        },
+        "application_prebuild": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/native-headroom-prebuild-data-verification.receipt.json",
+          "sha256": "a328dc67e7a933353cc1948d7eac2ce80f1c565f5fa712c78c4082576abbaf68"
+        },
+        "application_build_bound_qualification": false,
+        "tool_worktree_base_sha": "c5b42e20cc97a7e166e6d3f88254d05b0605667a",
+        "tool_candidate_sha": null,
+        "tool_scope": [
+          "000016.SZ",
+          "002731.SZ",
+          "301139.SZ",
+          "601059.SH",
+          "601198.SH"
+        ],
+        "mutation_columns": [
+          "is_active",
+          "delist_date",
+          "updated_at"
+        ],
+        "active_flag_affects_all_active_filtered_consumers": true,
+        "owner_authority": "normal Django password-fd authentication; exact change_assetmastermodel permission; exact initial provider-issued DATA02 authority snapshot, fresh revalidation before commit",
+        "transaction": "one default PostgreSQL READ COMMITTED outer transaction; sorted exact row locks; master/SystemAudit USER event/Outbox atomic; exact source/plan/preimage/readback and verified noop",
+        "source_capture": "two new normal provider2 stock_basic calls: SSE x D and SZSE x D, explicit seven fields and real SyncRun identities; diagnostic response not used as formal evidence",
+        "source_limit": "source clocks remain unknown; no legal delisting/tradability/decision qualification",
+        "own_qualification_required": [
+          "own exact SHA CI",
+          "fresh verified production backup",
+          "unmigrated 4149-schema isolated rehearsal",
+          "normal Owner credentials/permission and current DATA02 authority",
+          "exact plan and unchanged full before-image"
+        ],
+        "development_tests": {
+          "total": 159,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "originals": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/asset-maintenance-checks-20261118T081149Z"
+        },
+        "incremental_mypy": {
+          "files": 7,
+          "exit_code": 0,
+          "originals": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/asset-maintenance-checks-20261118T081149Z"
+        },
+        "independent_review": "no remaining blocker after fresh authority snapshot, isolation and complete event/outbox payload/plan metadata fixes; read-only review, DB execution not claimed",
+        "full_development_gates": {
+          "exit_code": 0,
+          "originals": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/asset-maintenance-checks-20261118T081149Z",
+          "checks": [
+            "isort",
+            "black",
+            "ruff",
+            "tests",
+            "mypy",
+            "debt",
+            "module-map-generation",
+            "module-map",
+            "architecture-generation",
+            "architecture",
+            "architecture-delta",
+            "entrypoints-generation",
+            "current-contracts",
+            "celery-contracts",
+            "active-registry"
+          ],
+          "source_hashes": {
+            "apps/data_center/domain/asset_active_maintenance.py": "5664c4f2b13fa29099484d7ffb6a306d017527490ffb453c5dbb13c84303ba47",
+            "apps/data_center/application/asset_active_maintenance.py": "b85f442d96803f889e22fdaac665615d0739979d89e5740d053355c1e0a4c396",
+            "apps/data_center/infrastructure/asset_active_maintenance.py": "2f7d6c13e1bac94a3afb93b02de90b370449313863820f5d8daf85856841ec39",
+            "apps/data_center/infrastructure/asset_active_maintenance_plan.py": "5672c64ecf01dabf556471e6b6b6f9be7795bfda502914b03f44a25c4cb3e304",
+            "apps/data_center/management/commands/maintain_asset_active_scope.py": "bfcde782b68a3e2fd2ce576f9cb3ed9f1b39d31728640b57c7e59eb4c9f4b144",
+            "core/integration/asset_active_maintenance_audit.py": "332a0a0d752d04a2fa95d9ae4e5fd37cac6bd6d234e64be716bb0a9de0b20077",
+            "core/integration/asset_active_maintenance_composition.py": "364b705128dc59c12966f6024b15ef9166119f596434faefbd6d56b6c023c1ad"
+          }
+        },
+        "verified_backup": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/current-repair-backup-verified-summary.json",
+          "sha256": "9b3f3e7b427fc02f34991f7ad18a9d5f49b16a0bb3acd520deae3dbc18f0414f"
+        },
+        "backup_sha256": "ab167e01f5f4be7c610e7b3587b323903110a8caec87d4201b92972f0878f708",
+        "backup_bytes": 284570298,
+        "market_actual_charged": 116,
+        "market_ceiling": 200,
+        "market_remaining": 84,
+        "planned_source_calls_staging_max": 2,
+        "planned_source_calls_production_max": 2,
+        "financial_used": 0,
+        "financial_ceiling": 22344,
+        "universe_ceiling": 5585,
+        "production_e1_used": 0,
+        "production_e1_separate_ceiling": 2,
+        "new_provider_requests": 0,
+        "production_master_mutated": false,
+        "production_services_replaced": false,
+        "data02_exit_met": false,
+        "data03_started": false,
+        "next": "qualify independent job at its own exact SHA, perform bounded Owner maintenance, then a new c5 full S6 from real repaired production input; no failed attempt resume",
+        "frozen_candidate_receipt": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/asset-maintenance-frozen-candidate.receipt.json"
       }
     }
   ],

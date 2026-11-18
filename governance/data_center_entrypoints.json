@@ -11,7 +11,7 @@
       "compatibility_facade": 95,
       "current_data_surface": 121,
       "dynamic_import_edge": 15,
-      "management_command": 54,
+      "management_command": 55,
       "management_command_edge": 66,
       "mcp_tool": 40,
       "migration_evidence": 14,
@@ -30,13 +30,13 @@
       "workflow_step": 11
     },
     "by_status": {
-      "active_public": 943,
+      "active_public": 944,
       "adjacent_operational": 349,
       "candidate-review": 83,
       "compatibility": 139,
       "retired_blocked": 0
     },
-    "total": 1514
+    "total": 1515
   },
   "entries": [
     {
@@ -6727,6 +6727,16 @@
       "path": "apps/data_center/management/commands/initialize_statutory_source_body_storage.py",
       "status": "active_public",
       "symbol": "initialize_statutory_source_body_storage",
+      "target": ""
+    },
+    {
+      "category": "management_command",
+      "evidence": "Data Center-owned Django command",
+      "id": "management_command:apps/data_center/management/commands/maintain_asset_active_scope.py:maintain_asset_active_scope:",
+      "locator": "",
+      "path": "apps/data_center/management/commands/maintain_asset_active_scope.py",
+      "status": "active_public",
+      "symbol": "maintain_asset_active_scope",
       "target": ""
     },
     {

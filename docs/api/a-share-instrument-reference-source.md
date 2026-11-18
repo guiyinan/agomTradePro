@@ -37,3 +37,30 @@ blocked_reason           = INSTRUMENT_REFERENCE_SOURCE_ONLY_NOT_DECISION_READY
 ```
 
 后续仍需不可变证券事实、独立知识时点、规范化身份与板块映射、正式发布及真实 dataset/exchange 权限。名录来源合同的通过不能替代这些验收，也不能用本地抓取时刻补造上游时钟。
+
+## 独立 Owner 主数据维护
+
+`maintain_asset_active_scope` 是独立的显式维护命令，来源采集本身仍不更新主数据。
+它只接受一个外部 SHA-256 固定的五行计划：完整证券代码、主键、当前退市日期、
+`updated_at`、全部保留字段的摘要，以及 SSE×D、SZSE×D 两次既有 RawAudit/RawPayload
+的精确身份。计划不含自己的文件哈希；`--plan-sha256` 固定实际 UTF-8 文件字节。
+代码不会根据 L 名录缺行推断退市，也不自动停用其他证券。
+
+命令通过 `--owner` 与 `--password-fd` 对真实 Django 用户认证；密码只从编号至少为 3
+的管道或 socket 读取，不接受命令行密码、环境变量密码或普通密码文件。用户须具有
+`data_center.change_assetmastermodel`，并通过现有 DATA-02 审计权限预检及提交前重验。
+这次操作固定起始的真实权限快照，后续任何快照变化均阻断；既有长期任务的等价续期规则不变。
+
+在默认 PostgreSQL 库的单个外层事务中，命令按主键顺序锁定五行、重放两份原文并核对
+完整前像，只改变 `is_active=False`、来源声称的 `delist_date` 和本地维护 `updated_at`。
+事务必须为 READ COMMITTED，以便后续重验能读取新提交的权限撤销；其他隔离级别在 DML 前拒绝。
+同一事务写入 USER/SystemAudit 系统操作事件及 Outbox；任何验证或审计失败均回滚。
+重复执行仅在原事件、Outbox、来源、权限和当前五行状态全部精确匹配时返回 `noop`。
+
+`is_active=False` 会影响所有按活跃状态过滤主数据的消费者。名称、别名、上市日期、
+行业、币种、股本、扩展字段、持仓与历史数据均不在维护范围。该操作记录 Owner 的
+活跃范围维护，不授予法律退市、时点证券事实或可交易性资格；来源的未知上游时钟、
+`must_not_use_for_decision`、`must_not_execute` 保持原义。
+
+本命令不执行迁移或供应商请求。实际执行前仍需其自身精确代码版本的开发/CI检查、
+旧生产 schema 隔离演练、有效备份和真实权限；应用发布候选的 S6、部署与退出门另行完成。

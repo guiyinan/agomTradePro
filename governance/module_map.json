@@ -4200,6 +4200,18 @@
           "audit_archive_restore_task",
           "verify_archive_manifest_task"
         ],
+        "application/asset_active_maintenance.py": [
+          "AssetActiveMaintenance",
+          "AssetActiveMaintenanceError",
+          "AssetMaintenanceAuditPort",
+          "AssetMaintenanceAuthorityPort",
+          "AssetMaintenanceClock",
+          "AssetMaintenanceOwnerPort",
+          "AssetMaintenanceRepository",
+          "AssetMaintenanceResult",
+          "AssetMaintenanceSourceReader",
+          "AssetMaintenanceUnitOfWork"
+        ],
         "application/asset_resolution.py": [
           "resolve_unique_exact_asset_name"
         ],
@@ -5862,11 +5874,11 @@
         ]
       },
       "layers": {
-        "application": 202,
-        "domain": 70,
-        "infrastructure": 289,
+        "application": 203,
+        "domain": 71,
+        "infrastructure": 291,
         "interface": 35,
-        "management": 46,
+        "management": 47,
         "root": 51
       },
       "orm_models": {
