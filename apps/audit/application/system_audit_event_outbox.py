@@ -14,7 +14,7 @@ from datetime import datetime
 from typing import Protocol
 from uuid import UUID
 
-from apps.audit.domain.system_audit_event import SystemAuditEvent
+from apps.audit.domain.system_audit_event import AuditScopeRef, SystemAuditEvent
 
 _HASH_RE = re.compile(r"^[0-9a-f]{64}$")
 
@@ -95,6 +95,46 @@ class SystemAuditEventOutboxWriter(Protocol):
         """Append the event and enqueue the exact same payload atomically."""
 
 
+class SystemAuditEventOutboxCoordinator(SystemAuditEventOutboxWriter, Protocol):
+    """Public bounded selectors and append capability for a caller-owned transaction."""
+
+    @property
+    def database_alias(self) -> str:
+        """Return the shared event/outbox database alias."""
+
+    def caller_owned_atomic(self) -> AbstractContextManager[None]:
+        """Join one existing outer transaction without opening a savepoint."""
+
+    def lock_stream(self, stream_id: str) -> None:
+        """Serialize one canonical event stream."""
+
+    def get_winner_targeted(
+        self,
+        *,
+        event_id: str,
+        event_version: str,
+        as_of: datetime,
+        lock: bool = False,
+    ) -> SystemAuditEvent | None:
+        """Read one exact event identity through its bounded selector."""
+
+    def get_current_head_targeted(
+        self,
+        *,
+        stream_id: str,
+        as_of: datetime,
+        scope: AuditScopeRef | None = None,
+        lock: bool = False,
+    ) -> SystemAuditEvent | None:
+        """Read only the latest event of the selected stream and scope."""
+
+    def get_exact_outbox_winner_targeted(
+        self,
+        event: SystemAuditEvent,
+    ) -> ExactSystemAuditOutboxWinner | None:
+        """Return the immutable Outbox paired with the complete selected event."""
+
+
 @dataclass(frozen=True, slots=True)
 class AppendSystemAuditEventOutboxCommand:
     """ID/hash-bound event append request."""
@@ -144,6 +184,7 @@ __all__ = [
     "AppendSystemAuditEventOutboxUseCase",
     "ExactSystemAuditOutboxWinner",
     "SystemAuditEventOutboxCommit",
+    "SystemAuditEventOutboxCoordinator",
     "SystemAuditEventOutboxConflict",
     "SystemAuditEventOutboxCorruption",
     "SystemAuditEventOutboxUnavailable",

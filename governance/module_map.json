@@ -2773,6 +2773,7 @@
           "ExactSystemAuditOutboxWinner",
           "SystemAuditEventOutboxCommit",
           "SystemAuditEventOutboxConflict",
+          "SystemAuditEventOutboxCoordinator",
           "SystemAuditEventOutboxCorruption",
           "SystemAuditEventOutboxUnavailable",
           "SystemAuditEventOutboxWriter"
@@ -2881,7 +2882,7 @@
         "infrastructure": 28,
         "interface": 14,
         "management": 8,
-        "root": 11,
+        "root": 12,
         "templatetags": 2
       },
       "orm_models": {
@@ -5876,10 +5877,10 @@
       "layers": {
         "application": 203,
         "domain": 71,
-        "infrastructure": 291,
+        "infrastructure": 292,
         "interface": 35,
         "management": 47,
-        "root": 51
+        "root": 52
       },
       "orm_models": {
         "infrastructure/models.py": [

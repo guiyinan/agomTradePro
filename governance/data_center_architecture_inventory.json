@@ -39,9 +39,9 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 7693,
+    "current_surface_references": 7698,
     "data_write_task_decorators": 66,
-    "direct_data_center_imports_outside_data_center": 2,
+    "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
     "legacy_fact_references": 0,
     "provider_imports_outside_data_center": 0,
@@ -6783,6 +6783,10 @@
       "text": "\"\"\"Injected source of current, immutable authority facts.\"\"\""
     },
     {
+      "path": "apps/audit/application/system_audit_event_outbox.py",
+      "text": "\"\"\"Read only the latest event of the selected stream and scope.\"\"\""
+    },
+    {
       "path": "apps/audit/application/system_audit_outbox_observability.py",
       "text": "\"\"\"Return the non-negative age of the oldest current claim lease.\"\"\""
     },
@@ -11575,6 +11579,10 @@
       "text": "self._publications.list_members(current.publication_id),"
     },
     {
+      "path": "apps/data_center/asset_active_maintenance_composition.py",
+      "text": "\"\"\"Bind current credential and model-permission reads inside Data Center infrastructure.\"\"\""
+    },
+    {
       "path": "apps/data_center/calendar_audit_read_authority_composition.py",
       "text": "\"\"\"Hold current read-permission witnesses while the caller reads its exact stream."
     },
@@ -12265,6 +12273,38 @@
     {
       "path": "apps/data_center/infrastructure/archive_repositories.py",
       "text": "\"\"\"Authorize deletion only when DB coverage and current cold bytes agree.\"\"\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/asset_active_maintenance_owner.py",
+      "text": "\"\"\"Check the current configured backend for one exact model permission.\"\"\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/asset_active_maintenance_owner.py",
+      "text": "\"\"\"Current authenticated user and model permission adapter for asset maintenance.\"\"\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/asset_active_maintenance_owner.py",
+      "text": "\"\"\"Reload the same active user and materialize current permission state.\"\"\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/asset_active_maintenance_owner.py",
+      "text": "and current.actor_id == expected.actor_id"
+    },
+    {
+      "path": "apps/data_center/infrastructure/asset_active_maintenance_owner.py",
+      "text": "and current.is_authorized"
+    },
+    {
+      "path": "apps/data_center/infrastructure/asset_active_maintenance_owner.py",
+      "text": "and current.username == expected.username"
+    },
+    {
+      "path": "apps/data_center/infrastructure/asset_active_maintenance_owner.py",
+      "text": "current = self.current_owner()"
+    },
+    {
+      "path": "apps/data_center/infrastructure/asset_active_maintenance_owner.py",
+      "text": "current.user_id == expected.user_id"
     },
     {
       "path": "apps/data_center/infrastructure/asset_active_maintenance_plan.py",
@@ -30096,7 +30136,7 @@
     },
     {
       "path": "core/integration/asset_active_maintenance_composition.py",
-      "text": "\"\"\"Check the current configured backend for one exact model permission.\"\"\""
+      "text": "\"\"\"Check the same credential and current permission through its public port.\"\"\""
     },
     {
       "path": "core/integration/asset_active_maintenance_composition.py",
@@ -30104,7 +30144,7 @@
     },
     {
       "path": "core/integration/asset_active_maintenance_composition.py",
-      "text": "\"\"\"Reload the same active user and materialize current permission state.\"\"\""
+      "text": "\"\"\"Reload the actual current identity and exact model permission.\"\"\""
     },
     {
       "path": "core/integration/asset_active_maintenance_composition.py",
@@ -30128,31 +30168,11 @@
     },
     {
       "path": "core/integration/asset_active_maintenance_composition.py",
-      "text": "and current.actor_id == expected.actor_id"
-    },
-    {
-      "path": "core/integration/asset_active_maintenance_composition.py",
       "text": "and current.can_read_at(as_of)"
     },
     {
       "path": "core/integration/asset_active_maintenance_composition.py",
-      "text": "and current.is_authorized"
-    },
-    {
-      "path": "core/integration/asset_active_maintenance_composition.py",
-      "text": "and current.username == expected.username"
-    },
-    {
-      "path": "core/integration/asset_active_maintenance_composition.py",
-      "text": "current = self.current_owner()"
-    },
-    {
-      "path": "core/integration/asset_active_maintenance_composition.py",
       "text": "current, failure = preflight_data02_task_authority("
-    },
-    {
-      "path": "core/integration/asset_active_maintenance_composition.py",
-      "text": "current.user_id == expected.user_id"
     },
     {
       "path": "core/integration/bound_single_owner_policy_publication.py",
@@ -31277,16 +31297,7 @@
       "text": "@shared_task"
     }
   ],
-  "direct_data_center_imports_outside_data_center": [
-    {
-      "import": "apps.data_center.infrastructure.asset_active_maintenance",
-      "path": "core/integration/asset_active_maintenance_composition.py"
-    },
-    {
-      "import": "apps.data_center.infrastructure.audited_sync_runtime",
-      "path": "core/integration/asset_active_maintenance_composition.py"
-    }
-  ],
+  "direct_data_center_imports_outside_data_center": [],
   "external_http_imports_for_review": [],
   "legacy_fact_references": {},
   "provider_imports_outside_data_center": [],

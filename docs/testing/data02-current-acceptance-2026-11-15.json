@@ -6539,7 +6539,7 @@
           "sha256": "a328dc67e7a933353cc1948d7eac2ce80f1c565f5fa712c78c4082576abbaf68"
         },
         "application_build_bound_qualification": false,
-        "tool_worktree_base_sha": "c5b42e20cc97a7e166e6d3f88254d05b0605667a",
+        "tool_worktree_base_sha": "1552eb9370e795f61d6b74c1f93b982b46418d3e",
         "tool_candidate_sha": null,
         "tool_scope": [
           "000016.SZ",
@@ -6566,21 +6566,21 @@
           "exact plan and unchanged full before-image"
         ],
         "development_tests": {
-          "total": 159,
+          "total": 161,
           "failures": 0,
           "errors": 0,
           "skipped": 0,
-          "originals": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/asset-maintenance-checks-20261118T081149Z"
+          "originals": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/asset-maintenance-checks-20261118T084438Z"
         },
         "incremental_mypy": {
-          "files": 7,
+          "files": 11,
           "exit_code": 0,
-          "originals": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/asset-maintenance-checks-20261118T081149Z"
+          "originals": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/asset-maintenance-checks-20261118T084438Z"
         },
-        "independent_review": "no remaining blocker after fresh authority snapshot, isolation and complete event/outbox payload/plan metadata fixes; read-only review, DB execution not claimed",
+        "independent_review": "Public port boundary correction reviewed read-only: no remaining boundary/assembly blocker; original maintenance data/permission semantics preserved.",
         "full_development_gates": {
           "exit_code": 0,
-          "originals": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/asset-maintenance-checks-20261118T081149Z",
+          "originals": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/asset-maintenance-checks-20261118T084438Z",
           "checks": [
             "isort",
             "black",
@@ -6596,16 +6596,21 @@
             "entrypoints-generation",
             "current-contracts",
             "celery-contracts",
-            "active-registry"
+            "active-registry",
+            "governance-consistency"
           ],
           "source_hashes": {
+            "apps/audit/application/system_audit_event_outbox.py": "f149ca5ba5fa7d13fdf41c1948a5074ae3a741e1e04c827dbd113c57472da2e5",
+            "apps/audit/system_audit_event_outbox_composition.py": "7992790dda14a7d132357a8182b4319176340fbb344cd8e82766dccbdacba669",
+            "apps/data_center/asset_active_maintenance_composition.py": "81200fe551176f4bc0c590973488252b484a95e933371d3e1c18506f3ac06ec2",
+            "apps/data_center/infrastructure/asset_active_maintenance_owner.py": "c642c1bc833a4cca6996c8798a7024b01712c3e839a74db1b003fb1fb705252c",
             "apps/data_center/domain/asset_active_maintenance.py": "5664c4f2b13fa29099484d7ffb6a306d017527490ffb453c5dbb13c84303ba47",
             "apps/data_center/application/asset_active_maintenance.py": "b85f442d96803f889e22fdaac665615d0739979d89e5740d053355c1e0a4c396",
             "apps/data_center/infrastructure/asset_active_maintenance.py": "2f7d6c13e1bac94a3afb93b02de90b370449313863820f5d8daf85856841ec39",
             "apps/data_center/infrastructure/asset_active_maintenance_plan.py": "5672c64ecf01dabf556471e6b6b6f9be7795bfda502914b03f44a25c4cb3e304",
             "apps/data_center/management/commands/maintain_asset_active_scope.py": "bfcde782b68a3e2fd2ce576f9cb3ed9f1b39d31728640b57c7e59eb4c9f4b144",
-            "core/integration/asset_active_maintenance_audit.py": "332a0a0d752d04a2fa95d9ae4e5fd37cac6bd6d234e64be716bb0a9de0b20077",
-            "core/integration/asset_active_maintenance_composition.py": "364b705128dc59c12966f6024b15ef9166119f596434faefbd6d56b6c023c1ad"
+            "core/integration/asset_active_maintenance_audit.py": "edc8b14107825fa150f11c734eb3d66404da91ccef8a9978bc6888ad055e0865",
+            "core/integration/asset_active_maintenance_composition.py": "855453dd742c1eb0acf8a60dffba8274cae4a37b722a7bdda8f758e0cef0c915"
           }
         },
         "verified_backup": {
@@ -6630,7 +6635,70 @@
         "data02_exit_met": false,
         "data03_started": false,
         "next": "qualify independent job at its own exact SHA, perform bounded Owner maintenance, then a new c5 full S6 from real repaired production input; no failed attempt resume",
-        "frozen_candidate_receipt": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/asset-maintenance-frozen-candidate.receipt.json"
+        "frozen_candidate_receipt": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/asset-maintenance-public-ports-frozen-candidate.receipt.json",
+        "previous_tool_candidates": [
+          {
+            "candidate_sha": "1552eb9370e795f61d6b74c1f93b982b46418d3e",
+            "status": "ci_failed_not_qualified",
+            "local_development_originals": {
+              "exit_code": 0,
+              "originals": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/asset-maintenance-checks-20261118T081149Z",
+              "checks": [
+                "isort",
+                "black",
+                "ruff",
+                "tests",
+                "mypy",
+                "debt",
+                "module-map-generation",
+                "module-map",
+                "architecture-generation",
+                "architecture",
+                "architecture-delta",
+                "entrypoints-generation",
+                "current-contracts",
+                "celery-contracts",
+                "active-registry"
+              ],
+              "source_hashes": {
+                "apps/data_center/domain/asset_active_maintenance.py": "5664c4f2b13fa29099484d7ffb6a306d017527490ffb453c5dbb13c84303ba47",
+                "apps/data_center/application/asset_active_maintenance.py": "b85f442d96803f889e22fdaac665615d0739979d89e5740d053355c1e0a4c396",
+                "apps/data_center/infrastructure/asset_active_maintenance.py": "2f7d6c13e1bac94a3afb93b02de90b370449313863820f5d8daf85856841ec39",
+                "apps/data_center/infrastructure/asset_active_maintenance_plan.py": "5672c64ecf01dabf556471e6b6b6f9be7795bfda502914b03f44a25c4cb3e304",
+                "apps/data_center/management/commands/maintain_asset_active_scope.py": "bfcde782b68a3e2fd2ce576f9cb3ed9f1b39d31728640b57c7e59eb4c9f4b144",
+                "core/integration/asset_active_maintenance_audit.py": "332a0a0d752d04a2fa95d9ae4e5fd37cac6bd6d234e64be716bb0a9de0b20077",
+                "core/integration/asset_active_maintenance_composition.py": "364b705128dc59c12966f6024b15ef9166119f596434faefbd6d56b6c023c1ad"
+              }
+            },
+            "freeze_receipt": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/asset-maintenance-frozen-candidate.receipt.json",
+            "actual_ci_cause": [
+              "core_integration_infrastructure_import_growth: 0 to 4",
+              "core_integration_orm_access_growth: 0 to 1"
+            ],
+            "consistency_run": 44267262288,
+            "matrix_runs": [
+              44267262382,
+              44267514282
+            ],
+            "matrix_failed_test": "tests/guardrails/test_governance_consistency.py::test_guardrail_governance_consistency_has_no_regressions",
+            "m5_deny_was_non_failing_diagnostic": true,
+            "attribution_correction": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/asset-maintenance-candidate-run-44267262288-attribution-correction.json",
+            "production_or_provider_execution": false
+          }
+        ],
+        "public_port_correction": "Audit-owned canonical coordinator exposed through Application Protocol and own composition factory; DataCenter-owned repo/UOW/Owner adapter construction; Core only public ports and live Owner delegation; no debt baseline increase or M5 change.",
+        "source_inputs": {
+          "scope_sha256": "feaf8001da987d6e015a869bc9f54fe6ab6923fedc3ae4e6ffda89a02c20d94c",
+          "source_config_sha256": "6e5ed144db0f2e5eee6fad80079f0656aa29f0e75b92ee965c7a9e1f05311af9",
+          "caller_supplied_source_only": true,
+          "database_mapping_or_legal_qualification_claimed": false,
+          "provider_requests": 0
+        },
+        "ci_failure_guardrail_retest": {
+          "exit_code": 0,
+          "tests": 1,
+          "original": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/asset-maintenance-public-ports-guardrail.receipt.json"
+        }
       }
     }
   ],

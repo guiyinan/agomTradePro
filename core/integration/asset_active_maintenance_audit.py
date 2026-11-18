@@ -9,6 +9,7 @@ from uuid import UUID
 
 from django.utils import timezone
 
+from apps.audit.application.system_audit_event_outbox import SystemAuditEventOutboxCoordinator
 from apps.audit.domain.system_audit_event import (
     AuditActorRef,
     AuditCategory,
@@ -21,9 +22,6 @@ from apps.audit.domain.system_audit_event import (
     AuditWritePolicy,
     JSONValue,
     SystemAuditEvent,
-)
-from apps.audit.infrastructure.system_audit_event_outbox_coordinator import (
-    DjangoSystemAuditEventOutboxCoordinator,
 )
 from apps.data_center.domain.asset_active_maintenance import (
     AssetActiveMaintenanceContractError,
@@ -47,11 +45,11 @@ class DjangoAssetMaintenanceSystemAuditAdapter:
 
     __slots__ = ("_coordinator",)
 
-    def __init__(self, *, coordinator: DjangoSystemAuditEventOutboxCoordinator) -> None:
+    def __init__(self, *, coordinator: SystemAuditEventOutboxCoordinator) -> None:
         """Use the real same-alias SystemAudit coordinator."""
 
-        if not isinstance(coordinator, DjangoSystemAuditEventOutboxCoordinator):
-            raise ValueError("maintenance audit requires the canonical event/outbox coordinator")
+        if coordinator.database_alias != "default":
+            raise ValueError("maintenance audit requires the default event/outbox alias")
         self._coordinator = coordinator
 
     @property

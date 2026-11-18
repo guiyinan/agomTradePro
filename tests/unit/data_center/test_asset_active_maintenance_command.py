@@ -20,6 +20,9 @@ from apps.audit.domain.system_audit_event import AuditResourceRef, SystemAuditEv
 from apps.audit.infrastructure.system_audit_event_outbox_coordinator import (
     DjangoSystemAuditEventOutboxCoordinator,
 )
+from apps.audit.system_audit_event_outbox_composition import (
+    build_system_audit_event_outbox_coordinator,
+)
 from apps.data_center.application.asset_active_maintenance import AssetActiveMaintenanceError
 from apps.data_center.domain.asset_active_maintenance import (
     AssetActiveMaintenanceContractError,
@@ -28,10 +31,11 @@ from apps.data_center.domain.asset_active_maintenance import (
 from apps.data_center.infrastructure import asset_active_maintenance as repository_module
 from apps.data_center.infrastructure.asset_active_maintenance_plan import decode_plan
 from apps.data_center.management.commands import maintain_asset_active_scope as command
+from core.exceptions import InvalidInputError
 from core.integration import asset_active_maintenance_audit as audit_module
 from core.integration import asset_active_maintenance_composition as composition
 from core.integration.data_center_audit import SystemAuditReaderContext
-from tests.unit.data_center.test_asset_active_maintenance import _plan, _use_case
+from tests.unit.data_center.test_asset_active_maintenance import FakeOwnerPort, _plan, _use_case
 
 
 def _raw() -> bytes:
@@ -326,3 +330,31 @@ def test_record_once_rejects_canonical_but_substituted_persisted_event(existing:
     )
     with pytest.raises(AssetActiveMaintenanceContractError, match=expected):
         adapter.record_once(audit.observations[0])
+
+
+def test_audit_public_factory_preserves_canonical_same_alias_implementation() -> None:
+    coordinator = build_system_audit_event_outbox_coordinator(using="default")
+    assert isinstance(coordinator, DjangoSystemAuditEventOutboxCoordinator)
+    assert coordinator.database_alias == "default"
+    with pytest.raises(InvalidInputError, match="Audit database alias is invalid"):
+        build_system_audit_event_outbox_coordinator(using=" default ")
+
+
+def test_core_owner_adapter_delegates_live_permission_to_owning_app(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    delegate = FakeOwnerPort()
+    authenticated = object()
+    seen: list[object] = []
+
+    def create_port(*, authenticated_user: object) -> FakeOwnerPort:
+        seen.append(authenticated_user)
+        return delegate
+
+    monkeypatch.setattr(composition, "create_asset_maintenance_owner_port", create_port)
+    port = composition.DjangoAssetMaintenanceOwnerPort(authenticated_user=authenticated)
+    owner = port.current_owner()
+    assert seen == [authenticated]
+    assert port.is_current(owner)
+    delegate.allowed = False
+    assert not port.is_current(owner)
