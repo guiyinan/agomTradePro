@@ -6522,7 +6522,7 @@
         "next_prospective_cumulative_maximum": 196
       },
       "independent_asset_active_scope_maintenance": {
-        "status": "real_exact_five_production_maintenance_passed_awaiting_new_c5_s6",
+        "status": "real_production_maintenance_closed_fresh_c5_s6_preparation_launched",
         "application_release_candidate_sha": "c5b42e20cc97a7e166e6d3f88254d05b0605667a",
         "application_candidate_unchanged_by_independent_job": true,
         "application_ci": {
@@ -6773,7 +6773,7 @@
         "production_services_replaced": false,
         "data02_exit_met": false,
         "data03_started": false,
-        "next": "archive and remove only the completed owned maintenance QA database for headroom, then fresh standard c5 S6 from actual repaired production; reserve 18 market dispatches for post-S6 C2/production refresh; no failed attempt resume",
+        "next": "observe this fresh c5 standard prepare; review actual graph/clone/build receipts, derive equal probe/capacity budget while keeping 18 calls for post-S6 production work, then launch the complete runner; no DATA02 closure or DATA03 start",
         "frozen_candidate_receipt": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/asset-maintenance-public-ports-frozen-candidate.receipt.json",
         "previous_tool_candidates": [
           {
@@ -6904,7 +6904,11 @@
           "production_services_identity_before_and_after_verified": true,
           "worker_and_temporary_secret_environment_cleanup_verified": true,
           "metadata_maintenance_does_not_qualify_legal_pit_or_tradability": true,
-          "application_native_evidence_predates_this_mutation": true
+          "application_native_evidence_predates_this_mutation": true,
+          "market_lineage_review": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/production-maintenance-market-lineage-review.receipt.json",
+            "sha256": "5fe179c5925d830ccb03f757c5d7a1d76a36669470ca042f90de981e1f5c4017"
+          }
         },
         "production_predispatch_failures": {
           "local_pipe_r1": "Owner password input was not an anonymous pipe; no SSH or provider request",
@@ -6935,7 +6939,72 @@
           "financial_ceiling": 22344,
           "production_e1_used": 0,
           "production_e1_separate_ceiling": 2,
-          "new_s6_started": false
+          "new_s6_started": true
+        },
+        "maintenance_qa_retirement": {
+          "status": "success",
+          "host_receipt": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/asset-active-maintenance-20261118/qa-retirement/86739e38ca424cfdaf2953226d3b576f/host-receipt.json",
+            "sha256": "e8ccc2ef0d70611bbec7bb890f5cf494336455c2eee28775d91c75f40f33ea46"
+          },
+          "remote_operation_sha256": "f216c884ef222988b6c8546f4158ddfe67f669a628ce65b39b5a64a1ffeea921",
+          "archive_location": "vps_only",
+          "archive_path": "/opt/agomtradepro/diagnostics/asset-active-maintenance-qa-archives/asset-active-maintenance-86739e38ca424cfdaf2953226d3b576f/maintenance-qa.dump",
+          "archive_sha256": "24e70411fd33a702bb8d8946bd46081fee0c8a458bd7e15c07bcf9ed21c8fcfb",
+          "archive_size_bytes": 284566692,
+          "archive_list_sha256": "41fd2774804f1f20484b2b239b3276006309c465247cbb88ff9dafacfa5c00ce",
+          "archive_full_read_exit_code": 0,
+          "dropped_database": "data02_asset_active_maintenance_20261118",
+          "dropped_oid": 57189,
+          "protected_database_oids": [
+            16384,
+            56683
+          ],
+          "postgres_stopped_verified": true,
+          "container_volume_network_preserved": true,
+          "disk_free_bytes_after": 27332386816,
+          "production_mutated": false,
+          "provider_http_requests": 0
+        },
+        "fresh_postrepair_s6": {
+          "candidate_sha": "c5b42e20cc97a7e166e6d3f88254d05b0605667a",
+          "attempt_id": "d24274f998aa4f8ba0260c956d76f714",
+          "state": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-postrepair-s6-proposal/s6-c5-postrepair-state.json",
+            "sha256": "4b73c0e86ea4e36baa8b7f8e549f1b2ca05bd8f2ec49554e9375ce7497eebc47"
+          },
+          "prepare_launch": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-postrepair-s6-proposal/s6-c5-postrepair-fresh-prepare-launch.receipt.json",
+            "sha256": "ee5c6650ab7b24a9cc3776762f6da1cc8bb3b58a0fb591237e0c00b262bd9c47"
+          },
+          "transport": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-postrepair-s6-proposal/s6-c5-postrepair-transport.receipt.json",
+            "sha256": "4e1c23cd98d8f1df003c782d1f5c5a797651909ffa060e5fcb1b6eed0b41d52b"
+          },
+          "status": "prepare_started_no_result_yet",
+          "prepare_pid": 660138,
+          "root": "/opt/agomtradepro/rehearsals/s6-c5b42e20cc-d24274f998aa4f8ba0260c956d76f714",
+          "production_source": "standard prepare snapshots then-current production PostgreSQL after actual exact-five maintenance; snapshot/restore completion is not yet verified",
+          "market_charged_before_attempt": 120,
+          "market_graph_max": 50,
+          "graph_dispatch_count": null,
+          "financial_runner_started": false,
+          "financial_used": 0,
+          "e1_used": 0,
+          "post_s6_market_reserve": 18,
+          "failed_attempt_resumed": false,
+          "application_deployed": false
+        },
+        "remaining_full_universe_d1_gap": {
+          "status": "readonly_gap_identified_not_implemented",
+          "formal_slice_producer": "ControlledAkshareFinancialCapacitySliceRunner still uses legacy financial/source-time capture",
+          "legacy_publication_acceptance_does_not_prove_d1": true,
+          "required_scope": "full universe and complete configured metric groups, actual units/precision and independent retained-body/catalog verification; E1 required10 uses Main7 plus Balance3",
+          "minimal_reuse": "existing frozen formal manifest/slice budgets and atomic publisher; connect native Main+Balance capture/C2 witness/native-v2 write-readback and actual four-Publication readiness",
+          "offline_v2_reports_production_ready": false,
+          "same_source_zero_tolerance_already_owner_approved": true,
+          "production_financial_budget_separate_from_s6": true,
+          "implementation_waits_for_real_e1_minimal_closure": true
         }
       }
     }
