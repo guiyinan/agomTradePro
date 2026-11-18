@@ -6312,7 +6312,214 @@
           "only_exact_postgres_container_and_volume_removed": true,
           "redis_network_and_other_qa_preserved": true,
           "full_custom_archive_list_and_read_verified_before_removal": true
+        },
+        "post_freeze_candidate_sha": "afa79cc7bfe97c50a71fe86f81b61127d3b463a0"
+      },
+      "minimum_market_headroom_failure": {
+        "candidate_sha": "afa79cc7bfe97c50a71fe86f81b61127d3b463a0",
+        "status": "minimal_factory_move_development_gates_passed_new_candidate_required",
+        "failed_runs": [
+          44245592589,
+          44245652042
+        ],
+        "cancelled_publication_run": 44245658247,
+        "failure": "composition.py nonempty lines 1002 -> 1013 exceeds 1000 growth headroom",
+        "full_push_log": {
+          "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/minimum-market-candidate-run-44245592589-full.log",
+          "sha256": "56554e9b45d72c5c4b399d7a12d1c98707b9c482c3c7613460f3e23ce3326b72"
+        },
+        "not_environmental_not_rerun": true,
+        "old_native_qualification_not_started": true,
+        "repair": "Move only the source-selected provider factory into existing a_share_universe_sync.py; preserve the short composition facade signature, defaults, fallback, and existing scope validation. Do not raise the headroom limit.",
+        "new_exact_candidate_ci_native_and_fresh_s6_required": true,
+        "development_checks": [
+          {
+            "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/market-headroom-black.receipt.json",
+            "sha256": "a0b4adf9e96296362dbf010b9e00747eb08cc126f210ce5d959a84daf5acc5a0",
+            "exit_code": 0
+          },
+          {
+            "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/market-headroom-isort.receipt.json",
+            "sha256": "0b3b8e61604a78e75cfd50f863d2722f2ab8cf154098be1f45ff9c234b44bfc2",
+            "exit_code": 0
+          },
+          {
+            "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/market-headroom-ruff.receipt.json",
+            "sha256": "2c1d07d139f175eeeaa091f0472b524a620ab17877e774c8a138974b95d54b6a",
+            "exit_code": 0
+          },
+          {
+            "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/market-headroom-tests.receipt.json",
+            "sha256": "398a9848f476aaea8294b78a3e055c1ef87a4ee667670b3a881bfc27d4f4f26d",
+            "exit_code": 0
+          },
+          {
+            "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/market-headroom-mypy.receipt.json",
+            "sha256": "e53af7a47b8d6ff58bacd6d40a9b2d1d3ab82274e84f2342e94e34db5bc9697b",
+            "exit_code": 0
+          },
+          {
+            "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/market-headroom-debt.receipt.json",
+            "sha256": "f379ad052d9dcaf9d6d195c718eaecb51e0a8813de1eb2205c5afadc8dc63fca",
+            "exit_code": 0
+          },
+          {
+            "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/market-headroom-current-contracts.receipt.json",
+            "sha256": "c7a1e5e76d8d3a527e7dae07d53f3a7b7940f01433cdbab859e9949c8abeb715",
+            "exit_code": 0
+          },
+          {
+            "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/market-headroom-celery-contracts.receipt.json",
+            "sha256": "21e4905c7b569b0b3df886e8cb201087839d36ee33662ffbc633c78b7ad5587c",
+            "exit_code": 0
+          },
+          {
+            "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/market-headroom-architecture-projection.receipt.json",
+            "sha256": "7de1180e21f6ea37d33afd6b0c28df5a3c870887d6074f047efef507fbef1577",
+            "exit_code": 0
+          },
+          {
+            "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/market-headroom-module-map.receipt.json",
+            "sha256": "028e8ba6bd20374988f7ca74e384fa35d7b70a9c70c21b75ac2fa8a71b20176e",
+            "exit_code": 0
+          },
+          {
+            "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/market-headroom-entrypoint-generation.receipt.json",
+            "sha256": "6283cd71f95abb5303e26e6e80ddde181c6337ec1e911a72c262f4c537e9500e",
+            "exit_code": 0
+          },
+          {
+            "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/market-headroom-active-registry.receipt.json",
+            "sha256": "517ac59f544f0dc31ff71724572a940c33352f9fe272d5ed0c27eed824a3ff46",
+            "exit_code": 0
+          }
+        ],
+        "focused_tests": {
+          "tests": 125,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        "counts": {
+          "base_ref": "52422a4a8529c9a412280e2d0f03a3ec0961f72c",
+          "counts": [
+            {
+              "path": "apps/data_center/composition.py",
+              "base_nonempty": 1002,
+              "worktree_nonempty": 1002
+            },
+            {
+              "path": "apps/data_center/infrastructure/a_share_universe_sync.py",
+              "base_nonempty": 793,
+              "worktree_nonempty": 806
+            }
+          ]
+        },
+        "independent_review": "Existing provider factory moved intact to the existing infrastructure module; composition signature/defaults/fallback remain unchanged. The original 1000-line growth guard is retained.",
+        "production_changed": false,
+        "data02_exit_met": false,
+        "data03_started": false,
+        "native_retired_5394_archive_and_cleanup": {
+          "archive": {
+            "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/native-minimum-5394-archive-original.json",
+            "sha256": "14be3cb925224872c06787e1afe1bc6354bceb63df91bb5cd1aca7e7f630f609"
+          },
+          "drop_r2": {
+            "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/native-minimum-5394-database-drop-original-r2.json",
+            "sha256": "c5b478620f3c19cee9289ef3b1ed2651f21ac1772c6cead2c5f0ee5f48ceb34e"
+          },
+          "archive_size_bytes": 284684074,
+          "archive_sha256": "bd00189efffffbf374a5b450155065c4cc03e7fe4366ac265ebadca259335b68",
+          "only_retired_database_oid_55671_removed_after_verified_complete_archive": true,
+          "untouched_oid_16384_and_current_e010_oid_56177_preserved": true,
+          "r1_argument_order_failure_original_preserved_no_drop_and_stopped": true,
+          "postgres_stopped": true,
+          "production_mutated": false
         }
+      },
+      "retained_five_source_status_diagnostic": {
+        "r1_zero_dispatch_correction": {
+          "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/retained-status-r1-zero-dispatch-correction.json",
+          "sha256": "bbdb7b432aff8c5008c3af9afd453ef98109b917c1414a2e33567c061f275dfb"
+        },
+        "r2_observation": {
+          "path": "D:/githv/agomTradePro/.tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/retained-five-status-diagnostic-r2.receipt.json",
+          "sha256": "d950cb059f2474a330fbdeb3842cefa7fff36b18b3d2958d58bb1fe7523063e4"
+        },
+        "r2_exit_code": 0,
+        "actual_market_dispatches": 1,
+        "market_cumulative_charged": 116,
+        "market_ceiling": 200,
+        "financial_used": 0,
+        "production_e1_used": 0,
+        "provider_id": 2,
+        "requested_list_status": "D",
+        "raw_item_count": 344,
+        "raw_count": 0,
+        "count_status": "unspecified_zero",
+        "raw_has_more": false,
+        "target_rows": [
+          {
+            "delist_date": "20261023",
+            "exchange": "SZSE",
+            "list_date": "19920327",
+            "list_status": "D",
+            "market": "主板",
+            "name": "*ST康佳A",
+            "ts_code": "000016.SZ"
+          },
+          {
+            "delist_date": "20261019",
+            "exchange": "SSE",
+            "list_date": "20150226",
+            "list_status": "D",
+            "market": "主板",
+            "name": "东兴证券",
+            "ts_code": "601198.SH"
+          },
+          {
+            "delist_date": "20261113",
+            "exchange": "SZSE",
+            "list_date": "20141104",
+            "list_status": "D",
+            "market": "主板",
+            "name": "萃华退",
+            "ts_code": "002731.SZ"
+          },
+          {
+            "delist_date": "20261028",
+            "exchange": "SZSE",
+            "list_date": "20220708",
+            "list_status": "D",
+            "market": "创业板",
+            "name": "元道退",
+            "ts_code": "301139.SZ"
+          },
+          {
+            "delist_date": "20261019",
+            "exchange": "SSE",
+            "list_date": "20230201",
+            "list_status": "D",
+            "market": "主板",
+            "name": "信达证券",
+            "ts_code": "601059.SH"
+          }
+        ],
+        "body_sha256": "f1f7e217b06ec6c83bdcbee892c61d237c10e0081c4a3f89693c5d2510380bd3",
+        "body_bytes": 27737,
+        "only_same_sealed_source_added_at_canonical_readonly_mount": true,
+        "all_isolated_resources_and_private_env_cleaned": true,
+        "production_mutated": false,
+        "asset_state_changed": false,
+        "formal_reference_candidate": false,
+        "release_qualification": false,
+        "next_action": "Review existing exact-asset maintenance and required source/audit prerequisites; never deactivate the entire missing set from L-membership absence.",
+        "next_graph_probe_capacity_allocation": {
+          "graph": 40,
+          "probe": 20,
+          "capacity": 20
+        },
+        "next_prospective_cumulative_maximum": 196
       }
     }
   ],

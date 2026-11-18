@@ -39,6 +39,7 @@ __all__ = [
     "AkshareAshareCodeNameProvider",
     "JsonFileAshareCodeNameProvider",
     "TushareAshareCodeNameProvider",
+    "sync_active_universe",
 ]
 _UNIVERSE_PROVIDER_ATTEMPTS = 3
 _DEFAULT_FAILOVER_TOLERANCE = 0.01
@@ -855,3 +856,18 @@ class AShareUniverseSyncService:
             is_active=True,
         ).exclude(code__in=active_codes)
         return int(queryset.update(is_active=False))
+
+
+def sync_active_universe(source: str | None = None) -> dict[str, object]:
+    """Refresh A-share identities through the selected primary and verified fallback."""
+
+    if source is None or source == "akshare":
+        service = AShareUniverseSyncService()
+    elif source == "tushare":
+        service = AShareUniverseSyncService(
+            provider=TushareAshareCodeNameProvider(),
+            fallback_provider=AkshareAshareCodeNameProvider(),
+        )
+    else:
+        raise ValueError("unsupported A-share universe source")
+    return service.sync(deactivate_missing=False).to_dict()
