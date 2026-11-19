@@ -8112,8 +8112,8 @@
             "status": "frozen_unapproved_local_preparation_only",
             "candidate_sha": "c5b42e20cc97a7e166e6d3f88254d05b0605667a",
             "validation": {
-              "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6/v5-preparation-validation.receipt.json",
-              "sha256": "e0a6c92b49f5b04b997769877fd7bcf809d618ef2fbf728fe07032b273e55b7f"
+              "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6/v5-ci-binding-validation.receipt.json",
+              "sha256": "6a7123b9597bed00e9597a9ca6da6066b0b107dcf59a24585e147022799f6c84"
             },
             "files": {
               "proposal.json": {
@@ -8126,7 +8126,7 @@
               },
               "c5_postrepair_s6_common.py": {
                 "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6/c5_postrepair_s6_common.py",
-                "sha256": "b07a1a8f8021ec11a0cc3e9372cb802c40b28408234b2f45dad945261124f0dd"
+                "sha256": "caca66356a2816c0adc8df654c4e1a44a70ba3ee2f5b0ac22133eec1f0490252"
               },
               "operator-copy-manifest.json": {
                 "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6/operator-copy-manifest.json",
@@ -8140,25 +8140,25 @@
                 "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6/refresh_official_publication_ci.py",
                 "sha256": "f88373254909402b2ac4d6d2bd5fdf1abc5c414b5caa1d62d06a8ce8b3fb8eaa"
               },
-              "v5-offline-tests.log": {
-                "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6/v5-offline-tests.log",
-                "sha256": "dd3fbaeeebbd558fc46f36547fbf74e728c0c0098b23825a198b7ca837059801"
+              "v5-ci-binding-tests.log": {
+                "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6/v5-ci-binding-tests.log",
+                "sha256": "1f1c09b2561e1c5ef1a39f8ef91d160749ab78c88630d1accebbeb6761353ca1"
               },
-              "missing-authority-entrypoints-v5.receipt.json": {
-                "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6/missing-authority-entrypoints-v5.receipt.json",
-                "sha256": "f491aacf7070a011f8bbc3f82565456d10069b8e2e7a7bd667eeee4803ba2711"
+              "missing-authority-entrypoints-v5-ci-binding.receipt.json": {
+                "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6/missing-authority-entrypoints-v5-ci-binding.receipt.json",
+                "sha256": "42d10b74f7848f475a5dc99f18ec055cc146add96ec3dafa8ab5c9ff108214da"
               },
-              "ci-refresh-missing-authority-v5.receipt.json": {
-                "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6/ci-refresh-missing-authority-v5.receipt.json",
-                "sha256": "a5aa25c2ddf1911c2cc0239fa6fafd5d70a89fbb3946b56ab7c3a5143eec6940"
+              "ci-refresh-missing-authority-v5-ci-binding.receipt.json": {
+                "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6/ci-refresh-missing-authority-v5-ci-binding.receipt.json",
+                "sha256": "049348cf2279133d2fa44a4691b7305c123393450c698b76cb1079101b7c8488"
               }
             },
             "preserved_v4_snapshot": {
               "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6/v4-preserved/snapshot-manifest.json",
               "sha256": "91f745f069d3dce1ed4e6a3437c16bb388db723f9c4317c2cedc146a2342c4b5"
             },
-            "new_tests_passed": 41,
-            "common_runner_tests_passed": 30,
+            "new_tests_passed": 47,
+            "common_runner_tests_passed": 36,
             "ci_tests_passed": 11,
             "four_actual_entries_and_ci_two_actions_missing_owner_blocked": true,
             "network_or_subprocess_attempts": 0,
@@ -8193,7 +8193,7 @@
             "diagnostic": {
               "controller": {
                 "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/prepare_fresh_s6_market_gap_diagnostic.py",
-                "sha256": "abfb51e3bf5ee8e801e6ee25ee2d49ea20b2334707ac935ecdc43b28c1012057"
+                "sha256": "1711433191739f95ae5d32bea7daf2b9f14b30dd979896c62a82ee7bf52d9c0e"
               },
               "worker": {
                 "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/market-gap-worker-extracted.py",
@@ -8201,7 +8201,7 @@
               },
               "validation": {
                 "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/market-gap-diagnostic-local-check.receipt.json",
-                "sha256": "c1100f7cc6ea20f5cb9ec9c9d6491536be3c3a926df839f189d9b79f4df72a97"
+                "sha256": "c496cb4be7bf2c5e22f8c21e33701ccb598a73104ff06a11c07eb6ac5588fe0b"
               },
               "preserved_v4_validation": {
                 "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/market-gap-diagnostic-local-check-v4.receipt.json",
@@ -8212,7 +8212,41 @@
               "only_same_fresh_qa_egress_audit_insert_allowed": true,
               "physical_request_cap": 2,
               "business_dml": false,
-              "remote_or_provider_execution": false
+              "remote_or_provider_execution": false,
+              "preserved_before_ci_binding_controller": {
+                "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/prepare_fresh_s6_market_gap_diagnostic-v5-before-ci-binding.py",
+                "sha256": "abfb51e3bf5ee8e801e6ee25ee2d49ea20b2334707ac935ecdc43b28c1012057"
+              },
+              "preserved_before_ci_binding_validation": {
+                "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/market-gap-diagnostic-local-check-v5-before-ci-binding.receipt.json",
+                "sha256": "c1100f7cc6ea20f5cb9ec9c9d6491536be3c3a926df839f189d9b79f4df72a97"
+              }
+            },
+            "before_ci_binding_history": {
+              "snapshot": {
+                "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6/v5-before-ci-binding/snapshot-manifest.json",
+                "sha256": "abf3eef6563dcd6bd953d59793149e9e5d4775a129148b895ed10c179d694985"
+              },
+              "validation": {
+                "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6/v5-before-ci-binding/v5-preparation-validation.receipt.json",
+                "sha256": "e0a6c92b49f5b04b997769877fd7bcf809d618ef2fbf728fe07032b273e55b7f"
+              },
+              "common": {
+                "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6/v5-before-ci-binding/c5_postrepair_s6_common.py",
+                "sha256": "b07a1a8f8021ec11a0cc3e9372cb802c40b28408234b2f45dad945261124f0dd"
+              },
+              "tests_passed": 41
+            },
+            "independent_ci_binding_review": {
+              "reviewer": "luna_max_audit",
+              "initial_finding": "Common gate checked only current24h; selected window, dispatch association and planned expiry were not independently bound.",
+              "minimal_fix": "Recheck existing receipt/intent/run binding, exact window hash and derived tag/event/workflow/attempt1, and actual source expiry through planned headroom.",
+              "final_closure_review_pending": false,
+              "no_new_receipt_type_or_ci_api_call": true,
+              "original_finding_closed": true,
+              "reviewed_common_sha256": "caca66356a2816c0adc8df654c4e1a44a70ba3ee2f5b0ac22133eec1f0490252",
+              "no_remaining_blocker_in_reviewed_scope": true,
+              "tests_not_rerun_by_reviewer": true
             }
           }
         }
