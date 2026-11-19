@@ -7565,12 +7565,12 @@
         }
       },
       "market_window_recovery_pending_owner": {
-        "status": "approved360_fresh_dad11_reserved_prepare_running",
+        "status": "approved360_dad11_prepare_passed_standard_runner_build_running",
         "proposal": {
           "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-budget-revised-s6/c5-window-recovery-proposal.json",
           "sha256": "3396c28a8addceb8d48fe38bc436023b5000fb2a99fc7fc1b452f18a762e6c04"
         },
-        "current_market_used": 189,
+        "current_market_used": 215,
         "current_market_ceiling": 360,
         "proposed_market_ceiling": 360,
         "maximum_cumulative_allocated": 359,
@@ -7621,7 +7621,7 @@
         "market_used_before_new_attempt": 189,
         "not_django_authentication_event": true,
         "new_attempt_reserved": true,
-        "new_provider_execution_started": "prepare may dispatch graph; actual usage pending new graph receipt",
+        "new_provider_execution_started": true,
         "current_entry_window_not_yet_open": false,
         "controls_ready": true,
         "clock_gate_wired_to_all_four_core_entrypoints": true,
@@ -7719,12 +7719,12 @@
             "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/c5-postrepair-s6-prepare-observation-r2.json",
             "sha256": "e06e17cac624306b7a11a5ceb31ef5cc97574dee1fc783c7add486cebd7c8436"
           },
-          "prepare_process_running_last_observed": true,
-          "prepare_outcome": "pending",
-          "runner_started": false,
+          "prepare_process_running_last_observed": false,
+          "prepare_outcome": "success",
+          "runner_started": true,
           "full_s6_complete": false,
           "market_charged_before_new_graph": 189,
-          "actual_new_graph_usage": "await original graph receipt",
+          "actual_new_graph_usage": 26,
           "financial_requests": 0,
           "production_e1_requests": 0,
           "observer_local_failure": {
@@ -7770,9 +7770,71 @@
             "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/c5-s6-graph-runtime-root-r1.json",
             "sha256": "4993fed32444fe3bd3a475397a052a746e7e2c12a2ce1d90caed5a03ffba6b02"
           },
-          "graph_runtime_summary": "Active graph worker ~93% CPU; isolated PG read-only diagnostic found no blockers. No performance change; await original final graph count and target scope."
+          "graph_runtime_summary": "Active graph worker ~93% CPU; isolated PG read-only diagnostic found no blockers. No performance change; await original final graph count and target scope.",
+          "prepare_verified": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/c5-postrepair-s6-prepare-root-verified.receipt.json",
+            "sha256": "375268a789aa1ea0d0c08196b975fc642d77f46cf95e34531e898fe652e1b6a9"
+          },
+          "prepare_originals": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/c5-postrepair-s6-prepare-originals",
+            "files": [
+              {
+                "name": "prepare-receipt.json",
+                "sha256": "764cd365ec4226abb79464a0a0c71922ab71f60a61cb7369d1b411db4645f02e"
+              },
+              {
+                "name": "prepare-status.json",
+                "sha256": "9599877eecee12ff02a0ff2d9b85625fdcfade9bfc5eebf604889eeb1301f776"
+              },
+              {
+                "name": "current-market-graph-refresh.json",
+                "sha256": "e21e4348f9aafeba346de38d9f2661d6170eac82d966a74c33498059197185b1"
+              },
+              {
+                "name": "universe-summary.json",
+                "sha256": "78d573722021c5f061de51df4661ba1c2f3076d98503bdb5f2c43617af09244d"
+              }
+            ]
+          },
+          "prepare_completed_status": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/c5-postrepair-s6-prepare-observation-r13.json",
+            "sha256": "2363453c52b398d428770e73a2a6a0f2b512aaef9a043671d73b3f0ffa958512"
+          },
+          "prepare_execution_image_id": "sha256:8fb8281c9551f28611ee9a0cf6d5503792077eeddff9a917aee1793d8559ea92",
+          "target_trade_date": "2026-11-19",
+          "universe_count": 5580,
+          "graph_actual_dispatches": 26,
+          "market_charged_after_graph": 215,
+          "post_prepare_headroom": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/post-complete-prepare-headroom.receipt.json",
+            "sha256": "c4fb644392dc4308fc3c09b49d63e3b6d9db16dc50a1f011a34f958726ed633e"
+          },
+          "post_prepare_free_bytes": 26219122688,
+          "runner_pid": 1391277,
+          "runner_launch": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/s6-c5-postrepair-runner-launch.receipt.json",
+            "sha256": "e1b3b48e4001a205a07392fea879ae0567bacde4f1c13b74fc097604e27d630a"
+          },
+          "runner_budget_confirmation": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/s6-c5-postrepair-market-budget-confirmed.receipt.json",
+            "sha256": "6feb82ae5f6aef42c1a1de1fe892ca7145aee6d158acc30454275648df86257c"
+          },
+          "runner_started_at": "2026-11-19T10:07:35.626447+00:00",
+          "probe_dispatch_cap": 30,
+          "capacity_dispatch_cap": 30,
+          "post_s6_c2_and_one_production_refresh_reserve": 60,
+          "maximum_reserved_after_actual_graph": 335,
+          "latest_runner_observation": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/c5-postrepair-s6-runner-observation-r1.json",
+            "sha256": "f6d74afd4c04b20bd9b6e6525aaefe2998dcb265f84be34bffbf273dd4b17dfd"
+          },
+          "runner_stage_last_observed": "build_only",
+          "runner_currently_running": true,
+          "candidate_built_image_identity": "await this attempt actual completed build report; prepare execution image8fb is not the new candidate image",
+          "actual_additional_provider_usage_after_runner_start": "await same-attempt stage reports; not inferred from launch"
         },
-        "pre_window_preparation_provider_requests": 0
+        "pre_window_preparation_provider_requests": 0,
+        "latest_confirmed_usage_basis": "189 previous +26 dad11 graph; future runner usage awaits stage reports"
       },
       "current_audit_lease_pre_window_recheck": {
         "receipt": {
