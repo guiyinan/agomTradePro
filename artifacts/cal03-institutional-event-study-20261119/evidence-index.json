@@ -746,5 +746,52 @@
       "Complete applicable exchange session denominator, exceptional changes, close and final-publication semantics with vintage/as-of rules",
       "Actual first_seen and recorded timestamps, conservative market availability and eligible failover consistency evidence"
     ]
+  },
+  "existing_tushare_qmt_entitlement_review": {
+    "scope": "Existing-channel authorization and frozen historical-input capability verification; no market acquisition or OOS execution",
+    "base_head": "f39c6ff6deadd01a02f136c9e6a2c750310c993f",
+    "report": {
+      "path": ".tmp/cal03-event-study-20261119/tushare-qmt-entitlement-review.json",
+      "sha256": "dde89f5d87c2e522317e25c53abdd669b24c8637f5bfc3e55910cabf2f4c736f"
+    },
+    "runner": {
+      "path": ".tmp/cal03-event-study-20261119/verify_provider_entitlements.py",
+      "sha256": "f2a01c3d90480ba9eb1e7d9124926ff5d3131d3f2f4840767c53acf1e29c9249"
+    },
+    "command": {
+      "argv": [
+        "agomtradepro/Scripts/python.exe",
+        ".tmp/cal03-event-study-20261119/verify_provider_entitlements.py"
+      ],
+      "exit_code": 0,
+      "log": {
+        "path": ".tmp/cal03-event-study-20261119/logs/tushare-qmt-entitlement-review.txt",
+        "sha256": "a6136421f5ff460c46e9c2e3fc39a287ca57bb50f2b26b9c92a6797c736187e5"
+      }
+    },
+    "official_document_originals_retained": 9,
+    "existing_account_entitlement": "not established; not a finding that no entitlement exists",
+    "custom_tushare_endpoint_official_permissions_inferred": false,
+    "qmt_local_algorithm_auth_is_not_market_history_entitlement": true,
+    "public_contract_gaps": [
+      "index_daily about-18:00 update is not frozen cutoff completion proof",
+      "price schema lacks original revision and publication clocks",
+      "calendar schema lacks vintage and actual close/final-index-publication evidence"
+    ],
+    "frozen_spec_sha256": "29a44d0cd2670dd2a72853494d21271c9765d6584dafa4998e1df3c2a6edfe71",
+    "qualified_full_history_packages": 0,
+    "market_or_financial_provider_dispatches": 0,
+    "data02_budget_consumed": 0,
+    "production_actions": 0,
+    "real_oos_claimed_or_evaluated": false,
+    "data02_coordination": "Preserve sealed c5, its controls/budget and the three external owned DATA02 docs/registry WIP; no Source integration requested by this phase",
+    "checks": ".tmp/cal03-event-study-20261119/entitlement-review-checks.json",
+    "commit_receipt": ".tmp/cal03-event-study-20261119/entitlement-review-commit.json",
+    "remaining": [
+      "Existing service-provider/official account entitlement proof and effective term",
+      "QMT market/history grant and expiry rather than algorithm authorization",
+      "Retained exact historical official close revisions and market-availability basis",
+      "Complete applicable historical session calendar and final-publication rules"
+    ]
   }
 }
