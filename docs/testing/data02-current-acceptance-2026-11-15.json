@@ -7998,7 +7998,7 @@
           "repository_focus_current": "CAL-03 sole repository focus; DATA-02 production continues against sealed c5; parallel_preparation empty",
           "coordination_chat": "CAL-03 事件波动研究准备",
           "coordination_thread_id": "01a1f260-dde0-7030-b7b6-96f57e71c91c",
-          "cross_chat_message_authorization": "pending actual human reply; tool requires explicit human permission; no message sent",
+          "cross_chat_message_authorization": "actual user approval call_b762c3de80e148c6b1145e3a70d07dc7; exactly one coordination prompt sent successfully",
           "proposed_coordination_message": "DATA-02 sealed c5 attempt dad11d3e0caa4656a1ed3799527a0478 is terminal blocked at full_universe_capacity; production is unchanged and its own PG/Redis are stopped with all originals/data retained. A source-exact offline reproduction proves transport guards can be masked as unverified quote gaps. Need a bounded necessary acceptance-blocker fix in existing data_center suspension protocol/source, capacity collector/command and direct tests: explicit batch full-day evidence, hard transport propagation and privacy-safe failure diagnostics. Please arrange and record a short non-overlapping Source preparation/integration window under the existing authorization, keep shared Git/index/projections serialized, and preserve CAL-03 M2 boundaries. No additional provider requests, budget expansion, production deploy or DATA-03 advancement is requested. Record the window in this chat/registry; no cross-chat reply message is required.",
           "future_qualification": "New source candidate requires applicable development checks, exact CI and actual image/S6 binding. Existing c5 native migration-tree proof is reusable only if candidate migration-tree identity is unchanged; do not assume it after CAL-03 research integration.",
           "new_s6_budget_decision": "One approved fresh S6 was consumed. Prepare concrete checked candidate and cost/window before any new execution authorization; do not silently repurpose post-S6 C2/production reserve or unallocated per-part caps.",
@@ -8006,8 +8006,12 @@
           "source_patch_is_current_prerequisite": false,
           "superseding_reason": "Sealed c5 already accepts strictly verified full-day suspension exclusions. A separately authorized fresh attempt with bounded diagnosis and 50 per-stage physical caps can first test that existing path without a new application SHA; this is not yet approved or proven successful.",
           "transport_guard_mask_defect_remains_open": true,
-          "cross_chat_message_sent": false,
-          "cross_chat_permission_is_current_operational_path_prerequisite": false
+          "cross_chat_message_sent": true,
+          "cross_chat_permission_is_current_operational_path_prerequisite": false,
+          "authorized_coordination_send_receipt": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/cross-chat-coordination-sent.receipt.json",
+            "sha256": "d2247e292d24d95eb62877c0276fe45eb7f933cfcf369094fce43c0b5036ab04"
+          }
         },
         "sealed_candidate_recovery_preparation": {
           "observed_at": "2026-11-19T12:58:14.345511+00:00",
@@ -8047,7 +8051,170 @@
           },
           "time_semantics_clarification": "17:05 is the implemented provider-ready boundary after the documented daily_basic 15:00-17:00 update interval, not an exchange opening rule. Historical backfill/field/calendar checks may use a fixed completed date. The selected S6 Tencent current valuation snapshot cannot be relabeled to yesterday during the next session; existing early-before-09:15 and non-trading-day semantics remain available when actual source dates and enough duration agree.",
           "full_data02_exit_met": false,
-          "data03_started": false
+          "data03_started": false,
+          "offline_operator_controls": {
+            "validation": {
+              "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6/v4-preserved/preparation-validation-r2.receipt.json",
+              "sha256": "1e3f4e2d3def2e9c701a4c6fb6c2f1428b24820d619c5475fab2288f94dadbe1"
+            },
+            "proposal": {
+              "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6/v4-preserved/proposal.json",
+              "sha256": "52c75daef5aa0f8dd9dd445755dbdeabf7d98b96e4f40926a15c0dcbf4e96692"
+            },
+            "usage_ledger": {
+              "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6/v4-preserved/usage-ledger.json",
+              "sha256": "df73c9363716cab37a3d071e7978b90644e9c912066080044297f6681df7b307"
+            },
+            "common": {
+              "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6/v4-preserved/c5_postrepair_s6_common.py",
+              "sha256": "8c8b98fd0c7b469269ce933cdbb760fb416a5415710158e85e2190b15db09f72"
+            },
+            "operator_manifest": {
+              "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6/v4-preserved/operator-copy-manifest.json",
+              "sha256": "8deaf0d71673a3ffa07792c2798581a70ded5fb60dbb3bd5b84a24535f978ca5"
+            },
+            "real_missing_authority_entries": {
+              "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6/v4-preserved/missing-authority-entrypoints-r3.receipt.json",
+              "sha256": "4879c61011bca53330777432916260dfc9264860c0f22ba1eb56114575975f12"
+            },
+            "tests_passed": 27,
+            "real_entries_blocked": 4,
+            "network_or_subprocess_attempts": 0,
+            "new_owner_window_state_intent_present": false,
+            "diagnostic_controller_integration_complete": false
+          },
+          "official_ci_refresh_preparation": {
+            "controller": {
+              "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6/v4-preserved/refresh_official_publication_ci.py",
+              "sha256": "3154d125b57a6c22c7d400e48d87310702af3cba657ff69ded7d386de6a2c908"
+            },
+            "validation": {
+              "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6/v4-preserved/ci-refresh-preparation-validation.receipt.json",
+              "sha256": "f4abe23bac8cbbde65c64a03c1c253c3e7761e2750a96b2f50b80831827f18ab"
+            },
+            "tests_passed": 10,
+            "exact_candidate_workflow_trigger_proof": {
+              "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6/v4-preserved/ci-candidate-workflow-preparation.readonly.json",
+              "sha256": "6345db40c9c90285ce16ac8d8a5df242ec0e6e09f4bc25bf0e3411b3f2586d2b"
+            },
+            "required_test_identity_structure_proof": {
+              "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6/v4-preserved/ci-required-cases-existing-artifact-readonly.json",
+              "sha256": "0381135ff317bff357daef9bad065ba41bac917cc08359118f2da44efc52dfb0"
+            },
+            "execution": "One normal workflow_dispatch to a unique ci/data02-c5-<window-hash> tag on exact c5. No branch changes, force update, RC-tag match, automatic re-dispatch, or old-artifact overwrite. Actual GitHub writes and CI results remain unverified.",
+            "tag_or_ci_dispatched": false
+          },
+          "source_coordination_message_sent": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/cross-chat-coordination-sent.receipt.json",
+            "sha256": "d2247e292d24d95eb62877c0276fe45eb7f933cfcf369094fce43c0b5036ab04"
+          },
+          "v5_operational_preparation": {
+            "status": "frozen_unapproved_local_preparation_only",
+            "candidate_sha": "c5b42e20cc97a7e166e6d3f88254d05b0605667a",
+            "validation": {
+              "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6/v5-preparation-validation.receipt.json",
+              "sha256": "e0a6c92b49f5b04b997769877fd7bcf809d618ef2fbf728fe07032b273e55b7f"
+            },
+            "files": {
+              "proposal.json": {
+                "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6/proposal.json",
+                "sha256": "5e9f9fa545e25dbdc509ac31aaef3fa0508d4507abc0352df694a995ca971180"
+              },
+              "usage-ledger.json": {
+                "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6/usage-ledger.json",
+                "sha256": "df73c9363716cab37a3d071e7978b90644e9c912066080044297f6681df7b307"
+              },
+              "c5_postrepair_s6_common.py": {
+                "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6/c5_postrepair_s6_common.py",
+                "sha256": "b07a1a8f8021ec11a0cc3e9372cb802c40b28408234b2f45dad945261124f0dd"
+              },
+              "operator-copy-manifest.json": {
+                "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6/operator-copy-manifest.json",
+                "sha256": "95e8638469290b233f6011d53742a28825e0fb40ba42565fbc664968aa65c98e"
+              },
+              "launch_standard_s6_runner_c5_postrepair_dynamic.py": {
+                "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6/launch_standard_s6_runner_c5_postrepair_dynamic.py",
+                "sha256": "d34b7990534888237cc6e81fbb840de3b6726fb5cc9bfbc5499d2c5cf22b1b6c"
+              },
+              "refresh_official_publication_ci.py": {
+                "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6/refresh_official_publication_ci.py",
+                "sha256": "f88373254909402b2ac4d6d2bd5fdf1abc5c414b5caa1d62d06a8ce8b3fb8eaa"
+              },
+              "v5-offline-tests.log": {
+                "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6/v5-offline-tests.log",
+                "sha256": "dd3fbaeeebbd558fc46f36547fbf74e728c0c0098b23825a198b7ca837059801"
+              },
+              "missing-authority-entrypoints-v5.receipt.json": {
+                "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6/missing-authority-entrypoints-v5.receipt.json",
+                "sha256": "f491aacf7070a011f8bbc3f82565456d10069b8e2e7a7bd667eeee4803ba2711"
+              },
+              "ci-refresh-missing-authority-v5.receipt.json": {
+                "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6/ci-refresh-missing-authority-v5.receipt.json",
+                "sha256": "a5aa25c2ddf1911c2cc0239fa6fafd5d70a89fbb3946b56ab7c3a5143eec6940"
+              }
+            },
+            "preserved_v4_snapshot": {
+              "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6/v4-preserved/snapshot-manifest.json",
+              "sha256": "91f745f069d3dce1ed4e6a3437c16bb388db723f9c4317c2cedc146a2342c4b5"
+            },
+            "new_tests_passed": 41,
+            "common_runner_tests_passed": 30,
+            "ci_tests_passed": 11,
+            "four_actual_entries_and_ci_two_actions_missing_owner_blocked": true,
+            "network_or_subprocess_attempts": 0,
+            "global_outer_stage_timeout_seconds": 14400,
+            "financial_only_override": false,
+            "critical_path_planning_seconds": 48600,
+            "planning_margin_seconds": 3600,
+            "runner_to_cutoff_headroom_seconds": 52200,
+            "total_runtime_hard_deadline_implemented": false,
+            "completion_guaranteed": false,
+            "actual_ci_and_source_date_gates_still_required": true,
+            "financial_throughput_measured": false,
+            "persisted_readonly_latency_and_routes": {
+              "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/persisted-financial-latency-and-routes.readonly.json",
+              "sha256": "d015f94a940db90a7ae8ed93e819b0da06e9a9f39509be71a3d03b9001ae0976"
+            },
+            "financial_latency_rows_found": 0,
+            "selected_explicit_tushare_route_rows_found": 0,
+            "normal_no_rule_direct_route_legal": true,
+            "normal_audit_transport_required": true,
+            "historical_copy_constructor_boundary": "prepare_operator_copies.py is the retained v4 one-time constructor, not a v5 regeneration tool or active execution entry; write_new rejects differing existing v5 proposal bytes.",
+            "market_maximum_cumulative": 486,
+            "market_proposed_ceiling": 500,
+            "prior_upper_bound": 274,
+            "new_owner_window_state_or_intent_created": false,
+            "new_s6_authorized": false,
+            "new_ci_dispatched": false,
+            "source_application_changed": false,
+            "production_changed": false,
+            "expected_human_answer": "批准累计500、外层4小时及一次新S6",
+            "diagnostic_final_v5_pin_integration_complete": true,
+            "diagnostic": {
+              "controller": {
+                "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/prepare_fresh_s6_market_gap_diagnostic.py",
+                "sha256": "abfb51e3bf5ee8e801e6ee25ee2d49ea20b2334707ac935ecdc43b28c1012057"
+              },
+              "worker": {
+                "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/market-gap-worker-extracted.py",
+                "sha256": "aaea7416d324f442eb2cc0edcd8c358386f311e3f2a19ec31de0fe0551216c2e"
+              },
+              "validation": {
+                "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/market-gap-diagnostic-local-check.receipt.json",
+                "sha256": "c1100f7cc6ea20f5cb9ec9c9d6491536be3c3a926df839f189d9b79f4df72a97"
+              },
+              "preserved_v4_validation": {
+                "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/market-gap-diagnostic-local-check-v4.receipt.json",
+                "sha256": "92ab8d51dfab6d2da79da13365deba3babca1c1bd3eac3f661b514116a26201e"
+              },
+              "actual_worker_parser_route_audit_ast_fixtures_passed": true,
+              "normal_default_direct_allowed_without_new_rule": true,
+              "only_same_fresh_qa_egress_audit_insert_allowed": true,
+              "physical_request_cap": 2,
+              "business_dml": false,
+              "remote_or_provider_execution": false
+            }
+          }
         }
       },
       "current_audit_lease_pre_window_recheck": {
@@ -8222,9 +8389,152 @@
           "redis_network_source_inputs_runtime_zip_and_failure_reports_retained": true,
           "production_identity_unchanged": true,
           "provider_requests": 0,
-          "latest_observed_free_bytes": 21224517632,
+          "latest_observed_free_bytes": 32249049088,
           "formal_prebuild_gate_bytes_unchanged": 25769803776,
-          "ready_for_new_clone_claimed": false
+          "ready_for_new_clone_claimed": false,
+          "space_preparation_boundary": "space_preparation_only_not_S6_authority_or_postclone_qualification",
+          "builder_image_reclaim": {
+            "controller": {
+              "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/reclaim_dad11_builder_images.py",
+              "sha256": "d545a73a09cd3ed3ce9924a0e78924cc174078eebf58e7c38bd8113b198c28a5"
+            },
+            "preview": {
+              "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/dad11-builder-reclaim-preview-cc1155e9052d44ada96bfecd94ddd7da.receipt.json",
+              "sha256": "e52db4def5cffc4300ae9144aec1da376e4ba0f58fda0d43f2994fcae5e1853e"
+            },
+            "execute": {
+              "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/dad11-builder-reclaim-execute-a6b16fe52c3a48aeab8031bc46987f92.receipt.json",
+              "sha256": "8b63322da0aa238281e1ba6c4ff83bfcc940d0a53c14bcc4686d6801025e6472"
+            },
+            "initial_no_delete_failure": {
+              "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/dad11-builder-reclaim-execute-84b63cd8e86e4517920c73dcdcf0beba.receipt.json",
+              "sha256": "b288eeebdafa4a3e480b6766102d15009b133231869ff02360e7342c9ea09b8d"
+            },
+            "initial_failure_limit": "sandbox_start failed before deletion; an inherited /tmp dependency path was inappropriate for the retained runtime image and was precisely adapted to /app. Original transport command stderr was hashed, not retained; do not infer any upstream failure.",
+            "actual_removed_count": 11,
+            "actual_free_before_bytes": 21220306944,
+            "actual_free_after_bytes": 25079758848,
+            "physical_free_increase_bytes": 3859451904,
+            "candidate_5614_retained": true,
+            "production_mutations": false,
+            "provider_requests": 0
+          },
+          "two_earlier_owned_failed_qa_retirement": {
+            "controller": {
+              "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-resource/reclaim_closed_s6_old_attempts.py",
+              "sha256": "2daf3b5b253a1d4ddab2d5a161a5b09eff7049622b4e425a52e53e59aa59679a"
+            },
+            "results": [
+              {
+                "case": "7955",
+                "candidate_sha": "7955a814c4c50617c41b8b72ba9636877ace3852",
+                "attempt_id": "793ccc7e92a94f09847b93fcf3cdef0b",
+                "identity_probe": {
+                  "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-resource/closed-s6-7955-identity-probe-ffa984dceaed4772beb98f0dc57a0483.receipt.json",
+                  "sha256": "2e588dbd48dab8ca61745dc1bac606ac766abccaa03cffa308cb2c632d810101"
+                },
+                "archive_reclaim": {
+                  "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-resource/closed-s6-7955-archive-reclaim-e170a9f35f8d4aaba1b203ccf864ca70.receipt.json",
+                  "sha256": "81710e1c5d9a4399a0ffb68a0ff3638789c18ec3bf48dce881ed2b846a822a47"
+                },
+                "system_identifier": "7708917231454834722",
+                "database_oid": 16384,
+                "other_session_count": 0,
+                "archive": {
+                  "mode": "0600",
+                  "path": "/opt/agomtradepro/diagnostics/s6-failed-postgres-archives/7955-7955a814c4-793ccc7e92a94f09847b93fcf3cdef0b/agom_release_rehearsal_481fe6a18c9f780ca04736ecaa6bae0a.dump",
+                  "sha256": "7268197b42fb8e81f7f7762f6b9777acec5bff2fbdc4caec2fb3df9b052975af",
+                  "size_bytes": 284287832
+                },
+                "globals_no_role_passwords": {
+                  "mode": "0600",
+                  "path": "/opt/agomtradepro/diagnostics/s6-failed-postgres-archives/7955-7955a814c4-793ccc7e92a94f09847b93fcf3cdef0b/globals-no-role-passwords.sql",
+                  "role_passwords_included": false,
+                  "sha256": "91139a9ea78baa7478c37ad02045063ddfdef9796ba4144a1a2dcb2f8498482d",
+                  "size_bytes": 1392
+                },
+                "archive_list": {
+                  "mode": "0600",
+                  "path": "/opt/agomtradepro/diagnostics/s6-failed-postgres-archives/7955-7955a814c4-793ccc7e92a94f09847b93fcf3cdef0b/archive.list",
+                  "sha256": "bb2c30131be00b32a5c7020561be603e5e3e46788361de634e63a875844fe31d",
+                  "size_bytes": 912370
+                },
+                "custom_dump_list_and_full_read_passed": true,
+                "postgres_container_and_exclusive_volume_removed": true,
+                "redis_network_source_inputs_and_failure_reports_retained": true,
+                "provider_requests": 0,
+                "production_mutated": false,
+                "free_bytes_before": 25076318208,
+                "free_bytes_after": 28662943744,
+                "runtime_role_control_system_execute_observed": true,
+                "runtime_privilege_observation_does_not_replace_future_fresh_qa_preflight": true
+              },
+              {
+                "case": "6086",
+                "candidate_sha": "608653bc0af97582122e15e52a2960818a4ccfac",
+                "attempt_id": "9d5b95e8de8944d48aef1a6403c9797d",
+                "identity_probe": {
+                  "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-resource/closed-s6-6086-identity-probe-510718b4f9c9469da6c04a1fdd7c7cf1.receipt.json",
+                  "sha256": "458ed89a188238c6b94a11a3c2c6f63813793e1ea8c05922b27ccdd38b40a932"
+                },
+                "archive_reclaim": {
+                  "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-resource/closed-s6-6086-archive-reclaim-bafad85a3fae4ec58a5258c0dbc074e4.receipt.json",
+                  "sha256": "b546c7579dc753f93496b69d1f906f7f1b4c541ac6815e9dbcff94d5055bced1"
+                },
+                "system_identifier": "7708947114721288226",
+                "database_oid": 16384,
+                "other_session_count": 0,
+                "archive": {
+                  "mode": "0600",
+                  "path": "/opt/agomtradepro/diagnostics/s6-failed-postgres-archives/6086-608653bc0a-9d5b95e8de8944d48aef1a6403c9797d/agom_release_rehearsal_c2572bb393a4a1e99636e6f91091043d.dump",
+                  "sha256": "a0c08ebbecf8ef9a94d999fd8281665d29a8d5f40aa923b1dfb44393d496f010",
+                  "size_bytes": 284370006
+                },
+                "globals_no_role_passwords": {
+                  "mode": "0600",
+                  "path": "/opt/agomtradepro/diagnostics/s6-failed-postgres-archives/6086-608653bc0a-9d5b95e8de8944d48aef1a6403c9797d/globals-no-role-passwords.sql",
+                  "role_passwords_included": false,
+                  "sha256": "f782054ac80e0f51383e57393db958288670947f5ee0bcfb7e9cc5f036126641",
+                  "size_bytes": 1392
+                },
+                "archive_list": {
+                  "mode": "0600",
+                  "path": "/opt/agomtradepro/diagnostics/s6-failed-postgres-archives/6086-608653bc0a-9d5b95e8de8944d48aef1a6403c9797d/archive.list",
+                  "sha256": "22336377f9d917894dc63d5d9ac2d15d3c8b032b925f235194d7cb83467ef32d",
+                  "size_bytes": 912370
+                },
+                "custom_dump_list_and_full_read_passed": true,
+                "postgres_container_and_exclusive_volume_removed": true,
+                "redis_network_source_inputs_and_failure_reports_retained": true,
+                "provider_requests": 0,
+                "production_mutated": false,
+                "free_bytes_before": 28662599680,
+                "free_bytes_after": 32249049088,
+                "runtime_role_control_system_execute_observed": true,
+                "runtime_privilege_observation_does_not_replace_future_fresh_qa_preflight": true
+              }
+            ],
+            "initial_identity_probe_failures": [
+              {
+                "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-resource/closed-s6-7955-identity-probe-d366d593d9dc4576a6cba53534728741.receipt.json",
+                "sha256": "c065e6c7959d9c692fa947a7513da3bba12d6f4a8fd6aefe526c3abf8b08a7d2"
+              },
+              {
+                "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-resource/closed-s6-7955-identity-probe-9540c37295c94087be46983b47d3aa92.receipt.json",
+                "sha256": "3f4ffd9bddcf02047cd41b9f748c331798350ae3ca39146d6d976c7eab7ba83b"
+              }
+            ],
+            "post_failure_exact_stopped_inspection": {
+              "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-resource/closed-s6-7955-postfailure-inspect-f73438d83a564c33bfef605e0b9dc21d.receipt.json",
+              "sha256": "a0617442f83f3ad07fb8b0e53e5cd6e1b4c21be5cdcac344b30d7543d8d80d20"
+            },
+            "failure_corrections": "Inherited run() signature was shadowed, then the template query required postgres_user. First failure preceded start/SQL; the second was followed by fresh exact stopped-container verification. Generated actual prod_identity/query/db_identity functions were then exercised with fake inspect/psql before the successful probes. Physical volume du is observed before/after stop, not required to be equal.",
+            "protected_ash_and_production_resources_touched": false,
+            "archive_location": "vps_only"
+          },
+          "preclone_planning_floor_bytes": 30000000000,
+          "preclone_planning_floor_met": true,
+          "fresh_post_next_clone_formal_gate_verified": false
         }
       },
       "c2_sse_bse_rule_document_preparation": {
@@ -8257,6 +8567,30 @@
         "application_statutory_source_capture_created": false,
         "owner_governance_adopted": false,
         "market_provider_calls": 0
+      },
+      "d1_e1_report_field_precision_review": {
+        "review": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/d1-000858-q3-report-values-review.json",
+          "sha256": "c9141e8fbaa1976196e72212754c4e1c3118e2c90c77e44b5a51f5aee5aa9421"
+        },
+        "scope": "000858.SZ/2026Q3/Main7+Balance3 existing issuer originals only",
+        "main_exact_amounts_cny": {
+          "revenue": "32858473964.34",
+          "net_profit_attributable_to_parent": "9710647471.03"
+        },
+        "main_report_display_only_percent_2dp": {
+          "revenue_growth": "7.25",
+          "net_profit_growth": "49.98",
+          "roe": "8.09"
+        },
+        "main_no_direct_report_value_found": [
+          "roa",
+          "debt_ratio"
+        ],
+        "precision_limit": "Rounded report percentages are not full native precision and do not grant a 0/0 rounding exception. Quarter-only and cumulative columns differ. Total Balance equity includes non-controlling interests.",
+        "bilingual_display_consistency_only": "Existing numeric 0/0 checker reports eight display-value matches from separately label-extracted Chinese/English texts; both documents are issuer disclosures and this is not independent API reconciliation.",
+        "actual_provider_response_or_catalog_qualification_claimed": false,
+        "d1_full_matrix_passed": false
       }
     }
   ],
