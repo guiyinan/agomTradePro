@@ -8657,12 +8657,61 @@
         "sse_rule_identity": "上证发〔2026〕41号;2026-04-24发布;2026-07-06施行",
         "sse_review": "Official rule paragraph 2.4.2 sets continuous auction start09:30; paragraph11.9 supplies effective date; the complete deferred-article attachment was reviewed and does not defer2.4.2. This is document preparation only.",
         "bse_public_index_identified": "https://www.bse.cn/jygl_list/200028217.html",
-        "bse_original_fetch_status": "302 redirect to exactly the requested URL; raw138-byte response retained, no automatic redirect retry",
-        "bse_current_rule_body_retained": false,
+        "bse_original_fetch_status": "official_notice_browser_entity200_and_normal_download_docx_obtained_attachment_status_not_captured",
+        "bse_current_rule_body_retained": true,
         "qualified_calendar_created": false,
         "application_statutory_source_capture_created": false,
         "owner_governance_adopted": false,
-        "market_provider_calls": 0
+        "market_provider_calls": 0,
+        "bse_previous_plain_fetch_status_preserved": "302 redirect to exactly the requested URL; raw138-byte response retained, no automatic redirect retry",
+        "bse_official_browser_originals": {
+          "capture_receipt": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c2-sse-bse-rule-originals/bse-browser-originals-20261119T1457Z/capture.receipt.json",
+            "sha256": "dce0414f7200adcf7e5df2fdef11c9305d7bd1f50a8622ea7e2817b8e830efbe"
+          },
+          "rule_docx": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c2-sse-bse-rule-originals/bse-browser-originals-20261119T1457Z/bse-2026-trading-rule.original.docx",
+            "sha256": "56145494879dbb8192e9f6e2b5c91cbad102364de83b799c14b263f9a7c50cd2"
+          },
+          "notice_response_entity_html": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c2-sse-bse-rule-originals/bse-browser-originals-20261119T1457Z/bse-2026-notice.original.html",
+            "sha256": "a78448a8829dd1109941b535deebb7da0650f7dcd0935a12478ee5775e947e15"
+          },
+          "derived_document_review": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c2-sse-bse-rule-originals/bse-browser-originals-20261119T1457Z/document-review.extracted.json",
+            "sha256": "c1c441eb6006cad0c491628a692675c9066d0360968e26cc2b07fcb13d4ac738"
+          },
+          "normal_browsing_flow": "Isolated msedge public homepage -> actual notice -> observed Download link; browser then closed.",
+          "article_2_3_1_holiday_exception_retained": true,
+          "article_2_3_2_continuous_auction_start": "09:30",
+          "article_2_3_2_adjustment_and_halt_exceptions_retained": true,
+          "effective_article": "10.6",
+          "effective_date": "2026-07-06",
+          "complete_notice_deferrals_do_not_include_2_3_2": true,
+          "notice_raw_attachment_file_attribute_matches_observed_link": true,
+          "attachment_http_status_not_captured": true,
+          "direct_attachment403_not_used_as_rule_original": true,
+          "plain_fetch_redirect_loop_failure": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c2-sse-bse-rule-originals/bse-original-attempt-20261119T145034Z/retrieval-attempt.receipt.json",
+            "sha256": "6613c66e1a8cdfdbf0efc678c8a45ef53697b6870b33078bb076350ee439044c"
+          },
+          "first_writer_assertion_failure": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c2-sse-bse-rule-originals/bse-browser-originals-20261119T1457Z/capture-r1-failed.receipt.json",
+            "sha256": "643268e35c5747b91f5f8020fb8299bee64924a48badad8f10595c47f821eac6"
+          },
+          "source_capture_owner_adoption_or_calendar_qualification_created": false,
+          "independent_document_review_pending": false,
+          "independent_document_review": {
+            "reviewer": "luna_max_audit",
+            "status": "passed_original_identity_and_complete_relevant_sections",
+            "docx_zip_entries": 24,
+            "docx_testzip_corrupt_entry": null,
+            "notice_download_file_attribute_matches_official_host_and_path": true,
+            "article_2_3_1_2_3_2_10_6_and_notice_full_deferred_paragraph_checked": true,
+            "actual_calendar_governance_or_publication_qualification_claimed": false,
+            "network_requests_by_reviewer": 0
+          }
+        }
       },
       "d1_e1_report_field_precision_review": {
         "review": {
