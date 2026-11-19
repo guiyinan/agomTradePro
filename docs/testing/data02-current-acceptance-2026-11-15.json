@@ -7717,8 +7717,8 @@
             "sha256": "4b26b5f8c148b16346a8bd0352debd153c84664d4df3472edc37097ba93b5d51"
           },
           "prepare_observation": {
-            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/c5-postrepair-s6-prepare-observation-r1.json",
-            "sha256": "6c65afb4d35e4cdb349a3f91c8af17646d4f6b0fb4dae489f03e1f64786dceba"
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/c5-postrepair-s6-prepare-observation-r2.json",
+            "sha256": "e06e17cac624306b7a11a5ceb31ef5cc97574dee1fc783c7add486cebd7c8436"
           },
           "prepare_process_running_last_observed": true,
           "prepare_outcome": "pending",
@@ -7749,7 +7749,20 @@
           ],
           "production_deployed": false,
           "data02_exit_satisfied": false,
-          "data03_started": false
+          "data03_started": false,
+          "shared_index_collision": {
+            "commit": "efc703b0b",
+            "root_owned_paths": [
+              "docs/plans/data02-financial-source-time-remediation-2026-09-13.md",
+              "docs/testing/data02-current-acceptance-2026-11-15.json"
+            ],
+            "actual_commit_files": 16,
+            "external_staged_research_paths_included": true,
+            "root_research_qualification_claimed": false,
+            "candidate_s6_source_changed": false,
+            "correction": "Preserve pushed history and all unrelated work; future documentation commits explicitly use git commit --only with the two owned paths. This mixed development commit is not S6 candidate evidence."
+          },
+          "public_observer_independent_review": "Luna read-only review after allowlist repair found no additional namespace/3365 blockers. Explicit W/current UUID and actual runner launch filename remain mandatory; legacy defaults and recovery branches are preserved for history only."
         }
       },
       "current_audit_lease_pre_window_recheck": {

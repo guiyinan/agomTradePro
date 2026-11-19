@@ -1539,3 +1539,5 @@ E1 成功后仍须完成 native Main/Balance、C2 witness、D1 原件/精确数�
 DATA-02 全量退出后优先推进 DATA-03 的受控切换与真实观察；收尾期间即可准备 EVID-01/02、AUD-03 和 STRAT-01 的输入，按各自权限门执行，不人为等待所有相邻单元。TUI-02 和 STRAT-02 在自己的前置满足后及时启动真实观察/样本积累，不能用历史候选、有效 lease 或单资产成功代替整单元验收。所有状态仍以注册表为准，实际命令和原件继续写入同一 `followups[14]`，本节不产生新的验收索引。
 
 北京时间17:05后真实新建c5 attempt dad11d3e0caa4656a1ed3799527a0478，reserve exit0、精确c5 checkout clean、当时可用29463412736字节；09:07:41Z启动独立标准prepare PID1334948，启动前29119623168字节，公开transport原SHA验证通过。独立Luna复核通过全部授权/clock/目标19日绑定；首次只读observer因本地allowlist漏W在SSH前失败，Root仅补三处namespace、旧版本保留，修正观测exit0且prepare仍在运行。图谱真实用量、prepare结论及新image/S6结果待本attempt原件，189只记为新图谱前累计，不推断prepare新增用量为0。生产/财报/E1均未启动，DATA02未退出，DATA03未启动；统一见既有followups[14]窗口事项fresh_execution。
+
+共享Git暂存区冲突已如实登记：efc703b0b提交实际包含16文件，Root本次仅拥有上述计划/验收索引两文件；另一事项已暂存研究实现被误并入，Root不据此主张其代码/测试资格，也不改写已推送历史或覆盖其他WIP。后续本事项提交使用git commit --only显式限定两文件；S6始终使用远端冻结c5，不受开发HEAD变化影响。
