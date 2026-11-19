@@ -10,6 +10,7 @@ from typing import Any
 
 from django.db.models import OuterRef, Q, QuerySet, Subquery
 
+from apps.data_center.application.pit_provider import PITManifestBinding
 from apps.data_center.domain.pit import (
     KnowledgeScope,
     PITDatasetManifest,
@@ -173,6 +174,62 @@ class ManifestBoundPITDataView(DjangoPITDataView):
         """Return a copy of the manifest coverage evidence."""
 
         return dict(self._manifest.coverage)
+
+    def get_manifest_binding(self) -> PITManifestBinding:
+        """Expose verified immutable identity without returning price payloads."""
+        rows = list(
+            PITFactVersionModel._default_manager.filter(pk__in=self._expected_hashes)
+            .order_by("pk")
+            .values(
+                "id",
+                "dataset",
+                "business_key",
+                "effective_at",
+                "effective_to",
+                "available_at",
+                "ingested_at",
+                "superseded_at",
+                "revision_number",
+                "source_record_id",
+                "content_hash",
+                "pit_quality",
+                "payload",
+            )
+        )
+        expected_metadata = {item["id"]: item for item in self._manifest.selected_versions}
+        if len(rows) != len(self._expected_hashes) or any(
+            row["pit_quality"] != PITQuality.VERIFIED.value
+            or row["dataset"] != expected_metadata[row["id"]].get("dataset")
+            or row["business_key"] != expected_metadata[row["id"]].get("business_key")
+            or row["pit_quality"] != expected_metadata[row["id"]].get("pit_quality")
+            or (
+                clock_at := (
+                    row["available_at"]
+                    if self._manifest.knowledge_scope is KnowledgeScope.PUBLIC
+                    else row["ingested_at"]
+                )
+            )
+            is None
+            or clock_at > self._manifest.as_of_time
+            or row["effective_at"] > self._manifest.as_of_time
+            or (
+                row["effective_to"] is not None and row["effective_to"] <= self._manifest.as_of_time
+            )
+            or row["content_hash"] != self._expected_hashes[row["id"]]["content_hash"]
+            or _stable_hash(row["payload"]) != self._expected_hashes[row["id"]]["payload_hash"]
+            for row in rows
+        ):
+            raise ValueError("PIT manifest version evidence is missing or altered")
+        sealed = [{**row, "payload": _stable_hash(row["payload"])} for row in rows]
+        return PITManifestBinding(
+            manifest_id=self._manifest.manifest_id,
+            manifest_hash=self._manifest.manifest_hash,
+            calendar_version=self._manifest.calendar_version,
+            as_of_time=self._manifest.as_of_time,
+            knowledge_scope=self._manifest.knowledge_scope.value,
+            coverage=tuple(sorted(self._manifest.coverage.items())),
+            versions_sha256=_stable_hash(sealed),
+        )
 
     def query(
         self,

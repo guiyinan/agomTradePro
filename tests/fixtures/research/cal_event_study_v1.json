@@ -1,0 +1,125 @@
+{
+  "spec_id": "CAL-EVENT-STUDY-20261110-V1",
+  "unit_id": "CAL-01",
+  "status": "frozen_before_oos",
+  "frozen_at": "2026-11-10T13:14:28+08:00",
+  "oos_results_inspected": false,
+  "scope": "Initial broad-index institutional-calendar event study and broad-ETF activity observation research; no signal promotion or trading.",
+  "knowledge_cutoff": {
+    "timezone": "Asia/Shanghai",
+    "local_time": "18:00:00",
+    "rule": "Use one fixed cutoff per trading day, never earlier than market close. Inputs available later move to the next eligible cutoff."
+  },
+  "targets": {
+    "broad_indices": [
+      {"code": "000300", "name": "CSI 300"},
+      {"code": "000016", "name": "SSE 50"},
+      {"code": "000905", "name": "CSI 500"}
+    ],
+    "etf_universe": "Only versioned broad-ETF pool membership backed by formal unitholder disclosure; membership starts no earlier than its conservative market-availability time.",
+    "price_basis": "Official index closing levels for indices. ETF returns require point-in-time corporate-action treatment; current backward-adjusted history must not be substituted. Missing qualified adjustment evidence removes the observation."
+  },
+  "primary_endpoint": {
+    "formula_version": "daily-squared-log-return-sum-v1",
+    "horizons_trading_days": [1, 3, 5],
+    "formula": "RV_h = sum(r[t+i]^2, i=1..h); r[t+i] = ln(P[t+i]/P[t+i-1])",
+    "origin": "t is the last completed close strictly before the prediction cutoff; labels use the next h complete trading sessions.",
+    "display_transform": "sqrt(RV_h) may be displayed; values are not annualized and raw values are not compared across horizons.",
+    "missing_values": "Any missing, non-finite or non-positive required price makes the label unavailable; never fill zero.",
+    "maturity": "A label is usable only after all h sessions have completed and the exact input versions satisfy the relevant knowledge cutoff."
+  },
+  "secondary_endpoints": [
+    "absolute_return",
+    "range",
+    "downside_volatility",
+    "turnover_amount",
+    "turnover_rate",
+    "late_session_turnover_share_when_qualified",
+    "basis_pcr_money_rate_and_etf_share_change_only_with_qualified_sources"
+  ],
+  "controls": {
+    "six_periods": {
+      "categories": ["01-05", "06-10", "11-15", "16-20", "21-25", "26-month_end"],
+      "reference_category": "01-05",
+      "design": "Six-category contrasts and joint incremental test; there is no non-six-period control group.",
+      "adjustments": ["weekday", "month", "available_trading_day_count", "lagged_volatility", "market_state_known_at_cutoff"]
+    },
+    "discrete_events": {
+      "design": "Comparable non-event windows matched by weekday, month, market state and lagged volatility known at the prediction cutoff.",
+      "prohibited": "No matching on future returns, future volatility, smoothed future state or post-event revisions."
+    },
+    "baseline": "Historical-volatility/market-state model without calendar features.",
+    "overlap": "Retain multi-event markers; report mutually exclusive windows and single-event subsamples as sensitivity analyses."
+  },
+  "temporal_split": {
+    "method": "expanding-window walk-forward",
+    "minimum_history": {
+      "consecutive_calendar_years": 8,
+      "complete_daily_rows_per_target": 2000
+    },
+    "first_training_window_years": 5,
+    "validation_trading_days_per_fold": 126,
+    "total_oos_trading_days": 504,
+    "minimum_walk_forward_folds": 5,
+    "final_oos_use": "once",
+    "purge": {
+      "unit": "actual trading-session label intervals",
+      "rule": "Remove every training sample whose [t+1,t+h] label interval overlaps any validation or OOS label interval. Adjacent half-open intervals sharing only a boundary do not overlap.",
+      "minimum_separation_trading_days": 5,
+      "unmatured_labels": "reject"
+    },
+    "embargo": {
+      "unit": "complete trading days on the applicable exchange calendar",
+      "trading_days": 5,
+      "rule": "After each validation/OOS segment, exclude the next five complete eligible sessions before any later training sample may be used; actual interval purge still applies independently."
+    }
+  },
+  "sample_gates": {
+    "target_expected_session_coverage_min": 0.98,
+    "distinct_events_total_min": 30,
+    "training_events_min": 20,
+    "validation_events_total_min": 5,
+    "oos_events_total_min": 5,
+    "event_identity_and_availability_required": true,
+    "failure_outcome": "insufficient_data",
+    "rule": "Thresholds apply per target, event family and horizon; a failing target is not hidden by pooling stronger targets. No post-OOS threshold reduction."
+  },
+  "multiple_testing": {
+    "family": "All six-period/category, event, horizon, target and preregistered subsample hypotheses in the same experiment family.",
+    "primary": {"method": "Holm", "alpha": 0.05, "report": "adjusted_p_value"},
+    "secondary_exploratory": {"method": "Benjamini-Hochberg", "q": 0.05, "report": "q_value"},
+    "new_trials": "Append a new trial and cumulative family attempt count; do not rewrite the original family after seeing results."
+  },
+  "oos_support": {
+    "primary_rule": "A preregistered OOS event contrast or joint calendar-increment test requires Holm-adjusted p < 0.05 and all sample/coverage gates to pass.",
+    "effect_reporting": "Report effect size, dependence-appropriate confidence interval, fold results, raw and adjusted p values and coverage.",
+    "nonsignificant_result": "not_confirmed",
+    "insufficient_result": "insufficient_data",
+    "promotion": "oos_supported remains research-only and never creates a trading signal."
+  },
+  "etf_daily_core": {
+    "baseline": {
+      "prior_comparable_trading_days": 20,
+      "exclude_target_day": true,
+      "insufficient_baseline": "unknown"
+    },
+    "pool_coverage": {
+      "required_member_availability_min": 1.0,
+      "valid_member_count_ratio_min": 0.9,
+      "lagged_scale_coverage_min": 0.9,
+      "below_full_gate": "partial or unknown; never silently shrink the denominator",
+      "scale_basis": "Only lagged scale known at the prediction cutoff; unknown denominator means unknown coverage."
+    },
+    "activity_thresholds": {
+      "normal": "turnover_multiple < 1.8",
+      "elevated": "1.8 <= turnover_multiple < 3.0",
+      "extreme": "turnover_multiple >= 3.0",
+      "unknown": "Missing baseline, invalid member coverage or unqualified inputs"
+    },
+    "share_quality": {
+      "unchanged_member_ratio_review_trigger": 0.7,
+      "rule": "At least 70% exactly unchanged shares triggers source/date/unit review. Without qualified confirmation, share-change estimation is blocked rather than interpreted as zero subscription/redemption."
+    },
+    "attribution": "actor_attribution=not_identifiable; historical unitholder evidence never identifies the current trader."
+  }
+}

@@ -7565,7 +7565,7 @@
         }
       },
       "market_window_recovery_pending_owner": {
-        "status": "approved360_controls_verified_waiting_for1705_no_new_attempt",
+        "status": "approved360_fresh_dad11_reserved_prepare_running",
         "proposal": {
           "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-budget-revised-s6/c5-window-recovery-proposal.json",
           "sha256": "3396c28a8addceb8d48fe38bc436023b5000fb2a99fc7fc1b452f18a762e6c04"
@@ -7620,9 +7620,9 @@
         "approved_fresh_attempts": 1,
         "market_used_before_new_attempt": 189,
         "not_django_authentication_event": true,
-        "new_attempt_reserved": false,
-        "new_provider_execution_started": false,
-        "current_entry_window_not_yet_open": true,
+        "new_attempt_reserved": true,
+        "new_provider_execution_started": "prepare may dispatch graph; actual usage pending new graph receipt",
+        "current_entry_window_not_yet_open": false,
         "controls_ready": true,
         "clock_gate_wired_to_all_four_core_entrypoints": true,
         "owner_receipt": {
@@ -7682,7 +7682,75 @@
         "preparation_provider_requests": 0,
         "full_s6_complete": false,
         "data02_exit_satisfied": false,
-        "data03_started": false
+        "data03_started": false,
+        "controls_independent_review": "Luna Max read-only review: actual Owner/proposal/ledger hashes accepted; 17:04 blocked,17:05/20:00 admitted,20:01 blocked; all four entrypoints gate before SSH/token handling; target19 checked before Owner payload; calendar qualification remains separate.",
+        "fresh_execution": {
+          "attempt_id": "dad11d3e0caa4656a1ed3799527a0478",
+          "candidate_sha": "c5b42e20cc97a7e166e6d3f88254d05b0605667a",
+          "reserve_intent": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/s6-c5-postrepair-reserve.intent.json",
+            "sha256": "e2348fd6ecdfbd94ff540b9dac41dcbced117837e268dd4ba88ea3c252542b03"
+          },
+          "reserve_receipt": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/s6-c5-postrepair-reserve.receipt.json",
+            "sha256": "67703902d3c251321051710c1d2389a489d845b87447eca7d43fabcadf111628"
+          },
+          "attempt_state": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/s6-c5-postrepair-state.json",
+            "sha256": "76bf413f3f95a0dcaebc175cea3e90757e7dfc3d09723f2b1f2736b270584b55"
+          },
+          "canonical_plan": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/s6-c5-postrepair-attempt-plan.canonical.json",
+            "sha256": "01c983f691919ca0c7f24ec13221ec0f5ad8dfec2ee3ce7928f142ad0cc86f5e"
+          },
+          "reserve_exit": 0,
+          "disk_free_bytes_at_reserve": 29463412736,
+          "prepare_launch": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/s6-c5-postrepair-fresh-prepare-launch.receipt.json",
+            "sha256": "4895497e1e8c7795106dea1b8923bb62941f06c13ecaeeec80f911673ceecf7a"
+          },
+          "prepare_pid": 1334948,
+          "prepare_launched_at": "2026-11-19T09:07:41.953663+00:00",
+          "disk_free_bytes_before_prepare": 29119623168,
+          "transport_receipt": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/s6-c5-postrepair-transport.receipt.json",
+            "sha256": "4b26b5f8c148b16346a8bd0352debd153c84664d4df3472edc37097ba93b5d51"
+          },
+          "prepare_observation": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/c5-postrepair-s6-prepare-observation-r1.json",
+            "sha256": "6c65afb4d35e4cdb349a3f91c8af17646d4f6b0fb4dae489f03e1f64786dceba"
+          },
+          "prepare_process_running_last_observed": true,
+          "prepare_outcome": "pending",
+          "runner_started": false,
+          "full_s6_complete": false,
+          "market_charged_before_new_graph": 189,
+          "actual_new_graph_usage": "await original graph receipt",
+          "financial_requests": 0,
+          "production_e1_requests": 0,
+          "observer_local_failure": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/prepare-observe-r1.log",
+            "sha256": "e4a97f97b44f20f08fbf9351a1a034d4eeed2aeff520f6d1e64801b73425961d"
+          },
+          "observer_failure_cause": "Local diagnostic allowlist omitted W; failed before SSH. Root extended only the three public observer/collector namespace allowlists, preserving explicit UUID/candidate checks and old originals; corrected observer exit0.",
+          "current_public_observer_helpers": [
+            {
+              "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/observe-c5-postrepair-s6.py",
+              "sha256": "0817d95fd55c8bd93fee22a3f0f46f11e4c2f4cba77535a09daf73e1307c7754"
+            },
+            {
+              "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/observe-c5-postrepair-runner.py",
+              "sha256": "6324be2834270d8ecd4fce33f568e3cfe685723325a9ced49d5db2d49c36fabd"
+            },
+            {
+              "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/collect-c5-s6-public-reports.py",
+              "sha256": "5b77d053dacfaaef023fe01f48e59a9d1f6a5d387ad80490332b506052364ad9"
+            }
+          ],
+          "production_deployed": false,
+          "data02_exit_satisfied": false,
+          "data03_started": false
+        }
       },
       "current_audit_lease_pre_window_recheck": {
         "receipt": {

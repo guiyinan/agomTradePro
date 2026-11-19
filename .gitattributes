@@ -1,5 +1,6 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+tests/fixtures/research/cal_event_study_v1.json -text
 .gitattributes text eol=lf
 docs/reviews/ref05-public-replay-20261108.json text eol=lf
 docs/reviews/ref05-monthly-2024-replay-20261108.json text eol=lf

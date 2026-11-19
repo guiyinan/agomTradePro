@@ -173,6 +173,11 @@ class PromotionDecision(models.Model):
         return super().save(*args, **kwargs)
 
 
+from apps.research.infrastructure.event_study_control_models import (  # noqa: E402,F401
+    EventStudyBindingModel,
+    EventStudyFinalOOSClaimModel,
+    EventStudySpecModel,
+)
 from apps.research.infrastructure.evidence_models import (  # noqa: E402,F401
     EvidenceEnvelopeModel,
     EvidenceOperatorSpecModel,
