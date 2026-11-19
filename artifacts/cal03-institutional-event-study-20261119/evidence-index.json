@@ -793,5 +793,48 @@
       "Retained exact historical official close revisions and market-availability basis",
       "Complete applicable historical session calendar and final-publication rules"
     ]
+  },
+  "configured_channel_operator_trace": {
+    "scope": "Actual configured channel tracing and bounded existing QMT market evidence; no source acquisition or permission change",
+    "base_head": "f28137a5e5cd1889f82d97773f08e34e29dc0766",
+    "report": {
+      "path": ".tmp/cal03-event-study-20261119/channel-provider-trace.json",
+      "sha256": "c3d9f170823ad83ee0e40343757a8cbf02634b5b53a53b2f97fa9fc1459da0b7"
+    },
+    "frozen_spec_sha256": "29a44d0cd2670dd2a72853494d21271c9765d6584dafa4998e1df3c2a6edfe71",
+    "routing_result": "Live provider2 active/provider4 inactive both use the same internal relay. Existing committed DATA02 diagnostics identify its upstream as the local env origin; different URL origins are not independent grants.",
+    "operator_and_account_rights_verified": false,
+    "metadata_access_followup": {
+      "user_connection_details_received": true,
+      "credential_reproduced": false,
+      "separate_CAL03_requests": 5,
+      "limit": 5,
+      "index_basic_combined_empty": true,
+      "calendar_2010_first_ten_days_rows": 10,
+      "exact_target_20100104_date_rows": 3,
+      "price_or_return_fields_requested": false,
+      "research_use_or_full_history_qualified": false
+    },
+    "qmt_result": "Installed Guojin ordinary QMT 2.1.19.0 confirmed. Client process reappeared; current 2026-11-19 session logged external server startup denial and exact safe original line is retained. Ten earlier log originals became unavailable; old QB0 original also missing. No successful market grant or full-history/research entitlement established.",
+    "qualified_full_history_packages": 0,
+    "data02_boundary": {
+      "control_plane_catalog_reads": 2,
+      "unauthenticated_public_origin_gets": 4,
+      "market_or_financial_data_api_calls": 5,
+      "data02_budget_consumed": 0,
+      "provider_test_sync_or_write_capabilities": 0,
+      "production_configuration_or_publication_changed": false,
+      "c5_candidate": "c5b42e20cc97a7e166e6d3f88254d05b0605667a",
+      "cal03_metadata_only_calls": 5,
+      "financial_data_api_calls": 0
+    },
+    "final_oos_claimed_or_evaluated": false,
+    "missing_information": [
+      "Original acquisition/payment/renewal or vendor documentation tying this fixed-IP relay to an operating entity and this account's valid research-use grant",
+      "Current Guojin market-data/API or permitted export grant and effective scope/term, independently of trading-algorithm/bridge pairing permissions",
+      "Qualified original/revision history, historical market availability and complete applicable exchange sessions before frozen-study admission"
+    ],
+    "checks": ".tmp/cal03-event-study-20261119/channel-trace-checks.json",
+    "commit_receipt": ".tmp/cal03-event-study-20261119/channel-trace-commit.json"
   }
 }
