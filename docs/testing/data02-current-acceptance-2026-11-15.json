@@ -8307,6 +8307,39 @@
             "credential_readiness": {
               "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6/execution-credential-readiness.receipt.json",
               "sha256": "f3892491c2a4ffbbe1c9e3d0f17fac76caff26dd0d4436d52a0cea35fdebc368"
+            },
+            "single_dispatch_time_wait": {
+              "controller": {
+                "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6/wait_for_approved_ci_dispatch.py",
+                "sha256": "768ffad472b4da62c613ee86974c14b6f3321823647465b04d3ceea3a3e434c1"
+              },
+              "launch_receipt": {
+                "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6/approved-ci-time-wait.launch.receipt.json",
+                "sha256": "6c9ced63a0a44f9431e2ab9bbf064a84e0ac605ef37ec0e027fff5b75bd9f00c"
+              },
+              "live_process_observation": {
+                "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6/approved-ci-time-wait.live-observation.receipt.json",
+                "sha256": "b0adbf84372c56d470affdec8938c00cafe5ae1fe9349b10cfa2be1693997621"
+              },
+              "compile_and_default_inert_preview_passed": true,
+              "preview_log": {
+                "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6/timed-ci-launcher-preview.log",
+                "sha256": "842613a7edc283becf466f5ef2d0226107458eb08d9d2fa20e82809ca03673ae"
+              },
+              "launch_pid": 28764,
+              "actual_python_pid": 12912,
+              "actual_parent_pid": 28764,
+              "live_process_command_verified_at": "2026-11-19T15:19:15.0434869Z",
+              "state": "waiting_for_selected_ci_time",
+              "ci_dispatch_not_before_beijing": "2026-11-20T14:00:00+08:00",
+              "check_interval_seconds": 30,
+              "existing_ci_entry_invocations_max": 1,
+              "ci_entry_name": "refresh_official_publication_ci.py --dispatch",
+              "before_dispatch_rechecks_owner_window_common_and_ci_tool_hashes": true,
+              "existing_ci_intent_means_observe_only": true,
+              "does_not_dispatch_market_or_reserve_s6": true,
+              "actual_github_dispatch_claimed": false,
+              "owned_wait_must_be_stopped_on_goal_pause_or_cancellation_request": true
             }
           }
         },
