@@ -836,5 +836,73 @@
     ],
     "checks": ".tmp/cal03-event-study-20261119/channel-trace-checks.json",
     "commit_receipt": ".tmp/cal03-event-study-20261119/channel-trace-commit.json"
+  },
+  "bounded_history_coverage_audit": {
+    "base_head": "5267a223621b0507043c2e73dd5fb75e6ac05376",
+    "summary": {
+      "path": ".tmp/cal03-event-study-20261119/coverage-audit-v1/evidence-summary.json",
+      "sha256": "7dd3c0aadffed586a8b5d7cd1cc119b6ca2348e13c4bd2beb26d9a36b99b7e09"
+    },
+    "frozen_spec_sha256": "29a44d0cd2670dd2a72853494d21271c9765d6584dafa4998e1df3c2a6edfe71",
+    "early_price_window": [
+      "2010-01-04",
+      "2018-12-31"
+    ],
+    "consecutive_calendar_years": 9,
+    "per_target": [
+      {
+        "code": "000300.SH",
+        "finite_positive_close_rows": 2187,
+        "coverage_against_current_SSE_snapshot": 1.0,
+        "full_proposed_interval_date_rows": 4097,
+        "numeric_screen_passed": true,
+        "frozen_input_admitted": false
+      },
+      {
+        "code": "000016.SH",
+        "finite_positive_close_rows": 2187,
+        "coverage_against_current_SSE_snapshot": 1.0,
+        "full_proposed_interval_date_rows": 4097,
+        "numeric_screen_passed": true,
+        "frozen_input_admitted": false
+      },
+      {
+        "code": "000905.SH",
+        "finite_positive_close_rows": 2187,
+        "coverage_against_current_SSE_snapshot": 1.0,
+        "full_proposed_interval_date_rows": 4097,
+        "numeric_screen_passed": true,
+        "frozen_input_admitted": false
+      }
+    ],
+    "calendar_current_snapshot": {
+      "SSE_calendar_days": 6167,
+      "SZSE_calendar_days": 6167,
+      "start": "2009-12-31",
+      "end": "2026-11-18",
+      "proposed_interval_open_sessions_each": 4097,
+      "day_grid_complete": true,
+      "predecessor_errors_each": 0,
+      "exchange_open_day_disagreements": 0,
+      "qualified_historical_calendar": false
+    },
+    "actual_CAL03_dispatches": 13,
+    "limit": 13,
+    "DATA02_reserved_budget_consumed": 0,
+    "exact_raw_responses_retained": 13,
+    "historical_publication_or_availability_inferred_from_capture_clock": false,
+    "research_use_grant_verified": false,
+    "qualified_full_history_packages": 0,
+    "post_2018_price_fields_requested": false,
+    "final_oos_claimed_or_evaluated": false,
+    "checks": ".tmp/cal03-event-study-20261119/coverage-audit-v1/checks.json",
+    "commit_receipt": ".tmp/cal03-event-study-20261119/coverage-audit-v1/commit.json",
+    "remaining": [
+      "actual operator/account and valid research-use grant",
+      "official historical original and revision versions",
+      "historical publication and conservative availability evidence",
+      "all applicable historical calendar versions, exception inventory, close/final-index-publication semantics",
+      "eligible independent fallback and preregistered manifest binding"
+    ]
   }
 }
