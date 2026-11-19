@@ -7565,7 +7565,7 @@
         }
       },
       "market_window_recovery_pending_owner": {
-        "status": "prepared_not_authorized",
+        "status": "explicit_user_approved360_fresh_attempt_after1705_controls_preparing",
         "proposal": {
           "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-budget-revised-s6/c5-window-recovery-proposal.json",
           "sha256": "3396c28a8addceb8d48fe38bc436023b5000fb2a99fc7fc1b452f18a762e6c04"
@@ -7576,7 +7576,7 @@
         "maximum_cumulative_allocated": 359,
         "unallocated": 1,
         "fresh_attempts_requested": 1,
-        "owner_approval_claimed": false,
+        "owner_approval_claimed": true,
         "window_admission_operator": {
           "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-budget-revised-s6/window_admission.py",
           "sha256": "3e3c18716b1a349ac14b0b49aa95acd754eea12e0cc264aeaaaf5ae1c4591cbe"
@@ -7611,7 +7611,59 @@
         "source_application_changed": false,
         "duration_estimate_is_planning_not_enforced_total_deadline": true,
         "independent_review": "189+50+30+30+60=359; entry17:05–20:00 has conservative headroom, but no completion guarantee or overall runner deadline; Root must monitor cutoff",
-        "resource_preparation_before_new_attempt_required": true
+        "resource_preparation_before_new_attempt_required": true,
+        "authorization_origin": "explicit_current_chat_user_reply",
+        "question_item_id": "[\"request_user_input_async\",\"call_ceb98f4ec0bd4bdbbf4a804bc320f598\",0]",
+        "exact_user_answer": "批准360及收盘后一次新S6（推荐）",
+        "approval_recorded_at": "2026-11-19T03:36:50.897164+00:00",
+        "approved_market_ceiling": 360,
+        "approved_fresh_attempts": 1,
+        "market_used_before_new_attempt": 189,
+        "not_django_authentication_event": true,
+        "new_attempt_reserved": false,
+        "new_provider_execution_started": false,
+        "current_entry_window_not_yet_open": true
+      },
+      "current_audit_lease_pre_window_recheck": {
+        "receipt": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-resource/audit-current-lease-readonly-r3.receipt.json",
+          "sha256": "a75b18eb20009d398d58e36f75737ca0d8b4d1280496991b96959b69f42cc2e5"
+        },
+        "probe_source": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-resource/audit-current-lease-probe-source-r3.py",
+          "sha256": "84de5dad318d14ad5ba1fe7eaf302d661aa0c7b867711cf0c7c4bd5edb53c4a8"
+        },
+        "observed_at": "2026-11-19T03:41:00.098731+00:00",
+        "lease": {
+          "mode": "required",
+          "outbox_enabled": true,
+          "reason_code": null,
+          "valid_until": "2026-11-29T16:12:55.522488+00:00"
+        },
+        "business_dml_allowed": false,
+        "provider_requests_requested": 0,
+        "renewal_requested": false,
+        "natural_renewal_proven": false,
+        "sql_kinds": {
+          "LOCK": 15,
+          "RELEASE": 15,
+          "SAVEPOINT": 15,
+          "SELECT": 229,
+          "SET": 2,
+          "SHOW": 10
+        },
+        "initial_probe_failures": [
+          {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-resource/audit-current-lease-readonly.receipt.json",
+            "sha256": "990792f76b947f0a7fded86242ab0f46bb196228e3a4ef085219a08f72248890"
+          },
+          {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-resource/audit-current-lease-readonly-r2.receipt.json",
+            "sha256": "68b55ade7094b1406261958ce586be14515f8ad0ba2a8ce8cb8f4656d5479301"
+          }
+        ],
+        "failure_cause": "Probe import ordering before Django registry initialization; corrected under the SQL DML fence; not a production lease failure",
+        "mcp_limitation": "Published audit capabilities cover attribution/execution links; no matching lease-read capability or TUI action was found, so reused reviewed read-only diagnostic"
       }
     }
   ],
