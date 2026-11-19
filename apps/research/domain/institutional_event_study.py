@@ -7,6 +7,7 @@ No function declares a complete study, statistical support or trading eligibilit
 
 from __future__ import annotations
 
+import calendar
 import math
 from dataclasses import dataclass
 from datetime import date, datetime, time
@@ -388,6 +389,172 @@ def holm_adjusted_p_values(p_values: tuple[float, ...]) -> tuple[float, ...]:
         running = max(running, (len(p_values) - rank) * value)
         adjusted[index] = min(1.0, running)
     return tuple(adjusted)
+
+
+@dataclass(frozen=True, slots=True)
+class WalkForwardPolicy:
+    """Explicit frozen design thresholds; no outcome-dependent tuning defaults."""
+
+    minimum_history_years: int
+    minimum_complete_rows: int
+    first_training_years: int
+    validation_sessions: int
+    minimum_folds: int
+    final_oos_sessions: int
+    minimum_separation_sessions: int
+    embargo_sessions: int
+    minimum_coverage: float
+
+    def __post_init__(self) -> None:
+        """Reject impossible scalar policies before constructing any windows."""
+        for count in (
+            self.minimum_history_years,
+            self.minimum_complete_rows,
+            self.first_training_years,
+            self.validation_sessions,
+            self.minimum_folds,
+            self.final_oos_sessions,
+        ):
+            if type(count) is not int or count < 1:
+                raise EventStudyError("WALK_FORWARD_POLICY_INVALID")
+        for count in (self.minimum_separation_sessions, self.embargo_sessions):
+            if type(count) is not int or count < 0:
+                raise EventStudyError("WALK_FORWARD_POLICY_INVALID")
+        if (
+            self.first_training_years > self.minimum_history_years
+            or not math.isfinite(self.minimum_coverage)
+            or not 0 < self.minimum_coverage <= 1
+        ):
+            raise EventStudyError("WALK_FORWARD_POLICY_INVALID")
+
+
+@dataclass(frozen=True, slots=True)
+class WalkForwardFold:
+    """One expanding fold; window indices denote prediction origins, not returns."""
+
+    training_origins: tuple[int, ...]
+    validation_origins: LabelInterval
+    fit_at: datetime
+
+
+@dataclass(frozen=True, slots=True)
+class WalkForwardPlan:
+    """Outcome-blind calendar plan, pending exact-version label and source checks."""
+
+    folds: tuple[WalkForwardFold, ...]
+    final_training_origins: tuple[int, ...]
+    final_oos_origins: LabelInterval
+    final_fit_at: datetime
+    known_at: datetime
+    session_coverage: float
+
+
+def plan_walk_forward(
+    *,
+    sessions: tuple[Session, ...],
+    calendar_version: str,
+    complete_price_dates: frozenset[date],
+    known_at: datetime,
+    clock: StudyClock,
+    policy: WalkForwardPolicy,
+    prior_final_oos_uses: int,
+) -> WalkForwardPlan:
+    """Plan frozen expanding folds and a trailing mature final OOS without prices.
+
+    This validates date/count support only. It never inspects endpoint values or
+    certifies source/PIT qualifications. Actual labels must still pass the exact
+    version/maturity builder and interval purge at each fold's fit_at. Before
+    evaluating final OOS, Application must atomically claim its one use through
+    the existing Research registry; this caller-supplied count is not a lock.
+
+    The initial training origins span at least the registered calendar years
+    *after* maximum-horizon purge/separation. Consecutive validation windows have
+    fixed session counts; previous held-out embargo origins stay excluded from
+    later expanding training sets. Missing price dates never compress calendars.
+    """
+    _require_aware(known_at)
+    _validate_sessions(sessions, clock.timezone_name)
+    if type(prior_final_oos_uses) is not int or prior_final_oos_uses < 0:
+        raise EventStudyError("FINAL_OOS_USE_COUNT_INVALID")
+    if prior_final_oos_uses:
+        raise EventStudyError("FINAL_OOS_ALREADY_USED")
+    if any(type(day) is not date for day in complete_price_dates):
+        raise EventStudyError("PRICE_DATE_INVALID")
+    closed = tuple(row for row in sessions if row.closes_at <= known_at)
+    if not closed:
+        raise EventStudyError("HISTORY_INSUFFICIENT")
+    if any(_prediction_clock(row.session_on, clock) <= row.closes_at for row in closed):
+        raise EventStudyError("PREDICTION_CUTOFF_INVALID")
+    expected_dates = frozenset(row.session_on for row in closed)
+    complete = complete_price_dates & expected_dates
+    if len(complete) < policy.minimum_complete_rows:
+        raise EventStudyError("COMPLETE_ROWS_INSUFFICIENT")
+    coverage = len(complete) / len(closed)
+    if coverage < policy.minimum_coverage:
+        raise EventStudyError("SESSION_COVERAGE_INSUFFICIENT")
+    if max(complete) < _anniversary(min(complete), policy.minimum_history_years):
+        raise EventStudyError("HISTORY_INSUFFICIENT")
+    maximum_horizon = max(clock.horizons)
+    # Origins in [0, eligible_stop) have all h future sessions completed.
+    eligible_stop = len(closed) - maximum_horizon
+    oos_start = eligible_stop - policy.final_oos_sessions
+    if oos_start <= 0:
+        raise EventStudyError("FINAL_OOS_WINDOW_INSUFFICIENT")
+    final_oos = LabelInterval(calendar_version, oos_start, eligible_stop)
+    anniversary = _anniversary(closed[0].session_on, policy.first_training_years)
+    first_training_end = next(
+        index for index, row in enumerate(closed) if row.session_on >= anniversary
+    )
+    validation_start = first_training_end + maximum_horizon + policy.minimum_separation_sessions
+    folds: list[WalkForwardFold] = []
+    embargoed: set[int] = set()
+    while validation_start + policy.validation_sessions <= oos_start:
+        validation = LabelInterval(
+            calendar_version, validation_start, validation_start + policy.validation_sessions
+        )
+        training = _expanding_training_origins(
+            validation.start, maximum_horizon, policy.minimum_separation_sessions, embargoed
+        )
+        folds.append(
+            WalkForwardFold(
+                training_origins=training,
+                validation_origins=validation,
+                fit_at=_prediction_clock(closed[validation.start].session_on, clock),
+            )
+        )
+        embargoed.update(range(validation.stop, validation.stop + policy.embargo_sessions))
+        validation_start = validation.stop
+    if len(folds) < policy.minimum_folds:
+        raise EventStudyError("WALK_FORWARD_FOLDS_INSUFFICIENT")
+    return WalkForwardPlan(
+        folds=tuple(folds),
+        final_training_origins=_expanding_training_origins(
+            oos_start, maximum_horizon, policy.minimum_separation_sessions, embargoed
+        ),
+        final_oos_origins=final_oos,
+        final_fit_at=_prediction_clock(closed[oos_start].session_on, clock),
+        known_at=known_at,
+        session_coverage=coverage,
+    )
+
+
+def _anniversary(day: date, years: int) -> date:
+    year = day.year + years
+    if year > 9999:
+        raise EventStudyError("WALK_FORWARD_POLICY_INVALID")
+    return date(year, day.month, min(day.day, calendar.monthrange(year, day.month)[1]))
+
+
+def _prediction_clock(day: date, clock: StudyClock) -> datetime:
+    return datetime.combine(day, clock.local_cutoff, ZoneInfo(clock.timezone_name))
+
+
+def _expanding_training_origins(
+    held_out_start: int, maximum_horizon: int, separation: int, embargoed: set[int]
+) -> tuple[int, ...]:
+    # For last train origin t and first held-out origin v, label gap = v-t-h.
+    stop = held_out_start - maximum_horizon - separation + 1
+    return tuple(index for index in range(stop) if index not in embargoed)
 
 
 def _require_aware(value: datetime) -> None:

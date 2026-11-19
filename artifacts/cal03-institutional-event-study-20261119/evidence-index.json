@@ -4,8 +4,9 @@
   "base_head": "4f1ba5249187f9b5892f0b2d8d7d5d393bcb1d85",
   "preparation_candidate": "a515369d0b841b3165aa811d6b4e5e7976d601c4511e813706aab146b9d56f42",
   "code_files": {
-    "apps/research/domain/institutional_event_study.py": "b653eba70c8fc206b484d3dafa7bd74bde6132da2631356d0c6aca8e0f34e94a",
-    "tests/unit/research/test_institutional_event_study.py": "ca800d4b43eadce6d842f8e8c13cba33257a05e6db79b2fcee08a3c205484263"
+    "apps/research/domain/institutional_event_study.py": "aec72b3c922c358629d9d66e311f448e81a9eb96ac7c1e0b813081ec5d3035a3",
+    "tests/unit/research/test_institutional_event_study.py": "ca800d4b43eadce6d842f8e8c13cba33257a05e6db79b2fcee08a3c205484263",
+    "tests/unit/research/test_institutional_event_study_walk_forward.py": "d8c6ab690cdfe3f914c646320e7e936ffdd3d94dbe26e5200fa9cf3e1f494c61"
   },
   "preparation_index": {
     "path": ".tmp/cal03-event-study-20261119/evidence-index.json",
@@ -157,14 +158,134 @@
         }
       ],
       "source_inputs_unchanged": true
+    },
+    {
+      "path": ".tmp/cal03-event-study-20261119/formal-r2.json",
+      "sha256": "fed2b66ca7b2ce1c2794d673f74be932eff76c487a14d10337d103be30661ac9",
+      "checks": [
+        {
+          "name": "pytest",
+          "argv": [
+            "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+            "-m",
+            "coverage",
+            "run",
+            "--rcfile=D:\\githv\\agomTradePro\\.tmp\\cal03-event-study-20261119/formal-coverage.ini",
+            "-m",
+            "pytest",
+            "-c",
+            "D:\\githv\\agomTradePro\\.tmp\\cal03-event-study-20261119\\pytest.ini",
+            "--confcutdir=tests/unit/research",
+            "tests/unit/research/test_institutional_event_study.py",
+            "tests/unit/research/test_institutional_event_study_walk_forward.py",
+            "-q"
+          ],
+          "exit_code": 0,
+          "log": ".tmp/cal03-event-study-20261119/logs/formal-r2-pytest.txt",
+          "sha256": "bf4100e7c6a9bc1e6c5fb4cbb9136bfdc22becc8a851760b49adb432c39ae93a"
+        },
+        {
+          "name": "coverage",
+          "argv": [
+            "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+            "-m",
+            "coverage",
+            "report",
+            "--rcfile=D:\\githv\\agomTradePro\\.tmp\\cal03-event-study-20261119/formal-coverage.ini"
+          ],
+          "exit_code": 0,
+          "log": ".tmp/cal03-event-study-20261119/logs/formal-r2-coverage.txt",
+          "sha256": "14c34242f910ae374f267a397f4f7c91e54000733797f73c4e08aa42115d0c92"
+        },
+        {
+          "name": "mypy-regression",
+          "argv": [
+            "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+            "scripts/check_mypy_regression.py",
+            "apps/research/domain/institutional_event_study.py"
+          ],
+          "exit_code": 0,
+          "log": ".tmp/cal03-event-study-20261119/logs/formal-r2-mypy-regression.txt",
+          "sha256": "1696369e79514135c6c84d87d82a0fc9c6a7026a4b6fda77e8a7e9b50eef135b"
+        },
+        {
+          "name": "mypy-debt",
+          "argv": [
+            "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+            "scripts/check_mypy_debt_ceiling.py"
+          ],
+          "exit_code": 0,
+          "log": ".tmp/cal03-event-study-20261119/logs/formal-r2-mypy-debt.txt",
+          "sha256": "def6c561b37227470bcda90c8450d9837ca85dd34af34d05e7d6af2afdf85ab1"
+        },
+        {
+          "name": "black",
+          "argv": [
+            "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+            "-m",
+            "black",
+            "--check",
+            "apps/research/domain/institutional_event_study.py",
+            "tests/unit/research/test_institutional_event_study.py",
+            "tests/unit/research/test_institutional_event_study_walk_forward.py"
+          ],
+          "exit_code": 0,
+          "log": ".tmp/cal03-event-study-20261119/logs/formal-r2-black.txt",
+          "sha256": "814c0f4c496423065215825ae383556f90c7a25251a3476981901eadca298486"
+        },
+        {
+          "name": "isort",
+          "argv": [
+            "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+            "-m",
+            "isort",
+            "--check-only",
+            "apps/research/domain/institutional_event_study.py",
+            "tests/unit/research/test_institutional_event_study.py",
+            "tests/unit/research/test_institutional_event_study_walk_forward.py"
+          ],
+          "exit_code": 0,
+          "log": ".tmp/cal03-event-study-20261119/logs/formal-r2-isort.txt",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "name": "ruff",
+          "argv": [
+            "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+            "-m",
+            "ruff",
+            "check",
+            "--no-cache",
+            "apps/research/domain/institutional_event_study.py",
+            "tests/unit/research/test_institutional_event_study.py",
+            "tests/unit/research/test_institutional_event_study_walk_forward.py"
+          ],
+          "exit_code": 0,
+          "log": ".tmp/cal03-event-study-20261119/logs/formal-r2-ruff.txt",
+          "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+        },
+        {
+          "name": "architecture",
+          "argv": [
+            "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+            "scripts/check_architecture_delta.py",
+            "--base-ref",
+            "2f69dd263f0d8589bda141d3c6c132a098a36a28"
+          ],
+          "exit_code": 0,
+          "log": ".tmp/cal03-event-study-20261119/logs/formal-r2-architecture.txt",
+          "sha256": "876560f75b1353a35303b7517c54c0707c963a621def72aed90f2ae242e34f1e"
+        }
+      ],
+      "source_inputs_unchanged": true
     }
   ],
   "coverage": {
-    "statements": 233,
-    "covered_statements": 233,
-    "branches": 100,
-    "covered_branches": 100,
-    "tests_passed": 77,
+    "statements": 320,
+    "covered_statements": 320,
+    "branches": 134,
+    "covered_branches": 134,
+    "tests_passed": 102,
     "failed": 0,
     "skipped": 0
   },
@@ -214,7 +335,7 @@
   ],
   "commit_receipt": ".tmp/cal03-event-study-20261119/adoption-commit.json",
   "remaining": [
-    "Frozen walk-forward/final-OOS runner and existing experiment/trial/family/manifest integration",
+    "Application execution and immutable existing experiment/trial/family/PIT-manifest binding, including atomic final-OOS one-use claim",
     "Qualified official broad-index daily-close versions, exact calendars and causal feature/event histories",
     "At least one real reproducible IS/OOS study with baseline, adjustments, overlap/sensitivity, dependence-aware intervals, full-family correction and coverage"
   ],
@@ -241,11 +362,65 @@
       "exit_code": 0,
       "passed": 137,
       "log": ".tmp\\cal03-event-study-20261119\\logs\\formal-registry-tests.txt"
+    },
+    {
+      "argv": [
+        "agomtradepro/Scripts/python.exe",
+        "scripts/check_active_plan_registry.py"
+      ],
+      "exit_code": 0,
+      "log": ".tmp/cal03-event-study-20261119/logs/walk-forward-registry-final.txt"
     }
   ],
   "final_governance_files": {
     "governance/active_plan_registry.json": "8f8ae618ea99f7d77389da1c84231a085ac7aaef04bc2f42258443bbf975d5a1",
     "governance/module_map.json": "a34ae0c6da46fa388621f7b0180a548db82995844a9a1b74895dd70bdae7c31d",
-    "docs/plans/institutional-calendar-etf-activity-research-plan-2026-11-04.md": "591a8079dbb8b538949aa9865656c4656ca196b7ce93be69c6b92417f67b7916"
+    "docs/plans/institutional-calendar-etf-activity-research-plan-2026-11-04.md": "e54f7dd22749e6ff1038956e71099b663b4d3cf7329d931b5cd5a993016cf657"
+  },
+  "development_deliveries": [
+    {
+      "scope": "Exact prepared Domain core adoption",
+      "commit": "2f69dd263f0d8589bda141d3c6c132a098a36a28",
+      "source_files": {
+        "apps/research/domain/institutional_event_study.py": "b653eba70c8fc206b484d3dafa7bd74bde6132da2631356d0c6aca8e0f34e94a",
+        "tests/unit/research/test_institutional_event_study.py": "ca800d4b43eadce6d842f8e8c13cba33257a05e6db79b2fcee08a3c205484263"
+      },
+      "commit_receipt": ".tmp/cal03-event-study-20261119/adoption-commit.json",
+      "governance_files": {
+        "governance/active_plan_registry.json": "8f8ae618ea99f7d77389da1c84231a085ac7aaef04bc2f42258443bbf975d5a1",
+        "governance/module_map.json": "a34ae0c6da46fa388621f7b0180a548db82995844a9a1b74895dd70bdae7c31d",
+        "docs/plans/institutional-calendar-etf-activity-research-plan-2026-11-04.md": "591a8079dbb8b538949aa9865656c4656ca196b7ce93be69c6b92417f67b7916"
+      }
+    }
+  ],
+  "walk_forward_negative_regression": {
+    "path": ".tmp/cal03-event-study-20261119/logs/walk-forward-late-close-red.txt",
+    "exit_code": 1,
+    "result": "The new negative test reproduced a missing prediction-cutoff versus actual-close guard. Guard added, then all 102 tests and formal incremental/debt/style/architecture gates passed on the unchanged final candidate."
+  },
+  "frozen_walk_forward_contract": {
+    "path": ".tmp/cal03-event-study-20261119/logs/walk-forward-frozen-contract.txt",
+    "sha256": "6dcd3419319e74052a13cadf814f743235255861f4ec918cc78c3bc7081c1884",
+    "exit_code": 0,
+    "fields_verified": 9
+  },
+  "reused_projection_and_cycle_evidence": {
+    "path": ".tmp/cal03-event-study-20261119/walk-forward-projection-reuse.json",
+    "sha256": "3f66fea8189fe55fdcc7c8de5ee738829fb8d7abbe87f1eb1a256b36c1920ecc",
+    "reason": "Only standard-library calendar import and existing-Domain definitions changed; no module path, App edge, ORM, route or Application entrypoint changed. Prior generated map and cycle evidence remain applicable; incremental architecture rerun covered new lines."
+  },
+  "qualified_research_input_contract": {
+    "path": ".tmp/cal03-event-study-20261119/research-input-contract.json",
+    "sha256": "25512d913188085424e47f0298daa95f783e71475b9df658029d9e07db818cda",
+    "uses_data02_budget": false,
+    "market_payloads_collected": 0,
+    "oos_outcomes_inspected": false
+  },
+  "walk_forward_commit_receipt": ".tmp/cal03-event-study-20261119/walk-forward-commit.json",
+  "real_study_executed": false,
+  "walk_forward_staging_diagnostic": {
+    "log": ".tmp/cal03-event-study-20261119/logs/walk-forward-stage.txt",
+    "exit_code": 1,
+    "result": "Git staged the four intended files but returned an ignored parent artifacts directory diagnostic. Reapply only the already-tracked concise index with git add -u; no evidence bundle is force-added and no code or gate result changed."
   }
 }
