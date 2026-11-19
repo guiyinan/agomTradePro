@@ -7233,12 +7233,12 @@
           "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-market-budget-revision-proposal.json",
           "sha256": "c79f24758a4bb01446a53aacac93884c2281cc6fb1716264d4b5044477a5adce"
         },
-        "status": "owner_question_pending_no_provider_execution",
+        "status": "explicit_user_approved_fresh_s6_reserved_prepare_running",
         "current_market_used": 162,
         "current_market_ceiling": 200,
         "proposed_market_ceiling": 340,
         "maximum_proposed_cumulative_allocation": 332,
-        "new_approval_claimed": false,
+        "new_approval_claimed": true,
         "independent_static_review": "probe/capacity each30 verified; 162+50+30+30+60=332; production/C2 reserve60 is a hard stop, not a success guarantee",
         "controls_prepared": true,
         "common": {
@@ -7267,9 +7267,22 @@
           "sha256": "f844c18da9225928d39f683771ad89d46e9c4a10f0c34864f8ef2ea728d13fb4"
         },
         "real_reserve_entry_result": "expected exit1 C5_MARKET_BUDGET_OWNER_AUTHORIZATION_REQUIRED; no reserve intent or new attempt",
-        "owner_authorization_file_present": false,
+        "owner_authorization_file_present": true,
         "original_maintenance_usage_still_120": true,
-        "current_162_is_explicit_derived_ledger": true
+        "current_162_is_explicit_derived_ledger": true,
+        "approved_market_ceiling": 340,
+        "approval_receipt": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-budget-revised-s6/s6-c5-budget-340-owner-authorization.receipt.json",
+          "sha256": "1e89a69f44310c7453492508328a51f41c86886a201105c8fb6931b7aeea0de4"
+        },
+        "approval_origin": "explicit_current_chat_user_reply",
+        "question_item_id": "[\"request_user_input_async\",\"call_241447db1d744b55a0ce11f14ea82fb6\",0]",
+        "exact_user_answer": "批准累计340及一次全新S6（推荐）",
+        "financial_ceiling_unchanged": 22344,
+        "production_e1_separate_ceiling_unchanged": 2,
+        "fresh_s6_attempts_authorized": 1,
+        "not_a_django_authentication_event": true,
+        "historical_unauthorized_entry_check_retained": true
       },
       "c2_szse_rule_document_review": {
         "document": {
@@ -7362,6 +7375,54 @@
           }
         ],
         "operator_corrections": "Saved OCI image ID is the manifest digest, separately binding config digest and every blob. Containerd legacy cache parents required explicit guarded removal; earlier safe failures retained."
+      },
+      "budget_revised_fresh_s6": {
+        "candidate_sha": "c5b42e20cc97a7e166e6d3f88254d05b0605667a",
+        "attempt_id": "3365a301f4234562b6fb6f02b9733f4e",
+        "status": "fresh_prepare_running_not_full_s6_pass",
+        "reserve": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-budget-revised-s6/s6-c5-postrepair-reserve.receipt.json",
+          "sha256": "93e46b8d9c0ae619c4caa90ba42445ab199b8525bb2e286a6cbe7e1d3562e69a"
+        },
+        "state": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-budget-revised-s6/s6-c5-postrepair-state.json",
+          "sha256": "cc1c04568073a55df4eac08982a97cca386f7f8b4347cb14d0e28edd8345547a"
+        },
+        "canonical_plan": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-budget-revised-s6/s6-c5-postrepair-attempt-plan.canonical.json",
+          "sha256": "1c35bc80ee0b2e66611c0c4433e06f290e42f30c66b3b487b6f3a858ec0ab47e"
+        },
+        "prepare_launch": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-budget-revised-s6/s6-c5-postrepair-fresh-prepare-launch.receipt.json",
+          "sha256": "c7062664a7c6b94ad6b6fd1dd02af07fbd0800cf1e69e6b6d2ecf3023edf1c22"
+        },
+        "transport": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-budget-revised-s6/s6-c5-postrepair-transport.receipt.json",
+          "sha256": "4abc75d9838b3460c4f42641aecb0d4ab160673730d0f9c5c11b2b6b5681d328"
+        },
+        "owner_budget_authorization": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-budget-revised-s6/s6-c5-budget-340-owner-authorization.receipt.json",
+          "sha256": "1e89a69f44310c7453492508328a51f41c86886a201105c8fb6931b7aeea0de4"
+        },
+        "disk_free_at_reserve": 29855547392,
+        "disk_free_at_prepare_start": 29511626752,
+        "market_charged_before_new_attempt": 162,
+        "additional_provider_usage": "await actual new graph/probe/capacity reports; not inferred from launch",
+        "market_ceiling": 340,
+        "allocations": {
+          "graph": 50,
+          "probe": 30,
+          "capacity": 30,
+          "post_s6_c2_and_one_production_refresh": 60
+        },
+        "unallocated": 8,
+        "universe_ceiling": 5585,
+        "financial_physical_ceiling": 22344,
+        "production_e1_separate_ceiling": 2,
+        "old_d242_resumed": false,
+        "production_deployed": false,
+        "data02_exit_satisfied": false,
+        "data03_started": false
       }
     }
   ],
