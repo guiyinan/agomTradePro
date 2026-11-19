@@ -8001,7 +8001,53 @@
           "cross_chat_message_authorization": "pending actual human reply; tool requires explicit human permission; no message sent",
           "proposed_coordination_message": "DATA-02 sealed c5 attempt dad11d3e0caa4656a1ed3799527a0478 is terminal blocked at full_universe_capacity; production is unchanged and its own PG/Redis are stopped with all originals/data retained. A source-exact offline reproduction proves transport guards can be masked as unverified quote gaps. Need a bounded necessary acceptance-blocker fix in existing data_center suspension protocol/source, capacity collector/command and direct tests: explicit batch full-day evidence, hard transport propagation and privacy-safe failure diagnostics. Please arrange and record a short non-overlapping Source preparation/integration window under the existing authorization, keep shared Git/index/projections serialized, and preserve CAL-03 M2 boundaries. No additional provider requests, budget expansion, production deploy or DATA-03 advancement is requested. Record the window in this chat/registry; no cross-chat reply message is required.",
           "future_qualification": "New source candidate requires applicable development checks, exact CI and actual image/S6 binding. Existing c5 native migration-tree proof is reusable only if candidate migration-tree identity is unchanged; do not assume it after CAL-03 research integration.",
-          "new_s6_budget_decision": "One approved fresh S6 was consumed. Prepare concrete checked candidate and cost/window before any new execution authorization; do not silently repurpose post-S6 C2/production reserve or unallocated per-part caps."
+          "new_s6_budget_decision": "One approved fresh S6 was consumed. Prepare concrete checked candidate and cost/window before any new execution authorization; do not silently repurpose post-S6 C2/production reserve or unallocated per-part caps.",
+          "current_status": "source_patch_deferred_while_existing_sealed_c5_strict_suspension_path_prepared",
+          "source_patch_is_current_prerequisite": false,
+          "superseding_reason": "Sealed c5 already accepts strictly verified full-day suspension exclusions. A separately authorized fresh attempt with bounded diagnosis and 50 per-stage physical caps can first test that existing path without a new application SHA; this is not yet approved or proven successful.",
+          "transport_guard_mask_defect_remains_open": true,
+          "cross_chat_message_sent": false,
+          "cross_chat_permission_is_current_operational_path_prerequisite": false
+        },
+        "sealed_candidate_recovery_preparation": {
+          "observed_at": "2026-11-19T12:58:14.345511+00:00",
+          "candidate_sha": "c5b42e20cc97a7e166e6d3f88254d05b0605667a",
+          "application_source_changed": false,
+          "future_budget_status": "500_proposal_only_no_owner_approval",
+          "market_confirmed_actual": 244,
+          "failed_capacity_actual": null,
+          "failed_capacity_conservative_charge": 30,
+          "prior_cumulative_upper_bound": 274,
+          "prospective_allocation": {
+            "diagnostic_max": 2,
+            "fresh_graph_max": 50,
+            "fresh_probe_max": 50,
+            "fresh_capacity_max": 50,
+            "post_s6_c2_and_one_production_refresh_reserve": 60
+          },
+          "proposed_maximum_cumulative": 486,
+          "proposed_ceiling": 500,
+          "unallocated": 14,
+          "execution_sequence": "One new reserve/prepare freezes actual calendar/target/universe, then at most two normal routed diagnostic sessions, then standard runner only on complete daily or strict full-day suspension proof and missing-code estimate within cap. No old scope reuse, truncation, paging, retry, or date relabeling in diagnostic.",
+          "next_s6_authorized": false,
+          "dad11_resume_allowed": false,
+          "new_candidate_native_proof_boundary": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/prospective-git-object-migration-tree-readonly.json",
+            "sha256": "8585e2bdcbee57050a97fe4a13e2b729b58e77b89f41cd1b932b8caa89e73f72"
+          },
+          "native_proof_limit": "c5 seven-original bootstrap compatibility remains bound to c5 only. Current development HEAD includes two research migrations; a new application candidate containing it requires a new genuine native proof.",
+          "ci_preflight_corrections_required": {
+            "official_workflow": "Publication PostgreSQL contracts",
+            "old_operator_wrong_run_argument": "P launcher supplied manual_fast_feedback_run_id; replacement must pass publication_run_id",
+            "official_run_and_all_junit_suite_max_age_hours": 24,
+            "existing_nov18_official_run_and_junit_stale": true,
+            "same_c5_official_ci_refresh_before_new_window_required": true,
+            "new_ci_dispatched": false,
+            "authority": "scripts/validate_release_rehearsal.py::_validate_regression and scripts/run_release_rehearsal.py::github_ci_evidence"
+          },
+          "time_semantics_clarification": "17:05 is the implemented provider-ready boundary after the documented daily_basic 15:00-17:00 update interval, not an exchange opening rule. Historical backfill/field/calendar checks may use a fixed completed date. The selected S6 Tencent current valuation snapshot cannot be relabeled to yesterday during the next session; existing early-before-09:15 and non-trading-day semantics remain available when actual source dates and enough duration agree.",
+          "full_data02_exit_met": false,
+          "data03_started": false
         }
       },
       "current_audit_lease_pre_window_recheck": {
@@ -8138,7 +8184,79 @@
           "independent_review": "Luna audit read-only review found no blocker; Root independently reviewed all definitions and required variable-free-space comparison, real metadata list handling and failure mutation facts before actual preview/execute. Source_inputs on real local artifacts and remote program compilation passed. Only pinned old helper definitions were reused; no old image-removal main ran.",
           "proof_limit": "Three dependency inputs and exact retired build/source paths prove cleanup ownership, not a qualified application image. Existing runtime ZIP SHA was reused with fresh stable file identity; no new complete local ZIP copy claimed.",
           "new_attempt_post_prepare_fresh_space_check_still_required": true
+        },
+        "dad11_terminal_recovery": {
+          "runtime_full_zip_and_oci_verification": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/runtime-image-originals-verified.readonly.json",
+            "sha256": "fd797a9aba076fcc6acf202d79f552db0c5f8138755dc2bd6aabad9a91e2178e"
+          },
+          "exact_duplicate_tar_reclaim": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/verified-runtime-tars-deduplicated.receipt.json",
+            "sha256": "036aa223a43d0658e2a2a78796677366469b23d2aa1f2de437aa113130ae19d2"
+          },
+          "duplicate_tar_removed_count": 2,
+          "runtime_zip_retained_sha256": "0808cf3205779aef2ab793bfc9f8c6fd1f85e9b36b1cabf6b840c4beae807782",
+          "initial_archive_operation_partial_failure": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/retire-dad11-execute-r2.receipt.json",
+            "sha256": "f6f45ced1c2d0ed1ececf082ed8702aa3c1e1a30b6624cab95acb0535bfca4ef"
+          },
+          "post_failure_readonly_observation": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/dad11-retirement-error-readonly.receipt.json",
+            "sha256": "e469c73077ded7230d0c9b1a98005df9e6e481606ba763477627288daa720731"
+          },
+          "failure_analysis": "Dump/list/full-read/SHA and exact DB drop completed; a reused script assigned pg_dump CompletedProcess to the artifact guard's global p mapping, so its final current_identity check cannot run. Original stderr text was not retained; only 182 bytes and its SHA remain. Source collision was corrected; the archive was not rerun.",
+          "remaining_owned_volume_reclaim": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/archived-dad11-exclusive-volume-reclaimed.receipt.json",
+            "sha256": "6ce8e530c8d77a4860d21a2708567dc1a36d8f8ab02da8a811e68037737fb53f"
+          },
+          "volume_reclaim_controller": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/reclaim_archived_dad11_volume.py",
+            "sha256": "225f296a372aabbb31bd7ecc275934251b282e8e2281f03cfaeb9c98aa890358"
+          },
+          "archive_path": "/opt/agomtradepro/diagnostics/data02-closed-s6-archives/dad11d3e0caa4656a1ed3799527a0478-b06e32ff350940afa0b64bccfee7e2d6/database.dump",
+          "archive_bytes": 290152689,
+          "archive_sha256": "d53d6f2aaa342297d63a2c63106f14ef2ba6b8c4133217c8cd2380941cb34056",
+          "archive_list_and_full_read_passed": true,
+          "archive_location": "vps_only",
+          "postgres_container_and_exclusive_volume_removed": true,
+          "redis_network_source_inputs_runtime_zip_and_failure_reports_retained": true,
+          "production_identity_unchanged": true,
+          "provider_requests": 0,
+          "latest_observed_free_bytes": 21224517632,
+          "formal_prebuild_gate_bytes_unchanged": 25769803776,
+          "ready_for_new_clone_claimed": false
         }
+      },
+      "c2_sse_bse_rule_document_preparation": {
+        "capture_receipt": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c2-sse-bse-rule-originals/capture.receipt.json",
+          "sha256": "89ff6c8204790885747df88a16f3b789f1bb719f6d7e2fbdeb56eaa4592de963"
+        },
+        "capture_operator": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/capture_sse_bse_opening_rule_originals.py",
+          "sha256": "305219696a96c17e27a3f4522e1b33b0390257d95f20ede3fd1d0bbfb1ffc16e"
+        },
+        "sse_official_notice": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c2-sse-bse-rule-originals/sse-2026-notice.html",
+          "sha256": "0b711dcf306c243625cc5c8830f8b96888f779a73d1b981883b67fa52bdf9868"
+        },
+        "sse_official_rule": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c2-sse-bse-rule-originals/sse-2026-trading-rules.docx",
+          "sha256": "fc922c433438b2636cb631eab25cca405209712acbb6aaded768c45456ff8888"
+        },
+        "sse_official_deferred_articles": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c2-sse-bse-rule-originals/sse-2026-deferred-articles.docx",
+          "sha256": "f4a0d0976a01e3e95f82460170900993824b70d91183e42d09e13ba10a9958c5"
+        },
+        "sse_rule_identity": "上证发〔2026〕41号;2026-04-24发布;2026-07-06施行",
+        "sse_review": "Official rule paragraph 2.4.2 sets continuous auction start09:30; paragraph11.9 supplies effective date; the complete deferred-article attachment was reviewed and does not defer2.4.2. This is document preparation only.",
+        "bse_public_index_identified": "https://www.bse.cn/jygl_list/200028217.html",
+        "bse_original_fetch_status": "302 redirect to exactly the requested URL; raw138-byte response retained, no automatic redirect retry",
+        "bse_current_rule_body_retained": false,
+        "qualified_calendar_created": false,
+        "application_statutory_source_capture_created": false,
+        "owner_governance_adopted": false,
+        "market_provider_calls": 0
       }
     }
   ],
