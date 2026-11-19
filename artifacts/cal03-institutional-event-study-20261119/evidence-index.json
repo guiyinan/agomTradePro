@@ -904,5 +904,46 @@
       "all applicable historical calendar versions, exception inventory, close/final-index-publication semantics",
       "eligible independent fallback and preregistered manifest binding"
     ]
+  },
+  "licence_and_historical_version_review_20261120": {
+    "base_head": "7e775466896bbfff7a7024f76158efadfde9a494",
+    "report": {
+      "path": ".tmp/cal03-event-study-20261119/qualification-20261120/review.json",
+      "sha256": "6e5e1f0502892c9a5f6a60703d75a364990730783a0a793532985c165a065345"
+    },
+    "reused_exact_response_bodies": 13,
+    "reused_official_calendar_originals": 20,
+    "new_direct_public_document_gets": 7,
+    "actual_relay_operator_and_research_grant_verified": false,
+    "user_intended_use": null,
+    "official_methodology_editions": {
+      "000300.SH": "2023-09",
+      "000016.SH": "2020-12 V1.1",
+      "000905.SH": "2022-05 V1.2"
+    },
+    "calendar_2020_original_revision_and_later_corroboration_linked": true,
+    "calendar_prior_plan_counterexample_retained": true,
+    "calendar_2018_section_2_4_2_effective_date": "2018-08-20",
+    "calendar_2018_rule_sunset_date": null,
+    "historical_price_originals_and_revisions_verified": false,
+    "historical_availability_verified": false,
+    "complete_historical_calendar_qualified": false,
+    "unknown_historical_clocks_preserved": true,
+    "qualified_full_history_packages": 0,
+    "frozen_input_admitted": false,
+    "frozen_spec_sha256": "29a44d0cd2670dd2a72853494d21271c9765d6584dafa4998e1df3c2a6edfe71",
+    "market_or_financial_provider_dispatches": 0,
+    "data02_budget_consumed": 0,
+    "production_actions": 0,
+    "real_oos_claimed_or_evaluated": false,
+    "remaining": [
+      "Verify actual existing relay/account research-use grant and applicable intended use",
+      "Official historical original/revised closes or authoritative final-version/revision semantics for all three targets",
+      "Defensible historical publication and conservative availability before frozen cutoff",
+      "Complete applicable calendar version/exception inventory and historical session/final-publication semantics",
+      "Eligible independent failover consistency and preregistered qualified-input binding"
+    ],
+    "checks": ".tmp/cal03-event-study-20261119/qualification-20261120/checks.json",
+    "commit_receipt": ".tmp/cal03-event-study-20261119/qualification-20261120/commit.json"
   }
 }
