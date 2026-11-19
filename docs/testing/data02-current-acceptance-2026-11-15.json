@@ -7402,7 +7402,7 @@
       "budget_revised_fresh_s6": {
         "candidate_sha": "c5b42e20cc97a7e166e6d3f88254d05b0605667a",
         "attempt_id": "3365a301f4234562b6fb6f02b9733f4e",
-        "status": "standard_runner_started_after_fresh_prepare_verified",
+        "status": "interrupted_build_only_before_provider_on_current_only_valuation_session_window_risk",
         "reserve": {
           "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-budget-revised-s6/s6-c5-postrepair-reserve.receipt.json",
           "sha256": "93e46b8d9c0ae619c4caa90ba42445ab199b8525bb2e286a6cbe7e1d3562e69a"
@@ -7482,7 +7482,7 @@
           ]
         },
         "prepare_execution_image_id": "sha256:8fb8281c9551f28611ee9a0cf6d5503792077eeddff9a917aee1793d8559ea92",
-        "candidate_built_image_identity": "await actual new build report; prepare executor8fb is not candidate build",
+        "candidate_built_image_identity": "No completed candidate build report or qualified image; runner interrupted duringbuild_only",
         "target_trade_date": "2026-11-18",
         "universe_count": 5580,
         "graph_actual_dispatches": 27,
@@ -7508,9 +7508,80 @@
         "actual_additional_provider_usage_after_runner_start": "await original stage reports, not inferred from launch",
         "full_s6_complete": false,
         "latest_runner_observation": {
-          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-budget-revised-s6/c5-postrepair-s6-runner-observation-r1.json",
-          "sha256": "4157c31be73cf867cf264d4e389181c00ae97fe7a33882332e9a97dc7786470d"
-        }
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-budget-revised-s6/c5-postrepair-s6-runner-observation-r2.json",
+          "sha256": "5fbf2de371587f85a7d2c531753cebc2eb0296714d394ef3f9911210cbe4fe50"
+        },
+        "runner_currently_running": false,
+        "natural_runner_status_original": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-budget-revised-s6/c5-s6-public-reports-r1/run-status.json",
+          "sha256": "a463fc0143a1a70a6805f816845c093b1560d820588e87044a59b62b754261b1"
+        },
+        "pre_provider_stop": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-budget-revised-s6/pre-provider-session-window-stop.receipt.json",
+          "sha256": "125d9eba06b3ea8a9b07436d9c19f1022a3dffed1d7a903c564c91e9c7bc1067"
+        },
+        "stop_reason": "Fixed2026-11-18 cannot be certified using Tencent current-only snapshots after2026-11-19 observations begin; static contract risk, no actual wrong-date provider probe performed",
+        "operator_error": "Root omitted end-to-end duration versus next09:15 observation boundary before starting3365. Stopped before provider dispatch; no date relabelling.",
+        "completed_standard_runner_stages": [],
+        "new_provider_dispatches_after_graph": 0,
+        "market_actual_charged": 189,
+        "financial_requests": 0,
+        "production_e1_requests": 0,
+        "old_attempt_auto_resume_allowed": false,
+        "post_interruption_process_observation": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-budget-revised-s6/post-interruption-process-readonly.receipt.json",
+          "sha256": "0f1f2b74c31b82259c2706d2dd76c1a13259e157268f1b5b83ad1ce1bc61a4a6"
+        },
+        "no_surviving_rehearsal_or_docker_build_process_observed": true
+      },
+      "market_window_recovery_pending_owner": {
+        "status": "prepared_not_authorized",
+        "proposal": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-budget-revised-s6/c5-window-recovery-proposal.json",
+          "sha256": "3396c28a8addceb8d48fe38bc436023b5000fb2a99fc7fc1b452f18a762e6c04"
+        },
+        "current_market_used": 189,
+        "current_market_ceiling": 340,
+        "proposed_market_ceiling": 360,
+        "maximum_cumulative_allocated": 359,
+        "unallocated": 1,
+        "fresh_attempts_requested": 1,
+        "owner_approval_claimed": false,
+        "window_admission_operator": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-budget-revised-s6/window_admission.py",
+          "sha256": "3e3c18716b1a349ac14b0b49aa95acd754eea12e0cc264aeaaaf5ae1c4591cbe"
+        },
+        "window_admission_tests": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-budget-revised-s6/test_window_admission.py",
+          "sha256": "f7f5b36f91821b60d57648167057740a301358a560c6c3a2db4cb1f727cdc586"
+        },
+        "window_admission_pytest": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-budget-revised-s6/window-admission-pytest-r3.log",
+          "sha256": "678e7791b8bc1c7f325ef0c4ecccb397bccf3ba2d5ccebec4953979c836bc415"
+        },
+        "window_admission_tests_passed": 6,
+        "current_clock_expected_block": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-budget-revised-s6/window-current-time-expected-block.log",
+          "sha256": "7bcf4ccca42ff3c79b5508bafd8d532bc829a6730662fd8880d0d8884bf27637"
+        },
+        "current_clock_actual_exit": 1,
+        "clock_operator_does_not_authorize_s6_or_qualify_calendar": true,
+        "future_execution_entrypoint_must_call_clock_gate_before_reserve_prepare_and_runner": true,
+        "entry_window_beijing": "2026-11-19 17:05 through20:00; actual qualified calendar/target session still required",
+        "financial_physical_ceiling_unchanged": 22344,
+        "production_e1_separate_ceiling_unchanged": 2,
+        "failed_collection_original": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-budget-revised-s6/window-admission-pytest.log",
+          "sha256": "03878464779532fc8816d01fc88ce24a7c2246fb373fb6948f983ff8428f2bd9"
+        },
+        "initial_style_failure": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-budget-revised-s6/window-ruff.log",
+          "sha256": "f23a87ff7aaf553c0101412ca832e2bf6c031f3929eae20c9c13b4e94ef7bce9"
+        },
+        "source_application_changed": false,
+        "duration_estimate_is_planning_not_enforced_total_deadline": true,
+        "independent_review": "189+50+30+30+60=359; entry17:05–20:00 has conservative headroom, but no completion guarantee or overall runner deadline; Root must monitor cutoff",
+        "resource_preparation_before_new_attempt_required": true
       }
     }
   ],
