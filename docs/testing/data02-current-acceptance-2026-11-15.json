@@ -7301,7 +7301,81 @@
         ],
         "production_document_capture_qualified": false,
         "owner_apply_event_created": false,
-        "calendar_publication_qualified": false
+        "calendar_publication_qualified": false,
+        "issuance_notice_and_native_revision_input": {
+          "review_receipt": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c2-sse-bse-rule-originals/szse-2026-issuance-originals/review.receipt.json",
+            "sha256": "07b9f44151fc7c10a7d03ae7e8368e1f8e3c9ab087125836f850ac29e73b6f43"
+          },
+          "notice_raw_entity": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c2-sse-bse-rule-originals/szse-2026-issuance-originals/issuance-notice.response.bin",
+            "sha256": "08d05a9d3f9c7dac31e8ac33712bac26b3995585718031e99a953e9128eec2d2"
+          },
+          "identical_attachment_pdf": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c2-sse-bse-rule-originals/szse-2026-issuance-originals/attachment-1.response.pdf",
+            "sha256": "9b66f8b0db70f84a25ef1ccb4ee2351001724e408117552d75f6d8993483c586"
+          },
+          "legal_number": "深证上〔2026〕551号",
+          "published_on": "2026-04-24",
+          "effective_from": "2026-07-06",
+          "attachment_source_href_scheme": "http",
+          "verified_same_host_path_https_body_matches": true,
+          "notice_body_does_not_defer_effectiveness": true,
+          "native_revision_input": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c2-sse-bse-rule-originals/szse-2026-issuance-originals/e1-szse-rule-native-revision.json",
+            "sha256": "7b9427529aad3a5669806e83716a6ea98307ff72145c694a20fef048531db208"
+          },
+          "sealed_c5_domain_validation": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c2-sse-bse-rule-originals/szse-2026-issuance-originals/e1-szse-rule-native-revision-validation.receipt.json",
+            "sha256": "07ca759b9679e25e6a38d70f2331e7aad035c10910c0d80d08c2bdb594e127f0"
+          },
+          "independent_review_pending": false,
+          "native_revision_input_is_not_server_source_capture": true,
+          "capture_clock_uuid_or_owner_event_supplied": false,
+          "publisher_profile_and_capture_age_policy_not_invented": true,
+          "independent_review": {
+            "reviewer": "luna_max_audit",
+            "status": "passed_raw_identity_notice_linkage_complete_relevant_rule_sections_and_native_descriptor",
+            "pdf_pages": 40,
+            "source_domain_git_blob_verified_against_c5": true,
+            "native_descriptor_has_no_capture_clock_uuid_ttl_or_owner_qualification": true,
+            "normal_actual_egress_and_audit_still_required": true
+          }
+        },
+        "partial_holiday_notice_2026": {
+          "official_url": "https://www.szse.cn/disclosure/notice/general/t20251222_618087.html",
+          "title": "关于2026年部分节假日休市安排的通知",
+          "legal_number": "深证会〔2025〕481号",
+          "publication_date": "2025-12-22",
+          "raw_html": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c2-sse-bse-rule-originals/szse-2026-holiday-originals/szse-2026-holiday-notice-raw.html",
+            "sha256": "1656d8708d5faed33c7588538639d96128f39fdface02cfa6eb66d796c40f14e"
+          },
+          "capture_receipt": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c2-sse-bse-rule-originals/szse-2026-holiday-originals/szse-2026-holiday-notice-capture.receipt.json",
+            "sha256": "66f2fda9c6d26f76785cb68b1456ead97dce5ae8fd07e838fac78607caf3c5d6"
+          },
+          "extracted_complete_holiday_groups": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c2-sse-bse-rule-originals/szse-2026-holiday-originals/szse-2026-holiday-notice-extract.json",
+            "sha256": "24d154141c40dc4d8b2a6cd6b9b3b5a65b7c6c32f6cf23f20112c228bb2e1599"
+          },
+          "initial_search_output_truncation_failure": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c2-sse-bse-rule-originals/szse-2026-holiday-originals/search-attempt-20261119T152903Z.receipt.json",
+            "sha256": "d81a873212dff669dd861634b448f26b078abfaf57938e7ec9c605c6f012124f"
+          },
+          "root_recovery_used_exact_A_share_notice_not_hk_connect_notice": true,
+          "holiday_groups": 7,
+          "complete_exchange_calendar_claimed": false,
+          "specific_20261031_20261102_20261120_session_qualification_claimed": false,
+          "other_closures_separately_notified_phrase_present": false,
+          "independent_review_pending": false,
+          "application_source_capture_or_owner_apply_created": false,
+          "independent_review": {
+            "reviewer": "luna_max_audit",
+            "status": "passed_source_identity_seven_partial_holiday_groups_and_market_boundary",
+            "qualified_full_calendar_claimed": false
+          }
+        }
       },
       "closed_s6_resource_recovery": {
         "status": "closed_attempt_archived_and_owned_derived_cache_reclaimed_no_provider_requests",
