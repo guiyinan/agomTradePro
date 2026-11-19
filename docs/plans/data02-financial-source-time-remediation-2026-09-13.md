@@ -1527,3 +1527,5 @@ headroom实际失败已最小修复：provider选择逻辑原样移到现有infr
 2026-11-19 用户明确批准call_ceb98f4ec0bd4bdbbf4a804bc320f598：累计360、今日北京时间17:05后一次全新c5 S6，189已用、分项50/30/30/60、最坏359、余1不分配；范围5585/财报22344/E1另2不变，不续跑3365，不改写源日期，超额或跨窗口即停。当前上午窗口未开放；Root带Luna Max复用既有入口绑定新namespace/派生用量/Owner聊天回执和clock gate，仅做无Provider准备，不冒充Django认证或当前S6通过。
 
 17:05窗口前审计再次只读复验（2026-11-19T03:41Z）：required/outbox=true、reason=null，当前授权仍至2026-11-29T16:12:55.522488Z；从Django初始化起用SQL fence拒绝全部业务DML，实际仅SELECT/LOCK/SAVEPOINT/RELEASE/SET/SHOW，无续期请求。最初探针因Django registry初始化顺序失败，保留原件并修正后通过，不误记为生产权限失效；此只证明当前窗口，不替代自然续期验收。
+
+360次授权已真实绑定独立聊天回执及W namespace；Root离线核对同c5八run、Publication303例、189次派生用量与359次最坏分配，6项控制测试/格式检查通过。四个既有执行入口均接入真实clock gate；当前真实reserve入口exit1/S6_OPERATIONAL_WINDOW_NOT_OPEN且未生成intent，新runner还严格限制目标2026-11-19。历史340 common已移到保留副本，旧证据SHA不改。3365自有失败构建的10个无引用中间镜像、两处派生context及一份重复dist包已按所有权/原件SHA/生产身份校验回收，上传原始tar保留，最后可用29506674688字节；24GiB正式门不变，新reserve/clone/graph后仍须重检。详情及原件统一见followups[14]的现有window事项和resource补充。当前仅等今日北京时间17:05准入，未创建新attempt/Provider请求，未改变应用候选或生产，未取得S6/DATA02退出资格，DATA03未启动。

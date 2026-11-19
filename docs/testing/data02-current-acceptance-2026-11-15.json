@@ -7242,7 +7242,7 @@
         "independent_static_review": "probe/capacity each30 verified; 162+50+30+30+60=332; production/C2 reserve60 is a hard stop, not a success guarantee",
         "controls_prepared": true,
         "common": {
-          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-postrepair-s6-proposal/c5_postrepair_s6_common.py",
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-budget-revised-s6/c5_postrepair_s6_common.340-preserved.py",
           "sha256": "96ac2d963dc9c2348963b835dd5255dd40ad0c5136779ef19b17c850efa3d007"
         },
         "original_common_preserved": {
@@ -7565,13 +7565,13 @@
         }
       },
       "market_window_recovery_pending_owner": {
-        "status": "explicit_user_approved360_fresh_attempt_after1705_controls_preparing",
+        "status": "approved360_controls_verified_waiting_for1705_no_new_attempt",
         "proposal": {
           "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-budget-revised-s6/c5-window-recovery-proposal.json",
           "sha256": "3396c28a8addceb8d48fe38bc436023b5000fb2a99fc7fc1b452f18a762e6c04"
         },
         "current_market_used": 189,
-        "current_market_ceiling": 340,
+        "current_market_ceiling": 360,
         "proposed_market_ceiling": 360,
         "maximum_cumulative_allocated": 359,
         "unallocated": 1,
@@ -7622,7 +7622,67 @@
         "not_django_authentication_event": true,
         "new_attempt_reserved": false,
         "new_provider_execution_started": false,
-        "current_entry_window_not_yet_open": true
+        "current_entry_window_not_yet_open": true,
+        "controls_ready": true,
+        "clock_gate_wired_to_all_four_core_entrypoints": true,
+        "owner_receipt": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/s6-c5-close-window-owner-authorization.receipt.json",
+          "sha256": "4a3fb61eed1ace83171566abee463694ba0a61afdb2f5f2c08d58103d1591539"
+        },
+        "root_verification": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/owner-envelope-root-verified.receipt.json",
+          "sha256": "0bf8352f30f33a3b2beac1b230a0bae9b2ef52c46b3888afe1d7e7068a1bb53e"
+        },
+        "active_proposal": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/c5-close-window-s6-proposal.json",
+          "sha256": "8f393dce01d78f62d2e29aaff59e23c8d681785de70e9c53e20043e059befc74"
+        },
+        "derived_usage_ledger": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/s6-c5-close-window-market-usage-ledger.json",
+          "sha256": "5c6779d9be4558bc5ff50a8ac32d02a2c1ec1c31590026301bf4e05c53e09bd6"
+        },
+        "active_common": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/c5_close_window_common.py",
+          "sha256": "8db4035d2d8c1ee102c14272b09edb3f1f8e62ea1850f49005537d6e13e6ce3a"
+        },
+        "shared_entrypoint_facade": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-postrepair-s6-proposal/c5_postrepair_s6_common.py",
+          "sha256": "6f1d009682d853a08a2fa71ecdc4dc824a7a568a24c3b91908560046b51cd1d2"
+        },
+        "active_runner": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/launch_standard_s6_runner_c5_postrepair_dynamic.py",
+          "sha256": "bec9415369fdd1bbf11cf86d7f7c12134eb06cdc3de1b7c6338f861eb55d8f0d"
+        },
+        "offline_tests": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/test_c5_close_window_common.py",
+          "sha256": "6b831eb109ad64482aac3ee6ea3cbb214aa6658df700c516e6c1aa48f8daf1e9"
+        },
+        "offline_six_tests_and_format_log": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/offline-checks-r5.log",
+          "sha256": "9af07bc2b6072e1bae6e8dfefaeb735ff9ce8174385176249afac34976673834"
+        },
+        "root_offline_checker": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-postrepair-s6-proposal/check_c5_postrepair_s6_proposal.py",
+          "sha256": "f99fdc4f52be5b57712261da937c10096851105894c0130d590d5693632ba144"
+        },
+        "root_offline_checker_log": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/offline-checks-root-authorized-r2.log",
+          "sha256": "43e743a2e3d211770e7aa9ed3ee7d7e3ed0f54338d28404d703994d04d75f631"
+        },
+        "real_reserve_clock_block_log": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/reserve-before-window-expected-block.log",
+          "sha256": "dba0cc21bf6cb74868d42a3d9a71e9dc0e657e40eb98a554147eb538e6fb159b"
+        },
+        "real_reserve_before_window_exit": 1,
+        "clock_block_reason": "S6_OPERATIONAL_WINDOW_NOT_OPEN",
+        "target_trade_date_required": "2026-11-19",
+        "actual_current_calendar_qualification_claimed": false,
+        "resource_preparation_before_new_attempt_complete": true,
+        "fresh_reserve_and_prepare_headroom_recheck_required": true,
+        "preparation_provider_requests": 0,
+        "full_s6_complete": false,
+        "data02_exit_satisfied": false,
+        "data03_started": false
       },
       "current_audit_lease_pre_window_recheck": {
         "receipt": {
@@ -7664,6 +7724,49 @@
         ],
         "failure_cause": "Probe import ordering before Django registry initialization; corrected under the SQL DML fence; not a production lease failure",
         "mcp_limitation": "Published audit capabilities cover attribution/execution links; no matching lease-read capability or TUI action was found, so reused reviewed read-only diagnostic"
+      },
+      "close_window_owned_resource_recovery": {
+        "controller": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-resource/reclaim_interrupted_c5_build.py",
+          "sha256": "28788d9d4700aaca36d0dbeed0dc6993053e8898c0b693d51d857440fe6f8bba"
+        },
+        "pure_tests": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-resource/test_reclaim_interrupted_c5_build.py",
+          "sha256": "e0877e716f64304821042d1f5370d9eee074f042b08cac715f316f2416d843f2"
+        },
+        "pure_tests_passed": 5,
+        "preview": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-resource/reclaim-c5-close-window-preview-fa297e144e114bf691823e150f627eed.receipt.json",
+          "sha256": "a4e2de936404ffeb336156ea516d6aea79ccd2c090aa7c593d1875baa103ad66"
+        },
+        "execute": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-resource/reclaim-c5-close-window-execute-50139d1258f44aabaf3ae8cd6b85d61d.receipt.json",
+          "sha256": "4952a0d73877d0a14928b02d32657b0ba8c09be9d62a4e498408b2064d0732ac"
+        },
+        "duplicate_dist_later_removal": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-resource/reclaim-duplicate-dist.receipt.json",
+          "sha256": "a191ef142bbdfeb565744f2612e085491cf51e48d475132af4ea6ceee3f623bb"
+        },
+        "duplicate_dist_removal_source": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-resource/reclaim-duplicate-dist-remote.py",
+          "sha256": "f27ddab016787ae2af68fc85a5c7a5aa5bba8c6a7c07c97ff1668f6a53b4d400"
+        },
+        "actual_execute_exit": 0,
+        "actual_duplicate_dist_exit": 0,
+        "free_bytes_after_final_cleanup": 29506674688,
+        "formal_minimum_free_bytes_unchanged": 25769803776,
+        "planning_floor_includes_clone_allowance_only": 29329803776,
+        "cleanup_scope": "Ten owned untagged 3365 build intermediates, its two derived build contexts, then one SHA-verified duplicate dist tar. No global prune; protected QA and production retained.",
+        "dependency_ownership_check_proves_candidate_application_image": false,
+        "uploaded_original_retained": {
+          "remote_path": "/tmp/agomtradepro-source-upload/agomtradepro-source-deploy-20261119022205.tar.gz",
+          "size_bytes": 124279431,
+          "sha256": "311874b45afe5124b4d88a2ca46e3da689f4629fc9fc3c2a9d4164ed4a2489b8"
+        },
+        "later_lifecycle_note": "The first execute receipt verified both tar copies before cleanup; the later duplicate-dist receipt removes only the checkout/dist copy. Do not claim that duplicate currently exists.",
+        "provider_requests": 0,
+        "production_runtime_identity_changed": false,
+        "new_attempt_space_qualification": false
       }
     }
   ],
