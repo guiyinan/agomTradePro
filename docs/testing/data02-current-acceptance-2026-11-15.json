@@ -7532,7 +7532,37 @@
           "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-budget-revised-s6/post-interruption-process-readonly.receipt.json",
           "sha256": "0f1f2b74c31b82259c2706d2dd76c1a13259e157268f1b5b83ad1ce1bc61a4a6"
         },
-        "no_surviving_rehearsal_or_docker_build_process_observed": true
+        "no_surviving_rehearsal_or_docker_build_process_observed": true,
+        "interrupted_attempt_resource_retirement": {
+          "receipt": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-budget-revised-s6/retire-3365-execute.receipt.json",
+            "sha256": "e4a4171ada9753510a526c93fee60748beff94efccf2fd21b7b8c7c1767411ef"
+          },
+          "preview": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-budget-revised-s6/retire-3365-preview.receipt.json",
+            "sha256": "93fdf12cea278bfc8448271527fa8c1446103f7bb307f62db635d3160d2c7052"
+          },
+          "derivation": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-budget-revised-s6/retire-3365-derivation.json",
+            "sha256": "ecae666b7f8783391bb9c63c61e96aeb64081c64aaf8c74bf2fa6b42b7084589"
+          },
+          "derived_remote_program": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-budget-revised-s6/retire-3365-derived-remote.py",
+            "sha256": "ec96d09a5ceb656aa737a2c0bc3b770ae170dbbbf031943e6c76a0c3595a48f7"
+          },
+          "archive_location": "VPS only",
+          "archive_path": "/opt/agomtradepro/diagnostics/data02-closed-s6-archives/3365a301f4234562b6fb6f02b9733f4e-fdf48528a70c4306a4029a4823e3273e/database.dump",
+          "archive_sha256": "4712a2b78f2c6314fd13dd30dc8fcc077b9d24ccdf901fc86af683b84451ebee",
+          "archive_bytes": 289470402,
+          "list_and_full_read_verified": true,
+          "closed_disposable_database_dropped": true,
+          "closed_postgres_container_and_exclusive_volume_removed": true,
+          "redis_container_stopped_network_retained": true,
+          "production_identity_unchanged": true,
+          "provider_requests": 0,
+          "free_bytes_after_retirement": 28122742784,
+          "new_attempt_fresh_headroom_checks_still_required": true
+        }
       },
       "market_window_recovery_pending_owner": {
         "status": "prepared_not_authorized",
@@ -7561,7 +7591,7 @@
         },
         "window_admission_tests_passed": 6,
         "current_clock_expected_block": {
-          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-budget-revised-s6/window-current-time-expected-block.log",
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-budget-revised-s6/window-current-time-expected-block-r2.log",
           "sha256": "7bcf4ccca42ff3c79b5508bafd8d532bc829a6730662fd8880d0d8884bf27637"
         },
         "current_clock_actual_exit": 1,
