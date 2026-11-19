@@ -7374,12 +7374,35 @@
             "sha256": "16be7977719342df3133f761df999eed7188f1eccd7db464856a556a4102b1a7"
           }
         ],
-        "operator_corrections": "Saved OCI image ID is the manifest digest, separately binding config digest and every blob. Containerd legacy cache parents required explicit guarded removal; earlier safe failures retained."
+        "operator_corrections": "Saved OCI image ID is the manifest digest, separately binding config digest and every blob. Containerd legacy cache parents required explicit guarded removal; earlier safe failures retained.",
+        "subsequent_d242_exclusive_volume_reclaim": {
+          "receipt": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-budget-revised-s6/closed-d242-volume-reclaim.receipt.json",
+            "sha256": "46d744793949e74f7a87bf717125be499a6f572ec367df8135a79534c9f44e60"
+          },
+          "readonly_ownership_observation": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-budget-revised-s6/closed-d242-volume-readonly-observation.json",
+            "sha256": "540b97ebc776c5bb3bea9968f9fe92e0fc677b70e26cfaf6d1b21ea9d673cad7"
+          },
+          "controller": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-budget-revised-s6/reclaim-retired-d242-volume.py",
+            "sha256": "4765990cfb318219cdd67895c9e92a467ad010f056e3ffe6cc49eee43a836c2f"
+          },
+          "reason": "Actual fresh clone left25590849536 bytes below25769803776 prebuild gate; stopped archived d242 volume had one exact old PG consumer",
+          "postgres_container_removed": true,
+          "exclusive_volume_removed": true,
+          "redis_and_network_retained": true,
+          "original_dump_and_runtime_zip_rehashed_unchanged": true,
+          "production_identity_unchanged": true,
+          "provider_requests": 0,
+          "free_after": 26269003776,
+          "does_not_qualify_final_prebuild_headroom": true
+        }
       },
       "budget_revised_fresh_s6": {
         "candidate_sha": "c5b42e20cc97a7e166e6d3f88254d05b0605667a",
         "attempt_id": "3365a301f4234562b6fb6f02b9733f4e",
-        "status": "fresh_prepare_running_not_full_s6_pass",
+        "status": "standard_runner_started_after_fresh_prepare_verified",
         "reserve": {
           "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-budget-revised-s6/s6-c5-postrepair-reserve.receipt.json",
           "sha256": "93e46b8d9c0ae619c4caa90ba42445ab199b8525bb2e286a6cbe7e1d3562e69a"
@@ -7422,7 +7445,72 @@
         "old_d242_resumed": false,
         "production_deployed": false,
         "data02_exit_satisfied": false,
-        "data03_started": false
+        "data03_started": false,
+        "isolated_restore_readonly_observation": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-budget-revised-s6/isolated-restore-readonly-observation-r1.json",
+          "sha256": "6d918a862d4e43a913266ded52b826981ef16b59591a999a254b09569f2af1a4"
+        },
+        "latest_prepare_observation": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-budget-revised-s6/c5-postrepair-s6-prepare-observation-r36.json",
+          "sha256": "aad84ccba55fe8cc51af9af73538ec4c6276fef26da57dbfbf46c5f7bea6f9d9"
+        },
+        "runner_started": true,
+        "prepare_outcome": "success",
+        "prepare_verified": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-budget-revised-s6/c5-postrepair-s6-prepare-root-verified.receipt.json",
+          "sha256": "50b91736719f7820a2d82b4accf43c960914c01011caed7d874ae0136a36fb2c"
+        },
+        "prepare_originals": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-budget-revised-s6/c5-postrepair-s6-prepare-originals",
+          "files": [
+            {
+              "name": "prepare-receipt.json",
+              "sha256": "0fe816e943240c15f593eb94533dd7584b94b57c60ae464b8f969bdc5a194959"
+            },
+            {
+              "name": "prepare-status.json",
+              "sha256": "b10ee256fe74e1c6ae31cb5b4d23e9cafaf8e16966dd0344d5fbe0459271c951"
+            },
+            {
+              "name": "current-market-graph-refresh.json",
+              "sha256": "8b91a7361fa186b4d37981cf6699952a5ce7f5fdb39b366d2d8f30271a7423f2"
+            },
+            {
+              "name": "universe-summary.json",
+              "sha256": "81be0ee0ba91797cf7b03eac2519805bbf25a479ad92b7c0a21f9c5d996482c2"
+            }
+          ]
+        },
+        "prepare_execution_image_id": "sha256:8fb8281c9551f28611ee9a0cf6d5503792077eeddff9a917aee1793d8559ea92",
+        "candidate_built_image_identity": "await actual new build report; prepare executor8fb is not candidate build",
+        "target_trade_date": "2026-11-18",
+        "universe_count": 5580,
+        "graph_actual_dispatches": 27,
+        "market_charged_after_graph": 189,
+        "post_prepare_headroom": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-budget-revised-s6/post-complete-prepare-headroom.receipt.json",
+          "sha256": "fc83a67a245ba3bc6f6ccf66a3d3490326816d14483b8198e698e10451327586"
+        },
+        "post_prepare_free_bytes": 26634149888,
+        "runner_pid": 1107901,
+        "runner_launch": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-budget-revised-s6/s6-c5-postrepair-runner-launch.receipt.json",
+          "sha256": "0ac710294a2330430f94e748a469dd7250a6e8aae7f8e688a65fe36f7ff838f0"
+        },
+        "runner_budget_confirmation": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-budget-revised-s6/s6-c5-postrepair-market-budget-confirmed.receipt.json",
+          "sha256": "b46525a8e1d0ef3856f7156a33e9b62505de2e9659d96df0327991bca133f01b"
+        },
+        "probe_dispatch_cap": 30,
+        "capacity_dispatch_cap": 30,
+        "post_s6_production_reserved": 60,
+        "maximum_reserved_after_actual_graph": 309,
+        "actual_additional_provider_usage_after_runner_start": "await original stage reports, not inferred from launch",
+        "full_s6_complete": false,
+        "latest_runner_observation": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-budget-revised-s6/c5-postrepair-s6-runner-observation-r1.json",
+          "sha256": "4157c31be73cf867cf264d4e389181c00ae97fe7a33882332e9a97dc7786470d"
+        }
       }
     }
   ],
