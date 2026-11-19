@@ -7679,7 +7679,6 @@
         "actual_current_calendar_qualification_claimed": false,
         "resource_preparation_before_new_attempt_complete": true,
         "fresh_reserve_and_prepare_headroom_recheck_required": true,
-        "preparation_provider_requests": 0,
         "full_s6_complete": false,
         "data02_exit_satisfied": false,
         "data03_started": false,
@@ -7762,8 +7761,18 @@
             "candidate_s6_source_changed": false,
             "correction": "Preserve pushed history and all unrelated work; future documentation commits explicitly use git commit --only with the two owned paths. This mixed development commit is not S6 candidate evidence."
           },
-          "public_observer_independent_review": "Luna read-only review after allowlist repair found no additional namespace/3365 blockers. Explicit W/current UUID and actual runner launch filename remain mandatory; legacy defaults and recovery branches are preserved for history only."
-        }
+          "public_observer_independent_review": "Luna read-only review after allowlist repair found no additional namespace/3365 blockers. Explicit W/current UUID and actual runner launch filename remain mandatory; legacy defaults and recovery branches are preserved for history only.",
+          "latest_prepare_observation": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/c5-postrepair-s6-prepare-observation-r10.json",
+            "sha256": "9323a05f0c6f0525ec0542c0dddd399e5b42f17f4ca5a9718eaaeecef7431731"
+          },
+          "graph_runtime_readonly": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/c5-s6-graph-runtime-root-r1.json",
+            "sha256": "4993fed32444fe3bd3a475397a052a746e7e2c12a2ce1d90caed5a03ffba6b02"
+          },
+          "graph_runtime_summary": "Active graph worker ~93% CPU; isolated PG read-only diagnostic found no blockers. No performance change; await original final graph count and target scope."
+        },
+        "pre_window_preparation_provider_requests": 0
       },
       "current_audit_lease_pre_window_recheck": {
         "receipt": {
@@ -7847,7 +7856,59 @@
         "later_lifecycle_note": "The first execute receipt verified both tar copies before cleanup; the later duplicate-dist receipt removes only the checkout/dist copy. Do not claim that duplicate currently exists.",
         "provider_requests": 0,
         "production_runtime_identity_changed": false,
-        "new_attempt_space_qualification": false
+        "new_attempt_space_qualification": false,
+        "post_clone_d242_source_context_cleanup": {
+          "actual_new_attempt": "dad11d3e0caa4656a1ed3799527a0478",
+          "trigger": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/mid-graph-headroom.receipt.json",
+            "sha256": "511f098a4ec749b6459fd7955d8ca6d2866f8d97bfe8e66b4acf985950d13eb9"
+          },
+          "source_inventory": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-resource/new-attempt-source-context-inventory.receipt.json",
+            "sha256": "768117922528a0658696f464b48037dffaf27d2b569469f157483a53ae78af5a"
+          },
+          "source_inventory_program": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-resource/new-attempt-source-context-inventory.py",
+            "sha256": "4baee6b6c49582b14ac9892fcb0dedd02c0b2daf02b5c10b4316f66d07da1b42"
+          },
+          "controller": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-resource/reclaim_d242_source_contexts.py",
+            "sha256": "51e85b9569a49fa07f3bbde0169c6614f6fba58d82ac6dadcbbbe665a5c6219b"
+          },
+          "preview": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-resource/reclaim-d242-source-contexts-preview-4758d1ec060643c598c90ccac6c0afb5.receipt.json",
+            "sha256": "14a18d4842280c8c3fd0f0b2f315e37d4904854ac35b829800401b9a745df6a2"
+          },
+          "execute": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-resource/reclaim-d242-source-contexts-execute-4506d9e5653b4d6dbc93ec9d614ef2df.receipt.json",
+            "sha256": "a7b788060e750a46291c6ca0d90484f232a657c384082a140ee99e370a6b2300"
+          },
+          "exit_code": 0,
+          "actual_free_after_bytes": 25998692352,
+          "formal_floor_bytes": 25769803776,
+          "removed_source_trees": [
+            {
+              "path": "/opt/agomtradepro/releases/source-20261118170303",
+              "removed": true
+            },
+            {
+              "path": "/tmp/agomtradepro-source-upload/build-20261118170303",
+              "removed": true
+            }
+          ],
+          "retained_original_source_upload": {
+            "bytes": 124280009,
+            "path": "/tmp/agomtradepro-source-upload/agomtradepro-source-deploy-20261118170303.tar.gz",
+            "sha256": "e32dbf88f43ebed31d2cfac4296f883b498428f789e4410dbbf1f09a3f36b584"
+          },
+          "runtime_zip_retained": true,
+          "production_identity_unchanged": true,
+          "provider_requests": 0,
+          "database_mutations": 0,
+          "independent_review": "Luna audit read-only review found no blocker; Root independently reviewed all definitions and required variable-free-space comparison, real metadata list handling and failure mutation facts before actual preview/execute. Source_inputs on real local artifacts and remote program compilation passed. Only pinned old helper definitions were reused; no old image-removal main ran.",
+          "proof_limit": "Three dependency inputs and exact retired build/source paths prove cleanup ownership, not a qualified application image. Existing runtime ZIP SHA was reused with fresh stable file identity; no new complete local ZIP copy claimed.",
+          "new_attempt_post_prepare_fresh_space_check_still_required": true
+        }
       }
     }
   ],
