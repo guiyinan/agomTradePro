@@ -7565,13 +7565,13 @@
         }
       },
       "market_window_recovery_pending_owner": {
-        "status": "dad11_blocked_quote_scope_originals_retained_necessary_fix_scope_coordination_pending",
+        "status": "approved500_waiting_selected_clock_and_fresh_official_ci",
         "proposal": {
           "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-budget-revised-s6/c5-window-recovery-proposal.json",
           "sha256": "3396c28a8addceb8d48fe38bc436023b5000fb2a99fc7fc1b452f18a762e6c04"
         },
         "current_market_used": 244,
-        "current_market_ceiling": 360,
+        "current_market_ceiling": 500,
         "proposed_market_ceiling": 360,
         "maximum_cumulative_allocated": 359,
         "unallocated": 1,
@@ -7967,7 +7967,7 @@
         "pre_window_preparation_provider_requests": 0,
         "latest_confirmed_usage_basis": "189 previous+26 graph+29 probe=244 measured; failed capacity actual unavailable, conservatively reserve its full30 for upper274. No new provider request after failure.",
         "current_market_used_is_complete": false,
-        "next_fresh_s6_authorized": false,
+        "next_fresh_s6_authorized": true,
         "necessary_blocker_repair_preparation": {
           "scope": "Explicit optional batch full-day suspension capability in existing protocol/source files, precise missing-code single query with strict response validation, global transport guard preservation, and capacity-specific bounded privacy-safe failure diagnostic including actual transport counters. No coverage/date relaxation or global provider cache.",
           "implementation_not_started": true,
@@ -8017,7 +8017,7 @@
           "observed_at": "2026-11-19T12:58:14.345511+00:00",
           "candidate_sha": "c5b42e20cc97a7e166e6d3f88254d05b0605667a",
           "application_source_changed": false,
-          "future_budget_status": "500_proposal_only_no_owner_approval",
+          "future_budget_status": "actual_owner_approved500_one_fresh_s6_global_outer14400",
           "market_confirmed_actual": 244,
           "failed_capacity_actual": null,
           "failed_capacity_conservative_charge": 30,
@@ -8033,7 +8033,7 @@
           "proposed_ceiling": 500,
           "unallocated": 14,
           "execution_sequence": "One new reserve/prepare freezes actual calendar/target/universe, then at most two normal routed diagnostic sessions, then standard runner only on complete daily or strict full-day suspension proof and missing-code estimate within cap. No old scope reuse, truncation, paging, retry, or date relabeling in diagnostic.",
-          "next_s6_authorized": false,
+          "next_s6_authorized": true,
           "dad11_resume_allowed": false,
           "new_candidate_native_proof_boundary": {
             "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/prospective-git-object-migration-tree-readonly.json",
@@ -8109,7 +8109,7 @@
             "sha256": "d2247e292d24d95eb62877c0276fe45eb7f933cfcf369094fce43c0b5036ab04"
           },
           "v5_operational_preparation": {
-            "status": "frozen_unapproved_local_preparation_only",
+            "status": "actual_owner_approved_waiting_selected_window_and_fresh_ci",
             "candidate_sha": "c5b42e20cc97a7e166e6d3f88254d05b0605667a",
             "validation": {
               "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6/v5-ci-binding-validation.receipt.json",
@@ -8183,8 +8183,8 @@
             "market_maximum_cumulative": 486,
             "market_proposed_ceiling": 500,
             "prior_upper_bound": 274,
-            "new_owner_window_state_or_intent_created": false,
-            "new_s6_authorized": false,
+            "new_owner_window_state_or_intent_created": true,
+            "new_s6_authorized": true,
             "new_ci_dispatched": false,
             "source_application_changed": false,
             "production_changed": false,
@@ -8247,9 +8247,71 @@
               "reviewed_common_sha256": "caca66356a2816c0adc8df654c4e1a44a70ba3ee2f5b0ac22133eec1f0490252",
               "no_remaining_blocker_in_reviewed_scope": true,
               "tests_not_rerun_by_reviewer": true
+            },
+            "owner_authorization_now_recorded": true,
+            "window_now_frozen": true,
+            "attempt_state_or_intent_created": false
+          },
+          "actual_500_authorization_and_selected_window": {
+            "authorization_call_id": "call_4539b8e531f54168bef97e5473ea36b1",
+            "exact_user_answer": "批准累计500、外层4小时及一次新S6",
+            "human_reply": {
+              "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6/human-approval-reply.json",
+              "sha256": "1355145b25aad2f6061e26372f7d0e925b32ce3c16105efc1dea582321c3ee04"
+            },
+            "owner_authorization": {
+              "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6/owner-authorization.json",
+              "sha256": "a7b4e7ef03fba7e903fd25f9d6c53206c8b4e3918cebebadcf96d2bb596d643d"
+            },
+            "verification": {
+              "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6/actual-approval-verification.receipt.json",
+              "sha256": "a8a3c00a9308b323fcd1bc9da0ece4654c45232e5a2d1d30c1e70207a302f944"
+            },
+            "selected_window": {
+              "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6/selected-window.json",
+              "sha256": "bc70bfd50206cdf135cdad509ecc2b874d602ef6dd35bdd37914ab34f98468f0"
+            },
+            "window_verification": {
+              "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6/selected-window-verification.receipt.json",
+              "sha256": "c1507a869e3550cd0adcb9d9818267600e10f98c9a5ea50a51d5fa6b500bad18"
+            },
+            "market_approved_ceiling": 500,
+            "maximum_cumulative_allocated": 486,
+            "fresh_s6_attempts_max": 1,
+            "global_outer_command_timeout_seconds": 14400,
+            "financial_ceiling_unchanged": 22344,
+            "e1_separate_ceiling_unchanged": 2,
+            "scope_ceiling_unchanged": 5585,
+            "target_trade_date": "2026-11-20",
+            "entry_beijing": "2026-11-20T17:05:00+08:00",
+            "runner_start_deadline_beijing": "2026-11-20T20:30:00+08:00",
+            "operator_imposed_earlier_cutoff_beijing": "2026-11-21T12:00:00+08:00",
+            "runner_to_cutoff_seconds": 55800,
+            "ci_dispatch_operator_plan_not_before_beijing": "2026-11-20T14:00:00+08:00",
+            "actual_calendar_and_source_date_qualification_claimed": false,
+            "fresh_prepare_must_confirm_frozen_target": true,
+            "ci_dispatched": false,
+            "new_attempt_reserved": false,
+            "new_provider_requests": 0,
+            "market_confirmed_actual": 244,
+            "market_prior_conservative_upper": 274,
+            "finance_used": 0,
+            "e1_used": 0,
+            "current_reserve_clock_block_expected_and_observed": true,
+            "not_django_authentication_event": true,
+            "prior_single_attempt_authorizations_not_reused": true,
+            "actual_approved_reserve_entry_before_window": {
+              "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6/actual-approved-before-window-reserve.receipt.json",
+              "sha256": "3ff283537592501df9f31ccc7dacb7775df7b17dbf88e54194a4935cfb006140"
+            },
+            "credential_readiness": {
+              "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6/execution-credential-readiness.receipt.json",
+              "sha256": "f3892491c2a4ffbbe1c9e3d0f17fac76caff26dd0d4436d52a0cea35fdebc368"
             }
           }
-        }
+        },
+        "latest_approved_market_ceiling": 500,
+        "original_360_authorization_fields_apply_to_terminal_dad11": true
       },
       "current_audit_lease_pre_window_recheck": {
         "receipt": {
