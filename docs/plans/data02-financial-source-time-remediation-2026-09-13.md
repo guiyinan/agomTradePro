@@ -1529,3 +1529,11 @@ headroom实际失败已最小修复：provider选择逻辑原样移到现有infr
 17:05窗口前审计再次只读复验（2026-11-19T03:41Z）：required/outbox=true、reason=null，当前授权仍至2026-11-29T16:12:55.522488Z；从Django初始化起用SQL fence拒绝全部业务DML，实际仅SELECT/LOCK/SAVEPOINT/RELEASE/SET/SHOW，无续期请求。最初探针因Django registry初始化顺序失败，保留原件并修正后通过，不误记为生产权限失效；此只证明当前窗口，不替代自然续期验收。
 
 360次授权已真实绑定独立聊天回执及W namespace；Root离线核对同c5八run、Publication303例、189次派生用量与359次最坏分配，6项控制测试/格式检查通过。四个既有执行入口均接入真实clock gate；当前真实reserve入口exit1/S6_OPERATIONAL_WINDOW_NOT_OPEN且未生成intent，新runner还严格限制目标2026-11-19。历史340 common已移到保留副本，旧证据SHA不改。3365自有失败构建的10个无引用中间镜像、两处派生context及一份重复dist包已按所有权/原件SHA/生产身份校验回收，上传原始tar保留，最后可用29506674688字节；24GiB正式门不变，新reserve/clone/graph后仍须重检。详情及原件统一见followups[14]的现有window事项和resource补充。当前仅等今日北京时间17:05准入，未创建新attempt/Provider请求，未改变应用候选或生产，未取得S6/DATA02退出资格，DATA03未启动。
+
+### 48.5 DATA-02 退出后的交接（2026-11-19）
+
+Owner 要求将后续顺序与退出条件回写现有计划/看板，不恢复暂缓项、不新建台账。跨单元编排统一维护在[发布阻塞清零方案 §3](release-blocker-closure-execution-plan-2026-08-29.md#3-data-02-后续推进顺序与退出条件2026-11-19)；本节只保留 DATA-02 交接要求。
+
+E1 成功后仍须完成 native Main/Balance、C2 witness、D1 原件/精确数值验证的正式批处理接线和写后读回，以及完整冻结 universe 四 Publication 的覆盖、新鲜度、指标完整性和治理容差对账，才可将 DATA-02 记为退出。S6 财务预算不挪作全量生产预算，真实授权、来源/目录资格、候选、备份和回滚门均继续适用。
+
+DATA-02 全量退出后优先推进 DATA-03 的受控切换与真实观察；收尾期间即可准备 EVID-01/02、AUD-03 和 STRAT-01 的输入，按各自权限门执行，不人为等待所有相邻单元。TUI-02 和 STRAT-02 在自己的前置满足后及时启动真实观察/样本积累，不能用历史候选、有效 lease 或单资产成功代替整单元验收。所有状态仍以注册表为准，实际命令和原件继续写入同一 `followups[14]`，本节不产生新的验收索引。

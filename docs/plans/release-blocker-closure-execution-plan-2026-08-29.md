@@ -1,6 +1,6 @@
 # 发布阻塞清零综合实施方案（2026-08-29）
 
-> 状态：执行中；`DATA-01` 已关闭，`DATA-04/05` repository 修复已随当前候选部署，部署后 PostgreSQL client 只读样本稳定；2026-09-02 09:24Z 曾出现 Web liveness unhealthy/公网 502，15:38Z 受控 web-only restart 后恢复 healthy，`DATA-02/03` 继续 fail-closed；TUI successor 的机器 UAT、清理矩阵与隔离回滚已形成，旧 retained source 已因该次重启作废并仅保留为历史，等待重启后首个真实样本及新的 14 日窗口
+> 当前编排（2026-11-19）：以 §3 的 DATA-02 全量退出 → DATA-03 切换与观察 → 分单元生产联合验收为准；状态、硬依赖和唯一仓库焦点读取注册表。DATA-02 当前候选及实际 S6 进展只引用财务来源整改计划 §48.4 和既有验收索引，不从本文历史快照推断。
 > 机器状态真源：`governance/active_plan_registry.json`
 > 适用 closure units：`DATA-01/02/03/04`、`AUD-03/04`、`EVID-01/02/03`、`STRAT-01/02/03`、`TUI-01/02`、`TAR-05/06`、`AI-01`、`QMT-01/02`
 > 原则：本文只编排既有 unit，不建立第二套状态、不降低阈值、不代签、不伪造 PIT/OOS 历史，也不把生产写入授权扩大为实盘交易授权。
@@ -541,7 +541,9 @@ SSH banner 重试仍超时，未部署补丁，DATA-02、authority/approval、TA
 
 ## 1. 目标与完成口径
 
-本方案把当前“可用但降级”和“部署后仍硬阻断”拆成七条可独立验收的执行轨。整体完成必须同时满足：
+以下保留原综合方案的全范围验收标准；当前授权编排以 §3 为准。涉及 `EVID-03`、`STRAT-03`、`TAR-05`、`AI-01`、`QMT-01/02` 的标准仅作将来恢复时的约束，不是当前交付前置，也不因上游完成自动启动。
+
+原综合方案的全范围完成口径：
 
 1. 最终不可变候选完成 TUI 三角色生产 UAT、108/108 route-page、同 run 写回执、readback 与精确零残留 cleanup；`TUI-01` 关闭，`TUI-02` 的 14 日窗口随后按真实时间完成。
 2. 活跃 A 股 canonical quote、price、valuation、financial Publication 覆盖和历史深度达到治理合同，provider freshness 与决策数据均明确为 `ok`；持久化决策门只在其他严格检查全绿后切到 `active`，`/api/decision-ready/` 返回 `200`。
@@ -553,7 +555,9 @@ SSH banner 重试仍超时，未部署补丁，DATA-02、authority/approval、TA
 
 `strategy.execution_preview` 的 `can_execute=False`、`research_only=true` 是展示契约，不作为待翻转开关。策略执行必须走 Evidence、Promotion、风控、审批和 broker execution 的正式链；QMT 实盘另受 `QMT-01/02` 外部门禁。
 
-## 2. 当前事实与先行纠偏
+## 2. 2026-09-01 历史事实与先行纠偏
+
+本节的候选、覆盖数量、零行及监控阻断只描述当时观察，不作为今天的生产状态或阻塞。当前推进门槛见 §3，实际结果沿用各事项既有验收索引。
 
 - `core/middleware/decision_gate.py` 覆盖 11 类决策路径；`core/health_checks.py` 要求 runtime state、核心覆盖、provider capability 与 decision data 四项同时通过。
 - 当前候选 `aa7127ff4d9f71555b0d0486314da5518bd2ac20` / release `20260901232812` 的只读 dry-run 显示 completed-session price 合格覆盖为 `0/5,533`，quote/price/valuation Publication 覆盖为 `5,533/5,533` 但全部 stale，financial fact 覆盖为 `1,923/5,533`；因此 `DATA-02` 仍为 `DENY`，没有执行回填或 Publication 切换。第一动作仍须区分“事实缺失”“发布成员缺失”和“新鲜度失败”，不能无差别重抓全市场。
@@ -561,20 +565,35 @@ SSH banner 重试仍超时，未部署补丁，DATA-02、authority/approval、TA
 - `TUI-01` 的 candidate-bound production-safe UAT、cleanup 与 isolated rollback 已完成；`TUI-02` 仍为 `5/10 DENY`，等待重启后真实 retained sample、精确 14 日窗口与结构化 telemetry/attestation。
 - authority/evidence 与 R1–R8 owner-ledger 的零行是缺少真实业务/审批输入，不是 migration 或 fixture 问题。
 
-## 3. 总体执行顺序
+## 3. DATA-02 后续推进顺序与退出条件（2026-11-19）
 
-| 阶段 | 主要 unit | 动作 | 退出门 | 可并行项 |
-|---|---|---|---|---|
-| P0 候选对账 | TUI-01 | 只读核对 Git/OCI/manifest/production identity；条件式部署 | 唯一候选身份无漂移 | 准备审批包、owner 输入模板 |
-| P1 TUI 快速闭环 | TUI-01 | production-safe recorder、三角色、写回执、readback、exact cleanup | recorder 全绿且真实 role owner 确认 | DATA/AUD preflight |
-| P2 恢复与审计窗口 | DATA-01、AUD-03 | 备份、维护、shadow restore/switch-back、故障恢复、alert、archive/restore | RTO/RPO、零丢失/重复、回滚和双签 | STRAT/EVID dry-run |
-| P3 数据快修与深回填 | DATA-02 | Publication 重建优先；仅补真实 fact/history 缺口；逐数据集对账 | coverage/freshness/reconciliation 全绿 | owner/root 审批采集 |
-| P4 决策恢复 | DATA-03 | 严格预检、受控激活、失败自动 re-block、双 readiness 与观察 | decision-ready=200 且无 must-not-use | STRAT-02 receipts 开始积累 |
-| P5 Evidence/策略 | EVID-01/02/03、STRAT-01/02/03 | 真实 authority、审批、定义、PIT/OOS、Promotion、consumer UAT | exact-current 与执行前重验通过 | AUD/TUI 观察 |
-| P6 Terminal/AI | TAR-05、AI-01 | queued canary、容量、chaos、14 日 telemetry、AI staging/prod UAT | hard SLO 与双签全部通过 | QMT Phase 0（获权后） |
-| P7 实盘桥 | QMT-01/02 | XtQuant 探针、5 日仿真、3 日小额实盘 | 券商与业务 owner 验收 | 不阻塞模拟盘或研究展示 |
+Owner 本次要求更新现有计划和看板、清理过时阻塞，暂缓任务不恢复。下表替代本文旧的线性全范围排期；状态只写 `governance/active_plan_registry.json`，本节只定义执行顺序、验收边界和交接，不新增台账，也不宣告任何单元已验收。
 
-依赖未满足时阶段顺延。真实观察窗口、PIT/OOS 样本期、券商开权和人工审批不可通过补写时间戳压缩。
+### 3.1 执行顺序
+
+| 次序 | 既有单元 | 推进方式 | 必须满足的退出条件 |
+| --- | --- | --- | --- |
+| 先完成数据闭环 | DATA-02 | 冻结候选的完整 S6 → 满足部署门禁 → 单证券真实 E1 → 正式批处理接线与完整资产池逐批对账；E1 冻结期间只修必要阻塞 | 保留真实来源观测/可用时间及原件；native Main/Balance、C2 witness、D1 精确数值验证进入正式写入及写后读回；完整冻结 universe 的 quote/price/valuation/financial 四 Publication 达到覆盖、历史深度、新鲜度、指标完整性及治理容差要求。单资产、离线报告或 partial 成功不关闭全单元 |
+| 数据收尾期间准备 | EVID-01/02、AUD-03、STRAT-01 | 准备真实身份/账户范围、审批与审计验收输入，核对同候选 dry-run；不等 DATA-02 结束后才找输入，也不新增仓库执行焦点 | 准备不等于退出。生产写入必须先满足本动作实际所需权限/审计；EVID/AUD 完整生产验收不因某次 lease 有效而豁免 |
+| 数据退出后优先推进 | DATA-03 | 仅在 DATA-02 整单元退出后做严格 preflight、受审计 CAS 激活、立即复验与漂移自动 re-block | §6.2 的三项数据 preflight 全部 ok 且无 must-not-use，decision-ready=200、完整检查通过；同候选完成行情至少 3 个交易日加周末、宏观 2 个调度周期的真实观察及 smoke；维护状态解除须具备适用 Owner 批准。任一 stale/conflict/身份漂移重新阻断 |
+| 分单元合批生产验收 | EVID-01/02、AUD-03、DATA-18 | 复用未变化且身份/时间窗仍有效的输入，分别按真实使用路径收口；动作前置先满足，不把“后收口”误作“先无权限执行” | EVID-01：真实用户/tenant/owner/account 范围、current/revocation、生产 composition、独立复核与 Owner 签收；EVID-02：真实审批及 PostgreSQL first-winner/successor/current-head/撤销/回滚证据；AUD-03：迁移回滚、积压恢复、告警、管理 TUI、归档恢复与生产签收；DATA-18：原 R1–R4/S1–S6、无隐式写入、API/SDK/MCP/浏览器、PG 并发与真实 provider 预演门全部满足。各单元单独记结论，不互相代验 |
+| 条件满足即启动长周期 | TUI-02；STRAT-01 → STRAT-02 | 不额外等待所有相邻单元关闭；TUI 满足自己的候选/部署/监控前置后启动 T0；STRAT-01 合格登记且 DATA-02 退出后启动 STRAT-02 | TUI-02：同 SHA 的适用 CI、完整 RC、独立 Publication PG artifact、fresh S6、迁移及 code/schema 兼容回滚，真实用户 UAT、14 天有效 telemetry、registry backup、逐波观察/回滚及 Owner 签收；STRAT-01：已批准八项定义的真实 owner/policy/calendar/scope/qualification/version/hash 规范登记；STRAT-02：真实 PIT/OOS 窗口、lineage、回执与对账满足既有标准，并报告实际最早可完成日期 |
+
+执行次序不是新增硬依赖：`DATA-03` 仍依赖 `DATA-02`，`STRAT-02` 仍依赖 `STRAT-01 + DATA-02`；EVID/AUD/STRAT-01 准备不被人为串行到 DATA-03 后。正式动作的权限、审计、备份、回滚与候选门在动作前满足。真实观察窗口和样本期不补写时间戳，不从旧候选继承。
+
+### 3.2 当前输入、过时阻塞与边界
+
+- DATA-02 的当前候选、预算/窗口及阶段回执以[财务来源整改计划 §48.4](data02-financial-source-time-remediation-2026-09-13.md#484-e1-冻结后的最小整合边界)与 `docs/testing/data02-current-acceptance-2026-11-15.json` 的 `followups[14]` 为准；不复制易过期的实时执行账。此前等待 C2 的 TTL/09:15 或 09:30 选择已经有决定，不再列作待答复；真实日历/规则/目录及生产资格仍须证明。
+- 2026-11-19T03:41Z 的只读复验显示审计 required/outbox=true、reason=null、lease 至 2026-11-29T16:12:55.522488Z；旧的“actor/source 过期、审计关闭”快照只作历史，不能覆盖这次实际观察。该 lease 只证明其观察范围，不证明 EVID 全部 current-head、自然续期或完整生产验收。
+- `TUI-01`、`ASH-05`、`ASH-07/08`、`CAL-01/02` 的登记完成状态保留；`CAL-03` 为当前唯一 repository focus，按既有有界研究及短窗口整合继续。`CAL-04/05` 不在本次启动；DATA-02 继续已冻结生产候选，不把 CAL 研究纳入其发布证据。
+- `ASH-11` 的现有 `ASH-05/06/08 + DATA-18` 硬依赖保留，其中 `ASH-06` 仍 deferred。可以准备获准范围的用户流程，但不能因此宣布 ASH-11 完成；若后续只验 M1/M2/M3 子范围，须先在原 A 股计划明确并登记范围决定，不能默删依赖或恢复 ASH-06。
+- 全部 deferred/archived 状态保持；特别是 `EVID-03`、`STRAT-03`、`TAR-05`、`ASH-09/12`，以及 `ASH-06`、`AI-01`、`QMT-01/02`、`IDX-01`、`GOV-06/07`。上游完成不自动恢复，TAR 生产继续 inline/并发 1。后文和旧日期段中“随后启动”这些单元的文字仅保留原依赖/验收标准，不是当前执行指令。
+
+### 3.3 交接与结果回写
+
+每次实际过门后，在既有单元和其原计划/验收索引更新：完成范围、同候选身份、有效输入/时间窗、失败原件引用、剩余退出门及下一动作。看板从注册表生成；本次只更新编排和当前说明，不修改单元状态、依赖或生产资格，不新建日报、排期表或证据台账。
+
+本次编排更新的开发核验：注册表检查零违规，看板既有 Node 回归 9/9 通过；另核对全部单元状态/硬依赖、deferred/archived 完整定义、执行焦点和历史采集记录保留。运行原件位于忽略目录 `.tmp/post-data02-plan-20261119/`，HTML 为既有 `reports/engineering-progress/` 生成物；这些核验不构成新生产观察、发布或业务验收。
 
 ## 4. P0/P1：候选与 TUI-01
 
