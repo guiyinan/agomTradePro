@@ -1,12 +1,25 @@
 {
   "unit": "CAL-03",
-  "scope": "Local development integration and continued M2 research; not a complete real study or production qualification",
+  "scope": "CAL03 Domain core, frozen walk-forward design, immutable Research/PIT binding and durable final-OOS single-use control; real qualified study remains outstanding",
   "base_head": "4f1ba5249187f9b5892f0b2d8d7d5d393bcb1d85",
   "preparation_candidate": "a515369d0b841b3165aa811d6b4e5e7976d601c4511e813706aab146b9d56f42",
   "code_files": {
     "apps/research/domain/institutional_event_study.py": "aec72b3c922c358629d9d66e311f448e81a9eb96ac7c1e0b813081ec5d3035a3",
     "tests/unit/research/test_institutional_event_study.py": "ca800d4b43eadce6d842f8e8c13cba33257a05e6db79b2fcee08a3c205484263",
-    "tests/unit/research/test_institutional_event_study_walk_forward.py": "d8c6ab690cdfe3f914c646320e7e936ffdd3d94dbe26e5200fa9cf3e1f494c61"
+    "tests/unit/research/test_institutional_event_study_walk_forward.py": "d8c6ab690cdfe3f914c646320e7e936ffdd3d94dbe26e5200fa9cf3e1f494c61",
+    "apps/research/domain/event_study_control.py": "3d06a60a7c71b293a275abf980d2b4fca91b287c7763c700d7223f076036e93c",
+    "apps/research/application/event_study_control.py": "13ee88d0487f7ab935c6bc69f79ab1e1438a5e1861448da403cdf645874d540d",
+    "apps/research/infrastructure/event_study_control_models.py": "a01425749709281bbf96430458cc78f7ef63c4f4f7b688d87bd2323bc3322a30",
+    "apps/research/infrastructure/event_study_control_repository.py": "aabb5511e24171ae857da8ee5f51375a4b2eb0c0b4862e59a95f3306017b192e",
+    "apps/research/infrastructure/models.py": "40561e416ab8f4c6fe4857a6d6dde68f390873befac449cb586576d4aaa28f0d",
+    "apps/research/migrations/0030_event_study_final_oos_control.py": "40899517a201a507a31f4edd2a654b24aaeb4eaf2eae0fa2ffb98b5361b7625f",
+    "apps/research/migrations/0031_event_study_attempt_identity.py": "cfe5c590fb7fb30c991419084330a5e4712fcf241ec370f9b2aadf23926bc347",
+    "apps/research/event_study_control_composition.py": "91cd1869a83cda2e649e999f2fb71aa6a0ec4d597e8141cb58873df7188eb4f5",
+    "apps/research/management/commands/register_event_study_spec.py": "8450f71755e6b70b9a30702a8bc54f91a9b8d87addfc1f4f4b4c0cc75f8cf78c",
+    "apps/data_center/application/pit_provider.py": "6f2c8720de23faefdd839e121b69a9cf5d6b7785b1217f67da81bd2951361572",
+    "apps/data_center/infrastructure/pit_repository.py": "4fbaad3f0b90c0833b8696d8cc66c1fc2e871569a3b9ffbeab58388e1ef93f96",
+    "tests/component/research/test_event_study_control.py": "c1460d1d1ba66518e3afa83d4a0bcae3789a6677cc48e5e7a2d3fd318fc18534",
+    "tests/fixtures/research/cal_event_study_v1.json": "29a44d0cd2670dd2a72853494d21271c9765d6584dafa4998e1df3c2a6edfe71"
   },
   "preparation_index": {
     "path": ".tmp/cal03-event-study-20261119/evidence-index.json",
@@ -335,9 +348,9 @@
   ],
   "commit_receipt": ".tmp/cal03-event-study-20261119/adoption-commit.json",
   "remaining": [
-    "Application execution and immutable existing experiment/trial/family/PIT-manifest binding, including atomic final-OOS one-use claim",
-    "Qualified official broad-index daily-close versions, exact calendars and causal feature/event histories",
-    "At least one real reproducible IS/OOS study with baseline, adjustments, overlap/sensitivity, dependence-aware intervals, full-family correction and coverage"
+    "Qualified official broad-index close versions, original/revision knowledge clocks, exact applicable calendars, causal event/features, usage entitlement and eligible fallback",
+    "Real evaluator using immutable manifest-bound input and frozen expanding windows; retain family attempts and consume final OOS before any outcome evaluation",
+    "At least one real reproducible IS/OOS study with baseline/adjustments, overlap/sensitivity, dependence-aware intervals, full-family correction and coverage; insufficient_data alone does not close CAL03"
   ],
   "post_governance_checks": [
     {
@@ -373,9 +386,11 @@
     }
   ],
   "final_governance_files": {
-    "governance/active_plan_registry.json": "8f8ae618ea99f7d77389da1c84231a085ac7aaef04bc2f42258443bbf975d5a1",
-    "governance/module_map.json": "a34ae0c6da46fa388621f7b0180a548db82995844a9a1b74895dd70bdae7c31d",
-    "docs/plans/institutional-calendar-etf-activity-research-plan-2026-11-04.md": "e54f7dd22749e6ff1038956e71099b663b4d3cf7329d931b5cd5a993016cf657"
+    "governance/active_plan_registry.json": "77d4a8798074dc338fdbaac13804c8cad8824eaa25b6228af4251473d1095655",
+    "governance/module_map.json": "592c6bff2d885030441a25f86e6ad3305965d96139d4d963e105020db8ccc447",
+    "governance/data_dictionary.json": "fe43390152380840ef68c5fa1a90592ed072383d029b23afe428d61a67c3b310",
+    "docs/architecture/DATA_DICTIONARY.md": "f23a1d20b524b7e678634e873fc755ea2afc45bf11d8afb73a8906f80f4a5679",
+    "docs/plans/institutional-calendar-etf-activity-research-plan-2026-11-04.md": "1cb538ba37b1d6a85a9dacef87ab10790d16f4c895eb3b49a35e729e0baf2d53"
   },
   "development_deliveries": [
     {
@@ -422,5 +437,246 @@
     "log": ".tmp/cal03-event-study-20261119/logs/walk-forward-stage.txt",
     "exit_code": 1,
     "result": "Git staged the four intended files but returned an ignored parent artifacts directory diagnostic. Reapply only the already-tracked concise index with git add -u; no evidence bundle is force-added and no code or gate result changed."
+  },
+  "historical_adoption_governance_files": {
+    "governance/active_plan_registry.json": "8f8ae618ea99f7d77389da1c84231a085ac7aaef04bc2f42258443bbf975d5a1",
+    "governance/module_map.json": "a34ae0c6da46fa388621f7b0180a548db82995844a9a1b74895dd70bdae7c31d",
+    "docs/plans/institutional-calendar-etf-activity-research-plan-2026-11-04.md": "e54f7dd22749e6ff1038956e71099b663b4d3cf7329d931b5cd5a993016cf657"
+  },
+  "event_study_execution_control": {
+    "base_head": "a9a657f48dbf15164dde147c55477a3894a947cf",
+    "integration_parent": "0d0a3422af96bd4b93af16abfa86b28860287d1d",
+    "recorded_at": "2026-11-19T09:48:39.325810+00:00",
+    "source_files": {
+      "apps/research/domain/event_study_control.py": "3d06a60a7c71b293a275abf980d2b4fca91b287c7763c700d7223f076036e93c",
+      "apps/research/application/event_study_control.py": "13ee88d0487f7ab935c6bc69f79ab1e1438a5e1861448da403cdf645874d540d",
+      "apps/research/infrastructure/event_study_control_models.py": "a01425749709281bbf96430458cc78f7ef63c4f4f7b688d87bd2323bc3322a30",
+      "apps/research/infrastructure/event_study_control_repository.py": "aabb5511e24171ae857da8ee5f51375a4b2eb0c0b4862e59a95f3306017b192e",
+      "apps/research/infrastructure/models.py": "40561e416ab8f4c6fe4857a6d6dde68f390873befac449cb586576d4aaa28f0d",
+      "apps/research/migrations/0030_event_study_final_oos_control.py": "40899517a201a507a31f4edd2a654b24aaeb4eaf2eae0fa2ffb98b5361b7625f",
+      "apps/research/migrations/0031_event_study_attempt_identity.py": "cfe5c590fb7fb30c991419084330a5e4712fcf241ec370f9b2aadf23926bc347",
+      "apps/research/event_study_control_composition.py": "91cd1869a83cda2e649e999f2fb71aa6a0ec4d597e8141cb58873df7188eb4f5",
+      "apps/research/management/commands/register_event_study_spec.py": "8450f71755e6b70b9a30702a8bc54f91a9b8d87addfc1f4f4b4c0cc75f8cf78c",
+      "apps/data_center/application/pit_provider.py": "6f2c8720de23faefdd839e121b69a9cf5d6b7785b1217f67da81bd2951361572",
+      "apps/data_center/infrastructure/pit_repository.py": "4fbaad3f0b90c0833b8696d8cc66c1fc2e871569a3b9ffbeab58388e1ef93f96",
+      "tests/component/research/test_event_study_control.py": "c1460d1d1ba66518e3afa83d4a0bcae3789a6677cc48e5e7a2d3fd318fc18534",
+      "tests/fixtures/research/cal_event_study_v1.json": "29a44d0cd2670dd2a72853494d21271c9765d6584dafa4998e1df3c2a6edfe71"
+    },
+    "gitattributes": {
+      "path": ".gitattributes",
+      "sha256": "3462667ab45313ca72d9757d60cb37a462fb9d900ec6a23088b63fa39341cf9b"
+    },
+    "runtime_dependencies": {
+      "path": "pyproject.toml",
+      "sha256": "22e431a9126b689bd3e900798abb6f520965596c30e8cdae1935e892744d0350"
+    },
+    "checks": [
+      {
+        "path": ".tmp/cal03-event-study-20261119/control-types-r5.json",
+        "sha256": "60cdb6269bf1cb1c5b5eb4dc9721613bb8e2aeb79b54b949889726f1c951dab6",
+        "command_count": 2,
+        "all_exit_codes": 0,
+        "unchanged": true
+      },
+      {
+        "path": ".tmp/cal03-event-study-20261119/control-static-r5.json",
+        "sha256": "09e947843036df40e448da9ae49fb6235e3e9780bd07da1b0d5a01a355680437",
+        "command_count": 7,
+        "all_exit_codes": 0,
+        "unchanged": true
+      },
+      {
+        "path": ".tmp/cal03-event-study-20261119/control-final-quick.json",
+        "sha256": "878c9eef51b089d9e9549e50232afcf03ba26fe78ca68c5aa0bd077e6c0ba151",
+        "command_count": 2,
+        "all_exit_codes": 0,
+        "unchanged": true
+      }
+    ],
+    "native_postgresql": {
+      "path": ".tmp/cal03-event-study-20261119/control-native-scoped6.json",
+      "sha256": "6358de64e055886844e0895eeb37f351ea0879a0129beb2f043a1e9c3ab68cf3",
+      "exit_code": 0,
+      "counts": {
+        "tests": 37,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "schema": {
+        "path": ".tmp/cal03-event-study-20261119/control-scoped-schema.json",
+        "sha256": "5cf376f9a68ba3eb7ec5b6a1e398276623e0f050af1df247c9cfed4f6682cbb9"
+      },
+      "identity": [
+        "cal03_event_study_control_qa",
+        "postgres",
+        "PostgreSQL 16.15 (Debian 16.15-1.pgdg13+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit"
+      ],
+      "applied_migrations": 214,
+      "scope": "Every forward migration in the touched Research/auth/PIT dependency closure; existing unrelated applied migrations retained. Not a full-project fresh-schema qualification.",
+      "fixture_isolation": "Only synthetic event-study/PIT rows reset between cases; real commits, enabled triggers, fsync/on, synchronous_commit/on, full_page_writes/on. Account provisioning excluded from auth fixture setup.",
+      "resource_budget": {
+        "cpu": 1.0,
+        "memory_bytes": 536870912
+      }
+    },
+    "unit_regression": {
+      "counts": {
+        "tests": 117,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "log": {
+        "path": ".tmp/cal03-event-study-20261119/logs/control-final-units.txt",
+        "sha256": "2293ca8ab5bb72f2bf32e697c7c7e4019332cf31ef3be40fd472f9188d1e0151"
+      }
+    },
+    "sqlite_migration_smoke": {
+      "path": ".tmp/cal03-event-study-20261119/control-sqlite-smoke.json",
+      "sha256": "a1206fc63644606c3adfc3816dab87c4e76de992971d1e6747442020583a509f",
+      "scope": "Actual 0030 and 0031 operations on minimal synthetic prerequisites; six raw mutation denials and duplicate claim denial, not native concurrency evidence"
+    },
+    "protected_data02": {
+      "path": ".tmp/cal03-event-study-20261119/control-metadata-checks.json",
+      "sha256": "f31f55f3ecdabb0c144fe14af51cb8dd14395d24f501df8cb8e879875e404bd3"
+    },
+    "governance_registry": {
+      "path": "governance/active_plan_registry.json",
+      "sha256": "77d4a8798074dc338fdbaac13804c8cad8824eaa25b6228af4251473d1095655",
+      "validation": {
+        "path": ".tmp/cal03-event-study-20261119/logs/control-final-registry-r2.txt",
+        "sha256": "0e5e4ebae9206cf0e61f2f9a550ef8ad2914214f034baf57db0b84bb3dcf6a7e"
+      },
+      "exit_code": 0
+    },
+    "qa_environment": [
+      {
+        "path": ".tmp/cal03-event-study-20261119/cal03_qa_settings.py",
+        "sha256": "b6f3d572adfcc12061dbe91674a16b195cdc553dd571ba9d66f9492b7259c9ce"
+      },
+      {
+        "path": ".tmp/cal03-event-study-20261119/cal03_scoped_schema.py",
+        "sha256": "6fd7187029f34c1b99b96ef24c52d49b48d5a6c2e6cf0cee1adee2437af74f15"
+      },
+      {
+        "path": ".tmp/cal03-event-study-20261119/run_control_native.py",
+        "sha256": "ee324fbf3f33da17b7f7a9ee81e02389cc94401eca41bf0ed29b89fa3d211e45"
+      },
+      {
+        "path": ".tmp/cal03-event-study-20261119/cal03_test_diagnostics.py",
+        "sha256": "ff4fde015c1d3a1e5e17d242f43c594cfa5636f8b37a232380da19d070bb976a"
+      }
+    ],
+    "shared_index_collision": {
+      "commit": "efc703b0bc9d83cc0cb380edece019622c00a703",
+      "followup_note_commit": "0d0a3422af96bd4b93af16abfa86b28860287d1d",
+      "scope": "Fourteen prematurely staged CAL03 draft paths were included by another session in a DATA02 documentation commit. Preserve history and external documents; complete hardening, projection and same-candidate acceptance in the scoped follow-up commit. The mixed draft is not accepted final control evidence and does not alter sealed c5.",
+      "source_worktree_preserved": true
+    },
+    "diagnostics": [
+      {
+        "path": ".tmp/cal03-event-study-20261119/control-native-r1.json",
+        "sha256": "cfebd953e1859340cec4abe7bf98e6c4643f1cdc6deb10ad32461399162f01b1",
+        "exit_code": 1,
+        "qualification": "diagnostic only; not final-candidate acceptance"
+      },
+      {
+        "path": ".tmp/cal03-event-study-20261119/control-native-r2.json",
+        "sha256": "857ff9f7216984342be4c1cde52e4ac1de4ac1560dc4fdee82ce09fb794c2c12",
+        "exit_code": 1,
+        "qualification": "diagnostic only; not final-candidate acceptance"
+      },
+      {
+        "path": ".tmp/cal03-event-study-20261119/control-native-r3.json",
+        "sha256": "c7548a814bbb9286b57542d5b407f5c23d90bb0bf3194eb54e8bb4bced17d597",
+        "exit_code": 1,
+        "qualification": "diagnostic only; not final-candidate acceptance"
+      },
+      {
+        "path": ".tmp/cal03-event-study-20261119/control-native-r4.json",
+        "sha256": "a56f33e753c1f2a39b91e349850e50f9333271e29c9b7243b0c8a6f1f38f6a56",
+        "exit_code": 1,
+        "qualification": "diagnostic only; not final-candidate acceptance"
+      },
+      {
+        "path": ".tmp/cal03-event-study-20261119/control-native-r5.json",
+        "sha256": "64160b856ed811ceba059be8d23a9ef9c0428c8a0ed45d7144e5ea764e8282b2",
+        "exit_code": 4294967295,
+        "qualification": "diagnostic only; not final-candidate acceptance"
+      },
+      {
+        "path": ".tmp/cal03-event-study-20261119/control-native-scoped1.json",
+        "sha256": "14aa2eaa906aefb269866527b7f7e07ed7214dc5f5fd989b2474de94fa37212f",
+        "exit_code": 4294967295,
+        "qualification": "diagnostic only; not final-candidate acceptance"
+      },
+      {
+        "path": ".tmp/cal03-event-study-20261119/control-native-scoped2.json",
+        "sha256": "213bd5cafc743a34212c82652ba730e55e5e05b10740622ccfff27371af7faba",
+        "exit_code": 1,
+        "qualification": "diagnostic only; not final-candidate acceptance",
+        "reason": "Migration lock timeout while an abandoned old native flush held the table; only the dedicated QA backend was terminated"
+      },
+      {
+        "path": ".tmp/cal03-event-study-20261119/control-native-scoped3.json",
+        "sha256": "4f71d8428c5bf48cdd39564e6158aa5f6f7affcdd68dbcf9b1b396b449a378fe",
+        "exit_code": 1,
+        "qualification": "diagnostic only; not final-candidate acceptance",
+        "reason": "Native connection timeout before business tests; local connection negotiation measured and QA connection parameters corrected"
+      },
+      {
+        "path": ".tmp/cal03-event-study-20261119/control-native-scoped4.json",
+        "sha256": "f8a5df8a42741c73e434c1c0d1bf76613fda4d021c1edb5d98b9d3f608969ad4",
+        "exit_code": 1,
+        "qualification": "diagnostic only; not final-candidate acceptance",
+        "reason": "22 passed then a test helper supplied parameter_hash twice; fixed, focused case passed, full final suite rerun independently"
+      },
+      {
+        "path": ".tmp/cal03-event-study-20261119/control-native-scoped5-focus-readiness-stop.json",
+        "sha256": "88edc67b4d950faf9f6b595c45164bfbfc8b9554aef7a6e44f9e6a31243489a2",
+        "exit_code": -1,
+        "qualification": "diagnostic only; not final-candidate acceptance",
+        "reason": "Obsolete two-second connection readiness stopped before pytest; focused rerun uses consistent local transport settings"
+      },
+      {
+        "path": ".tmp/cal03-event-study-20261119/control-native-scoped5b-focus.json",
+        "sha256": "9ceb822535825ab517bd587846356777958b5b01b8063b13264f7c3eaacfb6d5",
+        "exit_code": 0,
+        "qualification": "diagnostic only; not final-candidate acceptance"
+      }
+    ],
+    "earlier_type_failure": {
+      "path": ".tmp/cal03-event-study-20261119/control-types-r1.json",
+      "sha256": "c5dbfb24eb44ffabddfdf749c7b9a1268da5a6cd81d6dce0e9d5549acaab13c7",
+      "status": "retained and resolved; not final evidence"
+    },
+    "earlier_sqlite_failures": [
+      {
+        "path": ".tmp/cal03-event-study-20261119/logs/control-sqlite-smoke.txt",
+        "sha256": "83389674d3b4004a0ec0a2cc2f2997a063aaba480fa29536a420e8d03fbb0bd5"
+      },
+      {
+        "path": ".tmp/cal03-event-study-20261119/logs/control-sqlite-smoke-r2.txt",
+        "sha256": "a5af0127e56e33eef35ac7fd96710d28f4f744179532bcb5d298f249c3185877"
+      }
+    ],
+    "historical_source_qualification": {
+      "path": ".tmp/cal03-event-study-20261119/historical-source-qualification.json",
+      "sha256": "d5444e610bc231bc3e8125d4f3cbb2189d98a5985549c47a1d0687a6a276ed24",
+      "official_originals_retained": 7,
+      "qualified_full_history_packages": 0,
+      "target_codes": [
+        "000300",
+        "000016",
+        "000905"
+      ]
+    },
+    "commit_receipt": ".tmp/cal03-event-study-20261119/control-commit.json",
+    "market_provider_dispatches": 0,
+    "production_actions": 0,
+    "real_oos_claimed_or_evaluated": false,
+    "frozen_spec_changed": false,
+    "rollback": "Disable control entrypoints/revert only scoped code; preserve any real bindings and OOS receipts. Never reverse/drop tables or delete receipts to refund use."
   }
 }

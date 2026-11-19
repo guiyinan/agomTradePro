@@ -227,11 +227,14 @@ def _snapshot(
         or final.get("calendar_version") != manifest.calendar_version
     ):
         raise EventStudyControlError("SPLIT_CALENDAR_MISMATCH")
-    current_members = dict(
-        ExperimentTrial._default_manager.filter(family=family).values_list(
-            "trial_id", "parameter_hash"
-        )
+    family_trials = ExperimentTrial._default_manager.filter(family=family).values(
+        "trial_id", "parameter_hash", "parameters"
     )
+    current_members: dict[str, str] = {}
+    for member in family_trials:
+        if _hash(member["parameters"]) != member["parameter_hash"]:
+            raise EventStudyControlError("FAMILY_PARAMETER_DIGEST_MISMATCH")
+        current_members[member["trial_id"]] = member["parameter_hash"]
     members = (
         registered_trials
         if registered_trials is not None

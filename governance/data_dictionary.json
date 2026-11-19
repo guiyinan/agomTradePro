@@ -63712,6 +63712,211 @@
     "research": {
       "models": [
         {
+          "bases": [
+            "_StudyImmutableModel"
+          ],
+          "class_name": "EventStudyBindingModel",
+          "docstring": "One designated final trial per experiment and stable preregistration key.",
+          "fields": [
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 128,
+                "unique": true
+              },
+              "name": "study_key",
+              "positional_args": [],
+              "unique": true
+            },
+            {
+              "field_type": "ForeignKey",
+              "kwargs": {
+                "on_delete": "models.PROTECT"
+              },
+              "name": "spec",
+              "positional_args": [
+                "EventStudySpecModel"
+              ]
+            },
+            {
+              "field_type": "OneToOneField",
+              "kwargs": {
+                "on_delete": "models.PROTECT"
+              },
+              "name": "experiment",
+              "positional_args": [
+                "'research.ResearchExperiment'"
+              ]
+            },
+            {
+              "field_type": "ForeignKey",
+              "kwargs": {
+                "on_delete": "models.PROTECT"
+              },
+              "name": "family",
+              "positional_args": [
+                "'research.MultipleTestFamily'"
+              ]
+            },
+            {
+              "field_type": "OneToOneField",
+              "kwargs": {
+                "on_delete": "models.PROTECT"
+              },
+              "name": "trial",
+              "positional_args": [
+                "'research.ExperimentTrial'"
+              ]
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "manifest_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "manifest_sha256",
+              "positional_args": []
+            },
+            {
+              "field_type": "JSONField",
+              "name": "snapshot",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "snapshot_sha256",
+              "positional_args": []
+            },
+            {
+              "field_type": "PositiveBigIntegerField",
+              "name": "bound_by_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "name": "bound_at",
+              "positional_args": []
+            }
+          ],
+          "meta": {
+            "abstract": false,
+            "constraints": "[models.UniqueConstraint(fields=['spec'], name='revent_study_spec_binding_uq')]",
+            "db_table": "research_event_study_binding"
+          },
+          "source_file": "infrastructure/event_study_control_models.py"
+        },
+        {
+          "bases": [
+            "_StudyImmutableModel"
+          ],
+          "class_name": "EventStudyFinalOOSClaimModel",
+          "docstring": "Unique, irrevocable final-use receipt, committed before evaluator entry.",
+          "fields": [
+            {
+              "field_type": "OneToOneField",
+              "kwargs": {
+                "on_delete": "models.PROTECT"
+              },
+              "name": "binding",
+              "positional_args": [
+                "EventStudyBindingModel"
+              ]
+            },
+            {
+              "field_type": "PositiveBigIntegerField",
+              "name": "actor_user_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "PositiveIntegerField",
+              "name": "cumulative_family_trials",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "name": "claimed_at",
+              "positional_args": []
+            }
+          ],
+          "meta": {
+            "abstract": false,
+            "db_table": "research_event_study_final_oos_claim"
+          },
+          "source_file": "infrastructure/event_study_control_models.py"
+        },
+        {
+          "bases": [
+            "_StudyImmutableModel"
+          ],
+          "class_name": "EventStudySpecModel",
+          "docstring": "Operator-initialized original bytes and digest of a frozen specification.",
+          "fields": [
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 128,
+                "unique": true
+              },
+              "name": "spec_id",
+              "positional_args": [],
+              "unique": true
+            },
+            {
+              "field_type": "TextField",
+              "name": "document",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64,
+                "unique": true
+              },
+              "name": "document_sha256",
+              "positional_args": [],
+              "unique": true
+            },
+            {
+              "field_type": "PositiveBigIntegerField",
+              "name": "registered_by_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "name": "registered_at",
+              "positional_args": []
+            }
+          ],
+          "meta": {
+            "abstract": false,
+            "db_table": "research_event_study_spec"
+          },
+          "source_file": "infrastructure/event_study_control_models.py"
+        },
+        {
+          "abstract": true,
+          "bases": [
+            "models.Model"
+          ],
+          "class_name": "_StudyImmutableModel",
+          "meta": {
+            "abstract": true,
+            "base_manager_name": "objects",
+            "default_manager_name": "objects"
+          },
+          "source_file": "infrastructure/event_study_control_models.py"
+        },
+        {
           "abstract": true,
           "bases": [
             "models.Model"

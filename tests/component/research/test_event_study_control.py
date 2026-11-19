@@ -6,11 +6,13 @@ import hashlib
 import json
 import subprocess
 import sys
+from collections.abc import Iterator
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from threading import Barrier
+from uuid import uuid4
 
 import pytest
 from django.contrib.auth import get_user_model
@@ -43,15 +45,6 @@ from apps.research.infrastructure.models import (
 from apps.research.infrastructure.repositories import ResearchRegistryRepository
 
 pytestmark = [
-    pytest.mark.django_db(
-        transaction=True,
-        available_apps=(
-            "django.contrib.auth",
-            "django.contrib.contenttypes",
-            "apps.research",
-            "apps.data_center",
-        ),
-    ),
     pytest.mark.skipif(connection.vendor != "postgresql", reason="native PostgreSQL required"),
 ]
 DOCUMENT = (
@@ -65,11 +58,39 @@ assert SPEC_SHA == "29a44d0cd2670dd2a72853494d21271c9765d6584dafa4998e1df3c2a6ed
 AS_OF = datetime(2026, 11, 18, 10, tzinfo=UTC)
 
 
+@pytest.fixture(autouse=True)
+def native_database(django_db_setup, django_db_blocker) -> Iterator[None]:
+    """Use real commits; clean only synthetic rows in the dedicated native QA DB.
+
+    Avoid flushing unrelated app schemas and provisioning accounts. No enclosing
+    test transaction or disabled trigger may mask durable-claim behavior.
+    """
+    with django_db_blocker.unblock():
+        assert connection.settings_dict["NAME"] == "cal03_event_study_control_qa"
+        assert str(connection.settings_dict["PORT"]) == "55447"
+        assert not connection.in_atomic_block
+        with transaction.atomic(), connection.cursor() as cursor:
+            cursor.execute(
+                "TRUNCATE research_event_study_final_oos_claim, research_event_study_binding"
+            )
+            for table in (
+                "research_metric_observation",
+                "research_dataset_split_spec",
+                "research_experiment_trial",
+                "research_multiple_test_family",
+                "research_experiment",
+                "data_center_pit_dataset_manifest",
+                "data_center_pit_fact_version",
+            ):
+                cursor.execute(f"DELETE FROM {table}")
+        yield
+
+
 @pytest.fixture
 def registered() -> tuple[DjangoEventStudyRegistry, EventStudyBindingRequest, int]:
     assert connection.settings_dict["NAME"] == "cal03_event_study_control_qa"
     user = get_user_model()._default_manager.create(
-        username="cal03-owner", is_active=True, is_staff=True
+        username=f"cal03-owner-{uuid4().hex[:16]}", is_active=True, is_staff=True
     )
     registry = DjangoEventStudyRegistry()
     registry.register_spec(DOCUMENT, SPEC_SHA, actor_user_id=user.pk)
@@ -257,7 +278,9 @@ def test_any_bound_input_drift_blocks_claim(registered, tamper: str) -> None:
     registry, request, actor = registered
     registry.bind(request, actor_user_id=actor)
     if tamper == "parameters":
-        ExperimentTrial._default_manager.filter(pk=request.trial_id).update(parameter_hash="e" * 64)
+        ExperimentTrial._default_manager.filter(pk=request.trial_id).update(
+            parameters={"altered": True}
+        )
     elif tamper == "code":
         ExperimentTrial._default_manager.filter(pk=request.trial_id).update(code_commit="e" * 40)
     else:
@@ -290,7 +313,9 @@ def test_any_bound_input_drift_blocks_claim(registered, tamper: str) -> None:
 def test_other_actor_is_denied_without_claiming(registered) -> None:
     registry, request, actor = registered
     registry.bind(request, actor_user_id=actor)
-    other = get_user_model()._default_manager.create(username="cal03-other", is_active=True)
+    other = get_user_model()._default_manager.create(
+        username=f"cal03-other-{uuid4().hex[:16]}", is_active=True
+    )
     with pytest.raises(EventStudyControlError, match="RESEARCH_ACCESS_DENIED"):
         registry.claim(request.study_key, actor_user_id=other.pk)
     assert not EventStudyFinalOOSClaimModel.objects.exists()
@@ -378,9 +403,7 @@ def add_family_trial(
         )
     values = {name: getattr(original, name) for name in ExperimentTrial.IMMUTABLE_FIELDS}
     values["family_id"] = family_id
-    ExperimentTrial._default_manager.create(
-        trial_id=identity, status="draft", parameter_hash=original.parameter_hash, **values
-    )
+    ExperimentTrial._default_manager.create(trial_id=identity, status="draft", **values)
     old_split = DatasetSplitSpec._default_manager.get(pk=original.pk)
     DatasetSplitSpec._default_manager.create(
         trial_id=identity,
@@ -442,5 +465,64 @@ def test_inactive_account_cannot_consume(registered) -> None:
     registry.bind(request, actor_user_id=actor)
     get_user_model()._default_manager.filter(pk=actor).update(is_active=False)
     with pytest.raises(EventStudyControlError, match="RESEARCH_ACCESS_DENIED"):
+        registry.claim(request.study_key, actor_user_id=actor)
+    assert not EventStudyFinalOOSClaimModel.objects.exists()
+
+
+def test_new_experiment_cannot_reuse_same_frozen_spec(registered) -> None:
+    registry, request, actor = registered
+    registry.bind(request, actor_user_id=actor)
+    registry.claim(request.study_key, actor_user_id=actor)
+    add_family_trial(request, "clone", new_family=True)
+    ResearchExperiment._default_manager.create(experiment_id="clone-exp", owner_id=actor)
+    MultipleTestFamily._default_manager.filter(pk="clone-family").update(experiment_id="clone-exp")
+    ExperimentTrial._default_manager.filter(pk="clone").update(experiment_id="clone-exp")
+    with pytest.raises(EventStudyControlError, match="PREREGISTRATION_CONFLICT"):
+        registry.bind(
+            replace(request, study_key="cloned-study", trial_id="clone"), actor_user_id=actor
+        )
+    assert EventStudyFinalOOSClaimModel.objects.count() == 1
+
+
+@pytest.mark.parametrize("operation", ["delete", "move", "hash"])
+def test_appended_attempt_cannot_disappear_from_cumulative_count(
+    registered, operation: str
+) -> None:
+    registry, request, actor = registered
+    registry.bind(request, actor_user_id=actor)
+    add_family_trial(request, "second")
+    with pytest.raises(IntegrityError), transaction.atomic():
+        if operation == "delete":
+            ExperimentTrial._default_manager.filter(pk="second").delete()
+        elif operation == "move":
+            MultipleTestFamily._default_manager.create(
+                family_id="other", experiment_id="cal03-exp", planned_trial_count=2
+            )
+            ExperimentTrial._default_manager.filter(pk="second").update(family_id="other")
+        else:
+            ExperimentTrial._default_manager.filter(pk="second").update(parameter_hash="e" * 64)
+    assert registry.claim(request.study_key, actor_user_id=actor).cumulative_family_trials == 2
+
+
+@pytest.mark.parametrize("field", ["fdr_threshold", "started_at", "completed_at"])
+def test_frozen_threshold_and_execution_state_cannot_be_relaxed(registered, field: str) -> None:
+    registry, request, actor = registered
+    if field == "fdr_threshold":
+        MultipleTestFamily._default_manager.filter(pk="cal03-family").update(fdr_threshold=0.10)
+        reason = "FROZEN_FAMILY_THRESHOLD_MISMATCH"
+    else:
+        ExperimentTrial._default_manager.filter(pk=request.trial_id).update(**{field: AS_OF})
+        reason = "TRIAL_ALREADY_EXECUTED"
+    with pytest.raises(EventStudyControlError, match=reason):
+        registry.bind(request, actor_user_id=actor)
+    assert not EventStudyBindingModel.objects.exists()
+
+
+def test_sibling_parameters_must_still_match_their_registered_digest(registered) -> None:
+    registry, request, actor = registered
+    registry.bind(request, actor_user_id=actor)
+    add_family_trial(request, "second")
+    ExperimentTrial._default_manager.filter(pk="second").update(parameters={"altered": True})
+    with pytest.raises(EventStudyControlError, match="FAMILY_PARAMETER_DIGEST_MISMATCH"):
         registry.claim(request.study_key, actor_user_id=actor)
     assert not EventStudyFinalOOSClaimModel.objects.exists()

@@ -7,8 +7,8 @@
 ## 概览
 
 - App 数：42
-- 模型数：623
-- 字段数：9685
+- 模型数：627
+- 字段数：9705
 
 口径说明：仅覆盖 `apps/*/infrastructure/` 下的 `models.py`、`models/` 包与 `*_models.py`；字段为类体内显式赋值的 Django 字段，继承字段不展开，动态字段与隐式自增主键不在投影内。
 
@@ -10020,6 +10020,58 @@
 
 
 ## research
+
+### EventStudyBindingModel
+
+- 来源文件：`apps/research/infrastructure/event_study_control_models.py`
+- 数据表：`research_event_study_binding`
+- 说明：One designated final trial per experiment and stable preregistration key.
+
+| 字段 | 类型 | null | unique | 默认值 | 说明 | 关系目标 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `study_key` | `CharField` |  | 是 |  |  |  |
+| `spec` | `ForeignKey` |  |  |  |  | EventStudySpecModel |
+| `experiment` | `OneToOneField` |  |  |  | research.ResearchExperiment | research.ResearchExperiment |
+| `family` | `ForeignKey` |  |  |  | research.MultipleTestFamily | research.MultipleTestFamily |
+| `trial` | `OneToOneField` |  |  |  | research.ExperimentTrial | research.ExperimentTrial |
+| `manifest_id` | `CharField` |  |  |  |  |  |
+| `manifest_sha256` | `CharField` |  |  |  |  |  |
+| `snapshot` | `JSONField` |  |  |  |  |  |
+| `snapshot_sha256` | `CharField` |  |  |  |  |  |
+| `bound_by_id` | `PositiveBigIntegerField` |  |  |  |  |  |
+| `bound_at` | `DateTimeField` |  |  |  |  |  |
+
+### EventStudyFinalOOSClaimModel
+
+- 来源文件：`apps/research/infrastructure/event_study_control_models.py`
+- 数据表：`research_event_study_final_oos_claim`
+- 说明：Unique, irrevocable final-use receipt, committed before evaluator entry.
+
+| 字段 | 类型 | null | unique | 默认值 | 说明 | 关系目标 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `binding` | `OneToOneField` |  |  |  |  | EventStudyBindingModel |
+| `actor_user_id` | `PositiveBigIntegerField` |  |  |  |  |  |
+| `cumulative_family_trials` | `PositiveIntegerField` |  |  |  |  |  |
+| `claimed_at` | `DateTimeField` |  |  |  |  |  |
+
+### EventStudySpecModel
+
+- 来源文件：`apps/research/infrastructure/event_study_control_models.py`
+- 数据表：`research_event_study_spec`
+- 说明：Operator-initialized original bytes and digest of a frozen specification.
+
+| 字段 | 类型 | null | unique | 默认值 | 说明 | 关系目标 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `spec_id` | `CharField` |  | 是 |  |  |  |
+| `document` | `TextField` |  |  |  |  |  |
+| `document_sha256` | `CharField` |  | 是 |  |  |  |
+| `registered_by_id` | `PositiveBigIntegerField` |  |  |  |  |  |
+| `registered_at` | `DateTimeField` |  |  |  |  |  |
+
+### _StudyImmutableModel
+
+- 来源文件：`apps/research/infrastructure/event_study_control_models.py`
+- 抽象模型：是
 
 ### EvidenceAppendOnlyModel
 

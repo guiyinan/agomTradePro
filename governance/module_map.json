@@ -4148,7 +4148,7 @@
           "imports": 3
         },
         "research": {
-          "imports": 6
+          "imports": 7
         },
         "risk_center": {
           "imports": 17
@@ -5180,8 +5180,10 @@
           "SyncValuationUseCaseProtocol"
         ],
         "application/pit_provider.py": [
+          "PITManifestBinding",
           "configure_pit_providers",
           "get_pit_manifest_evidence",
+          "get_verified_pit_manifest_binding",
           "make_manifest_bound_pit_view"
         ],
         "application/pit_use_cases.py": [
@@ -8962,7 +8964,7 @@
     "research": {
       "depends_on": {
         "data_center": {
-          "imports": 6,
+          "imports": 7,
           "target_layers": [
             "application",
             "domain",
@@ -9039,6 +9041,9 @@
         ],
         "application/data_center_evidence_adapter.py": [
           "build_quote_legacy_evidence_summary"
+        ],
+        "application/event_study_control.py": [
+          "EventStudyControl"
         ],
         "application/evid_01_authority_inventory.py": [
           "Evid01AuthorityInventoryError",
@@ -9802,11 +9807,12 @@
         ]
       },
       "layers": {
-        "application": 72,
-        "domain": 65,
-        "infrastructure": 106,
+        "application": 73,
+        "domain": 66,
+        "infrastructure": 108,
         "interface": 6,
-        "root": 34
+        "management": 1,
+        "root": 35
       },
       "orm_models": {
         "infrastructure/models.py": [

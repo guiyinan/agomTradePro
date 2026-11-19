@@ -105,6 +105,9 @@ class EventStudyBindingModel(_StudyImmutableModel):
     class Meta(_StudyImmutableModel.Meta):
         abstract = False
         db_table = "research_event_study_binding"
+        constraints = [
+            models.UniqueConstraint(fields=["spec"], name="revent_study_spec_binding_uq")
+        ]
 
 
 class EventStudyFinalOOSClaimModel(_StudyImmutableModel):
