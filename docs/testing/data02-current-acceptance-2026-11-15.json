@@ -7565,7 +7565,7 @@
         }
       },
       "market_window_recovery_pending_owner": {
-        "status": "dad11_new_image_migrations_scope_and_probe_passed_capacity_running",
+        "status": "dad11_blocked_quote_scope_originals_retained_necessary_fix_scope_coordination_pending",
         "proposal": {
           "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-budget-revised-s6/c5-window-recovery-proposal.json",
           "sha256": "3396c28a8addceb8d48fe38bc436023b5000fb2a99fc7fc1b452f18a762e6c04"
@@ -7742,7 +7742,7 @@
               "sha256": "6324be2834270d8ecd4fce33f568e3cfe685723325a9ced49d5db2d49c36fabd"
             },
             {
-              "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/collect-c5-s6-public-reports.py",
+              "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/collect-public-reports.before-capacity-expansion.py",
               "sha256": "5b77d053dacfaaef023fe01f48e59a9d1f6a5d387ad80490332b506052364ad9"
             }
           ],
@@ -7825,11 +7825,11 @@
           "post_s6_c2_and_one_production_refresh_reserve": 60,
           "maximum_reserved_after_actual_graph": 335,
           "latest_runner_observation": {
-            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/c5-postrepair-s6-runner-observation-r9.json",
-            "sha256": "4527d17f01ad6b3e03db1057fce272fd7efc0b6467baa6251add1c8a8cf9e955"
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/c5-postrepair-s6-runner-observation-r10.json",
+            "sha256": "71a9128e21e4b9d863b1d0607ff42f4e6a8c5735ab647b319ab66bdd40fbfda8"
           },
-          "runner_stage_last_observed": "response_replay; active command full_universe_capacity",
-          "runner_currently_running": true,
+          "runner_stage_last_observed": "full_universe_capacity",
+          "runner_currently_running": false,
           "candidate_built_image_identity": "sha256:5614bcaa52df4b60a29bab76c4af120ea3fea1e38f04a1b69b18b33909302d66",
           "actual_additional_provider_usage_after_runner_start": "await same-attempt stage reports; not inferred from launch",
           "build_report": {
@@ -7877,7 +7877,7 @@
           "probe_publication_updated": false,
           "market_confirmed_graph_plus_probe": 244,
           "market_usage_complete_through_current_capacity": false,
-          "capacity_actual_requests": "await same-attempt full_universe_capacity report; may already have dispatched, do not infer0",
+          "capacity_actual_requests": "Not retained by c5 failure path. Upper bound30 under the stage guard, conservatively reserve30; not a measured actual30.",
           "full_native_compatibility_actual_build_binding": {
             "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/actual-build-native-compatibility.receipt.json",
             "sha256": "892fc678ed36281a29dbb2b58539e252ae422a81a575d895c2a87dfdb750408a"
@@ -7889,11 +7889,120 @@
           "full_native_compatibility_outcome": "OBSERVED_NATIVE_COMPATIBILITY_VERIFIED",
           "genuine_build_manifest_path": "/opt/agomtradepro/releases/source-20261119110739/.agom-release-manifest.json",
           "genuine_build_manifest_sha256": "7d04e0600db1e724106d2be7f2250432de8807968e6d36d74418b660ee18f30b",
-          "native_compatibility_boundary": "Full official file verifier passed using existing seven native originals and actual new build manifest. Supports bounded legacy bootstrap only; production qualification remainsfalse. No fresh QA database or provider calls. This does not audit incidental Python bytecode cache writes."
+          "native_compatibility_boundary": "Full official file verifier passed using existing seven native originals and actual new build manifest. Supports bounded legacy bootstrap only; production qualification remainsfalse. No fresh QA database or provider calls. This does not audit incidental Python bytecode cache writes.",
+          "natural_terminal_status": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/c5-s6-public-reports-r4/run-status.json",
+            "sha256": "648fdc7c11ca8b388d87ac597e4f5ec9fb18df666f6539968228841256f5daef"
+          },
+          "runner_terminal_outcome": "blocked",
+          "runner_terminal_error_code": "REHEARSAL_CAPACITY_QUOTE_SCOPE_INCOMPLETE",
+          "capacity_command_diagnostic": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/capacity-diagnostic-readonly-r1.json",
+            "sha256": "57e3fecaef74f11dd418197a6e11b3d01147f071f2402d4fd1e637d88d1686c1"
+          },
+          "market_conservative_upper_bound": 274,
+          "response_replay": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/c5-s6-public-reports-r4/response-replay/output/real-response-unit-replay.json",
+            "sha256": "3aab6607bcb78e1492e25f57130c9e1b5702bf6a309fbab6048cd99bd6ca9e98"
+          },
+          "response_replay_outcome": "success",
+          "production_policy_parity": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/c5-s6-public-reports-r4/production-policy-parity/output/production-policy-parity.json",
+            "sha256": "b082f0e6203f46cb7bd1c729e54ad720f1120f165408989808d5fd41095628fc"
+          },
+          "production_policy_parity_outcome": "success",
+          "isolated_write_rehearsal": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/c5-s6-public-reports-r4/isolated-postgresql/output/isolated-write-rehearsal.json",
+            "sha256": "322827ad72ca5c279c1cf30e54990f7351427b7e8a4c9cf22f46aaacb4e3265f"
+          },
+          "isolated_write_outcome": "success",
+          "all_successes_remain_bound_to_failed_dad11_not_reusable_full_S6_pass": true,
+          "terminal_resources_readonly": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/terminal-resource-readonly.receipt.json",
+            "sha256": "80ef7cd287d3671a73adc11f20c6cdfdb7ef13f4ee7ade86593ed278c2c25b54"
+          },
+          "terminal_owned_containers_stopped": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/terminal-owned-containers-stopped.receipt.json",
+            "sha256": "ffd46bcad663089b9c26c130bb849d85d4ba6fa654581b011c65d3dd116d9c9d"
+          },
+          "terminal_stop_controller": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/stop_terminal_attempt_resources.py",
+            "sha256": "3a0148038f66b28d7d926252882ef95a55818604bbec9df443161508dba97c23"
+          },
+          "terminal_resources_retained": "PG/Redis stopped after zero clients, parent gone and active_count0; containers, volumes, network, original inputs and source/image/evidence retained; no deletion or production identity change",
+          "failed_capacity_details_available": false,
+          "failure_details_gap": "Management command only printed detailed JSON to stderr; Runtime intentionally retained only privacy-safe counts/categories/codes/frames. No capacity report or response capture was written before the failure. The discarded153615-byte stderr cannot be reconstructed from stored summaries.",
+          "earlier_probe_retained_daily_original": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/retained-probe-daily-original.body",
+            "sha256": "8df2766b10273528ac6babb43ece5bd25d2defac0b2fa254308613db696e2369"
+          },
+          "earlier_probe_daily_inspection": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/retained-probe-daily-inspection.json",
+            "sha256": "6f1d3d7b3669f427053f028e6e111590982875cac04c9345bff2908783a24b5e"
+          },
+          "earlier_probe_daily_inspector": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/inspect_retained_probe_daily.py",
+            "sha256": "6207e1805169749e1b7f62e74f47afc574c6390a5adf7ef5fddd7a7a40541af7"
+          },
+          "earlier_probe_daily_row_count": 5574,
+          "earlier_probe_daily_missing_codes": [
+            "000635.SZ",
+            "002717.SZ",
+            "600185.SH",
+            "688121.SH",
+            "688496.SH",
+            "688798.SH"
+          ],
+          "earlier_probe_daily_proof_limit": "Earlier provider_probe response has target19 data and six absences, not the failed capacity response, full-day suspension evidence or actual capacity dispatch count.",
+          "sealed_guard_mask_reproduction": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/sealed-suspension-guard-mask-red.json",
+            "sha256": "822ff72414339ee6f3aad680e37df9f9c85b4882ecff7d0fd59e24ab8ad1eae6"
+          },
+          "sealed_guard_mask_reproducer": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/reproduce_sealed_suspension_guard_mask.py",
+            "sha256": "869d3c4fe1c0698b00b0f5309c6c4b6996cc76aa44d9c8d493cbc41647d86100"
+          },
+          "sealed_guard_mask_proof_limit": "Source-exact AST/real exception definitions with synthetic budget error proves masking defect; it does not establish which error the real unretained capacity input had."
         },
         "pre_window_preparation_provider_requests": 0,
-        "latest_confirmed_usage_basis": "189 previous+26 new graph+29 probe=244; current capacity phase usage pending actual receipt",
-        "current_market_used_is_complete": false
+        "latest_confirmed_usage_basis": "189 previous+26 graph+29 probe=244 measured; failed capacity actual unavailable, conservatively reserve its full30 for upper274. No new provider request after failure.",
+        "current_market_used_is_complete": false,
+        "next_fresh_s6_authorized": false,
+        "necessary_blocker_repair_preparation": {
+          "scope": "Explicit optional batch full-day suspension capability in existing protocol/source files, precise missing-code single query with strict response validation, global transport guard preservation, and capacity-specific bounded privacy-safe failure diagnostic including actual transport counters. No coverage/date relaxation or global provider cache.",
+          "implementation_not_started": true,
+          "source_application_changes_this_followup": false,
+          "planned_source_paths": [
+            "apps/data_center/domain/model_market_data.py",
+            "apps/data_center/infrastructure/tushare_model_market_source.py",
+            "apps/data_center/infrastructure/full_universe_capacity_runner.py",
+            "apps/data_center/management/commands/rehearse_full_universe_capacity.py"
+          ],
+          "regression_scope": [
+            "tests/unit/data_center/test_full_universe_capacity_runner.py",
+            "tests/unit/data_center/test_model_market_data.py",
+            "tests/unit/data_center/test_rehearsal_http_capture.py",
+            "focused capacity command diagnostic/privacy tests"
+          ],
+          "formal_documentation_sources": [
+            {
+              "url": "https://tushare.pro/document/2?doc_id=214",
+              "supports": "suspend_d optional multi-value ts_code/date query;5000-row limit; nonempty suspend_timing identifies intraday suspension"
+            },
+            {
+              "url": "https://tushare.pro/document/2?doc_id=27",
+              "supports": "daily does not supply data during suspension"
+            }
+          ],
+          "evidence_boundary": "Six earlier daily absences do not prove all six full-day suspended. Batch source support on this proxy still needs a genuinely authorized retained response; no live diagnostic request was made.",
+          "repository_focus_current": "CAL-03 sole repository focus; DATA-02 production continues against sealed c5; parallel_preparation empty",
+          "coordination_chat": "CAL-03 事件波动研究准备",
+          "coordination_thread_id": "01a1f260-dde0-7030-b7b6-96f57e71c91c",
+          "cross_chat_message_authorization": "pending actual human reply; tool requires explicit human permission; no message sent",
+          "proposed_coordination_message": "DATA-02 sealed c5 attempt dad11d3e0caa4656a1ed3799527a0478 is terminal blocked at full_universe_capacity; production is unchanged and its own PG/Redis are stopped with all originals/data retained. A source-exact offline reproduction proves transport guards can be masked as unverified quote gaps. Need a bounded necessary acceptance-blocker fix in existing data_center suspension protocol/source, capacity collector/command and direct tests: explicit batch full-day evidence, hard transport propagation and privacy-safe failure diagnostics. Please arrange and record a short non-overlapping Source preparation/integration window under the existing authorization, keep shared Git/index/projections serialized, and preserve CAL-03 M2 boundaries. No additional provider requests, budget expansion, production deploy or DATA-03 advancement is requested. Record the window in this chat/registry; no cross-chat reply message is required.",
+          "future_qualification": "New source candidate requires applicable development checks, exact CI and actual image/S6 binding. Existing c5 native migration-tree proof is reusable only if candidate migration-tree identity is unchanged; do not assume it after CAL-03 research integration.",
+          "new_s6_budget_decision": "One approved fresh S6 was consumed. Prepare concrete checked candidate and cost/window before any new execution authorization; do not silently repurpose post-S6 C2/production reserve or unallocated per-part caps."
+        }
       },
       "current_audit_lease_pre_window_recheck": {
         "receipt": {
