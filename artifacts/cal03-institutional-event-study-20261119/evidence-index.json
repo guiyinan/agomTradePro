@@ -945,5 +945,52 @@
     ],
     "checks": ".tmp/cal03-event-study-20261119/qualification-20261120/checks.json",
     "commit_receipt": ".tmp/cal03-event-study-20261119/qualification-20261120/commit.json"
+  },
+  "retained_entitlement_and_calendar_followup_20261120": {
+    "base_head": "d5ebdf7e2dc294cc9d1bd2bcd20fc4425ad1d94a",
+    "report": {
+      "path": ".tmp/cal03-event-study-20261119/qualification-20261120/followup-review.json",
+      "sha256": "e63361b344885fef3a38b63cb57cf6de7bb789fcd28fb4073f03f10ef8e45dd3"
+    },
+    "actual_research_use_grant_verified": false,
+    "user_intended_use": null,
+    "local_filename_scan_count": 445,
+    "reused_price_responses": 3,
+    "per_target_complete_close_rows": 2187,
+    "official_price_original_version_ids": null,
+    "price_revision_lineage": null,
+    "historical_availability_verified": false,
+    "annual_notices_reused": 17,
+    "days_reconciled_per_exchange": 6163,
+    "annual_union_difference_dates": [
+      "2015-09-03",
+      "2015-09-04",
+      "2019-05-02",
+      "2019-05-03",
+      "2020-01-31"
+    ],
+    "after_identified_closure_revisions_current_snapshot_difference_count_each": 0,
+    "qualified_historical_calendar": false,
+    "new_2019_SSE_SZSE_original_revision_chain_retained": true,
+    "new_2016_SSE_intraday_halt_notices_retained": 4,
+    "event_effective_times_used_as_publication_or_availability": false,
+    "new_official_document_gets": 9,
+    "third_party_discovery_direct_http_gets": 2,
+    "market_or_financial_provider_dispatches": 0,
+    "data02_budget_consumed": 0,
+    "production_actions": 0,
+    "real_oos_claimed_or_evaluated": false,
+    "qualified_full_history_packages": 0,
+    "frozen_input_admitted": false,
+    "frozen_spec_sha256": "29a44d0cd2670dd2a72853494d21271c9765d6584dafa4998e1df3c2a6edfe71",
+    "remaining": [
+      "Actual operator/account entitlement and applicable research/storage/derived-result use/validity",
+      "All three official original/revised price histories or authoritative final-version/revision basis",
+      "Conservative historical availability before frozen cutoff",
+      "Complete applicable exchange calendar/rule/as-of and exceptional intraday/publication evidence",
+      "Qualified independent failover and preregistered manifest binding before evaluation"
+    ],
+    "checks": ".tmp/cal03-event-study-20261119/qualification-20261120/followup-checks.json",
+    "commit_receipt": ".tmp/cal03-event-study-20261119/qualification-20261120/followup-commit.json"
   }
 }
