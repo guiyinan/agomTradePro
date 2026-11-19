@@ -1,0 +1,251 @@
+{
+  "unit": "CAL-03",
+  "scope": "Local development integration and continued M2 research; not a complete real study or production qualification",
+  "base_head": "4f1ba5249187f9b5892f0b2d8d7d5d393bcb1d85",
+  "preparation_candidate": "a515369d0b841b3165aa811d6b4e5e7976d601c4511e813706aab146b9d56f42",
+  "code_files": {
+    "apps/research/domain/institutional_event_study.py": "b653eba70c8fc206b484d3dafa7bd74bde6132da2631356d0c6aca8e0f34e94a",
+    "tests/unit/research/test_institutional_event_study.py": "ca800d4b43eadce6d842f8e8c13cba33257a05e6db79b2fcee08a3c205484263"
+  },
+  "preparation_index": {
+    "path": ".tmp/cal03-event-study-20261119/evidence-index.json",
+    "sha256": "dbb01c461e18cf23515edc00efa69331508645297fe2b16647ca8b5120eb9232"
+  },
+  "formal_batches": [
+    {
+      "path": ".tmp/cal03-event-study-20261119/formal-r1.json",
+      "sha256": "9f87f3bb653fbc0d0d1ec2369adf8fb0eced5c8a15176764ddc808ffab2f9442",
+      "checks": [
+        {
+          "name": "pytest",
+          "argv": [
+            "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+            "-m",
+            "coverage",
+            "run",
+            "--rcfile=D:\\githv\\agomTradePro\\.tmp\\cal03-event-study-20261119/formal-coverage.ini",
+            "-m",
+            "pytest",
+            "-c",
+            "D:\\githv\\agomTradePro\\.tmp\\cal03-event-study-20261119\\pytest.ini",
+            "--confcutdir=tests/unit/research",
+            "tests/unit/research/test_institutional_event_study.py",
+            "-q"
+          ],
+          "exit_code": 0,
+          "log": ".tmp/cal03-event-study-20261119/logs/formal-r1-pytest.txt",
+          "sha256": "11b883c8c6214b8c2fc8699b343b1f78345ee29b7567b2b8aba2515998c9c98e"
+        },
+        {
+          "name": "coverage",
+          "argv": [
+            "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+            "-m",
+            "coverage",
+            "report",
+            "--rcfile=D:\\githv\\agomTradePro\\.tmp\\cal03-event-study-20261119/formal-coverage.ini"
+          ],
+          "exit_code": 0,
+          "log": ".tmp/cal03-event-study-20261119/logs/formal-r1-coverage.txt",
+          "sha256": "115e305f0a896eae662502ad876e0ab1da03e7afcea9b0e1fc53b694bbadaf01"
+        },
+        {
+          "name": "mypy-regression",
+          "argv": [
+            "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+            "scripts/check_mypy_regression.py",
+            "apps/research/domain/institutional_event_study.py"
+          ],
+          "exit_code": 0,
+          "log": ".tmp/cal03-event-study-20261119/logs/formal-r1-mypy-regression.txt",
+          "sha256": "1696369e79514135c6c84d87d82a0fc9c6a7026a4b6fda77e8a7e9b50eef135b"
+        },
+        {
+          "name": "mypy-debt",
+          "argv": [
+            "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+            "scripts/check_mypy_debt_ceiling.py"
+          ],
+          "exit_code": 0,
+          "log": ".tmp/cal03-event-study-20261119/logs/formal-r1-mypy-debt.txt",
+          "sha256": "def6c561b37227470bcda90c8450d9837ca85dd34af34d05e7d6af2afdf85ab1"
+        },
+        {
+          "name": "black",
+          "argv": [
+            "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+            "-m",
+            "black",
+            "--check",
+            "apps/research/domain/institutional_event_study.py",
+            "tests/unit/research/test_institutional_event_study.py"
+          ],
+          "exit_code": 0,
+          "log": ".tmp/cal03-event-study-20261119/logs/formal-r1-black.txt",
+          "sha256": "42952929f98ff284b84ffc33f5fca4e517620f9b2ceb3fca1375e504affa8195"
+        },
+        {
+          "name": "isort",
+          "argv": [
+            "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+            "-m",
+            "isort",
+            "--check-only",
+            "apps/research/domain/institutional_event_study.py",
+            "tests/unit/research/test_institutional_event_study.py"
+          ],
+          "exit_code": 0,
+          "log": ".tmp/cal03-event-study-20261119/logs/formal-r1-isort.txt",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "name": "ruff",
+          "argv": [
+            "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+            "-m",
+            "ruff",
+            "check",
+            "--no-cache",
+            "apps/research/domain/institutional_event_study.py",
+            "tests/unit/research/test_institutional_event_study.py"
+          ],
+          "exit_code": 0,
+          "log": ".tmp/cal03-event-study-20261119/logs/formal-r1-ruff.txt",
+          "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+        },
+        {
+          "name": "module-map",
+          "argv": [
+            "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+            "scripts/check_module_map.py"
+          ],
+          "exit_code": 0,
+          "log": ".tmp/cal03-event-study-20261119/logs/formal-r1-module-map.txt",
+          "sha256": "50ba91f9d0e2baa1aeda94701d7695e45116e1326f5651784377318792b43759"
+        },
+        {
+          "name": "registry",
+          "argv": [
+            "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+            "scripts/check_active_plan_registry.py"
+          ],
+          "exit_code": 0,
+          "log": ".tmp/cal03-event-study-20261119/logs/formal-r1-registry.txt",
+          "sha256": "9e9d02760a55bd9e38a287a237b340837ec7c8a8eb5c79fea05b6627595e789d"
+        },
+        {
+          "name": "architecture",
+          "argv": [
+            "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+            "scripts/check_architecture_delta.py",
+            "--base-ref",
+            "4f1ba5249187f9b5892f0b2d8d7d5d393bcb1d85"
+          ],
+          "exit_code": 0,
+          "log": ".tmp/cal03-event-study-20261119/logs/formal-r1-architecture.txt",
+          "sha256": "170b54126d3618caf2295b84607d2475da51e14cc628156deee301dfe0cba78b"
+        },
+        {
+          "name": "module-cycles",
+          "argv": [
+            "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+            "scripts/check_module_cycles.py"
+          ],
+          "exit_code": 0,
+          "log": ".tmp/cal03-event-study-20261119/logs/formal-r1-module-cycles.txt",
+          "sha256": "436ba29102277628b4fcef24c15448b5ee8bb627019fd6810622c832ae944996"
+        }
+      ],
+      "source_inputs_unchanged": true
+    }
+  ],
+  "coverage": {
+    "statements": 233,
+    "covered_statements": 233,
+    "branches": 100,
+    "covered_branches": 100,
+    "tests_passed": 77,
+    "failed": 0,
+    "skipped": 0
+  },
+  "adoption_failure": {
+    "path": ".tmp/cal03-event-study-20261119/logs/adoption-mutation.txt",
+    "exit_code": 1,
+    "reason": "Preparation bytes copied; registry version is a dated string, not an integer. No registry/plan write occurred before TypeError. Corrected with exact existing version format; recovery log retained."
+  },
+  "adoption_recovery": {
+    "path": ".tmp/cal03-event-study-20261119/logs/adoption-mutation-recovery.txt",
+    "exit_code": 0
+  },
+  "protected_data02": {
+    "candidate": "c5b42e20cc97a7e166e6d3f88254d05b0605667a",
+    "tree": "f07f24b6bee557e88d41fa5675a461dee11dd1cd",
+    "control_hashes": {
+      ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/c5_close_window_common.py": "8db4035d2d8c1ee102c14272b09edb3f1f8e62ea1850f49005537d6e13e6ce3a",
+      ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/launch_standard_s6_runner_c5_postrepair_dynamic.py": "bec9415369fdd1bbf11cf86d7f7c12134eb06cdc3de1b7c6338f861eb55d8f0d"
+    },
+    "unchanged": true,
+    "provider_requests": 0,
+    "production_actions": 0
+  },
+  "local_input_readiness": {
+    "path": ".tmp/cal03-event-study-20261119/local-input-readiness.json",
+    "sha256": "a4e485bc4a3589a82d52d4fb45d2c60fbb1262c63530f7c17d71246d77aa0636",
+    "database_mode": "read_only",
+    "outcome_values_inspected": false,
+    "conclusion": "Existing SQLite bars and Qlib binary histories do not establish the frozen official-price, source-clock and coverage qualifications."
+  },
+  "source_documentation_probe": [
+    {
+      "url": "https://www.sseinfo.com/services/assortment/historical/",
+      "observed": "2026-11-19",
+      "finding": "Official history product describes daily bars and snapshots plus a business application link. This page is not proof of a qualified complete index-price history."
+    },
+    {
+      "url": "https://www.sse.com.cn/market/publicdata/",
+      "observed": "2026-11-19",
+      "finding": "Official catalogue identifies index quotation and calendar information. Catalogue existence does not qualify PIT history."
+    },
+    {
+      "url": "https://oss-ch.csindex.com.cn/static/html/csindex/public/uploads/indices/detail/files/zh_CN/000300_Index_Methodology_cn.pdf",
+      "observed": "2026-11-19",
+      "finding": "Search located methodology; direct open timed out. Not reused as validated publication-time evidence."
+    }
+  ],
+  "commit_receipt": ".tmp/cal03-event-study-20261119/adoption-commit.json",
+  "remaining": [
+    "Frozen walk-forward/final-OOS runner and existing experiment/trial/family/manifest integration",
+    "Qualified official broad-index daily-close versions, exact calendars and causal feature/event histories",
+    "At least one real reproducible IS/OOS study with baseline, adjustments, overlap/sensitivity, dependence-aware intervals, full-family correction and coverage"
+  ],
+  "post_governance_checks": [
+    {
+      "argv": [
+        "agomtradepro/Scripts/python.exe",
+        "scripts/check_active_plan_registry.py"
+      ],
+      "exit_code": 0,
+      "log": ".tmp\\cal03-event-study-20261119\\logs\\formal-registry-final.txt"
+    },
+    {
+      "argv": [
+        "agomtradepro/Scripts/python.exe",
+        "-m",
+        "pytest",
+        "-c",
+        ".tmp\\cal03-event-study-20261119\\pytest.ini",
+        "--confcutdir=tests/unit",
+        "tests/unit/test_active_plan_registry.py",
+        "-q"
+      ],
+      "exit_code": 0,
+      "passed": 137,
+      "log": ".tmp\\cal03-event-study-20261119\\logs\\formal-registry-tests.txt"
+    }
+  ],
+  "final_governance_files": {
+    "governance/active_plan_registry.json": "8f8ae618ea99f7d77389da1c84231a085ac7aaef04bc2f42258443bbf975d5a1",
+    "governance/module_map.json": "a34ae0c6da46fa388621f7b0180a548db82995844a9a1b74895dd70bdae7c31d",
+    "docs/plans/institutional-calendar-etf-activity-research-plan-2026-11-04.md": "591a8079dbb8b538949aa9865656c4656ca196b7ce93be69c6b92417f67b7916"
+  }
+}

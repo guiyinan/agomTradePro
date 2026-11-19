@@ -1,20 +1,15 @@
 {
-  "version": "2026-11-17.v623",
-  "updated_at": "2026-11-17",
+  "version": "2026-11-19.v624",
+  "updated_at": "2026-11-19",
   "execution_focus": {
-    "unit_id": null,
+    "unit_id": "CAL-03",
     "allowed_parallel_execution_modes": [
       "production",
       "external",
       "governance"
     ],
-    "policy": "Owner explicitly requests Root-led Luna Max work toward full DATA-02 exit then DATA-03. Complete bounded C2/D1 repository prerequisites within the existing production unit with non-overlapping source/test scopes and serialized shared Git/index/projections. Existing C/D/E scheme approval persists; User delegated concrete C2 choice to Root: TTL3600/coverage100/no partial/conflict block/09:30 continuous auction selected and recorded in existing plan §48; exact official rule/calendar/source qualifications and persisted Owner events remain required. No unknown units, rounding exception, maintenance removal or production qualification inferred. E1 scope choice remains delegated; exact authority/source/budget/candidate/backup gates remain. DATA-03 waits for DATA-02 full-universe exit; CAL03+ unstarted and ASH06/09/12 deferred. Preserve protected ASH databases and .task-logs/. Owner subsequently freezes the E1 candidate: fix only necessary acceptance/deployment/real E1 blockers, commit promptly after applicable checks, reuse unchanged bound inputs, and defer all scope expansion. Exact progress and remaining production gates are in existing plan §48.4 and acceptance followups[14]; no DATA-02 closure or DATA-03 start is inferred.",
-    "parallel_preparation": [],
-    "handoff_pending": {
-      "completed_unit_id": "CAL-02",
-      "owner_decision_ref": "docs/plans/institutional-calendar-etf-activity-research-plan-2026-11-04.md#13.13",
-      "reason": "The authorized ASH05 to CAL02 scope is complete; successor research remains a separate, unstarted work item."
-    }
+    "policy": "Owner explicitly requests Root-led Luna Max work toward full DATA-02 exit then DATA-03. Complete bounded C2/D1 repository prerequisites within the existing production unit with non-overlapping source/test scopes and serialized shared Git/index/projections. Existing C/D/E scheme approval persists; User delegated concrete C2 choice to Root: TTL3600/coverage100/no partial/conflict block/09:30 continuous auction selected and recorded in existing plan §48; exact official rule/calendar/source qualifications and persisted Owner events remain required. No unknown units, rounding exception, maintenance removal or production qualification inferred. E1 scope choice remains delegated; exact authority/source/budget/candidate/backup gates remain. DATA-03 waits for DATA-02 full-universe exit; CAL-04/05 unstarted and ASH06/09/12 deferred. Preserve protected ASH databases and .task-logs/. Owner subsequently freezes the E1 candidate: fix only necessary acceptance/deployment/real E1 blockers, commit promptly after applicable checks, reuse unchanged bound inputs, and defer DATA-02 scope expansion. Exact progress and remaining production gates are in existing plan §48.4 and acceptance followups[14]; no DATA-02 closure or DATA-03 start is inferred. On 2026-11-19 Owner separately authorized CAL-03 formal adoption in a short serialized local integration window and continued M2 research. CAL-02 dependency is complete. CAL-03 is the sole repository focus; DATA-02 production work continues against sealed c5b42e20cc97a7e166e6d3f88254d05b0605667a with its existing S6 window and budgets unchanged. No CAL-04/05, DATA-03, signal promotion, trading or production qualification is authorized by CAL-03 work.",
+    "parallel_preparation": []
   },
   "workstreams": [
     {
@@ -2136,7 +2131,7 @@
         "wave": 3,
         "priority": "P2",
         "execution_mode": "repository",
-        "status": "waiting_dependency",
+        "status": "active",
         "title": "Deliver reproducible institutional-event volatility studies",
         "depends_on": [
           "CAL-02"
