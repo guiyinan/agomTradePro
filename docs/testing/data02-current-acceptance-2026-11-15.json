@@ -7565,12 +7565,12 @@
         }
       },
       "market_window_recovery_pending_owner": {
-        "status": "approved360_dad11_prepare_passed_standard_runner_build_running",
+        "status": "dad11_new_image_migrations_scope_and_probe_passed_capacity_running",
         "proposal": {
           "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-budget-revised-s6/c5-window-recovery-proposal.json",
           "sha256": "3396c28a8addceb8d48fe38bc436023b5000fb2a99fc7fc1b452f18a762e6c04"
         },
-        "current_market_used": 215,
+        "current_market_used": 244,
         "current_market_ceiling": 360,
         "proposed_market_ceiling": 360,
         "maximum_cumulative_allocated": 359,
@@ -7825,16 +7825,75 @@
           "post_s6_c2_and_one_production_refresh_reserve": 60,
           "maximum_reserved_after_actual_graph": 335,
           "latest_runner_observation": {
-            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/c5-postrepair-s6-runner-observation-r1.json",
-            "sha256": "f6d74afd4c04b20bd9b6e6525aaefe2998dcb265f84be34bffbf273dd4b17dfd"
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/c5-postrepair-s6-runner-observation-r9.json",
+            "sha256": "4527d17f01ad6b3e03db1057fce272fd7efc0b6467baa6251add1c8a8cf9e955"
           },
-          "runner_stage_last_observed": "build_only",
+          "runner_stage_last_observed": "response_replay; active command full_universe_capacity",
           "runner_currently_running": true,
-          "candidate_built_image_identity": "await this attempt actual completed build report; prepare execution image8fb is not the new candidate image",
-          "actual_additional_provider_usage_after_runner_start": "await same-attempt stage reports; not inferred from launch"
+          "candidate_built_image_identity": "sha256:5614bcaa52df4b60a29bab76c4af120ea3fea1e38f04a1b69b18b33909302d66",
+          "actual_additional_provider_usage_after_runner_start": "await same-attempt stage reports; not inferred from launch",
+          "build_report": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/c5-s6-public-reports-r2/build-report/remote-build-report-20261119110739-7d000df9c1503ef0b79843d3132400a9.json",
+            "sha256": "c060d03fb187d80b892d7954249ba25df461613d7fdf15317165e81d5b807435"
+          },
+          "build_release_tag": "20261119110739",
+          "build_started_at": "2026-11-19T10:08:23Z",
+          "build_finished_at": "2026-11-19T10:37:33Z",
+          "candidate_identity": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/c5-s6-public-reports-r2/inputs/candidate-identity.json",
+            "sha256": "e4af89d4ad47bc0a17e6971b03cd09a7506bd31223260b567b9e0c8eb49f795b"
+          },
+          "candidate_release_manifest": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/c5-s6-public-reports-r2/inputs/candidate-release-manifest.json",
+            "sha256": "66494f262975225f7c3341bf241ba11334e57ae3f4a8c5c8b352176c4474ee2c"
+          },
+          "public_originals_receipt": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/c5-s6-public-reports-r2/receipt.json",
+            "sha256": "42d4e2e6a98004b70ad1b0e460f102727182c87150975a27947ca878745c5638"
+          },
+          "image_binding_independent_review": "Luna audit checked same-attempt receipt context and the source/image/tag/target/settings/universe bindings across genuine build report, candidate identity and candidate release manifest; no full-S6 qualification claimed.",
+          "isolated_migration_report": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/c5-s6-public-reports-r2/isolated_database_migrations/isolated-database-migrations.json",
+            "sha256": "40826793390e6349a57aa85ba216f3ece3bda5e4acd5cf81923b3eea65de11c7"
+          },
+          "isolated_migrations_applied_count": 23,
+          "isolated_migrations_pending_after": [],
+          "isolated_scope_authorization": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/c5-s6-public-reports-r2/financial_scope_authorization/financial-scope-authorization.json",
+            "sha256": "5903fde52affc0d10bd7287e9c67ef43ca9596909a1cf2c3afe194c48ff466bd"
+          },
+          "probe_report": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/c5-s6-public-reports-r2/provider-probe/probe.json",
+            "sha256": "bb6b8d94529dd50b8158c52b97a17f01c1a496364bca818ee66513d737f8ea24"
+          },
+          "probe_outcome": "success",
+          "probe_market_actual_dispatches": 29,
+          "probe_rejected_dispatches": 0,
+          "probe_valuation_requested_count": 5580,
+          "probe_valuation_returned_count": 5580,
+          "probe_valuation_coverage_ratio": 1.0,
+          "probe_sample_size": 50,
+          "probe_stored": 0,
+          "probe_publication_updated": false,
+          "market_confirmed_graph_plus_probe": 244,
+          "market_usage_complete_through_current_capacity": false,
+          "capacity_actual_requests": "await same-attempt full_universe_capacity report; may already have dispatched, do not infer0",
+          "full_native_compatibility_actual_build_binding": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/actual-build-native-compatibility.receipt.json",
+            "sha256": "892fc678ed36281a29dbb2b58539e252ae422a81a575d895c2a87dfdb750408a"
+          },
+          "full_native_compatibility_controller": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/verify_actual_build_native_binding.py",
+            "sha256": "39872caefeb50ae12d00b754486da8a3d5f0129c1ed277e889ed802dbfb2c39d"
+          },
+          "full_native_compatibility_outcome": "OBSERVED_NATIVE_COMPATIBILITY_VERIFIED",
+          "genuine_build_manifest_path": "/opt/agomtradepro/releases/source-20261119110739/.agom-release-manifest.json",
+          "genuine_build_manifest_sha256": "7d04e0600db1e724106d2be7f2250432de8807968e6d36d74418b660ee18f30b",
+          "native_compatibility_boundary": "Full official file verifier passed using existing seven native originals and actual new build manifest. Supports bounded legacy bootstrap only; production qualification remainsfalse. No fresh QA database or provider calls. This does not audit incidental Python bytecode cache writes."
         },
         "pre_window_preparation_provider_requests": 0,
-        "latest_confirmed_usage_basis": "189 previous +26 dad11 graph; future runner usage awaits stage reports"
+        "latest_confirmed_usage_basis": "189 previous+26 new graph+29 probe=244; current capacity phase usage pending actual receipt",
+        "current_market_used_is_complete": false
       },
       "current_audit_lease_pre_window_recheck": {
         "receipt": {
