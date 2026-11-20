@@ -992,5 +992,29 @@
     ],
     "checks": ".tmp/cal03-event-study-20261119/qualification-20261120/followup-checks.json",
     "commit_receipt": ".tmp/cal03-event-study-20261119/qualification-20261120/followup-commit.json"
+  },
+  "owner_personal_research_scope_20261120": {
+    "report": {
+      "path": ".tmp/cal03-event-study-20261119/qualification-20261120/personal-research-scope.json",
+      "sha256": "fb1738c0eb392f383fd1115c0bd2337de62a05cbdabde7bc810079b64c73e846"
+    },
+    "base_head": "ad4ff44b43629b4260ff00b9fe81de7c5e919534",
+    "owner_reply_verbatim": "仅供本人研究",
+    "declared_intended_use": "personal_research_only",
+    "multiuser_public_display_or_commercial_use_authorized": false,
+    "actual_research_use_grant_verified": false,
+    "qualified_full_history_packages": 0,
+    "frozen_input_admitted": false,
+    "market_or_financial_provider_dispatches": 0,
+    "data02_budget_consumed": 0,
+    "real_oos_claimed_or_evaluated": false,
+    "remaining": [
+      "Existing service operator/account/channel grant and effective validity applicable to personal research, local raw retention and research-derived results for all three historical index inputs",
+      "Official price originals/revisions and conservative historical availability",
+      "Complete applicable calendar/rule/as-of, exceptional sessions and final-publication evidence",
+      "Qualified independent failover and frozen manifest binding before evaluation"
+    ],
+    "checks": ".tmp/cal03-event-study-20261119/qualification-20261120/personal-scope-checks.json",
+    "commit_receipt": ".tmp/cal03-event-study-20261119/qualification-20261120/personal-scope-commit.json"
   }
 }
