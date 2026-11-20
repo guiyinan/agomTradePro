@@ -3601,7 +3601,7 @@
     {
       "date": "2026-11-16T18:08:48.512032+00:00",
       "kind": "e1_frozen_integrated_c2_numeric_v3_preparation",
-      "status": "optional_count_wire_correction_development_gates_passed_ready_for_frozen_candidate",
+      "status": "genuine_supplement_reply_received_late_execution_window_expired",
       "base_head": "2529c3bd50b728ae87ad328c1ae5794907f5ea74",
       "scope": "Frozen single-security Main+Balance E1 critical path only; full DATA-02 universe and four Publication exit gates unchanged.",
       "delivery": {
@@ -8604,7 +8604,7 @@
             },
             "new_provider_requests_status": "prepare may dispatch its bounded market graph; actual tally awaits the same attempt report",
             "fresh_execution": {
-              "status": "prepare_passed_diagnostic_unqualified_supplement_unapproved_window_expired",
+              "status": "prepare_passed_late_supplement_reply_recorded_new_window_not_authorized",
               "attempt_id": "840d6b0a64ce455680dbb401710258bd",
               "candidate_sha": "c5b42e20cc97a7e166e6d3f88254d05b0605667a",
               "prepare_pid": 2076709,
@@ -8756,7 +8756,7 @@
                 "no_manual_backfilled_audit_or_qualification": true,
                 "normal_gateway_fix_offline_passed": true,
                 "real_native_audit_writer_zero_provider_rollback_test_pending": false,
-                "supplement_not_approved": "Redo audited daily and suspension needs diagnostic total3; M7 retry worst52 may exceed capacity50. Original time window unchanged.",
+                "supplement_not_approved": "Superseded: genuine answer call_2c3c12350b6640949281ec97dbd5bb9e received, but all approved phase clocks had expired; no execution authorization was materialized.",
                 "native_audit_writer_real_qa": {
                   "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2/native-audit-zero-provider-840d6b0a64ce455680dbb401710258bd/native-audit.receipt.json",
                   "sha256": "705b17f58c918a5ee692703cc373036c8a11d6cf4bb6bc0fc754e74728527dcc"
@@ -8776,7 +8776,7 @@
                   "production_mutated": false,
                   "not_real_provider_qualification": true
                 },
-                "additional_execution_allocation_required": true,
+                "additional_execution_allocation_required": false,
                 "same_s6_attempt_preserved": true,
                 "supplement491": {
                   "plan": {
@@ -8791,11 +8791,11 @@
                     "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2-supplement491/operator-manifest.json",
                     "sha256": "1a3c3fbbb5183569df7edf4882b3c8db3ecc3919c9318b3b786fa954ad6a32ec"
                   },
-                  "status": "unapproved_and_diagnostic_entry_window_expired",
-                  "human_reply_exists": false,
+                  "status": "genuine_late_approval_recorded_not_executable",
+                  "human_reply_exists": true,
                   "owner_authorization_exists": false,
                   "human_question_sent": true,
-                  "actual_new_approval_received": false,
+                  "actual_new_approval_received": true,
                   "diagnostic_total_proposed": 3,
                   "probe_and_capacity_each_proposed": 52,
                   "market_ceiling_unchanged": 500,
@@ -8807,10 +8807,48 @@
                   "runner_entry_unchanged": "2026-11-20T20:30:00+08:00",
                   "cutoff_unchanged": "2026-11-21T12:00:00+08:00",
                   "independent_frozen_review": "luna_max_audit passed;15 fixtures and4 actual no-Owner entry fences, forbidden events0; baseline13 inputs unchanged",
-                  "no_execution_after_missing_approval_or_expired_window": true
+                  "no_execution_after_missing_approval_or_expired_window": true,
+                  "actual_human_reply": {
+                    "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2-supplement491/supplement-human-reply.json",
+                    "sha256": "25d5d167f0d4853e49f6dc3ea9f57818b47dd5f232a9e805333731930573caea"
+                  },
+                  "actual_authorization_call_id": "call_2c3c12350b6640949281ec97dbd5bb9e",
+                  "root_first_observed_at": "2026-11-20T22:03:07+08:00",
+                  "user_original_reply_timestamp_known": false,
+                  "explicit_late_approval_stop_observed": true,
+                  "old_cutoff_remaining_seconds_at_first_observation": 50213,
+                  "minimum_runner_planning_headroom_seconds": 52200,
+                  "minimum_shortfall_even_without_diagnostic_and_stage_seconds": 1987,
+                  "window_reselection_proposal": {
+                    "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2-supplement491/window-reselection-proposal.json",
+                    "sha256": "277037beb2f58ef261ea2f4dd3336d5c339f2e2ee6ae41809c8d9c3424eb3043"
+                  },
+                  "window_reselection_authorized": false,
+                  "new_provider_calls_after_late_reply": 0,
+                  "window_reselection_independent_review": {
+                    "reviewer": "luna_max_audit",
+                    "result": "no_blocker_in_planning_authority_proposal",
+                    "not_execution_approval": true,
+                    "old_deadlines_remain_expired": true
+                  },
+                  "window_delegation_question_sent": true,
+                  "window_delegation_reply_received": false,
+                  "late_reply_default_deny_validation": {
+                    "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2-supplement491/late-approval-default-deny.receipt.json",
+                    "sha256": "1bde0a94a771089b7adb41387454cecf4a54e24b9a90f053decdc6b3ffaa9584"
+                  },
+                  "late_reply_document_registry_check": {
+                    "exit_code": 0,
+                    "violations": 0,
+                    "log": {
+                      "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2-supplement491/late-approval-docs-registry-check.log",
+                      "sha256": "0e5e4ebae9206cf0e61f2f9a550ef8ad2914214f034baf57db0b84bb3dcf6a7e"
+                    }
+                  }
                 },
                 "protocol_and_recovery_fix_review_complete": true,
-                "new_user_budget_or_new_s6_required_note": "No increase to total500 or second S6 is proposed; the diagnostic3/shared52 sublimits and any future qualified execution conditions still require genuine supplemental authorization."
+                "new_user_budget_or_new_s6_required_note": "No increase to total500 or second S6 is proposed. Genuine diagnostic3/shared52 answer was received after all approved entry windows; replacement window delegation and exact clock/CI-horizon bindings are still required.",
+                "additional_qualified_window_authorization_required": true
               },
               "diagnostic_actual_dispatches": 1,
               "diagnostic_budget_remaining": 1,
