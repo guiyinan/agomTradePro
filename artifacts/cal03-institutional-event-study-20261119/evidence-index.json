@@ -1075,5 +1075,74 @@
     ],
     "checks": ".tmp/cal03-event-study-20261119/qualification-20261120-szse/checks.json",
     "commit_receipt": ".tmp/cal03-event-study-20261119/qualification-20261120-szse/commit.json"
+  },
+  "SZSE_missing_originals_recovered_and_clock_review_20261120": {
+    "base_head": "b49345658c7b233bf122cc43d5735e04ad3b036a",
+    "report": {
+      "path": ".tmp/cal03-event-study-20261119/qualification-20261120-archive/review.json",
+      "sha256": "d33a30fccc96010ef656a4fdd088d21966f1378c992000b54cce224a4e90656b"
+    },
+    "declared_intended_use": "personal_research_only",
+    "existing_research_use_grant_verified": false,
+    "five_missing_annual_originals_recovered": [
+      2011,
+      2012,
+      2014,
+      2016,
+      2017
+    ],
+    "SZSE_special_2015_original_recovered": true,
+    "annual_SZSE_covered_years": [
+      2010,
+      2011,
+      2012,
+      2013,
+      2014,
+      2015,
+      2016,
+      2017,
+      2018,
+      2019,
+      2020,
+      2021,
+      2022,
+      2023,
+      2024,
+      2025,
+      2026
+    ],
+    "annual_SZSE_missing_years": [],
+    "official_document_search_posts": 7,
+    "official_notice_gets": 6,
+    "resource_discovery_attempts": 6,
+    "resource_discovery_successes": 5,
+    "calendar_natural_days_per_exchange": 6163,
+    "after_SZSE_own_revisions_current_snapshot_differences": {
+      "SSE": [],
+      "SZSE": []
+    },
+    "annual_notice_inventory_complete": true,
+    "qualified_historical_calendar": false,
+    "publisher_index_assertions_separate_from_verified_availability": true,
+    "2014_notice_date_conflict_preserved": true,
+    "current_snapshot_SendingTime_enabled_from": "2021-04-06",
+    "new_historical_price_originals_or_revisions_obtained": 0,
+    "historical_availability_clocks_filled": false,
+    "qualified_full_history_packages": 0,
+    "frozen_input_admitted": false,
+    "frozen_spec_sha256": "29a44d0cd2670dd2a72853494d21271c9765d6584dafa4998e1df3c2a6edfe71",
+    "market_or_financial_provider_dispatches": 0,
+    "data02_budget_consumed": 0,
+    "production_actions": 0,
+    "real_oos_claimed_or_evaluated": false,
+    "remaining": [
+      "Existing custom-channel operator/account grant and validity for personal historical research",
+      "All three official original/revised close versions or authoritative final-version/revision basis",
+      "Defensible historical availability before frozen cutoff",
+      "Calendar publication conflicts, vintage/as-of and exhaustive session/rule/exception/final-publication evidence",
+      "Qualified independent failover and frozen input binding before evaluation"
+    ],
+    "checks": ".tmp/cal03-event-study-20261119/qualification-20261120-archive/checks.json",
+    "commit_receipt": ".tmp/cal03-event-study-20261119/qualification-20261120-archive/commit.json"
   }
 }
