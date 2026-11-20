@@ -7639,7 +7639,7 @@
         }
       },
       "market_window_recovery_pending_owner": {
-        "status": "approved500_waiting_selected_clock_and_fresh_official_ci",
+        "status": "approved500_fresh_publication_ci_running_waiting_source_window",
         "proposal": {
           "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-budget-revised-s6/c5-window-recovery-proposal.json",
           "sha256": "3396c28a8addceb8d48fe38bc436023b5000fb2a99fc7fc1b452f18a762e6c04"
@@ -8120,7 +8120,7 @@
             "official_run_and_all_junit_suite_max_age_hours": 24,
             "existing_nov18_official_run_and_junit_stale": true,
             "same_c5_official_ci_refresh_before_new_window_required": true,
-            "new_ci_dispatched": false,
+            "new_ci_dispatched": true,
             "authority": "scripts/validate_release_rehearsal.py::_validate_regression and scripts/run_release_rehearsal.py::github_ci_evidence"
           },
           "time_semantics_clarification": "17:05 is the implemented provider-ready boundary after the documented daily_basic 15:00-17:00 update interval, not an exchange opening rule. Historical backfill/field/calendar checks may use a fixed completed date. The selected S6 Tencent current valuation snapshot cannot be relabeled to yesterday during the next session; existing early-before-09:15 and non-trading-day semantics remain available when actual source dates and enough duration agree.",
@@ -8259,7 +8259,7 @@
             "prior_upper_bound": 274,
             "new_owner_window_state_or_intent_created": true,
             "new_s6_authorized": true,
-            "new_ci_dispatched": false,
+            "new_ci_dispatched": true,
             "source_application_changed": false,
             "production_changed": false,
             "expected_human_answer": "批准累计500、外层4小时及一次新S6",
@@ -8364,7 +8364,7 @@
             "ci_dispatch_operator_plan_not_before_beijing": "2026-11-20T14:00:00+08:00",
             "actual_calendar_and_source_date_qualification_claimed": false,
             "fresh_prepare_must_confirm_frozen_target": true,
-            "ci_dispatched": false,
+            "ci_dispatched": true,
             "new_attempt_reserved": false,
             "new_provider_requests": 0,
             "market_confirmed_actual": 244,
@@ -8404,7 +8404,7 @@
               "actual_python_pid": 12912,
               "actual_parent_pid": 28764,
               "live_process_command_verified_at": "2026-11-19T15:19:15.0434869Z",
-              "state": "waiting_for_selected_ci_time",
+              "state": "dispatch_entry_finished",
               "ci_dispatch_not_before_beijing": "2026-11-20T14:00:00+08:00",
               "check_interval_seconds": 30,
               "existing_ci_entry_invocations_max": 1,
@@ -8412,8 +8412,129 @@
               "before_dispatch_rechecks_owner_window_common_and_ci_tool_hashes": true,
               "existing_ci_intent_means_observe_only": true,
               "does_not_dispatch_market_or_reserve_s6": true,
-              "actual_github_dispatch_claimed": false,
-              "owned_wait_must_be_stopped_on_goal_pause_or_cancellation_request": true
+              "actual_github_dispatch_claimed": true,
+              "owned_wait_must_be_stopped_on_goal_pause_or_cancellation_request": true,
+              "terminal_status": {
+                "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6/approved-ci-time-wait.status.json",
+                "sha256": "9ff3777a5e6276088f1ed6db3b2a91325f1530385410e5f004473e5bada22550"
+              }
+            },
+            "actual_official_publication_ci": {
+              "status": "completed",
+              "run_id": 44684721809,
+              "url": "https://github.com/guiyinan/agomTradePro/actions/runs/44684721809",
+              "candidate_sha": "c5b42e20cc97a7e166e6d3f88254d05b0605667a",
+              "tag": "ci/data02-c5-bc70bfd50206cdf1",
+              "workflow_id": 366317472,
+              "dispatch_intent": {
+                "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6/ci-dispatch.intent.json",
+                "sha256": "b0dc8f28166a0730005b016d217a03680dbbc7634ab89b0a1e8f0ee997d8b9f2"
+              },
+              "dispatch_accepted": {
+                "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6/ci-dispatch.receipt.json",
+                "sha256": "29b00d1e3b41a03def1af21bee1a6984d672af4a28f7d0d5c0148948889574bb"
+              },
+              "exact_run_binding": {
+                "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6/ci-run-binding.json",
+                "sha256": "addae46439e99020c92fdac7b338b7b98221a8d535fbb4be4db1ce9c568f5612"
+              },
+              "initial_observe_log": {
+                "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6/ci-observe-20261120T0600.log",
+                "sha256": "7f61a30ba165eab438f23361990991ce64911d98a1b041d43342c12833d52f60"
+              },
+              "progress_original": {
+                "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6/ci-run-44684721809-progress-0610.original.json",
+                "sha256": "6f4b31701e7607b6999d5ef35e9ceb54027f2d0c471b9f1789b9de3ff67ec1bc"
+              },
+              "official_artifact_qualification_passed": false,
+              "automatic_retry_or_redispatch": false,
+              "conclusion": "failure",
+              "terminal_original": {
+                "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6/ci-run-44684721809-authoritative-terminal-read.original.json",
+                "sha256": "e4df29a8a848aa45ff85a6698711f4e0322d274e4c4a247e44912d55eb8c672a"
+              },
+              "failed_step_original": {
+                "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6/ci-run-44684721809-failed-step.original.log",
+                "sha256": "c25621078f548689b5ca82a7f1cd2d99e76992e0088de145f1e3f080f7895b5d"
+              },
+              "failed_artifact_receipt": {
+                "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6/ci-run-44684721809-failed-artifact.receipt.json",
+                "sha256": "1366fe49641ba5e25a8208e2a03ae6a7fce1318f185fe8c89185f842ad33dba8"
+              },
+              "failed_step": "Exercise required Account and Research EVID-06 authority fixtures",
+              "tests_passed_before_post_guard": 14,
+              "database_guard_observed": "t|1|0",
+              "observed_connection": {
+                "pid": 1851,
+                "state": "active",
+                "wait_event_type": "Timeout",
+                "wait_event": "VacuumDelay",
+                "backend_type": "not_captured"
+              },
+              "connection_origin_proven": false,
+              "source_bug_proven": false,
+              "qualifies_ci_or_s6": false
+            },
+            "same_day_readonly_audit_recheck": {
+              "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6/audit-current-lease-readonly-20261120T1400.receipt.json",
+              "sha256": "4dbf4d7e9263802c82323d6b2463191128dcef0a424b013358399c103573b1fd"
+            },
+            "same_day_preclone_source_and_space_check": {
+              "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6/pre-window-source-and-space-20261120T1400.receipt.json",
+              "sha256": "443ef925082cfc87325c187d7879a6aae4dbe82089d07da577f0ef8bf2675bb5"
+            },
+            "ci_only_successor_verification": {
+              "generation": 2,
+              "status": "dispatched_qualification_pending",
+              "run_id": 44688448376,
+              "url": "https://github.com/guiyinan/agomTradePro/actions/runs/44688448376",
+              "candidate_sha": "c5b42e20cc97a7e166e6d3f88254d05b0605667a",
+              "tag": "ci/data02-c5-bfe10c27442d7bd9",
+              "preparation": {
+                "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2/ci-only-successor-preparation.receipt.json",
+                "sha256": "3a04e3fe0d749c019f75edb4ea10e9ab869804dca6380b42992b5434d3d697bd"
+              },
+              "validation": {
+                "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2/ci-only-successor-validation.receipt.json",
+                "sha256": "f45a59df256f91d762065701d0ae228bf68d702a329eeaf98dd5a3bf4e092553"
+              },
+              "derived_owner_authorization": {
+                "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2/owner-authorization.json",
+                "sha256": "5c3a8bd4e9131996d7eb75ab5c801f842a1f25564ff5ffec2554d9d45e85e7ad"
+              },
+              "selected_window": {
+                "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2/selected-window.json",
+                "sha256": "bfe10c27442d7bd9dd5f775a07ba4d655ca53343afd1490e5e790bb462c37e06"
+              },
+              "dispatch_intent": {
+                "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2/ci-dispatch.intent.json",
+                "sha256": "b5e066f9cfbe265d16924062d33e0d1b21a91c49fa8b5855d89a4e506cac06f6"
+              },
+              "dispatch_accepted": {
+                "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2/ci-dispatch.receipt.json",
+                "sha256": "b949834c9e47b7b3e19783d4c22d1abd6108f775bff614b2112e89464bd0beb7"
+              },
+              "exact_run_binding": {
+                "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2/ci-run-binding.json",
+                "sha256": "7a6bed2f349095b65b781e97d42593d9a6c2bb285932d783c4dff6afac592106"
+              },
+              "diagnostic_namespace_delta": {
+                "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-close-window-s6/prepare_fresh_s6_market_gap_diagnostic_ci2.delta.receipt.json",
+                "sha256": "402dd7416d9cc03266e60e28c6b90e206fd4e58523fa31b0762c0ccae2bcc8fb"
+              },
+              "independent_review": "Luna Max audit and flex-controls: one bounded full same-c5 CI verification is within the existing refresh authorization; no guard exemption, no source change, no retry of the failed run.",
+              "actual_human_reply_and_original_approved_at_preserved": true,
+              "all_physical_window_clocks_unchanged": true,
+              "fresh_s6_attempts_max_across_all_generations": 1,
+              "provider_requests": 0,
+              "s6_reserved": false,
+              "new_human_approval_claimed": false,
+              "official_artifact_qualification_passed": false,
+              "again_failure_requires_connection_attribution_before_further_ci": true,
+              "observer_namespace_delta": {
+                "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/observe-c5-postrepair-ci2.delta.receipt.json",
+                "sha256": "8dd5c846b37508fe6002403821a14890527a049624e379292969f5a76f181771"
+              }
             }
           }
         },
@@ -8459,7 +8580,11 @@
           }
         ],
         "failure_cause": "Probe import ordering before Django registry initialization; corrected under the SQL DML fence; not a production lease failure",
-        "mcp_limitation": "Published audit capabilities cover attribution/execution links; no matching lease-read capability or TUI action was found, so reused reviewed read-only diagnostic"
+        "mcp_limitation": "Published audit capabilities cover attribution/execution links; no matching lease-read capability or TUI action was found, so reused reviewed read-only diagnostic",
+        "latest_selected_window_day_recheck": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6/audit-current-lease-readonly-20261120T1400.receipt.json",
+          "sha256": "4dbf4d7e9263802c82323d6b2463191128dcef0a424b013358399c103573b1fd"
+        }
       },
       "close_window_owned_resource_recovery": {
         "controller": {
