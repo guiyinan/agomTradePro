@@ -8981,6 +8981,73 @@
             "actual_calendar_governance_or_publication_qualification_claimed": false,
             "network_requests_by_reviewer": 0
           }
+        },
+        "native_revision_inputs": {
+          "candidate_sha": "c5b42e20cc97a7e166e6d3f88254d05b0605667a",
+          "domain_git_blob_sha256": "3c7a95688b4f9bc2b303e6d89639b5a6c85354ae043371b87015b9cf47de05e5",
+          "exchanges": {
+            "sse": {
+              "descriptor": {
+                "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c2-sse-bse-rule-originals/sse-2026-issuance-originals/e1-sse-rule-native-revision.json",
+                "sha256": "428cfeff7928438a0a81136e66417ae8e09794afe706b27eddbbc059a93d2b5f"
+              },
+              "validation": {
+                "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c2-sse-bse-rule-originals/sse-2026-issuance-originals/e1-sse-rule-native-revision-validation.receipt.json",
+                "sha256": "dd2ebc0fdce56dd5682215e519e46c9330ffb914e825d1924230f5e74a050ec6"
+              },
+              "source_revision_sha256": "aa588ec85d23365576211749caa7e22dc747a93d4f4cf99117d6c99cf5b35bd2",
+              "identity_key": [
+                "上海证券交易所",
+                "e3a3b98e36894edca77841837936e006",
+                "2026年修订"
+              ],
+              "source_capture_or_owner_adoption_or_calendar_qualified": false
+            },
+            "bse": {
+              "descriptor": {
+                "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c2-sse-bse-rule-originals/bse-browser-originals-20261119T1457Z/e1-bse-rule-native-revision.json",
+                "sha256": "36fba2f7d50dfc7648680cb52ace9f7a4954deda6cce640169e6585f4546b732"
+              },
+              "validation": {
+                "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c2-sse-bse-rule-originals/bse-browser-originals-20261119T1457Z/e1-bse-rule-native-revision-validation.receipt.json",
+                "sha256": "d9603ea72ce5ddc02ce1cf8cae0bb9fcc9561ff291e8bfe8dc644a179381811c"
+              },
+              "source_revision_sha256": "3f7df0d2a2728297b9b249e51efa012c6e5af53d88f79ca7d5bf38ffd440975a",
+              "identity_key": [
+                "北京证券交易所",
+                "20260424170528_52kqyhc7p9",
+                "2026年4月24日第一次修订"
+              ],
+              "source_capture_or_owner_adoption_or_calendar_qualified": false
+            }
+          },
+          "validation_log": {
+            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c2-sse-bse-rule-originals/sse-bse-native-revision-build-validation-r4-20261120.log",
+            "sha256": "22e2cd4b348ce40fb030ae1b8042d2c12728995fa96b13ef651734efe9adfce3"
+          },
+          "retained_failed_preflight_logs": [
+            {
+              "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c2-sse-bse-rule-originals/sse-bse-native-revision-build-validation-20261120.log",
+              "sha256": "d74e65030be1e139e926be59308387fb4c2ba98c6f43003b5894480abeaf9b80"
+            },
+            {
+              "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c2-sse-bse-rule-originals/sse-bse-native-revision-build-validation-r2-20261120.log",
+              "sha256": "c5a5cd0ff05c53f3f557e778e56832e72b0bf7f525f300cc3bb70d33d2b4b618"
+            },
+            {
+              "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c2-sse-bse-rule-originals/sse-bse-native-revision-build-validation-r3-20261120.log",
+              "sha256": "456544d932ed3cb0cd73ced328b269e4fa9aa8542bd2fcaf4fd1df7eb8201027"
+            }
+          ],
+          "failure_causes": [
+            "notice used relative href, initial assertion assumed longer path",
+            "stdlib dataclass module must be registered before executing Git blob",
+            "SZSE control original was in source-originals rather than current descriptor directory"
+          ],
+          "independent_review": "luna_max_audit passed original notice/attachment identity and bytes, exact c5 canonical revision digest, date precision, and no capture/Owner/calendar claims",
+          "effective_date_scope": "version-level July6; notice deferred clauses still apply, not all-clause activation; previously verified 09:30 opening clauses are outside the listed deferrals",
+          "bse_attachment_http_status": "not_captured",
+          "provider_or_db_requests": 0
         }
       },
       "d1_e1_report_field_precision_review": {
