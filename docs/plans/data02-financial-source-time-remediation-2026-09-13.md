@@ -1581,3 +1581,5 @@ C2北交所正式原件获取缺口已补：Root以隔离msedge正常首页→�
 同c5复验run44688448376已于07:09:21Z completed/success；既有冻结CI工具完成官方ZIP摘要、12XML/303例、全部required cases及实际源时钟覆盖至北京时间21日11:00的验证，common独立重验通过。旧446847失败仍保留且不作资格；无需修改Source或豁免guard。真实新reserve入口在15:11仍按既定17:05窗口阻断，无S6 intent/Provider请求；后续继续单次fresh prepare→至多2次诊断→标准S6。原件归同一followups[14] ci_only_successor_verification，不等于E1、DATA02退出或DATA03启动。
 
 SSE/BSE原生revision输入现已与既有SZSE输入一起准备齐：使用真实c5 Domain blob、官方notice/DOCX原件校验文号/版本/date精度/官方链接/bodySHA，canonical revision digest经独立复算通过；最初三个本地前置失败原件保留，r4通过。规则版本7月6日生效不冒称全部条款生效，notice暂缓项仍保留，已核09:30开盘条款不在其中。BSE附件HTTP仍未捕获，不补造200；没有SourceCapture、Publisher TTL、Owner采用或日历资格，Provider/DB请求0。原件归同一followups[14] c2_sse_bse_rule_document_preparation.native_revision_inputs。
+
+北京时间17:05后按原批准新建且仅新建c5 attempt840d6b0a64ce455680dbb401710258bd，reserve exit0、canonical plan SHA c8d95513461436a52d0a431bea43a227164613f34c5748aa80a633525e625574；17:07:32标准prepare PID2076709已启动，17:09真实observer仍见运行。启动前31813414912B可用空间不替代clone后的fresh24GiB门；目标20日、实际范围和graph用量待本attempt报告，不把旧5580/旧源日期或新调用0拼给本次。runner/财报/E1尚未启动，仍一新S6/500/22344/E1另2，生产未改；原件继续归同一followups[14] actual_500_authorization_and_selected_window.fresh_execution。

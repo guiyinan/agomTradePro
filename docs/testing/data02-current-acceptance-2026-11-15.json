@@ -7639,7 +7639,7 @@
         }
       },
       "market_window_recovery_pending_owner": {
-        "status": "approved500_official_ci_qualified_waiting_frozen_source_window",
+        "status": "approved500_fresh_s6_prepare_running",
         "proposal": {
           "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-budget-revised-s6/c5-window-recovery-proposal.json",
           "sha256": "3396c28a8addceb8d48fe38bc436023b5000fb2a99fc7fc1b452f18a762e6c04"
@@ -8365,8 +8365,8 @@
             "actual_calendar_and_source_date_qualification_claimed": false,
             "fresh_prepare_must_confirm_frozen_target": true,
             "ci_dispatched": true,
-            "new_attempt_reserved": false,
-            "new_provider_requests": 0,
+            "new_attempt_reserved": true,
+            "new_provider_requests": null,
             "market_confirmed_actual": 244,
             "market_prior_conservative_upper": 274,
             "finance_used": 0,
@@ -8527,7 +8527,7 @@
               "all_physical_window_clocks_unchanged": true,
               "fresh_s6_attempts_max_across_all_generations": 1,
               "provider_requests": 0,
-              "s6_reserved": false,
+              "s6_reserved": true,
               "new_human_approval_claimed": false,
               "official_artifact_qualification_passed": true,
               "again_failure_requires_connection_attribution_before_further_ci": true,
@@ -8572,7 +8572,95 @@
                 "earliest_junit_suite_beijing": "2026-11-20T14:40:38.479772+08:00",
                 "conservative_24h_expiry_beijing": "2026-11-21T14:31:53+08:00",
                 "margin_after_planned_horizon_seconds": 12713
+              },
+              "financial_stage_clock_readonly_review": {
+                "reviewer": "luna_max_flex_controls",
+                "candidate_sha": "c5b42e20cc97a7e166e6d3f88254d05b0605667a",
+                "result": "no confirmed execution path rechecks prepare calendar or graph3600TTL during later financial stages",
+                "evidence": [
+                  "scripts/run_release_rehearsal.py:_stage_specs and financial container execution",
+                  "scripts/rehearse_financial_scope_discovery.py:_run_discovery and _validate_release_universe_report",
+                  "scripts/validate_release_rehearsal.py:_validate_common_report and _validate_capacity"
+                ],
+                "semantics": "same target/candidate/scope market report is consumed by identity; new financial captures use their actual stage started_at; final reports and CI remain subject to actual24h age",
+                "does_not_prove_native_balance_or_numeric_d1": true,
+                "throughput_or_future_gate_success_guaranteed": false,
+                "code_ttl_source_dates_or_physical_clocks_changed": false,
+                "qa_or_provider_requests": 0
+              },
+              "market_stage_clock_readonly_review": {
+                "reviewer": "luna_max_flex_controls",
+                "candidate_sha": "c5b42e20cc97a7e166e6d3f88254d05b0605667a",
+                "result": "no combined prepare+build+probe3600 age gate found",
+                "fixed_target_passed_to_probe_replay_capacity": true,
+                "capacity_fetches_real_target_day_quote_and_valuation": true,
+                "prepare_graph_compared_by_exact_current_snapshot_and_publication_cutoff": true,
+                "native_s6_calendar": "45-day lookback and latest open session within14 days, nonempty source and complete coverage; lru cache has no3600 TTL",
+                "c2_calendar_ttl3600_is_not_adopted_by_this_legacy_s6_path": true,
+                "actual_enforced_capture_limits": "native prepare shell max-dispatches50/max-seconds3600; probe own1800, capacity own3600 monotonic capture; build duration is not added to later capture clocks",
+                "source_dates_ttl_budget_or_code_changed": false,
+                "qa_or_provider_requests": 0
               }
+            },
+            "new_provider_requests_status": "prepare may dispatch its bounded market graph; actual tally awaits the same attempt report",
+            "fresh_execution": {
+              "status": "prepare_running",
+              "attempt_id": "840d6b0a64ce455680dbb401710258bd",
+              "candidate_sha": "c5b42e20cc97a7e166e6d3f88254d05b0605667a",
+              "prepare_pid": 2076709,
+              "prepare_launched_at": "2026-11-20T09:07:32.986780+00:00",
+              "disk_free_bytes_before_prepare": 31813414912,
+              "minimum_docker_free_bytes": 25769803776,
+              "target_trade_date_expected": "2026-11-20",
+              "fresh_target_scope_and_graph_usage_verified": false,
+              "graph_dispatch_maximum": 50,
+              "new_market_dispatches_actual": null,
+              "market_prior_confirmed_actual": 244,
+              "market_prior_conservative_upper": 274,
+              "financial_dispatches": 0,
+              "production_e1_dispatches": 0,
+              "runner_started": false,
+              "full_s6_success": false,
+              "production_mutated": false,
+              "owner_password_transferred": false,
+              "state": {
+                "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2/s6-c5-postrepair-state.json",
+                "sha256": "0604aafac621b3cebf16197756adcdb3cbfbb5d3a88a78cbeb647c64c7b79a65"
+              },
+              "canonical_plan": {
+                "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2/s6-c5-postrepair-attempt-plan.canonical.json",
+                "sha256": "c8d95513461436a52d0a431bea43a227164613f34c5748aa80a633525e625574"
+              },
+              "reserve_intent": {
+                "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2/s6-c5-postrepair-reserve.intent.json",
+                "sha256": "8d37cc524e495d1ab4ffee3030c753d936b9baf49154554a4715fb179a018216"
+              },
+              "reserve_receipt": {
+                "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2/s6-c5-postrepair-reserve.receipt.json",
+                "sha256": "914132dbd419b1c37f742fe50f48d5ed538f8b238c475eb56b94e1f02fe19d9e"
+              },
+              "prepare_launch": {
+                "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2/s6-c5-postrepair-fresh-prepare-launch.receipt.json",
+                "sha256": "39a5fde3a0288fd06eb7711975100ece8549e08a7d95b190c102e6ae2c456023"
+              },
+              "latest_prepare_observation": {
+                "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2/c5-postrepair-s6-prepare-observation-r15.json",
+                "sha256": "b3448966ea31450566291c60617e27beca84a273402fc91424a05cf9a2ef9310"
+              },
+              "pre_entry_source_space": {
+                "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2/pre-entry-source-and-space-20261120T1702.receipt.json",
+                "sha256": "9f91b2a6077e3f61fd487196bb811220a0187a132721b943c1c2f128e347de58"
+              },
+              "phase_observed": "isolated restore and role initialization completed; current-market-graph-refresh active; terminal target/scope/usage report still pending",
+              "readonly_restore_progress": {
+                "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2/prepare-restore-progress-readonly-r1.receipt.json",
+                "sha256": "455df99d626b558a18b7192e442ef26d90fdebedd0a29ec3e9fbdf01d1f028e4"
+              },
+              "readonly_owned_resource_progress": {
+                "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2/prepare-owned-resource-progress-readonly-r1.receipt.json",
+                "sha256": "4a94a6fd9ac9772e8df7caafeb4ff1026ef99406c606729980dedbec3447163a"
+              },
+              "independent_reserve_binding_review": "luna_max_audit passed state/plan/intent/receipt, actual Owner/window/CI chain and all ceilings; no resume or cross-candidate transfer; actual Source date is not claimed before prepare terminal"
             }
           }
         },
