@@ -1386,7 +1386,7 @@ Owner 要求冻结当前 E1 候选，只修必要验收、受控部署与真实�
 
 最近可提交事项为 C2 治理、双原件数值资格、来源快照和 v3 同事务写入/读回；执行入口只复用现有审计权限、账户查询、真实 Run 与 Fetch Audit，不另建审批或工作流。必要检查通过后及时提交；部署与真实请求仍分别经过同候选 CI/S6、备份、staging、正常权限及兼容/回滚门。已通过且相关输入未变的证据按绑定复用，不能把不同候选的成功拼成发布资格。
 
-当前原件、真实失败、环境中断、复用依据和待完成检查统一追加既有验收索引 docs/testing/data02-current-acceptance-2026-11-15.json 的 ollowups[14]。该条持续区分正式提交、验收、部署、真实 E1 回填及对账；E1 仍不替代全 universe 四 Publication 与 DATA-02 完整退出，DATA-03 继续等待。
+当前原件、真实失败、环境中断、复用依据和待完成检查统一追加既有验收索引 docs/testing/data02-current-acceptance-2026-11-15.json 的 followups[14]。该条持续区分正式提交、验收、部署、真实 E1 回填及对账；E1 仍不替代全 universe 四 Publication 与 DATA-02 完整退出，DATA-03 继续等待。
 
 
 2026-11-17 原生验收补充：R5/R6 失败原件保留；当前有35个不重复通过用例，可按实际依赖未变的范围复用。回滚并发用例的原10秒窗口混入迁移状态装载，且未等线程结束便进入清理，造成0117表缺失；改为第一捕获表锁前 rendezvous，分别观测0118单表锁与0116三表锁，并在线程完全退出后恢复全部 App 原叶节点。锁竞争断言仍为10秒，本机后续进程使用与 PostgreSQL CI 相同的45分钟上限；只有该受影响用例和未执行的两个 v3 模块进入后续原生验收。恢复和清理限于既有隔离测试库，未重建库、未操作生产。
@@ -1583,3 +1583,7 @@ C2北交所正式原件获取缺口已补：Root以隔离msedge正常首页→�
 SSE/BSE原生revision输入现已与既有SZSE输入一起准备齐：使用真实c5 Domain blob、官方notice/DOCX原件校验文号/版本/date精度/官方链接/bodySHA，canonical revision digest经独立复算通过；最初三个本地前置失败原件保留，r4通过。规则版本7月6日生效不冒称全部条款生效，notice暂缓项仍保留，已核09:30开盘条款不在其中。BSE附件HTTP仍未捕获，不补造200；没有SourceCapture、Publisher TTL、Owner采用或日历资格，Provider/DB请求0。原件归同一followups[14] c2_sse_bse_rule_document_preparation.native_revision_inputs。
 
 北京时间17:05后按原批准新建且仅新建c5 attempt840d6b0a64ce455680dbb401710258bd，reserve exit0、canonical plan SHA c8d95513461436a52d0a431bea43a227164613f34c5748aa80a633525e625574；17:07:32标准prepare PID2076709已启动，17:09真实observer仍见运行。启动前31813414912B可用空间不替代clone后的fresh24GiB门；目标20日、实际范围和graph用量待本attempt报告，不把旧5580/旧源日期或新调用0拼给本次。runner/财报/E1尚未启动，仍一新S6/500/22344/E1另2，生产未改；原件继续归同一followups[14] actual_500_authorization_and_selected_window.fresh_execution。
+
+840d prepare已真实complete/exit0：目标20日、5580只、graph28次、2657.03秒、clone后28232503296B通过24GiB。运维原失败及SSH原件保留：首个SSH执行由必经目录barrier及旧父目录ctime证明derived0，不伪造原stdout；真实零出网worker验证通过，旧wrapper NameError仍记blocked并另存reconciliation。修复recovery实际发出1次daily并返回200，但SDK no-rule兼容直连未进正常Egress审计，因此计数门正确阻断，不补写审计、不作资格。forensic日线5573对应5580范围缺7只（新增600567.SH），不能沿用昨日6只或删除证券。原19:30入口已关闭，原诊断2次尚余1，市场当前保守上界303、财报0/E10、标准runner未启动。Root继续完成正常Gateway修复及真实QA audit-writer零外呼/回滚验收；当前未新增预算、延长窗口或新建S6，DATA02未退出。原件继续归同一followups[14] fresh_execution。
+
+正常Gateway修复已完成真实QA验证：公开execute_provider_request通过真实Django已bootstrap的audit repository写入唯一测试审计行540、精确读回后outer事务回滚，表总数539→539、测试UUID0行；ID序列539→540跳号如实保留未重置，Provider/HTTP调用0、没有生产写入。该fake-wire回放只证明实际审计持久化/读回/回滚链，不把旧未审计daily变合格数据。补充491控制已冻结并独立复核，15项fixture与4个缺Owner真实入口围栏通过；计划保持c5/840d/target20，拟diag累计3、probe/cap各52，累计500/财22344/E1另2/外层4h不变，最坏491、余9不分配，实际G28最坏469。追加真实许可未收到、补充20:10诊断入口已经关闭，未生成human/Owner批准文件、未新增外呼或启动标准S6；旧source/window/state/intent/失败字节均保留。后续仅在真实追加许可与新的合格执行条件都满足时继续，不回填或改写已过窗口。原件仍见同一followups[14] fresh_execution。

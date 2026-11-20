@@ -7639,7 +7639,7 @@
         }
       },
       "market_window_recovery_pending_owner": {
-        "status": "approved500_fresh_s6_prepare_running",
+        "status": "native_audit_repair_validated_supplement_unapproved_entry_window_expired",
         "proposal": {
           "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-budget-revised-s6/c5-window-recovery-proposal.json",
           "sha256": "3396c28a8addceb8d48fe38bc436023b5000fb2a99fc7fc1b452f18a762e6c04"
@@ -8604,7 +8604,7 @@
             },
             "new_provider_requests_status": "prepare may dispatch its bounded market graph; actual tally awaits the same attempt report",
             "fresh_execution": {
-              "status": "prepare_running",
+              "status": "prepare_passed_diagnostic_unqualified_supplement_unapproved_window_expired",
               "attempt_id": "840d6b0a64ce455680dbb401710258bd",
               "candidate_sha": "c5b42e20cc97a7e166e6d3f88254d05b0605667a",
               "prepare_pid": 2076709,
@@ -8612,9 +8612,9 @@
               "disk_free_bytes_before_prepare": 31813414912,
               "minimum_docker_free_bytes": 25769803776,
               "target_trade_date_expected": "2026-11-20",
-              "fresh_target_scope_and_graph_usage_verified": false,
+              "fresh_target_scope_and_graph_usage_verified": true,
               "graph_dispatch_maximum": 50,
-              "new_market_dispatches_actual": null,
+              "new_market_dispatches_actual": 28,
               "market_prior_confirmed_actual": 244,
               "market_prior_conservative_upper": 274,
               "financial_dispatches": 0,
@@ -8660,7 +8660,175 @@
                 "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2/prepare-owned-resource-progress-readonly-r1.receipt.json",
                 "sha256": "4a94a6fd9ac9772e8df7caafeb4ff1026ef99406c606729980dedbec3447163a"
               },
-              "independent_reserve_binding_review": "luna_max_audit passed state/plan/intent/receipt, actual Owner/window/CI chain and all ceilings; no resume or cross-candidate transfer; actual Source date is not claimed before prepare terminal"
+              "independent_reserve_binding_review": "luna_max_audit passed state/plan/intent/receipt, actual Owner/window/CI chain and all ceilings; no resume or cross-candidate transfer; actual Source date is not claimed before prepare terminal",
+              "prepare_terminal": {
+                "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2/prepare-terminal-originals/prepare-status.json",
+                "sha256": "9666f7ec37943d4cb074aa30a20533e01c816cf4b40368c3fc25f2f252697753"
+              },
+              "prepare_receipt_original": {
+                "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2/prepare-terminal-originals/prepare-receipt.json",
+                "sha256": "b1b9f05c44a8f5109b490f568ef87abc8b7dda7135c51b1a9c98aca3dc6a2b64"
+              },
+              "universe_summary_original": {
+                "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2/prepare-terminal-originals/universe-summary.json",
+                "sha256": "ad89050521b2d8996e9f24194833a9339a194134da955eea6bea9e8323296409"
+              },
+              "market_graph_original": {
+                "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2/prepare-terminal-originals/current-market-graph-refresh.json",
+                "sha256": "c32bdb0f755b7d4b91872a3b0ef7aaba1f59aecbe9086e3ec06e9c011349d078"
+              },
+              "post_prepare_source_space": {
+                "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2/post-prepare-source-space.receipt.json",
+                "sha256": "43bf00f74ffd02fbc8599ff31345de8e7d3d6f03a1c4306001ab7b1461c98c3a"
+              },
+              "target_trade_date_actual": "2026-11-20",
+              "universe_count_actual": 5580,
+              "market_upper_after_graph_before_diagnostic": 302,
+              "diagnostic_actual_dispatches_derived": 1,
+              "diagnostic_preflight_and_forensics": {
+                "first_local_entry_blocked_before_ssh": {
+                  "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2/market-gap-diagnostic-execution.log",
+                  "sha256": "e3881693b158ef04da0eb6067d1468e01157523b7128243a2600f85599d4cdaf"
+                },
+                "ssh_entry_blocked_missing_query": {
+                  "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2/market-gap-diagnostic-execution-r2.log",
+                  "sha256": "27544539e40310d537f62e9a5f5a0e5ecf4c86a14532bd81a28ea42ad543947d"
+                },
+                "original_intent_retained": {
+                  "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2/diagnostic-artifacts/840d6b0a64ce455680dbb401710258bd/intent.json",
+                  "sha256": "28c3f272921421fb7c862a1facd124e67ff562a5f608ce74e6e1133decf18376"
+                },
+                "proven_zero_forensics": {
+                  "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2/diagnostic-first-call-proven-zero-forensics.receipt.json",
+                  "sha256": "239c01c897f9dde3077e24b2af6d9bc01d695f353b2d6c1da2f1fcd90e300558"
+                },
+                "diagnostic_budget_remaining": 1,
+                "not_recovered_original_stdout": true,
+                "zero_provider_integration_original_blocked_receipt": {
+                  "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2/zero-provider-preflight-840d6b0a64ce455680dbb401710258bd/preflight.receipt.json",
+                  "sha256": "ffc1cd57d1a78ccaefcb5c33ed314f9cdb22ef9dfa72ebcf7e345e04bb57e860"
+                },
+                "actual_zero_provider_worker_passed": true,
+                "zero_provider_worker_http_dispatches": 0,
+                "zero_provider_worker_audit_delta": 0,
+                "zero_provider_wrapper_failed": true,
+                "zero_provider_wrapper_failure_class": "NameError",
+                "root_cause": "SDK no-rule fallback sends directly without execute_provider_request/_record_attempt; operator must use normal Gateway",
+                "directory_and_readable_input_materialization_created_only_in_zero_provider_test": true,
+                "original_root600_metadata_and_private_env_preserved": true,
+                "protocol_and_recovery_fix_pending_final_review": false,
+                "new_user_budget_or_new_s6_required": false,
+                "financial_dispatches": 0,
+                "production_e1_dispatches": 0,
+                "zero_provider_reconciled": {
+                  "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2/zero-provider-preflight-840d6b0a64ce455680dbb401710258bd/preflight.reconciled.receipt.json",
+                  "sha256": "be15056c9934f3856e362532b1cd8a8be20191760f975900e9b1f4430a1b15f2"
+                },
+                "zero_provider_worker_and_final_postchecks_reconciled_passed": true,
+                "recovery_zero1_exchange": {
+                  "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2/diagnostic-artifacts/recovery-zero1/840d6b0a64ce455680dbb401710258bd/ssh-exchange.receipt.json",
+                  "sha256": "a544408eabb0eef66e986f34159a8325f1fbdeb32489f10ffbc6014ba9673c8d"
+                },
+                "recovery_zero1_stdout": {
+                  "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2/diagnostic-artifacts/recovery-zero1/840d6b0a64ce455680dbb401710258bd/ssh-stdout.response.bin",
+                  "sha256": "c15f2023eaacaeadc95d17b62f0a402f8c28194b6f7c0e7147887f43fb444603"
+                },
+                "actual_recovery_worker_reason": "DISPATCH_AUDIT_COUNT_MISMATCH",
+                "actual_recovery_dispatch_count": 1,
+                "actual_recovery_audit_insert_count": 0,
+                "unaudited_body": {
+                  "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2/diagnostic-artifacts/recovery-zero1/840d6b0a64ce455680dbb401710258bd/unqualified-raw-originals/daily.json",
+                  "sha256": "12171fe2d3988f34a14f11108b3adf60c1f6738b00295069f2dbc1239ff884d7"
+                },
+                "unqualified_daily_scope_forensics": {
+                  "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2/diagnostic-artifacts/recovery-zero1/840d6b0a64ce455680dbb401710258bd/unqualified-raw-originals/forensic-daily-scope-diff.json",
+                  "sha256": "a0415b9c9002f5ccd206c6f1b24c1152e0ca7b7a6bc4e2c5d3d7c0fbdbc3c564"
+                },
+                "actual_missing_codes": [
+                  "000635.SZ",
+                  "002717.SZ",
+                  "600185.SH",
+                  "600567.SH",
+                  "688121.SH",
+                  "688496.SH",
+                  "688798.SH"
+                ],
+                "no_manual_backfilled_audit_or_qualification": true,
+                "normal_gateway_fix_offline_passed": true,
+                "real_native_audit_writer_zero_provider_rollback_test_pending": false,
+                "supplement_not_approved": "Redo audited daily and suspension needs diagnostic total3; M7 retry worst52 may exceed capacity50. Original time window unchanged.",
+                "native_audit_writer_real_qa": {
+                  "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2/native-audit-zero-provider-840d6b0a64ce455680dbb401710258bd/native-audit.receipt.json",
+                  "sha256": "705b17f58c918a5ee692703cc373036c8a11d6cf4bb6bc0fc754e74728527dcc"
+                },
+                "native_audit_writer_result": {
+                  "outcome": "native_audit_verified_and_rolled_back",
+                  "provider_dispatches": 0,
+                  "http_attempts": 0,
+                  "fake_wire_attempts": 1,
+                  "transient_audit_id": 540,
+                  "test_rows_after_rollback": 0,
+                  "table_count_before": 539,
+                  "table_count_after": 539,
+                  "sequence_last_value_before": 539,
+                  "sequence_last_value_after": 540,
+                  "sequence_reset": false,
+                  "production_mutated": false,
+                  "not_real_provider_qualification": true
+                },
+                "additional_execution_allocation_required": true,
+                "same_s6_attempt_preserved": true,
+                "supplement491": {
+                  "plan": {
+                    "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2-supplement491/supplement-plan.json",
+                    "sha256": "84743bf2ceef3335339829ad6175ec50eb1f6e34f655101d29b8df6d5ab71b03"
+                  },
+                  "adapter": {
+                    "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2-supplement491/c5_supplement_491_adapter.py",
+                    "sha256": "0906ab685937688c93896c10218da8b8ae76fda7a5e73125826db1c7c0592f16"
+                  },
+                  "operator_manifest": {
+                    "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2-supplement491/operator-manifest.json",
+                    "sha256": "1a3c3fbbb5183569df7edf4882b3c8db3ecc3919c9318b3b786fa954ad6a32ec"
+                  },
+                  "status": "unapproved_and_diagnostic_entry_window_expired",
+                  "human_reply_exists": false,
+                  "owner_authorization_exists": false,
+                  "human_question_sent": true,
+                  "actual_new_approval_received": false,
+                  "diagnostic_total_proposed": 3,
+                  "probe_and_capacity_each_proposed": 52,
+                  "market_ceiling_unchanged": 500,
+                  "conservative_maximum": 491,
+                  "actual_graph28_maximum": 469,
+                  "unallocated": 9,
+                  "diagnostic_entry_proposed": "2026-11-20T20:10:00+08:00",
+                  "stage_entry_proposed": "2026-11-20T20:20:00+08:00",
+                  "runner_entry_unchanged": "2026-11-20T20:30:00+08:00",
+                  "cutoff_unchanged": "2026-11-21T12:00:00+08:00",
+                  "independent_frozen_review": "luna_max_audit passed;15 fixtures and4 actual no-Owner entry fences, forbidden events0; baseline13 inputs unchanged",
+                  "no_execution_after_missing_approval_or_expired_window": true
+                },
+                "protocol_and_recovery_fix_review_complete": true,
+                "new_user_budget_or_new_s6_required_note": "No increase to total500 or second S6 is proposed; the diagnostic3/shared52 sublimits and any future qualified execution conditions still require genuine supplemental authorization."
+              },
+              "diagnostic_actual_dispatches": 1,
+              "diagnostic_budget_remaining": 1,
+              "market_upper_after_graph_and_diagnostic": 303,
+              "diagnostic_entry_deadline_original": "2026-11-20T19:30:00+08:00",
+              "real_provider_calls_after_deadline": 0,
+              "documentation_validation": {
+                "registry_command": "python scripts/check_active_plan_registry.py",
+                "exit_code": 0,
+                "violations": 0,
+                "log": {
+                  "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2/final-docs-registry-check.log",
+                  "sha256": "0e5e4ebae9206cf0e61f2f9a550ef8ad2914214f034baf57db0b84bb3dcf6a7e"
+                },
+                "new_diagnostic_original_hashes_verified": 14,
+                "git_diff_check_exit": 0,
+                "production_python_changed": false
+              }
             }
           }
         },
