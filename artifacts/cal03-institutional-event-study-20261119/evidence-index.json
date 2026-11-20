@@ -1016,5 +1016,64 @@
     ],
     "checks": ".tmp/cal03-event-study-20261119/qualification-20261120/personal-scope-checks.json",
     "commit_receipt": ".tmp/cal03-event-study-20261119/qualification-20261120/personal-scope-commit.json"
+  },
+  "personal_scope_and_SZSE_authority_review_20261120": {
+    "base_head": "73d6237d09c7bbf522ff42e0281b70bf615e6e1d",
+    "report": {
+      "path": ".tmp/cal03-event-study-20261119/qualification-20261120-szse/review.json",
+      "sha256": "d0c11c40384b1f44a3b6ccd7d3c48e0851c8d73e9f4c696a166478fd69ab7b3f"
+    },
+    "declared_intended_use": "personal_research_only",
+    "actual_operator_account_grant_verified": false,
+    "new_account_rights_evidence_obtained": false,
+    "existing_browser_rights_page_read": false,
+    "new_official_document_gets": 17,
+    "reused_SZSE_originals": 2,
+    "annual_SZSE_covered_years": [
+      2010,
+      2013,
+      2015,
+      2018,
+      2019,
+      2020,
+      2021,
+      2022,
+      2023,
+      2024,
+      2025,
+      2026
+    ],
+    "annual_SZSE_missing_years": [
+      2011,
+      2012,
+      2014,
+      2016,
+      2017
+    ],
+    "SZSE_days_checked": 4336,
+    "after_identified_SZSE_revisions_unresolved_dates": [
+      "2015-09-03",
+      "2015-09-04"
+    ],
+    "paired_exchange_intraday_events": 4,
+    "new_historical_price_originals_or_revisions_obtained": 0,
+    "historical_availability_clocks_filled": false,
+    "qualified_historical_calendar": false,
+    "qualified_full_history_packages": 0,
+    "frozen_input_admitted": false,
+    "frozen_spec_sha256": "29a44d0cd2670dd2a72853494d21271c9765d6584dafa4998e1df3c2a6edfe71",
+    "market_or_financial_provider_dispatches": 0,
+    "data02_budget_consumed": 0,
+    "production_actions": 0,
+    "real_oos_claimed_or_evaluated": false,
+    "remaining": [
+      "Existing personal-research operator/account grant and validity",
+      "All three official original/revised close versions or authoritative final-version/revision basis",
+      "Historical availability before frozen cutoff",
+      "Missing SZSE annual/special originals plus complete applicable session/rule/as-of/final-publication evidence",
+      "Qualified independent failover and frozen manifest binding before evaluation"
+    ],
+    "checks": ".tmp/cal03-event-study-20261119/qualification-20261120-szse/checks.json",
+    "commit_receipt": ".tmp/cal03-event-study-20261119/qualification-20261120-szse/commit.json"
   }
 }
