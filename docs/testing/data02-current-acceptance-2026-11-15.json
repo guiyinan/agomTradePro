@@ -7639,7 +7639,7 @@
         }
       },
       "market_window_recovery_pending_owner": {
-        "status": "approved500_fresh_publication_ci_running_waiting_source_window",
+        "status": "approved500_official_ci_qualified_waiting_frozen_source_window",
         "proposal": {
           "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-budget-revised-s6/c5-window-recovery-proposal.json",
           "sha256": "3396c28a8addceb8d48fe38bc436023b5000fb2a99fc7fc1b452f18a762e6c04"
@@ -8485,7 +8485,7 @@
             },
             "ci_only_successor_verification": {
               "generation": 2,
-              "status": "dispatched_qualification_pending",
+              "status": "completed_success_official_artifact_and_source_clocks_verified",
               "run_id": 44688448376,
               "url": "https://github.com/guiyinan/agomTradePro/actions/runs/44688448376",
               "candidate_sha": "c5b42e20cc97a7e166e6d3f88254d05b0605667a",
@@ -8529,11 +8529,49 @@
               "provider_requests": 0,
               "s6_reserved": false,
               "new_human_approval_claimed": false,
-              "official_artifact_qualification_passed": false,
+              "official_artifact_qualification_passed": true,
               "again_failure_requires_connection_attribution_before_further_ci": true,
               "observer_namespace_delta": {
                 "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/observe-c5-postrepair-ci2.delta.receipt.json",
                 "sha256": "8dd5c846b37508fe6002403821a14890527a049624e379292969f5a76f181771"
+              },
+              "conclusion": "success",
+              "qualified_window_wait_receipt": {
+                "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2/ci-qualified-window-wait.receipt.json",
+                "sha256": "7d4069277aa1c67e1f07f7441b2979bda5cfde9e85e9f506bfea6245092fe601"
+              },
+              "official_run": {
+                "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2/publication-run.json",
+                "sha256": "7acc45d2e279f448860c70883300ec0d32e1c0a989cbaa8758a1d41038352bbe"
+              },
+              "official_artifact_listing": {
+                "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2/publication-artifact-listing.json",
+                "sha256": "647a21036c93088bd8fede7cb6e9570fae32ed1bb756ce8516b8017275913651"
+              },
+              "official_download_verification": {
+                "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2/publication-download.receipt.json",
+                "sha256": "dced7a380a4c50fc4114d57e37d13d840109783689eb3b5034cd87733d641c16"
+              },
+              "qualified_observe_log": {
+                "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2/ci-observe-download-terminal.log",
+                "sha256": "568d5fe8456b701380cdf95f2332610ca407298500e91bbf126e2e1035073124"
+              },
+              "xml_count": 12,
+              "junit_totals": {
+                "tests": 303,
+                "failures": 0,
+                "errors": 0,
+                "skipped": 0
+              },
+              "real_source_clocks_cover_planned_through": "2026-11-21T11:00:00+08:00",
+              "actual_reserve_entry_still_blocked_before_1705": true,
+              "post_download_independent_review": {
+                "reviewer": "luna_max_audit",
+                "result": "passed_readonly_actual_run_archive_xml_and_authority_bindings",
+                "earliest_run_created_beijing": "2026-11-20T14:31:53+08:00",
+                "earliest_junit_suite_beijing": "2026-11-20T14:40:38.479772+08:00",
+                "conservative_24h_expiry_beijing": "2026-11-21T14:31:53+08:00",
+                "margin_after_planned_horizon_seconds": 12713
               }
             }
           }
