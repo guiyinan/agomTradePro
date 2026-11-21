@@ -3601,7 +3601,7 @@
     {
       "date": "2026-11-16T18:08:48.512032+00:00",
       "kind": "e1_frozen_integrated_c2_numeric_v3_preparation",
-      "status": "genuine_supplement_reply_received_late_execution_window_expired",
+      "status": "delegated_window_same_candidate_official_ci_running",
       "base_head": "2529c3bd50b728ae87ad328c1ae5794907f5ea74",
       "scope": "Frozen single-security Main+Balance E1 critical path only; full DATA-02 universe and four Publication exit gates unchanged.",
       "delivery": {
@@ -8604,7 +8604,7 @@
             },
             "new_provider_requests_status": "prepare may dispatch its bounded market graph; actual tally awaits the same attempt report",
             "fresh_execution": {
-              "status": "prepare_passed_late_supplement_reply_recorded_new_window_not_authorized",
+              "status": "prepare_passed_delegated_window_official_ci_running",
               "attempt_id": "840d6b0a64ce455680dbb401710258bd",
               "candidate_sha": "c5b42e20cc97a7e166e6d3f88254d05b0605667a",
               "prepare_pid": 2076709,
@@ -8823,7 +8823,7 @@
                     "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2-supplement491/window-reselection-proposal.json",
                     "sha256": "277037beb2f58ef261ea2f4dd3336d5c339f2e2ee6ae41809c8d9c3424eb3043"
                   },
-                  "window_reselection_authorized": false,
+                  "window_reselection_authorized": true,
                   "new_provider_calls_after_late_reply": 0,
                   "window_reselection_independent_review": {
                     "reviewer": "luna_max_audit",
@@ -8832,7 +8832,7 @@
                     "old_deadlines_remain_expired": true
                   },
                   "window_delegation_question_sent": true,
-                  "window_delegation_reply_received": false,
+                  "window_delegation_reply_received": true,
                   "late_reply_default_deny_validation": {
                     "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2-supplement491/late-approval-default-deny.receipt.json",
                     "sha256": "1bde0a94a771089b7adb41387454cecf4a54e24b9a90f053decdc6b3ffaa9584"
@@ -8844,11 +8844,133 @@
                       "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2-supplement491/late-approval-docs-registry-check.log",
                       "sha256": "0e5e4ebae9206cf0e61f2f9a550ef8ad2914214f034baf57db0b84bb3dcf6a7e"
                     }
+                  },
+                  "window_delegation_human_reply": {
+                    "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2-supplement491/window-reselection-human-reply.json",
+                    "sha256": "7e202cca2625a2bfbc02274aa3275bbca09597062dc1fecf605373c02c2134ac"
+                  },
+                  "window_delegation_call_id": "call_f00e4ee0aa0844ab946a0fc2580f8be1",
+                  "delegation_first_observed_at": "2026-11-21T09:21:34+08:00",
+                  "delegated_window_execution": {
+                    "status": "actual_official_same_candidate_ci_in_progress",
+                    "selected_window": {
+                      "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2-supplement491/reselection/selected-window.json",
+                      "sha256": "e0df7fcfacba8b71c6d1f6204ff5eb23186fea8cbab12e1698e0d5102ed04904"
+                    },
+                    "controls": {
+                      "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2-supplement491/reselection/controls.py",
+                      "sha256": "ac71a11b9c8d436eb2f333df778596a1c5bfd791bfa59daa17409193f9afabf9"
+                    },
+                    "driver": {
+                      "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2-supplement491/reselection/driver.py",
+                      "sha256": "3f85784f4bace73afe5ae877c4d9f3210ede60f46be1cded50c45dc0b36266d7"
+                    },
+                    "operator_deltas": {
+                      "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2-supplement491/reselection/operator-deltas.json",
+                      "sha256": "e9b62fca01d0fd5bca2e4c2d0a1f4a45a01c898a054e73399ab5d2af5da4c9db"
+                    },
+                    "offline_validation": {
+                      "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2-supplement491/reselection/offline-validation.receipt.json",
+                      "sha256": "178de64d7e3f357d48cd48b27af0ec40e71dccd74af250a5207bb52473a8b3b7"
+                    },
+                    "offline_fixtures": 13,
+                    "missing_owner_entry_fences": 4,
+                    "old_originals_unchanged": true,
+                    "new_owner_exists": true,
+                    "new_ci_intent_exists": true,
+                    "provider_dispatches": 0,
+                    "standard_runner_started": false,
+                    "old_ci_insufficient_for_new_52200_headroom": true,
+                    "fresh_same_c5_ci_maximum": 1,
+                    "same_attempt_preserved": true,
+                    "source_target_date": "2026-11-20",
+                    "actual_weekend_source_qualification_not_yet_proven": true,
+                    "new_source_or_budget_authority_inferred": false,
+                    "readonly_environment_preflight": {
+                      "receipt": {
+                        "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2/reselection-readonly-20261121-r2.receipt.json",
+                        "sha256": "86b4389fa3650583faca2cbbbac8863821738190306820b10d6c939179c85eb3"
+                      },
+                      "outcome": "passed",
+                      "production_identity_unchanged": true,
+                      "qa_identities_match": true,
+                      "candidate_checkout_clean": true,
+                      "free_bytes": 28260040704,
+                      "provider_dispatches": 0,
+                      "business_dml_allowed": false,
+                      "initial_failed_receipt": {
+                        "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2/reselection-readonly-20261121.receipt.json",
+                        "sha256": "b2dc6826b47087bbfd91d6c78c3c7176cb96fb2aab4445e932975f828283014e"
+                      },
+                      "initial_failure": "Read-only Git check targeted the source snapshot without .git; corrected to canonical state.workspace. R1 original retained."
+                    },
+                    "owner_authorization": {
+                      "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2-supplement491/reselection/owner-authorization.json",
+                      "sha256": "3b4d5466591f3b1736826e9238d2a7bb080c8f5e674c59a065f930e632e119cd"
+                    },
+                    "owner_created_at": "2026-11-21T02:18:06.566649+00:00",
+                    "new_ci_dispatch_intent": {
+                      "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2-supplement491/reselection/ci/ci-dispatch.intent.json",
+                      "sha256": "24edd65d04c5543f2c11a6a8e0ac28ea5a74b5f70ee57d361bb2bfcb819c801a"
+                    },
+                    "new_ci_dispatch_receipt": {
+                      "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2-supplement491/reselection/ci/ci-dispatch.receipt.json",
+                      "sha256": "3433bd89e2049164894156cbecb0fdba6040c44d18d0178659c53eb7c1490131"
+                    },
+                    "new_ci_run_binding": {
+                      "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2-supplement491/reselection/ci/ci-run-binding.json",
+                      "sha256": "e821e3a2dc3b8b73e9d9a5bc1a24440f6fd60215a5c5d4e7400f4142ac2815ea"
+                    },
+                    "new_ci_run_id": 44855139131,
+                    "new_ci_tag": "ci/data02-c5-e0df7fcfacba8b71",
+                    "new_ci_run_attempt": 1,
+                    "new_ci_latest_observed_status": "in_progress",
+                    "new_ci_success_proven": false,
+                    "ci_dispatch_independent_review": {
+                      "reviewer": "luna_max_audit",
+                      "result": "no_blocker_in_ci_only_admission",
+                      "full_phase_review_still_pending": true
+                    },
+                    "ci_transport_observation_failures_retained": [
+                      {
+                        "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2-supplement491/reselection/ci-observe-02.log",
+                        "sha256": "ee06837c0a8475b243722c18c31d64f412dab1b3112dc546f499fb3ae3531e0b"
+                      },
+                      {
+                        "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2-supplement491/reselection/ci-run-44855139131-watch.log",
+                        "sha256": "40da74feec981c71c1923552ed0e8aaf92da55e1e5a1cc77aa13dcd9aca02fcd"
+                      }
+                    ],
+                    "ci_repoll_same_run_after_transport_failure": {
+                      "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2-supplement491/reselection/ci-observe-03.log",
+                      "sha256": "c0e4dfc3dc668668c2c2a3c3c2db54972f54185b0e22b9e598cad1e647a943a9"
+                    },
+                    "no_ci_redispatch_after_observation_failure": true,
+                    "phase_handoff_preparation": {
+                      "entry": {
+                        "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2-supplement491/reselection/phase_handoff.py",
+                        "sha256": "da57fe8eab7e5535b41bf93a9589c1b4fcd7eab556209a7a5753b8bc082a8126"
+                      },
+                      "plan": {
+                        "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2-supplement491/reselection/phase-handoff-plan.json",
+                        "sha256": "f67dc2dba64f091477e357617f163112c033cae6ebe1f5a0ac19fb56e82bb53a"
+                      },
+                      "status": "frozen_pending_independent_review_and_actual_ci_download",
+                      "fixtures": 9,
+                      "missing_derived_owner_fences": 2,
+                      "immutable_state_and_ci_owner_preserved": true,
+                      "historical_ci_run_id": 44688448376,
+                      "fresh_ci_run_id": 44855139131,
+                      "root_owner_crlf49_raw_preserved": true,
+                      "other_python_source_lf_guards_unchanged": true,
+                      "phase_owner_created": false,
+                      "provider_dispatches": 0
+                    }
                   }
                 },
                 "protocol_and_recovery_fix_review_complete": true,
-                "new_user_budget_or_new_s6_required_note": "No increase to total500 or second S6 is proposed. Genuine diagnostic3/shared52 answer was received after all approved entry windows; replacement window delegation and exact clock/CI-horizon bindings are still required.",
-                "additional_qualified_window_authorization_required": true
+                "new_user_budget_or_new_s6_required_note": "Genuine window delegation has arrived; Root froze new phase clocks and dispatched one same-c5 CI. No additional budget or new S6 is authorized or required for the existing840d continuation; normal CI/source/phase and derived handoff bindings remain mandatory.",
+                "additional_qualified_window_authorization_required": false
               },
               "diagnostic_actual_dispatches": 1,
               "diagnostic_budget_remaining": 1,
@@ -8916,6 +9038,10 @@
         "latest_selected_window_day_recheck": {
           "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6/audit-current-lease-readonly-20261120T1400.receipt.json",
           "sha256": "4dbf4d7e9263802c82323d6b2463191128dcef0a424b013358399c103573b1fd"
+        },
+        "latest_delegated_window_day_recheck": {
+          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2/reselection-readonly-20261121-r2.receipt.json",
+          "sha256": "86b4389fa3650583faca2cbbbac8863821738190306820b10d6c939179c85eb3"
         }
       },
       "close_window_owned_resource_recovery": {
