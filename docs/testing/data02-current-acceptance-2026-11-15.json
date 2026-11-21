@@ -3601,7 +3601,7 @@
     {
       "date": "2026-11-16T18:08:48.512032+00:00",
       "kind": "e1_frozen_integrated_c2_numeric_v3_preparation",
-      "status": "actual_two_audited_requests_complete_rpc_truncated_admission_unqualified",
+      "status": "same_c5_840d_standard_s6_terminal_inputs_output_directory_exists",
       "base_head": "2529c3bd50b728ae87ad328c1ae5794907f5ea74",
       "scope": "Frozen single-security Main+Balance E1 critical path only; full DATA-02 universe and four Publication exit gates unchanged.",
       "delivery": {
@@ -9261,7 +9261,7 @@
                       "latest_prior_ci_conservative_expiry_bjt": "2026-11-22T10:18:17+08:00",
                       "latest_possible_runner_start_on_prior_ci_bjt": "2026-11-21T19:48:17+08:00",
                       "runner_headroom_seconds": 52200,
-                      "standard_runner_started": false,
+                      "standard_runner_started": true,
                       "production_e1_used": 0,
                       "full_data02_exit_met": false,
                       "evening_ci": {
@@ -9304,13 +9304,193 @@
                           "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2-supplement491/reselection/nov21-evening/github-readonly-permission-details.json",
                           "sha256": "abe0d2c86e47821d6be424911d7d9ca03b43aea643c5734c1b945ae992126759"
                         },
-                        "workflow_dispatch_calls": 0,
-                        "ci_run_id": null,
                         "failure_stage": "create GitHub tag before workflow_dispatch; original gh error not retained by the frozen operator",
-                        "ref_readback_status": 404,
-                        "matching_workflow_run_count": 0,
                         "standard_runner_started": false,
-                        "new_market_or_financial_requests": 0
+                        "new_market_or_financial_requests": 0,
+                        "initial_failure_observation": {
+                          "workflow_dispatch_calls": 0,
+                          "ci_run_id": null,
+                          "ref_readback_status": 404,
+                          "matching_workflow_run_count": 0
+                        },
+                        "tag_recovery": {
+                          "owner": {
+                            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2-supplement491/reselection/nov21-evening/tag-recovery-owner.json",
+                            "sha256": "6cff07c5ef3155b21f9a7e0b96b4ba099ffb491f0dcc2c486648bacf2b672ce3"
+                          },
+                          "control": {
+                            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2-supplement491/reselection/recover_evening_tag.py",
+                            "sha256": "58aa4784570c881aa3687e3e30c72a155d09e0659f20a76a87d3bc25b0075744"
+                          },
+                          "offline_tests_passed": 6,
+                          "offline_log": {
+                            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2-supplement491/reselection/nov21-evening/tag-recovery-offline-r2.log",
+                            "sha256": "73492caea419596ece73d02917eeac09fde08ebdf2779a0ba0f67baa809115f5"
+                          },
+                          "independent_reviewer": "data02_audit",
+                          "exclusive_marker": {
+                            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2-supplement491/reselection/nov21-evening/tag-recovery-once.json",
+                            "sha256": "780b507490d9b5c1330ce399438fd0a30931543e37b3547fb5de1a789c7930fa"
+                          },
+                          "tag_creation": {
+                            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2-supplement491/reselection/nov21-evening/tag-recovery-create-result.json",
+                            "sha256": "76ef47ee486080839f8c7bbb4ac0faccb7e71b00eded629dbcb4476b2bb1b28c"
+                          },
+                          "exact_tag_verified_before_send": {
+                            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2-supplement491/reselection/nov21-evening/tag-recovery-confirmed-before-send.json",
+                            "sha256": "14ec5fea2e51af7f9089bf3cadd9eb51e9c191db43b17514e252073a7dc386ea"
+                          },
+                          "workflow_response": {
+                            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2-supplement491/reselection/nov21-evening/tag-recovery-workflow-response.json",
+                            "sha256": "e1b0d1f9e3715f987ffef99201346da3b3a33f3a8fccaca5df185b5f3ef4376a"
+                          },
+                          "dispatch": {
+                            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2-supplement491/reselection/nov21-evening/ci/ci-dispatch.receipt.json",
+                            "sha256": "d496fdf309ac8325e9abd772dc402f68b206546e73cfdddfa5519269a43fd3bc"
+                          },
+                          "binding": {
+                            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2-supplement491/reselection/nov21-evening/ci/ci-run-binding.json",
+                            "sha256": "82b65745614aa89d534857bc5837ab0742b8804acb9a8e3d4391d71df811c404"
+                          },
+                          "tag": "ci/data02-c5-ab71780171ce97cb",
+                          "original_intent_sha256": "094c0d6bfd672aa9145b5165347652b19efc17dc259cb80d9969f569ce9d57fa",
+                          "workflow_dispatch_calls": 1,
+                          "workflow_run_id": 44909914178,
+                          "first_observation": {
+                            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2-supplement491/reselection/nov21-evening/ci-observe-01.log",
+                            "sha256": "e20aceb177d2d5a1c3839f4acd143f30b8ef684134ff878f85617bb8a7e704c2"
+                          },
+                          "first_status": "in_progress",
+                          "new_provider_requests": 0
+                        },
+                        "final": {
+                          "outcome": "success",
+                          "run": {
+                            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2-supplement491/reselection/nov21-evening/ci/publication-run.json",
+                            "sha256": "34928d5f4e6972319af06fdf901684a41841ed249f6c04c408b7762ac3b65453"
+                          },
+                          "listing": {
+                            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2-supplement491/reselection/nov21-evening/ci/publication-artifact-listing.json",
+                            "sha256": "13857b51515607b6f7066517c4cfe5177e4d0616e5bf8204f52926f5272e6e9b"
+                          },
+                          "archive": {
+                            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2-supplement491/reselection/nov21-evening/ci/publication-artifact.zip",
+                            "sha256": "b82937c908e0fe4aaf83e9de81d2436e1f37e1b949186a7eabcc37c6b42c97cf"
+                          },
+                          "download_verification": {
+                            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2-supplement491/reselection/nov21-evening/ci/publication-download.receipt.json",
+                            "sha256": "8f57ae1fecd843d16ce164243757a36a70959f7c39a2e6f18cb5dab875859aec"
+                          },
+                          "xml_count": 12,
+                          "tests": 303,
+                          "failures": 0,
+                          "errors": 0,
+                          "skipped": 0,
+                          "required_cases_verified": 69,
+                          "artifact_id": 14710127716,
+                          "conservative_source_expiry_bjt": "2026-11-22T21:39:04+08:00",
+                          "seconds_after_planned_cutoff": 18544,
+                          "reviewer": "data02_audit",
+                          "watch_eof_same_run": {
+                            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2-supplement491/reselection/nov21-evening/ci-watch-44909914178.log",
+                            "sha256": "34c7c4ef1eb095f74d8bb8b373c65658b2c8a01002454f25c60afa0cb3df8674"
+                          },
+                          "followup_observation": {
+                            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2-supplement491/reselection/nov21-evening/ci-observation-after-eof.jsonl",
+                            "sha256": "0ff4689ed43cb091100177303f167e5660f5f4285ed9692f96c166c9e00ee92c"
+                          }
+                        }
+                      },
+                      "isolated_s6_execution": {
+                        "attempt_id": "840d6b0a64ce455680dbb401710258bd",
+                        "candidate_sha": "c5b42e20cc97a7e166e6d3f88254d05b0605667a",
+                        "status": "terminal_blocked_at_inputs",
+                        "phase_owner": {
+                          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2-supplement491/reselection/nov21-evening/phase-owner.json",
+                          "sha256": "e921e5d029f279a642f7f1395e1552a1d7529949b1ae6cdf69aa0adfcc95136a"
+                        },
+                        "phase_entry": {
+                          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2-supplement491/reselection/next_window_admission.py",
+                          "sha256": "c641fd65d8b5a06b1fa2deb95066811feecafea942e41f03e99482f700487772"
+                        },
+                        "transport": {
+                          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2/s6-c5-postrepair-transport.receipt.json",
+                          "sha256": "8e92d4d89dc55d7a613317b7022589de24a04175213d6e97106c03db45360fd7"
+                        },
+                        "runner_invocation": {
+                          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2-supplement491/reselection/nov21-evening/runner-invocation.intent.json",
+                          "sha256": "438ad9544b4e343c45f7354a6ce36ff97aba2d8b2f83325be43ececb77be2d31"
+                        },
+                        "launch": {
+                          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2/s6-c5-postrepair-runner-launch.receipt.json",
+                          "sha256": "c68d86f09aec8d7b549cf1e3640078894c2add49bb6bb71281ef8e28deafc0a4"
+                        },
+                        "budget_confirmation": {
+                          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2/s6-c5-postrepair-market-budget-confirmed.receipt.json",
+                          "sha256": "f65bf782cfc170d9f8f59fedd2ded23fdf6ba66c58d51baefc2271badf57ebe5"
+                        },
+                        "first_observation": {
+                          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2/c5-postrepair-s6-runner-observation-r1.json",
+                          "sha256": "9291b02f0532dd078f3eb653074c4a1d68a608434938a6f2fd26377fb66a6ee6"
+                        },
+                        "terminal_log": {
+                          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2-supplement491/reselection/nov21-evening/runner-initial-exit-log.original",
+                          "sha256": "971e59f91e4384a5d20ec47aa5e8ce134a27b781efc08bee82fa8b721cff97e6"
+                        },
+                        "terminal_readback": {
+                          "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2-supplement491/reselection/nov21-evening/runner-terminal-readonly.json",
+                          "sha256": "fc46a28e5d27a4a714d7635502d5e67013a964c5f0aeaf6800d11db82968b5b0"
+                        },
+                        "runner_pid": 3521094,
+                        "runner_started": true,
+                        "runner_currently_running": false,
+                        "executed_standard_stages": [],
+                        "error_code": "S6_OUTPUT_DIRECTORY_EXISTS",
+                        "cause": "Retained pre-run diagnostic evidence used the canonical plan.evidence_dir, also passed as the fresh standard runner --output-dir. The sealed runner rejects even an empty existing directory before constructing any stage runner.",
+                        "preexisting_entries": 15,
+                        "reserved_market_maximum_this_launch": 469,
+                        "actual_additional_provider_calls_from_standard_runner": 0,
+                        "usage_verification": "Derived from exact inputs-stage terminal log and candidate control flow before SubprocessRunner/stages; no provider-stage receipt exists.",
+                        "market_cumulative_upper": 305,
+                        "diagnostic_requests_used": 3,
+                        "financial_requests_used": 0,
+                        "production_e1_requests_used": 0,
+                        "free_bytes_after": 28220231680,
+                        "new_attempt_authorized": false,
+                        "production_deployment_or_backfill": false,
+                        "data02_exit_met": false,
+                        "successor_proposal": {
+                          "status": "pending_owner_new_attempt_and_isolated_space_decision",
+                          "independent_terminal_review": "data02_audit verified input gate is before standard stages, no checkpoint/resume, original fresh attempt spent",
+                          "layout_check": {
+                            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2-supplement491/reselection/nov21-evening/successor_layout_check.py",
+                            "sha256": "857b3862fdca07ec374911f294d543a6b601b9ed56cc0cb45392bfc66d6775d7"
+                          },
+                          "layout_test": {
+                            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2-supplement491/reselection/nov21-evening/successor-layout-check.log",
+                            "sha256": "980c74553f1180b744ae030f70b2bff18b605101047338c42d5a12695839a68d"
+                          },
+                          "layout_test_limit": "Offline host bind path and worker evidence reference only. Future native QA, diagnostic retrieval/readback, stage and immediately prelaunch absence checks must be integrated and exercised before execution. No new attempt reserved.",
+                          "isolated_volume_observation": {
+                            "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2-supplement491/reselection/nov21-evening/terminal-qa-volume-readonly.json",
+                            "sha256": "9d6d929fcdde01cd82ec2c443bf681bb3868febe9fb87f20b593546bca8a34cd"
+                          },
+                          "new_diagnostic_total_ceiling_requested": 5,
+                          "existing_upper": 305,
+                          "new_graph_dispatch_max": 50,
+                          "continue_only_if_new_graph_actual_at_most": 29,
+                          "new_diagnostic_sends_max": 2,
+                          "probe_cap": 52,
+                          "capacity_cap": 52,
+                          "post_s6_reserved": 60,
+                          "new_worst_cumulative_allocated_if_approved": 500,
+                          "original_unallocated_9_use_requires_approval": true,
+                          "financial_ceiling": 22344,
+                          "e1_separate_maximum": 2,
+                          "existing_ci_theoretical_last_runner_start_bjt": "2026-11-22T07:09:04+08:00",
+                          "new_window_frozen": false,
+                          "old_qa_resource_retirement_approved": false
+                        }
                       }
                     }
                   }
