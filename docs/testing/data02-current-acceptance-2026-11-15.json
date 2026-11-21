@@ -9460,7 +9460,7 @@
                         "production_deployment_or_backfill": false,
                         "data02_exit_met": false,
                         "successor_proposal": {
-                          "status": "approved_one_fresh_same_c5_execution",
+                          "status": "authorized_successor_terminal_in_graph_prepare",
                           "independent_terminal_review": "data02_audit verified input gate is before standard stages, no checkpoint/resume, original fresh attempt spent",
                           "layout_check": {
                             "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2-supplement491/reselection/nov21-evening/successor_layout_check.py",
@@ -9572,6 +9572,146 @@
                             "current_offline_tests": {
                               "local_path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-fresh-after-840d/offline-check-current.log",
                               "sha256": "348cb3c937cb8976a3d6f95a0398dcb86b3c06bb7d787e59b8a4a3751e7f3494"
+                            },
+                            "terminal": {
+                              "status": {
+                                "attempt_id": "5e2871c3414f4a73becb1267afade845",
+                                "candidate_sha": "c5b42e20cc97a7e166e6d3f88254d05b0605667a",
+                                "error_code": "S6_GRAPH_REFRESH_COMMAND_FAILED",
+                                "execution_image_id": "sha256:8fb8281c9551f28611ee9a0cf6d5503792077eeddff9a917aee1793d8559ea92",
+                                "exit_code": 60,
+                                "phase": "candidate_exports",
+                                "schema": "release.s6-prepare-status.v2",
+                                "state": "failed",
+                                "updated_at": "2026-11-21T16:18:26.898981+00:00"
+                              },
+                              "business_outcome": "partial",
+                              "graph_guard": "S6_GRAPH_REFRESH_GRAPH_INVALID",
+                              "market_graph_dispatches": 28,
+                              "rejected_dispatches": 0,
+                              "graph_seconds": 2712.06295,
+                              "requested": 5580,
+                              "succeeded": 5572,
+                              "failed": 8,
+                              "stored_quote_plus_valuation": 11145,
+                              "new_publication_members": 0,
+                              "valuation_source_intersection": {
+                                "seeded": 5572,
+                                "later_all": 392,
+                                "shadowed_seeded": 391,
+                                "target_retained": 5181,
+                                "later_akshare": 391,
+                                "sample": [
+                                  "000001.SZ",
+                                  "000002.SZ",
+                                  "000006.SZ",
+                                  "000007.SZ"
+                                ]
+                              },
+                              "full_scope_latest_by_target": {
+                                "scope": 5580,
+                                "target_seeded": 5572,
+                                "later_in_scope": 392,
+                                "valuation_current_target": 5182,
+                                "valuation_target_outside_seed": 1,
+                                "quote_current_target": 5573,
+                                "price_current_target": 5572
+                              },
+                              "finding": "Sealed c5 selects latest valuation date per asset before filtering target date. Of 5572 newly seeded Nov 20 assets, 391 have a newer Nov 21 AkShare date and are absent from the preview. Only 5182 target-day latest valuations exist across 5580 assets, including one outside the new seed. This alone fails the valuation coverage gate. Source eligibility at window selection did not check later rows in the clone. Provenance of the Nov 21 source dates has not been attributed.",
+                              "standard_runner_started": false,
+                              "prepare_receipt_present": false,
+                              "formal_evidence_directory_present": false,
+                              "new_market_diagnostic_dispatches": 0,
+                              "cumulative_diagnostic_dispatches": 3,
+                              "diagnostic_ceiling": 5,
+                              "market_prior_upper": 305,
+                              "market_cumulative_upper": 333,
+                              "market_ceiling": 500,
+                              "financial_provider_dispatches": 0,
+                              "production_e1_dispatches": 0,
+                              "production_changes": 0,
+                              "same_attempt_resume_available": false,
+                              "future_attempt_authorized": false,
+                              "data02_exit": "awaiting_production",
+                              "refs": {
+                                "failed-prepare-originals/attempt-plan.json": {
+                                  "local_path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-fresh-after-840d/failed-prepare-originals/attempt-plan.json",
+                                  "sha256": "09685d410d37dc9a68a48cc3ccc352ca1d6f0f0b94b2fea9e41e849f8cff6e9e"
+                                },
+                                "failed-prepare-originals/prepare-status.json": {
+                                  "local_path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-fresh-after-840d/failed-prepare-originals/prepare-status.json",
+                                  "sha256": "049ccf9490864bdfd5d1e39288bb88e4198b217809ed81982dc78310c4e26c87"
+                                },
+                                "failed-prepare-originals/current-market-graph-refresh.log": {
+                                  "local_path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-fresh-after-840d/failed-prepare-originals/current-market-graph-refresh.log",
+                                  "sha256": "21c3f5ef917b64597affbccdbe7ed5e07fc1e85c9c1aa712611fbc13fa4a9946"
+                                },
+                                "failed-prepare-originals/current-market-graph-refresh-cli.log": {
+                                  "local_path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-fresh-after-840d/failed-prepare-originals/current-market-graph-refresh-cli.log",
+                                  "sha256": "f5a2dfa0df507fc38ed23b3bf83251806f66b5e546ad0fb80163b7ded1f6b477"
+                                },
+                                "failed-prepare-originals/prepare.log": {
+                                  "local_path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-fresh-after-840d/failed-prepare-originals/prepare.log",
+                                  "sha256": "38546713b2a0c4fc948fd374cab18b7f2052b51d1b9faa4fd89041c24bf920ce"
+                                },
+                                "prepare-terminal-forensics.json": {
+                                  "local_path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-fresh-after-840d/prepare-terminal-forensics.json",
+                                  "sha256": "7a1cfffb5678e6cea5b91b06d6cfdae127eeac751bbc799be89a276d07927b78"
+                                },
+                                "qa-counts.sql": {
+                                  "local_path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-fresh-after-840d/qa-counts.sql",
+                                  "sha256": "a287799bed8a0a9b6729a6bd423c8db24fb4315f556f2786d0e6a795bda089ac"
+                                },
+                                "qa-overlap.sql": {
+                                  "local_path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-fresh-after-840d/qa-overlap.sql",
+                                  "sha256": "5bfe6186a148933fdcc546c0f3b9eab88f396e4af0579a6c1a0cc8916a3a056b"
+                                },
+                                "qa-scope.sql": {
+                                  "local_path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-fresh-after-840d/qa-scope.sql",
+                                  "sha256": "99317b8af06f0f1548f163d3b4c24f2de5afd0067066678890053bdd05c3a900"
+                                },
+                                "qa-fact-forensics.json": {
+                                  "local_path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-fresh-after-840d/qa-fact-forensics.json",
+                                  "sha256": "4ec4b8135d73cb1202c18d3be4ea43a7bc9042b4f6fbbdd32c7f6426b90a2289"
+                                },
+                                "qa-scope-forensics.json": {
+                                  "local_path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-fresh-after-840d/qa-scope-forensics.json",
+                                  "sha256": "c4ecb4822fb88ec80339b8a89633a8974087f54dab85fe5f613ff7c068eadde8"
+                                },
+                                "failed-qa-space-readonly.json": {
+                                  "local_path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-fresh-after-840d/failed-qa-space-readonly.json",
+                                  "sha256": "93aff1bc3480245d8778d4365d72002be19e510c56a9566dd967aa36c20e6d3a"
+                                },
+                                "later_rows_preflight.py": {
+                                  "local_path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-fresh-after-840d/later_rows_preflight.py",
+                                  "sha256": "7a6373bc3864b631dd3befdd0f740a1a8b6de662c6227dea58cfba175b004c98"
+                                },
+                                "later-rows-preflight-regression.json": {
+                                  "local_path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-fresh-after-840d/later-rows-preflight-regression.json",
+                                  "sha256": "079a815d57ca828654c88788636e64e0e1a3a4e7468e5201660c97acf97effee"
+                                },
+                                "verify_terminal.py": {
+                                  "local_path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-fresh-after-840d/verify_terminal.py",
+                                  "sha256": "b12c6d96b8ab94a99839addff537497566d5e758d5f7c8f51669759089540e6d"
+                                }
+                              },
+                              "preflight_regression": {
+                                "mode": "retained isolated QA read only",
+                                "counts": {
+                                  "scope": 5580,
+                                  "later_quote": 0,
+                                  "later_price": 0,
+                                  "later_valuation": 392
+                                },
+                                "provider_dispatches": 0,
+                                "result": "LATER_OBSERVATIONS_PRESENT",
+                                "future_window_authority": false,
+                                "sufficient_to_qualify_source": false
+                              },
+                              "independent_review": {
+                                "verdict": "confirmed terminal, zero diagnostic and runner dispatches, valuation coverage predicate, cumulative upper 333, next full envelope 528 and zero-call regression",
+                                "scope": "local native originals, identity-bound read-only QA receipts and sealed source"
+                              }
                             }
                           }
                         }
