@@ -9460,7 +9460,7 @@
                         "production_deployment_or_backfill": false,
                         "data02_exit_met": false,
                         "successor_proposal": {
-                          "status": "pending_owner_new_attempt_and_isolated_space_decision",
+                          "status": "approved_one_fresh_same_c5_execution",
                           "independent_terminal_review": "data02_audit verified input gate is before standard stages, no checkpoint/resume, original fresh attempt spent",
                           "layout_check": {
                             "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2-supplement491/reselection/nov21-evening/successor_layout_check.py",
@@ -9488,8 +9488,92 @@
                           "financial_ceiling": 22344,
                           "e1_separate_maximum": 2,
                           "existing_ci_theoretical_last_runner_start_bjt": "2026-11-22T07:09:04+08:00",
-                          "new_window_frozen": false,
-                          "old_qa_resource_retirement_approved": false
+                          "new_window_frozen": true,
+                          "old_qa_resource_retirement_approved": true,
+                          "authorized_execution": {
+                            "owner_call_id": "call_271d0828685b4ba8982ea293e6d9612f",
+                            "candidate_sha": "c5b42e20cc97a7e166e6d3f88254d05b0605667a",
+                            "original_answers": [
+                              "批准上述一次新 S6",
+                              "批准核验归档后回收"
+                            ],
+                            "source_target": "2026-11-20",
+                            "publication_run": 44909914178,
+                            "runner_deadline_bjt": "2026-11-22T06:30:00+08:00",
+                            "cutoff_bjt": "2026-11-22T21:00:00+08:00",
+                            "ci_conservative_expiry": "2026-11-22T13:39:04+00:00",
+                            "post_diag_reserved_before_graph": 307,
+                            "market_before_new_graph_upper": 305,
+                            "market_worst_if_g29": 500,
+                            "graph_stop_above": 29,
+                            "retirement_approved_after_verified_archive": true,
+                            "owner_message": {
+                              "local_path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-fresh-after-840d/owner-message.original.json",
+                              "sha256": "aa9cb134e08eb4ea54d1e4a6b4b55535694da4d4f1348dd80020cfbff430717b"
+                            },
+                            "owner_receipt": {
+                              "local_path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-fresh-after-840d/owner-reply.json",
+                              "sha256": "bf46b45102dd45c7a01a0fab5f8cba403ee4bd0b333638f0ace2d2a22c3763ec"
+                            },
+                            "window": {
+                              "local_path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-fresh-after-840d/selected-window.json",
+                              "sha256": "51a4771c8881bb08de694eb0fbd4c06f65df2450127d66afb489a32cdcd41428"
+                            },
+                            "end_to_end_layout": {
+                              "local_path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-fresh-after-840d/layout-verified.json",
+                              "sha256": "cc76b1c3478f008f85cc370017012c1901e2ad28e2848c40ee0d684c789a7f4e"
+                            },
+                            "offline_test": {
+                              "local_path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-fresh-after-840d/offline-check.log",
+                              "sha256": "348cb3c937cb8976a3d6f95a0398dcb86b3c06bb7d787e59b8a4a3751e7f3494"
+                            },
+                            "retirement_840d-retirement-archive.receipt": {
+                              "local_path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-fresh-after-840d/retirement/840d-retirement-archive.receipt.json",
+                              "sha256": "09038c736021be9d34bfe87a07ebec97b7ec846d8c42b361acb3e0e618e46e47"
+                            },
+                            "retirement_840d-retirement-preview-20261121T150629440833Z.receipt": {
+                              "local_path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-fresh-after-840d/retirement/840d-retirement-preview-20261121T150629440833Z.receipt.json",
+                              "sha256": "bfd3f45bbbf244666a76b77a97ac71b6a08b5bfe75330614a0dfa19074a28e9e"
+                            },
+                            "retirement_840d-retirement-preview.receipt": {
+                              "local_path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-fresh-after-840d/retirement/840d-retirement-preview.receipt.json",
+                              "sha256": "e66bb12678bc7389c9c4c47bdac3ad5dfd9d2f55656e0dbaddec76ffc727f162"
+                            },
+                            "retirement_840d-retirement-reclaim.receipt": {
+                              "local_path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-fresh-after-840d/retirement/840d-retirement-reclaim.receipt.json",
+                              "sha256": "81a2d42b7747f00e69f72b6bb0971485aa731eb54598ba96269fe100b74f66c5"
+                            },
+                            "new_state": {
+                              "local_path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-fresh-after-840d/s6-c5-postrepair-state.json",
+                              "sha256": "a643dbc9785e9933556a51621f47f62a08cd0022179a785e6111bf7fd114b60c"
+                            },
+                            "new_reserve_intent": {
+                              "local_path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-fresh-after-840d/s6-c5-postrepair-reserve.intent.json",
+                              "sha256": "63e62a5d1690ed1bbc9c75c59f46e73cb3f43f5f7bc231422869cad4065621e1"
+                            },
+                            "new_reserve": {
+                              "local_path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-fresh-after-840d/s6-c5-postrepair-reserve.receipt.json",
+                              "sha256": "8fecc3c394b61b33cdac18c32ed7997f0a44a0ee71a7e83ac175bb1d66cafbc7"
+                            },
+                            "new_prepare_launch": {
+                              "local_path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-fresh-after-840d/s6-c5-postrepair-fresh-prepare-launch.receipt.json",
+                              "sha256": "7f82ce11cbb6f046d3e7ca187869971bd9d568ca2aa6da4a9d0d6fe8a01cd1e3"
+                            },
+                            "attempt_id": "5e2871c3414f4a73becb1267afade845",
+                            "plan_sha256": "09685d410d37dc9a68a48cc3ccc352ca1d6f0f0b94b2fea9e41e849f8cff6e9e",
+                            "retirement_independent_readback": {
+                              "local_path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-fresh-after-840d/retirement-independent-readback.json",
+                              "sha256": "01cf564b5f6136939ac8dbd8908b920060f8fa6aa6c18456fee2399030b925d3"
+                            },
+                            "prior_cluster_inventory": {
+                              "local_path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-fresh-after-840d/pre-retirement-live-inventory.json",
+                              "sha256": "8aa75fc6d1cb3dd36736b92fd6e9ede7efd63d0dce55845cfbea60f87869aef9"
+                            },
+                            "current_offline_tests": {
+                              "local_path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-fresh-after-840d/offline-check-current.log",
+                              "sha256": "348cb3c937cb8976a3d6f95a0398dcb86b3c06bb7d787e59b8a4a3751e7f3494"
+                            }
+                          }
                         }
                       }
                     }
