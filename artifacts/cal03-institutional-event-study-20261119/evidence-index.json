@@ -1469,5 +1469,113 @@
     "real_oos_claimed_or_evaluated": false,
     "qualified_full_history_packages": 0,
     "commit_receipt": ".tmp/cal03-event-study-20261119/revision-selection/commit.json"
+  },
+  "synthetic_walk_forward_statistics_20261123": {
+    "base_head": "51b9f9cb4f09402053d6352cfe52376fffe7a4f8",
+    "source_blobs": {
+      "apps/research/application/calendar_validation.py": "3af7e923adf3dc0da624f0238b6c587ab66c3342",
+      "apps/research/domain/calendar_validation_statistics.py": "997e3bd603e40c81b3f342b1599a4c9a1312af12",
+      "apps/research/domain/institutional_event_study.py": "aaccaf21aa236cebf759d2986f8e426ca009f687",
+      "apps/research/infrastructure/validation_ridge.py": "c37590872e03d244ffcb9cd78047d30e624e903a",
+      "scripts/run_cal03_synthetic_walk_forward.py": "687010afa1d60ffd44891465a51d69d956225478",
+      "tests/unit/research/test_calendar_validation_report.py": "ce637e58ee8d7b7256fd4513b7ce83458d6f4569",
+      "governance/module_map.json": "77204750f3508dba736902d891a64df82543ef19"
+    },
+    "spec_sha256": "29a44d0cd2670dd2a72853494d21271c9765d6584dafa4998e1df3c2a6edfe71",
+    "run_kind": "synthetic_validation_only",
+    "scope": "Six-period joint predictive increment, 3 synthetic index paths, 1/3/5-session horizons. No real study registration or final OOS use.",
+    "splits": "8 expanding 126-origin validation folds per target/horizon, 504 final origins reserved; the generator stops before the first holdout origin.",
+    "report_files": [
+      {
+        "path": ".tmp/cal03-event-study-20261119/synthetic-walk-forward/run/report.json",
+        "sha256": "b7fd7b256438fc35e198ad4a292e3b6981f86c8d59c07d57e4dd57253b98277e"
+      },
+      {
+        "path": ".tmp/cal03-event-study-20261119/synthetic-walk-forward/run/report.md",
+        "sha256": "f969de5a47658cbd6f6b03f49e4c3e04414f0e35017aba37a7965cad0509dc59"
+      }
+    ],
+    "checks": {
+      "green": {
+        "command": "agomtradepro/Scripts/python.exe -m coverage run --rcfile=.tmp/cal03-event-study-20261119/formal-coverage.ini --data-file=.tmp/cal03-event-study-20261119/synthetic-walk-forward/coverage.db --include=apps/research/domain/institutional_event_study.py,apps/research/domain/calendar_validation_statistics.py -m pytest --noconftest -c .tmp/cal03-event-study-20261119/pytest.ini -q tests/unit/research/test_institutional_event_study.py tests/unit/research/test_institutional_event_study_walk_forward.py tests/unit/research/test_calendar_validation_report.py",
+        "exit": 0,
+        "path": ".tmp/cal03-event-study-20261119/synthetic-walk-forward/green.log",
+        "sha256": "28f4427e0355f15a7a9772b5b4091d6f5df31ac62ccaca4ff3c2904eb6ace246"
+      },
+      "run-final": {
+        "command": "agomtradepro/Scripts/python.exe -m scripts.run_cal03_synthetic_walk_forward --output .tmp/cal03-event-study-20261119/synthetic-walk-forward/run",
+        "exit": 0,
+        "path": ".tmp/cal03-event-study-20261119/synthetic-walk-forward/run-final.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "replay-final": {
+        "command": "agomtradepro/Scripts/python.exe -m scripts.run_cal03_synthetic_walk_forward --output .tmp/cal03-event-study-20261119/synthetic-walk-forward/replay",
+        "exit": 0,
+        "path": ".tmp/cal03-event-study-20261119/synthetic-walk-forward/replay-final.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "arch": {
+        "command": "agomtradepro/Scripts/python.exe scripts/check_architecture_delta.py --head-ref HEAD --include-audit --fail-on-audit-violations",
+        "exit": 0,
+        "path": ".tmp/cal03-event-study-20261119/synthetic-walk-forward/arch.log",
+        "sha256": "8872348ae472bf774c47f581848ace33a3aa81ee99f0f2f1cf13c51a4d1f403e"
+      },
+      "mypy-final": {
+        "command": "$env:MYPY_CACHE_DIR='.tmp/cal03-event-study-20261119/control-mypy-incremental'\nagomtradepro/Scripts/python.exe scripts/check_mypy_regression.py apps/research/application/calendar_validation.py apps/research/domain/calendar_validation_statistics.py apps/research/domain/institutional_event_study.py apps/research/infrastructure/validation_ridge.py scripts/run_cal03_synthetic_walk_forward.py",
+        "exit": 0,
+        "path": ".tmp/cal03-event-study-20261119/synthetic-walk-forward/mypy-final.log",
+        "sha256": "b2778bab1157c8d1248033fdb64044f9f72ba7b15624dce01ac6fd930f97030f"
+      },
+      "debt-final": {
+        "command": "$env:MYPY_CACHE_DIR='.tmp/cal03-event-study-20261119/control-mypy-debt'\nagomtradepro/Scripts/python.exe scripts/check_mypy_debt_ceiling.py",
+        "exit": 0,
+        "path": ".tmp/cal03-event-study-20261119/synthetic-walk-forward/debt-final.log",
+        "sha256": "def6c561b37227470bcda90c8450d9837ca85dd34af34d05e7d6af2afdf85ab1"
+      },
+      "coverage": {
+        "command": "agomtradepro/Scripts/python.exe -m coverage report --rcfile=.tmp/cal03-event-study-20261119/formal-coverage.ini --data-file=.tmp/cal03-event-study-20261119/synthetic-walk-forward/coverage.db",
+        "exit": 0,
+        "path": ".tmp/cal03-event-study-20261119/synthetic-walk-forward/coverage.log",
+        "sha256": "29de5dd0ecf00e57fb43ead9058e47af2bd5515769e991a84474fc12181a5600"
+      },
+      "black": {
+        "command": "agomtradepro/Scripts/python.exe -m black --check apps/research/application/calendar_validation.py apps/research/domain/calendar_validation_statistics.py apps/research/domain/institutional_event_study.py apps/research/infrastructure/validation_ridge.py scripts/run_cal03_synthetic_walk_forward.py tests/unit/research/test_calendar_validation_report.py",
+        "exit": 0,
+        "path": ".tmp/cal03-event-study-20261119/synthetic-walk-forward/black.log",
+        "sha256": "33134de81cb2a35fae1c21de114f0957b6db24a486951201856e5a221ed0d408"
+      },
+      "isort": {
+        "command": "agomtradepro/Scripts/python.exe -m isort --check-only apps/research/application/calendar_validation.py apps/research/domain/calendar_validation_statistics.py apps/research/domain/institutional_event_study.py apps/research/infrastructure/validation_ridge.py scripts/run_cal03_synthetic_walk_forward.py tests/unit/research/test_calendar_validation_report.py",
+        "exit": 0,
+        "path": ".tmp/cal03-event-study-20261119/synthetic-walk-forward/isort.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "ruff": {
+        "command": "agomtradepro/Scripts/python.exe -m ruff check apps/research/application/calendar_validation.py apps/research/domain/calendar_validation_statistics.py apps/research/domain/institutional_event_study.py apps/research/infrastructure/validation_ridge.py scripts/run_cal03_synthetic_walk_forward.py tests/unit/research/test_calendar_validation_report.py",
+        "exit": 0,
+        "path": ".tmp/cal03-event-study-20261119/synthetic-walk-forward/ruff.log",
+        "sha256": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0"
+      },
+      "module-map": {
+        "command": "agomtradepro/Scripts/python.exe scripts/check_module_map.py",
+        "exit": 0,
+        "path": ".tmp/cal03-event-study-20261119/synthetic-walk-forward/module-map.log",
+        "sha256": "50ba91f9d0e2baa1aeda94701d7695e45116e1326f5651784377318792b43759"
+      },
+      "audit": {
+        "command": "$env:PYTHONPATH=(Get-Location).Path\nagomtradepro/Scripts/python.exe .tmp/cal03-event-study-20261119/synthetic-walk-forward/audit.py",
+        "exit": 0,
+        "path": ".tmp/cal03-event-study-20261119/synthetic-walk-forward/audit.log",
+        "sha256": "1aa9980a045a83de278c4387929f9f23f49bf019bb785a0be2d68f6f1b4ee79f"
+      }
+    },
+    "result": "119 tests passed. New Domain inference branch-aware coverage 96%. Overlap views contain 1008, 910 and 512 validation rows per target/horizon. Independent statsmodels comparison and byte-identical replay passed.",
+    "red_test": {
+      "path": ".tmp/cal03-event-study-20261119/synthetic-walk-forward/red.log",
+      "sha256": "a4af0136ceb94458f9b95766c2c2506df486a22796ab576bb2b34fc65e7e0eaa",
+      "exit": 2,
+      "reason": "Initial test collection failed because the new validation application module did not exist."
+    },
+    "commit_receipt": ".tmp/cal03-event-study-20261119/synthetic-walk-forward/commit.json"
   }
 }

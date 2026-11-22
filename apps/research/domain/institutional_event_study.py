@@ -295,7 +295,7 @@ def match_controls(
     if not math.isfinite(volatility_tolerance) or volatility_tolerance < 0:
         raise EventStudyError("MATCHING_TOLERANCE_INVALID")
     zone = ZoneInfo(timezone_name)
-    _validate_features(target, knowledge_mode, zone)
+    validate_matching_features(target, knowledge_mode, zone)
     if not target.event_ids:
         raise EventStudyError("TARGET_EVENT_REQUIRED")
     seen = {target.sample_id}
@@ -304,7 +304,7 @@ def match_controls(
         _require_aware(row.prediction_cutoff)
         if row.prediction_cutoff > target.prediction_cutoff:
             continue
-        _validate_features(row, knowledge_mode, zone)
+        validate_matching_features(row, knowledge_mode, zone)
         if row.sample_id in seen:
             raise EventStudyError("MATCHING_IDENTITY_DUPLICATE")
         seen.add(row.sample_id)
@@ -631,7 +631,9 @@ def _validate_sessions(sessions: tuple[Session, ...], timezone_name: str) -> Non
             raise EventStudyError("CALENDAR_INVALID")
 
 
-def _validate_features(row: MatchingFeatures, mode: KnowledgeMode, zone: ZoneInfo) -> None:
+def validate_matching_features(row: MatchingFeatures, mode: KnowledgeMode, zone: ZoneInfo) -> None:
+    """Check calendar covariates and their availability at their own prediction origin."""
+    _require_mode(mode)
     _require_aware(row.prediction_cutoff)
     _require_aware(row.observed_through)
     known = _version_known_at(row.available_at, row.first_seen_at, row.recorded_at, mode)
