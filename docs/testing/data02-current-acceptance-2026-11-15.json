@@ -10084,6 +10084,81 @@
                               "manual_publication": null,
                               "s6_attempts_started": 0,
                               "production_writes": 0
+                            },
+                            "format_successor_s6": {
+                              "candidate_sha": "cb9710345ae2a5105c15535d3f3a66d7b3a97e0b",
+                              "authority": {
+                                "path": ".tmp/data02-guard-20261122/s6-cb9710345/s6-authority.json",
+                                "sha256": "08c774a4dc4543a4e74665edd22d600db4d83a935730bc57a21c726dd8ef05f1"
+                              },
+                              "target_trade_date": "2026-11-23",
+                              "execution_status": "waiting_for_target_session_and_manual_publication",
+                              "scope_limit": 5585,
+                              "financial_limit": 22344,
+                              "market_charged_before_new_attempt_upper": 333,
+                              "market_ceiling": 528,
+                              "graph_hard_cap": 50,
+                              "graph_continue_max": 29,
+                              "diagnostic_new_max": 2,
+                              "probe_and_capacity_each": 52,
+                              "reserved_after_s6": 60,
+                              "production_backfill_or_e1_authorized": false,
+                              "admission_runner_headroom_seconds": 52200,
+                              "planning_only": {
+                                "latest_runner": "2026-11-23T18:30:00+08:00",
+                                "cutoff": "2026-11-24T09:00:00+08:00"
+                              },
+                              "push_publication_s6_valid_until": "2026-11-23T12:41:59+00:00",
+                              "preparation": {
+                                "native_v4_preview": {
+                                  "path": ".tmp/data02-guard-20261122/s6-cb9710345/offline-preview.json",
+                                  "sha256": "eda74120377cda0855628ab53f19a507f270c41968f8c1d9f6a975ddaf2714a9"
+                                },
+                                "isolated_layout": {
+                                  "path": ".tmp/data02-guard-20261122/s6-cb9710345/layout-verified.json",
+                                  "sha256": "1a8c0f3b2fcc84832cc370e09a8cba23d35fa0b838946adeb5b9dfaf274b5518"
+                                },
+                                "source_readonly": {
+                                  "path": ".tmp/data02-guard-20261122/s6-cb9710345/source-20261122T134511189670Z.json",
+                                  "sha256": "b4c0ebcce223112544b11080c32b759779cb7dd87fe50a0adb1df24b303f7865"
+                                },
+                                "prewindow_scope": 5568,
+                                "target_observations": 0
+                              },
+                              "recovery": {
+                                "attempt": "5e2871c3414f4a73becb1267afade845",
+                                "archive_sha256": "7da8e2908adc3e34395829256c90803bad17de83a7227da9cea7a6ff6848be13",
+                                "archive_bytes": 289263077,
+                                "archive_toc_sha256": "718906b0f0100ce25190cd7f3200abcd4dc4fa67dab383c207ca11a8a4b0b883",
+                                "archive": {
+                                  "path": ".tmp/data02-guard-20261122/s6-cb9710345/archive.json",
+                                  "sha256": "8a78575426d980367e44b6e37214f8ea476040c1e177c6c1e8aaeed214211382"
+                                },
+                                "download": {
+                                  "path": ".tmp/data02-guard-20261122/s6-cb9710345/download.json",
+                                  "sha256": "6a7e38b53522b6c2a87a15418e877d1838b29c03ef6a0a27484c35211696a3b1"
+                                },
+                                "reclaim": {
+                                  "path": ".tmp/data02-guard-20261122/s6-cb9710345/reclaim.json",
+                                  "sha256": "ef4fb354ea23dde37743aa192daa4e523972cee75a74a12db27af66e544ce104"
+                                },
+                                "independent_readback": {
+                                  "path": ".tmp/data02-guard-20261122/s6-cb9710345/reclaim-readback.json",
+                                  "sha256": "e67b9d82504aa2445df5e187cb8cdaeeb7b2112503874e7a140ce7f5bde82500"
+                                },
+                                "available_bytes_after": 30745579520
+                              },
+                              "attempts_reserved": 0,
+                              "runner_started": false,
+                              "production_backfill_calls": 0,
+                              "conditional_monitor": {
+                                "path": ".tmp/data02-guard-20261122/s6-cb9710345/watch-ready.json",
+                                "sha256": "a8ad70dba61fc5b022a7872f7a66b45a9f0ae6acf626d25f9d65c39b9ce1862a"
+                              },
+                              "admission_checks": {
+                                "path": ".tmp/data02-guard-20261122/s6-cb9710345/offline-control-tests.json",
+                                "sha256": "7685af6f80f47db3fe61a53e471f29f1d0777634f782869eb58d3c88701d0240"
+                              }
                             }
                           }
                         }
