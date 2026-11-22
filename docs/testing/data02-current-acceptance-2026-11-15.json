@@ -10158,6 +10158,57 @@
                               "admission_checks": {
                                 "path": ".tmp/data02-guard-20261122/s6-cb9710345/offline-control-tests.json",
                                 "sha256": "7685af6f80f47db3fe61a53e471f29f1d0777634f782869eb58d3c88701d0240"
+                              },
+                              "prewindow_production_reconciliation_baseline": {
+                                "observed_at": "2026-11-22T14:31:14.716258+00:00",
+                                "scope": "Configured production universe in one repeatable-read, read-only transaction before the target session.",
+                                "configured_universe": 5568,
+                                "current_pointer_datasets": [
+                                  "equity.price.bar",
+                                  "equity.quote.snapshot",
+                                  "equity.valuation.fact"
+                                ],
+                                "coverage": [
+                                  {
+                                    "dataset": "equity.financial.fact",
+                                    "covered": 0,
+                                    "missing": 5568,
+                                    "latest_member_observed_at": null
+                                  },
+                                  {
+                                    "dataset": "equity.price.bar",
+                                    "covered": 5560,
+                                    "missing": 8,
+                                    "latest_member_observed_at": "2026-09-30T07:00:00+00:00"
+                                  },
+                                  {
+                                    "dataset": "equity.quote.snapshot",
+                                    "covered": 5567,
+                                    "missing": 1,
+                                    "latest_member_observed_at": "2026-09-30T07:00:00+00:00"
+                                  },
+                                  {
+                                    "dataset": "equity.valuation.fact",
+                                    "covered": 5567,
+                                    "missing": 1,
+                                    "latest_member_observed_at": "2026-09-30T08:15:00+00:00"
+                                  }
+                                ],
+                                "financial_fact_count": 487624,
+                                "financial_source_time_witness_count": 0,
+                                "four_dataset_persisted_reconciliation_records": 0,
+                                "exact_candidate_offline_recorder_and_checkpoint_cases": 44,
+                                "junit": {
+                                  "path": ".tmp/data02-guard-20261122/s6-cb9710345/canonical-offline.xml",
+                                  "sha256": "100fd9c8be258c875e8ca9ad7c9584653779b3700a0c8fc78d729e0ee1b5de25"
+                                },
+                                "original": {
+                                  "path": ".tmp/data02-guard-20261122/s6-cb9710345/production-baseline-20261122T143123Z.json",
+                                  "sha256": "9d819c7f01754a34ca1a69d0ece06e6557aea2847d45d9fea43237dc75f6ee3f"
+                                },
+                                "provider_calls": 0,
+                                "production_writes": 0,
+                                "exit_proven": false
                               }
                             }
                           }
