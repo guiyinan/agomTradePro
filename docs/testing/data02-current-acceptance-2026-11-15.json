@@ -9712,6 +9712,93 @@
                                 "verdict": "confirmed terminal, zero diagnostic and runner dispatches, valuation coverage predicate, cumulative upper 333, next full envelope 528 and zero-call regression",
                                 "scope": "local native originals, identity-bound read-only QA receipts and sealed source"
                               }
+                            },
+                            "local_guard_candidate": {
+                              "authority": {
+                                "call_id": "call_a6ddebf543cc481f910bb4df33163a26",
+                                "answer": "批准最小修复与本地验证",
+                                "scope": "local source repair, validation and commit only"
+                              },
+                              "base": "c5b42e20cc97a7e166e6d3f88254d05b0605667a",
+                              "candidate_sha": "451cc90c4cd2433bd7f787a883b58c012f44adbb",
+                              "local_dev_integration": "ab82dbf0d3978445c6c5f7e5deb0068e5f5226d7",
+                              "market_scope": "New graph plans bind the qualified target day and authorized maximum asset count. Worker checks restored facts before provider calendar resolution. The calendar must independently match before the task.",
+                              "review": "Unbound legacy graph plans are rejected on planning, reserve, resume and finalization. Late valuation observation blocks; later ingestion/availability time alone passes.",
+                              "verified": {
+                                "windows_regressions_passed": 97,
+                                "windows_platform_skips": 11,
+                                "linux_posix_suite": "WSL timed out after 520 seconds; POSIX-only cases unverified",
+                                "offline_prepare_cases": 105,
+                                "incremental_mypy_errors": 0,
+                                "mypy_debt_errors": 0,
+                                "freshness_surfaces": 121,
+                                "native_postgresql": "PostgreSQL 16.15, compiled by Visual C++ build 1944, 64-bit",
+                                "fixture_results": [
+                                  {
+                                    "fixture": "conflict",
+                                    "scope": 5580,
+                                    "target_rows": 5572,
+                                    "later_assets": 392,
+                                    "later_overlapping_seeded": 391,
+                                    "wire_sends": 0,
+                                    "calendar_stub_calls": 0,
+                                    "task_stub_calls": 0,
+                                    "code": "S6_GRAPH_REFRESH_LATER_VALUATION"
+                                  },
+                                  {
+                                    "fixture": "eligible",
+                                    "scope": 5580,
+                                    "target_rows": 5572,
+                                    "later_assets": 0,
+                                    "later_overlapping_seeded": 0,
+                                    "wire_sends": 0,
+                                    "calendar_stub_calls": 1,
+                                    "task_stub_calls": 1,
+                                    "code": "S6_GRAPH_REFRESH_TASK_EXECUTION_FAILED"
+                                  }
+                                ],
+                                "native_fixture_source": "local synthetic data; provider calendar and market task stubbed",
+                                "native_cluster_stopped": true
+                              },
+                              "evidence": {
+                                "regression-sealed.log": {
+                                  "local_path": ".tmp/data02-guard-20261122/regression-sealed.log",
+                                  "sha256": "800326a25dbf82e2052e7164078b6e5195984332169b865fa0944731f8debb50"
+                                },
+                                "typing-sealed.log": {
+                                  "local_path": ".tmp/data02-guard-20261122/typing-sealed.log",
+                                  "sha256": "d0900ac295cc2427c4d66d20eaaad347f01ab4f61ddd809745efedd2b64f4d88"
+                                },
+                                "debt.log": {
+                                  "local_path": ".tmp/data02-guard-20261122/debt.log",
+                                  "sha256": "def6c561b37227470bcda90c8450d9837ca85dd34af34d05e7d6af2afdf85ab1"
+                                },
+                                "contracts.log": {
+                                  "local_path": ".tmp/data02-guard-20261122/contracts.log",
+                                  "sha256": "cdc66d749ecf996bcca4ed722699f2e7fcb31846c37c8c5149568ad70bc84e73"
+                                },
+                                "candidate-prepare.log": {
+                                  "local_path": ".tmp/data02-guard-20261122/candidate-prepare.log",
+                                  "sha256": "cbcf79113c8a116bb18db04dd488d1e179e25d39e9deebc8a4516c788ee29b2b"
+                                },
+                                "candidate-native-pg.log": {
+                                  "local_path": ".tmp/data02-guard-20261122/candidate-native-pg.log",
+                                  "sha256": "2d971f4bd060f5a323212bfc6a80f21ba432e6e72d6c9b1fdf7b4ddca7c721b5"
+                                },
+                                "posix-candidate.log": {
+                                  "local_path": ".tmp/data02-guard-20261122/posix-candidate.log",
+                                  "sha256": "d56f1d8a47a8997b07fd016b62e2b213d9765ebc513ed1e25df7e382aaa9d26d"
+                                }
+                              },
+                              "native_fixture_record": {
+                                "local_path": ".tmp/data02-guard-20261122/data02-native-zv3x_9a1/receipt.json",
+                                "sha256": "912533bfd41f1a4d333553146c37d051e387fd010948b509a9d4e7037d8dde00"
+                              },
+                              "new_official_ci_runs": 0,
+                              "new_s6_attempts": 0,
+                              "market_requests_added": 0,
+                              "production_writes": 0,
+                              "data02_exit": "awaiting_production"
                             }
                           }
                         }
