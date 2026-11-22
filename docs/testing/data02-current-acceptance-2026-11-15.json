@@ -10092,7 +10092,7 @@
                                 "sha256": "08c774a4dc4543a4e74665edd22d600db4d83a935730bc57a21c726dd8ef05f1"
                               },
                               "target_trade_date": "2026-11-23",
-                              "execution_status": "waiting_for_target_session_and_manual_publication",
+                              "execution_status": "superseded_before_window_by_owner_two_stock_requirement",
                               "scope_limit": 5585,
                               "financial_limit": 22344,
                               "market_charged_before_new_attempt_upper": 333,
@@ -10209,6 +10209,75 @@
                                 "provider_calls": 0,
                                 "production_writes": 0,
                                 "exit_proven": false
+                              },
+                              "withdrawal": {
+                                "path": ".tmp/data02-guard-20261122/two-workers/old-serial-stop.json",
+                                "sha256": "7ad55fc670c632a102445c5f435eade32748579b9363a797156da4cade6585e8"
+                              }
+                            },
+                            "two_stock_s6": {
+                              "candidate_sha": "7cfa83a2f5b48f38dbc615f04c3b367061547e17",
+                              "candidate_parent": "cb9710345ae2a5105c15535d3f3a66d7b3a97e0b",
+                              "development_integration": "6481872fe70f744f10fb1e78571b2811e76703fc",
+                              "authority": {
+                                "path": ".tmp/data02-guard-20261122/s6-7cfa83a2f/s6-authority.json",
+                                "sha256": "37d36ce734b58fd35542247aaaf846ff77687f763ab20bec8d5c4d8eaa14bd9e"
+                              },
+                              "target_trade_date": "2026-11-23",
+                              "execution_status": "waiting_for_manual_publication_and_eligible_target_source",
+                              "attempts_reserved": 0,
+                              "runner_started": false,
+                              "market_cumulative_maximum": 528,
+                              "market_preexisting_upper": 333,
+                              "scope_maximum": 5585,
+                              "financial_physical_maximum": 22344,
+                              "stock_workers": 2,
+                              "minimum_aggregate_send_interval_seconds": 1,
+                              "upstream_published_sustained_quota": null,
+                              "counts_include_retries": true,
+                              "runner_headroom_seconds": 52200,
+                              "production_backfill_or_e1_authorized": false,
+                              "offline_regression": {
+                                "path": ".tmp/data02-guard-20261122/s6-7cfa83a2f/two-worker-offline.json",
+                                "sha256": "263ad3222d9228419773e09bef50ba65d0486b26180fe3711627d649a7f7bf10"
+                              },
+                              "same_sha_ci": {
+                                "path": ".tmp/data02-guard-20261122/github-ci-7cfa83a2f/first-seven.json",
+                                "sha256": "27d4eab3587b3957a58459413d9b23493521489c55d109f57563f8d9b7b6a7a2"
+                              },
+                              "ci_run_ids": [
+                                45039125835,
+                                45039125841,
+                                45039125890,
+                                45039125918,
+                                45039125984,
+                                45039148645,
+                                45039164837
+                              ],
+                              "offline_control": {
+                                "path": ".tmp/data02-guard-20261122/s6-7cfa83a2f/offline-control-tests.json",
+                                "sha256": "6ec27843c5fcf4484a77ac8c1eb4b2b8b7b9fe8246786206093d0af034a11647"
+                              },
+                              "candidate_layout": {
+                                "path": ".tmp/data02-guard-20261122/s6-7cfa83a2f/layout-verified.json",
+                                "sha256": "5f1b8735f953c9abe21fdd77ea7facbd6cf3f89e412a0d0cc5c31b085f12593f"
+                              },
+                              "handoff": {
+                                "path": ".tmp/data02-guard-20261122/s6-7cfa83a2f/cli-handoff-verified.json",
+                                "sha256": "d89e76c2115c7a2a9fdb0d6dea2166f0eea15f852d6eccb514c6ab4e839b06c9"
+                              },
+                              "source_route": {
+                                "path": ".tmp/data02-guard-20261122/two-workers/source-route.json",
+                                "sha256": "03d694db35f046104ee36a362d284394ab79f9a0e7fddedcb534ad9cbfb586ef"
+                              },
+                              "deadline_beijing": "2026-11-23T18:30:00+08:00",
+                              "publication_push": {
+                                "path": ".tmp/data02-guard-20261122/github-ci-7cfa83a2f/push-publication-verification.json",
+                                "sha256": "741110cfde9cdee0ebe18460881e9b957455bb94fc233906d5a28ee6666752fd"
+                              },
+                              "watcher": {
+                                "path": ".tmp/data02-guard-20261122/s6-7cfa83a2f/watch-ready.json",
+                                "sha256": "82e8da14da7b7602f2fc7df898b74e5a022b7d20bc29dc9797eb1d2c3914e452"
                               }
                             }
                           }
