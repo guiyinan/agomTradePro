@@ -4,6 +4,9 @@ from __future__ import annotations
 
 from dataclasses import replace
 from datetime import UTC, date, datetime
+from threading import Barrier, Event, Lock, get_ident
+from time import monotonic
+from types import SimpleNamespace
 from uuid import uuid4
 
 import pytest
@@ -175,6 +178,7 @@ def test_discovers_dynamic_scope_from_two_provider_native_captures_per_asset() -
 
     result = FinancialScopeDiscoveryUseCase(
         reader=reader,
+        minimum_attempt_interval_seconds=0,
         authorization_source=_AuthorizationSource(_authorization(assets)),
         universe_source=_UniverseSource(assets),
     ).execute(_request(assets))
@@ -204,6 +208,7 @@ def test_requires_exact_owner_bound_request_budget_before_provider_access() -> N
     authorization = _authorization(("000001.SZ",))
     result = FinancialScopeDiscoveryUseCase(
         reader=reader,
+        minimum_attempt_interval_seconds=0,
         authorization_source=_AuthorizationSource(authorization),
         universe_source=_UniverseSource(assets),
     ).execute(_request(assets))
@@ -218,6 +223,7 @@ def test_rejects_production_environment_before_provider_access() -> None:
 
     result = FinancialScopeDiscoveryUseCase(
         reader=reader,
+        minimum_attempt_interval_seconds=0,
         authorization_source=_AuthorizationSource(_authorization(assets)),
         universe_source=_UniverseSource(assets),
     ).execute(replace(_request(assets), environment="production"))
@@ -232,6 +238,7 @@ def test_rejects_universe_mismatch_before_provider_access() -> None:
 
     result = FinancialScopeDiscoveryUseCase(
         reader=reader,
+        minimum_attempt_interval_seconds=0,
         authorization_source=_AuthorizationSource(_authorization(assets)),
         universe_source=_UniverseSource(("000001.SZ",)),
     ).execute(_request(assets))
@@ -247,6 +254,7 @@ def test_rejects_universe_drift_after_provider_reads_without_candidate() -> None
 
     result = FinancialScopeDiscoveryUseCase(
         reader=reader,
+        minimum_attempt_interval_seconds=0,
         authorization_source=_AuthorizationSource(_authorization(assets)),
         universe_source=_UniverseSource(
             assets,
@@ -270,6 +278,7 @@ def test_reports_all_missing_assets_and_provider_failures_in_one_result() -> Non
 
     result = FinancialScopeDiscoveryUseCase(
         reader=reader,
+        minimum_attempt_interval_seconds=0,
         authorization_source=_AuthorizationSource(_authorization(assets)),
         universe_source=_UniverseSource(assets),
     ).execute(_request(assets))
@@ -317,6 +326,7 @@ def test_no_available_announcement_is_local_block_with_both_captures_preserved()
     )
     result = FinancialScopeDiscoveryUseCase(
         reader=reader,
+        minimum_attempt_interval_seconds=0,
         authorization_source=_AuthorizationSource(_authorization(assets)),
         universe_source=_UniverseSource(assets),
     ).execute(_request(assets))
@@ -338,6 +348,7 @@ def test_empty_provider_scope_blocks_only_the_asset_and_retains_raw_pair() -> No
     )
     result = FinancialScopeDiscoveryUseCase(
         reader=reader,
+        minimum_attempt_interval_seconds=0,
         authorization_source=_AuthorizationSource(_authorization(assets)),
         universe_source=_UniverseSource(assets),
     ).execute(_request(assets))
@@ -347,17 +358,67 @@ def test_empty_provider_scope_blocks_only_the_asset_and_retains_raw_pair() -> No
     assert len(result.retained_captures) == 2
 
 
-def test_authority_or_evidence_failure_stops_further_provider_reads() -> None:
-    assets = ("000001.SZ", "600000.SH")
-    reader = _Reader()
-    reader.failures[assets[0]] = "FINANCIAL_SCOPE_DISCOVERY_PROVIDER_IDENTITY_INVALID"
+@pytest.mark.parametrize("fatal", [False, True])
+def test_two_stock_workers_drain_inflight_and_merge_in_universe_order(fatal: bool) -> None:
+    assets = ("000001.SZ", "430001.BJ", "600000.SH", "688001.SH")
+    both_in_flight = Barrier(2, timeout=5)
+    second_finished = Event()
+    closed_workers: list[int] = []
+    calls: list[str] = []
+    mutex = Lock()
+
+    class Reader(_Reader):
+        def capture_pair(self, *, binding, asset_code, maximum_rows, attempt_budget):
+            with mutex:
+                calls.append(asset_code)
+            pair = super().capture_pair(
+                binding=binding,
+                asset_code=asset_code,
+                maximum_rows=maximum_rows,
+                attempt_budget=attempt_budget,
+            )
+            if asset_code in assets[:2]:
+                both_in_flight.wait()
+                if asset_code == assets[0]:
+                    assert second_finished.wait(5)
+                    if fatal:
+                        # A sibling already retained both bodies. Our failed audit wrote one.
+                        raise FinancialScopeDiscoveryError(
+                            "FINANCIAL_SCOPE_DISCOVERY_RAW_ARTIFACT_INVALID", artifact_writes=1
+                        )
+                else:
+                    second_finished.set()
+                    if fatal:
+                        # Simulate a previously admitted pair completing retention after shutdown.
+                        expires = monotonic() + 5
+                        while not attempt_budget.stopped and monotonic() < expires:
+                            Event().wait(0.001)
+                        assert attempt_budget.stopped
+                        assert not attempt_budget.reserve()
+            return pair
+
     result = FinancialScopeDiscoveryUseCase(
-        reader=reader,
+        reader=Reader(),
+        minimum_attempt_interval_seconds=0,
+        close_worker=lambda: closed_workers.append(get_ident()),
         authorization_source=_AuthorizationSource(_authorization(assets)),
         universe_source=_UniverseSource(assets),
     ).execute(_request(assets))
-    assert result.outcome == "blocked"
-    assert reader.calls == [assets[0]]
+
+    expected = assets[:2] if fatal else assets
+    assert sorted(calls) == list(expected)
+    assert len(set(closed_workers)) == 2
+    assert tuple(r.asset_code for r in result.asset_results) == expected
+    assert result.counts.physical_request_attempts == 2 * len(expected)
+    assert result.counts.raw_audit_writes == (2 if fatal else 8)
+    assert result.counts.artifact_writes == (3 if fatal else 8)
+    assert result.outcome == ("blocked" if fatal else "success")
+    assert (result.candidate is None) == fatal
+    if fatal:
+        assert result.asset_results[1].status == "eligible"
+        assert [capture.asset_code for capture in result.retained_captures] == [assets[1]] * 2
+    else:
+        assert result.candidate.asset_codes == assets
 
 
 def test_rejects_capture_pair_scope_drift_and_reports_conflicting_asset() -> None:
@@ -378,6 +439,7 @@ def test_rejects_capture_pair_scope_drift_and_reports_conflicting_asset() -> Non
 
     result = FinancialScopeDiscoveryUseCase(
         reader=reader,
+        minimum_attempt_interval_seconds=0,
         authorization_source=_AuthorizationSource(_authorization(assets)),
         universe_source=_UniverseSource(assets),
     ).execute(_request(assets))
@@ -403,6 +465,7 @@ def test_rejects_duplicate_native_rows_and_reports_stats_without_partial_manifes
 
     result = FinancialScopeDiscoveryUseCase(
         reader=reader,
+        minimum_attempt_interval_seconds=0,
         authorization_source=_AuthorizationSource(_authorization(assets)),
         universe_source=_UniverseSource(assets),
     ).execute(_request(assets))
@@ -418,6 +481,7 @@ def test_review_requires_independent_owner_and_reviewer_bound_to_exact_manifest(
     candidate = (
         FinancialScopeDiscoveryUseCase(
             reader=_Reader(),
+            minimum_attempt_interval_seconds=0,
             authorization_source=_AuthorizationSource(_authorization(assets)),
             universe_source=_UniverseSource(assets),
         )
@@ -474,6 +538,7 @@ def test_manifest_review_rejects_stale_or_misbound_approval(bad_field: str) -> N
     candidate = (
         FinancialScopeDiscoveryUseCase(
             reader=_Reader(),
+            minimum_attempt_interval_seconds=0,
             authorization_source=_AuthorizationSource(_authorization(assets)),
             universe_source=_UniverseSource(assets),
         )
@@ -537,6 +602,7 @@ def test_failed_bootstrap_never_returns_partial_candidate_for_zero_business_writ
 
     result = FinancialScopeDiscoveryUseCase(
         reader=reader,
+        minimum_attempt_interval_seconds=0,
         authorization_source=_AuthorizationSource(_authorization(assets)),
         universe_source=_UniverseSource(assets),
     ).execute(_request(assets))
@@ -546,3 +612,49 @@ def test_failed_bootstrap_never_returns_partial_candidate_for_zero_business_writ
     assert result.observed_count == 1
     assert result.fact_write_count == 0
     assert result.publication_write_count == 0
+
+
+def test_composed_reader_orders_and_retains_each_stock_pair_independently(monkeypatch) -> None:
+    from apps.data_center.infrastructure.financial_scope_discovery_reader import (
+        AkshareFinancialScopeDiscoveryReader,
+    )
+
+    assets = ("000001.SZ", "600000.SH")
+    both_facts = Barrier(2, timeout=5)
+    roles = ("equity.financial.fact", "equity.financial.source-time")
+    observed = {asset: [] for asset in assets}
+    retained = {asset: [] for asset in assets}
+    reader = object.__new__(AkshareFinancialScopeDiscoveryReader)
+
+    def capture(*, binding, asset_code, dataset_key, maximum_rows, attempt_budget):
+        idx = 2 * assets.index(asset_code) + roles.index(dataset_key)
+        assert attempt_budget.reserve()
+        value = _capture(asset_code, capture_index=idx)
+        observed[asset_code].append(dataset_key)
+        if dataset_key == roles[0]:
+            both_facts.wait()
+        return SimpleNamespace(rows=value.rows, body=bytes([idx]), value=value)
+
+    def retain(*, binding, asset_code, dataset_key, captured):
+        retained[asset_code].append((dataset_key, captured.body))
+        return captured.value
+
+    monkeypatch.setattr(reader, "preflight", lambda *, binding: None)
+    monkeypatch.setattr(reader, "_capture_one", capture)
+    monkeypatch.setattr(reader, "_retain", retain)
+    result = FinancialScopeDiscoveryUseCase(
+        reader=reader,
+        minimum_attempt_interval_seconds=0,
+        authorization_source=_AuthorizationSource(_authorization(assets)),
+        universe_source=_UniverseSource(assets),
+    ).execute(_request(assets))
+
+    assert result.outcome == "success"
+    assert [observed[asset] for asset in assets] == [list(roles), list(roles)]
+    assert [retained[asset] for asset in assets] == [
+        [(roles[0], bytes([0])), (roles[1], bytes([1]))],
+        [(roles[0], bytes([2])), (roles[1], bytes([3]))],
+    ]
+    for field in ("capture_id", "body_sha256", "response_completed_at", "raw_audit_id"):
+        assert len({getattr(c, field) for c in result.retained_captures}) == 4
+    assert result.counts.physical_request_attempts == result.counts.raw_audit_writes == 4

@@ -504,3 +504,51 @@ def test_financial_response_reserves_before_send_and_enforces_shared_physical_ca
     assert budget.reserved_attempts == 4
     assert transport.request_financial_response.call_count == 4
     assert audit.record.call_count == 4
+
+
+def test_shared_physical_budget_paces_competing_workers_and_wakes_on_stop(monkeypatch) -> None:
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Barrier, Event
+    from time import monotonic
+
+    from apps.data_center.application import financial_response_attempt_budget as budget_module
+
+    samples = []
+
+    def sampled_clock():
+        now = monotonic()
+        samples.append(now)
+        return now
+
+    monkeypatch.setattr(budget_module, "monotonic", sampled_clock)
+    paced = FinancialResponseAttemptBudget(3, minimum_interval_seconds=0.03)
+    ready = Barrier(2, timeout=5)
+
+    def reserve_twice():
+        ready.wait()
+        return [paced.reserve() for _ in range(2)]
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        futures = [pool.submit(reserve_twice) for _ in range(2)]
+        observations = [pair for f in futures for pair in f.result()]
+    assert sum(observations) == paced.reserved_attempts == 3
+    starts = [samples[0]]
+    for timestamp in samples[1:]:
+        if timestamp >= starts[-1] + 0.03:
+            starts.append(timestamp)
+    assert len(starts) == 3
+
+    waiting = Event()
+    budget = FinancialResponseAttemptBudget(10, minimum_interval_seconds=60)
+    assert budget.reserve()
+
+    def wait_for_retry():
+        waiting.set()
+        return budget.reserve()
+
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        pending = pool.submit(wait_for_retry)
+        assert waiting.wait(2)
+        budget.stop()
+        assert not pending.result(timeout=2)
+    assert budget.reserved_attempts == 1

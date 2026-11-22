@@ -6,10 +6,12 @@ import logging
 from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime
-from threading import Lock
 from typing import Protocol, cast
 from uuid import UUID, uuid4
 
+from apps.data_center.application.financial_response_attempt_budget import (
+    FinancialResponseAttemptBudget,
+)
 from apps.data_center.domain.egress_routing import (
     EgressRequestContext,
     EgressRouteDecision,
@@ -232,45 +234,6 @@ class FinancialResponseValidatorProtocol(Protocol):
     def __call__(self, raw_body: bytes) -> FinancialResponseValidationResult:
         """Return a bounded decision without exposing provider response content."""
         ...
-
-
-class FinancialResponseAttemptBudget:
-    """Reserve a fixed number of routed financial transport attempts before send."""
-
-    def __init__(self, maximum_attempts: int) -> None:
-        """Create one execution-scoped budget with a non-negative hard ceiling."""
-
-        if (
-            isinstance(maximum_attempts, bool)
-            or not isinstance(maximum_attempts, int)
-            or maximum_attempts < 0
-        ):
-            raise ValueError("financial response attempt budget must be non-negative")
-        self._maximum_attempts = maximum_attempts
-        self._reserved_attempts = 0
-        self._lock = Lock()
-
-    @property
-    def maximum_attempts(self) -> int:
-        """Return the immutable attempt ceiling."""
-
-        return self._maximum_attempts
-
-    @property
-    def reserved_attempts(self) -> int:
-        """Return attempts reserved before their transport send."""
-
-        with self._lock:
-            return self._reserved_attempts
-
-    def reserve(self) -> bool:
-        """Consume one attempt before transport starts, or refuse at the hard cap."""
-
-        with self._lock:
-            if self._reserved_attempts >= self._maximum_attempts:
-                return False
-            self._reserved_attempts += 1
-            return True
 
 
 @dataclass(frozen=True, slots=True)
@@ -716,7 +679,11 @@ def execute_financial_response_request(
         if not active_attempt_budget.reserve():
             raise FinancialResponseRequestFailed(
                 "金融请求已达到物理发送次数上限。",
-                code="FINANCIAL_PROVIDER_REQUEST_HARD_LIMIT_EXCEEDED",
+                code=(
+                    "EGRESS_FINANCIAL_DISPATCH_STOPPED"
+                    if active_attempt_budget.stopped
+                    else "FINANCIAL_PROVIDER_REQUEST_HARD_LIMIT_EXCEEDED"
+                ),
                 observed_attempts=attempts_observed,
             )
         try:
