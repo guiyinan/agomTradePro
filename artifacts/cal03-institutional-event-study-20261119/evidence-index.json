@@ -1144,5 +1144,243 @@
     ],
     "checks": ".tmp/cal03-event-study-20261119/qualification-20261120-archive/checks.json",
     "commit_receipt": ".tmp/cal03-event-study-20261119/qualification-20261120-archive/commit.json"
+  },
+  "official_close_and_exception_review_20261122": {
+    "base_head": "da02354cdb166372f37354b4324f5650404caecd",
+    "purpose": "Offline comparison of dated official publications with retained, quarantined relay data. Values are points, display precision 0.01. Read only the early price window.",
+    "personal_use": {
+      "owner_evidence": {
+        "path": ".tmp/cal03-event-study-20261119/qualification-20261120/personal-research-scope.json",
+        "sha256": "fb1738c0eb392f383fd1115c0bd2337de62a05cbdabde7bc810079b64c73e846"
+      },
+      "terms_original": {
+        "path": ".tmp/cal03-event-study-20261119/provider-entitlement-originals/tushare-service-terms.html",
+        "sha256": "78b383d2ccfa62b5feb939ce340f3004d7c1094fc575e9a4425f1872d4f154e1"
+      },
+      "operator_trace": {
+        "path": ".tmp/cal03-event-study-20261119/channel-provider-trace.json",
+        "sha256": "c3d9f170823ad83ee0e40343757a8cbf02634b5b53a53b2f97fa9fc1459da0b7"
+      },
+      "finding": "Owner confirms personal research. Retained Tushare terms limit use to personal viewing via an authorized channel. No new evidence ties this relay and account to an operator, applicable grant, retention/derived research rights and validity.",
+      "actual_grant_verified": false
+    },
+    "public_sources": [
+      {
+        "id": "notice17.html",
+        "url": "https://www.sse.com.cn/disclosure/announcement/general/c/c_20200420_5044749.shtml",
+        "path": ".tmp/cal03-event-study-20261119/input-review-20261122/notice17.html",
+        "sha256": "7b3693725d7c288ad3881f503ac51b61ccd63a4e8b918ee2b87d197445f83abc"
+      },
+      {
+        "id": "notice18.html",
+        "url": "https://www.sse.com.cn/disclosure/announcement/general/c/c_20200420_5044836.shtml",
+        "path": ".tmp/cal03-event-study-20261119/input-review-20261122/notice18.html",
+        "sha256": "6f2e5f162dd35159a4cdf2828c693a0e311971247c9d4ab1a06cce6019d2bf80"
+      },
+      {
+        "id": "notice19.html",
+        "url": "https://www.sse.com.cn/disclosure/announcement/general/c/c_20200420_5044840.shtml",
+        "path": ".tmp/cal03-event-study-20261119/input-review-20261122/notice19.html",
+        "sha256": "163796de1b0bb3549ed9eff43a1d466bb6df38b9492289119dbd7080bcc3f68b"
+      },
+      {
+        "id": "csi-policy.pdf",
+        "url": "https://oss-ch.csindex.com.cn/contract/cms_add/20240329171100-%E3%80%8A%E4%B8%AD%E8%AF%81%E6%8C%87%E6%95%B0%E6%9C%89%E9%99%90%E5%85%AC%E5%8F%B8%E6%8C%87%E6%95%B0%E7%AE%A1%E7%90%86%E5%9F%BA%E6%9C%AC%E8%A7%84%E5%88%99%E3%80%8B.pdf",
+        "path": ".tmp/cal03-event-study-20261119/input-review-20261122/csi-policy.pdf",
+        "sha256": "78e0ccb12bfec96e426d0a66b85db23b206c445fdf67c3bba70e931f32335ef4"
+      },
+      {
+        "id": "csi-policy-attachment.pdf",
+        "url": "https://oss-ch.csindex.com.cn/notice/20240329170119-%E3%80%8A%E4%B8%AD%E8%AF%81%E6%8C%87%E6%95%B0%E6%9C%89%E9%99%90%E5%85%AC%E5%8F%B8%E6%8C%87%E6%95%B0%E7%AE%A1%E7%90%86%E5%9F%BA%E6%9C%AC%E8%A7%84%E5%88%99%E3%80%8B.pdf",
+        "path": ".tmp/cal03-event-study-20261119/input-review-20261122/csi-policy-attachment.pdf",
+        "sha256": "78e0ccb12bfec96e426d0a66b85db23b206c445fdf67c3bba70e931f32335ef4"
+      },
+      {
+        "id": "sse-nov2018.pdf",
+        "url": "https://www.sse.com.cn/aboutus/publication/monthly/documents/c/10061155/files/294e956491fb4f00a1533ec8cfda60d4.pdf",
+        "path": ".tmp/cal03-event-study-20261119/input-review-20261122/sse-nov2018.pdf",
+        "sha256": "8909c4d5d6d238a5e02b19d6eb47c9a047bec1d59ebf4b6f86ed0cde23f54cae"
+      },
+      {
+        "id": "csi-june2017.pdf",
+        "url": "https://oss-ch.csindex.com.cn/static/html/csindex/public/uploads/researches/files/zh_CN/research_c_137.pdf",
+        "path": ".tmp/cal03-event-study-20261119/input-review-20261122/csi-june2017.pdf",
+        "sha256": "d67ae2aec5eecb119d15d766b4c206d3109ad86d9a28ed43751d70d72dfe7e1e"
+      },
+      {
+        "id": "csi-notice-11629.json",
+        "url": "https://www.csindex.com.cn/csindex-home/announcement/queryAnnouncementById?id=11629",
+        "path": ".tmp/cal03-event-study-20261119/input-review-20261122/csi-notice-11629.json",
+        "sha256": "faa09a29ef4e943fd2ed8a128a28c39a77f86ae3c504a9a8849d437255bf6faa"
+      },
+      {
+        "id": "csi-notice-11634.json",
+        "url": "https://www.csindex.com.cn/csindex-home/announcement/queryAnnouncementById?id=11634",
+        "path": ".tmp/cal03-event-study-20261119/input-review-20261122/csi-notice-11634.json",
+        "sha256": "621d537cd83005f24dda698fca04dcef4b5b6f1a6f10ece998d9638949df2afe"
+      },
+      {
+        "id": "csi-notice-15198.json",
+        "url": "https://www.csindex.com.cn/csindex-home/announcement/queryAnnouncementById?id=15198",
+        "path": ".tmp/cal03-event-study-20261119/input-review-20261122/csi-notice-15198.json",
+        "sha256": "c2ef940d7dedb7f7eff6cf4bdad69b561f3d2550f71c611b4286f60b02554f2c"
+      },
+      {
+        "id": "csi-nov2018.pdf",
+        "url": "https://oss-ch.csindex.com.cn/static/html/csindex/public/uploads/researches/files/zh_CN/research_c_1041.pdf",
+        "path": ".tmp/cal03-event-study-20261119/input-review-20261122/csi-nov2018.pdf",
+        "sha256": "4a913e830e4e7b6e504c76983c8ea250a3516b906dc3d90fb1bd0a3102ba924a"
+      },
+      {
+        "id": "sse-yearbook2019.pdf",
+        "url": "https://www.sse.com.cn/aboutus/publication/yearly/documents/c/10061075/files/32277cffb8354bb7857bf48731afc697.pdf",
+        "path": ".tmp/cal03-event-study-20261119/input-review-20261122/sse-yearbook2019.pdf",
+        "sha256": "71e9a26c0a55914d67bf5b054cced232212d042db6764ed4bf99e61d6585d580"
+      }
+    ],
+    "reconciliation": {
+      "path": ".tmp/cal03-event-study-20261119/input-review-20261122/reconciliation.json",
+      "sha256": "c3a6607d997eb4911fe5f23211b93eefbd5baf719a731f653a266899530cad62"
+    },
+    "calendar_reuse": {
+      "archive": {
+        "path": ".tmp/cal03-event-study-20261119/qualification-20261120-archive/review.json",
+        "sha256": "d33a30fccc96010ef656a4fdd088d21966f1378c992000b54cce224a4e90656b"
+      },
+      "five_annual_and_2015_special_original_hashes_verified": 6,
+      "date_grid": "Use the retained SSE and SZSE calendars in bounded_history_coverage_audit. Each marks 2020-04-20 open. The already reconciled 2010-01-04 through 2026-11-18 open-day grids do not encode intraday incidents."
+    },
+    "per_target": {
+      "000300.SH": {
+        "2017-06-30_CSI_print": "3666.80",
+        "2018-11-30_CSI_print": "3172.69",
+        "2018_11_SSE_daily_prints": 22,
+        "SSE_daily_matches_at_two_decimals": 22,
+        "official_first_and_revised_close_ids": null,
+        "available_by_1800_verified": false
+      },
+      "000016.SH": {
+        "2017-06-30_CSI_print": "2549.97",
+        "2018-11-30_CSI_print": "2428.04",
+        "2018_11_SSE_daily_prints": 22,
+        "SSE_daily_matches_at_two_decimals": 20,
+        "official_first_and_revised_close_ids": null,
+        "available_by_1800_verified": false
+      },
+      "000905.SH": {
+        "2017-06-30_CSI_print": "6138.16",
+        "2018-11-30_CSI_print": "4376.65",
+        "2018_11_SSE_daily_prints": 0,
+        "SSE_daily_matches_at_two_decimals": 0,
+        "official_first_and_revised_close_ids": null,
+        "available_by_1800_verified": false
+      }
+    },
+    "conflicts": [
+      {
+        "code": "000016.SH",
+        "date": "2018-11-16",
+        "SSE_monthly": "2461.45",
+        "SSE_yearbook": "2461.45",
+        "relay": "2461.4445",
+        "CSI_month_end_report": null,
+        "disposition": "Different at two decimals. Original disseminated close, field calculation precision and issuer correction history unknown."
+      },
+      {
+        "code": "000016.SH",
+        "date": "2018-11-30",
+        "SSE_monthly": "2428.05",
+        "SSE_yearbook": "2428.05",
+        "CSI_monthly": "2428.04",
+        "relay": "2428.0445",
+        "disposition": "Two official publishers differ at printed precision. Causal order and correction status unknown. Neither printing establishes the 18:00 vintage."
+      }
+    ],
+    "edition_and_clock": {
+      "2017_06_report": "CSI report ID 136, period June 2017, catalogue itemDate 2017-07-07 (day).",
+      "2018_11_reports": "CSI report ID 1023, period November 2018, catalogue itemDate 2018-12-06 (day). SSE monthly observation dates have day precision. The SSE 2019 yearbook is a retrospective edition.",
+      "policy": "V1.0 created 2018-08, V2.0 changed error-correction language in 2020-03 (both month precision). V3.0 becomes effective on publication: notice 15198 dated 2024-03-29 (day). Catalogue PDF and notice attachment identical by SHA-256. Earlier rule bodies and subsequent sunset not established here.",
+      "policy_sections": "Physical PDF pp. 2, 6–7 (§2.4, §3.3). Errors found after six months generally receive no action. Within six months correction is assessed case by case. Recalculation/republication triggers client notification. Closing levels generally publish each index trading day; no hour or guaranteed finality. Do not back-apply V3.0 to 2017, 2018 or 2020.",
+      "historical_first_release_at": null,
+      "historical_revised_available_at": null,
+      "historical_relay_first_seen_at": null,
+      "acquisition_clocks": "Per-body UTC complete-read and post-fsync timestamps in reconciliation.sources, also in <raw-name>.json sidecars. Catalogue itemDate and HTTP headers are not receipt timestamps."
+    },
+    "incident": {
+      "date": "2020-04-20",
+      "timezone": "Asia/Shanghai",
+      "notice_17": "Morning display anomaly expressly names CSI 300. Onset only given as morning.",
+      "notice_18": "Exchange reports continued trading in named markets/products. This is not an exchange closure.",
+      "notice_19": "At 13h realtime display was restored (hour as stated). Correction of static highs/lows etc. was planned after close (relative ordering only). No final close, completion time, or enumerated before/after values.",
+      "csi_reprints": [
+        11634,
+        11629
+      ],
+      "reprint_author": "SSE. Both CSI catalogue dates are 2020-04-20, day precision; these are not independent price feeds.",
+      "target_scope": {
+        "000300.SH": "explicitly affected by display anomaly",
+        "000016.SH": "not named; incident impact unestablished",
+        "000905.SH": "not named; incident impact unestablished"
+      },
+      "full_market_calendar_qualified": false
+    },
+    "recompute": {
+      "offline_script": {
+        "path": ".tmp/cal03-event-study-20261119/input-review-20261122/replay.py",
+        "sha256": "d773ee5edbc30e43d962913f44be27654f5b5c3e80119d6bce2291bf08979eaa"
+      },
+      "command": "python .tmp/cal03-event-study-20261119/input-review-20261122/replay.py",
+      "requires": "Python with PyMuPDF; pdftotext on PATH; retained files at indexed paths. No network or database.",
+      "steps": [
+        "Verify SHA-256 of each PDF, HTML, announcement, scope, terms, previous archive and coverage summary. Follow summary.response_report to requests 1–4 and 11–13. Original bytes and headers are retained.",
+        "Confirm month-end from exchange calendar keys. Read CSI June pp. 10/12, November pp. 11/13, named price index rows and closing-level column. Editions and page numbers are physical, one-based.",
+        "Read SSE November physical pp. 12/16. Pair the Date and Close columns by visual row baseline; do not join a wrapped text line. Reconcile all 22 dates per index against the retained calendar before comparing.",
+        "Join exact relay ts_code and trade_date. Retain the decimal raw value and its difference from the print. Apply ROUND_HALF_UP at 0.01 only for the display check. Inspect the November column, days 16 and 30, in SSE yearbook physical p. 17. Overlapping publications are additional observations of the same case.",
+        "Read the three numbered SSE announcements in order and both CSI reprints. Separate trading, display recovery and planned corrections. For V3.0 cross-check the original notice, identical attachment, version table and clauses."
+      ],
+      "initial_cases": 47,
+      "initial_matches_at_print_precision": 45,
+      "initial_exact_decimal_matches": 1,
+      "followup_publication_observations": 5,
+      "distinct_index_dates_total": 48
+    },
+    "discovery": {
+      "catalogue_records": [
+        {
+          "path": ".tmp/cal03-event-study-20261119/input-review-20261122/month-doc-search.json",
+          "sha256": "c801bfb1565e6371941c1b568757a2c42e2e3351cb292a50779c1345dff851f2"
+        },
+        {
+          "path": ".tmp/cal03-event-study-20261119/input-review-20261122/nov-doc-search.json",
+          "sha256": "78cd5b901cc7d6cb10e34160f59c27bfd93defd50c30bb331a55787ed48a9d21"
+        },
+        {
+          "path": ".tmp/cal03-event-study-20261119/input-review-20261122/policy-doc-search.json",
+          "sha256": "6715fac269fc86061113908a5a082580115c42c3907cb9d89ede33a21ae7048a"
+        },
+        {
+          "path": ".tmp/cal03-event-study-20261119/input-review-20261122/incident-doc-search.json",
+          "sha256": "4fd7bf156f61fdae4f2ebcbcb1e1e20dec270473d940495ae5e1da674ed97611"
+        },
+        {
+          "path": ".tmp/cal03-event-study-20261119/input-review-20261122/csi-doc-catalog.json",
+          "sha256": "e58c3df33f597cbc8dc262621a84db7540c4b5bbf1eddfc4163193f326aa0bf1"
+        }
+      ],
+      "diagnostics": "The co-published newspaper PDF could not be retained via HTTPS or HTTP (capture-1.log, curl-diagnostic.log, capture-2.log). The original CSI reports were subsequently acquired from the issuer catalogue. Yearbook text form-feed count produced a wrong page candidate; native PDF page coordinates and rendering confirm physical p. 17."
+    },
+    "remaining": [
+      "Before admission: establish actual personal-account channel grant and validity; obtain issuer first/revised close records or binding final-version evidence and as-of delivery clocks for each code/date, including both 000016 discrepancies.",
+      "Resolve the 2014 calendar publication conflict, historical rule vintages, complete session exceptions, final publication and independent fallback with separate authority/lineage. No same-day vintage can be chosen from a retrospective publication alone."
+    ],
+    "qualified_full_history_packages": 0,
+    "frozen_input_admitted": false,
+    "frozen_spec_sha256": "29a44d0cd2670dd2a72853494d21271c9765d6584dafa4998e1df3c2a6edfe71",
+    "market_or_financial_provider_dispatches": 0,
+    "data02_budget_consumed": 0,
+    "production_actions": 0,
+    "real_oos_claimed_or_evaluated": false,
+    "checks": ".tmp/cal03-event-study-20261119/input-review-20261122/checks.json",
+    "commit_receipt": ".tmp/cal03-event-study-20261119/input-review-20261122/commit.json"
   }
 }
