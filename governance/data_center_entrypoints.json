@@ -26,17 +26,17 @@
       "script": 20,
       "sdk": 57,
       "terminal_tui": 32,
-      "test_evidence": 167,
+      "test_evidence": 168,
       "workflow_step": 11
     },
     "by_status": {
       "active_public": 943,
       "adjacent_operational": 349,
-      "candidate-review": 83,
+      "candidate-review": 84,
       "compatibility": 139,
       "retired_blocked": 0
     },
-    "total": 1514
+    "total": 1515
   },
   "entries": [
     {
@@ -13967,6 +13967,16 @@
       "path": "tests/component/data_center/test_retention_postgres_concurrency.py",
       "status": "active_public",
       "symbol": "test_retention_postgres_concurrency",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/component/data_center/test_s6_restored_graph_scope.py:test_s6_restored_graph_scope:",
+      "locator": "",
+      "path": "tests/component/data_center/test_s6_restored_graph_scope.py",
+      "status": "candidate-review",
+      "symbol": "test_s6_restored_graph_scope",
       "target": ""
     },
     {
