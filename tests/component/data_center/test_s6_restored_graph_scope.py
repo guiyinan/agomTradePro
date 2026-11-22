@@ -57,7 +57,9 @@ def test_normal_worker_checks_restored_facts_before_calendar_and_task(
     if case != "empty":
         AssetMasterModel.objects.create(code=code, name=code, asset_type="stock", exchange="SSE")
     if case == "oversize":
-        AssetMasterModel.objects.create(code="000001.SZ", name="Second", asset_type="stock", exchange="SZSE")
+        AssetMasterModel.objects.create(
+            code="000001.SZ", name="Second", asset_type="stock", exchange="SZSE"
+        )
     # A verified later listing is outside this session's scope even with a newer fact.
     AssetMasterModel.objects.create(
         code="600000.SH",

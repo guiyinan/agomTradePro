@@ -738,7 +738,9 @@ def test_final_validation_helper_writes_plan_bound_v3_receipt(tmp_path: Path) ->
 
 @pytest.mark.skipif(os.name != "posix", reason="final validation requires POSIX file modes")
 def test_final_receipt_requires_the_reserved_graph_date(tmp_path: Path) -> None:
-    context = _final_validation_context(tmp_path, advance_graph=True, graph_target_date="2026-10-12")
+    context = _final_validation_context(
+        tmp_path, advance_graph=True, graph_target_date="2026-10-12"
+    )
     try:
         with pytest.raises(CandidateSourceSnapshotError, match="S6_GRAPH_REFRESH_SCOPE_MISMATCH"):
             validate_final_prepare_receipt(context)
