@@ -19,6 +19,7 @@ from scripts.plan_release_rehearsal_attempt import build_attempt_plan
     ("case", "expected_code", "calendar_calls", "task_calls"),
     [
         ("later_valuation", "LATER_VALUATION", 0, 0),
+        ("later_observation", "LATER_VALUATION", 0, 0),
         ("later_quote", "LATER_QUOTE", 0, 0),
         ("later_price", "LATER_PRICE", 0, 0),
         ("empty", "SCOPE_OUT_OF_BOUNDS", 0, 0),
@@ -68,7 +69,14 @@ def test_normal_worker_checks_restored_facts_before_calendar_and_task(
     )
     ValuationFactModel.objects.create(asset_code="600000.SH", val_date=date(2026, 11, 21))
     ValuationFactModel.objects.create(
-        asset_code=code, val_date=target, fetched_at=next_midnight, source="tushare"
+        asset_code=code,
+        val_date=target,
+        observed_at=(
+            next_midnight if case == "later_observation" else datetime(2026, 11, 20, 7, tzinfo=UTC)
+        ),
+        available_at=next_midnight,
+        fetched_at=next_midnight,
+        source="tushare",
     )
     if case == "later_valuation":
         ValuationFactModel.objects.create(

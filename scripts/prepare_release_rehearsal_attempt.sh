@@ -71,8 +71,6 @@ try:
         graph_target_date=plan.get("graph_target_date"),
         graph_max_assets=plan.get("graph_max_assets"),
     )
-    if advance and "graph_target_date" not in expected:
-        blocked("S6_GRAPH_SCOPE_INVALID")
     canonical = (json.dumps(expected, ensure_ascii=False, sort_keys=True, indent=2) + "\n").encode("utf-8")
     if plan != expected or raw != canonical:
         blocked("S6_ATTEMPT_PLAN_BINDING_MISMATCH")

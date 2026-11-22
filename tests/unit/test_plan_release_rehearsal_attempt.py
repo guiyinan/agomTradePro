@@ -119,6 +119,7 @@ def test_isolated_market_graph_refresh_requires_explicit_plan_opt_in(
         ("2026-11-20", False),
         ("2026-11-20", 0),
         (None, 5585),
+        (None, None),
         ("2026-11-20", None),
     ],
 )
@@ -133,12 +134,13 @@ def test_invalid_graph_scope_cannot_be_planned(tmp_path: Path, target, maximum) 
         )
 
 
-def test_unbound_legacy_graph_plan_cannot_reserve_new_resources(tmp_path: Path) -> None:
-    plan = build_attempt_plan(
-        candidate_sha=CANDIDATE_SHA, attempts_dir=tmp_path, advance_isolated_market_graph=True
-    )
-    with pytest.raises(AttemptPlanError, match="S6_GRAPH_SCOPE_INVALID"):
+def test_unbound_legacy_graph_plan_cannot_reserve_or_resume(tmp_path: Path) -> None:
+    plan = build_attempt_plan(candidate_sha=CANDIDATE_SHA, attempts_dir=tmp_path)
+    plan["advance_isolated_market_graph"] = True
+    with pytest.raises(AttemptPlanError, match="S6_ATTEMPT_PLAN_INVALID"):
         reserve_attempt(plan)
+    with pytest.raises(AttemptPlanError, match="S6_ATTEMPT_PLAN_INVALID"):
+        resume_attempt(plan)
     assert not Path(plan["root"]).exists()
 
 

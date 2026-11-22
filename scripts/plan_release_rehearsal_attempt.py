@@ -122,13 +122,13 @@ def build_attempt_plan(
         "candidate_source_receipt_path": str(root / "candidate-source-receipt.json"),
         "advance_isolated_market_graph": advance_isolated_market_graph,
     }
-    if graph_target_date is not None or graph_max_assets is not None:
-        if not advance_isolated_market_graph:
-            raise AttemptPlanError("S6_GRAPH_SCOPE_INVALID")
+    if advance_isolated_market_graph:
         target, ceiling = parse_graph_scope(graph_target_date, graph_max_assets)
         plan["schema"] = "release.s6-attempt-plan.v4"
         plan["graph_target_date"] = target.isoformat()
         plan["graph_max_assets"] = ceiling
+    elif graph_target_date is not None or graph_max_assets is not None:
+        raise AttemptPlanError("S6_GRAPH_SCOPE_INVALID")
     return plan
 
 
@@ -184,8 +184,6 @@ def _plan_file_is_read_only(path: Path) -> bool:
 def reserve_attempt(plan: AttemptPlan) -> Path:
     """Atomically claim the attempt root and publish its immutable plan file."""
     canonical, raw = _canonical_plan(plan)
-    if canonical["advance_isolated_market_graph"]:
-        parse_graph_scope(canonical.get("graph_target_date"), canonical.get("graph_max_assets"))
     root = Path(canonical["root"])
     _check_path_safety(root)
     try:
@@ -290,8 +288,6 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         if args.resume and args.attempt_id is None:
             raise AttemptPlanError("S6_ATTEMPT_RESUME_ID_REQUIRED")
-        if args.advance_isolated_market_graph and not args.resume:
-            parse_graph_scope(args.graph_target_date, args.graph_max_assets)
         plan = build_attempt_plan(
             candidate_sha=args.candidate_sha,
             attempt_id=args.attempt_id,

@@ -409,12 +409,12 @@ def validate_final_prepare_receipt(context: _FinalPrepareValidation) -> dict[str
     graph_receipt: dict[str, object] | None = None
     graph_receipt_sha256: str | None = None
     if advance_graph:
-        if "graph_target_date" in plan:
-            _validation_require(
-                target_trade_date == plan["graph_target_date"]
-                and cast(int, universe_count) <= cast(int, plan["graph_max_assets"]),
-                "S6_GRAPH_REFRESH_SCOPE_MISMATCH",
-            )
+        _validation_require(
+            plan["schema"] == "release.s6-attempt-plan.v4"
+            and target_trade_date == plan.get("graph_target_date")
+            and cast(int, universe_count) <= cast(int, plan["graph_max_assets"]),
+            "S6_GRAPH_REFRESH_SCOPE_MISMATCH",
+        )
         graph_path = inputs / graph_name
         try:
             graph_raw = graph_path.read_bytes()
