@@ -9903,6 +9903,86 @@
                               "new_s6_attempts": 0,
                               "market_requests_added": 0,
                               "production_writes": 0
+                            },
+                            "inventory_successor_ci": {
+                              "authority": "call_7f7bfd09c70a452ea4e813d9d822cd7b",
+                              "candidate_sha": "085ca1204fef96c57901735766ded7c6a547c27b",
+                              "parent_sha": "451cc90c4cd2433bd7f787a883b58c012f44adbb",
+                              "changed_file": "governance/data_center_entrypoints.json",
+                              "projection_sha256": "7927ad146b675c3bab1536c9db7f0bb29b9aa4fb65cb8f5a1efa1145c42151aa",
+                              "local_projection_check_sha256": "1930f26578544dec7e6e54ce6a559d73ca86ce51ae7dfd437a5ffce6cd19060f",
+                              "local_dev_integration": "ff3372e5e13f6971778565e96d9423cf40aed72d",
+                              "ref": "refs/heads/dev/data02-ci-451cc90c4",
+                              "push_range": [
+                                "451cc90c4cd2433bd7f787a883b58c012f44adbb",
+                                "085ca1204fef96c57901735766ded7c6a547c27b"
+                              ],
+                              "ref01_job_log_sha256": "c63a606310062a95988e7fbaaf2794756cdfd5b371ff8f1910207782063afd78",
+                              "local_evidence_directory": ".tmp/data02-guard-20261122/github-ci-successor",
+                              "initial_seven": [
+                                {
+                                  "id": 45020381043,
+                                  "name": "CI Fast Feedback",
+                                  "event": "push",
+                                  "conclusion": "success"
+                                },
+                                {
+                                  "id": 45020381051,
+                                  "name": "Consistency Check",
+                                  "event": "push",
+                                  "conclusion": "success"
+                                },
+                                {
+                                  "id": 45020381070,
+                                  "name": "Engineering progress dashboard",
+                                  "event": "push",
+                                  "conclusion": "success"
+                                },
+                                {
+                                  "id": 45020381084,
+                                  "name": "Security Scan",
+                                  "event": "push",
+                                  "conclusion": "success"
+                                },
+                                {
+                                  "id": 45020381089,
+                                  "name": "Architecture Layer Guard",
+                                  "event": "push",
+                                  "conclusion": "success"
+                                },
+                                {
+                                  "id": 45020415295,
+                                  "name": "CI Fast Feedback",
+                                  "event": "workflow_dispatch",
+                                  "conclusion": "failure"
+                                },
+                                {
+                                  "id": 45020429737,
+                                  "name": "Quote Metric PostgreSQL contracts",
+                                  "event": "workflow_dispatch",
+                                  "conclusion": "success"
+                                }
+                              ],
+                              "initial_seven_receipt_sha256": "9571fe43afefbf1642674cdb1593eced5470c335d4428fe6b4449db17ed65c14",
+                              "quote_metric": {
+                                "artifact_id": 14753612442,
+                                "archive_digest": "sha256:03dcf85e79a63aa6e9e02fd723858b3f789b6c1c6cd801f02874218b9fbdda86",
+                                "junit": {
+                                  "quote-metric-postgres.xml": {
+                                    "tests": 57,
+                                    "sha256": "82bf2158359d167910436a6875902a3f19f5e9a6093edb5fc2bbd33880174473"
+                                  }
+                                }
+                              },
+                              "publication_evidence": null,
+                              "scope": "Candidate projection repair, local verification, exact SHA GitHub CI. No new S6, market request or production write.",
+                              "manual_fast_base_sha": "c5b42e20cc97a7e166e6d3f88254d05b0605667a",
+                              "manual_fast_base_log_sha256": "8df501675dc3730fb7d71077da65e7f45e5417b2f9594e4d4b2e310573a2ae63",
+                              "ci_outcome": "Six passed. Manual cumulative Fast Feedback failed Black on two test call layouts; repo projection and REF-01 passed.",
+                              "publication_manual_dispatches": 0,
+                              "failed_step_log_sha256": "093211965c838b5c9be7f4c8c0f1d9595d4bb7c9221ff261ff37d6f9312986e3",
+                              "local_black_preview_sha256": "63c452a517a70cf646824eaeb8c6bfa2767a970d78aaf72a368eff2849bbcbae",
+                              "local_black_preview": "Two changed call layouts, same parsed AST in each test file. Eight local isort checks passed."
                             }
                           }
                         }
