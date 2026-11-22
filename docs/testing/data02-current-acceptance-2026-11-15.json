@@ -9983,6 +9983,107 @@
                               "failed_step_log_sha256": "093211965c838b5c9be7f4c8c0f1d9595d4bb7c9221ff261ff37d6f9312986e3",
                               "local_black_preview_sha256": "63c452a517a70cf646824eaeb8c6bfa2767a970d78aaf72a368eff2849bbcbae",
                               "local_black_preview": "Two changed call layouts, same parsed AST in each test file. Eight local isort checks passed."
+                            },
+                            "format_successor_ci": {
+                              "authority": "call_722f9999e39f4010a491564d2a98f67c",
+                              "candidate_sha": "cb9710345ae2a5105c15535d3f3a66d7b3a97e0b",
+                              "parent": "085ca1204fef96c57901735766ded7c6a547c27b",
+                              "local_dev_integration": "0e4910c7998477169cef2a47f77ae75fc0821ac9",
+                              "branch": "dev/data02-ci-451cc90c4",
+                              "fast_feedback_ancestor": "c5b42e20cc97a7e166e6d3f88254d05b0605667a",
+                              "scope": "Two test call layouts with identical ASTs before and after formatting.",
+                              "local_evidence_directory": ".tmp/data02-guard-20261122/github-ci-format",
+                              "local_quality_and_junit": {
+                                "sha": "cb9710345ae2a5105c15535d3f3a66d7b3a97e0b",
+                                "quality_checks": 22,
+                                "windows_pass": 22,
+                                "windows_skips": 4,
+                                "ubuntu_skips_validated": 4,
+                                "junit_digest": {
+                                  "windows.xml": "1995970b9ded82e63cac3830273dde5f36f0a1e4cf019d7661ef9b70b11fb848",
+                                  "local-linux.xml": "1636d07279bcfbac60025c9d4dfddaf309ed18f6763d9ef76847480dd1b13e46"
+                                },
+                                "cumulative_quality_digest": "a72fd42f1b00a981669b59e0edeedac2e996daa01b5597e8cdf59edb7f9cabd1"
+                              },
+                              "official_checks": [
+                                {
+                                  "id": 45023630195,
+                                  "name": "Engineering progress dashboard",
+                                  "event": "push",
+                                  "conclusion": "success",
+                                  "html_url": "https://github.com/guiyinan/agomTradePro/actions/runs/45023630195"
+                                },
+                                {
+                                  "id": 45023630198,
+                                  "name": "CI Fast Feedback",
+                                  "event": "push",
+                                  "conclusion": "success",
+                                  "html_url": "https://github.com/guiyinan/agomTradePro/actions/runs/45023630198"
+                                },
+                                {
+                                  "id": 45023630215,
+                                  "name": "Security Scan",
+                                  "event": "push",
+                                  "conclusion": "success",
+                                  "html_url": "https://github.com/guiyinan/agomTradePro/actions/runs/45023630215"
+                                },
+                                {
+                                  "id": 45023630223,
+                                  "name": "Consistency Check",
+                                  "event": "push",
+                                  "conclusion": "success",
+                                  "html_url": "https://github.com/guiyinan/agomTradePro/actions/runs/45023630223"
+                                },
+                                {
+                                  "id": 45023630283,
+                                  "name": "Architecture Layer Guard",
+                                  "event": "push",
+                                  "conclusion": "success",
+                                  "html_url": "https://github.com/guiyinan/agomTradePro/actions/runs/45023630283"
+                                },
+                                {
+                                  "id": 45023662308,
+                                  "name": "CI Fast Feedback",
+                                  "event": "workflow_dispatch",
+                                  "conclusion": "success",
+                                  "html_url": "https://github.com/guiyinan/agomTradePro/actions/runs/45023662308"
+                                },
+                                {
+                                  "id": 45023680240,
+                                  "name": "Quote Metric PostgreSQL contracts",
+                                  "event": "workflow_dispatch",
+                                  "conclusion": "success",
+                                  "html_url": "https://github.com/guiyinan/agomTradePro/actions/runs/45023680240"
+                                }
+                              ],
+                              "first_seven_receipt_sha256": "6fb2b6805c748a5183bd281ae04e2827d9ff9bdee5237722be106c02232b75d5",
+                              "quote_metric": {
+                                "id": 14755281050,
+                                "digest": "sha256:6d31390b2dfcb8dfc46b82ae7dbb87f9b4a8c2696ade070f5d763e5935b30128",
+                                "junit": {
+                                  "quote-metric-postgres.xml": {
+                                    "tests": 57,
+                                    "sha256": "3354aa7b708ba3cc8b159406f5974a8f959284c9eeb67d52cfa354763d632508"
+                                  }
+                                }
+                              },
+                              "push_publication": {
+                                "sha": "cb9710345ae2a5105c15535d3f3a66d7b3a97e0b",
+                                "run_id": 45023630247,
+                                "artifact_id": 14754783903,
+                                "archive_digest": "sha256:061c368e7d637793a88be6cb329d50bd85b61f2315bf5de8b50d9e90d89ba486",
+                                "xml_files": 12,
+                                "tests": 303,
+                                "earliest_evidence_at": "2026-11-22T20:47:50.918442+08:00",
+                                "conservative_expiry_beijing": "2026-11-23T20:47:50.918442+08:00",
+                                "verified_at": "2026-11-22T13:08:28.628664+00:00",
+                                "event": "push",
+                                "run_url": "https://github.com/guiyinan/agomTradePro/actions/runs/45023630247"
+                              },
+                              "manual_publication_due_beijing": "2026-11-23T10:00:00+08:00",
+                              "manual_publication": null,
+                              "s6_attempts_started": 0,
+                              "production_writes": 0
                             }
                           }
                         }

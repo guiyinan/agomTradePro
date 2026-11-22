@@ -1613,3 +1613,5 @@ Owner 批准在同一 intent 恢复一次标签后，只创建原标签、首次
 11 月 22 日晚，Owner 批准为 451cc90c4 运行官方 CI。专用分支上的 7 个运行已终止，3 个通过、4 个失败。Quote Metric 官方原件含 57 项通过。首次建分支的 push 前序为全零，架构门禁 REF-01 在两个 Python 版本均退出。Consistency 和两次 Fast Feedback 的增量质量门均发现入口清单缺少本候选新增的恢复库范围测试。本地用候选生成器复核，差异为该测试条目及三处计数。此 SHA 未通过正式门禁，Publication 手动派发 0 次。逐项 run ID、原件摘要和失败日志索引见同一验收记录的 local_guard_candidate_official_ci。
 
 11 月 22 日晚，Owner 批准用最小后继候选取代旧 SHA 补分支方案。085ca1204fef96c57901735766ded7c6a547c27b 仅更新生成入口清单。开发分支在 ff3372e5e 整合，保留了分支自身的管理命令条目。专用分支从 451cc90c4 一次快进，5 个 push 检查与手动 Quote Metric 均通过，57 项 PostgreSQL 用例全部执行。以 c5 为基线的手动 Fast Feedback 在 Black 格式检查失败，两份测试各有一处函数调用需换行；两个 Python 测试矩阵均通过。Publication 手动派发 0 次。逐项结果及官方原件见同一验收索引 inventory_successor_ci。
+
+11 月 22 日晚，候选 cb9710345ae2a5105c15535d3f3a66d7b3a97e0b 仅修正两个测试调用的换行，语法树一致。c5 至该 SHA 的本地累计质量检查与两份测试文件通过。五个 push 检查、累计 Fast Feedback、手动 Quote Metric 以及自动触发的 Publication PostgreSQL 均通过。Quote Metric 的 57 项及 Publication 的 12 份 JUnit、303 项均已核验，无失败、错误或跳过。自动 Publication 的保守有效期至北京时间 11 月 23 日 20:47:50；为覆盖下一目标日的完整窗口，另一次获批的手动 Publication 安排在北京时间 11 月 23 日 10:00。S6 和生产回填仍待执行。运行、归档哈希及截止时间见同一验收索引 format_successor_ci。
