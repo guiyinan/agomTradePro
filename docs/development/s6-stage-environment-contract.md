@@ -75,8 +75,11 @@ publication、run、hash、summary 或计数漂移继续 fail closed。
 current Publication 的不可变 scope blocks 重建缺口集合，并仍逐项复核 active policy、member/fact hash、Task Monitor 的
 资产/operation 计数、Publication 身份与 dataset 摘要。安全投影缺少任一必需标量时继续 fail closed，不允许把裁剪当成空缺口。
 
-默认 fresh prepare 仍直接复用恢复快照中的 current graph。planner v3 可在 reserve 时显式选择
-`--advance-isolated-market-graph`；该选择随 plan hash 绑定 attempt。wrapper 只在隔离角色 bootstrap 后、只读 exporter 前，
+默认 fresh prepare 直接复用恢复快照中的 current graph。reserve 时可显式选择
+`--advance-isolated-market-graph --graph-target-date YYYY-MM-DD --graph-max-assets N`。
+worker 先核验只读 v4 plan 的摘要与身份，再从新库读取目标日的 A 股范围，并检查报价、日线不复权价格和估值。
+范围为空、超过授权上限或存在晚于目标日的相关事实时，在查询 provider 日历前退出。
+通过后再核对 provider 最新就绪交易日，日期吻合才调用全市场任务。wrapper 只在隔离角色 bootstrap 后、只读 exporter 前，
 用 candidate source readonly mount 和当前执行 image 启动固定 refresh CLI；运行时只接受精确 `agom_release_rehearsal_*` 数据库、
 runtime PostgreSQL role、同 attempt 的 Redis/容器/network/image 身份。该 full-market Task Monitor task 会真实访问 provider，
 所以该 opt-in 有额外调用成本。成功 receipt 必须包含任务规范 outcome 与 `requested/succeeded/failed/stored`、Task Monitor attempt、

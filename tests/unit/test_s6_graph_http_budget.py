@@ -448,6 +448,8 @@ def test_calendar_discovery_and_task_share_one_transport_budget(
             _dispatch(session)
         return date(2026, 11, 17) if calendar_available else None
 
+    monkeypatch.setattr(_REFRESH, "_check_restored_graph_scope", lambda *_: date(2026, 11, 17))
+
     task_calls = []
 
     def apply(**_kwargs):

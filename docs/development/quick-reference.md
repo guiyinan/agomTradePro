@@ -139,7 +139,9 @@ exec 3<&-
 - 快照必须在每次 S6 启动前从目标环境重新导出。S6 会冻结并校验该导出文件的原始文件摘要与
   canonical payload 摘要，但 parity 段不会再次读取实时 Config Center；导出后若策略发生修改，
   必须废弃本次输入、重新导出并启动新的 S6，不能复用旧快照或声称已检测到实时漂移。
-- planner v3 的 `--advance-isolated-market-graph` 默认关闭。fresh prepare 的隔离快照 current graph 已过时，
+- `--advance-isolated-market-graph` 默认关闭。启用时在 reserve 命令中同时提供
+  `--graph-target-date YYYY-MM-DD --graph-max-assets N`，分别取已核定的交易日和本次授权的证券数量上限。
+  v4 plan 把两者绑定到同一 attempt。若 fresh prepare 的隔离快照 current graph 已过时，
   或不满足正常 producer 的 activation identity 门时，可在已批准请求预算内于 reserve 显式启用；它会在隔离库
   执行真实全市场 provider refresh，不修写生产 graph。固定硬上限为 50 次 `requests.Session.send` dispatch、3600 秒；
   隐藏重试、不可观测 adapter、重定向、超额或 task 吞掉的 transport guard 均阻断，v2 receipt 保留安全计数。

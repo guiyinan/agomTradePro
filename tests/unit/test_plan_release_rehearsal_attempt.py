@@ -94,15 +94,52 @@ def test_isolated_market_graph_refresh_requires_explicit_plan_opt_in(
         attempt_id=ATTEMPT_ID,
         attempts_dir=tmp_path / "opt-in",
         advance_isolated_market_graph=True,
+        graph_target_date="2026-11-20",
+        graph_max_assets=5585,
     )
 
     assert default_plan["advance_isolated_market_graph"] is False
     assert opted_in_plan["advance_isolated_market_graph"] is True
-    assert default_plan["schema"] == opted_in_plan["schema"] == "release.s6-attempt-plan.v3"
+    assert default_plan["schema"] == "release.s6-attempt-plan.v3"
+    assert opted_in_plan["schema"] == "release.s6-attempt-plan.v4"
+    assert opted_in_plan["graph_target_date"] == "2026-11-20"
+    assert opted_in_plan["graph_max_assets"] == 5585
 
     reserved_path = reserve_attempt(opted_in_plan)
     assert json.loads(reserved_path.read_text(encoding="utf-8")) == opted_in_plan
     assert resume_attempt(opted_in_plan) == reserved_path
+
+
+@pytest.mark.parametrize(
+    ("target", "maximum"),
+    [
+        ("20261120", 5585),
+        ("2026-11-21", 5585),
+        ("2026-02-30", 5585),
+        ("2026-11-20", False),
+        ("2026-11-20", 0),
+        (None, 5585),
+        ("2026-11-20", None),
+    ],
+)
+def test_invalid_graph_scope_cannot_be_planned(tmp_path: Path, target, maximum) -> None:
+    with pytest.raises(AttemptPlanError, match="S6_GRAPH_SCOPE_INVALID"):
+        build_attempt_plan(
+            candidate_sha=CANDIDATE_SHA,
+            attempts_dir=tmp_path,
+            advance_isolated_market_graph=True,
+            graph_target_date=target,
+            graph_max_assets=maximum,
+        )
+
+
+def test_unbound_legacy_graph_plan_cannot_reserve_new_resources(tmp_path: Path) -> None:
+    plan = build_attempt_plan(
+        candidate_sha=CANDIDATE_SHA, attempts_dir=tmp_path, advance_isolated_market_graph=True
+    )
+    with pytest.raises(AttemptPlanError, match="S6_GRAPH_SCOPE_INVALID"):
+        reserve_attempt(plan)
+    assert not Path(plan["root"]).exists()
 
 
 def test_same_attempt_requires_explicit_resume_and_resume_is_read_only(

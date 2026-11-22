@@ -88,7 +88,8 @@ plan 绑定的独立 PostgreSQL 容器和 volume。候选 exporter 在三个 mod
 
 正常 prepare 从生产只读快照取得 current market graph，不额外消耗 provider 请求。仅当隔离快照的 current graph 已过时、导致
 鲜活 provider probe 以 `REHEARSAL_RESPONSE_FUTURE_DATE` 阻断时，才可在规划阶段显式添加
-`--advance-isolated-market-graph`。该开关默认关闭并写入只读 v3 attempt plan；不能在 prepare 或 runner 运行中临时打开。
+`--advance-isolated-market-graph --graph-target-date YYYY-MM-DD --graph-max-assets N`，
+将核定的交易日和授权证券数量上限写入只读 v4 attempt plan。默认关闭图谱刷新时沿用 v3 格式。
 
 启用后，wrapper 在 role bootstrap 后、只读 exporters 前，以当前 production execution image、candidate source 只读 mount、
 非 root UID/GID 和精确 isolated runtime env，执行候选仓库固定 CLI。它只连接该 attempt 恢复出的 PostgreSQL/Redis 和 S6 network，

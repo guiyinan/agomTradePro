@@ -214,6 +214,8 @@ def _valid_refresh_argv(
         "-e",
         "S6_GRAPH_REFRESH_ENABLED=1",
         "-v",
+        f"{destination.resolve().parent / 'attempt-plan.json'}:/graph-attempt-plan.json:ro",
+        "-v",
         f"{destination.resolve()}:/candidate-src:ro",
         "-v",
         f"{input_directory.resolve()}:/candidate-inputs:ro",

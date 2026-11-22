@@ -68,7 +68,11 @@ try:
         attempt_id=attempt,
         attempts_dir=planned_root.parent,
         advance_isolated_market_graph=advance,
+        graph_target_date=plan.get("graph_target_date"),
+        graph_max_assets=plan.get("graph_max_assets"),
     )
+    if advance and "graph_target_date" not in expected:
+        blocked("S6_GRAPH_SCOPE_INVALID")
     canonical = (json.dumps(expected, ensure_ascii=False, sort_keys=True, indent=2) + "\n").encode("utf-8")
     if plan != expected or raw != canonical:
         blocked("S6_ATTEMPT_PLAN_BINDING_MISMATCH")
@@ -789,6 +793,7 @@ run_candidate_market_graph_refresh() {
     --env-file "$inputs/isolated-postgres.env"
     -e AGOM_LOG_DIR=/tmp/agomtradepro/logs
     -e S6_GRAPH_REFRESH_ENABLED=1
+    -v "$root/attempt-plan.json:/graph-attempt-plan.json:ro"
     -v "$candidate_source:/candidate-src:ro"
     -v "$candidate_input_staging:/candidate-inputs:ro"
     -v "$export_root:/candidate-output:rw"

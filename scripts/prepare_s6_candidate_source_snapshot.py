@@ -409,6 +409,12 @@ def validate_final_prepare_receipt(context: _FinalPrepareValidation) -> dict[str
     graph_receipt: dict[str, object] | None = None
     graph_receipt_sha256: str | None = None
     if advance_graph:
+        if "graph_target_date" in plan:
+            _validation_require(
+                target_trade_date == plan["graph_target_date"]
+                and cast(int, universe_count) <= cast(int, plan["graph_max_assets"]),
+                "S6_GRAPH_REFRESH_SCOPE_MISMATCH",
+            )
         graph_path = inputs / graph_name
         try:
             graph_raw = graph_path.read_bytes()
@@ -1482,6 +1488,8 @@ def run_candidate_market_graph_refresh(
         f"{RUNTIME_LOG_DIRECTORY_ENV}={READ_ONLY_RUNTIME_LOG_DIRECTORY}",
         "-e",
         "S6_GRAPH_REFRESH_ENABLED=1",
+        "-v",
+        f"{resolved_source.parent / 'attempt-plan.json'}:/graph-attempt-plan.json:ro",
         "-v",
         f"{resolved_source}:/candidate-src:ro",
         "-v",
