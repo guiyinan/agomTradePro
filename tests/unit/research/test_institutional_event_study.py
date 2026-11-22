@@ -10,6 +10,7 @@ import pytest
 
 from apps.research.domain.institutional_event_study import (
     EventStudyError,
+    KnowledgeMode,
     LabelInterval,
     MatchingFeatures,
     PriceVersion,
@@ -128,6 +129,102 @@ def test_flat_price_is_genuine_zero_and_one_day_is_not_standard_deviation() -> N
     )
     assert result.value == 0.0
     assert label(horizon=1).value > 0.0
+
+
+def revision_label(
+    rows: tuple[PriceVersion, ...],
+    as_of: datetime,
+    mode: KnowledgeMode = "market_available",
+) -> SquaredReturnLabel:
+    return build_squared_return_label(
+        sessions=SESSIONS,
+        calendar_version="fixture",
+        prices=rows,
+        prediction_cutoff=cutoff(0),
+        label_known_at=as_of,
+        horizon=1,
+        clock=CLOCK,
+        knowledge_mode=mode,
+    )
+
+
+def test_price_revisions_respect_each_cutoff_and_knowledge_mode() -> None:
+    origin, close = prices()[:2]
+    later_origin = replace(
+        origin,
+        price=200.0,
+        version_id="new-origin",
+        supersedes_version_id=origin.version_id,
+        available_at=cutoff(1),
+    )
+    corrected = replace(
+        close,
+        price=120.0,
+        version_id="correction",
+        supersedes_version_id=close.version_id,
+        available_at=cutoff(2),
+        first_seen_at=cutoff(3),
+        recorded_at=cutoff(4),
+    )
+    second = replace(
+        corrected,
+        price=125.0,
+        version_id="second",
+        supersedes_version_id="correction",
+        available_at=cutoff(5),
+        first_seen_at=cutoff(5),
+        recorded_at=cutoff(5),
+    )
+    rows = (second, corrected, later_origin, close, origin)
+    assert revision_label(rows, cutoff(1)).source_versions == (origin.version_id, close.version_id)
+    assert revision_label(rows, cutoff(3), "system_known").source_versions[-1] == close.version_id
+    for mode, known in (("market_available", cutoff(2)), ("system_known", cutoff(4))):
+        result = revision_label(rows, known, mode)
+        assert result.source_versions == (origin.version_id, "correction")
+        assert result.usable_at == known
+        assert result.value == pytest.approx(math.log(1.2) ** 2)
+    assert revision_label(rows, cutoff(5)).source_versions[-1] == "second"
+
+
+@pytest.mark.parametrize(
+    "shape", ["two_originals", "fork", "orphan", "cycle", "disconnected_cycle"]
+)
+def test_unproven_price_revision_order_is_rejected(shape: str) -> None:
+    origin, close = prices()[:2]
+    a = replace(close, version_id="a", supersedes_version_id=close.version_id)
+    b = replace(a, version_id="b")
+    cases = {
+        "two_originals": (close, replace(a, supersedes_version_id=None)),
+        "fork": (close, a, b),
+        "orphan": (a,),
+        "cycle": (replace(a, supersedes_version_id="b"), replace(b, supersedes_version_id="a")),
+        "disconnected_cycle": (
+            close,
+            replace(a, supersedes_version_id="b"),
+            replace(b, supersedes_version_id="a"),
+        ),
+    }
+    with pytest.raises(EventStudyError, match="PRICE_AMBIGUOUS|PRICE_REVISION_CHAIN_INVALID"):
+        revision_label((origin, *cases[shape]), cutoff(2))
+
+
+def test_late_parent_limits_system_replay_and_invalid_correction_does_not_fall_back() -> None:
+    origin, close = prices()[:2]
+    parent = replace(close, first_seen_at=cutoff(3), recorded_at=cutoff(3))
+    child = replace(
+        close,
+        version_id="child",
+        supersedes_version_id=parent.version_id,
+        available_at=cutoff(1),
+        first_seen_at=cutoff(2),
+        recorded_at=cutoff(2),
+    )
+    rows = (origin, child, parent)
+    with pytest.raises(EventStudyError, match="PRICE_REVISION_CHAIN_INVALID"):
+        revision_label(rows, cutoff(2), "system_known")
+    assert revision_label(rows, cutoff(4), "system_known").usable_at == cutoff(3)
+    with pytest.raises(EventStudyError, match="PRICE_INVALID"):
+        revision_label((origin, close, replace(child, price=None)), cutoff(2))
 
 
 @pytest.mark.parametrize("kind", ["missing", "duplicate", "late_origin", "late_label", "immature"])

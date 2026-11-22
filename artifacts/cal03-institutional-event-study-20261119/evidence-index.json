@@ -1382,5 +1382,92 @@
     "real_oos_claimed_or_evaluated": false,
     "checks": ".tmp/cal03-event-study-20261119/input-review-20261122/checks.json",
     "commit_receipt": ".tmp/cal03-event-study-20261119/input-review-20261122/commit.json"
+  },
+  "official_close_revision_selection_20261122": {
+    "base_head": "76f182065d5cdf1523a7f03a82d59f4edefcb526",
+    "production_and_tests": [
+      {
+        "path": "apps/research/domain/institutional_event_study.py",
+        "sha256": "a4e1255b5fdbdb774da6a345a1086e5a40f972ba140389d51f0647b20da106e5"
+      },
+      {
+        "path": "tests/unit/research/test_institutional_event_study.py",
+        "sha256": "54181bd87185a92ac58f0122b33a13a46b9cf86a219daca14ec75b798c7d9307"
+      }
+    ],
+    "entrypoint": "build_squared_return_label",
+    "semantics": "Select a unique documented chain per required session, visible at the prediction cutoff for the origin and label cutoff for later closes. Return selected version IDs and the maximum required chain knowledge time. Reject ambiguous or incomplete visible lineage and an invalid selected price.",
+    "inputs": "One prequalified target series, direct supersedes_version_id from verified evidence. No inferred relation between real divergent print values.",
+    "test_results": "113 synthetic cases passed; target module 345 statements and 148 branches, no misses. Isolated pytest emitted one configuration warning for the disabled Django plugin.",
+    "development_checks": {
+      "domain": {
+        "command": "pytest --noconftest -o addopts= -q tests/unit/research/{test_institutional_event_study,test_institutional_event_study_walk_forward,test_event_study_control_application}.py (three explicit files; PYTEST_DISABLE_PLUGIN_AUTOLOAD=1)",
+        "exit_code": 0,
+        "path": ".tmp/cal03-event-study-20261119/revision-selection/domain.log",
+        "sha256": "189054354b47b36a80df10b1de8698a57da3f60c3bb1c5bd914a876d092bf141"
+      },
+      "coverage-final": {
+        "command": "coverage run --branch --source=apps.research.domain.institutional_event_study -m pytest (same cases); coverage combine --keep; coverage report --fail-under=90",
+        "exit_code": 0,
+        "path": ".tmp/cal03-event-study-20261119/revision-selection/coverage-final.log",
+        "sha256": "c054b5b0bd78fd7d5320ab0ee181a2b970dae505a0087c53dc3d2ee820a72781"
+      },
+      "mypy-inc": {
+        "command": "python scripts/check_mypy_regression.py apps/research/domain/institutional_event_study.py",
+        "exit_code": 0,
+        "path": ".tmp/cal03-event-study-20261119/revision-selection/mypy-inc.log",
+        "sha256": "1696369e79514135c6c84d87d82a0fc9c6a7026a4b6fda77e8a7e9b50eef135b"
+      },
+      "mypy-debt": {
+        "command": "python scripts/check_mypy_debt_ceiling.py",
+        "exit_code": 0,
+        "path": ".tmp/cal03-event-study-20261119/revision-selection/mypy-debt.log",
+        "sha256": "def6c561b37227470bcda90c8450d9837ca85dd34af34d05e7d6af2afdf85ab1"
+      },
+      "black": {
+        "command": "black --check apps/research/domain/institutional_event_study.py tests/unit/research/test_institutional_event_study.py",
+        "exit_code": 0,
+        "path": ".tmp/cal03-event-study-20261119/revision-selection/black.log",
+        "sha256": "42952929f98ff284b84ffc33f5fca4e517620f9b2ceb3fca1375e504affa8195"
+      },
+      "isort": {
+        "command": "isort --check-only apps/research/domain/institutional_event_study.py tests/unit/research/test_institutional_event_study.py",
+        "exit_code": 0,
+        "path": ".tmp/cal03-event-study-20261119/revision-selection/isort.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "ruff": {
+        "command": "ruff check apps/research/domain/institutional_event_study.py tests/unit/research/test_institutional_event_study.py",
+        "exit_code": 0,
+        "path": ".tmp/cal03-event-study-20261119/revision-selection/ruff.log",
+        "sha256": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0"
+      },
+      "architecture-worktree": {
+        "command": "python scripts/check_architecture_delta.py --head-ref HEAD --include-audit --fail-on-audit-violations",
+        "exit_code": 0,
+        "path": ".tmp/cal03-event-study-20261119/revision-selection/architecture-worktree.log",
+        "sha256": "50b8ca8764cae0028e5584e8ef7041c338cdeb0d9de45dd092fab463bf05ac9e"
+      },
+      "registry": {
+        "command": "python scripts/check_active_plan_registry.py --registry .tmp/cal03-event-study-20261119/revision-selection/committed-registry.json",
+        "exit_code": 0,
+        "path": ".tmp/cal03-event-study-20261119/revision-selection/registry.log",
+        "sha256": "0e5e4ebae9206cf0e61f2f9a550ef8ad2914214f034baf57db0b84bb3dcf6a7e"
+      }
+    },
+    "diagnostics": [
+      "red.log: initial root pytest environment lacked Django settings; isolated Domain setup used for red/green.",
+      "red-domain.log: seven new cases failed against original code (unknown supersedes_version_id).",
+      "coverage.log: first report read before combining the isolated coverage shard; combined the same run for the final coverage report.",
+      "architecture.log: committed-base comparison; architecture-worktree.log checks the working candidate (1 changed source)."
+    ],
+    "frozen_spec": {
+      "path": "tests/fixtures/research/cal_event_study_v1.json",
+      "sha256": "29a44d0cd2670dd2a72853494d21271c9765d6584dafa4998e1df3c2a6edfe71"
+    },
+    "real_data_used": false,
+    "real_oos_claimed_or_evaluated": false,
+    "qualified_full_history_packages": 0,
+    "commit_receipt": ".tmp/cal03-event-study-20261119/revision-selection/commit.json"
   }
 }

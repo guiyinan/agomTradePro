@@ -58,7 +58,11 @@ class StudyClock:
 
 @dataclass(frozen=True, slots=True)
 class PriceVersion:
-    """Normalized official close and the exact version's independent clocks."""
+    """One qualified close version for a single target and exchange session.
+
+    Supersession identifies a documented direct predecessor. A later publication
+    date or a matching rounded value alone does not establish that relationship.
+    """
 
     session_on: date
     price: float | None
@@ -66,6 +70,7 @@ class PriceVersion:
     available_at: datetime
     first_seen_at: datetime
     recorded_at: datetime
+    supersedes_version_id: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -117,7 +122,8 @@ def build_squared_return_label(
     Origin is the last close strictly before the registered day-end cutoff.
     Its exact price must already be known at prediction; future closes must be
     known at label_known_at. Log differences avoid finite-price ratio overflow.
-    Missing required prices fail closed; prices outside this label are ignored.
+    At each cutoff, visible versions must form one documented revision chain
+    for that session. Missing prices fail closed; other sessions are ignored.
     """
     _require_aware(prediction_cutoff)
     _require_aware(label_known_at)
@@ -142,22 +148,13 @@ def build_squared_return_label(
         rows = [row for row in prices if row.session_on == session.session_on]
         if not rows:
             raise EventStudyError("PRICE_MISSING")
-        if len(rows) != 1:
-            raise EventStudyError("PRICE_AMBIGUOUS")
-        row = rows[0]
+        row, known_at = _select_close_version(
+            rows, session, prediction_cutoff if index == 0 else label_known_at, knowledge_mode
+        )
         if row.price is None or not math.isfinite(row.price) or row.price <= 0:
             raise EventStudyError("PRICE_INVALID")
-        if not row.version_id.strip():
-            raise EventStudyError("PRICE_VERSION_REQUIRED")
-        known_at = _version_known_at(
-            row.available_at, row.first_seen_at, row.recorded_at, knowledge_mode
-        )
-        if row.available_at < session.closes_at:
-            raise EventStudyError("PRICE_PRECEDES_CLOSE")
-        if known_at > (prediction_cutoff if index == 0 else label_known_at):
-            raise EventStudyError("PRICE_NOT_KNOWN")
         selected.append(row)
-        usable_times.append(max(known_at, session.closes_at))
+        usable_times.append(known_at)
     logs = [math.log(row.price) for row in selected if row.price is not None]
     value = math.fsum((right - left) ** 2 for left, right in zip(logs, logs[1:], strict=False))
     return SquaredReturnLabel(
@@ -169,6 +166,45 @@ def build_squared_return_label(
         source_versions=tuple(row.version_id for row in selected),
         knowledge_mode=knowledge_mode,
     )
+
+
+def _select_close_version(
+    rows: list[PriceVersion], session: Session, cutoff: datetime, mode: KnowledgeMode
+) -> tuple[PriceVersion, datetime]:
+    visible: dict[str, PriceVersion] = {}
+    usable_at = session.closes_at
+    for row in rows:
+        known_at = _version_known_at(row.available_at, row.first_seen_at, row.recorded_at, mode)
+        if known_at > cutoff:
+            continue
+        if not row.version_id.strip():
+            raise EventStudyError("PRICE_VERSION_REQUIRED")
+        if row.available_at < session.closes_at:
+            raise EventStudyError("PRICE_PRECEDES_CLOSE")
+        if row.version_id in visible:
+            raise EventStudyError("PRICE_AMBIGUOUS")
+        visible[row.version_id] = row
+        usable_at = max(usable_at, known_at)
+    if not visible:
+        raise EventStudyError("PRICE_NOT_KNOWN")
+
+    predecessors = {r.supersedes_version_id for r in visible.values()}
+    tips = [r for key, r in visible.items() if key not in predecessors]
+    if len(tips) > 1:
+        raise EventStudyError("PRICE_AMBIGUOUS")
+    if not tips:
+        raise EventStudyError("PRICE_REVISION_CHAIN_INVALID")
+    selected = tips[0]
+    # Walk the explicit links. A unique tip alone can hide a disconnected cycle.
+    cursor: str | None = selected.version_id
+    while cursor is not None:
+        linked = visible.pop(cursor, None)
+        if linked is None:
+            raise EventStudyError("PRICE_REVISION_CHAIN_INVALID")
+        cursor = linked.supersedes_version_id
+    if visible:
+        raise EventStudyError("PRICE_REVISION_CHAIN_INVALID")
+    return selected, usable_at
 
 
 def purge_training_labels(
