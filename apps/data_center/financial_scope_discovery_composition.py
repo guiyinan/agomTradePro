@@ -10,6 +10,8 @@ from datetime import date, datetime
 from pathlib import Path
 from typing import Literal, cast
 
+from django.db import connections
+
 from apps.data_center.application.financial_scope_manifest_bootstrap import (
     FinancialScopeDiscoveryUseCase,
     independently_review_financial_scope_candidate,
@@ -179,6 +181,7 @@ def make_financial_scope_discovery_use_case(
     return FinancialScopeDiscoveryComposition(
         use_case=FinancialScopeDiscoveryUseCase(
             reader=reader,
+            close_worker=connections.close_all,
             authorization_source=DjangoFinancialScopeDiscoveryAuthorizationSource(),
             universe_source=universe_source,
         ),

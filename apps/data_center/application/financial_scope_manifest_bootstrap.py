@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import datetime
+from threading import Lock
 from typing import Literal, Protocol
 
 from apps.data_center.application.egress_service import FinancialResponseAttemptBudget
@@ -234,6 +237,23 @@ class FinancialScopeAssetResult:
         }
 
 
+_ASSET_LOCAL_FAILURES = frozenset(
+    {
+        "FINANCIAL_SCOPE_DISCOVERY_PROVIDER_CAPTURE_FAILED",
+        "FINANCIAL_SCOPE_DISCOVERY_NO_AVAILABLE_ANNOUNCEMENT",
+        "FINANCIAL_SCOPE_DISCOVERY_COVERAGE_INCOMPLETE",
+    }
+)
+
+
+@dataclass(frozen=True, slots=True)
+class _AssetCapture:
+    result: FinancialScopeAssetResult
+    captures: tuple[FinancialScopeDiscoveryCapture, ...]
+    artifact_writes: int
+    audit_writes: int
+
+
 class FinancialScopeDiscoveryUseCase:
     """Perform authorized isolated scope reads and freeze a review-required manifest."""
 
@@ -243,12 +263,16 @@ class FinancialScopeDiscoveryUseCase:
         reader: FinancialScopeDiscoveryReader,
         authorization_source: FinancialScopeDiscoveryAuthorizationSource,
         universe_source: FinancialScopeDiscoveryUniverseSource,
+        minimum_attempt_interval_seconds: float = 1.0,
+        close_worker: Callable[[], None] | None = None,
     ) -> None:
         """Bind provider reads and persisted owner authorization through application ports."""
 
         self._reader = reader
         self._authorization_source = authorization_source
         self._universe_source = universe_source
+        self._minimum_attempt_interval_seconds = minimum_attempt_interval_seconds
+        self._close_worker = close_worker
 
     def execute(self, request: ScopeDiscoveryRequest) -> FinancialScopeDiscoveryResult:
         """Classify external failures per asset; stop on authority or evidence defects."""
@@ -313,123 +337,20 @@ class FinancialScopeDiscoveryUseCase:
                 error_codes=(_safe_error_code(exc),),
             )
 
-        attempt_budget = FinancialResponseAttemptBudget(authorization.maximum_physical_attempts)
-        items: list[FinancialScopeDiscoveryAsset] = []
-        asset_results: list[FinancialScopeAssetResult] = []
-        retained_captures: list[FinancialScopeDiscoveryCapture] = []
-        error_codes: set[str] = set()
-        failed_assets = 0
-        duplicate_rows = 0
-        conflicting_assets = 0
-        duplicate_response_assets: set[str] = set()
-        physical_attempts = 0
-        artifact_writes = 0
-        audit_writes = 0
-        attempted_assets = 0
-        for asset_code in assets:
-            attempted_assets += 1
-            try:
-                pair = self._reader.capture_pair(
-                    binding=request.binding,
-                    asset_code=asset_code,
-                    maximum_rows=authorization.maximum_rows_per_asset,
-                    attempt_budget=attempt_budget,
-                )
-                if not isinstance(pair, tuple) or len(pair) != 2:
-                    raise FinancialScopeDiscoveryError("FINANCIAL_SCOPE_DISCOVERY_CAPTURE_INVALID")
-                financial, source_time = pair
-                if (
-                    type(financial) is not FinancialScopeDiscoveryCapture
-                    or type(source_time) is not FinancialScopeDiscoveryCapture
-                ):
-                    raise FinancialScopeDiscoveryError("FINANCIAL_SCOPE_DISCOVERY_CAPTURE_INVALID")
-                artifact_writes += 2
-                audit_writes += 2
-                retained_captures.extend((financial, source_time))
-                if _capture_duplicate_rows(financial) or _capture_duplicate_rows(source_time):
-                    duplicate_response_assets.add(asset_code)
-                item = build_asset_item(
-                    binding=request.binding,
-                    asset_code=asset_code,
-                    financial=financial,
-                    source_time=source_time,
-                )
-                items.append(item)
-                asset_results.append(
-                    FinancialScopeAssetResult(
-                        asset_code,
-                        "eligible",
-                        None,
-                        item,
-                        quarantined_rows=sum(
-                            row.quarantined_row_sha256 is not None for row in financial.rows
-                        ),
-                        unavailable_rows=sum(
-                            row.quarantined_row_sha256 is None
-                            and row.announcement_date is not None
-                            and latest_source_time(row.announcement_date)
-                            > min(item.response_completed_at)
-                            for row in financial.rows
-                        ),
-                    )
-                )
-            except Exception as exc:
-                failed_assets += 1
-                code = _safe_error_code(exc)
-                error_codes.add(code)
-                captures_for_asset = tuple(
-                    capture
-                    for capture in retained_captures[-2:]
-                    if capture.asset_code == asset_code
-                )
-                asset_results.append(
-                    FinancialScopeAssetResult(
-                        asset_code,
-                        "blocked",
-                        code,
-                        quarantined_rows=(
-                            sum(
-                                row.quarantined_row_sha256 is not None
-                                for row in captures_for_asset[0].rows
-                            )
-                            if captures_for_asset
-                            else 0
-                        ),
-                        unavailable_rows=(
-                            sum(
-                                row.quarantined_row_sha256 is None
-                                and row.announcement_date is not None
-                                and latest_source_time(row.announcement_date)
-                                > min(
-                                    capture.response_completed_at for capture in captures_for_asset
-                                )
-                                for row in captures_for_asset[0].rows
-                            )
-                            if captures_for_asset
-                            else 0
-                        ),
-                    )
-                )
-                if code == "FINANCIAL_SCOPE_DISCOVERY_CAPTURE_CONFLICT":
-                    conflicting_assets += 1
-                if code == "FINANCIAL_SCOPE_DISCOVERY_DUPLICATE_NATIVE_ROW":
-                    duplicate_response_assets.add(asset_code)
-                reported_attempts = getattr(exc, "physical_request_attempts", 0)
-                if type(reported_attempts) is int and reported_attempts >= 0:
-                    physical_attempts = max(physical_attempts, reported_attempts)
-                reported_artifact_writes = getattr(exc, "artifact_writes", 0)
-                if type(reported_artifact_writes) is int and reported_artifact_writes >= 0:
-                    artifact_writes += reported_artifact_writes
-                reported_audit_writes = getattr(exc, "audit_writes", 0)
-                if type(reported_audit_writes) is int and reported_audit_writes >= 0:
-                    audit_writes += reported_audit_writes
-                if code not in {
-                    "FINANCIAL_SCOPE_DISCOVERY_PROVIDER_CAPTURE_FAILED",
-                    "FINANCIAL_SCOPE_DISCOVERY_NO_AVAILABLE_ANNOUNCEMENT",
-                    "FINANCIAL_SCOPE_DISCOVERY_COVERAGE_INCOMPLETE",
-                }:
-                    break
-
+        attempt_budget = FinancialResponseAttemptBudget(
+            authorization.maximum_physical_attempts,
+            minimum_interval_seconds=self._minimum_attempt_interval_seconds,
+        )
+        outcomes = self._capture_assets(assets, request.binding, authorization, attempt_budget)
+        asset_results = tuple(outcome.result for outcome in outcomes)
+        items = tuple(result.item for result in asset_results if result.item is not None)
+        error_codes = {result.reason_code for result in asset_results if result.reason_code}
+        retained_captures = tuple(capture for outcome in outcomes for capture in outcome.captures)
+        duplicate_assets += sum(
+            outcome.result.reason_code == "FINANCIAL_SCOPE_DISCOVERY_DUPLICATE_NATIVE_ROW"
+            or any(_capture_duplicate_rows(capture) for capture in outcome.captures)
+            for outcome in outcomes
+        )
         physical_attempts = attempt_budget.reserved_attempts
         try:
             final_assets = self._universe_source.get_active_asset_codes()
@@ -440,13 +361,12 @@ class FinancialScopeDiscoveryUseCase:
             error_codes.add("FINANCIAL_SCOPE_DISCOVERY_UNIVERSE_DRIFT")
 
         missing_assets = len(assets) - len(items)
-        logical_requests = attempted_assets * 2
+        logical_requests = len(asset_results) * 2
         if logical_requests > authorization.maximum_logical_requests:
             error_codes.add("FINANCIAL_SCOPE_DISCOVERY_BUDGET_EXCEEDED")
         if physical_attempts > authorization.maximum_physical_attempts:
             error_codes.add("FINANCIAL_SCOPE_DISCOVERY_BUDGET_EXCEEDED")
-        duplicate_rows = len(duplicate_response_assets)
-        if duplicate_rows:
+        if duplicate_assets:
             error_codes.add("FINANCIAL_SCOPE_DISCOVERY_DUPLICATE_NATIVE_ROW")
         if missing_assets:
             error_codes.add("FINANCIAL_SCOPE_DISCOVERY_COVERAGE_INCOMPLETE")
@@ -454,41 +374,35 @@ class FinancialScopeDiscoveryUseCase:
         counts = FinancialScopeDiscoveryCounts(
             requested_assets=len(assets),
             captured_assets=len(items),
-            failed_capture_assets=failed_assets,
+            failed_capture_assets=len(asset_results) - len(items),
             missing_assets=missing_assets,
-            duplicate_assets=duplicate_assets + duplicate_rows,
-            conflicting_assets=conflicting_assets,
+            duplicate_assets=duplicate_assets,
+            conflicting_assets=sum(
+                result.reason_code == "FINANCIAL_SCOPE_DISCOVERY_CAPTURE_CONFLICT"
+                for result in asset_results
+            ),
             logical_request_count=logical_requests,
             physical_request_attempts=physical_attempts,
-            artifact_writes=artifact_writes,
-            raw_audit_writes=audit_writes,
+            artifact_writes=sum(outcome.artifact_writes for outcome in outcomes),
+            raw_audit_writes=sum(outcome.audit_writes for outcome in outcomes),
         )
         if error_codes or len(items) != len(assets):
             return FinancialScopeDiscoveryResult(
-                outcome=(
-                    "partial"
-                    if error_codes
-                    <= {
-                        "FINANCIAL_SCOPE_DISCOVERY_PROVIDER_CAPTURE_FAILED",
-                        "FINANCIAL_SCOPE_DISCOVERY_NO_AVAILABLE_ANNOUNCEMENT",
-                        "FINANCIAL_SCOPE_DISCOVERY_COVERAGE_INCOMPLETE",
-                    }
-                    else "blocked"
-                ),
+                outcome=("partial" if error_codes <= _ASSET_LOCAL_FAILURES else "blocked"),
                 candidate=None,
                 counts=counts,
                 error_codes=tuple(
                     sorted(error_codes or {"FINANCIAL_SCOPE_DISCOVERY_COVERAGE_INCOMPLETE"})
                 ),
-                asset_results=tuple(asset_results),
-                retained_captures=tuple(retained_captures),
+                asset_results=asset_results,
+                retained_captures=retained_captures,
                 authorization=authorization,
             )
         candidate = make_candidate(
             binding=request.binding,
             authorization=authorization,
             asset_codes=assets,
-            items=tuple(items),
+            items=items,
             generated_at=request.now,
         )
         return FinancialScopeDiscoveryResult(
@@ -496,9 +410,97 @@ class FinancialScopeDiscoveryUseCase:
             candidate=candidate,
             counts=counts,
             error_codes=(),
-            asset_results=tuple(asset_results),
-            retained_captures=tuple(retained_captures),
+            asset_results=asset_results,
+            retained_captures=retained_captures,
             authorization=authorization,
+        )
+
+    def _capture_assets(
+        self,
+        assets: tuple[str, ...],
+        binding: FinancialScopeDiscoveryBinding,
+        authorization: FinancialScopeDiscoveryAuthorization,
+        budget: FinancialResponseAttemptBudget,
+    ) -> list[_AssetCapture]:
+        remaining = iter(assets)
+        dispatch_lock = Lock()
+
+        def worker() -> list[_AssetCapture]:
+            completed: list[_AssetCapture] = []
+            try:
+                while True:
+                    with dispatch_lock:
+                        asset = None if budget.stopped else next(remaining, None)
+                    if asset is None:
+                        return completed
+                    completed.append(
+                        self._capture_asset(
+                            asset, binding, authorization.maximum_rows_per_asset, budget
+                        )
+                    )
+            except BaseException:
+                budget.stop()
+                raise
+            finally:
+                if self._close_worker is not None:
+                    self._close_worker()
+
+        with ThreadPoolExecutor(max_workers=2, thread_name_prefix="financial-scope") as pool:
+            workers = [pool.submit(worker) for _ in range(min(2, len(assets)))]
+            outcomes = [outcome for future in workers for outcome in future.result()]
+        return sorted(outcomes, key=lambda outcome: outcome.result.asset_code)
+
+    def _capture_asset(
+        self,
+        asset: str,
+        binding: FinancialScopeDiscoveryBinding,
+        maximum_rows: int,
+        budget: FinancialResponseAttemptBudget,
+    ) -> _AssetCapture:
+        captures: tuple[FinancialScopeDiscoveryCapture, ...] = ()
+        item: FinancialScopeDiscoveryAsset | None = None
+        code: str | None = None
+        artifact_writes = audit_writes = 0
+        try:
+            pair = self._reader.capture_pair(
+                binding=binding, asset_code=asset, maximum_rows=maximum_rows, attempt_budget=budget
+            )
+            if (
+                not isinstance(pair, tuple)
+                or len(pair) != 2
+                or any(type(capture) is not FinancialScopeDiscoveryCapture for capture in pair)
+            ):
+                raise FinancialScopeDiscoveryError("FINANCIAL_SCOPE_DISCOVERY_CAPTURE_INVALID")
+            captures = pair
+            artifact_writes = audit_writes = 2
+            item = build_asset_item(
+                binding=binding, asset_code=asset, financial=pair[0], source_time=pair[1]
+            )
+        except Exception as exc:
+            code = _safe_error_code(exc, fallback="FINANCIAL_SCOPE_DISCOVERY_CAPTURE_INVALID")
+            if code not in _ASSET_LOCAL_FAILURES:
+                budget.stop()
+            artifact_writes += _reported_writes(exc, "artifact_writes")
+            audit_writes += _reported_writes(exc, "audit_writes")
+        matching = tuple(c for c in captures if c.asset_code == asset)
+        quarantined = unavailable = 0
+        if matching:
+            completion = min(c.response_completed_at for c in matching)
+            for row in matching[0].rows:
+                if row.quarantined_row_sha256 is not None:
+                    quarantined += 1
+                elif (
+                    row.announcement_date is not None
+                    and latest_source_time(row.announcement_date) > completion
+                ):
+                    unavailable += 1
+        return _AssetCapture(
+            FinancialScopeAssetResult(
+                asset, "eligible" if item else "blocked", code, item, quarantined, unavailable
+            ),
+            captures,
+            artifact_writes,
+            audit_writes,
         )
 
     @staticmethod
@@ -558,13 +560,21 @@ def _capture_duplicate_rows(capture: FinancialScopeDiscoveryCapture) -> int:
     return len(capture.rows) - len({row.native_row_id for row in capture.rows})
 
 
-def _safe_error_code(exc: BaseException) -> str:
+def _reported_writes(exc: Exception, field: str) -> int:
+    """Count writes reported by a failed reader without coercing unknown values."""
+    value = getattr(exc, field, 0)
+    return value if type(value) is int and value >= 0 else 0
+
+
+def _safe_error_code(
+    exc: BaseException, *, fallback: str = "FINANCIAL_SCOPE_DISCOVERY_PROVIDER_CAPTURE_FAILED"
+) -> str:
     """Keep one stable allowlisted code and discard exception/provider messages."""
 
     code = getattr(exc, "code", "")
     if isinstance(code, str) and code in FINANCIAL_SCOPE_DISCOVERY_ERROR_CODES:
         return code
-    return "FINANCIAL_SCOPE_DISCOVERY_PROVIDER_CAPTURE_FAILED"
+    return fallback
 
 
 def independently_review_financial_scope_candidate(

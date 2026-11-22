@@ -313,6 +313,14 @@ class AkshareFinancialScopeDiscoveryReader:
         except FinancialScopeDiscoveryError:
             raise
         except FinancialResponseRequestFailed as exc:
+            if exc.code == "EGRESS_FINANCIAL_DISPATCH_STOPPED":
+                raise FinancialScopeDiscoveryError(
+                    "FINANCIAL_SCOPE_DISCOVERY_DISPATCH_STOPPED"
+                ) from None
+            if exc.code == "FINANCIAL_PROVIDER_REQUEST_HARD_LIMIT_EXCEEDED":
+                raise FinancialScopeDiscoveryError(
+                    "FINANCIAL_SCOPE_DISCOVERY_BUDGET_EXCEEDED"
+                ) from None
             if (
                 exc.code == "EGRESS_FINANCIAL_RESPONSE_VALIDATION_FAILED"
                 and validator.error_code is not None

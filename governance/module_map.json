@@ -4545,7 +4545,6 @@
           "EgressRuleRepositoryProtocol",
           "EgressTransportProtocol",
           "EgressTransportResult",
-          "FinancialResponseAttemptBudget",
           "FinancialResponseCaptureProtocol",
           "FinancialResponseCaptureResult",
           "FinancialResponseRequestFailed",
@@ -4796,6 +4795,9 @@
           "RetainFinancialResponseArtifactUseCase",
           "RetainFinancialResponseFailureUseCase",
           "RetainedFinancialResponsePayload"
+        ],
+        "application/financial_response_attempt_budget.py": [
+          "FinancialResponseAttemptBudget"
         ],
         "application/financial_scope_capacity_import.py": [
           "FinancialScopeCapacityArtifactDigest",
@@ -5877,7 +5879,7 @@
         ]
       },
       "layers": {
-        "application": 203,
+        "application": 204,
         "domain": 71,
         "infrastructure": 292,
         "interface": 35,
