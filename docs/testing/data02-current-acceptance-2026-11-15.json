@@ -9727,7 +9727,25 @@
                               "verified": {
                                 "windows_regressions_passed": 97,
                                 "windows_platform_skips": 11,
-                                "linux_posix_suite": "WSL timed out after 520 seconds; POSIX-only cases unverified",
+                                "linux_posix_suite": "Initial WSL run timed out after 520 seconds. All 11 Windows-skipped cases subsequently passed on Ubuntu; see posix_followup.",
+                                "posix_followup": {
+                                  "started_at": "2026-11-22T19:24:53+08:00",
+                                  "candidate_sha": "451cc90c4cd2433bd7f787a883b58c012f44adbb",
+                                  "source": "Git archive commit ID verified. JUnit test identities matched all 11 skipped Windows node IDs.",
+                                  "environment": "WSL Ubuntu, Python 3.12.3, pytest 8.3.4",
+                                  "tests": 11,
+                                  "failures": 0,
+                                  "errors": 0,
+                                  "skipped": 0,
+                                  "local_directory": ".tmp/data02-guard-20261122/linux-resume-20261122",
+                                  "sha256": {
+                                    "candidate.tar": "a47dd550d4fe8cbdef919a98a0680f243d26361970b5dd21ba7f6d464aee5f06",
+                                    "ids.txt": "5ae1a042380b45e36e02ca1939aeb9962c84b4cf764f3e3b8b6bea0198fe332d",
+                                    "pytest-import-failure.log": "c8cdcb6850b7782ae7eadd702f3a904c88df1bcfeb3df5cb2296ce34173e3303",
+                                    "local-linux.log": "d66af61f7a49181484e62a395e82f918c373b0667e766162b0abc45f4d74770a",
+                                    "local-linux.xml": "9eccdc899c4abf42c6675c83f586e971ac99e5983d783ab8ec11a7c917571d05"
+                                  }
+                                },
                                 "offline_prepare_cases": 105,
                                 "incremental_mypy_errors": 0,
                                 "mypy_debt_errors": 0,
