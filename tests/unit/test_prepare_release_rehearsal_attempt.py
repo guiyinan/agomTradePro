@@ -52,7 +52,7 @@ def test_final_validation_json_list_reader_rejects_object(tmp_path: Path) -> Non
         _read_validation_json_list(path, "S6_PROVIDER_IDENTITIES_INVALID")
 
 
-def test_wrapper_consumes_only_a_reserved_v3_plan_and_plan_bound_source() -> None:
+def test_wrapper_consumes_only_a_reserved_plan_and_plan_bound_source() -> None:
     source = _wrapper_text()
 
     assert '"--plan-file"' in source
@@ -71,6 +71,7 @@ def test_wrapper_consumes_only_a_reserved_v3_plan_and_plan_bound_source() -> Non
     assert 'python3 "$candidate_source_helper"' not in source
     assert "--verify-only" in source
     assert 'advance_isolated_market_graph="${plan_values[14]}"' in source
+    assert '"$root/attempt-plan.json:/graph-attempt-plan.json:ro"' in source
     assert 'test "$advance_isolated_market_graph" = 1 || return 0' in source
     assert '--read-only --user "$candidate_uid:$candidate_gid"' in source
     assert '"$candidate_source:/candidate-src:ro"' in source
@@ -385,6 +386,7 @@ def _final_validation_context(
     tmp_path: Path,
     *,
     advance_graph: bool = False,
+    graph_target_date: str = "2026-10-09",
     task_result_run_id: str | None = None,
 ) -> _FinalPrepareValidation:
     """Create one canonical private S6 attempt tree for helper-level validation."""
@@ -395,6 +397,8 @@ def _final_validation_context(
         attempt_id=uuid4().hex,
         attempts_dir=tmp_path / "attempts",
         advance_isolated_market_graph=advance_graph,
+        graph_target_date=graph_target_date if advance_graph else None,
+        graph_max_assets=1 if advance_graph else None,
     )
     attempt_root = Path(plan["root"])
     attempt_root.mkdir(parents=True)
@@ -439,7 +443,7 @@ def _final_validation_context(
         "unit-contract.json": {"candidate_sha": candidate_sha},
         "provider-policy-preflight.json": {"outcome": "pass"},
         "universe-summary.json": {
-            "target_trade_date": "2026-10-10",
+            "target_trade_date": "2026-10-09",
             "universe_count": 1,
             "universe_sha256": "a" * 64,
         },
@@ -554,8 +558,8 @@ def _final_validation_context(
                     "policy_version": f"p2:{dataset}:policy",
                     "selected_source": "tushare",
                     "member_count": 1,
-                    "as_of": "2026-10-10T07:00:00+00:00",
-                    "published_at": "2026-10-10T08:00:00+00:00",
+                    "as_of": "2026-10-09T07:00:00+00:00",
+                    "published_at": "2026-10-09T08:00:00+00:00",
                     "run_id": run_id,
                     "state": "published",
                     "must_not_use_for_decision": False,
@@ -621,7 +625,7 @@ def _final_validation_context(
                 "publication_updated": True,
                 "published_members": 3,
                 "must_not_use_for_decision": False,
-                "target_trade_date": "2026-10-10",
+                "target_trade_date": "2026-10-09",
                 "run_id": result_run_id,
                 "publication_run_id": result_run_id,
                 "publication_ids": [item["publication_id"] for item in publications],
@@ -632,9 +636,9 @@ def _final_validation_context(
             },
             "run_id": run_id,
             "activation_id": activation_id,
-            "target_trade_date": "2026-10-10",
+            "target_trade_date": "2026-10-09",
             "source_time_min": "2026-10-09T08:00:00+00:00",
-            "source_time_max": "2026-10-10T08:00:00+00:00",
+            "source_time_max": "2026-10-09T08:00:00+00:00",
             "http_capture": {
                 "count_unit": "requests_session_dispatch",
                 "dispatch_count": 2,
@@ -728,6 +732,17 @@ def test_final_validation_helper_writes_plan_bound_v3_receipt(tmp_path: Path) ->
         )
         assert json.loads(receipt_path.read_text(encoding="utf-8")) == receipt
         assert stat.S_IMODE(receipt_path.stat().st_mode) == 0o600
+    finally:
+        shutil.rmtree(context.exports, ignore_errors=True)
+
+
+@pytest.mark.skipif(os.name != "posix", reason="final validation requires POSIX file modes")
+def test_final_receipt_requires_the_reserved_graph_date(tmp_path: Path) -> None:
+    context = _final_validation_context(tmp_path, advance_graph=True, graph_target_date="2026-10-12")
+    try:
+        with pytest.raises(CandidateSourceSnapshotError, match="S6_GRAPH_REFRESH_SCOPE_MISMATCH"):
+            validate_final_prepare_receipt(context)
+        assert not (context.inputs.parent / "prepare-receipt.json").exists()
     finally:
         shutil.rmtree(context.exports, ignore_errors=True)
 

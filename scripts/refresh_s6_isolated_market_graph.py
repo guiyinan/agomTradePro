@@ -11,7 +11,7 @@ import os
 import re
 import sys
 from collections.abc import Callable, Sequence
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING
 from urllib.parse import urlparse
@@ -29,6 +29,7 @@ _NETWORK_RE = re.compile(r"agom-s6-network-[a-z0-9-]+\Z")
 _POSTGRES_CONTAINER_RE = re.compile(r"agom-s6-postgres-[a-f0-9]{32}\Z")
 _REDIS_CONTAINER_RE = re.compile(r"agom-s6-redis-[a-f0-9]{32}\Z")
 _REPORT = Path("/candidate-output/current-market-graph-refresh.json")
+_GRAPH_PLAN = Path("/graph-attempt-plan.json")
 _CANDIDATE_SOURCE = Path("/candidate-src")
 _ISOLATED_PROVIDER_SOURCE = "tushare"
 _MAX_HTTP_DISPATCHES = 50
@@ -41,6 +42,13 @@ _KNOWN_FAILURE_CODES = frozenset(
         "S6_GRAPH_REFRESH_CANDIDATE_SOURCE_INVALID",
         "S6_GRAPH_REFRESH_TARGET_SESSION_UNAVAILABLE",
         "S6_GRAPH_REFRESH_HTTP_BUDGET_INVALID",
+        "S6_GRAPH_SCOPE_INVALID",
+        "S6_GRAPH_REFRESH_PLAN_MISMATCH",
+        "S6_GRAPH_REFRESH_SESSION_MISMATCH",
+        "S6_GRAPH_REFRESH_SCOPE_OUT_OF_BOUNDS",
+        "S6_GRAPH_REFRESH_LATER_QUOTE",
+        "S6_GRAPH_REFRESH_LATER_PRICE",
+        "S6_GRAPH_REFRESH_LATER_VALUATION",
     }
 )
 
@@ -218,6 +226,64 @@ def _isolated_task_kwargs() -> dict[str, str]:
     return {"source": _ISOLATED_PROVIDER_SOURCE}
 
 
+def _check_restored_graph_scope(args: argparse.Namespace, now: datetime) -> date:
+    """Check the restored scope against its frozen plan before provider calendar discovery."""
+
+    from django.db.models import Q
+
+    from apps.data_center.application.market_calendar import FULL_MARKET_PROVIDER_READY_AFTER
+    from apps.data_center.domain.market_time import CN_MARKET_TIMEZONE, cn_market_date_start_utc
+    from apps.data_center.infrastructure.models import (
+        PriceBarModel,
+        QuoteSnapshotModel,
+        ValuationFactModel,
+    )
+    from apps.data_center.target_date_universe_composition import (
+        build_target_date_a_share_universe_scope,
+    )
+    from scripts.plan_release_rehearsal_attempt import parse_graph_scope
+
+    raw = _GRAPH_PLAN.read_bytes()
+    if hashlib.sha256(raw).hexdigest() != args.attempt_plan_sha256:
+        raise ValueError("S6_GRAPH_REFRESH_PLAN_MISMATCH")
+    plan = json.loads(raw)
+    if (
+        not isinstance(plan, dict)
+        or plan.get("schema") != "release.s6-attempt-plan.v4"
+        or plan.get("advance_isolated_market_graph") is not True
+        or plan.get("attempt_id") != args.attempt_id
+        or plan.get("candidate_sha") != args.candidate_sha
+        or plan.get("database") != args.database
+        or plan.get("postgres_container") != args.postgres_container
+        or plan.get("redis_container") != args.redis_container
+        or plan.get("network") != args.network
+    ):
+        raise ValueError("S6_GRAPH_REFRESH_PLAN_MISMATCH")
+    target, ceiling = parse_graph_scope(plan.get("graph_target_date"), plan.get("graph_max_assets"))
+    local = now.astimezone(CN_MARKET_TIMEZONE)
+    if target > local.date() or (
+        target == local.date() and local.time() < FULL_MARKET_PROVIDER_READY_AFTER
+    ):
+        raise ValueError("S6_GRAPH_REFRESH_SESSION_MISMATCH")
+    codes = build_target_date_a_share_universe_scope(target).requested_codes
+    if not 0 < len(codes) <= ceiling:
+        raise ValueError("S6_GRAPH_REFRESH_SCOPE_OUT_OF_BOUNDS")
+    next_midnight = cn_market_date_start_utc(target + timedelta(days=1))
+    if QuoteSnapshotModel.objects.filter(
+        asset_code__in=codes, snapshot_at__gte=next_midnight
+    ).exists():
+        raise ValueError("S6_GRAPH_REFRESH_LATER_QUOTE")
+    if PriceBarModel.objects.filter(
+        asset_code__in=codes, freq="1d", adjustment="none", bar_date__gt=target
+    ).exists():
+        raise ValueError("S6_GRAPH_REFRESH_LATER_PRICE")
+    if ValuationFactModel.objects.filter(
+        Q(val_date__gt=target) | Q(observed_at__gte=next_midnight), asset_code__in=codes
+    ).exists():
+        raise ValueError("S6_GRAPH_REFRESH_LATER_VALUATION")
+    return target
+
+
 def _run(args: argparse.Namespace, environ: dict[str, str]) -> int:
     """Run the real Task Monitor task, then publish its verified graph receipt."""
 
@@ -285,6 +351,7 @@ def _run(args: argparse.Namespace, environ: dict[str, str]) -> int:
         # Calendar discovery can dispatch provider HTTP too; share one budget
         # and deadline with the market refresh instead of opening a second scope.
         with capture:
+            expected_session = _check_restored_graph_scope(args, triggered_at)
             target_session = _require_isolated_target_session(
                 triggered_at,
                 resolver=lambda now: latest_cn_market_session_ready_after(
@@ -292,6 +359,8 @@ def _run(args: argparse.Namespace, environ: dict[str, str]) -> int:
                     ready_after=FULL_MARKET_PROVIDER_READY_AFTER,
                 ),
             )
+            if target_session != expected_session:
+                raise ValueError("S6_GRAPH_REFRESH_SESSION_MISMATCH")
             with isolated_s6_full_market_provider_session(
                 target_session,
                 triggered_at=triggered_at,
@@ -304,8 +373,8 @@ def _run(args: argparse.Namespace, environ: dict[str, str]) -> int:
     except ValueError as exc:
         guard_failure = _capture_failure_code(capture)
         failure = (
-            "S6_GRAPH_REFRESH_TARGET_SESSION_UNAVAILABLE"
-            if str(exc) == "S6_GRAPH_REFRESH_TARGET_SESSION_UNAVAILABLE"
+            str(exc)
+            if str(exc) in _KNOWN_FAILURE_CODES
             else "S6_GRAPH_REFRESH_TASK_EXECUTION_FAILED"
         )
         return _blocked(guard_failure or failure, capture=capture)

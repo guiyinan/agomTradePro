@@ -13,8 +13,9 @@ import stat
 import sys
 import uuid
 from collections.abc import Callable, Sequence
+from datetime import date
 from pathlib import Path, PurePosixPath
-from typing import TypedDict, cast
+from typing import NotRequired, TypedDict, cast
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
@@ -55,6 +56,8 @@ class AttemptPlan(TypedDict):
     candidate_source_snapshot_path: str
     candidate_source_receipt_path: str
     advance_isolated_market_graph: bool
+    graph_target_date: NotRequired[str]
+    graph_max_assets: NotRequired[int]
 
 
 class AttemptPlanError(ValueError):
@@ -82,6 +85,8 @@ def build_attempt_plan(
     attempts_dir: Path,
     attempt_id: str | None = None,
     advance_isolated_market_graph: bool = False,
+    graph_target_date: str | None = None,
+    graph_max_assets: int | None = None,
 ) -> AttemptPlan:
     """Build a deterministic local resource plan without creating any files."""
     if _CANDIDATE_SHA_RE.fullmatch(candidate_sha) is None:
@@ -99,7 +104,7 @@ def build_attempt_plan(
     root = Path(os.path.abspath(os.fspath(attempts_dir))) / root_name
     export_root = PurePosixPath("/tmp") / "agomtradepro-s6" / namespace
 
-    return {
+    plan: AttemptPlan = {
         "schema": _PLAN_SCHEMA,
         "candidate_sha": candidate_sha,
         "attempt_id": normalized_attempt_id,
@@ -117,6 +122,28 @@ def build_attempt_plan(
         "candidate_source_receipt_path": str(root / "candidate-source-receipt.json"),
         "advance_isolated_market_graph": advance_isolated_market_graph,
     }
+    if advance_isolated_market_graph:
+        target, ceiling = parse_graph_scope(graph_target_date, graph_max_assets)
+        plan["schema"] = "release.s6-attempt-plan.v4"
+        plan["graph_target_date"] = target.isoformat()
+        plan["graph_max_assets"] = ceiling
+    elif graph_target_date is not None or graph_max_assets is not None:
+        raise AttemptPlanError("S6_GRAPH_SCOPE_INVALID")
+    return plan
+
+
+def parse_graph_scope(target: object, ceiling: object) -> tuple[date, int]:
+    """Validate the operator-qualified trading date and authorized universe size."""
+
+    if not isinstance(target, str) or type(ceiling) is not int or ceiling < 1:
+        raise AttemptPlanError("S6_GRAPH_SCOPE_INVALID")
+    try:
+        parsed = date.fromisoformat(target)
+    except ValueError as exc:
+        raise AttemptPlanError("S6_GRAPH_SCOPE_INVALID") from exc
+    if parsed.isoformat() != target or parsed.weekday() >= 5:
+        raise AttemptPlanError("S6_GRAPH_SCOPE_INVALID")
+    return parsed, ceiling
 
 
 def _canonical_plan(plan: AttemptPlan) -> tuple[AttemptPlan, bytes]:
@@ -128,6 +155,8 @@ def _canonical_plan(plan: AttemptPlan) -> tuple[AttemptPlan, bytes]:
             attempt_id=plan["attempt_id"],
             attempts_dir=root.parent,
             advance_isolated_market_graph=plan["advance_isolated_market_graph"],
+            graph_target_date=plan.get("graph_target_date"),
+            graph_max_assets=plan.get("graph_max_assets"),
         )
     except (KeyError, TypeError, ValueError, OSError) as exc:
         raise AttemptPlanError("S6_ATTEMPT_PLAN_INVALID") from exc
@@ -244,6 +273,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--attempts-dir", type=Path, default=Path("artifacts/s6-attempts"))
     parser.add_argument("--workspace", type=Path)
     parser.add_argument("--container-gid", type=int)
+    parser.add_argument("--graph-target-date", help="Qualified session in YYYY-MM-DD format")
+    parser.add_argument("--graph-max-assets", type=int, help="Authorized market universe ceiling")
     parser.add_argument(
         "--advance-isolated-market-graph",
         action="store_true",
@@ -262,6 +293,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             attempt_id=args.attempt_id,
             attempts_dir=args.attempts_dir,
             advance_isolated_market_graph=args.advance_isolated_market_graph,
+            graph_target_date=args.graph_target_date,
+            graph_max_assets=args.graph_max_assets,
         )
         plan_file: Path | None = None
         if args.reserve:
