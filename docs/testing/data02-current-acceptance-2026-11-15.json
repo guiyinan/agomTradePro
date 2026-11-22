@@ -9817,6 +9817,92 @@
                               "market_requests_added": 0,
                               "production_writes": 0,
                               "data02_exit": "awaiting_production"
+                            },
+                            "local_guard_candidate_official_ci": {
+                              "authorization": "call_4196b3066a1c452bb9564df564ed1b77",
+                              "candidate_sha": "451cc90c4cd2433bd7f787a883b58c012f44adbb",
+                              "ref": "refs/heads/dev/data02-ci-451cc90c4",
+                              "previous_runs": 0,
+                              "observed_until": "2026-11-22T11:42:58Z",
+                              "local_evidence_directory": ".tmp/data02-guard-20261122/github-ci",
+                              "run_receipt_filename": "<run_id>-receipt.json",
+                              "archived_artifact_filename": "<run_id>-<artifact_id>.zip",
+                              "runs": [
+                                {
+                                  "id": 45017806518,
+                                  "workflow": "CI Fast Feedback",
+                                  "event": "push",
+                                  "conclusion": "failure",
+                                  "receipt_sha256": "c105331126f2810c8e789fb1efff488ea42cdbb798bcef78ac312acbbd01c5ac"
+                                },
+                                {
+                                  "id": 45017806529,
+                                  "workflow": "Engineering progress dashboard",
+                                  "event": "push",
+                                  "conclusion": "success",
+                                  "receipt_sha256": "fd86c66a4ae3796dfe18d6d50da6b3ea33fa5c7cc3413a898787aabccb3d22c3"
+                                },
+                                {
+                                  "id": 45017806531,
+                                  "workflow": "Architecture Layer Guard",
+                                  "event": "push",
+                                  "conclusion": "failure",
+                                  "receipt_sha256": "f73e6d3ca66b1ebf03079a065aad44e4ccd41c63ae5c37bc60732ecb1e6baee5"
+                                },
+                                {
+                                  "id": 45017806533,
+                                  "workflow": "Security Scan",
+                                  "event": "push",
+                                  "conclusion": "success",
+                                  "receipt_sha256": "c25307f68685c2eb4c320a25de7436b486db44efab81e5cf7282e7412ecf07c7"
+                                },
+                                {
+                                  "id": 45017806657,
+                                  "workflow": "Consistency Check",
+                                  "event": "push",
+                                  "conclusion": "failure",
+                                  "receipt_sha256": "8e5d3dd4e5a65b8876871c2383194c55da0278a28bcc3b8cb62a4f3c985f1da9"
+                                },
+                                {
+                                  "id": 45017867216,
+                                  "workflow": "CI Fast Feedback",
+                                  "event": "workflow_dispatch",
+                                  "conclusion": "failure",
+                                  "receipt_sha256": "e3a84ad7b7fb954e7e0f1d7cfccd81fbac96c7c73d87902d6d00a5c2844df2f5"
+                                },
+                                {
+                                  "id": 45017882775,
+                                  "workflow": "Quote Metric PostgreSQL contracts",
+                                  "event": "workflow_dispatch",
+                                  "conclusion": "success",
+                                  "receipt_sha256": "784f56ac70eaa7400655c7763b9566432346a025b42f02de8e1e179aef7f12f2"
+                                }
+                              ],
+                              "quote_metric_junit": {
+                                "artifact_id": 14752114851,
+                                "archive_digest": "sha256:561accc72f6dfa737d2b45ef285523771cf7e2674911532a30d5cd5a731782b3",
+                                "tests": 57,
+                                "sha256": "7e69534ab79710e5164021a6493509d5b745ee152626cea40405046619b9ba7c",
+                                "failures": 0,
+                                "errors": 0,
+                                "skipped": 0
+                              },
+                              "ref01": "New-branch push supplied an all-zero before SHA. Both Python matrices rejected it at REF-01. Local REF-01 on c5 to the candidate passed with zero model delta.",
+                              "projection": "Consistency and both Fast Feedback quality jobs rejected the stale entrypoint inventory. The generator applied to this candidate added only test_evidence for test_s6_restored_graph_scope.py plus its three counters (total 1514 to 1515). Both Fast Feedback test matrices passed.",
+                              "evidence_sha256": {
+                                "terminal-runs.json": "47424526f9653201d6e8e807fc0eafea3fb161d4c15e8af893b25d9609ba9b6e",
+                                "architecture-failure.log": "ecf320e9ab2a47b358d4a0ef07508ff575dc027f74454f809864e64a52207eb7",
+                                "consistency-failure.log": "1b8bb0aeebf4e5746292b93e4f757d3a37d271d7d66d8a588c2bdeae07834e84",
+                                "job-137193877088.log": "e47f10c1bf3c3f7e436a15321dfbfa8f98b2511bfa12e21a507aa1ce2863f923",
+                                "job-137194092641.log": "c5d4ce88babbd10b6a28ac4b3afe5b5ade7e15410481e859cc1a2997b5894eb3",
+                                "ref01-c5-to-candidate.log": "2c7bf8c15f2a9f290a4a77840e37eaff776af9035156da97f70dd2978edaa40f",
+                                "inventory-diff.json": "06f15e28960408bbbd2416a4149e835cb3d7f1d24d8aab6ec7f99d091eb63f43"
+                              },
+                              "publication_manual_dispatches": 0,
+                              "release_status": "candidate failed required CI",
+                              "new_s6_attempts": 0,
+                              "market_requests_added": 0,
+                              "production_writes": 0
                             }
                           }
                         }
