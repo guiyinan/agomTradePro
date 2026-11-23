@@ -45,6 +45,8 @@ from shared.numeric import safe_float
 
 # The identity binds field sets, date ranges and each response's byte digest.
 ARCHIVE_SHA256 = "4fe7ba52497571c04cfa82a73bbc926f3a872fc5cb1346259a4f9882c187f279"
+LATER_ARCHIVE_SHA256 = "6d6d78649a1ba7fb2d7e9429e1b1b8b1b0637a14830952a5aeacb974b8ea5b3a"
+LATER_DESIGN_SHA256 = "be27ca2306ed01026286baecaca605746a0faf6bd06eecb53f69ca64761a8fbe"
 _START = date(2010, 1, 4)
 _PRICE_END = date(2018, 12, 31)
 _PLANNING_END = date(2026, 11, 18)
@@ -117,26 +119,95 @@ def _target_query(queries: list[_Query], kind: str, target: str) -> _Query:
 
 
 def _closes(
-    archive: Path, q: _Query, target: str, days: tuple[date, ...], used: dict[str, str]
+    archive: Path,
+    q: _Query,
+    target: str,
+    days: tuple[date, ...],
+    used: dict[str, str],
+    *,
+    later_end: date | None = None,
 ) -> tuple[float, ...]:
-    if _day(q["params"]["start_date"]) != _START or _day(q["params"]["end_date"]) != _PRICE_END:
-        raise ValueError("Unexpected price range; only the early snapshot is permitted")
+    start, end = (_START, _PRICE_END) if later_end is None else (date(2019, 1, 1), later_end)
+    if _day(q["params"]["start_date"]) != start or _day(q["params"]["end_date"]) != end:
+        raise ValueError("Unexpected price range for the selected snapshot")
     prices = {}
     for code, stamp, value in _rows(archive, q, ("ts_code", "trade_date", "close"), used):
         d = _day(stamp)
         price = safe_float(value)
-        if (
-            code != target
-            or d in prices
-            or price is None
-            or price <= 0
-            or not _START <= d <= _PRICE_END
-        ):
+        if code != target or d in prices or price is None or price <= 0 or not start <= d <= end:
             raise ValueError(f"Invalid or duplicate price for {target} on {d}")
         prices[d] = price
-    if set(prices) != set(days):
-        raise ValueError(f"Early price calendar mismatch for {target}")
-    return tuple(prices[d] for d in days)
+    if prices.keys() - set(days) or (later_end is None and set(prices) != set(days)):
+        raise ValueError(f"Price calendar mismatch for {target}")
+    # A missing close stays on its original session. The later-cohort selector
+    # removes every origin whose feature or label would depend on that close.
+    return tuple(prices.get(d, math.nan) for d in days)
+
+
+@dataclass(frozen=True)
+class _LaterFoldSupport:
+    start: date
+    end: date
+    last_label: date
+    training_expected: int
+    training_valid: int
+    validation_expected: int
+    validation_valid: int
+    reason: str
+
+
+def _later_cohort(
+    folds: Sequence[WalkForwardFold],
+    dates: tuple[date, ...],
+    reserve_start: int,
+    missing: set[int],
+    horizon: int,
+    design: ValidationDesign,
+) -> tuple[list[WalkForwardFold], list[_LaterFoldSupport]]:
+    maximum = max(design.clock.horizons)
+
+    # A feature uses the closes [origin-20, origin]; a label uses [origin, origin+h].
+    def invalid(h: int) -> set[int]:
+        return {i - _WARMUP for m in missing for i in range(m - h, m + _WARMUP + 1)}
+
+    bad_train = invalid(horizon)
+    bad_validation = invalid(maximum)
+    selected = []
+    support = []
+    for f in folds:
+        val = range(f.validation_origins.start, f.validation_origins.stop)
+        start = _WARMUP + val.start
+        stop = _WARMUP + val.stop - 1
+        last = stop + maximum
+        if (
+            dates[start] <= _PRICE_END
+            or last + design.policy.minimum_separation_sessions >= reserve_start
+        ):
+            continue
+        train = tuple(i for i in f.training_origins if i not in bad_train)
+        valid = len(val) - len(bad_validation.intersection(val))
+        reason = ""
+        if valid != len(val):
+            reason = "VALIDATION_FOLD_INCOMPLETE"
+        elif len(train) / len(f.training_origins) < design.gates.coverage_min:
+            reason = "TRAINING_COVERAGE_INSUFFICIENT"
+        else:
+            selected.append(replace(f, training_origins=train))
+        support.append(
+            _LaterFoldSupport(
+                dates[start],
+                dates[stop],
+                dates[last],
+                len(f.training_origins),
+                len(train),
+                len(val),
+                valid,
+                reason,
+            )
+        )
+    if len(selected) < design.policy.minimum_folds:
+        raise ValueError("Too few complete later validation folds")
+    return selected, support
 
 
 @dataclass(frozen=True)
@@ -437,7 +508,97 @@ def _publish(output: Path, files: dict[str, bytes]) -> None:
             raise ValueError("Output already exists; choose a new report directory")
 
 
-def write_snapshot(archive: Path, output: Path, *, event_archive: Path | None = None) -> None:
+def _later_report(
+    results: list[_Result],
+    early_effects: list[_Result],
+    later_support: dict[str, dict[int, list[_LaterFoldSupport]]],
+    missing_dates: dict[str, list[date]],
+) -> tuple[dict[str, object], str]:
+    raw = tuple(r.paired_loss.raw_p for r in results if r.paired_loss.raw_p is not None)
+    holm: Sequence[float | None] = (
+        holm_adjusted_p_values(raw) if len(raw) == len(results) else [None] * len(results)
+    )
+    fields: dict[str, object] = {
+        "scope": "post-2018 full-fold development comparison, current-vintage snapshots",
+        "inference": "Paired MSE difference with marginal 95% HAC intervals; Holm p covers all nine later-period comparisons.",
+        "later_archive_sha256": LATER_ARCHIVE_SHA256,
+        "pre_outcome_design_sha256": LATER_DESIGN_SHA256,
+        "missing_closes": missing_dates,
+        "early_reference_results": [asdict(r) for r in early_effects],
+        "later_fold_support": {
+            t: {h: [asdict(f) for f in fs] for h, fs in hs.items()}
+            for t, hs in later_support.items()
+        },
+        "later_comparisons": [
+            {"target": r.target, "horizon": r.horizon, "holm_p": p}
+            for r, p in zip(results, holm, strict=True)
+        ],
+    }
+    lines = [
+        "",
+        "## 新增年份与早期结果",
+        "",
+        "沿用原折起点，仅纳入 2019 年起开始、所有期限标签都在保留区间前留足五个交易日的完整验证折。"
+        "缺收盘值时排除受影响的训练行和不完整的验证折。Holm 校正覆盖新增时期的九项比较。",
+        "",
+        "| 指数 | 期限 | 早期误差降幅 | 新增时期误差降幅 | 新增时期 Holm p | 实际/计划折数 |",
+        "|---|---:|---:|---:|---:|---:|",
+    ]
+    for prior, r, p in zip(early_effects, results, holm, strict=True):
+        changes = [
+            "—" if v is None else f"{v:+.3f}%"
+            for v in (prior.reduction_percent, r.reduction_percent)
+        ]
+        prob = "—" if p is None else f"{p:.4g}"
+        lines.append(
+            f"| {r.target} | {r.horizon} | {changes[0]} | {changes[1]} | {prob} | {len(r.folds)}/{len(later_support[r.target][r.horizon])} |"
+        )
+    for code, missing_days in missing_dates.items():
+        if missing_days:
+            lines.append(f"\n{code} 缺少日收盘：{', '.join(map(str,missing_days))}。")
+    omitted: dict[tuple[date, date, int, int, str], set[str]] = {}
+    for code, horizons in later_support.items():
+        for h, records in horizons.items():
+            for record in records:
+                if record.reason:
+                    key = (
+                        record.start,
+                        record.end,
+                        record.validation_valid,
+                        record.validation_expected,
+                        record.reason,
+                    )
+                    omitted.setdefault(key, set()).add(f"{code}/{h}日")
+    if omitted:
+        lines.extend(
+            [
+                "",
+                "| 排除的验证期间 | 全期限可评分日/计划日 | 原因 | 涉及组合 |",
+                "|---|---:|---|---|",
+            ]
+        )
+        for (start, end, valid, expected, reason), members in sorted(omitted.items()):
+            cause = "验证折不完整" if reason == "VALIDATION_FOLD_INCOMPLETE" else "训练覆盖不足"
+            scope = "全部九组" if len(members) == len(results) else "、".join(sorted(members))
+            lines.append(f"| {start} 至 {end} | {valid}/{expected} | {cause} | {scope} |")
+    positive = sum(r.paired_loss.mean > 0 for r in results)
+    supported = sum(
+        r.paired_loss.mean > 0 and p is not None and p < 0.05
+        for r, p in zip(results, holm, strict=True)
+    )
+    lines.append(
+        f"\n在纳入的完整折中，新增时期有 {positive}/{len(results)} 组验证误差下降；其中 {supported} 组达到预定的 Holm p < 0.05。"
+    )
+    return fields, "\n".join(lines) + "\n"
+
+
+def write_snapshot(
+    archive: Path,
+    output: Path,
+    *,
+    event_archive: Path | None = None,
+    later_archive: Path | None = None,
+) -> None:
     """Verify the retained input bundle and publish an offline development report."""
     spec_path = (
         Path(__file__).resolve().parents[1] / "tests/fixtures/research/cal_event_study_v1.json"
@@ -454,6 +615,28 @@ def write_snapshot(archive: Path, output: Path, *, event_archive: Path | None = 
     if len(dates) <= reserve or _PRICE_END >= dates[-reserve]:
         raise ValueError("Early price range intersects the reserved period")
     early = dates[: bisect_right(dates, _PRICE_END)]
+    if later_archive is not None and event_archive is not None:
+        raise ValueError(
+            "The frozen later cohort uses all dates; the holiday panel covers the early comparison"
+        )
+    reserve_start = len(dates) - reserve
+    price_days = early if later_archive is None else dates[:reserve_start]
+    later_queries: list[_Query] = []
+    frozen_folds: list[list[str]] = []
+    if later_archive is not None:
+        later_manifest = json.loads(_verified(later_archive / "report.json", LATER_ARCHIVE_SHA256))
+        frozen = json.loads(_verified(later_archive / "design.json", LATER_DESIGN_SHA256))
+        if (
+            later_manifest["design_sha256"] != LATER_DESIGN_SHA256
+            or frozen["spec_sha256"] != SPEC_SHA256
+            or frozen["archive_sha256"] != ARCHIVE_SHA256
+            or _day(frozen["reserved_start"]) != dates[reserve_start]
+            or _day(frozen["end_date"]) != price_days[-1]
+            or frozen["targets"] != [f"{c}.SH" for c in design.targets]
+        ):
+            raise ValueError("Later archive does not match the frozen design and OOS boundary")
+        later_queries = later_manifest["queries"]
+        frozen_folds = frozen["folds"]
     panel = (
         load_holiday_panel(event_archive, dates, _START, _PRICE_END)
         if event_archive is not None
@@ -462,6 +645,9 @@ def write_snapshot(archive: Path, output: Path, *, event_archive: Path | None = 
     selection = _selections(early[_WARMUP:], panel) if panel is not None else None
     slices: list[_Sensitivity] = []
     results: list[_Result] = []
+    early_effects = []
+    later_support: dict[str, dict[int, list[_LaterFoldSupport]]] = {}
+    missing_dates: dict[str, list[date]] = {}
     for code in design.targets:
         target = f"{code}.SH"
         metadata = _target_query(queries, "full_date_coverage", target)
@@ -492,11 +678,34 @@ def write_snapshot(archive: Path, output: Path, *, event_archive: Path | None = 
         prices = _closes(
             archive, _target_query(queries, "early_price_quality", target), target, early, used
         )
+        missing: set[int] = set()
+        if later_archive is not None:
+            prices += _closes(
+                later_archive,
+                _target_query(later_queries, "later_price", target),
+                target,
+                price_days[len(early) :],
+                used,
+                later_end=price_days[-1],
+            )
+            missing = {i for i, v in enumerate(prices) if math.isnan(v)}
+            missing_dates[target] = [price_days[i] for i in sorted(missing)]
+            later_support[target] = {}
         log_prices = tuple(map(math.log, prices))
         squares = (0.0, *((b - a) ** 2 for a, b in pairwise(log_prices)))
-        features = _features(early, squares, design)
+        features = _features(price_days, squares, design)
         for h in design.clock.horizons:
-            result, scored = _score(target, h, early, squares, features, folds, design)
+            evaluate = folds
+            if later_archive is not None:
+                prior, _ = _score(target, h, early, squares, features, folds, design)
+                early_effects.append(prior)
+                evaluate, audit = _later_cohort(
+                    plan.folds, dates, reserve_start, missing, h, design
+                )
+                if [[str(f.start), str(f.end), str(f.last_label)] for f in audit] != frozen_folds:
+                    raise ValueError("Later folds differ from the pre-outcome schedule")
+                later_support[target][h] = audit
+            result, scored = _score(target, h, price_days, squares, features, evaluate, design)
             results.append(result)
             if selection is not None:
                 slices.extend(_sensitivity(result, scored, folds, *selection, design))
@@ -507,7 +716,7 @@ def write_snapshot(archive: Path, output: Path, *, event_archive: Path | None = 
         "source_sha256": used,
         "date_axis_final_reserved_start": dates[-reserve].strftime("%Y%m%d"),
         "reserved_origins": design.policy.final_oos_sessions,
-        "last_available_price": early[-1].strftime("%Y%m%d"),
+        "last_available_price": price_days[-1].strftime("%Y%m%d"),
         "oos_evaluated": False,
         "pit_qualified": False,
         "mse_order": [
@@ -548,6 +757,11 @@ def write_snapshot(archive: Path, output: Path, *, event_archive: Path | None = 
             "correction_family": "All target/horizon/selection combinations of this retrospective development replay only.",
             "results": [asdict(s) for s in slices],
         }
+    markdown = _markdown(results, price_days[-1], design, slices)
+    if later_archive is not None:
+        fields, comparison = _later_report(results, early_effects, later_support, missing_dates)
+        report.update(fields)
+        markdown += comparison
     _publish(
         output,
         {
@@ -557,7 +771,7 @@ def write_snapshot(archive: Path, output: Path, *, event_archive: Path | None = 
                 )
                 + "\n"
             ).encode(),
-            "report.md": _markdown(results, early[-1], design, slices).encode(),
+            "report.md": markdown.encode(),
         },
     )
 
@@ -579,9 +793,19 @@ def main() -> None:
         type=Path,
         help="Retained CAL-03 directory containing calendar-publication-review.json and calendar-originals/",
     )
+    parser.add_argument(
+        "--later-archive",
+        type=Path,
+        help="Pinned post-2018 pre-holdout close archive with its frozen design",
+    )
     args = parser.parse_args()
     try:
-        write_snapshot(args.archive, args.output, event_archive=args.event_archive)
+        write_snapshot(
+            args.archive,
+            args.output,
+            event_archive=args.event_archive,
+            later_archive=args.later_archive,
+        )
     except (ValueError, OSError) as exc:
         parser.exit(1, f"CAL-03 replay failed: {exc}\n")
     print(args.output / "report.md")

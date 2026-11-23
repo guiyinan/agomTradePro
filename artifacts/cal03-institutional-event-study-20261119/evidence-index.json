@@ -1874,5 +1874,175 @@
       "mypy.log": "Fixed list/set annotations and narrowed optional inference separately from the main report."
     },
     "final_oos_claimed_or_evaluated": false
+  },
+  "later_snapshot_walk_forward_20261123": {
+    "base_commit": "aae70ed17ef8f2d108a22807fe72bc97e5ddc51c",
+    "source_blobs": {
+      "scripts/run_cal03_snapshot_walk_forward.py": "b2ff1769b4dcd00c18c004683eba877e3c807029",
+      "tests/unit/research/test_cal03_snapshot_runner.py": "ddd29f6715b9a4798fb170142c561e372cf5f973"
+    },
+    "frozen_design": {
+      "path": ".tmp/cal03-event-study-20261119/later-validation-20261123/prices/design.json",
+      "sha256": "be27ca2306ed01026286baecaca605746a0faf6bd06eecb53f69ca64761a8fbe",
+      "created_at": "2026-11-23T08:30:54.533797+00:00",
+      "spec_sha256": "29a44d0cd2670dd2a72853494d21271c9765d6584dafa4998e1df3c2a6edfe71",
+      "early_archive_sha256": "4fe7ba52497571c04cfa82a73bbc926f3a872fc5cb1346259a4f9882c187f279"
+    },
+    "later_archive": {
+      "path": ".tmp/cal03-event-study-20261119/later-validation-20261123/prices/report.json",
+      "sha256": "6d6d78649a1ba7fb2d7e9429e1b1b8b1b0637a14830952a5aeacb974b8ea5b3a"
+    },
+    "source": "Third-party Tushare-compatible index_daily. Requested 20190101 through 20241015. All three targets returned 1400 of 1401 sessions. Missing 20210511 for each. Same-provider trade_date and single-day start/end retries returned zero rows. Following-session pre_close diagnostic kept separately and excluded from model inputs.",
+    "capture_attempts": {
+      "freeze": {
+        "path": ".tmp/cal03-event-study-20261119/later-validation-20261123/freeze.log",
+        "sha256": "83a9f415c64d33583036274cb9dbe37c9985c3d554858569362a8c524ec3c00a"
+      },
+      "capture": {
+        "path": ".tmp/cal03-event-study-20261119/later-validation-20261123/capture.log",
+        "sha256": "d692063d4565eb038bcdc606ffcfaac52777a978c8b4d206c3dff6cc1567237e"
+      },
+      "capture-diagnosis": {
+        "path": ".tmp/cal03-event-study-20261119/later-validation-20261123/capture-diagnosis.log",
+        "sha256": "0898b4ef325c3c955d4a2e969fa0edd7b7ec5bb3491c8296e358a9fee2a3c4a5"
+      },
+      "capture-retained": {
+        "path": ".tmp/cal03-event-study-20261119/later-validation-20261123/capture-retained.log",
+        "sha256": "6daf37f7efc8b5e7b8c753f933bea21d08dfa7ee719ea5cb45c3dbbca949494d"
+      },
+      "daycheck": {
+        "path": ".tmp/cal03-event-study-20261119/later-validation-20261123/daycheck.log",
+        "sha256": "db8140d374c694a5d99c5aa69719470437f35d5f27cf8fd0fe6bcccfbbfebb0c"
+      },
+      "exact-range": {
+        "path": ".tmp/cal03-event-study-20261119/later-validation-20261123/exact-range.log",
+        "sha256": "b318eb2bd6bffefab8b0ff42e0a375d64571237dd7572b54f1ff6f5fd3f82779"
+      },
+      "following": {
+        "path": ".tmp/cal03-event-study-20261119/later-validation-20261123/following.log",
+        "sha256": "98edf84750b196945b02575ad9fc6140eecb8418fe0213d54a45f60287d91331"
+      }
+    },
+    "capture_outcomes": [
+      "First two strict attempts stopped on the missing session.",
+      "Retained original bulk responses and preserved the calendar gap. Date-specific diagnostics and receipts are under prices/."
+    ],
+    "period": {
+      "first_origin": "20190409",
+      "last_origin": "20240618",
+      "last_label": "20240625",
+      "reserved_start": "20241016",
+      "reserved_origins": 504
+    },
+    "cohort": {
+      "planned_folds": 10,
+      "included_folds": 8,
+      "origins_per_comparison": 1008,
+      "excluded": [
+        [
+          "20201029",
+          "20210506",
+          123,
+          126
+        ],
+        [
+          "20210507",
+          "20211110",
+          103,
+          126
+        ]
+      ],
+      "scope": "All-date later validation only. Early holiday-overlap estimates retain their original period."
+    },
+    "finding": "Six-period indicators increased later validation MSE in all nine comparisons by 0.137% to 1.608%. All nine marginal 95% HAC intervals include zero. Minimum Holm-adjusted p is 0.7795. Four of nine early comparisons reduced MSE. No stable incremental prediction benefit on these development snapshots.",
+    "verification": {
+      "targeted_tests_passed": 134,
+      "paired_replays_byte_identical": true,
+      "prior_reports_byte_identical": true,
+      "perturbed_target": "000300.SH",
+      "perturbation_start": "20230315",
+      "prior_predictions_equal": 42795,
+      "crossing_label_predictions_equal": 27,
+      "unaffected_target_predictions_equal_after_perturbation": 5490,
+      "changed_predictions_after_perturbation": 2745,
+      "audit_script": {
+        "path": ".tmp/cal03-event-study-20261119/later-validation-20261123/audit.py",
+        "sha256": "2b08e275178704c97f27772ab7d752120245970866ce7bc979c25309a7e604b0"
+      }
+    },
+    "checks": {
+      "later": {
+        "command": "agomtradepro/Scripts/python.exe -m scripts.run_cal03_snapshot_walk_forward --archive .tmp/cal03-event-study-20261119/coverage-audit-v1 --later-archive .tmp/cal03-event-study-20261119/later-validation-20261123/prices --output .tmp/cal03-event-study-20261119/later-validation-20261123/final",
+        "exit": 0,
+        "path": ".tmp/cal03-event-study-20261119/later-validation-20261123/final-later.log",
+        "sha256": "72b329bce314168f43119833d9bbb51383569a8a583065c2d0b9f0cd428b47c9"
+      },
+      "tests": {
+        "command": "agomtradepro/Scripts/python.exe -m pytest --noconftest -c .tmp/cal03-event-study-20261119/pytest.ini -q tests/unit/research/test_cal03_snapshot_runner.py tests/unit/research/test_calendar_validation_report.py tests/unit/research/test_snapshot_holiday_overlap.py tests/unit/research/test_institutional_event_study.py tests/unit/research/test_institutional_event_study_walk_forward.py",
+        "exit": 0,
+        "path": ".tmp/cal03-event-study-20261119/later-validation-20261123/final-tests.log",
+        "sha256": "a5a5ce6db5feb1d0ad34bbb568b52e28c627771ba6c2e3c3f7d90ac2d62de12c"
+      },
+      "mypy": {
+        "command": "$env:MYPY_CACHE_DIR='.tmp/cal03-event-study-20261119/control-mypy-incremental'\nagomtradepro/Scripts/python.exe scripts/check_mypy_regression.py scripts/run_cal03_snapshot_walk_forward.py",
+        "exit": 0,
+        "path": ".tmp/cal03-event-study-20261119/later-validation-20261123/final-mypy.log",
+        "sha256": "1696369e79514135c6c84d87d82a0fc9c6a7026a4b6fda77e8a7e9b50eef135b"
+      },
+      "debt": {
+        "command": "$env:MYPY_CACHE_DIR='.tmp/cal03-event-study-20261119/control-mypy-debt'\nagomtradepro/Scripts/python.exe scripts/check_mypy_debt_ceiling.py",
+        "exit": 0,
+        "path": ".tmp/cal03-event-study-20261119/later-validation-20261123/final-debt.log",
+        "sha256": "def6c561b37227470bcda90c8450d9837ca85dd34af34d05e7d6af2afdf85ab1"
+      },
+      "repeat": {
+        "command": "agomtradepro/Scripts/python.exe -m scripts.run_cal03_snapshot_walk_forward --archive .tmp/cal03-event-study-20261119/coverage-audit-v1 --later-archive .tmp/cal03-event-study-20261119/later-validation-20261123/prices --output .tmp/cal03-event-study-20261119/later-validation-20261123/repeat",
+        "exit": 0,
+        "path": ".tmp/cal03-event-study-20261119/later-validation-20261123/final-repeat.log",
+        "sha256": "84a849a639bb9c6fedb4ee781ad93a94663193db9f752b05ef35ead909f92e4d"
+      },
+      "old": {
+        "command": "agomtradepro/Scripts/python.exe -m scripts.run_cal03_snapshot_walk_forward --archive .tmp/cal03-event-study-20261119/coverage-audit-v1 --output .tmp/cal03-event-study-20261119/later-validation-20261123/prior",
+        "exit": 0,
+        "path": ".tmp/cal03-event-study-20261119/later-validation-20261123/final-old.log",
+        "sha256": "3d324c695e371aa072e66ac7cc1946387b0bb52ee1fbc3a9d8cb9b24db30a0a1"
+      },
+      "isort": {
+        "command": "agomtradepro/Scripts/python.exe -m isort --check-only scripts/run_cal03_snapshot_walk_forward.py tests/unit/research/test_cal03_snapshot_runner.py",
+        "exit": 0,
+        "path": ".tmp/cal03-event-study-20261119/later-validation-20261123/final-isort.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "black": {
+        "command": "agomtradepro/Scripts/python.exe -m black --check scripts/run_cal03_snapshot_walk_forward.py tests/unit/research/test_cal03_snapshot_runner.py",
+        "exit": 0,
+        "path": ".tmp/cal03-event-study-20261119/later-validation-20261123/final-black.log",
+        "sha256": "42952929f98ff284b84ffc33f5fca4e517620f9b2ceb3fca1375e504affa8195"
+      },
+      "ruff": {
+        "command": "agomtradepro/Scripts/python.exe -m ruff check scripts/run_cal03_snapshot_walk_forward.py tests/unit/research/test_cal03_snapshot_runner.py",
+        "exit": 0,
+        "path": ".tmp/cal03-event-study-20261119/later-validation-20261123/final-ruff.log",
+        "sha256": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0"
+      },
+      "audit": {
+        "command": "agomtradepro/Scripts/python.exe .tmp/cal03-event-study-20261119/later-validation-20261123/audit.py",
+        "exit": 0,
+        "path": ".tmp/cal03-event-study-20261119/later-validation-20261123/final-audit.log",
+        "sha256": "ff2466781214acb2743508222513bafeb4bb28b0f36d9d8f5f569269f6825ca2"
+      }
+    },
+    "outputs": [
+      {
+        "path": ".tmp/cal03-event-study-20261119/later-validation-20261123/final/report.md",
+        "sha256": "e3898f22bc96f231e518fc63c93345c8ceb3c3d663ac0f14b6ccbb1ca6b78919"
+      },
+      {
+        "path": ".tmp/cal03-event-study-20261119/later-validation-20261123/final/results.json",
+        "sha256": "574e477e7628d794583b79cbd82abcc12a70aa28e9bef1566782ec6ff4d6bc15"
+      }
+    ],
+    "pit_qualified": false,
+    "final_oos_claimed_or_evaluated": false
   }
 }

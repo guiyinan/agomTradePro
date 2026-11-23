@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
+from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -73,6 +75,52 @@ def pin(inputs, queries, monkeypatch):
     monkeypatch.setattr(runner, "ARCHIVE_SHA256", hashlib.sha256(raw).hexdigest())
 
 
+def test_future_price_change_preserves_every_earlier_prediction(archive, tmp_path, monkeypatch):
+    inputs, queries = archive
+    original = runner.ridge_predict
+    predictions = []
+
+    def observe(*args, **kwargs):
+        values = original(*args, **kwargs)
+        predictions.append(values)
+        return values
+
+    monkeypatch.setattr(runner, "ridge_predict", observe)
+    runner.write_snapshot(inputs, tmp_path / "reference")
+    reports = json.loads((tmp_path / "reference/results.json").read_bytes())["results"]
+    saved = predictions.copy()
+    predictions.clear()
+    query = next(q for q in queries if q["kind"] == "early_price_quality")
+    path = inputs / query["raw_path"]
+    data = json.loads(path.read_bytes())
+    rows = data["data"]["items"]
+    dates = [row[1] for row in rows]
+    # Place the change inside a held-out fold. Its earlier validation labels
+    # can now differ, but its earlier predictions still must be identical.
+    change = dates[dates.index(reports[0]["folds"][2]["start"]) + 47]
+    for row in rows:
+        if row[1] >= change:
+            row[2] *= 1.01 if int(row[1][-2:]) % 2 else 1.04
+    raw = json.dumps(data).encode()
+    path.write_bytes(raw)
+    query["body_sha256"] = hashlib.sha256(raw).hexdigest()
+    pin(inputs, queries, monkeypatch)
+    runner.write_snapshot(inputs, tmp_path / "perturbed")
+    i = 0
+    changed = False
+    for result in reports:
+        for fold in result["folds"]:
+            origins = [d for d in dates if fold["start"] <= d <= fold["end"]]
+            for _ in range(3):
+                for d, a, b in zip(origins, saved[i], predictions[i], strict=True):
+                    if d < change or result["target"] != query["params"]["ts_code"]:
+                        assert a == b
+                    else:
+                        changed |= a != b
+                i += 1
+    assert i == len(saved) == len(predictions) and changed
+
+
 def test_repeatable_report_and_full_validation_folds(archive, tmp_path):
     inputs, _ = archive
     output = tmp_path / "report"
@@ -138,6 +186,107 @@ def test_holdout_checked_from_calendar_before_opening_prices(archive, tmp_path, 
             (inputs / q["raw_path"]).unlink()
     with pytest.raises(ValueError, match="reserved period"):
         runner.write_snapshot(inputs, tmp_path / "out")
+
+
+@pytest.fixture
+def later_bundle(archive, tmp_path, monkeypatch):
+    inputs, queries = archive
+    later = tmp_path / "later"
+    later.mkdir()
+    design = runner.load_validation_design(
+        Path(__file__).resolve().parents[3] / "tests/fixtures/research/cal_event_study_v1.json"
+    )
+    zone = ZoneInfo(design.clock.timezone_name)
+    sessions = runner._sessions(inputs, queries, {}, zone)
+    days = [s.session_on for s in sessions]
+    reserve = len(days) - design.policy.final_oos_sessions - max(design.clock.horizons)
+    plan = runner.plan_walk_forward(
+        sessions=sessions[20:],
+        calendar_version="fixture",
+        complete_price_dates=frozenset(days),
+        known_at=datetime.combine(days[-1], design.clock.local_cutoff, zone),
+        clock=design.clock,
+        policy=design.policy,
+        prior_final_oos_uses=0,
+    )
+    frozen = []
+    for fold in plan.folds:
+        start = 20 + fold.validation_origins.start
+        end = 20 + fold.validation_origins.stop - 1
+        if days[start].year >= 2019 and end + 10 < reserve:
+            frozen.append([str(days[start]), str(days[end]), str(days[end + 5])])
+    upper = days[reserve - 1].strftime("%Y%m%d")
+    record = {
+        "spec_sha256": runner.SPEC_SHA256,
+        "archive_sha256": runner.ARCHIVE_SHA256,
+        "reserved_start": days[reserve].strftime("%Y%m%d"),
+        "end_date": upper,
+        "targets": [s + ".SH" for s in design.targets],
+        "folds": frozen,
+    }
+    raw = json.dumps(record).encode()
+    (later / "design.json").write_bytes(raw)
+    digest = hashlib.sha256(raw).hexdigest()
+    monkeypatch.setattr(runner, "LATER_DESIGN_SHA256", digest)
+    q = []
+    # Omit a close right at a fold boundary: earlier labels and subsequent features are affected.
+    missing = date.fromisoformat(frozen[3][0])
+    for code in record["targets"]:
+        table(
+            later,
+            q,
+            "later_price",
+            {"ts_code": code, "start_date": "20190101", "end_date": upper},
+            ["ts_code", "trade_date", "close"],
+            [
+                [code, str(d).replace("-", ""), 110 + (i % 7) / 5]
+                for i, d in enumerate(days[:reserve])
+                if d.year >= 2019 and d != missing
+            ],
+        )
+    manifest = {"design_sha256": digest, "queries": q}
+    raw = json.dumps(manifest).encode()
+    (later / "report.json").write_bytes(raw)
+    monkeypatch.setattr(runner, "LATER_ARCHIVE_SHA256", hashlib.sha256(raw).hexdigest())
+    return inputs, later, days, missing, manifest
+
+
+def test_later_period_preserves_calendar_and_excludes_both_contaminated_folds(
+    later_bundle, tmp_path
+):
+    inputs, later, days, missing, _ = later_bundle
+    output = tmp_path / "result"
+    runner.write_snapshot(inputs, output, later_archive=later)
+    report = json.loads((output / "results.json").read_bytes())
+    assert not report["oos_evaluated"] and not report["pit_qualified"]
+    for r in report["results"]:
+        assert report["missing_closes"][r["target"]] == [str(missing)]
+        support = report["later_fold_support"][r["target"]][str(r["horizon"])]
+        excluded = [f for f in support if f["reason"]]
+        assert len(excluded) == 2 and len(r["folds"]) + 2 == len(support)
+        assert any(f["training_valid"] < f["training_expected"] for f in support if not f["reason"])
+        for f in support:
+            start, end = days.index(date.fromisoformat(f["start"])), days.index(
+                date.fromisoformat(f["end"])
+            )
+            assert f["validation_valid"] == sum(
+                missing not in days[i - 20 : i + 6] for i in range(start, end + 1)
+            )
+        assert r["folds"][0]["start"] >= "20190101"
+        assert all(f["last_label"] < report["date_axis_final_reserved_start"] for f in r["folds"])
+    assert len(report["later_comparisons"]) == 9
+
+
+def test_later_range_refused_before_opening_out_of_bounds_file(later_bundle, tmp_path, monkeypatch):
+    inputs, later, _, _, manifest = later_bundle
+    query = manifest["queries"][0]
+    query["params"]["end_date"] = "20261118"
+    (later / query["raw_path"]).unlink()
+    raw = json.dumps(manifest).encode()
+    (later / "report.json").write_bytes(raw)
+    monkeypatch.setattr(runner, "LATER_ARCHIVE_SHA256", hashlib.sha256(raw).hexdigest())
+    with pytest.raises(ValueError, match="price range"):
+        runner.write_snapshot(inputs, tmp_path / "unexpected", later_archive=later)
 
 
 def test_conflicting_report_is_preserved(tmp_path):
