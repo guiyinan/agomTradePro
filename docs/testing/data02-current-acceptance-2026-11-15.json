@@ -10306,6 +10306,46 @@
                               "target_valuation_assets": 0,
                               "source_universe": 5568,
                               "provider_attempts_in_skipped_window": 0,
+                              "evening_window": {
+                                "candidate_sha": "7cfa83a2f5b48f38dbc615f04c3b367061547e17",
+                                "attempt_id": "2d04ed716c7e482bafc77caf0fcef991",
+                                "outcome": "stopped_before_diagnostic_graph_dispatches_above_continuation_limit",
+                                "publication_run": 45175710197,
+                                "publication_artifact_sha256": "1f837db0f1f42e379f382ab400db01d7bd662d148ad8d76c9144fe395ea1cbaa",
+                                "publication_valid_until": "2026-11-24T12:35:14+00:00",
+                                "latest_runner": "2026-11-23T23:59:59+08:00",
+                                "window_end": "2026-11-24T14:29:59+08:00",
+                                "source_arrival": {
+                                  "admission_basis": "Target-date valuation fact and matching successful stock/provider ingestion audit",
+                                  "fact_pk": 286546,
+                                  "audit_pk": 74429,
+                                  "valuation_assets_at_freeze": 85
+                                },
+                                "prepare_outcome": "complete",
+                                "restored_universe": 5581,
+                                "graph_dispatches": 35,
+                                "graph_continue_max": 29,
+                                "market_cumulative_upper": 368,
+                                "full_allocation_if_continued": 534,
+                                "market_ceiling": 528,
+                                "diagnostic_dispatches": 0,
+                                "financial_stage_dispatches": 0,
+                                "runner_started": false,
+                                "evidence": [
+                                  {
+                                    "path": ".tmp/data02-guard-20261122/s6-7cfa83a2f-evening/selected-window.json",
+                                    "sha256": "2eecd92edd6297cea6e8b6fcb97948335f08841f44610757c7899c16ef475f98"
+                                  },
+                                  {
+                                    "path": ".tmp/data02-guard-20261122/s6-7cfa83a2f-evening/graph-verified.json",
+                                    "sha256": "f444ca85d00ce9c8858203f71c30050820082bd1344a5ec71c277dea32335387"
+                                  },
+                                  {
+                                    "path": ".tmp/data02-guard-20261122/s6-7cfa83a2f-evening/evening-terminal-review.json",
+                                    "sha256": "9c3d8ba439f95fc569c36f173a15ce42d9516307682f400a686df78f13f1c9bb"
+                                  }
+                                ]
+                              },
                               "source_arrival_history": {
                                 "path": ".tmp/data02-guard-20261122/two-workers/valuation-arrivals.json",
                                 "sha256": "4406f11ac20df5ca6df82d2cd285b51d4e032de5996c84010fdf07efe057cf83"
