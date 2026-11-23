@@ -728,3 +728,11 @@ python -m scripts.run_cal03_snapshot_walk_forward --archive .tmp/cal03-event-stu
 **正式评分组件验收（2026-11-23）**。原一次性回执控制已可调用 `FinalCalendarEvaluator`。调用方须先核验真实输入资格与注册参数，绑定 Research 的 experiment、trial、family 和 PIT manifest。读入端按已提交回执解析精确版本、交易日历、因果特征、预登记区间和完整假设族；写出端接收带有回执身份的报告。评分器检查绑定和最终区间，使用冻结切分的训练行拟合三个模型，按目标、期限给出训练误差、走步验证、最终误差、三种重叠筛选、事件支持数和完整假设族的校正结果。
 
 合成演练覆盖三个指数、1/3/5 日期限和每组 504 个最终预测日，独立内存回执的两次报告逐值一致，27 项 Holm 与探索性 BH 校正通过独立核对。演练命令为 `python -m pytest tests/unit/research/test_calendar_final_scoring.py -q`。组合入口已接入岭回归和按回执编号发布的不可覆盖 JSON 报告。真实交付档案、来源使用凭据、相应的精确版本读入适配、真实绑定和最终报告仍待完成。工程演练未查询真实最终价格或领取真实回执。对外询证范围和相关原件见同一证据索引。
+
+**全时期公开收盘价复跑（2026-11-23）**。中证官网短区间查询补回年度响应缺少的 2010-12-31，三只指数的 2010-12-30 收盘均与年度响应一致。训练和验证全程使用官网收盘价，覆盖 2010-01-04 至 2024-10-15，每只指数 3,588 个交易日。另与已有通道逐日比对，每只指数重叠 3,587 日，最大绝对差均为 0.005 点。2021-05-11 已计入全部十折验证所用的价格序列。日期轴和分折安排仍来自冻结归档。
+
+```powershell
+python -m scripts.run_cal03_snapshot_walk_forward --archive .tmp/cal03-event-study-20261119/coverage-audit-v1 --later-archive .tmp/cal03-event-study-20261119/later-validation-20261123/prices --csi-archive .tmp/cal03-event-study-20261119/public-20210511 --event-archive .tmp/cal03-event-study-20261119 --public-prices --output .tmp/cal03-public-replay
+```
+
+九组新增时期比较的误差均上升（0.138% 至 1.358%），剔除节前 T−2 或整段重叠窗口后仍无改善。两次独立复跑输出逐字节一致。QMT 通过自动发现及指定本地日线目录两条路径复查均未连上 XtQuant 行情服务，本次结论使用中证官网数据。该快照可复验研究结果；正式验收仍需核实每日 18:00 前可得的历史版本和更正记录。最终 OOS 保持锁定。

@@ -49,6 +49,7 @@ ARCHIVE_SHA256 = "4fe7ba52497571c04cfa82a73bbc926f3a872fc5cb1346259a4f9882c187f2
 LATER_ARCHIVE_SHA256 = "6d6d78649a1ba7fb2d7e9429e1b1b8b1b0637a14830952a5aeacb974b8ea5b3a"
 LATER_DESIGN_SHA256 = "be27ca2306ed01026286baecaca605746a0faf6bd06eecb53f69ca64761a8fbe"
 CSI_COVERAGE_SHA256 = "d52c70af7c99849be75042ea6b8ff79b75e177770444829e45495567557a92c6"
+CSI_YEAR_END_SHA256 = "a53bec93e13d0e92a540d675464a732718fb6e2ade68ca1d1bc87d789a9b3553"
 _CSI_URL = "https://www.csindex.com.cn/csindex-home/perf/index-perf"
 _START = date(2010, 1, 4)
 _PRICE_END = date(2018, 12, 31)
@@ -156,40 +157,84 @@ class _SourceCheck:
     ignored_non_sessions: tuple[date, ...]
 
 
-def _csi_closes(
-    archive: Path, code: str, days: tuple[date, ...], relay: tuple[float, ...], used: dict[str, str]
-) -> tuple[tuple[float, ...], _SourceCheck]:
+class _CSIResponse(TypedDict):
+    url: str
+    sha256: str
+    rows: int
+
+
+def _csi_response(
+    path: Path, entry: _CSIResponse, code: str, start: date, end: date
+) -> dict[date, float]:
+    expected = f"{_CSI_URL}?indexCode={code}&startDate={start:%Y%m%d}&endDate={end:%Y%m%d}"
+    if entry["url"] != expected:
+        raise ValueError(f"Unexpected CSI query range or target for {path.name}")
+    body = json.loads(_verified(path, entry["sha256"]))
+    if body["code"] != "200" or len(body["data"]) != entry["rows"]:
+        raise ValueError(f"Invalid CSI response for {path.name}")
+    prices = {}
+    for row in body["data"]:
+        day = _day(row["tradeDate"])
+        close = safe_float(row["close"])
+        if (
+            row["indexCode"] != code
+            or not start <= day <= end
+            or day in prices
+            or close is None
+            or close <= 0
+        ):
+            raise ValueError(f"Invalid CSI close for {path.name} on {day}")
+        prices[day] = close
+    return prices
+
+
+def _csi_prices(
+    archive: Path, code: str, days: tuple[date, ...], used: dict[str, str]
+) -> dict[date, float]:
     manifest = json.loads(_verified(archive / "coverage.json", CSI_COVERAGE_SHA256))
     if manifest["source"] != _CSI_URL or _day(manifest["end"]) != days[-1]:
         raise ValueError("CSI archive boundary or source mismatch")
     files = {entry["raw"]: entry for entry in manifest["retrievals"]}
     prices: dict[date, float] = {}
-    for year in range(2019, days[-1].year + 1):
-        start = date(year, 1, 1)
+    for year in range(days[0].year, days[-1].year + 1):
+        start = max(_START, date(year, 1, 1))
         end = min(date(year, 12, 31), days[-1])
         name = f"{code}-{year}.json"
-        expected = f"{_CSI_URL}?indexCode={code}&startDate={start:%Y%m%d}&endDate={end:%Y%m%d}"
         entry = files.get(name)
-        if entry is None or entry["url"] != expected:
+        if entry is None:
             raise ValueError(f"Unexpected CSI query range or target for {name}")
-        body = json.loads(_verified(archive / "csi-history" / name, entry["sha256"]))
-        if body["code"] != "200" or len(body["data"]) != entry["rows"]:
-            raise ValueError(f"Invalid CSI response for {name}")
+        prices.update(_csi_response(archive / "csi-history" / name, entry, code, start, end))
         used[name] = entry["sha256"]
-        for row in body["data"]:
-            d = _day(row["tradeDate"])
-            close = safe_float(row["close"])
-            if (
-                row["indexCode"] != code
-                or not start <= d <= end
-                or d in prices
-                or close is None
-                or close <= 0
-            ):
-                raise ValueError(f"Invalid CSI close for {name} on {d}")
-            prices[d] = close
+    if days[0] == _START:
+        if date(2011, 1, 4) > days[-1]:
+            raise ValueError("CSI supplement query extends beyond the permitted range")
+        folder = archive / "year-end-2010"
+        record = json.loads(_verified(folder / "manifest.json", CSI_YEAR_END_SHA256))[code]
+        extra = _csi_response(
+            folder / f"{code}.json", record, code, date(2010, 12, 30), date(2011, 1, 4)
+        )
+        gap = date(2010, 12, 31)
+        common = extra.keys() & prices.keys()
+        if (
+            set(days) - prices.keys() != {gap}
+            or gap not in extra
+            or date(2010, 12, 30) not in common
+            or any(extra[d] != prices[d] for d in common)
+        ):
+            raise ValueError(
+                f"CSI year-end supplement disagrees with the annual archive for {code}"
+            )
+        prices[gap] = extra[gap]
+        used[f"year-end-2010/{code}.json"] = record["sha256"]
     if set(days) - prices.keys():
         raise ValueError(f"Incomplete CSI session coverage for {code}")
+    return prices
+
+
+def _csi_closes(
+    archive: Path, code: str, days: tuple[date, ...], relay: tuple[float, ...], used: dict[str, str]
+) -> tuple[tuple[float, ...], _SourceCheck]:
+    prices = _csi_prices(archive, code, days, used)
     pairs = [(prices[d], p) for d, p in zip(days, relay, strict=True) if math.isfinite(p)]
     if not pairs:
         raise ValueError(f"No common sessions to validate the source switch for {code}")
@@ -670,12 +715,15 @@ def write_snapshot(
     event_archive: Path | None = None,
     later_archive: Path | None = None,
     csi_archive: Path | None = None,
+    public_prices: bool = False,
 ) -> None:
     """Verify the retained input bundle and publish an offline development report."""
     spec_path = (
         Path(__file__).resolve().parents[1] / "tests/fixtures/research/cal_event_study_v1.json"
     )
     design = load_validation_design(spec_path)
+    if public_prices and csi_archive is None:
+        raise ValueError("Public closes require --csi-archive and the frozen later design")
     if csi_archive is not None and later_archive is None:
         raise ValueError(
             "CSI source comparison requires --later-archive for the frozen design and matched control"
@@ -698,18 +746,22 @@ def write_snapshot(
     later_queries: list[_Query] = []
     frozen_folds: list[list[str]] = []
     if later_archive is not None:
-        later_manifest = json.loads(_verified(later_archive / "report.json", LATER_ARCHIVE_SHA256))
         frozen = json.loads(_verified(later_archive / "design.json", LATER_DESIGN_SHA256))
         if (
-            later_manifest["design_sha256"] != LATER_DESIGN_SHA256
-            or frozen["spec_sha256"] != SPEC_SHA256
+            frozen["spec_sha256"] != SPEC_SHA256
             or frozen["archive_sha256"] != ARCHIVE_SHA256
             or _day(frozen["reserved_start"]) != dates[reserve_start]
             or _day(frozen["end_date"]) != price_days[-1]
             or frozen["targets"] != [f"{c}.SH" for c in design.targets]
         ):
             raise ValueError("Later archive does not match the frozen design and OOS boundary")
-        later_queries = later_manifest["queries"]
+        if not public_prices:
+            later_manifest = json.loads(
+                _verified(later_archive / "report.json", LATER_ARCHIVE_SHA256)
+            )
+            if later_manifest["design_sha256"] != LATER_DESIGN_SHA256:
+                raise ValueError("Later archive does not match the frozen design")
+            later_queries = later_manifest["queries"]
         frozen_folds = frozen["folds"]
     panel = (
         load_holiday_panel(
@@ -725,6 +777,7 @@ def write_snapshot(
     later_support: dict[str, dict[int, list[_LaterFoldSupport]]] = {}
     missing_dates: dict[str, list[date]] = {}
     checks: dict[str, _SourceCheck] = {}
+    official_counts: dict[str, int] = {}
     controls: list[dict[str, object]] = []
     source_lines = [
         "",
@@ -762,11 +815,16 @@ def write_snapshot(
         ]
         if len(folds) < design.policy.minimum_folds:
             raise ValueError("Too few complete early validation folds")
-        prices = _closes(
-            archive, _target_query(queries, "early_price_quality", target), target, early, used
-        )
+        if public_prices and csi_archive is not None:
+            official = _csi_prices(csi_archive, code, price_days, used)
+            prices = tuple(official[day] for day in price_days)
+            official_counts[target] = len(prices)
+        else:
+            prices = _closes(
+                archive, _target_query(queries, "early_price_quality", target), target, early, used
+            )
         missing: set[int] = set()
-        if later_archive is not None:
+        if later_archive is not None and not public_prices:
             later_prices = _closes(
                 later_archive,
                 _target_query(later_queries, "later_price", target),
@@ -785,6 +843,7 @@ def write_snapshot(
                 )
             prices += later_prices
             missing = {i for i, v in enumerate(prices) if math.isnan(v)}
+        if later_archive is not None:
             missing_dates[target] = [price_days[i] for i in sorted(missing)]
             later_support[target] = {}
         squares = _squared_returns(prices)
@@ -802,7 +861,7 @@ def write_snapshot(
                 later_support[target][h] = audit
             result, scored = _score(target, h, price_days, squares, features, evaluate, design)
             results.append(result)
-            if csi_archive is not None:
+            if csi_archive is not None and not public_prices:
                 matched, _ = _later_cohort(
                     plan.folds, dates, reserve_start, relay_missing, h, design
                 )
@@ -893,12 +952,24 @@ def write_snapshot(
         if csi_archive is None
         else "2018 年及以前的原通道快照及 2019 年起的中证指数官网收盘快照"
     )
+    if public_prices:
+        source = "中证指数官网留存的全时期公开收盘快照"
     markdown = _markdown(results, price_days[-1], design, slices, source=source)
     if later_archive is not None:
         fields, comparison = _later_report(results, early_effects, later_support, missing_dates)
         report.update(fields)
         markdown += comparison
-    if csi_archive is not None:
+    if public_prices:
+        report.pop("later_archive_sha256", None)
+        report.update(
+            {
+                "price_source": source,
+                "csi_coverage_sha256": CSI_COVERAGE_SHA256,
+                "year_end_supplement_sha256": CSI_YEAR_END_SHA256,
+                "official_sessions_per_target": official_counts,
+            }
+        )
+    elif csi_archive is not None:
         report.update(
             {
                 "price_source": source,
@@ -949,6 +1020,11 @@ def main() -> None:
         type=Path,
         help="Official CSI archive for the post-2018 period; compare with --later-archive",
     )
+    parser.add_argument(
+        "--public-prices",
+        action="store_true",
+        help="Use official CSI closes for the entire training and validation history",
+    )
     args = parser.parse_args()
     try:
         write_snapshot(
@@ -957,6 +1033,7 @@ def main() -> None:
             event_archive=args.event_archive,
             later_archive=args.later_archive,
             csi_archive=args.csi_archive,
+            public_prices=args.public_prices,
         )
     except (ValueError, OSError) as exc:
         parser.exit(1, f"CAL-03 replay failed: {exc}\n")

@@ -2445,5 +2445,128 @@
     "diagnostics": "Initial module map check detected new application entry points; regenerated projection and checked final source tree.",
     "real_final_receipt_consumed": false,
     "real_final_prices_accessed": false
+  },
+  "all_public_closes_and_qmt_retry_20261123": {
+    "base_commit": "d42db8688760ac749106a8517e03f44bdda87adb",
+    "source_blobs": {
+      "scripts/run_cal03_snapshot_walk_forward.py": "822252d9ed8171a66802f460264b753055e804b8",
+      "tests/unit/research/test_cal03_snapshot_runner.py": "9e646c5c8ddf7e4f3d5394b26ffbcf5a55cba58e"
+    },
+    "inputs": {
+      "csi_coverage_sha256": "d52c70af7c99849be75042ea6b8ff79b75e177770444829e45495567557a92c6",
+      "supplement": {
+        "path": ".tmp/cal03-event-study-20261119/public-20210511/year-end-2010/manifest.json",
+        "sha256": "a53bec93e13d0e92a540d675464a732718fb6e2ade68ca1d1bc87d789a9b3553"
+      },
+      "frozen_design_sha256": "be27ca2306ed01026286baecaca605746a0faf6bd06eecb53f69ca64761a8fbe"
+    },
+    "official_sessions_per_target": {
+      "000016.SH": 3588,
+      "000300.SH": 3588,
+      "000905.SH": 3588
+    },
+    "cross_channel_checks": {
+      "000016.SH": {
+        "common": 3587,
+        "gap_close": "3437.71",
+        "max_abs_points": "0.005"
+      },
+      "000300.SH": {
+        "common": 3587,
+        "gap_close": "5023.06",
+        "max_abs_points": "0.005"
+      },
+      "000905.SH": {
+        "common": 3587,
+        "gap_close": "6456.04",
+        "max_abs_points": "0.005"
+      }
+    },
+    "summary": "Ten complete folds, 1260 predictions per comparison. All nine MSE increases range from 0.138% to 1.358%; minimum Holm p 0.7049. All 27 holiday-sensitivity Holm p values equal one. Repeat output and prior-mode regression byte-matched their references.",
+    "outputs": [
+      {
+        "path": ".tmp/cal03-event-study-20261119/public-only-1795442690344/report/report.md",
+        "sha256": "53fda61ba85947af7cee4cca6bb2df99069330c17c154c591aa9cdb694400025"
+      },
+      {
+        "path": ".tmp/cal03-event-study-20261119/public-only-1795442690344/report/results.json",
+        "sha256": "fc03df9c5f63d3d90527144a2f5fefbe6658b733e2f2b43cedaacc52101fcdbd"
+      }
+    ],
+    "checks": {
+      "run": {
+        "command": "agomtradepro/Scripts/python.exe -m scripts.run_cal03_snapshot_walk_forward --archive .tmp/cal03-event-study-20261119/coverage-audit-v1 --later-archive .tmp/cal03-event-study-20261119/later-validation-20261123/prices --event-archive .tmp/cal03-event-study-20261119 --csi-archive .tmp/cal03-event-study-20261119/public-20210511 --public-prices --output .tmp/cal03-event-study-20261119/public-only-1795442690344/report",
+        "exit": 0,
+        "path": ".tmp/cal03-event-study-20261119/public-only-1795442690344/run.log",
+        "sha256": "cf3e9716ac6557bdae39e45f27f817110af6a7f47e38fee2cc2f1326bd135cb6"
+      },
+      "tests": {
+        "command": "agomtradepro/Scripts/python.exe -m pytest --noconftest -c .tmp/cal03-event-study-20261119/pytest.ini -q tests/unit/research/test_cal03_snapshot_runner.py tests/unit/research/test_calendar_validation_report.py tests/unit/research/test_snapshot_holiday_overlap.py tests/unit/research/test_institutional_event_study.py tests/unit/research/test_institutional_event_study_walk_forward.py",
+        "exit": 0,
+        "path": ".tmp/cal03-event-study-20261119/public-only-1795442690344/tests.log",
+        "sha256": "4b42e55982073bcc5f92a229e90c01d67b0d29201332f56c691591efd223d6d0"
+      },
+      "mypy": {
+        "command": "$env:MYPY_CACHE_DIR='.tmp/cal03-event-study-20261119/control-mypy-incremental'\nagomtradepro/Scripts/python.exe scripts/check_mypy_regression.py scripts/run_cal03_snapshot_walk_forward.py",
+        "exit": 0,
+        "path": ".tmp/cal03-event-study-20261119/public-only-1795442690344/mypy.log",
+        "sha256": "1696369e79514135c6c84d87d82a0fc9c6a7026a4b6fda77e8a7e9b50eef135b"
+      },
+      "debt": {
+        "command": "$env:MYPY_CACHE_DIR='.tmp/cal03-event-study-20261119/control-mypy-debt'\nagomtradepro/Scripts/python.exe scripts/check_mypy_debt_ceiling.py",
+        "exit": 0,
+        "path": ".tmp/cal03-event-study-20261119/public-only-1795442690344/debt.log",
+        "sha256": "def6c561b37227470bcda90c8450d9837ca85dd34af34d05e7d6af2afdf85ab1"
+      },
+      "black": {
+        "command": "agomtradepro/Scripts/python.exe -m black --check scripts/run_cal03_snapshot_walk_forward.py tests/unit/research/test_cal03_snapshot_runner.py",
+        "exit": 0,
+        "path": ".tmp/cal03-event-study-20261119/public-only-1795442690344/black.log",
+        "sha256": "42952929f98ff284b84ffc33f5fca4e517620f9b2ceb3fca1375e504affa8195"
+      },
+      "isort": {
+        "command": "agomtradepro/Scripts/python.exe -m isort --check-only scripts/run_cal03_snapshot_walk_forward.py tests/unit/research/test_cal03_snapshot_runner.py",
+        "exit": 0,
+        "path": ".tmp/cal03-event-study-20261119/public-only-1795442690344/isort.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "ruff": {
+        "command": "agomtradepro/Scripts/python.exe -m ruff check scripts/run_cal03_snapshot_walk_forward.py tests/unit/research/test_cal03_snapshot_runner.py",
+        "exit": 0,
+        "path": ".tmp/cal03-event-study-20261119/public-only-1795442690344/ruff.log",
+        "sha256": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0"
+      },
+      "repeat": {
+        "command": "agomtradepro/Scripts/python.exe -m scripts.run_cal03_snapshot_walk_forward --archive .tmp/cal03-event-study-20261119/coverage-audit-v1 --later-archive .tmp/cal03-event-study-20261119/later-validation-20261123/prices --event-archive .tmp/cal03-event-study-20261119 --csi-archive .tmp/cal03-event-study-20261119/public-20210511 --public-prices --output .tmp/cal03-event-study-20261119/public-only-1795442690344/repeat",
+        "exit": 0,
+        "path": ".tmp/cal03-event-study-20261119/public-only-1795442690344/repeat.log",
+        "sha256": "0820b513ad971fcc8f3ee4e8a81f7be3bde97fbf73e1e87ef9cad8c632260bc8"
+      },
+      "old": {
+        "command": "agomtradepro/Scripts/python.exe -m scripts.run_cal03_snapshot_walk_forward --archive .tmp/cal03-event-study-20261119/coverage-audit-v1 --later-archive .tmp/cal03-event-study-20261119/later-validation-20261123/prices --event-archive .tmp/cal03-event-study-20261119 --csi-archive .tmp/cal03-event-study-20261119/public-20210511 --output .tmp/cal03-event-study-20261119/public-only-1795442690344/legacy",
+        "exit": 0,
+        "path": ".tmp/cal03-event-study-20261119/public-only-1795442690344/old.log",
+        "sha256": "3885415143c173123097441182b7320071be430fbd2f8f6f922671a3b1de47e9"
+      }
+    },
+    "targeted_tests_passed": 143,
+    "independent_audit": {
+      "path": ".tmp/cal03-event-study-20261119/public-only-1795442690344/verify.py",
+      "sha256": "ffa4c6ca4f11939209c0527484ba47658a8da7793ca73b2b90aaaefef47422ae"
+    },
+    "qmt": {
+      "probe": {
+        "path": ".tmp/cal03-event-study-20261119/public-only-1795442690344/qmt-retry.json",
+        "sha256": "aec8190d291f8cc7266dc55ba3445127f3c9424e458b5ecd53bf4b2e546f6f08"
+      },
+      "client_log_excerpt": {
+        "path": ".tmp/cal03-event-study-20261119/public-only-1795442690344/qmt-log-match.json",
+        "sha256": "298fa6d78e4712014f2e9cc6a18f0a47dfb73d8f690bc7edeb90c02caaaf9193"
+      },
+      "status": "No registered quote service. Automatic connection and explicit local daily-cache read both failed. Client logged that XtQuantServer was not allowed to start."
+    },
+    "pit_qualified": false,
+    "real_final_prices_accessed": false,
+    "real_final_receipt_consumed": false
   }
 }

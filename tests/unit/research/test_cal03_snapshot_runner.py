@@ -424,6 +424,78 @@ def test_official_source_restores_folds_and_preserves_matched_control(
         ]
 
 
+def test_public_prices_run_without_any_relay_price_inputs(later_bundle, tmp_path, monkeypatch):
+    inputs, later, _, _, _ = later_bundle
+    (later / "report.json").unlink()
+    monkeypatch.setattr(
+        runner, "_closes", lambda *args, **kwargs: pytest.fail("read relay price table")
+    )
+    totals = {}
+
+    def public_table(archive, code, days, used):
+        assert days[0] == runner._START
+        totals[code + ".SH"] = len(days)
+        return {day: 100.0 + i / 55 + (i % 7) / 10 for i, day in enumerate(days)}
+
+    monkeypatch.setattr(runner, "_csi_prices", public_table)
+    dest = tmp_path / "public"
+    runner.write_snapshot(
+        inputs, dest, later_archive=later, csi_archive=tmp_path, public_prices=True
+    )
+    report = json.loads((dest / "results.json").read_bytes())
+    assert report["official_sessions_per_target"] == totals and len(totals) == 3
+    assert "later_archive_sha256" not in report and "source_controls" not in report
+    assert (
+        all(not days for days in report["missing_closes"].values()) and not report["oos_evaluated"]
+    )
+
+
+def test_year_end_supplement_checks_shared_close_before_filling(tmp_path, monkeypatch):
+    days = (runner._START, date(2010, 12, 30), date(2010, 12, 31), date(2011, 1, 4))
+    code = "000300"
+
+    def response(folder, name, start, end, points):
+        folder.mkdir(exist_ok=True)
+        data = [
+            {"indexCode": code, "tradeDate": d.strftime("%Y%m%d"), "close": value}
+            for d, value in points
+        ]
+        raw = json.dumps({"code": "200", "data": data}).encode()
+        (folder / name).write_bytes(raw)
+        return {
+            "raw": name,
+            "url": f"{runner._CSI_URL}?indexCode={code}&startDate={start}&endDate={end}",
+            "sha256": hashlib.sha256(raw).hexdigest(),
+            "rows": len(data),
+        }
+
+    folder = tmp_path / "csi-history"
+    entries = [
+        response(
+            folder, "000300-2010.json", "20100104", "20101231", [(days[0], 100), (days[1], 102)]
+        ),
+        response(folder, "000300-2011.json", "20110101", "20110104", [(days[3], 104)]),
+    ]
+    raw = json.dumps({"source": runner._CSI_URL, "end": "20110104", "retrievals": entries}).encode()
+    (tmp_path / "coverage.json").write_bytes(raw)
+    monkeypatch.setattr(runner, "CSI_COVERAGE_SHA256", hashlib.sha256(raw).hexdigest())
+    extra = tmp_path / "year-end-2010"
+    for shared in (102, 99):
+        entry = response(
+            extra, "000300.json", "20101230", "20110104", [(days[1], shared), (days[2], 103)]
+        )
+        manifest = json.dumps({code: entry}).encode()
+        (extra / "manifest.json").write_bytes(manifest)
+        monkeypatch.setattr(runner, "CSI_YEAR_END_SHA256", hashlib.sha256(manifest).hexdigest())
+        if shared == 102:
+            assert runner._csi_prices(tmp_path, code, days, {}) == dict(
+                zip(days, [100, 102, 103, 104], strict=True)
+            )
+        else:
+            with pytest.raises(ValueError, match="supplement disagrees"):
+                runner._csi_prices(tmp_path, code, days, {})
+
+
 def test_conflicting_report_is_preserved(tmp_path):
     output = tmp_path / "report"
     runner._publish(output, {"report.md": b"original", "results.json": b"{}"})
