@@ -10,7 +10,7 @@ import platform
 from bisect import bisect_right
 from collections import Counter
 from collections.abc import Iterator, Sequence
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from datetime import date, datetime, time
 from importlib.metadata import version
 from itertools import pairwise
@@ -21,17 +21,24 @@ from typing import TypedDict
 from zoneinfo import ZoneInfo
 
 from apps.data_center.domain.institutional_calendar import six_period_for
-from apps.research.application.calendar_validation import ValidationDesign
+from apps.research.application.calendar_validation import ValidationDesign, ValidationSlice
 from apps.research.domain.calendar_validation_statistics import LossInference, paired_loss_inference
 from apps.research.domain.institutional_event_study import (
     Session,
     WalkForwardFold,
+    holm_adjusted_p_values,
     plan_walk_forward,
     six_category_contrast,
 )
+from apps.research.domain.statistics import benjamini_hochberg_q_values
 from apps.research.infrastructure.calendar_validation_design import (
     SPEC_SHA256,
     load_validation_design,
+)
+from apps.research.infrastructure.sse_holiday_overlap import (
+    REVIEW_SHA256,
+    HolidayPanel,
+    load_holiday_panel,
 )
 from apps.research.infrastructure.validation_ridge import ridge_predict
 from shared.numeric import safe_float
@@ -185,10 +192,10 @@ def _score(
     features: list[tuple[tuple[float, ...], ...]],
     folds: Sequence[WalkForwardFold],
     design: ValidationDesign,
-) -> _Result:
+) -> tuple[_Result, list[tuple[int, float, float]]]:
     labels = [math.fsum(squares[j + 1 : j + h + 1]) for j in range(_WARMUP, len(days) - h)]
     diagnostics = []
-    deltas: list[tuple[int, float]] = []
+    scored: list[tuple[int, float, float]] = []
     for fold in folds:
         train = fold.training_origins
         val = range(fold.validation_origins.start, fold.validation_origins.stop)
@@ -206,7 +213,7 @@ def _score(
                 penalty=design.ridge_penalty,
             )
             losses.append([(labels[i] - p) ** 2 for i, p in zip(val, pred, strict=True)])
-        deltas.extend((i, a - b) for i, a, b in zip(val, losses[1], losses[2], strict=True))
+        scored.extend(zip(val, losses[1], losses[2], strict=True))
         diagnostics.append(
             _Fold(
                 days[_WARMUP + val.start].strftime("%Y%m%d"),
@@ -218,19 +225,129 @@ def _score(
             )
         )
     mse = tuple(mean(f.mse[i] for f in diagnostics) for i in range(3))
-    return _Result(
-        target,
-        h,
-        tuple(diagnostics),
-        mse,
-        (1 - mse[2] / mse[1]) * 100 if mse[1] else None,
-        paired_loss_inference(
-            tuple(deltas), bandwidth=design.hac_lags, confidence=design.confidence
+    return (
+        _Result(
+            target,
+            h,
+            tuple(diagnostics),
+            mse,
+            (1 - mse[2] / mse[1]) * 100 if mse[1] else None,
+            paired_loss_inference(
+                tuple((i, a - b) for i, a, b in scored),
+                bandwidth=design.hac_lags,
+                confidence=design.confidence,
+            ),
         ),
+        scored,
     )
 
 
-def _markdown(results: list[_Result], last: date, design: ValidationDesign) -> str:
+@dataclass(frozen=True, kw_only=True)
+class _Sensitivity(ValidationSlice):
+    target: str
+    horizon: int
+    fold_counts: tuple[int, ...]
+    reduction_percent: float | None
+
+
+def _window_start(day: date) -> date:
+    return six_period_for(day, rule_version="snapshot-development").start_date
+
+
+def _selections(
+    days: tuple[date, ...], panel: HolidayPanel
+) -> tuple[tuple[date, ...], dict[str, set[int]]]:
+    marked_days = {m.origin for m in panel.markers}
+    marked_windows = {_window_start(d) for d in marked_days}
+    # Retrospective exclusions never enter model inputs. If a notice arrived
+    # mid-window, its earlier days also cannot certify a clean whole window.
+    windows = tuple(_window_start(day) for day in days)
+    if not days or days[0] < panel.start or days[-1] > panel.end:
+        raise ValueError("Sensitivity outside event coverage")
+    return windows, {
+        "all": set(range(len(days))),
+        "single_event": {i for i, d in enumerate(days) if d not in marked_days},
+        "exclusive_window": {i for i, w in enumerate(windows) if w not in marked_windows},
+    }
+
+
+def _sensitivity(
+    result: _Result,
+    scored: list[tuple[int, float, float]],
+    folds: Sequence[WalkForwardFold],
+    windows: tuple[date, ...],
+    selections: dict[str, set[int]],
+    design: ValidationDesign,
+) -> list[_Sensitivity]:
+    estimates = []
+    for name, include in selections.items():
+        selected = [(i, a, b) for i, a, b in scored if i in include]
+        training = [{windows[i] for i in f.training_origins if i in include} for f in folds]
+        train_union = set.union(*training)
+        minimum = min(map(len, training))
+        val_windows = {windows[i] for i, _, _ in selected}
+        distinct = len(train_union | val_windows)
+        counts = tuple(
+            sum(i in include for i in range(f.validation_origins.start, f.validation_origins.stop))
+            for f in folds
+        )
+        reasons: tuple[str, ...] = ()
+        inference = None
+        if (
+            minimum < design.gates.training_min
+            or len(val_windows) < design.gates.validation_min
+            or distinct < design.gates.distinct_total_min
+            or not all(counts)
+        ):
+            reasons = ("EVENT_SUPPORT_INSUFFICIENT",)
+        else:
+            inference = paired_loss_inference(
+                tuple((i, a - b) for i, a, b in selected),
+                bandwidth=design.hac_lags,
+                confidence=design.confidence,
+            )
+            if inference.raw_p is None:
+                reasons = ("LOSS_INFERENCE_UNAVAILABLE",)
+        adjusted = math.fsum(a for _, a, _ in selected)
+        with_period = math.fsum(b for _, _, b in selected)
+        estimates.append(
+            _Sensitivity(
+                name=name,
+                target=result.target,
+                horizon=result.horizon,
+                observations=len(selected),
+                training_windows=len(train_union),
+                minimum_fold_training_windows=minimum,
+                validation_windows=len(val_windows),
+                distinct_windows=distinct,
+                fold_counts=counts,
+                inference=inference,
+                reasons=reasons,
+                reduction_percent=(1 - with_period / adjusted) * 100 if adjusted else None,
+            )
+        )
+    return estimates
+
+
+def _correct_sensitivities(rows: list[_Sensitivity]) -> list[_Sensitivity]:
+    raw = tuple(
+        r.inference.raw_p
+        for r in rows
+        if not r.reasons and r.inference is not None and r.inference.raw_p is not None
+    )
+    if len(raw) != len(rows):
+        return rows
+    return [
+        replace(r, holm_adjusted_p=p, exploratory_bh_q=q)
+        for r, p, q in zip(
+            rows, holm_adjusted_p_values(raw), benjamini_hochberg_q_values(list(raw)), strict=True
+        )
+    ]
+
+
+def _markdown(
+    results: list[_Result], last: date, design: ValidationDesign, slices: list[_Sensitivity]
+) -> str:
     first = results[0].folds[0].start
     end = results[0].folds[-1].end
     lines = [
@@ -242,7 +359,12 @@ def _markdown(results: list[_Result], last: date, design: ValidationDesign) -> s
         f"每折仅用此前的训练集拟合岭回归，再预测随后 {design.policy.validation_sessions} 个交易日。"
         "依次比较历史波动与状态基准、加入星期和月份及月内交易日数的模型、再加入六候的模型。",
         "降幅为加入六候后的验证均方误差相对降幅。区间衡量两个模型逐日配对的误差差值，正数表示加入六候后误差降低。"
-        f"区间采用交易日距离的 Bartlett HAC，带宽 {design.hac_lags}，置信水平 {design.confidence:.0%}。仅作全部预测日的探索性描述，未检验重叠事件子样本。",
+        f"区间采用交易日距离的 Bartlett HAC，带宽 {design.hac_lags}，置信水平 {design.confidence:.0%}。"
+        + (
+            "下表汇总全部预测日。"
+            if slices
+            else "仅作全部预测日的探索性描述，未检验重叠事件子样本。"
+        ),
         "",
         "| 指数 | 期限（日） | 折数 | 验证预测日 | 误差降幅 | 配对误差差值区间 |",
         "|---|---:|---:|---:|---:|---|",
@@ -264,6 +386,33 @@ def _markdown(results: list[_Result], last: date, design: ValidationDesign) -> s
             "各区间按单项估计，未做多重校正。逐折训练与验证样本数、标签结束日期和三种模型的均方误差见同目录 results.json。",
         ]
     )
+    if slices:
+        lines.extend(
+            [
+                "",
+                "## 与上交所节前 T−2 重叠的敏感性",
+                "",
+                "每折沿用同一组预测。以公告休市首日之前的倒数第二个实际交易日为 T−2，仅纳入至少关闭一个工作日的安排。"
+                "单事件组剔除 T−2 当天，互斥窗口组剔除包含 T−2 的整个六候自然日窗口。上述标签仅描述与所核上交所休市公告的重叠。"
+                "期权到期、指数调仓等其他事件未纳入。区间为逐项探索性区间，Holm p 在本次 27 项比较内计算。",
+                "",
+                "| 指数 | 期限（日） | 样本 | 保留日数 | 误差降幅 | 配对差值区间 | Holm p |",
+                "|---|---:|---|---:|---:|---|---:|",
+            ]
+        )
+        names = {"all": "全部", "single_event": "剔除 T−2 当天", "exclusive_window": "剔除重叠六候"}
+        for s in slices:
+            estimate = s.inference
+            ci = (
+                f"{estimate.lower:.5g} ～ {estimate.upper:.5g}"
+                if estimate and estimate.lower is not None and estimate.upper is not None
+                else "无法估计"
+            )
+            effect = f"{s.reduction_percent:+.3f}%" if s.reduction_percent is not None else "—"
+            p = f"{s.holm_adjusted_p:.4g}" if s.holm_adjusted_p is not None else "—"
+            lines.append(
+                f"| {s.target} | {s.horizon} | {names[s.name]} | {s.observations} | {effect} | {ci} | {p} |"
+            )
     return "\n".join(lines) + "\n"
 
 
@@ -288,7 +437,7 @@ def _publish(output: Path, files: dict[str, bytes]) -> None:
             raise ValueError("Output already exists; choose a new report directory")
 
 
-def write_snapshot(archive: Path, output: Path) -> None:
+def write_snapshot(archive: Path, output: Path, *, event_archive: Path | None = None) -> None:
     """Verify the retained input bundle and publish an offline development report."""
     spec_path = (
         Path(__file__).resolve().parents[1] / "tests/fixtures/research/cal_event_study_v1.json"
@@ -305,6 +454,13 @@ def write_snapshot(archive: Path, output: Path) -> None:
     if len(dates) <= reserve or _PRICE_END >= dates[-reserve]:
         raise ValueError("Early price range intersects the reserved period")
     early = dates[: bisect_right(dates, _PRICE_END)]
+    panel = (
+        load_holiday_panel(event_archive, dates, _START, _PRICE_END)
+        if event_archive is not None
+        else None
+    )
+    selection = _selections(early[_WARMUP:], panel) if panel is not None else None
+    slices: list[_Sensitivity] = []
     results: list[_Result] = []
     for code in design.targets:
         target = f"{code}.SH"
@@ -339,10 +495,11 @@ def write_snapshot(archive: Path, output: Path) -> None:
         log_prices = tuple(map(math.log, prices))
         squares = (0.0, *((b - a) ** 2 for a, b in pairwise(log_prices)))
         features = _features(early, squares, design)
-        results.extend(
-            _score(target, h, early, squares, features, folds, design)
-            for h in design.clock.horizons
-        )
+        for h in design.clock.horizons:
+            result, scored = _score(target, h, early, squares, features, folds, design)
+            results.append(result)
+            if selection is not None:
+                slices.extend(_sensitivity(result, scored, folds, *selection, design))
     report = {
         "scope": "current-vintage pre-2019 descriptive development only",
         "spec_sha256": SPEC_SHA256,
@@ -370,13 +527,37 @@ def write_snapshot(archive: Path, output: Path) -> None:
         "runtime": {"python": platform.python_version(), "numpy": version("numpy")},
         "results": [asdict(r) for r in results],
     }
+    if panel is not None:
+        slices = _correct_sensitivities(slices)
+        report["overlap_sensitivities"] = {
+            "scope": "Six-period windows versus verified SSE pre-closure T-2 only; other event families unknown.",
+            "rule": "Second trading session strictly before announced closure with at least one closed weekday; combined holidays form one episode.",
+            "coverage_start": panel.start,
+            "coverage_end": panel.end,
+            "review_sha256": REVIEW_SHA256,
+            "sources": panel.sources,
+            "events": [
+                {
+                    **asdict(m),
+                    "six_period_start": _window_start(m.origin),
+                    "published_before_window": m.closure.published < _window_start(m.origin),
+                }
+                for m in panel.markers
+            ],
+            "window_knowledge": "Retrospective filtering only. When published during a marked window, pre-publication days are also excluded from the exclusive view; the later notice is never a model feature.",
+            "correction_family": "All target/horizon/selection combinations of this retrospective development replay only.",
+            "results": [asdict(s) for s in slices],
+        }
     _publish(
         output,
         {
             "results.json": (
-                json.dumps(report, indent=2, sort_keys=True, allow_nan=False) + "\n"
+                json.dumps(
+                    report, indent=2, sort_keys=True, allow_nan=False, default=date.isoformat
+                )
+                + "\n"
             ).encode(),
-            "report.md": _markdown(results, early[-1], design).encode(),
+            "report.md": _markdown(results, early[-1], design, slices).encode(),
         },
     )
 
@@ -393,9 +574,14 @@ def main() -> None:
         type=Path,
         help="New report directory or an identical previous result",
     )
+    parser.add_argument(
+        "--event-archive",
+        type=Path,
+        help="Retained CAL-03 directory containing calendar-publication-review.json and calendar-originals/",
+    )
     args = parser.parse_args()
     try:
-        write_snapshot(args.archive, args.output)
+        write_snapshot(args.archive, args.output, event_archive=args.event_archive)
     except (ValueError, OSError) as exc:
         parser.exit(1, f"CAL-03 replay failed: {exc}\n")
     print(args.output / "report.md")

@@ -1759,5 +1759,120 @@
       "mypy.log": "Initial shared loader under the namespace scripts was double-discovered by mypy; moved the JSON adapter into the research infrastructure package and verified all three targets together."
     },
     "final_oos_claimed_or_evaluated": false
+  },
+  "pre_close_holiday_overlap_sensitivity_20261123": {
+    "base_head": "11f4b206d1a216caf7517b0d3fdfea54d2b931f3",
+    "verified_source_blobs": {
+      "apps/research/infrastructure/sse_holiday_overlap.py": "e576aa018282394f6d07da25e2789693bf57afff",
+      "scripts/run_cal03_snapshot_walk_forward.py": "fc50d48fddcf84276820191c72a56923d37e9aa9",
+      "tests/unit/research/test_cal03_snapshot_runner.py": "e72f762a1b57214dac68ceec0c271b45aaf80501",
+      "tests/unit/research/test_snapshot_holiday_overlap.py": "bcfaae3dfa72e96a1b159eff9aa6bb882df2aeb1"
+    },
+    "scope": "Six-period windows versus verified SSE pre-closure T-2 only; other event families unknown.",
+    "review_sha256": "e4a5bd7732991c153dadecd5e104c771da39620c218347e6db8cd388dcf19bef",
+    "source_files": 11,
+    "markers": 61,
+    "observation_counts": [
+      882,
+      857,
+      791
+    ],
+    "result": "Seven folds per combination, same predictions. All 27 marginal HAC intervals contain zero; Holm-adjusted p=1 in all 27 development comparisons. No final OOS use. No coverage claimed for other event families.",
+    "checks": {
+      "run": {
+        "command": "agomtradepro/Scripts/python.exe -m scripts.run_cal03_snapshot_walk_forward --archive .tmp/cal03-event-study-20261119/coverage-audit-v1 --event-archive .tmp/cal03-event-study-20261119 --output .tmp/cal03-event-study-20261119/overlap-feature/run",
+        "exit": 0,
+        "path": ".tmp/cal03-event-study-20261119/overlap-feature/final-run.log",
+        "sha256": "a315581c4ea2b2d7ef9af2ea36d7407d451e83dca89e6bff97ea3bb2bdc07ed5"
+      },
+      "replay": {
+        "command": "agomtradepro/Scripts/python.exe -m scripts.run_cal03_snapshot_walk_forward --archive .tmp/cal03-event-study-20261119/coverage-audit-v1 --event-archive .tmp/cal03-event-study-20261119 --output .tmp/cal03-event-study-20261119/overlap-feature/repeat",
+        "exit": 0,
+        "path": ".tmp/cal03-event-study-20261119/overlap-feature/final-replay.log",
+        "sha256": "3090557fe97d0547582053a8906cf724f98f6e78ea7d5528294561307bb0812c"
+      },
+      "baseline": {
+        "command": "agomtradepro/Scripts/python.exe -m scripts.run_cal03_snapshot_walk_forward --archive .tmp/cal03-event-study-20261119/coverage-audit-v1 --output .tmp/cal03-event-study-20261119/overlap-feature/all-only",
+        "exit": 0,
+        "path": ".tmp/cal03-event-study-20261119/overlap-feature/final-baseline.log",
+        "sha256": "aae532319f6b0543ae9c2fa56dcfa771ed67d3206464975cb2d0efc3b535b05b"
+      },
+      "tests": {
+        "command": "agomtradepro/Scripts/python.exe -m pytest --noconftest -c .tmp/cal03-event-study-20261119/pytest.ini -q tests/unit/research/test_snapshot_holiday_overlap.py tests/unit/research/test_cal03_snapshot_runner.py tests/unit/research/test_calendar_validation_report.py tests/unit/research/test_institutional_event_study.py tests/unit/research/test_institutional_event_study_walk_forward.py",
+        "exit": 0,
+        "path": ".tmp/cal03-event-study-20261119/overlap-feature/final-tests.log",
+        "sha256": "04926e7a574d73bbc229b0dee3721cf2c162d16c5eaa8c0fd42216abc208be05"
+      },
+      "mypy": {
+        "command": "$env:MYPY_CACHE_DIR='.tmp/cal03-event-study-20261119/control-mypy-incremental'\nagomtradepro/Scripts/python.exe scripts/check_mypy_regression.py apps/research/infrastructure/sse_holiday_overlap.py scripts/run_cal03_snapshot_walk_forward.py",
+        "exit": 0,
+        "path": ".tmp/cal03-event-study-20261119/overlap-feature/final-mypy.log",
+        "sha256": "5ba4fad13a81b04a0a55439e46f84ebb25f1dcefaf8a0f67d0e71ba1266e2e69"
+      },
+      "debt": {
+        "command": "$env:MYPY_CACHE_DIR='.tmp/cal03-event-study-20261119/control-mypy-debt'\nagomtradepro/Scripts/python.exe scripts/check_mypy_debt_ceiling.py",
+        "exit": 0,
+        "path": ".tmp/cal03-event-study-20261119/overlap-feature/final-debt.log",
+        "sha256": "def6c561b37227470bcda90c8450d9837ca85dd34af34d05e7d6af2afdf85ab1"
+      },
+      "generate": {
+        "command": "agomtradepro/Scripts/python.exe scripts/build_module_map.py",
+        "exit": 0,
+        "path": ".tmp/cal03-event-study-20261119/overlap-feature/generate.log",
+        "sha256": "9f0b6e0bc5060c1f3cb1b97bb8401a0a428193c67fcf976a694b23836eb7af4c"
+      },
+      "map": {
+        "command": "agomtradepro/Scripts/python.exe scripts/check_module_map.py",
+        "exit": 0,
+        "path": ".tmp/cal03-event-study-20261119/overlap-feature/final-map.log",
+        "sha256": "50ba91f9d0e2baa1aeda94701d7695e45116e1326f5651784377318792b43759"
+      },
+      "arch": {
+        "command": "agomtradepro/Scripts/python.exe scripts/check_architecture_delta.py --head-ref HEAD --include-audit --fail-on-audit-violations",
+        "exit": 0,
+        "path": ".tmp/cal03-event-study-20261119/overlap-feature/final-arch.log",
+        "sha256": "118b197880ebc91242ba97cb5fefa9898158ae57f54d58a03e3839095271fe78"
+      },
+      "black": {
+        "command": "agomtradepro/Scripts/python.exe -m black --check apps/research/infrastructure/sse_holiday_overlap.py scripts/run_cal03_snapshot_walk_forward.py tests/unit/research/test_cal03_snapshot_runner.py tests/unit/research/test_snapshot_holiday_overlap.py",
+        "exit": 0,
+        "path": ".tmp/cal03-event-study-20261119/overlap-feature/final-black.log",
+        "sha256": "ce29a48ef7d7d961badb0f7aec2eb4c319c19c85fc5e9b698ba6b9b4bec2d2c7"
+      },
+      "isort": {
+        "command": "agomtradepro/Scripts/python.exe -m isort --check-only apps/research/infrastructure/sse_holiday_overlap.py scripts/run_cal03_snapshot_walk_forward.py tests/unit/research/test_cal03_snapshot_runner.py tests/unit/research/test_snapshot_holiday_overlap.py",
+        "exit": 0,
+        "path": ".tmp/cal03-event-study-20261119/overlap-feature/final-isort.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "ruff": {
+        "command": "agomtradepro/Scripts/python.exe -m ruff check apps/research/infrastructure/sse_holiday_overlap.py scripts/run_cal03_snapshot_walk_forward.py tests/unit/research/test_cal03_snapshot_runner.py tests/unit/research/test_snapshot_holiday_overlap.py",
+        "exit": 0,
+        "path": ".tmp/cal03-event-study-20261119/overlap-feature/final-ruff.log",
+        "sha256": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0"
+      },
+      "audit": {
+        "command": "agomtradepro/Scripts/python.exe .tmp/cal03-event-study-20261119/overlap-feature/verify.py",
+        "exit": 0,
+        "path": ".tmp/cal03-event-study-20261119/overlap-feature/final-audit.log",
+        "sha256": "0a4604ba4eda523ba25c2f76076b6fd07b7b07db0b14ffa5b6adf81e00038ebd"
+      }
+    },
+    "outputs": [
+      {
+        "path": ".tmp/cal03-event-study-20261119/overlap-feature/run/results.json",
+        "sha256": "4731586f0954fd92aa22cb4e2a7b6422a8dec083cf9fe5b77ea2766a95372990"
+      },
+      {
+        "path": ".tmp/cal03-event-study-20261119/overlap-feature/run/report.md",
+        "sha256": "afb2db29eede18e17e56aa84ca9dcfbeb1d346f0722d28cf35ee9671380fa6be"
+      }
+    ],
+    "diagnostics": {
+      "red.log": "Initial test collection failed because the new adapter was missing.",
+      "run.log": "Two New Year notices appeared after their six-period window began but before T-2. The retrospective exclusive view drops the whole affected window and reports the actual publication timing; neither notice enters model inputs.",
+      "mypy.log": "Fixed list/set annotations and narrowed optional inference separately from the main report."
+    },
+    "final_oos_claimed_or_evaluated": false
   }
 }

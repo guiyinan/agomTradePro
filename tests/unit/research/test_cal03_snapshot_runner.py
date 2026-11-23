@@ -147,3 +147,44 @@ def test_conflicting_report_is_preserved(tmp_path):
         runner._publish(output, {"report.md": b"changed", "results.json": b"[]"})
     assert (output / "report.md").read_bytes() == b"original"
     assert (output / "results.json").read_bytes() == b"{}"
+
+
+def test_event_report_rescores_same_predictions_and_preserves_original(
+    archive, tmp_path, monkeypatch
+):
+    from apps.research.infrastructure.sse_holiday_overlap import (
+        Closure,
+        HolidayMarker,
+        HolidayPanel,
+    )
+
+    inputs, _ = archive
+    before = tmp_path / "before"
+    runner.write_snapshot(inputs, before)
+    baseline = json.loads((before / "results.json").read_bytes())
+    marker = date.fromisoformat(baseline["results"][0]["folds"][0]["start"])
+    closure = Closure(
+        "测试休市", marker + timedelta(days=2), marker + timedelta(days=5), "test", date(2009, 1, 1)
+    )
+    panel = HolidayPanel(
+        date(2010, 1, 4), date(2018, 12, 31), (HolidayMarker(marker, closure),), {}
+    )
+    monkeypatch.setattr(runner, "load_holiday_panel", lambda *_: panel)
+    after = tmp_path / "after"
+    runner.write_snapshot(inputs, after, event_archive=inputs)
+    report = json.loads((after / "results.json").read_bytes())
+    assert report["results"] == baseline["results"] and not report["oos_evaluated"]
+    rows = report["overlap_sensitivities"]["results"]
+    assert len(rows) == 27
+    for result in baseline["results"]:
+        all_days, single, exclusive = [
+            r for r in rows if (r["target"], r["horizon"]) == (result["target"], result["horizon"])
+        ]
+        assert all_days["inference"] == result["paired_loss"]
+        assert single["observations"] == all_days["observations"] - 1
+        assert exclusive["observations"] <= single["observations"]
+        assert single["fold_counts"][0] == 125
+        assert all(
+            r["holm_adjusted_p"] is not None and r["exploratory_bh_q"] is not None
+            for r in (all_days, single, exclusive)
+        )
