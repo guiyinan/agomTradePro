@@ -44,9 +44,11 @@ M1_SCOPE_REF = (
 HANDOFF_PLAN_PATH = "docs/plans/a-share-usability-implementation-plan-2026-10-16.md"
 AUTHORIZED_HANDOFF_PLAN_PATHS = {
     "CAL-02": "docs/plans/institutional-calendar-etf-activity-research-plan-2026-11-04.md",
+    "CAL-03": "docs/plans/institutional-calendar-etf-activity-research-plan-2026-11-04.md",
 }
 AUTHORIZED_HANDOFF_SECTIONS = {
     "CAL-02": "13.13",
+    "CAL-03": "13.15",
     "ASH-03": "19.156",
     "ASH-05": "19.187",
     "ASH-07": "19.157",
@@ -150,7 +152,7 @@ def _dependency_cycle(unit_dependencies: dict[str, tuple[str, ...]]) -> bool:
 
 
 def _has_handoff_reference(root: Path, unit_id: object, value: object) -> bool:
-    """Validate a citation for an explicitly authorized completed-unit handoff."""
+    """Validate a citation for an explicitly authorized closure handoff."""
     section = AUTHORIZED_HANDOFF_SECTIONS.get(unit_id) if isinstance(unit_id, str) else None
     plan_path = AUTHORIZED_HANDOFF_PLAN_PATHS.get(str(unit_id), HANDOFF_PLAN_PATH)
     if section is None or value != f"{plan_path}#{section}":
@@ -1089,7 +1091,11 @@ def evaluate_registry(
     handoff_pending_valid = False
     if handoff_pending_present:
         handoff_pending_value = execution_focus.get("handoff_pending")
-        handoff_pending_keys = {"completed_unit_id", "owner_decision_ref", "reason"}
+        archive_handoff = (
+            isinstance(handoff_pending_value, dict) and "archived_unit_id" in handoff_pending_value
+        )
+        anchor_key = "archived_unit_id" if archive_handoff else "completed_unit_id"
+        handoff_pending_keys = {anchor_key, "owner_decision_ref", "reason"}
         if (
             not isinstance(handoff_pending_value, dict)
             or set(handoff_pending_value) != handoff_pending_keys
@@ -1099,7 +1105,7 @@ def evaluate_registry(
                     "execution_focus_handoff_pending_keys",
                     "execution_focus.handoff_pending",
                     "handoff_pending must contain exactly "
-                    "completed_unit_id, owner_decision_ref and reason",
+                    f"{anchor_key}, owner_decision_ref and reason",
                 )
             )
         else:
@@ -1117,30 +1123,32 @@ def evaluate_registry(
                         "all handoff_pending fields must be non-empty strings",
                     )
                 )
-            completed_unit_id = handoff_pending.get("completed_unit_id")
+            anchor_id = handoff_pending.get(anchor_key)
             anchor_valid = (
-                completed_unit_id in tuple(AUTHORIZED_HANDOFF_SECTIONS)
-                and completed_unit_id in known_unit_ids
-                and unit_execution_modes.get(cast(str, completed_unit_id)) == "repository"
-                and unit_statuses.get(cast(str, completed_unit_id)) == "completed"
+                isinstance(anchor_id, str)
+                and anchor_id in AUTHORIZED_HANDOFF_SECTIONS
+                and anchor_id in known_unit_ids
+                and unit_execution_modes.get(anchor_id) == "repository"
+                and (anchor_id == "CAL-03") == archive_handoff
+                and unit_statuses.get(anchor_id) == ("archived" if archive_handoff else "completed")
             )
             if not anchor_valid:
                 violations.append(
                     Violation(
                         "execution_focus_handoff_pending_anchor",
-                        "execution_focus.handoff_pending.completed_unit_id",
-                        "handoff anchor must be an explicitly authorized completed repository unit",
+                        f"execution_focus.handoff_pending.{anchor_key}",
+                        "handoff anchor must match the authorized repository closure disposition",
                     )
                 )
             reference_valid = _has_handoff_reference(
-                repository_root, completed_unit_id, handoff_pending.get("owner_decision_ref")
+                repository_root, anchor_id, handoff_pending.get("owner_decision_ref")
             )
             if not reference_valid:
                 violations.append(
                     Violation(
                         "execution_focus_handoff_pending_reference",
                         "execution_focus.handoff_pending.owner_decision_ref",
-                        "owner decision must match the section authorized for this completed unit",
+                        "owner decision must match the section authorized for this unit",
                     )
                 )
             handoff_pending_valid = fields_valid and anchor_valid and reference_valid

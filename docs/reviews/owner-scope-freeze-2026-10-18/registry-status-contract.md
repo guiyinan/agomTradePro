@@ -16,3 +16,5 @@
 12 项延期与 MHD-01 归档仅改变治理处置，不修改运行时权限、TAR 实际部署配置或 Broker 执行闸。生产保持 inline 并发=1 是 Owner 的运行要求，本轮没有用新的 VPS 观察冒充它已被现场复验。
 
 ASH-11 尚保留旧 ASH-06/DATA-18 依赖，瘦身报告等待 Owner 接受后实施；本次不把被延期的前置假标完成。旧 next_gate 原文完整保存在 `registry-application-base.json`，新门槛只发布当前要求和历史引用。
+
+CAL-03 适用 CAL 研究计划 §13.15 的归档交接。该标记使用 `archived_unit_id`、`owner_decision_ref`、`reason`，仅接受状态为 `archived` 的 CAL-03 和对应章节；空焦点及后继依赖规则同上。

@@ -2716,5 +2716,262 @@
     },
     "method": "Freeze previous snapshot ridge, calendar controls, loss, HAC, and holidays. Primary nine added-six-period vs adjusted MSE contrasts, Holm within nine. Three overlap selections per contrast, Holm within 27. No candidate selection or tuning. Public CSI closes throughout; compare identical frozen analysis replacing only holdout closes with existing relay when complete and within 1% match. This comparison is source sensitivity for the same exposure.",
     "disposition": "Owner authorizes one retrospective exposure, permanent retirement of these dates as unseen even if original vintages arrive. No formal PIT registry receipt or production eligibility. Prior development negative."
+  },
+  "public_snapshot_holdout_outcome_20261123": {
+    "reservation_commit": "ac38360b2",
+    "public_snapshot_holdout_consumed": true,
+    "formal_pit_oos_executed": false,
+    "formal_receipts_consumed": 0,
+    "eligible_for_future_unseen_testing": false,
+    "disposition": "archived; retire candidate; no signal promotion",
+    "scope_note": "Both providers supplied retrospective closes. Historical revision impact is unmeasured.",
+    "root": ".tmp/cal03-event-study-20261119/public-final-once-20261123",
+    "files": {
+      "score.py": "1702e2600cf46b585122ccd34f1b44fae9c7a03f0b5abde0bfba0f65508ea236",
+      "capture.py": "304782eb38ab757f1f2ae998b7ce9312a6772e8ccd62640e3c369fc5e7db45c0",
+      "capture.json": "5418edb813b8be790136484206d6038975f74d18d97aa4d4e395f0ba45312adc",
+      "relay.json": "e11d0ccb59508f501f4df0a061e83051dc0c046ae7a8f0cee9230d90c96d1ce4",
+      "audit.py": "afb4c77799d7eeefba678a3162c46d46d4d3e15ff98fb95f257e7931e202ea75",
+      "audit.json": "689b2c0d43487cc15f28ca11e6c4da5857c544c93a8a8868b2cb9cb13de83120",
+      "results.json": "20c0b75a5efd46a5a79f1656d2a7a55e47ac8fe0c427709dacc68b7d69a46b0d",
+      "alternate-results.json": "3dec1bb94980324879f05f40ddfbb24264c148b9633641a0a30840846348072f",
+      "report.md": "7a02e25f5702e80bc928d6215c07f5b3cec4816f8216ccefc1dd252e4e9af6ef"
+    },
+    "audit": {
+      "price_comparison": {
+        "000016": {
+          "max_absolute_points": "0.005",
+          "max_relative_percent": "0.0001899534032671985361958148226",
+          "sessions": 509
+        },
+        "000300": {
+          "max_absolute_points": "0.005",
+          "max_relative_percent": "0.0001311872175458887532395210863",
+          "sessions": 509
+        },
+        "000905": {
+          "max_absolute_points": "0.005",
+          "max_relative_percent": "0.00008765424956567319340208932669",
+          "sessions": 509
+        }
+      },
+      "primary": {
+        "comparisons": 9,
+        "max_reduction_delta_percentage_points": 0.0001743252173058707,
+        "official_increases": 9,
+        "official_min_holm": 0.09417188515813138,
+        "official_mse_increase_range": [
+          0.2783736830954897,
+          1.8052371684114554
+        ],
+        "official_positive_significant": 0,
+        "relay_increases": 9,
+        "relay_min_holm": 0.09416959636170816
+      },
+      "sensitivity": {
+        "comparisons": 27,
+        "max_reduction_delta_percentage_points": 0.0001743252173058707,
+        "official_increases": 27,
+        "official_min_holm": 0.09385763111960518,
+        "official_mse_increase_range": [
+          0.2717567105295915,
+          2.532503566067623
+        ],
+        "official_positive_significant": 0,
+        "relay_increases": 27,
+        "relay_min_holm": 0.09384996946395935
+      }
+    },
+    "primary_results": [
+      {
+        "target": "000300.SH",
+        "horizon": 1,
+        "adjusted_mse": 1.0351699056239761e-07,
+        "six_period_mse": 1.0406389552600926e-07,
+        "increase_percent": 0.5283238632038723,
+        "paired_loss": {
+          "count": 504,
+          "lower": -1.263360369628626e-09,
+          "mean": -5.469049636116406e-10,
+          "raw_p": 0.13461847053168646,
+          "standard_error": 3.655451894362828e-10,
+          "upper": 1.6955044240534495e-10
+        },
+        "holm_p": 1.0
+      },
+      {
+        "target": "000300.SH",
+        "horizon": 3,
+        "adjusted_mse": 4.034160402399566e-07,
+        "six_period_mse": 4.062335228882678e-07,
+        "increase_percent": 0.6984062028459137,
+        "paired_loss": {
+          "count": 504,
+          "lower": -7.851699147826024e-09,
+          "mean": -2.8174826483112464e-09,
+          "raw_p": 0.27267360737721535,
+          "standard_error": 2.5685250031245657e-09,
+          "upper": 2.2167338512035313e-09
+        },
+        "holm_p": 1.0
+      },
+      {
+        "target": "000300.SH",
+        "horizon": 5,
+        "adjusted_mse": 8.208549095764684e-07,
+        "six_period_mse": 8.314009471397938e-07,
+        "increase_percent": 1.2847626834280534,
+        "paired_loss": {
+          "count": 504,
+          "lower": -3.0481346620146336e-08,
+          "mean": -1.0546037563325511e-08,
+          "raw_p": 0.2998074383982596,
+          "standard_error": 1.0171262948741919e-08,
+          "upper": 9.389271493495314e-09
+        },
+        "holm_p": 1.0
+      },
+      {
+        "target": "000016.SH",
+        "horizon": 1,
+        "adjusted_mse": 5.145150578111813e-08,
+        "six_period_mse": 5.193633438657803e-08,
+        "increase_percent": 0.9423020727953757,
+        "paired_loss": {
+          "count": 504,
+          "lower": -1.240993640558564e-09,
+          "mean": -4.84828605459901e-10,
+          "raw_p": 0.20887474102598313,
+          "standard_error": 3.858055765632412e-10,
+          "upper": 2.71336429638762e-10
+        },
+        "holm_p": 1.0
+      },
+      {
+        "target": "000016.SH",
+        "horizon": 3,
+        "adjusted_mse": 2.2825577029563648e-07,
+        "six_period_mse": 2.2982145560323917e-07,
+        "increase_percent": 0.6859346011602652,
+        "paired_loss": {
+          "count": 504,
+          "lower": -6.678946350534731e-09,
+          "mean": -1.5656853076026792e-09,
+          "raw_p": 0.5484110687295279,
+          "standard_error": 2.608854592872524e-09,
+          "upper": 3.547575735329372e-09
+        },
+        "holm_p": 1.0
+      },
+      {
+        "target": "000016.SH",
+        "horizon": 5,
+        "adjusted_mse": 4.7577900477231054e-07,
+        "six_period_mse": 4.81769353409183e-07,
+        "increase_percent": 1.2590611558698672,
+        "paired_loss": {
+          "count": 504,
+          "lower": -2.2095661505455353e-08,
+          "mean": -5.9903486368724556e-09,
+          "raw_p": 0.4659980731834332,
+          "standard_error": 8.217147353532797e-09,
+          "upper": 1.0114964231710444e-08
+        },
+        "holm_p": 1.0
+      },
+      {
+        "target": "000905.SH",
+        "horizon": 1,
+        "adjusted_mse": 3.6665722580882765e-07,
+        "six_period_mse": 3.6767790303264744e-07,
+        "increase_percent": 0.2783736830954897,
+        "paired_loss": {
+          "count": 504,
+          "lower": -2.4168623215130265e-09,
+          "mean": -1.0206772238198306e-09,
+          "raw_p": 0.15190750978005824,
+          "standard_error": 7.123524252007315e-10,
+          "upper": 3.7550787387336555e-10
+        },
+        "holm_p": 1.0
+      },
+      {
+        "target": "000905.SH",
+        "horizon": 3,
+        "adjusted_mse": 1.2924750541611394e-06,
+        "six_period_mse": 1.3010765622173038e-06,
+        "increase_percent": 0.665506698057472,
+        "paired_loss": {
+          "count": 504,
+          "lower": -2.061965926768564e-08,
+          "mean": -8.601508056164497e-09,
+          "raw_p": 0.16068682492351372,
+          "standard_error": 6.1318224754734236e-09,
+          "upper": 3.4166431553566493e-09
+        },
+        "holm_p": 1.0
+      },
+      {
+        "target": "000905.SH",
+        "horizon": 5,
+        "adjusted_mse": 2.5281415886030282e-06,
+        "six_period_mse": 2.573780540230558e-06,
+        "increase_percent": 1.8052371684114554,
+        "paired_loss": {
+          "count": 504,
+          "lower": -8.0578966983712e-08,
+          "mean": -4.563895162752999e-08,
+          "raw_p": 0.010463542795347931,
+          "standard_error": 1.7826866019878125e-08,
+          "upper": -1.0698936271347972e-08
+        },
+        "holm_p": 0.09417188515813138
+      }
+    ],
+    "offline_replay": "Set PYTHONPATH to repository root. Using the retained originals, execute score.py main, score.py alternate and audit.py in the research environment. Existing files must match exactly. Reproduction reuses the retired interval."
+  },
+  "public_snapshot_holdout_verification_20261123": {
+    "registry_violations": 0,
+    "research_tests_passed": 138,
+    "governance_tests_passed": 152,
+    "offline_replay": "Identical official and relay results and audit, including SHA-256 input verification.",
+    "checks": {
+      "registry": {
+        "exit": 0,
+        "sha256": "d26701c5ce3a4a0cc21f228fbfc7a94c0d6a207f036444cbf7d955efddf043d3"
+      },
+      "test2": {
+        "exit": 0,
+        "sha256": "7b9ae6f0fc2da7c4fe22047faa7c4d30c9ca93e113c8dfe384f6e6642a968f15"
+      },
+      "research-tests": {
+        "exit": 0,
+        "sha256": "b87b90c1d523789c0413db88e8a82079db75a5c18d87a4cb3679fb4f5fdc405e"
+      },
+      "verify-source": {
+        "exit": 0,
+        "sha256": "42952929f98ff284b84ffc33f5fca4e517620f9b2ceb3fca1375e504affa8195"
+      },
+      "ruff2": {
+        "exit": 0,
+        "sha256": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0"
+      },
+      "isort2": {
+        "exit": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "mypy": {
+        "exit": 0,
+        "sha256": "1696369e79514135c6c84d87d82a0fc9c6a7026a4b6fda77e8a7e9b50eef135b"
+      },
+      "debt": {
+        "exit": 0,
+        "sha256": "def6c561b37227470bcda90c8450d9837ca85dd34af34d05e7d6af2afdf85ab1"
+      },
+      "replay": {
+        "exit": 0,
+        "sha256": "3416e7b88e1df5a5f6752eec36d97ea5558b65d6dce1f76b4de6d42e6e304e1c"
+      }
+    }
   }
 }
