@@ -36,6 +36,7 @@ from apps.research.infrastructure.calendar_validation_design import (
     load_validation_design,
 )
 from apps.research.infrastructure.sse_holiday_overlap import (
+    AMENDMENTS_SHA256,
     REVIEW_SHA256,
     HolidayPanel,
     load_holiday_panel,
@@ -690,10 +691,8 @@ def write_snapshot(
     if len(dates) <= reserve or _PRICE_END >= dates[-reserve]:
         raise ValueError("Early price range intersects the reserved period")
     early = dates[: bisect_right(dates, _PRICE_END)]
-    if later_archive is not None and event_archive is not None:
-        raise ValueError(
-            "The frozen later cohort uses all dates; the holiday panel covers the early comparison"
-        )
+    if later_archive is not None and event_archive is not None and csi_archive is None:
+        raise ValueError("The later holiday comparison requires the complete official CSI cohort")
     reserve_start = len(dates) - reserve
     price_days = early if later_archive is None else dates[:reserve_start]
     later_queries: list[_Query] = []
@@ -713,11 +712,13 @@ def write_snapshot(
         later_queries = later_manifest["queries"]
         frozen_folds = frozen["folds"]
     panel = (
-        load_holiday_panel(event_archive, dates, _START, _PRICE_END)
+        load_holiday_panel(
+            event_archive, dates, _START, price_days[-1] if later_archive else _PRICE_END
+        )
         if event_archive is not None
         else None
     )
-    selection = _selections(early[_WARMUP:], panel) if panel is not None else None
+    selection = _selections(price_days[_WARMUP:], panel) if panel is not None else None
     slices: list[_Sensitivity] = []
     results: list[_Result] = []
     early_effects = []
@@ -830,7 +831,7 @@ def write_snapshot(
                 values = " | ".join("—" if v is None else f"{v:+.4f}" for v in effects)
                 source_lines.append(f"| {target} | {h} | {values} |")
             if selection is not None:
-                slices.extend(_sensitivity(result, scored, folds, *selection, design))
+                slices.extend(_sensitivity(result, scored, evaluate, *selection, design))
     report = {
         "scope": "current-vintage pre-2019 descriptive development only",
         "spec_sha256": SPEC_SHA256,
@@ -866,6 +867,14 @@ def write_snapshot(
             "coverage_start": panel.start,
             "coverage_end": panel.end,
             "review_sha256": REVIEW_SHA256,
+            **(
+                {
+                    "amendments_sha256": AMENDMENTS_SHA256,
+                    "reopening_knowledge": "Original publication dates apply to closure starts used for T-2. Actual reopening dates include later amendments. See sources for the original reopening, revised reopening and amendment publication.",
+                }
+                if later_archive is not None
+                else {}
+            ),
             "sources": panel.sources,
             "events": [
                 {

@@ -1,18 +1,19 @@
-"""Read retained SSE closure notices for the early, retrospective CAL-03 snapshot."""
+"""Read retained SSE closure notices for retrospective CAL-03 snapshot studies."""
 
 from __future__ import annotations
 
 import hashlib
 import json
 import re
-from bisect import bisect_left
-from dataclasses import dataclass
+from bisect import bisect_left, bisect_right
+from dataclasses import dataclass, replace
 from datetime import date, timedelta
 from pathlib import Path
 
 from bs4 import BeautifulSoup
 
 REVIEW_SHA256 = "e4a5bd7732991c153dadecd5e104c771da39620c218347e6db8cd388dcf19bef"
+AMENDMENTS_SHA256 = "b559c30692fc038864caaa6bbf242d27fcf5374145ba241bae7e3ab757f43877"
 _DAY = re.compile(r"(?:(\d{4})年)?(\d{1,2})月(\d{1,2})日")
 _CLAUSE = re.compile(r"[（(][一二三四五六七][）)]([^。；：:]{1,15})[：:]([^。；]*?照常开市)")
 _HOLIDAYS = {"元旦", "春节", "清明节", "劳动节", "端午节", "中秋节", "国庆节"}
@@ -114,13 +115,15 @@ def mark_holidays(
 def load_holiday_panel(
     archive: Path, sessions: tuple[date, ...], start: date, end: date
 ) -> HolidayPanel:
-    """Verify the pinned publication review and all applicable early notice originals."""
+    """Verify annual notices and apply documented changes to actual reopening dates."""
     review = (archive / "calendar-publication-review.json").read_bytes()
     if hashlib.sha256(review).hexdigest() != REVIEW_SHA256:
         raise ValueError("SHA-256 mismatch for holiday publication review")
     records = {r["key"]: r for r in json.loads(review)["records"]}
     # The following New Year may mark T-2 in December of the preceding year.
-    keys = [str(y) for y in range(start.year, end.year + 2)] + ["2015_special_closure"]
+    keys = [str(y) for y in range(start.year, end.year + 1 + int(end.month == 12))]
+    if start.year <= 2015 <= end.year:
+        keys.append("2015_special_closure")
     sources = {}
     closures: list[Closure] = []
     for key in keys:
@@ -138,6 +141,56 @@ def load_holiday_panel(
                 raise ValueError(f"Annual holiday inventory incomplete for {key}")
         closures.extend(events)
         sources[key] = {k: r[k] for k in ("url", "sha256", "publisher_declared_day")}
-    next_year = next(c for c in closures if c.notice == str(end.year + 1) and c.name == "元旦")
-    axis = sessions[: bisect_left(sessions, next_year.reopens) + 1]
+    if end.year >= 2019:
+        closures = _apply_reopenings(archive, closures, sources, start, end)
+    if end.month == 12:
+        next_year = next(c for c in closures if c.notice == str(end.year + 1) and c.name == "元旦")
+        last = next_year.reopens
+    else:
+        last = max(end, max(c.reopens for c in closures))
+    axis = sessions[: bisect_right(sessions, last)]
     return HolidayPanel(start, end, mark_holidays(tuple(closures), axis, start, end), sources)
+
+
+def _apply_reopenings(
+    archive: Path,
+    closures: list[Closure],
+    sources: dict[str, dict[str, str]],
+    start: date,
+    end: date,
+) -> list[Closure]:
+    folder = archive / "later-closure-amendments"
+    review = (folder / "review.json").read_bytes()
+    if hashlib.sha256(review).hexdigest() != AMENDMENTS_SHA256:
+        raise ValueError("SHA-256 mismatch for closure amendments")
+    revised = list(closures)
+    for change in json.loads(review):
+        event_start = date.fromisoformat(change["start"])
+        if not start <= event_start <= end:
+            continue
+        for source in (change, change["confirmation"]) if "confirmation" in change else (change,):
+            key = source["key"]
+            body = (folder / f"{key}.html").read_bytes()
+            if hashlib.sha256(body).hexdigest() != source["sha256"]:
+                raise ValueError(f"SHA-256 mismatch for holiday notice {key}")
+            sources[key] = {k: source[k] for k in ("url", "sha256", "publisher_declared_day")}
+        matches = [
+            i
+            for i, c in enumerate(revised)
+            if c.notice == change["annual"]
+            and c.name == change["name"]
+            and c.start == event_start
+            and c.reopens == date.fromisoformat(change["previous_reopens"])
+        ]
+        if len(matches) != 1:
+            raise ValueError(
+                f"Reopening amendment does not match the original notice: {change['key']}"
+            )
+        i = matches[0]
+        # T-2 depends on the already announced start. The later amendment only
+        # reconciles the actual reopening with the observed session calendar.
+        revised[i] = replace(revised[i], reopens=date.fromisoformat(change["reopens"]))
+        sources[change["key"]].update(
+            {k: change[k] for k in ("annual", "name", "start", "previous_reopens", "reopens")}
+        )
+    return revised

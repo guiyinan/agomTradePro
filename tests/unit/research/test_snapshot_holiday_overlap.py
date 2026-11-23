@@ -1,9 +1,12 @@
 """Historical close-notice parsing and same-prediction overlap contrasts."""
 
+import hashlib
+import json
 from datetime import date
 
 import pytest
 
+from apps.research.infrastructure import sse_holiday_overlap as overlap
 from apps.research.infrastructure.sse_holiday_overlap import Closure, mark_holidays, notice_closures
 
 
@@ -15,6 +18,43 @@ def test_combined_holiday_keeps_one_identity_and_explicit_year():
     ]
     cross = "（一）元旦：2018年12月30日（星期日）至2019年1月1日（星期二）休市，1月2日（星期三）起照常开市。"
     assert notice_closures(cross, "2019", date(2018, 12, 20))[0].start == date(2018, 12, 30)
+
+
+def test_reopening_revision_after_t2_changes_only_realized_reopening(tmp_path, monkeypatch):
+    notice = Closure("春节", date(2020, 1, 24), date(2020, 1, 31), "2020", date(2019, 12, 20))
+    folder = tmp_path / "later-closure-amendments"
+    folder.mkdir()
+    original = b"test revision"
+    source = folder / "revision.html"
+    source.write_bytes(original)
+    change = {
+        "key": "revision",
+        "url": "test",
+        "sha256": hashlib.sha256(original).hexdigest(),
+        "publisher_declared_day": "2020-01-27",
+        "annual": "2020",
+        "name": "春节",
+        "start": "2020-01-24",
+        "previous_reopens": "2020-01-31",
+        "reopens": "2020-02-03",
+    }
+    raw = json.dumps([change]).encode()
+    (folder / "review.json").write_bytes(raw)
+    monkeypatch.setattr(overlap, "AMENDMENTS_SHA256", hashlib.sha256(raw).hexdigest())
+    days = (date(2020, 1, 22), date(2020, 1, 23), date(2020, 2, 3))
+    sources = {}
+    revised = overlap._apply_reopenings(tmp_path, [notice], sources, days[0], days[-1])
+    (marker,) = mark_holidays(tuple(revised), days, days[0], days[-1])
+    assert marker.origin == days[0] and marker.closure.published == notice.published
+    assert (
+        marker.closure.reopens == days[-1]
+        and sources["revision"]["publisher_declared_day"] == "2020-01-27"
+    )
+    with pytest.raises(ValueError, match="original notice"):
+        overlap._apply_reopenings(tmp_path, revised, {}, days[0], days[-1])
+    source.write_bytes(b"changed")
+    with pytest.raises(ValueError, match="SHA-256"):
+        overlap._apply_reopenings(tmp_path, [notice], {}, days[0], days[-1])
 
 
 def test_mark_uses_two_actual_sessions_and_detects_unexplained_gap():

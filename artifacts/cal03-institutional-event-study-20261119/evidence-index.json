@@ -2138,5 +2138,159 @@
     ],
     "pit_qualified": false,
     "final_oos_claimed_or_evaluated": false
+  },
+  "official_ten_fold_holiday_overlap_20261123": {
+    "base_commit": "97aa790a1c8c12f65c788e096c19b5cad1a37dd8",
+    "source_blobs": {
+      "apps/research/infrastructure/sse_holiday_overlap.py": "abcf564b66b8146568e3e734617a29955c4c0c6a",
+      "scripts/run_cal03_snapshot_walk_forward.py": "55605787414884a515b96ccd54242df8fb27ec33",
+      "tests/unit/research/test_snapshot_holiday_overlap.py": "fc493fd6d8c93b2050869e356519019f6e205b58",
+      "tests/unit/research/test_cal03_snapshot_runner.py": "2db360feceef4dd8e4c02ef9c92807f8362a58bb"
+    },
+    "inputs": {
+      "annual_review": {
+        "path": ".tmp/cal03-event-study-20261119/calendar-publication-review.json",
+        "sha256": "e4a5bd7732991c153dadecd5e104c771da39620c218347e6db8cd388dcf19bef"
+      },
+      "reopening_review": {
+        "path": ".tmp/cal03-event-study-20261119/later-closure-amendments/review.json",
+        "sha256": "b559c30692fc038864caaa6bbf242d27fcf5374145ba241bae7e3ab757f43877"
+      },
+      "amendment_sources": [
+        {
+          "key": "2019_labour",
+          "annual": "2019",
+          "name": "劳动节",
+          "start": "2019-05-01",
+          "previous_reopens": "2019-05-02",
+          "reopens": "2019-05-06",
+          "publisher_declared_day": "2019-04-18",
+          "url": "https://www.sse.com.cn/disclosure/announcement/general/c/c_20190418_4771364.shtml",
+          "sha256": "8c120748f0006666384d478243e44d5052d12cf2abcf4c4a050fbba9b1417f9a",
+          "retrieved_utc": "2026-11-23T10:57:20.745980+00:00"
+        },
+        {
+          "key": "2020_spring",
+          "annual": "2020",
+          "name": "春节",
+          "start": "2020-01-24",
+          "previous_reopens": "2020-01-31",
+          "reopens": "2020-02-03",
+          "publisher_declared_day": "2020-01-27",
+          "url": "https://www.sse.com.cn/star/media/news/c/c_20200127_4991583.shtml",
+          "sha256": "406a02f5214de816853c4942b69b85c69b8aab043fe74df1d77b5db95014d1e6",
+          "retrieved_utc": "2026-11-23T10:57:21.353535+00:00",
+          "confirmation": {
+            "key": "2020_spring_confirmation",
+            "url": "https://www.sse.com.cn/aboutus/mediacenter/hotandd/c/c_20200202_4991648.shtml",
+            "sha256": "b76f924bdaa27026350f99ebdc6b481e8dacf0cf726848654840adc5c2fd0dcb",
+            "publisher_declared_day": "2020-02-02",
+            "retrieved_utc": "2026-11-23T10:57:53.066365+00:00"
+          }
+        }
+      ],
+      "official_snapshot": {
+        "path": ".tmp/cal03-event-study-20261119/public-20210511/coverage.json",
+        "sha256": "d52c70af7c99849be75042ea6b8ff79b75e177770444829e45495567557a92c6"
+      },
+      "frozen_design": {
+        "path": ".tmp/cal03-event-study-20261119/later-validation-20261123/prices/design.json",
+        "sha256": "be27ca2306ed01026286baecaca605746a0faf6bd06eecb53f69ca64761a8fbe"
+      }
+    },
+    "scope": "Official 10-fold development cohort, 2019-04-09 through 2024-06-18. Training support uses 2010 onward. Projected 100 T-2 markers across the combined pre-holdout event coverage. 35 affected validation dates. Same predictions across selections.",
+    "amendment_handling": "Keep the original holiday start and its publication day. Reconcile realized reopenings using the 2019 Labour Day and 2020 Spring Festival amendments. SSE 2020-02-02 notice confirms the January 27 release. No later fact enters predictions.",
+    "result": "All-date / remove T-2 / remove whole window: 1260/1225/1142. No MSE reduction in any of 27 estimates. One marginal interval excluded zero (CSI 300, 1 session, exclude whole window, raw p 0.04302); all 27 Holm p-values 1.",
+    "checks": {
+      "run": {
+        "command": "agomtradepro/Scripts/python.exe -m scripts.run_cal03_snapshot_walk_forward --archive .tmp/cal03-event-study-20261119/coverage-audit-v1 --event-archive .tmp/cal03-event-study-20261119 --later-archive .tmp/cal03-event-study-20261119/later-validation-20261123/prices --csi-archive .tmp/cal03-event-study-20261119/public-20210511 --output .tmp/cal03-event-study-20261119/official-holiday-1795431438780/final",
+        "exit": 0,
+        "path": ".tmp/cal03-event-study-20261119/official-holiday-1795431438780/run.log",
+        "sha256": "04a2754a13eaa52b45c7ef14ff09ae4626225ec6e581aa66f11bb5cd43ebdb34"
+      },
+      "repeat": {
+        "command": "agomtradepro/Scripts/python.exe -m scripts.run_cal03_snapshot_walk_forward --archive .tmp/cal03-event-study-20261119/coverage-audit-v1 --event-archive .tmp/cal03-event-study-20261119 --later-archive .tmp/cal03-event-study-20261119/later-validation-20261123/prices --csi-archive .tmp/cal03-event-study-20261119/public-20210511 --output .tmp/cal03-event-study-20261119/official-holiday-1795431438780/repeat",
+        "exit": 0,
+        "path": ".tmp/cal03-event-study-20261119/official-holiday-1795431438780/repeat.log",
+        "sha256": "8ba709b544b3342599e4cc6c877c5f307ce389e68d66e4d546934fa73918455f"
+      },
+      "early": {
+        "command": "agomtradepro/Scripts/python.exe -m scripts.run_cal03_snapshot_walk_forward --archive .tmp/cal03-event-study-20261119/coverage-audit-v1 --event-archive .tmp/cal03-event-study-20261119 --output .tmp/cal03-event-study-20261119/official-holiday-1795431438780/early",
+        "exit": 0,
+        "path": ".tmp/cal03-event-study-20261119/official-holiday-1795431438780/early.log",
+        "sha256": "739615c92dafba02f6eb171ab60da8ad0ebcca6a45fb735b3fa0738626614989"
+      },
+      "all": {
+        "command": "agomtradepro/Scripts/python.exe -m scripts.run_cal03_snapshot_walk_forward --archive .tmp/cal03-event-study-20261119/coverage-audit-v1 --later-archive .tmp/cal03-event-study-20261119/later-validation-20261123/prices --csi-archive .tmp/cal03-event-study-20261119/public-20210511 --output .tmp/cal03-event-study-20261119/official-holiday-1795431438780/all",
+        "exit": 0,
+        "path": ".tmp/cal03-event-study-20261119/official-holiday-1795431438780/all.log",
+        "sha256": "0dbb37e674a4796702dddc93194e31124a131d89645a0e21b3031967a240554f"
+      },
+      "black": {
+        "command": "agomtradepro/Scripts/python.exe -m black --check apps/research/infrastructure/sse_holiday_overlap.py scripts/run_cal03_snapshot_walk_forward.py tests/unit/research/test_snapshot_holiday_overlap.py tests/unit/research/test_cal03_snapshot_runner.py",
+        "exit": 0,
+        "path": ".tmp/cal03-event-study-20261119/official-holiday-1795431438780/black.log",
+        "sha256": "ce29a48ef7d7d961badb0f7aec2eb4c319c19c85fc5e9b698ba6b9b4bec2d2c7"
+      },
+      "isort": {
+        "command": "agomtradepro/Scripts/python.exe -m isort --check-only apps/research/infrastructure/sse_holiday_overlap.py scripts/run_cal03_snapshot_walk_forward.py tests/unit/research/test_snapshot_holiday_overlap.py tests/unit/research/test_cal03_snapshot_runner.py",
+        "exit": 0,
+        "path": ".tmp/cal03-event-study-20261119/official-holiday-1795431438780/isort.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "ruff": {
+        "command": "agomtradepro/Scripts/python.exe -m ruff check apps/research/infrastructure/sse_holiday_overlap.py scripts/run_cal03_snapshot_walk_forward.py tests/unit/research/test_snapshot_holiday_overlap.py tests/unit/research/test_cal03_snapshot_runner.py",
+        "exit": 0,
+        "path": ".tmp/cal03-event-study-20261119/official-holiday-1795431438780/ruff.log",
+        "sha256": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0"
+      },
+      "mypy": {
+        "command": "$env:MYPY_CACHE_DIR='.tmp/cal03-event-study-20261119/control-mypy-incremental'\nagomtradepro/Scripts/python.exe scripts/check_mypy_regression.py apps/research/infrastructure/sse_holiday_overlap.py scripts/run_cal03_snapshot_walk_forward.py",
+        "exit": 0,
+        "path": ".tmp/cal03-event-study-20261119/official-holiday-1795431438780/mypy.log",
+        "sha256": "5ba4fad13a81b04a0a55439e46f84ebb25f1dcefaf8a0f67d0e71ba1266e2e69"
+      },
+      "debt": {
+        "command": "$env:MYPY_CACHE_DIR='.tmp/cal03-event-study-20261119/control-mypy-debt'\nagomtradepro/Scripts/python.exe scripts/check_mypy_debt_ceiling.py",
+        "exit": 0,
+        "path": ".tmp/cal03-event-study-20261119/official-holiday-1795431438780/debt.log",
+        "sha256": "def6c561b37227470bcda90c8450d9837ca85dd34af34d05e7d6af2afdf85ab1"
+      },
+      "tests": {
+        "command": "agomtradepro/Scripts/python.exe -m pytest --noconftest -c .tmp/cal03-event-study-20261119/pytest.ini -q tests/unit/research/test_snapshot_holiday_overlap.py tests/unit/research/test_cal03_snapshot_runner.py tests/unit/research/test_calendar_validation_report.py tests/unit/research/test_institutional_event_study.py tests/unit/research/test_institutional_event_study_walk_forward.py",
+        "exit": 0,
+        "path": ".tmp/cal03-event-study-20261119/official-holiday-1795431438780/tests.log",
+        "sha256": "cf95ff4cea0f359dd074ba0bbe40bf695b23339e922d6bca3e6c40da7ba714c1"
+      },
+      "audit": {
+        "command": "agomtradepro/Scripts/python.exe .tmp/cal03-event-study-20261119/official-holiday-1795431438780/audit.py",
+        "exit": 0,
+        "path": ".tmp/cal03-event-study-20261119/official-holiday-1795431438780/audit.log",
+        "sha256": "5cdace6ca24ed5239f26ae73b6eea132166a64d014df812777ca770e99bbba8d"
+      },
+      "module_map": {
+        "command": "agomtradepro/Scripts/python.exe scripts/check_module_map.py",
+        "exit": 0,
+        "path": ".tmp/cal03-event-study-20261119/official-holiday-1795431438780/module_map.log",
+        "sha256": "50ba91f9d0e2baa1aeda94701d7695e45116e1326f5651784377318792b43759"
+      }
+    },
+    "audit_script": {
+      "path": ".tmp/cal03-event-study-20261119/official-holiday-1795431438780/audit.py",
+      "sha256": "43d1dec6ec19e1de1c20793b6bebdb4130d9360bbdd377a129fae5062a3ba383"
+    },
+    "targeted_tests_passed": 141,
+    "outputs": [
+      {
+        "path": ".tmp/cal03-event-study-20261119/official-holiday-1795431438780/final/report.md",
+        "sha256": "362cafb01116e432e9fcfd83d822e233a7e5dd2b4ff23baa3fded354b03508bb"
+      },
+      {
+        "path": ".tmp/cal03-event-study-20261119/official-holiday-1795431438780/final/results.json",
+        "sha256": "20b47ad49695172ed686a1a755daebacf6342d01c490bc65ccaf0b7874793b78"
+      }
+    ],
+    "pit_qualified": false,
+    "final_oos_claimed_or_evaluated": false
   }
 }

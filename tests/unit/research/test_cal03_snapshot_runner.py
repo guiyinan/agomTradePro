@@ -377,6 +377,43 @@ def test_official_source_restores_folds_and_preserves_matched_control(
     runner.write_snapshot(inputs, output, later_archive=later, csi_archive=tmp_path)
     report = json.loads((output / "results.json").read_bytes())
     assert not report["oos_evaluated"]
+    from apps.research.infrastructure.sse_holiday_overlap import (
+        Closure,
+        HolidayMarker,
+        HolidayPanel,
+    )
+
+    # Put the marker in a fold uniquely restored by the official source.
+    selected_day = missing
+    closure = Closure(
+        "测试休市",
+        selected_day + timedelta(days=2),
+        selected_day + timedelta(days=5),
+        "test",
+        date(2010, 1, 1),
+    )
+
+    def panel_for(archive, dates, start, end):
+        assert end == date.fromisoformat(upper)
+        return HolidayPanel(start, end, (HolidayMarker(selected_day, closure),), {})
+
+    monkeypatch.setattr(runner, "load_holiday_panel", panel_for)
+    with_events = tmp_path / "official-events"
+    runner.write_snapshot(
+        inputs, with_events, later_archive=later, csi_archive=tmp_path, event_archive=inputs
+    )
+    overlap = json.loads((with_events / "results.json").read_bytes())
+    assert overlap["results"] == report["results"]
+    rows = overlap["overlap_sensitivities"]["results"]
+    assert len(rows) == 27
+    for result in report["results"]:
+        full, single, exclusive = [
+            r for r in rows if (r["target"], r["horizon"]) == (result["target"], result["horizon"])
+        ]
+        assert full["inference"] == result["paired_loss"]
+        assert len(single["fold_counts"]) == len(result["folds"])
+        assert sum(single["fold_counts"]) == single["observations"] == full["observations"] - 1
+        assert exclusive["observations"] <= single["observations"]
     for control, full in zip(report["source_controls"], report["results"], strict=True):
         assert report["source_checks"][full["target"]]["recovered"] == [str(missing)]
         assert control["official_matched"] == control["relay_matched"]
