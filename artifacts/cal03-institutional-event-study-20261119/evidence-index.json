@@ -1577,5 +1577,57 @@
       "reason": "Initial test collection failed because the new validation application module did not exist."
     },
     "commit_receipt": ".tmp/cal03-event-study-20261119/synthetic-walk-forward/commit.json"
+  },
+  "existing_channels_and_yearbook_precision_20261123": {
+    "base_head": "fa794c7c9e8c7ba816fd08db869b9ea1a2190310",
+    "out_dir": ".tmp/cal03-event-study-20261119/channel-review-20261123",
+    "early_price_scope": "Three archived relay series, 2187 closes each, 2010-01-04 through 2018-12-31 only. One new index_daily request for 000016.SH, 2018-11-16 through 2018-12-03 inclusive. All 12 pre_close values agree exactly with the archived prior-session closes.",
+    "yearbook_check": {
+      "hypothesis": "descriptive numerical test only: ROUND_HALF_UP to 0.001 then to 0.01 versus direct to 0.01. Not publisher methodology or a revision lineage.",
+      "2018": {
+        "sessions": 243,
+        "direct_to_2dp": 232,
+        "via_3dp_to_2dp": 243
+      },
+      "2017": {
+        "sessions": 244,
+        "direct_to_2dp": 233,
+        "via_3dp_to_2dp": 244,
+        "page_one_based": 16,
+        "sha256": "9ef7f596f9d7de90f259ccd3a286d8fda3b4c781619a114be8b87441299be127"
+      }
+    },
+    "sources": {
+      "2018_yearbook_for_2017": "https://www.sse.com.cn/aboutus/publication/yearly/documents/c/10061076/files/effd56e72ceb4e899dca64c00fb5cfe0.pdf",
+      "2019_yearbook_for_2018": "https://www.sse.com.cn/aboutus/publication/yearly/documents/c/10061075/files/32277cffb8354bb7857bf48731afc697.pdf",
+      "tushare_index_daily": "https://tushare.pro/document/2?doc_id=95",
+      "xtdata": "https://dict.thinktrader.net/nativeApi/xtdata.html"
+    },
+    "qmt": "Live Guojin terminal, no locally registered XtQuant market service, default loopback connection failed before any bar read. Standard SH daily-cache filename present only for 000300. Account entitlement remains unverified.",
+    "conclusion": "One account-specific entitlement or supplier confirmation is needed for the chosen feed. Seek product and operator, internal research/storage/API or export rights, effective period and archive access. The historical initial/corrected files and their dissemination clocks remain a supplier dependency. System-known backtesting also requires contemporaneous internal records. No version was inferred from decimal agreement.",
+    "exact_input_hashes": {
+      "01-calendar.json": "c5047cc734aa7aba604bae8fef179e4fd0be699999d8c451f36f20fe7afa2969",
+      "03-calendar.json": "cb0e774289b1adae9a28fc970961fc4c69e5df5fc80942eefea51c854b4efc89",
+      "11-early_price_quality.json": "e300316ebe9da20b4106eaa27f9fa12c21f9154bc736c9c15ae3e97fb3d75ae2",
+      "12-early_price_quality.json": "5679d78fe26ec90159cf834395d588cb32e3e5187f07ef18f3b427aa8dc363eb",
+      "13-early_price_quality.json": "4e009b48d834d4ae2e4c4b9629bd2f2395a1c758899e085b49d11ca4a0bc364c",
+      "sse-yearbook2019.pdf": "71e9a26c0a55914d67bf5b054cced232212d042db6764ed4bf99e61d6585d580",
+      "relay-response.json": "591afdecfc49c2c5b8892b73e6b8eb27a8cbfb93d47181c24164195b2f8319a2"
+    },
+    "local_sha256": {
+      "qmt.py": "4fd9192af8686ec9f146cc4bb3bd72c43fa4c3a3e7b5733fc3bd751df6cd9345",
+      "qmt.json": "217f4db28ef664ac6416d21b103409f1c35b1da11e036056f95275e9d46e907c",
+      "relay.py": "018ca19d44b4973dc7cc112650bc67e1879f5aa8bfc7c5de9a4a24eac80d8fd7",
+      "relay-request.json": "3b42a93a73ab492e789e0016b146f925c54f4cb69f209b779d0986c14851b354",
+      "replay.py": "8d012bb0dcc8bdc95acaec3775c86edd040f076b4f9774be7313dbc847c4b17f",
+      "precision_check.py": "7c1fe0fb53fb747b3b52c198dea4f0417ef0c45878cefe925b132ec96ef4c339",
+      "reconciliation.json": "6691dc4b385e96cc892bdca6914cefaa5e858206ee803262b22a7a992de2b560",
+      "precision.json": "936ec3c011b3f5661cd94fb9a101d37689739352cdafb8a79b646edbdb8c15a2",
+      "precision2017.log": "e0ba3b9a4e4a15be1a0501066a339b848f2feeaf51b74d08a2714a1da9d767be",
+      "precision2017-final.log": "5ebc4b1babbfafcd825b97fed7b409927a56d076dc54e0ae9a7b484adfbb01f4"
+    },
+    "offline_check": "agomtradepro/Scripts/python.exe .tmp/cal03-event-study-20261119/channel-review-20261123/precision_check.py --2017",
+    "diagnostics": "The first 2017 extraction included a page footer among the numbered rows and stopped. The corrected table bounds locate 31 rows and match the full 244-session date set.",
+    "final_oos_claimed_or_evaluated": false
   }
 }
