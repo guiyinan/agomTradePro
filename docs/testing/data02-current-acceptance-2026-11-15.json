@@ -10327,6 +10327,35 @@
                                 "graph_continue_max": 29,
                                 "market_cumulative_upper": 368,
                                 "full_allocation_if_continued": 534,
+                                "same_attempt_diagnostic": {
+                                  "supplemented_market_ceiling": 534,
+                                  "post_s6_reserved": 60,
+                                  "diagnostic_outcome": "DAILY_GAP_COUNT_EXCEEDS_DIAGNOSTIC_BOUND",
+                                  "diagnostic_dispatches": 1,
+                                  "diagnostic_audit_rows": 1,
+                                  "cumulative_market_upper_after_diagnostic": 369,
+                                  "provider_daily_distinct_assets": 5570,
+                                  "missing_daily_assets": 11,
+                                  "approved_diagnostic_gap_maximum": 7,
+                                  "missing_codes_equal_graph_exclusions": true,
+                                  "separate_suspension_dispatches": 0,
+                                  "formal_runner_started": false,
+                                  "model_estimated_dispatches_per_stage": 64,
+                                  "hard_limit_per_stage": 52,
+                                  "model_basis": "28 valuation batches + up to 3 quote attempts + up to 3 per missing code; the physical guard applies to retries.",
+                                  "supplement": {
+                                    "path": ".tmp/data02-guard-20261122/s6-7cfa83a2f-evening/evening-quota-supplement.json",
+                                    "sha256": "115893255841731b9a1702b1c078cc741a9ef2ed417e26bc9de27fa297ca8117"
+                                  },
+                                  "diagnostic_readback": {
+                                    "path": ".tmp/data02-guard-20261122/s6-7cfa83a2f-evening/evening-diagnostic-stop.json",
+                                    "sha256": "4c416e7135a6daba3babcfcebace1015f8a0809da462bf5f6da87e4e322bb33d"
+                                  },
+                                  "diagnostic_scope_contract": {
+                                    "path": ".tmp/data02-current-20261115/20261116/e1-integrated-preparation/formal/c5-flex-window-s6-ci2-supplement491/supplement-plan.json",
+                                    "sha256": "84743bf2ceef3335339829ad6175ec50eb1f6e34f655101d29b8df6d5ab71b03"
+                                  }
+                                },
                                 "post_prepare_production_comparison": {
                                   "observed_at": "2026-11-23T14:59:38.876551+00:00",
                                   "production_configured_assets": 5568,
