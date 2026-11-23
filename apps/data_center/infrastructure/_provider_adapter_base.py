@@ -268,6 +268,15 @@ class BaseUnifiedProviderAdapter(UnifiedDataProviderProtocol):
             raise ValueError("Configured provider identity is missing")
         return provider_id
 
+    def index_close_decimal_places(self) -> int | None:
+        """Read the configured rounding contract for this route's unadjusted index closes."""
+        places = self._config.extra_config.get("index_close_decimal_places")
+        if places is None:
+            return None
+        if type(places) is not int or not 0 <= places <= 28:
+            raise ValueError("Invalid index_close_decimal_places in provider configuration")
+        return places
+
     def _provider_extra(self, extra: dict[str, Any] | None = None) -> dict[str, Any]:
         payload = dict(extra or {})
         payload.setdefault("provider_name", self.provider_name())

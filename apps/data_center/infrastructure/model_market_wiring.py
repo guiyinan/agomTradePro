@@ -30,6 +30,17 @@ class _ModelProvider(Protocol):
     ) -> ModelMarketDataPort: ...
 
 
+@runtime_checkable
+class _IndexClosePrecisionProvider(Protocol):
+    def index_close_decimal_places(self) -> int | None: ...
+
+
+def _index_close_places(provider: object) -> int | None:
+    if isinstance(provider, _IndexClosePrecisionProvider):
+        return provider.index_close_decimal_places()
+    return None
+
+
 def build_model_market_service(
     registry: ProviderRegistry,
     repository: PriceBarRepositoryProtocol,
@@ -77,6 +88,7 @@ def build_model_market_service(
                 or (default_source != "failover" and provider.provider_source() != default_source)
             ),
             provider_id=provider.provider_id(),
+            index_close_decimal_places=_index_close_places(provider),
         )
         for index, provider in enumerate(providers)
     )

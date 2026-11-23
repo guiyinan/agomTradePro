@@ -35,6 +35,7 @@ class ModelMarketRoute:
     source_type: str
     requires_reference: bool = False
     provider_id: int | None = None
+    index_close_decimal_places: int | None = None
 
     def __post_init__(self) -> None:
         """Require the provider configuration's canonical source identity."""
@@ -45,6 +46,9 @@ class ModelMarketRoute:
             or self.source_type != self.source_type.strip()
         ):
             raise ValueError("model-market route source_type must be canonical")
+        places = self.index_close_decimal_places
+        if places is not None and (type(places) is not int or not 0 <= places <= 28):
+            raise ValueError("Invalid index close decimal precision")
 
 
 class ModelMarketDataServiceState(ABC):

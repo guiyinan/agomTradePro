@@ -78,6 +78,29 @@ def test_calendar_evidence_binds_requested_coverage_and_provider_source():
     assert evidence.observed_at.tzinfo is not None
 
 
+@pytest.mark.parametrize("reverse", [False, True])
+def test_index_history_selects_an_entire_rounding_equivalent_bar(reverse):
+    low = Source((bar(close=4579.88), bar(D2, close=4600.00)))
+    fine = Source((bar(close=4579.875, source="relay"), bar(D2, close=4600.0, source="relay")))
+    routes = (
+        ModelMarketRoute("csi", low, "csi", index_close_decimal_places=2),
+        ModelMarketRoute("relay", fine, "relay"),
+    )
+    port = ModelMarketDataService(
+        routes[::-1] if reverse else routes,
+        enable_failover=True,
+        tolerance=0.01,
+        reference_history=lambda *_: (),
+    )
+    result = port.index_history("600000.SH", D1, D2)
+    assert result[0] is fine.rows[0]
+    assert result[1] is low.rows[1]
+    fine.rows = (bar(close=4579.8749, source="relay"), fine.rows[1])
+    with pytest.raises(DataFetchError) as error:
+        port.index_history("600000.SH", D1, D2)
+    assert error.value.code == "MODEL_MARKET_SOURCE_CONFLICT"
+
+
 def test_calendar_evidence_fails_over_to_akshare_complete_series():
     class RejectedCalendar(Source):
         def trading_calendar_evidence(self, start_date, end_date):
@@ -497,6 +520,9 @@ def test_wiring_honors_configured_default_and_disabled_failover():
         def provider_id(self):
             return 1 if self.name == "tushare" else 2
 
+        def index_close_decimal_places(self):
+            return 2 if self.name == "akshare" else None
+
         def model_market_source(self, **kwargs):
             return self
 
@@ -530,6 +556,9 @@ def test_wiring_honors_configured_default_and_disabled_failover():
     assert first.calls == 0
     assert stored == []
     assert audit_calls == []
+    first.rows = (bar(close=10.001, source="tushare"), bar(D2, source="tushare"))
+    merged = build_model_market_service(registry, repo, {**config, "enable_failover": True})
+    assert merged.index_history("600000.SH", D1, D2)[0] is first.rows[0]
     registry.get_providers = lambda _: [first]
     with pytest.raises(ConfigurationError, match="No configured"):
         build_model_market_service(registry, repo, config)

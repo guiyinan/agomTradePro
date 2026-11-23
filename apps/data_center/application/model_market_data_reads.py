@@ -6,6 +6,7 @@ import logging
 import math
 from collections.abc import Callable
 from datetime import date
+from decimal import Decimal
 from typing import TypeVar
 
 from apps.data_center.application.model_history_preparation import (
@@ -16,6 +17,7 @@ from apps.data_center.application.model_market_data_state import (
     ModelMarketDataServiceState,
     ModelMarketRoute,
 )
+from apps.data_center.domain.historical_index_closes import IndexCloseSeries, merge_index_closes
 from apps.data_center.domain.model_market_data import (
     ModelDailyBar,
     ModelMarketDataPort,
@@ -27,6 +29,30 @@ from core.exceptions import DataFetchError, TushareError
 
 logger = logging.getLogger(__name__)
 _T = TypeVar("_T")
+
+
+def _merge_index_history(
+    asset_code: str,
+    sessions: tuple[date, ...],
+    candidates: list[tuple[ModelMarketRoute, tuple[ModelDailyBar, ...]]],
+    tolerance: float,
+) -> tuple[ModelDailyBar, ...]:
+    """Return entire original bars from the routes selected by close precision."""
+    bars = {(route.name, bar.trade_date): bar for route, rows in candidates for bar in rows}
+    series = tuple(
+        IndexCloseSeries(
+            asset_code,
+            route.name,
+            route.index_close_decimal_places,
+            {bar.trade_date: Decimal(str(bar.close)) for bar in rows},
+        )
+        for route, rows in candidates
+    )
+    try:
+        merged = merge_index_closes(sessions, series, relative_tolerance=Decimal(str(tolerance)))
+    except ValueError as exc:
+        raise DataFetchError(str(exc), code="MODEL_MARKET_SOURCE_CONFLICT") from exc
+    return tuple(bars[row.source, row.session] for row in merged)
 
 
 class ModelMarketDataReads(ModelMarketDataServiceState):
@@ -133,6 +159,12 @@ class ModelMarketDataReads(ModelMarketDataServiceState):
         full_interval_suspension = False
         observed_history = False
         suspension_conflict: DataFetchError | None = None
+        compare_index = (
+            is_index
+            and len(self._routes) > 1
+            and any(route.index_close_decimal_places is not None for route in self._routes)
+        )
+        candidates: list[tuple[ModelMarketRoute, tuple[ModelDailyBar, ...]]] = []
         for index, route in enumerate(self._routes):
             if route.name in skip_routes:
                 continue
@@ -240,7 +272,8 @@ class ModelMarketDataReads(ModelMarketDataServiceState):
                     full_interval_suspension = False
                 calendar = self.trade_days(start_date, end_date)
                 if max(row.trade_date for row in rows) < max(calendar):
-                    reference = rows
+                    if not candidates:
+                        reference = rows
                     last_error = DataFetchError(
                         "Source observations are stale", code="MODEL_MARKET_STALE"
                     )
@@ -289,7 +322,21 @@ class ModelMarketDataReads(ModelMarketDataServiceState):
                     continue
                 persisted_reference = self._reference_history_for(asset_code, start_date, end_date)
                 source_changed = any(row.source != rows[0].source for row in persisted_reference)
-                if index or route.requires_reference or source_changed:
+                if candidates:
+                    days = {row.trade_date for row in rows}
+                    peers = [
+                        prior
+                        for _, prior in candidates
+                        if any(row.trade_date in days for row in prior)
+                    ]
+                    if not peers:
+                        raise DataFetchError(
+                            "No overlap to verify source switch",
+                            code="MODEL_MARKET_UNVERIFIED_FAILOVER",
+                        )
+                    for prior in peers:
+                        self._check_consistency(prior, rows)
+                elif index or route.requires_reference or source_changed:
                     reference = reference or persisted_reference
                     self._check_consistency(reference, rows)
                 if suspension_conflict is not None:
@@ -316,6 +363,11 @@ class ModelMarketDataReads(ModelMarketDataServiceState):
                         end_date=end_date,
                         cache_port=cache_port,
                     )
+                if compare_index:
+                    candidates.append((route, rows))
+                    if len(candidates) == 1:
+                        reference = rows
+                    continue
                 return tuple(sorted(rows, key=lambda row: row.trade_date))
             except PermissionError as exc:
                 if (
@@ -374,6 +426,10 @@ class ModelMarketDataReads(ModelMarketDataServiceState):
             )
         if suspension_conflict is not None:
             raise suspension_conflict
+        if candidates:
+            return _merge_index_history(
+                asset_code, self.trade_days(start_date, end_date), candidates, self._tolerance
+            )
         raise last_error or DataFetchError(
             "No model market history available", code="MODEL_MARKET_UNAVAILABLE"
         )

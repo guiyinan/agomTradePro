@@ -543,6 +543,7 @@
         "apps/data_center/application/model_market_data_state.py",
         "apps/data_center/application/model_market_data_preparation.py",
         "apps/data_center/application/model_market_data_reads.py",
+        "apps/data_center/domain/historical_index_closes.py",
         "apps/data_center/application/model_market_history_lineage.py",
         "apps/data_center/application/model_history_preparation.py",
         "apps/data_center/infrastructure/market_gateway_entities.py",
@@ -580,6 +581,11 @@
           "case": "consumers_do_not_route_vendors",
           "test_file": "tests/unit/data_center/test_model_market_data.py",
           "test_function": "test_model_consumers_cannot_obtain_vendor_sdks_or_choose_market_sources"
+        },
+        {
+          "case": "index_close_source_precision",
+          "test_file": "tests/unit/data_center/test_model_market_data.py",
+          "test_function": "test_index_history_selects_an_entire_rounding_equivalent_bar"
         },
         {
           "case": "adjustment_and_units",

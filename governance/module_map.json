@@ -5880,10 +5880,10 @@
       },
       "layers": {
         "application": 204,
-        "domain": 71,
-        "infrastructure": 292,
+        "domain": 72,
+        "infrastructure": 293,
         "interface": 35,
-        "management": 47,
+        "management": 48,
         "root": 52
       },
       "orm_models": {
