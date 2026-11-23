@@ -10327,6 +10327,31 @@
                                 "graph_continue_max": 29,
                                 "market_cumulative_upper": 368,
                                 "full_allocation_if_continued": 534,
+                                "same_attempt_11_gap_terminal": {
+                                  "runner_status": "blocked",
+                                  "runner_terminal_at": "2026-11-23T15:26:18.517270+00:00",
+                                  "runner_terminal_stage": "stage_environment_preflight",
+                                  "runner_terminal_error": "REHEARSAL_STAGE_TRANSFER_ENCODING_INVALID",
+                                  "frozen_universe": 5581,
+                                  "daily_rows": 5570,
+                                  "full_day_suspensions": 11,
+                                  "new_diagnostic_requests": 2,
+                                  "market_cumulative_upper": 371,
+                                  "market_ceiling": 559,
+                                  "per_market_stage_maximum": 64,
+                                  "financial_stage_requests": 0,
+                                  "formal_provider_stages_started": 0,
+                                  "production_backfill_or_e1": false,
+                                  "completed_checkpoint_stages": [],
+                                  "only_invalid_input": "supplement-owner-authorization.json",
+                                  "crlf_pairs": 29,
+                                  "fix": "Serialize the operator authorization to UTF-8 bytes with LF; validate bytes before staging and reject overwrites.",
+                                  "resume_with_fixed_input": "S6_CHECKPOINT_INPUT_CHANGED",
+                                  "terminal_review": {
+                                    "path": ".tmp/data02-guard-20261122/s6-7cfa83a2f-evening/same-attempt-559/terminal-review.json",
+                                    "sha256": "199d59b2b44c39dc068be69960c136c68eef4f3195ea468a696c1edcdd90f0f7"
+                                  }
+                                },
                                 "same_attempt_diagnostic": {
                                   "supplemented_market_ceiling": 534,
                                   "post_s6_reserved": 60,
