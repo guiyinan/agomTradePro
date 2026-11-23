@@ -1629,5 +1629,26 @@
     "offline_check": "agomtradepro/Scripts/python.exe .tmp/cal03-event-study-20261119/channel-review-20261123/precision_check.py --2017",
     "diagnostics": "The first 2017 extraction included a page footer among the numbered rows and stopped. The corrected table bounds locate 31 rows and match the full 244-session date set.",
     "final_oos_claimed_or_evaluated": false
+  },
+  "early_snapshot_development_walk_forward_20261123": {
+    "base_head": "c913d94f8a8bc6805d7444172951428788292122",
+    "scope": "Descriptive retrospective third-party close snapshots only. No point-in-time entitlement, historical availability, overlap or final OOS inference.",
+    "price_span": [
+      "20100104",
+      "20181228"
+    ],
+    "validation_origins": [
+      "20150216",
+      "20180925"
+    ],
+    "results": "3 targets x 3 horizons, each 7 folds x 126 origins; six-period features reduce mean validation MSE in 4 of 9 combinations. Two identical local replays.",
+    "diagnostic": "Initial date-axis join included the 2009-12-31 prior-session lookup and stopped before prices were read; aligned the axis to the requested 2010-01-04 start.",
+    "run": "PYTHONPATH=. python .tmp/cal03-event-study-20261119/snapshot-walk-forward-20261123/run.py",
+    "artifacts": {
+      ".tmp/cal03-event-study-20261119/snapshot-walk-forward-20261123/run.py": "b8c28478c5ab974f0302cd2c62171788941d99e8efbd0f8de571162828e2d1c1",
+      ".tmp/cal03-event-study-20261119/snapshot-walk-forward-20261123/results.json": "0874251a78d4ee0e728568a0cb0269d89b82ab6bf274749af46eb594c9096d79",
+      ".tmp/cal03-event-study-20261119/snapshot-walk-forward-20261123/report.md": "118774512ad99bc3120852c4fe169d12baee6f6fa1eedf4a88d6f4edad58d419"
+    },
+    "final_oos_claimed_or_evaluated": false
   }
 }
