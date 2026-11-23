@@ -27,62 +27,20 @@ from apps.research.application.calendar_validation import (
 from apps.research.domain.institutional_event_study import (
     MatchingFeatures,
     PriceVersion,
-    SampleGateSpec,
     Session,
-    StudyClock,
-    WalkForwardPolicy,
     plan_walk_forward,
+)
+from apps.research.infrastructure.calendar_validation_design import (
+    SPEC_SHA256,
+    load_validation_design,
 )
 from apps.research.infrastructure.validation_ridge import ridge_predict
 
 _ROOT = Path(__file__).resolve().parents[1]
-_SPEC = _ROOT / "tests/fixtures/research/cal_event_study_v1.json"
-_SPEC_HASH = "29a44d0cd2670dd2a72853494d21271c9765d6584dafa4998e1df3c2a6edfe71"
 
 
 def _design() -> ValidationDesign:
-    raw = _SPEC.read_bytes()
-    if hashlib.sha256(raw).hexdigest() != _SPEC_HASH:
-        raise ValueError("Unexpected frozen CAL-03 specification")
-    doc = json.loads(raw)
-    split = doc["temporal_split"]
-    gates = doc["sample_gates"]
-    controls = doc["controls"]["six_periods"]
-    clock = doc["knowledge_cutoff"]
-    policy = WalkForwardPolicy(
-        split["minimum_history"]["consecutive_calendar_years"],
-        split["minimum_history"]["complete_daily_rows_per_target"],
-        split["first_training_window_years"],
-        split["validation_trading_days_per_fold"],
-        split["minimum_walk_forward_folds"],
-        split["total_oos_trading_days"],
-        split["purge"]["minimum_separation_trading_days"],
-        split["embargo"]["trading_days"],
-        gates["target_expected_session_coverage_min"],
-    )
-    return ValidationDesign(
-        tuple(t["code"] for t in doc["targets"]["broad_indices"]),
-        StudyClock(
-            clock["timezone"],
-            time.fromisoformat(clock["local_time"]),
-            tuple(doc["primary_endpoint"]["horizons_trading_days"]),
-        ),
-        policy,
-        SampleGateSpec(
-            policy.minimum_coverage,
-            gates["distinct_events_total_min"],
-            gates["training_events_min"],
-            gates["validation_events_total_min"],
-            gates["oos_events_total_min"],
-        ),
-        tuple(controls["categories"]),
-        controls["reference_category"],
-        ("quiet", "active"),
-        "system_known",
-        1.0,
-        10,
-        0.95,
-    )
+    return load_validation_design(_ROOT / "tests/fixtures/research/cal_event_study_v1.json")
 
 
 def _fixture_series(
@@ -278,6 +236,7 @@ def write_demo(output: Path) -> None:
         }
     source_paths = (
         Path(__file__).resolve(),
+        _ROOT / "apps/research/infrastructure/calendar_validation_design.py",
         _ROOT / "apps/research/application/calendar_validation.py",
         _ROOT / "apps/research/infrastructure/validation_ridge.py",
         _ROOT / "apps/research/domain/calendar_validation_statistics.py",
@@ -290,7 +249,7 @@ def write_demo(output: Path) -> None:
         "final_oos_evaluated": False,
         "final_oos_claimed": False,
         "final_oos_sessions_reserved": design.policy.final_oos_sessions,
-        "spec_sha256": _SPEC_HASH,
+        "spec_sha256": SPEC_SHA256,
         "design": asdict(design),
         "calendar_sha256": _digest([asdict(s) for s in cal.sessions]),
         "calendar_version": cal.version,
