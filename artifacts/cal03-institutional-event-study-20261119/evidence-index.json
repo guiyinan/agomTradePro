@@ -2292,5 +2292,68 @@
     ],
     "pit_qualified": false,
     "final_oos_claimed_or_evaluated": false
+  },
+  "authorized_candidate_disposition_20261123": {
+    "candidate_head": "9353e927516faf70d5c02d5254f1e34b3c557512",
+    "development_decision": "stop tuning this six-period candidate; no signal promotion",
+    "formal_input_status": "insufficient_data",
+    "authority": "Owner delegated execution; authority is not an outstanding input gate.",
+    "outstanding": "No verified original publication/availability and subsequent correction lineage at the frozen 18:00 Asia/Shanghai cutoff for the required historical coverage. Formal source entitlements and PIT binding still need evidence.",
+    "public_sample_comparison": {
+      "000300": {
+        "sample_daily_last": "3968.1979",
+        "relay_close": "3968.1979",
+        "official_web": 3968.2
+      },
+      "000016": {
+        "sample_daily_last": "2684.8458",
+        "relay_close": "2684.8458",
+        "official_web": 2684.85
+      },
+      "000905": {
+        "sample_daily_last": "6211.2515",
+        "relay_close": "6211.2515",
+        "official_web": 6211.25
+      }
+    },
+    "source_documents": {
+      "ciis.html": {
+        "sha256": "a152a303868384612d6e4f955efa7bc952101ffd1dae09aea260a30bc67db20b",
+        "url": "https://www.ciis.com.hk/hongkong/sc/historicaldata1/his_introduction/index.shtml"
+      },
+      "manual.pdf": {
+        "sha256": "62de204f9bc4795a3bbd401e55ac3802e0d8ec20afad6ae5c7375dcd020a63fc",
+        "url": "https://www.ciis.com.hk/hongkong/sc/uploadfiles/202608/24/2026082405192876871254.pdf"
+      },
+      "samples.html": {
+        "sha256": "460f3e71d5c9dadda58edd81e60f2083f9d24fdf8ec775422bc3894d245a8189",
+        "url": "https://www.ciis.com.hk/hongkong/sc/historicaldata1/sampledata/index.shtml"
+      },
+      "20221206_CSI_Day.xlsx": {
+        "sha256": "b11008f42fabb632305e686c709fddb0a2e1403f73e6b1eea9b4cb1497e8decc",
+        "url": "https://www.ciis.com.hk/hongkong/sc/uploadfiles/202212/12/2022121216124768174625.xlsx"
+      },
+      "20221206_CSI_Snapshot.xlsx": {
+        "sha256": "b9355029ad0a1b95821422d6ada980778c8db6c291f85a5af6d99d29906af076",
+        "url": "https://www.ciis.com.hk/hongkong/sc/uploadfiles/202212/12/2022121216130568313735.xlsx"
+      }
+    },
+    "pre_holdout_responses_verified": 45,
+    "evidence": {
+      "path": ".tmp/cal03-event-study-20261119/final-readiness-1795437485531/decision.json",
+      "sha256": "417913ac319c0aac841e68515864b2616cb17070d5a70cf8f6bf78b6a9c64b62"
+    },
+    "audit": {
+      "path": ".tmp/cal03-event-study-20261119/final-readiness-1795437485531/verify.py",
+      "sha256": "ef824061589c9ac8cfbcdc6fe3c06b3adf0ef28d893cd74d8697a6b4e6ff3c52"
+    },
+    "command": "agomtradepro/Scripts/python.exe .tmp/cal03-event-study-20261119/final-readiness-1795437485531/verify.py",
+    "exit": 0,
+    "verified_log": {
+      "path": ".tmp/cal03-event-study-20261119/final-readiness-1795437485531/verified.log",
+      "sha256": "743845f17350f86d7a755069ea0c5502629b8d476b8339dbd561c7d41c088365"
+    },
+    "diagnostic": "Initial PDF text extraction used the platform encoding. Re-extracted the same PDF with pdftotext -enc UTF-8 before successful verification.",
+    "final_oos_evaluated_or_claimed": false
   }
 }
