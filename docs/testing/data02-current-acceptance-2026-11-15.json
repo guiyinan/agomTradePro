@@ -10224,7 +10224,7 @@
                                 "sha256": "37d36ce734b58fd35542247aaaf846ff77687f763ab20bec8d5c4d8eaa14bd9e"
                               },
                               "target_trade_date": "2026-11-23",
-                              "execution_status": "waiting_for_manual_publication_and_eligible_target_source",
+                              "execution_status": "skipped_target_date_source_absent_at_cutoff",
                               "attempts_reserved": 0,
                               "runner_started": false,
                               "market_cumulative_maximum": 528,
@@ -10278,7 +10278,45 @@
                               "watcher": {
                                 "path": ".tmp/data02-guard-20261122/s6-7cfa83a2f/watch-ready.json",
                                 "sha256": "82e8da14da7b7602f2fc7df898b74e5a022b7d20bc29dc9797eb1d2c3914e452"
-                              }
+                              },
+                              "manual_publication": {
+                                "path": ".tmp/data02-guard-20261122/github-ci-7cfa83a2f/publication-verification.json",
+                                "sha256": "4d6023b5419f1cf428ee44aef7ecfb49c216121f1f0abed6581eb07f886d0bc5"
+                              },
+                              "manual_publication_run": 45097656508,
+                              "publication_qualification_expires_at": "2026-11-24T02:00:01+00:00",
+                              "terminal": {
+                                "path": ".tmp/data02-guard-20261122/s6-7cfa83a2f/watch-terminal.json",
+                                "sha256": "f9b14603b17ee2b5611d4650512d3bcdbca21290440bd149a36e047c0c6cd9bf"
+                              },
+                              "qualified_window": false,
+                              "source_observations": 55,
+                              "first_source_check": {
+                                "path": ".tmp/data02-guard-20261122/s6-7cfa83a2f/source-20261123T090608407461Z.json",
+                                "sha256": "a86fe86270cea170862965cf9cb953eab7b8c18df9e396719903709653cb850f"
+                              },
+                              "last_source_check": {
+                                "path": ".tmp/data02-guard-20261122/s6-7cfa83a2f/source-20261123T103050875978Z.json",
+                                "sha256": "05615a20aa05ca2888687db06b3596d18420fc8d6736afdb14a05445b1f07bf1"
+                              },
+                              "first_database_clock": "2026-11-23T09:05:44.316428+00:00",
+                              "last_database_clock": "2026-11-23T10:30:23.003959+00:00",
+                              "target_bar_assets": 0,
+                              "target_quote_assets": 0,
+                              "target_valuation_assets": 0,
+                              "source_universe": 5568,
+                              "provider_attempts_in_skipped_window": 0,
+                              "source_arrival_history": {
+                                "path": ".tmp/data02-guard-20261122/two-workers/valuation-arrivals.json",
+                                "sha256": "4406f11ac20df5ca6df82d2cd285b51d4e032de5996c84010fdf07efe057cf83"
+                              },
+                              "first_valuation_fetches_beijing": [
+                                "2026-11-18T21:30:58.453652+08:00",
+                                "2026-11-19T21:30:35.829517+08:00",
+                                "2026-11-20T21:30:44.159185+08:00",
+                                "2026-11-21T21:30:35.583631+08:00",
+                                "2026-11-22T21:30:47.129812+08:00"
+                              ]
                             }
                           }
                         }
