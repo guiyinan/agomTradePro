@@ -17,4 +17,4 @@
 
 ASH-11 尚保留旧 ASH-06/DATA-18 依赖，瘦身报告等待 Owner 接受后实施；本次不把被延期的前置假标完成。旧 next_gate 原文完整保存在 `registry-application-base.json`，新门槛只发布当前要求和历史引用。
 
-CAL-03 适用 CAL 研究计划 §13.15 的归档交接。该标记使用 `archived_unit_id`、`owner_decision_ref`、`reason`，仅接受状态为 `archived` 的 CAL-03 和对应章节；空焦点及后继依赖规则同上。
+CAL-03 适用 CAL 研究计划 §13.16 授权的完成交接，沿用 `completed_unit_id`、`owner_decision_ref`、`reason` 标记和空焦点规则。CAL-04 可排期。

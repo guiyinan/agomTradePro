@@ -1,5 +1,5 @@
 {
-  "version": "2026-11-23.v626",
+  "version": "2026-11-23.v627",
   "updated_at": "2026-11-23",
   "execution_focus": {
     "unit_id": null,
@@ -8,12 +8,12 @@
       "external",
       "governance"
     ],
-    "policy": "Owner explicitly requests Root-led Luna Max work toward full DATA-02 exit then DATA-03. Complete bounded C2/D1 repository prerequisites within the existing production unit with non-overlapping source/test scopes and serialized shared Git/index/projections. Existing C/D/E scheme approval persists; User delegated concrete C2 choice to Root: TTL3600/coverage100/no partial/conflict block/09:30 continuous auction selected and recorded in existing plan §48; exact official rule/calendar/source qualifications and persisted Owner events remain required. No unknown units, rounding exception, maintenance removal or production qualification inferred. E1 scope choice remains delegated; exact authority/source/budget/candidate/backup gates remain. DATA-03 waits for DATA-02 full-universe exit; CAL-04/05 unstarted and ASH06/09/12 deferred. Preserve protected ASH databases and .task-logs/. Owner subsequently freezes the E1 candidate: fix only necessary acceptance/deployment/real E1 blockers, commit promptly after applicable checks, reuse unchanged bound inputs, and defer DATA-02 scope expansion. Exact progress and remaining production gates are in existing plan §48.4 and acceptance followups[14]; no DATA-02 closure or DATA-03 start is inferred. On 2026-11-19 Owner separately authorized CAL-03 formal adoption in a short serialized local integration window and continued M2 research. CAL-02 dependency is complete. CAL-03 was archived on 2026-11-23 after its public snapshot holdout; repository handoff is pending; DATA-02 production work continues against sealed c5b42e20cc97a7e166e6d3f88254d05b0605667a with its existing S6 window and budgets unchanged. No CAL-04/05, DATA-03, signal promotion, trading or production qualification is authorized by CAL-03 work.",
+    "policy": "Owner explicitly requests Root-led Luna Max work toward full DATA-02 exit then DATA-03. Complete bounded C2/D1 repository prerequisites within the existing production unit with non-overlapping source/test scopes and serialized shared Git/index/projections. Existing C/D/E scheme approval persists; User delegated concrete C2 choice to Root: TTL3600/coverage100/no partial/conflict block/09:30 continuous auction selected and recorded in existing plan §48; exact official rule/calendar/source qualifications and persisted Owner events remain required. No unknown units, rounding exception, maintenance removal or production qualification inferred. E1 scope choice remains delegated; exact authority/source/budget/candidate/backup gates remain. DATA-03 waits for DATA-02 full-universe exit; CAL-04/05 unstarted and ASH06/09/12 deferred. Preserve protected ASH databases and .task-logs/. Owner subsequently freezes the E1 candidate: fix only necessary acceptance/deployment/real E1 blockers, commit promptly after applicable checks, reuse unchanged bound inputs, and defer DATA-02 scope expansion. Exact progress and remaining production gates are in existing plan §48.4 and acceptance followups[14]; no DATA-02 closure or DATA-03 start is inferred. On 2026-11-19 Owner separately authorized CAL-03 formal adoption in a short serialized local integration window and continued M2 research. CAL-02 dependency is complete. CAL-03 completed on 2026-11-23 under the accepted public snapshot research scope; repository handoff is pending; DATA-02 production work continues against sealed c5b42e20cc97a7e166e6d3f88254d05b0605667a with its existing S6 window and budgets unchanged. No CAL-04/05, DATA-03, signal promotion, trading or production qualification is authorized by CAL-03 work.",
     "parallel_preparation": [],
     "handoff_pending": {
-      "archived_unit_id": "CAL-03",
-      "owner_decision_ref": "docs/plans/institutional-calendar-etf-activity-research-plan-2026-11-04.md#13.15",
-      "reason": "Owner accepted the public snapshot holdout for research closure. The six-period candidate is retired; original PIT qualification remains unmet and no successor is selected."
+      "completed_unit_id": "CAL-03",
+      "owner_decision_ref": "docs/plans/institutional-calendar-etf-activity-research-plan-2026-11-04.md#13.16",
+      "reason": "Owner accepted the completed public snapshot study. CAL-04 is eligible for scheduling; CAL-05 awaits CAL-04. No successor has started."
     }
   },
   "workstreams": [
@@ -55,7 +55,7 @@
       "priority": "P0",
       "owner": "research+data_center+signal+portfolio+broker_execution",
       "status": "production_validation",
-      "next_gate": "Prepare STRAT-01 dry-run and canonical registration of the eight approved definitions under genuine identity/current-head/scope/version/hash checks; start STRAT-02 real PIT/OOS receipt accumulation only after STRAT-01 and DATA-02 exit. CAL-01/02 are completed, CAL-03 is archived after the public snapshot holdout, and CAL-04/05 remain waiting_dependency and unstarted; completed REF-04/05 are not new preparation blockers. Follow docs/plans/release-blocker-closure-execution-plan-2026-08-29.md §3; STRAT-03 remains deferred with no signal promotion or trading activation.",
+      "next_gate": "Prepare STRAT-01 dry-run and canonical registration of the eight approved definitions under genuine identity/current-head/scope/version/hash checks; start STRAT-02 real PIT/OOS receipt accumulation only after STRAT-01 and DATA-02 exit. CAL-01/02 are completed, CAL-03 completed under the public snapshot scope, CAL-04 is planned, and CAL-05 awaits CAL-04; completed REF-04/05 are not new preparation blockers. Follow docs/plans/release-blocker-closure-execution-plan-2026-08-29.md §3; STRAT-03 remains deferred with no signal promotion or trading activation.",
       "documents": [
         {
           "path": "docs/plans/strategy-research-capability-completion-audit-2026-08-05.md",
@@ -400,7 +400,7 @@
       "priority": "P0/P1",
       "owner": "portfolio+risk_center+data_center+simulated_trading+backtest+broker_execution+terminal",
       "status": "active",
-      "next_gate": "ASH-05/07/08 and CAL-01/02 are completed in the registry; CAL-03 is archived with repository handoff pending, so old ASH-05 CI failures and waiting-for-CAL-02 wording are historical. Prepare permitted ASH-11 M1/M2/M3 user journeys, but retain ASH-05/06/08 and DATA-18 dependencies: ASH-06 is deferred and the narrower acceptance-scope decision remains pending. Follow docs/plans/release-blocker-closure-execution-plan-2026-08-29.md §3; no ASH-06/09/12 resumption, live execution or production qualification is inferred.",
+      "next_gate": "ASH-05/07/08 and CAL-01/02 are completed in the registry; CAL-03 is completed with repository handoff pending, so old ASH-05 CI failures and waiting-for-CAL-02 wording are historical. Prepare permitted ASH-11 M1/M2/M3 user journeys, but retain ASH-05/06/08 and DATA-18 dependencies: ASH-06 is deferred and the narrower acceptance-scope decision remains pending. Follow docs/plans/release-blocker-closure-execution-plan-2026-08-29.md §3; no ASH-06/09/12 resumption, live execution or production qualification is inferred.",
       "documents": [
         {
           "path": "docs/plans/a-share-usability-implementation-plan-2026-10-16.md",
@@ -527,7 +527,7 @@
       {
         "id": 3,
         "title": "Candidate release and user acceptance",
-        "rule": "Bind release CI/complete RC/independent Publication PostgreSQL/fresh S6, deployment, real-user UAT and rollback to one immutable candidate. Start TUI-02 real14-day telemetry promptly when its own prerequisites pass, without a new DATA-03 hard dependency; close DATA-18 separately under its original gates. CAL-03 is archived with repository handoff pending, CAL-04/05 unstarted, and TAR-05/AI-01/ASH-09/12 stay deferred; the completed TAR-06 collector is not capacity acceptance. Sequence: docs/plans/release-blocker-closure-execution-plan-2026-08-29.md §3."
+        "rule": "Bind release CI/complete RC/independent Publication PostgreSQL/fresh S6, deployment, real-user UAT and rollback to one immutable candidate. Start TUI-02 real14-day telemetry promptly when its own prerequisites pass, without a new DATA-03 hard dependency; close DATA-18 separately under its original gates. CAL-03 is completed with repository handoff pending, CAL-04/05 unstarted, and TAR-05/AI-01/ASH-09/12 stay deferred; the completed TAR-06 collector is not capacity acceptance. Sequence: docs/plans/release-blocker-closure-execution-plan-2026-08-29.md §3."
       },
       {
         "id": 4,
@@ -2143,12 +2143,12 @@
         "wave": 3,
         "priority": "P2",
         "execution_mode": "repository",
-        "status": "archived",
+        "status": "completed",
         "title": "Deliver reproducible institutional-event volatility studies",
         "depends_on": [
           "CAL-02"
         ],
-        "exit_gate": "M2 binds exact source/config/code manifests to existing Research experiment/trial/family contracts. Golden cases validate 1/3/5-day squared-log-return sums, six-category rather than nonexistent non-event controls, point-in-time matching, overlapping-label purge and unmatured-label rejection. At least one real qualified broad-index event study produces reproducible IS/OOS, overlap, sensitivity, correction and coverage results under frozen sample/support criteria. Insufficient-data behavior is tested but does not replace a completed study; nonsignificant valid results can pass. No signal promotion or strategy execution. Scope and acceptance: docs/plans/institutional-calendar-etf-activity-research-plan-2026-11-04.md."
+        "exit_gate": "M2 binds exact source/config/code manifests to existing Research experiment/trial/family contracts. Golden cases validate 1/3/5-day squared-log-return sums, six-category rather than nonexistent non-event controls, point-in-time matching, overlapping-label purge and unmatured-label rejection. For this M2 research delivery, the Owner accepts the real broad-index study on retained public daily-close snapshots: reproducible development walk-forward and a single reserved holdout, overlap sensitivity, multiplicity correction, coverage, and source comparison. Historical first-release and correction vintages remain unverified; formal point-in-time OOS was not executed. Accepted scope and results: CAL plan sections 13.15-13.16. Insufficient-data behavior is tested but does not replace a completed study; nonsignificant valid results can pass. No signal promotion or strategy execution. Scope and acceptance: docs/plans/institutional-calendar-etf-activity-research-plan-2026-11-04.md."
       },
       {
         "id": "CAL-04",
@@ -2156,7 +2156,7 @@
         "wave": 3,
         "priority": "P2",
         "execution_mode": "repository",
-        "status": "waiting_dependency",
+        "status": "planned",
         "title": "Deliver source-bound daily ETF abnormal-activity observations",
         "depends_on": [
           "CAL-03"

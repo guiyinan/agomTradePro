@@ -2973,5 +2973,15 @@
         "sha256": "3416e7b88e1df5a5f6752eec36d97ea5558b65d6dce1f76b4de6d42e6e304e1c"
       }
     }
+  },
+  "public_snapshot_research_acceptance_20261123": {
+    "status": "completed",
+    "owner_decision_ref": "docs/plans/institutional-calendar-etf-activity-research-plan-2026-11-04.md#13.16",
+    "accepted_evidence": "public_snapshot_holdout_outcome_20261123",
+    "prior_governance_disposition": "archived",
+    "scope": "Public snapshot six-period volatility study; candidate retired.",
+    "historical_first_release_and_corrections_verified": false,
+    "formal_pit_oos_executed": false,
+    "additional_holdout_uses": 0
   }
 }

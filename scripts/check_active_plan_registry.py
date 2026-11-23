@@ -48,7 +48,7 @@ AUTHORIZED_HANDOFF_PLAN_PATHS = {
 }
 AUTHORIZED_HANDOFF_SECTIONS = {
     "CAL-02": "13.13",
-    "CAL-03": "13.15",
+    "CAL-03": "13.16",
     "ASH-03": "19.156",
     "ASH-05": "19.187",
     "ASH-07": "19.157",
@@ -1091,11 +1091,7 @@ def evaluate_registry(
     handoff_pending_valid = False
     if handoff_pending_present:
         handoff_pending_value = execution_focus.get("handoff_pending")
-        archive_handoff = (
-            isinstance(handoff_pending_value, dict) and "archived_unit_id" in handoff_pending_value
-        )
-        anchor_key = "archived_unit_id" if archive_handoff else "completed_unit_id"
-        handoff_pending_keys = {anchor_key, "owner_decision_ref", "reason"}
+        handoff_pending_keys = {"completed_unit_id", "owner_decision_ref", "reason"}
         if (
             not isinstance(handoff_pending_value, dict)
             or set(handoff_pending_value) != handoff_pending_keys
@@ -1105,7 +1101,7 @@ def evaluate_registry(
                     "execution_focus_handoff_pending_keys",
                     "execution_focus.handoff_pending",
                     "handoff_pending must contain exactly "
-                    f"{anchor_key}, owner_decision_ref and reason",
+                    "completed_unit_id, owner_decision_ref and reason",
                 )
             )
         else:
@@ -1123,20 +1119,19 @@ def evaluate_registry(
                         "all handoff_pending fields must be non-empty strings",
                     )
                 )
-            anchor_id = handoff_pending.get(anchor_key)
+            anchor_id = handoff_pending.get("completed_unit_id")
             anchor_valid = (
                 isinstance(anchor_id, str)
                 and anchor_id in AUTHORIZED_HANDOFF_SECTIONS
                 and anchor_id in known_unit_ids
                 and unit_execution_modes.get(anchor_id) == "repository"
-                and (anchor_id == "CAL-03") == archive_handoff
-                and unit_statuses.get(anchor_id) == ("archived" if archive_handoff else "completed")
+                and unit_statuses.get(anchor_id) == "completed"
             )
             if not anchor_valid:
                 violations.append(
                     Violation(
                         "execution_focus_handoff_pending_anchor",
-                        f"execution_focus.handoff_pending.{anchor_key}",
+                        "execution_focus.handoff_pending.completed_unit_id",
                         "handoff anchor must match the authorized repository closure disposition",
                     )
                 )

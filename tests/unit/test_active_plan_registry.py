@@ -449,7 +449,7 @@ def test_registry_accepts_explicit_ash07_closure_handoff_without_starting_succes
         ("REF-05", "ASH-08", "ASH-05", "19.167"),
         ("ASH-04", "ASH-05", "ASH-06", "19.187"),
         ("CAL-01", "CAL-02", "CAL-03", "13.13"),
-        ("CAL-02", "CAL-03", "CAL-04", "13.15"),
+        ("CAL-02", "CAL-03", "CAL-04", "13.16"),
     ],
 )
 def test_registry_closure_requires_explicit_handoff_without_starting_successor(
@@ -474,12 +474,6 @@ def test_registry_closure_requires_explicit_handoff_without_starting_successor(
         unit["depends_on"] = [rename.get(value, value) for value in unit["depends_on"]]
     marker = payload["execution_focus"]["handoff_pending"]
     marker["completed_unit_id"] = anchor
-    if anchor == "CAL-03":
-        marker["archived_unit_id"] = marker.pop("completed_unit_id")
-        next(unit for unit in units if unit["id"] == anchor)["status"] = "archived"
-        next(unit for unit in units if unit["id"] == successor)["status"] = "waiting_dependency"
-        # An unrelated ready unit still requires an explicit null-focus handoff.
-        units.append(dict(units[-1], id="EXAMPLE-02", status="planned", depends_on=[]))
     handoff_plan = module.AUTHORIZED_HANDOFF_PLAN_PATHS.get(anchor, module.HANDOFF_PLAN_PATH)
     if handoff_plan != module.HANDOFF_PLAN_PATH:
         payload["workstreams"][0]["documents"].append({"path": handoff_plan, "role": "supporting"})
@@ -498,12 +492,7 @@ def test_registry_closure_requires_explicit_handoff_without_starting_successor(
     elif mutation == "unfinished_anchor":
         next(unit for unit in units if unit["id"] == anchor)["status"] = "blocked_external"
     elif mutation == "wrong_disposition":
-        if anchor == "CAL-03":
-            marker["completed_unit_id"] = marker.pop("archived_unit_id")
-            next(unit for unit in units if unit["id"] == anchor)["status"] = "completed"
-        else:
-            marker["archived_unit_id"] = marker.pop("completed_unit_id")
-            next(unit for unit in units if unit["id"] == anchor)["status"] = "archived"
+        next(unit for unit in units if unit["id"] == anchor)["status"] = "archived"
     elif mutation == "active_successor":
         next(unit for unit in units if unit["id"] == successor)["status"] = "active"
     registry_path.write_text(json.dumps(payload), encoding="utf-8")
@@ -513,8 +502,7 @@ def test_registry_closure_requires_explicit_handoff_without_starting_successor(
     if expected_code is None:
         assert report.violation_count == 0, report.violations
         assert payload["execution_focus"]["unit_id"] is None
-        expected_status = "waiting_dependency" if anchor == "CAL-03" else "planned"
-        assert next(unit for unit in units if unit["id"] == successor)["status"] == expected_status
+        assert next(unit for unit in units if unit["id"] == successor)["status"] == "planned"
     else:
         assert expected_code in {violation.code for violation in report.violations}
 
