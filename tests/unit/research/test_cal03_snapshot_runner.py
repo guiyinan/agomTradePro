@@ -289,6 +289,104 @@ def test_later_range_refused_before_opening_out_of_bounds_file(later_bundle, tmp
         runner.write_snapshot(inputs, tmp_path / "unexpected", later_archive=later)
 
 
+@pytest.mark.parametrize("fault", ["", "query_end", "missing_session", "disagreement", "tamper"])
+def test_csi_source_switch_validates_range_sessions_and_paired_closes(tmp_path, monkeypatch, fault):
+    folder = tmp_path / "csi-history"
+    folder.mkdir()
+    days = (date(2019, 1, 2), date(2019, 1, 3))
+    name = "000300-2019.json"
+    rows = [
+        {"indexCode": "000300", "tradeDate": d, "close": p}
+        for d, p in [
+            ("20190101", 99),
+            ("20190102", 200 if fault == "disagreement" else 100.01),
+            ("20190103", 101),
+        ]
+    ]
+    if fault == "missing_session":
+        rows.pop()
+    body = json.dumps({"code": "200", "data": rows}).encode()
+    end = "20260101" if fault == "query_end" else "20190103"
+    entry = {
+        "raw": name,
+        "url": f"{runner._CSI_URL}?indexCode=000300&startDate=20190101&endDate={end}",
+        "rows": len(rows),
+        "sha256": hashlib.sha256(body).hexdigest(),
+    }
+    manifest = json.dumps(
+        {"source": runner._CSI_URL, "end": "20190103", "retrievals": [entry]}
+    ).encode()
+    (tmp_path / "coverage.json").write_bytes(manifest)
+    monkeypatch.setattr(runner, "CSI_COVERAGE_SHA256", hashlib.sha256(manifest).hexdigest())
+    if fault != "query_end":
+        (folder / name).write_bytes(body + b" " if fault == "tamper" else body)
+    relay = (100.0, float("nan"))
+    if fault:
+        msg = {
+            "query_end": "query range",
+            "missing_session": "session coverage",
+            "disagreement": "more than 1%",
+            "tamper": "SHA-256",
+        }[fault]
+        with pytest.raises(ValueError, match=msg):
+            runner._csi_closes(tmp_path, "000300", days, relay, {})
+    else:
+        values, check = runner._csi_closes(tmp_path, "000300", days, relay, {})
+        assert values == (100.01, 101)
+        assert check.common_sessions == 1 and check.recovered == (days[1],)
+        assert check.ignored_non_sessions == (date(2019, 1, 1),)
+
+
+def test_official_source_restores_folds_and_preserves_matched_control(
+    later_bundle, tmp_path, monkeypatch
+):
+    inputs, later, days, missing, manifest = later_bundle
+    folder = tmp_path / "csi-history"
+    folder.mkdir()
+    entries = []
+    upper = manifest["queries"][0]["params"]["end_date"]
+    axis = [d for d in days if d.year >= 2019 and d <= date.fromisoformat(upper)]
+    for query in manifest["queries"]:
+        code = query["params"]["ts_code"].split(".")[0]
+        relay = {
+            date.fromisoformat(d): p
+            for _, d, p in json.loads((later / query["raw_path"]).read_bytes())["data"]["items"]
+        }
+        for year in sorted({d.year for d in axis}):
+            end = min(f"{year}1231", upper)
+            name = f"{code}-{year}.json"
+            rows = [
+                {"indexCode": code, "tradeDate": d.strftime("%Y%m%d"), "close": relay.get(d, 110.0)}
+                for d in axis
+                if d.year == year
+            ]
+            raw = json.dumps({"code": "200", "data": rows}).encode()
+            (folder / name).write_bytes(raw)
+            entries.append(
+                {
+                    "raw": name,
+                    "sha256": hashlib.sha256(raw).hexdigest(),
+                    "rows": len(rows),
+                    "url": f"{runner._CSI_URL}?indexCode={code}&startDate={year}0101&endDate={end}",
+                }
+            )
+    raw = json.dumps({"source": runner._CSI_URL, "end": upper, "retrievals": entries}).encode()
+    (tmp_path / "coverage.json").write_bytes(raw)
+    monkeypatch.setattr(runner, "CSI_COVERAGE_SHA256", hashlib.sha256(raw).hexdigest())
+    output = tmp_path / "official"
+    runner.write_snapshot(inputs, output, later_archive=later, csi_archive=tmp_path)
+    report = json.loads((output / "results.json").read_bytes())
+    assert not report["oos_evaluated"]
+    for control, full in zip(report["source_controls"], report["results"], strict=True):
+        assert report["source_checks"][full["target"]]["recovered"] == [str(missing)]
+        assert control["official_matched"] == control["relay_matched"]
+        restored = control["official_restored_training"]["folds"]
+        assert len(full["folds"]) == len(restored) + 2
+        assert restored == [
+            f for f in full["folds"] if f["start"] in {row["start"] for row in restored}
+        ]
+
+
 def test_conflicting_report_is_preserved(tmp_path):
     output = tmp_path / "report"
     runner._publish(output, {"report.md": b"original", "results.json": b"{}"})

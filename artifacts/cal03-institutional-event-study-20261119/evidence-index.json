@@ -2044,5 +2044,99 @@
     ],
     "pit_qualified": false,
     "final_oos_claimed_or_evaluated": false
+  },
+  "official_later_snapshot_switch_20261123": {
+    "base_commit": "58d8f12663469abb4745dd9c12c5bff3d39269ae",
+    "source_blobs": {
+      "scripts/run_cal03_snapshot_walk_forward.py": "32417a53d1cddf5b16149fcc84c883c8d15726a2",
+      "tests/unit/research/test_cal03_snapshot_runner.py": "d92f4d908809eff34b56a84656de49c8130b5334"
+    },
+    "official_input": {
+      "path": ".tmp/cal03-event-study-20261119/public-20210511/coverage.json",
+      "sha256": "d52c70af7c99849be75042ea6b8ff79b75e177770444829e45495567557a92c6"
+    },
+    "period": "Official post-2018 series through 20241015, original relay through 2018. All 18 official annual responses verified against pinned manifest. Original design and calendar retained.",
+    "data_checks": "All targets: 1401 official sessions; 1400 overlap, maximum absolute discrepancy 0.005 points. Recovered 20210511. Ignored six January 1 rows per target outside trading calendar.",
+    "controls": "Original 8 folds, identical official training and validation rows, official restored training on original 8 folds, and official full 10 folds. Original reports and repeated official output byte-identical in their respective modes.",
+    "finding": "1260 predictions per contrast. MSE increased 0.138% to 1.358% across nine comparisons; all marginal 95% HAC intervals include zero. Minimum Holm p 0.7049.",
+    "tests_passed": 140,
+    "checks": {
+      "black": {
+        "command": "agomtradepro/Scripts/python.exe -m black --check scripts/run_cal03_snapshot_walk_forward.py tests/unit/research/test_cal03_snapshot_runner.py",
+        "exit": 0,
+        "path": ".tmp/cal03-event-study-20261119/csi-switch-1795426560030/black.log",
+        "sha256": "42952929f98ff284b84ffc33f5fca4e517620f9b2ceb3fca1375e504affa8195"
+      },
+      "isort": {
+        "command": "agomtradepro/Scripts/python.exe -m isort --check-only scripts/run_cal03_snapshot_walk_forward.py tests/unit/research/test_cal03_snapshot_runner.py",
+        "exit": 0,
+        "path": ".tmp/cal03-event-study-20261119/csi-switch-1795426560030/isort.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "ruff": {
+        "command": "agomtradepro/Scripts/python.exe -m ruff check scripts/run_cal03_snapshot_walk_forward.py tests/unit/research/test_cal03_snapshot_runner.py",
+        "exit": 0,
+        "path": ".tmp/cal03-event-study-20261119/csi-switch-1795426560030/ruff.log",
+        "sha256": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0"
+      },
+      "tests": {
+        "command": "agomtradepro/Scripts/python.exe -m pytest --noconftest -c .tmp/cal03-event-study-20261119/pytest.ini -q tests/unit/research/test_cal03_snapshot_runner.py tests/unit/research/test_calendar_validation_report.py tests/unit/research/test_snapshot_holiday_overlap.py tests/unit/research/test_institutional_event_study.py tests/unit/research/test_institutional_event_study_walk_forward.py",
+        "exit": 0,
+        "path": ".tmp/cal03-event-study-20261119/csi-switch-1795426560030/final-tests.log",
+        "sha256": "57cdfd0cd3d376e49ff430d4d63b76d839ba8c61c8572b3eafcca2ff5bd84bbd"
+      },
+      "mypy": {
+        "command": "$env:MYPY_CACHE_DIR='.tmp/cal03-event-study-20261119/control-mypy-incremental'\nagomtradepro/Scripts/python.exe scripts/check_mypy_regression.py scripts/run_cal03_snapshot_walk_forward.py",
+        "exit": 0,
+        "path": ".tmp/cal03-event-study-20261119/csi-switch-1795426560030/mypy.log",
+        "sha256": "1696369e79514135c6c84d87d82a0fc9c6a7026a4b6fda77e8a7e9b50eef135b"
+      },
+      "debt": {
+        "command": "$env:MYPY_CACHE_DIR='.tmp/cal03-event-study-20261119/control-mypy-debt'\nagomtradepro/Scripts/python.exe scripts/check_mypy_debt_ceiling.py",
+        "exit": 0,
+        "path": ".tmp/cal03-event-study-20261119/csi-switch-1795426560030/debt.log",
+        "sha256": "def6c561b37227470bcda90c8450d9837ca85dd34af34d05e7d6af2afdf85ab1"
+      },
+      "run": {
+        "command": "agomtradepro/Scripts/python.exe -m scripts.run_cal03_snapshot_walk_forward --archive .tmp/cal03-event-study-20261119/coverage-audit-v1 --later-archive .tmp/cal03-event-study-20261119/later-validation-20261123/prices --csi-archive .tmp/cal03-event-study-20261119/public-20210511 --output .tmp/cal03-event-study-20261119/csi-switch-1795426560030/final",
+        "exit": 0,
+        "path": ".tmp/cal03-event-study-20261119/csi-switch-1795426560030/run.log",
+        "sha256": "c1f3d8533d516e75b54a87657de8f99a9d4639c0f8552f844afca113f5a4e93e"
+      },
+      "repeat": {
+        "command": "agomtradepro/Scripts/python.exe -m scripts.run_cal03_snapshot_walk_forward --archive .tmp/cal03-event-study-20261119/coverage-audit-v1 --later-archive .tmp/cal03-event-study-20261119/later-validation-20261123/prices --csi-archive .tmp/cal03-event-study-20261119/public-20210511 --output .tmp/cal03-event-study-20261119/csi-switch-1795426560030/repeat",
+        "exit": 0,
+        "path": ".tmp/cal03-event-study-20261119/csi-switch-1795426560030/repeat.log",
+        "sha256": "bd09df23deb4d95372f69568d157e81741076ec747c9855285f36e2f94c0a7cf"
+      },
+      "baseline": {
+        "command": "agomtradepro/Scripts/python.exe -m scripts.run_cal03_snapshot_walk_forward --archive .tmp/cal03-event-study-20261119/coverage-audit-v1 --later-archive .tmp/cal03-event-study-20261119/later-validation-20261123/prices --output .tmp/cal03-event-study-20261119/csi-switch-1795426560030/baseline",
+        "exit": 0,
+        "path": ".tmp/cal03-event-study-20261119/csi-switch-1795426560030/baseline.log",
+        "sha256": "54dbe040d31c8ee8a79daba918ac443954cf01560d5dcab2b50cd189f28f4d63"
+      },
+      "audit": {
+        "command": "agomtradepro/Scripts/python.exe .tmp/cal03-event-study-20261119/csi-switch-1795426560030/audit.py",
+        "exit": 0,
+        "path": ".tmp/cal03-event-study-20261119/csi-switch-1795426560030/audit.log",
+        "sha256": "4b8711c5dcba3695ee8637ff8aa24e0fcc8f2dfb7a382c3e5b154f7300feac3e"
+      }
+    },
+    "audit": {
+      "path": ".tmp/cal03-event-study-20261119/csi-switch-1795426560030/audit.py",
+      "sha256": "e4360d2d82153b4448875ad4ef4aa71b03172112d9892fc2a67cef1303db2891"
+    },
+    "outputs": [
+      {
+        "path": ".tmp/cal03-event-study-20261119/csi-switch-1795426560030/final/report.md",
+        "sha256": "851ce89ff792247be7c603038efcc1d8e70517c59172dba27319d08ed0918fab"
+      },
+      {
+        "path": ".tmp/cal03-event-study-20261119/csi-switch-1795426560030/final/results.json",
+        "sha256": "ceb25c6cc0844c0b3df144e2b610fb644e5454ee319478bbf3d67e515df10d62"
+      }
+    ],
+    "pit_qualified": false,
+    "final_oos_claimed_or_evaluated": false
   }
 }

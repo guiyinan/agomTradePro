@@ -1,4 +1,4 @@
-"""Replay the pinned CAL-03 third-party index snapshots without a provider connection."""
+"""Replay pinned CAL-03 index snapshots without a provider connection."""
 
 from __future__ import annotations
 
@@ -47,6 +47,8 @@ from shared.numeric import safe_float
 ARCHIVE_SHA256 = "4fe7ba52497571c04cfa82a73bbc926f3a872fc5cb1346259a4f9882c187f279"
 LATER_ARCHIVE_SHA256 = "6d6d78649a1ba7fb2d7e9429e1b1b8b1b0637a14830952a5aeacb974b8ea5b3a"
 LATER_DESIGN_SHA256 = "be27ca2306ed01026286baecaca605746a0faf6bd06eecb53f69ca64761a8fbe"
+CSI_COVERAGE_SHA256 = "d52c70af7c99849be75042ea6b8ff79b75e177770444829e45495567557a92c6"
+_CSI_URL = "https://www.csindex.com.cn/csindex-home/perf/index-perf"
 _START = date(2010, 1, 4)
 _PRICE_END = date(2018, 12, 31)
 _PLANNING_END = date(2026, 11, 18)
@@ -145,6 +147,64 @@ def _closes(
 
 
 @dataclass(frozen=True)
+class _SourceCheck:
+    common_sessions: int
+    max_relative_difference: float
+    max_absolute_points: float
+    recovered: tuple[date, ...]
+    ignored_non_sessions: tuple[date, ...]
+
+
+def _csi_closes(
+    archive: Path, code: str, days: tuple[date, ...], relay: tuple[float, ...], used: dict[str, str]
+) -> tuple[tuple[float, ...], _SourceCheck]:
+    manifest = json.loads(_verified(archive / "coverage.json", CSI_COVERAGE_SHA256))
+    if manifest["source"] != _CSI_URL or _day(manifest["end"]) != days[-1]:
+        raise ValueError("CSI archive boundary or source mismatch")
+    files = {entry["raw"]: entry for entry in manifest["retrievals"]}
+    prices: dict[date, float] = {}
+    for year in range(2019, days[-1].year + 1):
+        start = date(year, 1, 1)
+        end = min(date(year, 12, 31), days[-1])
+        name = f"{code}-{year}.json"
+        expected = f"{_CSI_URL}?indexCode={code}&startDate={start:%Y%m%d}&endDate={end:%Y%m%d}"
+        entry = files.get(name)
+        if entry is None or entry["url"] != expected:
+            raise ValueError(f"Unexpected CSI query range or target for {name}")
+        body = json.loads(_verified(archive / "csi-history" / name, entry["sha256"]))
+        if body["code"] != "200" or len(body["data"]) != entry["rows"]:
+            raise ValueError(f"Invalid CSI response for {name}")
+        used[name] = entry["sha256"]
+        for row in body["data"]:
+            d = _day(row["tradeDate"])
+            close = safe_float(row["close"])
+            if (
+                row["indexCode"] != code
+                or not start <= d <= end
+                or d in prices
+                or close is None
+                or close <= 0
+            ):
+                raise ValueError(f"Invalid CSI close for {name} on {d}")
+            prices[d] = close
+    if set(days) - prices.keys():
+        raise ValueError(f"Incomplete CSI session coverage for {code}")
+    pairs = [(prices[d], p) for d, p in zip(days, relay, strict=True) if math.isfinite(p)]
+    if not pairs:
+        raise ValueError(f"No common sessions to validate the source switch for {code}")
+    difference = max(abs(x / y - 1) for x, y in pairs)
+    if difference > 0.01:
+        raise ValueError(f"CSI and relay closes differ by more than 1% for {code}")
+    return tuple(prices[d] for d in days), _SourceCheck(
+        len(pairs),
+        difference,
+        max(abs(x - y) for x, y in pairs),
+        tuple(d for d, p in zip(days, relay, strict=True) if math.isnan(p)),
+        tuple(sorted(prices.keys() - set(days))),
+    )
+
+
+@dataclass(frozen=True)
 class _LaterFoldSupport:
     start: date
     end: date
@@ -228,6 +288,11 @@ class _Result:
     mse: tuple[float, ...]
     reduction_percent: float | None
     paired_loss: LossInference
+
+
+def _squared_returns(prices: tuple[float, ...]) -> tuple[float, ...]:
+    log_prices = tuple(map(math.log, prices))
+    return (0.0, *((b - a) ** 2 for a, b in pairwise(log_prices)))
 
 
 def _features(
@@ -417,14 +482,19 @@ def _correct_sensitivities(rows: list[_Sensitivity]) -> list[_Sensitivity]:
 
 
 def _markdown(
-    results: list[_Result], last: date, design: ValidationDesign, slices: list[_Sensitivity]
+    results: list[_Result],
+    last: date,
+    design: ValidationDesign,
+    slices: list[_Sensitivity],
+    *,
+    source: str = "第三方通道留存快照",
 ) -> str:
     first = results[0].folds[0].start
     end = results[0].folds[-1].end
     lines = [
         "# CAL-03 历史日线走步验证",
         "",
-        f"数据来自第三方通道留存快照，收盘截至 {last}。逐日历史可得版本尚待核验。最终 OOS 保持锁定。",
+        f"数据来自{source}，收盘截至 {last}。逐日历史可得版本尚待核验。最终 OOS 保持锁定。",
         "",
         f"验证预测日从 {date.fromisoformat(first)} 到 {date.fromisoformat(end)}。"
         f"每折仅用此前的训练集拟合岭回归，再预测随后 {design.policy.validation_sessions} 个交易日。"
@@ -598,12 +668,17 @@ def write_snapshot(
     *,
     event_archive: Path | None = None,
     later_archive: Path | None = None,
+    csi_archive: Path | None = None,
 ) -> None:
     """Verify the retained input bundle and publish an offline development report."""
     spec_path = (
         Path(__file__).resolve().parents[1] / "tests/fixtures/research/cal_event_study_v1.json"
     )
     design = load_validation_design(spec_path)
+    if csi_archive is not None and later_archive is None:
+        raise ValueError(
+            "CSI source comparison requires --later-archive for the frozen design and matched control"
+        )
     queries: list[_Query] = json.loads(_verified(archive / "report.json", ARCHIVE_SHA256))[
         "queries"
     ]
@@ -648,6 +723,17 @@ def write_snapshot(
     early_effects = []
     later_support: dict[str, dict[int, list[_LaterFoldSupport]]] = {}
     missing_dates: dict[str, list[date]] = {}
+    checks: dict[str, _SourceCheck] = {}
+    controls: list[dict[str, object]] = []
+    source_lines = [
+        "",
+        "## 换源对照",
+        "",
+        "表内为加入六候后的均方误差降幅（%）。前两列使用完全相同的训练行与验证折。第三列恢复官方完整训练行，第四列再纳入此前排除的验证折。",
+        "",
+        "| 指数 | 期限 | 原通道 | 官方同样本 | 官方完整训练、原验证折 | 官方全部折 |",
+        "|---|---:|---:|---:|---:|---:|",
+    ]
     for code in design.targets:
         target = f"{code}.SH"
         metadata = _target_query(queries, "full_date_coverage", target)
@@ -680,7 +766,7 @@ def write_snapshot(
         )
         missing: set[int] = set()
         if later_archive is not None:
-            prices += _closes(
+            later_prices = _closes(
                 later_archive,
                 _target_query(later_queries, "later_price", target),
                 target,
@@ -688,11 +774,19 @@ def write_snapshot(
                 used,
                 later_end=price_days[-1],
             )
+            if csi_archive is not None:
+                relay_prices = prices + later_prices
+                relay_missing = {i for i, v in enumerate(relay_prices) if math.isnan(v)}
+                relay_squares = _squared_returns(relay_prices)
+                relay_features = _features(price_days, relay_squares, design)
+                later_prices, checks[target] = _csi_closes(
+                    csi_archive, code, price_days[len(early) :], later_prices, used
+                )
+            prices += later_prices
             missing = {i for i, v in enumerate(prices) if math.isnan(v)}
             missing_dates[target] = [price_days[i] for i in sorted(missing)]
             later_support[target] = {}
-        log_prices = tuple(map(math.log, prices))
-        squares = (0.0, *((b - a) ** 2 for a, b in pairwise(log_prices)))
+        squares = _squared_returns(prices)
         features = _features(price_days, squares, design)
         for h in design.clock.horizons:
             evaluate = folds
@@ -707,6 +801,34 @@ def write_snapshot(
                 later_support[target][h] = audit
             result, scored = _score(target, h, price_days, squares, features, evaluate, design)
             results.append(result)
+            if csi_archive is not None:
+                matched, _ = _later_cohort(
+                    plan.folds, dates, reserve_start, relay_missing, h, design
+                )
+                starts = {f.validation_origins.start for f in matched}
+                common = [f for f in evaluate if f.validation_origins.start in starts]
+                relay_control, _ = _score(
+                    target, h, price_days, relay_squares, relay_features, matched, design
+                )
+                official_control, _ = _score(
+                    target, h, price_days, squares, features, matched, design
+                )
+                common_control, _ = _score(target, h, price_days, squares, features, common, design)
+                controls.append(
+                    {
+                        "target": target,
+                        "horizon": h,
+                        "relay_matched": asdict(relay_control),
+                        "official_matched": asdict(official_control),
+                        "official_restored_training": asdict(common_control),
+                    }
+                )
+                effects = [
+                    r.reduction_percent
+                    for r in (relay_control, official_control, common_control, result)
+                ]
+                values = " | ".join("—" if v is None else f"{v:+.4f}" for v in effects)
+                source_lines.append(f"| {target} | {h} | {values} |")
             if selection is not None:
                 slices.extend(_sensitivity(result, scored, folds, *selection, design))
     report = {
@@ -757,11 +879,26 @@ def write_snapshot(
             "correction_family": "All target/horizon/selection combinations of this retrospective development replay only.",
             "results": [asdict(s) for s in slices],
         }
-    markdown = _markdown(results, price_days[-1], design, slices)
+    source = (
+        "第三方通道留存快照"
+        if csi_archive is None
+        else "2018 年及以前的原通道快照及 2019 年起的中证指数官网收盘快照"
+    )
+    markdown = _markdown(results, price_days[-1], design, slices, source=source)
     if later_archive is not None:
         fields, comparison = _later_report(results, early_effects, later_support, missing_dates)
         report.update(fields)
         markdown += comparison
+    if csi_archive is not None:
+        report.update(
+            {
+                "price_source": source,
+                "csi_coverage_sha256": CSI_COVERAGE_SHA256,
+                "source_checks": {k: asdict(v) for k, v in checks.items()},
+                "source_controls": controls,
+            }
+        )
+        markdown += "\n".join(source_lines) + "\n"
     _publish(
         output,
         {
@@ -798,6 +935,11 @@ def main() -> None:
         type=Path,
         help="Pinned post-2018 pre-holdout close archive with its frozen design",
     )
+    parser.add_argument(
+        "--csi-archive",
+        type=Path,
+        help="Official CSI archive for the post-2018 period; compare with --later-archive",
+    )
     args = parser.parse_args()
     try:
         write_snapshot(
@@ -805,6 +947,7 @@ def main() -> None:
             args.output,
             event_archive=args.event_archive,
             later_archive=args.later_archive,
+            csi_archive=args.csi_archive,
         )
     except (ValueError, OSError) as exc:
         parser.exit(1, f"CAL-03 replay failed: {exc}\n")
