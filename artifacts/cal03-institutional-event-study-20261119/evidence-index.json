@@ -2355,5 +2355,95 @@
     },
     "diagnostic": "Initial PDF text extraction used the platform encoding. Re-extracted the same PDF with pdftotext -enc UTF-8 before successful verification.",
     "final_oos_evaluated_or_claimed": false
+  },
+  "receipt_bound_final_scorer_rehearsal_20261123": {
+    "base_commit": "749ca08632cede5f529338bfe118ec8cd5b2e6dc",
+    "source_blobs": {
+      "apps/research/application/calendar_validation.py": "26a7eb74d5e5bc42b91ceff017a2f486fa83787a",
+      "apps/research/infrastructure/calendar_final_report.py": "e954d9dd1821a4a6fc674ef00eebf4705ed67aff",
+      "apps/research/event_study_control_composition.py": "79ba30fec729d5e84bbbae7f2489061f6cd9b6b3",
+      "tests/unit/research/test_calendar_final_scoring.py": "f3dfb586ab4f5fc41fd43c0f08a27d21b5eb77cf",
+      "governance/module_map.json": "8143a0b4fcf546ef0d90fbfed275b8c5c5972af0"
+    },
+    "outcome": "final scoring component verified on synthetic inputs; formal real study pending",
+    "real_source_status": {
+      "path": ".tmp/cal03-event-study-20261119/final-readiness-1795437485531/decision.json",
+      "sha256": "417913ac319c0aac841e68515864b2616cb17070d5a70cf8f6bf78b6a9c64b62"
+    },
+    "scope": "Claim-bound scoring on normalized exact-version data; in-sample diagnostics, walk-forward folds, final 504 origins, nine target-horizon pairs and three prespecified views; immutable receipt-keyed JSON writer.",
+    "remaining": "Obtain and qualify historical market publication and amendment evidence, historical calendar/features, backup source and use rights; implement the reader for the actual delivery and registry-bound manifest; bind the real trial, execute once and review the real report.",
+    "checks": {
+      "tests": {
+        "command": "agomtradepro/Scripts/python.exe -m pytest --noconftest -c .tmp/cal03-event-study-20261119/pytest.ini -q tests/unit/research/test_calendar_final_scoring.py",
+        "exit": 0,
+        "path": ".tmp/cal03-event-study-20261119/acceptance-1795441875063/candidate-tests.log",
+        "sha256": "8cfa01f12234c562342eb38d51c681483fecb3344342502c1195eef8330f487e"
+      },
+      "regression": {
+        "command": "agomtradepro/Scripts/python.exe -m pytest --noconftest -c .tmp/cal03-event-study-20261119/pytest.ini -q tests/unit/research/test_event_study_control_application.py tests/unit/research/test_calendar_validation_report.py tests/unit/research/test_institutional_event_study.py tests/unit/research/test_institutional_event_study_walk_forward.py tests/unit/research/test_cal03_snapshot_runner.py tests/unit/research/test_snapshot_holiday_overlap.py",
+        "exit": 0,
+        "path": ".tmp/cal03-event-study-20261119/acceptance-1795441875063/candidate-regression.log",
+        "sha256": "a527e62b5c62dea726db46aaa5ac4ab328c0a0a4a73d4982282677fef4f61d55"
+      },
+      "black": {
+        "command": "agomtradepro/Scripts/python.exe -m black --check apps/research/application/calendar_validation.py apps/research/event_study_control_composition.py apps/research/infrastructure/calendar_final_report.py tests/unit/research/test_calendar_final_scoring.py",
+        "exit": 0,
+        "path": ".tmp/cal03-event-study-20261119/acceptance-1795441875063/candidate-black.log",
+        "sha256": "ce29a48ef7d7d961badb0f7aec2eb4c319c19c85fc5e9b698ba6b9b4bec2d2c7"
+      },
+      "isort": {
+        "command": "agomtradepro/Scripts/python.exe -m isort --check-only apps/research/application/calendar_validation.py apps/research/event_study_control_composition.py apps/research/infrastructure/calendar_final_report.py tests/unit/research/test_calendar_final_scoring.py",
+        "exit": 0,
+        "path": ".tmp/cal03-event-study-20261119/acceptance-1795441875063/candidate-isort.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "ruff": {
+        "command": "agomtradepro/Scripts/python.exe -m ruff check apps/research/application/calendar_validation.py apps/research/event_study_control_composition.py apps/research/infrastructure/calendar_final_report.py tests/unit/research/test_calendar_final_scoring.py",
+        "exit": 0,
+        "path": ".tmp/cal03-event-study-20261119/acceptance-1795441875063/candidate-ruff.log",
+        "sha256": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0"
+      },
+      "mypy": {
+        "command": "$env:MYPY_CACHE_DIR='.tmp/cal03-event-study-20261119/control-mypy-incremental'\nagomtradepro/Scripts/python.exe scripts/check_mypy_regression.py apps/research/application/calendar_validation.py apps/research/event_study_control_composition.py apps/research/infrastructure/calendar_final_report.py",
+        "exit": 0,
+        "path": ".tmp/cal03-event-study-20261119/acceptance-1795441875063/candidate-mypy.log",
+        "sha256": "d0900ac295cc2427c4d66d20eaaad347f01ab4f61ddd809745efedd2b64f4d88"
+      },
+      "debt": {
+        "command": "$env:MYPY_CACHE_DIR='.tmp/cal03-event-study-20261119/control-mypy-debt'\nagomtradepro/Scripts/python.exe scripts/check_mypy_debt_ceiling.py",
+        "exit": 0,
+        "path": ".tmp/cal03-event-study-20261119/acceptance-1795441875063/candidate-debt.log",
+        "sha256": "def6c561b37227470bcda90c8450d9837ca85dd34af34d05e7d6af2afdf85ab1"
+      },
+      "map": {
+        "command": "agomtradepro/Scripts/python.exe scripts/check_module_map.py",
+        "exit": 0,
+        "path": ".tmp/cal03-event-study-20261119/acceptance-1795441875063/candidate-map.log",
+        "sha256": "50ba91f9d0e2baa1aeda94701d7695e45116e1326f5651784377318792b43759"
+      },
+      "audit": {
+        "command": "agomtradepro/Scripts/python.exe .tmp/cal03-event-study-20261119/acceptance-1795441875063/verify.py",
+        "exit": 0,
+        "path": ".tmp/cal03-event-study-20261119/acceptance-1795441875063/candidate-audit.log",
+        "sha256": "42acd18eef57cdb4eae48be1bc4a02f055760e275f32ca32cc368f569e632720"
+      }
+    },
+    "audit_script": {
+      "path": ".tmp/cal03-event-study-20261119/acceptance-1795441875063/verify.py",
+      "sha256": "05532b256e2c1933da85a9399fd12219e210504bacd41a6c4480152417b06a34"
+    },
+    "synthetic_artifact": {
+      "path": ".tmp/cal03-event-study-20261119/acceptance-1795441875063/synthetic-final.json",
+      "sha256": "12e2bf0e9939e88793fbb45a24f0281060df1e9dd22b8bd258b672961eaadd94"
+    },
+    "supplier_enquiry_draft": {
+      "path": ".tmp/cal03-event-study-20261119/acceptance-1795441875063/CIIS历史行情询证.eml",
+      "sha256": "41a8f4be2481421a0395139b9ac9d16c3d86b9f4e9ff5dc0ee92bb01028029b7"
+    },
+    "source_contact": "https://www.ciis.com.hk/hongkong/sc/historicaldata1/his_introduction/index.shtml",
+    "verification": "6 final-scoring tests plus 145 regression tests, deterministic synthetic report, independent checks of all Holm and BH results; no native DB or real one-use receipt used in this rehearsal.",
+    "diagnostics": "Initial module map check detected new application entry points; regenerated projection and checked final source tree.",
+    "real_final_receipt_consumed": false,
+    "real_final_prices_accessed": false
   }
 }

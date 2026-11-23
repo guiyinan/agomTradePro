@@ -1,28 +1,35 @@
-"""Expanding-window six-period validation. The final holdout has no evaluator here."""
+"""Six-period walk-forward validation and receipt-bound final evaluation."""
 
 from __future__ import annotations
 
 import math
 from collections import Counter
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, replace
 from datetime import date, datetime
 from typing import Protocol
 from zoneinfo import ZoneInfo
 
 from apps.research.domain.calendar_validation_statistics import LossInference, paired_loss_inference
+from apps.research.domain.event_study_control import (
+    EventStudyBinding,
+    EventStudyControlError,
+    FinalOOSClaim,
+)
 from apps.research.domain.institutional_event_study import (
     EventStudyError,
     KnowledgeMode,
     MatchingFeatures,
     PriceVersion,
     SampleGateSpec,
+    SampleSupport,
     Session,
     StudyClock,
     WalkForwardFold,
     WalkForwardPlan,
     WalkForwardPolicy,
     build_squared_return_label,
+    evaluate_sample_gate,
     holm_adjusted_p_values,
     plan_walk_forward,
     six_category_contrast,
@@ -294,7 +301,7 @@ def _losses(
 
 def _evaluate_fold(
     fold: WalkForwardFold,
-    plan: WalkForwardPlan,
+    label_limit: int,
     calendar: ValidationCalendar,
     data: ValidationSeries,
     design: ValidationDesign,
@@ -302,7 +309,6 @@ def _evaluate_fold(
     predict: ValidationPredictor,
 ) -> tuple[ValidationFoldResult, list[_Row], list[_Row], tuple[float, ...]]:
     start, stop = fold.validation_origins.start, fold.validation_origins.stop
-    holdout = plan.final_oos_origins.start
     # Label intervals are [origin+1, origin+h+1). The last training return may be
     # at start-separation, leaving exactly separation sessions before start+1.
     training, train_ex = _collect(
@@ -314,7 +320,7 @@ def _evaluate_fold(
         data,
         design,
     )
-    score_day = calendar.sessions[min(stop - 1 + horizon, holdout - 1)].session_on
+    score_day = calendar.sessions[min(stop - 1 + horizon, label_limit - 1)].session_on
     score_at = min(
         calendar.known_at,
         datetime.combine(
@@ -322,7 +328,7 @@ def _evaluate_fold(
         ),
     )
     validation, val_ex = _collect(
-        range(start, stop), horizon, score_at, calendar, holdout, data, design
+        range(start, stop), horizon, score_at, calendar, label_limit, data, design
     )
     counts = Counter(r.features.category for r in validation)
     reasons = []
@@ -375,7 +381,7 @@ def _target(
     plan: WalkForwardPlan,
     horizon: int,
     predict: ValidationPredictor,
-) -> CalendarValidationReport:
+) -> tuple[CalendarValidationReport, dict[str, set[str]]]:
     folds = []
     samples: dict[str, list[tuple[int, float]]] = {k: [] for k in _SLICES}
     train_ids: dict[str, set[str]] = {k: set() for k in _SLICES}
@@ -383,7 +389,7 @@ def _target(
     val_ids: dict[str, set[str]] = {k: set() for k in _SLICES}
     for fold in plan.folds:
         result, train, val, delta = _evaluate_fold(
-            fold, plan, calendar, data, design, horizon, predict
+            fold, plan.final_oos_origins.start, calendar, data, design, horizon, predict
         )
         folds.append(result)
         for name in _SLICES:
@@ -428,7 +434,7 @@ def _target(
             )
         )
     all_reasons = tuple(sorted({r for s in slices for r in s.reasons}))
-    return CalendarValidationReport(
+    report = CalendarValidationReport(
         data.target,
         horizon,
         "insufficient_data" if all_reasons else "validation_only",
@@ -437,6 +443,7 @@ def _target(
         tuple(folds),
         tuple(slices),
     )
+    return report, val_ids
 
 
 def run_calendar_validation(
@@ -483,7 +490,7 @@ def run_calendar_validation(
                 )
             continue
         reports.extend(
-            _target(design, calendar, data, plan, h, predict) for h in design.clock.horizons
+            _target(design, calendar, data, plan, h, predict)[0] for h in design.clock.horizons
         )
     raw = tuple(
         s.inference.raw_p
@@ -504,3 +511,243 @@ def run_calendar_validation(
             slices.append(replace(sample, holm_adjusted_p=p, exploratory_bh_q=q))
         corrected.append(replace(report, slices=tuple(slices)))
     return tuple(corrected)
+
+
+@dataclass(frozen=True)
+class FinalCalendarInputs:
+    """Normalized exact-version inputs resolved from the claim's immutable registry snapshot.
+
+    The reader must verify the bound manifest, parameters, date split and complete
+    registered hypothesis family before returning these inputs. Prices and features
+    may be lazy. Every family key begins with its registered trial ID and a slash.
+    """
+
+    binding: EventStudyBinding
+    design: ValidationDesign
+    calendar: ValidationCalendar
+    series: Mapping[str, ValidationSeries]
+    first_origin: date
+    last_origin: date
+    family: tuple[str, ...]
+    sibling_raw_p: Mapping[str, float]
+    alpha: float
+
+
+@dataclass(frozen=True)
+class FinalCalendarEstimate:
+    """One prespecified final holdout contrast, with support and uncertainty."""
+
+    hypothesis: str
+    support: SampleSupport
+    inference: LossInference | None
+    reasons: tuple[str, ...]
+    status: str = "insufficient_data"
+    holm_p: float | None = None
+    exploratory_bh_q: float | None = None
+
+
+@dataclass(frozen=True)
+class FinalCalendarTarget:
+    """In-sample fitted losses, walk-forward diagnostics and one final test segment."""
+
+    target: str
+    horizon: int
+    validation: CalendarValidationReport
+    final: ValidationFoldResult
+    training_mse: tuple[float, ...] | None
+    estimates: tuple[FinalCalendarEstimate, ...]
+
+
+@dataclass(frozen=True)
+class FinalCalendarReport:
+    """Final results identified by the durable claim and exact registered inputs."""
+
+    claim: FinalOOSClaim
+    targets: tuple[FinalCalendarTarget, ...]
+    family_complete: bool
+
+
+def _final_calendar_target(
+    inputs: FinalCalendarInputs,
+    data: ValidationSeries,
+    plan: WalkForwardPlan,
+    horizon: int,
+    predict: ValidationPredictor,
+) -> FinalCalendarTarget:
+    design, calendar = inputs.design, inputs.calendar
+    validation, validation_ids = _target(design, calendar, data, plan, horizon, predict)
+    segment = WalkForwardFold(
+        plan.final_training_origins, plan.final_oos_origins, plan.final_fit_at
+    )
+    result, train, test, delta = _evaluate_fold(
+        segment,
+        plan.final_oos_origins.stop + max(design.clock.horizons),
+        calendar,
+        data,
+        design,
+        horizon,
+        predict,
+    )
+    training_mse = None
+    if not result.reasons:
+        training_mse = tuple(
+            math.fsum(loss) / len(loss)
+            for loss in _losses(train, train, predict, design.ridge_penalty)
+        )
+    estimates = []
+    for view in validation.slices:
+        name = view.name
+        valid = [r for r in test if _include(name, r)]
+        support = SampleSupport(
+            result.validation_expected,
+            result.validation_valid,
+            frozenset(r.features.window_id for r in train if _include(name, r)),
+            frozenset(validation_ids[name]),
+            frozenset(r.features.window_id for r in valid),
+        )
+        reasons = list(dict.fromkeys((*view.reasons, *result.reasons)))
+        try:
+            reasons.extend(evaluate_sample_gate(support, design.gates))
+        except EventStudyError as exc:
+            reasons.append(exc.code)
+        inference = None
+        if not reasons:
+            inference = paired_loss_inference(
+                tuple((r.origin, d) for r, d in zip(test, delta, strict=True) if _include(name, r)),
+                bandwidth=design.hac_lags,
+                confidence=design.confidence,
+            )
+            if inference.raw_p is None:
+                reasons.append("LOSS_INFERENCE_UNAVAILABLE")
+        estimates.append(
+            FinalCalendarEstimate(
+                f"{inputs.binding.trial_id}/{data.target}/{horizon}/{name}",
+                support,
+                inference,
+                tuple(dict.fromkeys(reasons)),
+            )
+        )
+    return FinalCalendarTarget(
+        data.target, horizon, validation, result, training_mse, tuple(estimates)
+    )
+
+
+class FinalCalendarEvaluator:
+    """Score exact-version calendar inputs through EventStudyControl.run_final_once."""
+
+    def __init__(
+        self,
+        read: Callable[[FinalOOSClaim], FinalCalendarInputs],
+        publish: Callable[[FinalCalendarReport], None],
+        predict: ValidationPredictor,
+    ) -> None:
+        """Inject the verified claim-bound reader, durable report writer and frozen model."""
+        self._read = read
+        self._publish = publish
+        self._predict = predict
+
+    def evaluate(self, claim: FinalOOSClaim) -> None:
+        """Publish final estimates only after checking binding, split, data clocks and family."""
+        inputs = self._read(claim)
+        if inputs.binding != claim.binding:
+            raise EventStudyControlError("FINAL_INPUT_BINDING_MISMATCH")
+        design, calendar = inputs.design, inputs.calendar
+        if calendar.known_at > claim.claimed_at or not 0 < inputs.alpha < 1:
+            raise EventStudyControlError("FINAL_INPUT_METADATA_INVALID")
+        keys = {
+            f"{claim.binding.trial_id}/{code}/{h}/{name}"
+            for code in design.targets
+            for h in design.clock.horizons
+            for name in _SLICES
+        }
+        family = set(inputs.family)
+        siblings = dict(inputs.sibling_raw_p)
+        if (
+            len(family) != len(inputs.family)
+            or any(not key.partition("/")[0] or not key.partition("/")[2] for key in family)
+            or len({key.partition("/")[0] for key in family}) != claim.cumulative_family_trials
+            or not keys <= family
+            or siblings.keys() - (family - keys)
+            or any(not math.isfinite(p) or not 0 <= p <= 1 for p in siblings.values())
+        ):
+            raise EventStudyControlError("FINAL_HYPOTHESIS_FAMILY_MISMATCH")
+        plans = {}
+        for code in design.targets:
+            data = inputs.series.get(code)
+            if data is None or data.target != code:
+                raise EventStudyError("TARGET_DATA_MISSING")
+            plan = plan_walk_forward(
+                sessions=calendar.sessions,
+                calendar_version=calendar.version,
+                complete_price_dates=data.complete_dates,
+                known_at=calendar.known_at,
+                clock=design.clock,
+                policy=design.policy,
+                prior_final_oos_uses=0,  # This evaluation is running under its own committed claim.
+            )
+            start, stop = plan.final_oos_origins.start, plan.final_oos_origins.stop
+            if (calendar.sessions[start].session_on, calendar.sessions[stop - 1].session_on) != (
+                inputs.first_origin,
+                inputs.last_origin,
+            ):
+                raise EventStudyControlError("FINAL_REGISTERED_SPLIT_MISMATCH")
+            plans[code] = plan
+        results = tuple(
+            _final_calendar_target(inputs, inputs.series[code], plans[code], h, self._predict)
+            for code in design.targets
+            for h in design.clock.horizons
+        )
+        raw = dict(siblings)
+        for result in results:
+            for item in result.estimates:
+                if (
+                    not item.reasons
+                    and item.inference is not None
+                    and item.inference.raw_p is not None
+                ):
+                    raw[item.hypothesis] = item.inference.raw_p
+        complete = raw.keys() == family
+        if complete:
+            values = tuple(raw[key] for key in inputs.family)
+            adjusted = dict(zip(inputs.family, holm_adjusted_p_values(values), strict=True))
+            exploratory = dict(
+                zip(inputs.family, benjamini_hochberg_q_values(list(values)), strict=True)
+            )
+            results = tuple(
+                replace(
+                    result,
+                    estimates=tuple(
+                        replace(
+                            item,
+                            holm_p=adjusted[item.hypothesis],
+                            exploratory_bh_q=exploratory[item.hypothesis],
+                            status=(
+                                "oos_supported"
+                                if item.inference is not None
+                                and item.inference.mean > 0
+                                and adjusted[item.hypothesis] < inputs.alpha
+                                else "not_confirmed"
+                            ),
+                        )
+                        for item in result.estimates
+                    ),
+                )
+                for result in results
+            )
+        else:
+            results = tuple(
+                replace(
+                    result,
+                    estimates=tuple(
+                        replace(
+                            item,
+                            reasons=tuple(
+                                dict.fromkeys((*item.reasons, "FINAL_FAMILY_INCOMPLETE"))
+                            ),
+                        )
+                        for item in result.estimates
+                    ),
+                )
+                for result in results
+            )
+        self._publish(FinalCalendarReport(claim, results, complete))
