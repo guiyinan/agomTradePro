@@ -2684,5 +2684,37 @@
     "formal_packages": 0,
     "real_oos_accessed": false,
     "real_receipt_consumed": false
+  },
+  "public_snapshot_holdout_use_20261123": {
+    "reserved_at": "2026-11-23T15:10:39.237495+00:00",
+    "baseline": "3353db9bc6abc2f2ccc4a66cf49b37a7658c15e1",
+    "scorer": ".tmp/cal03-event-study-20261119/public-final-once-20261123/score.py",
+    "scorer_sha256": "1702e2600cf46b585122ccd34f1b44fae9c7a03f0b5abde0bfba0f65508ea236",
+    "spec_sha256": "29a44d0cd2670dd2a72853494d21271c9765d6584dafa4998e1df3c2a6edfe71",
+    "date_archive_sha256": "4fe7ba52497571c04cfa82a73bbc926f3a872fc5cb1346259a4f9882c187f279",
+    "training_snapshot_manifest_sha256": "d52c70af7c99849be75042ea6b8ff79b75e177770444829e45495567557a92c6",
+    "training_supplement_sha256": "a53bec93e13d0e92a540d675464a732718fb6e2ade68ca1d1bc87d789a9b3553",
+    "targets": [
+      "000300",
+      "000016",
+      "000905"
+    ],
+    "horizons": [
+      1,
+      3,
+      5
+    ],
+    "origins": 504,
+    "training_origins": 3469,
+    "first": "2024-10-16",
+    "last": "2026-11-11",
+    "label_end": "2026-11-18",
+    "event_windows": {
+      "all": 145,
+      "single_event": 145,
+      "exclusive_window": 132
+    },
+    "method": "Freeze previous snapshot ridge, calendar controls, loss, HAC, and holidays. Primary nine added-six-period vs adjusted MSE contrasts, Holm within nine. Three overlap selections per contrast, Holm within 27. No candidate selection or tuning. Public CSI closes throughout; compare identical frozen analysis replacing only holdout closes with existing relay when complete and within 1% match. This comparison is source sensitivity for the same exposure.",
+    "disposition": "Owner authorizes one retrospective exposure, permanent retirement of these dates as unseen even if original vintages arrive. No formal PIT registry receipt or production eligibility. Prior development negative."
   }
 }
