@@ -208,6 +208,24 @@ def test_unproven_price_revision_order_is_rejected(shape: str) -> None:
         revision_label((origin, *cases[shape]), cutoff(2))
 
 
+@pytest.mark.parametrize("mode", ["market_available", "system_known"])
+def test_revision_publication_chronology_checked_on_every_link(mode: KnowledgeMode) -> None:
+    origin, first = prices()[:2]
+    first = replace(first, available_at=cutoff(2))
+    second = replace(first, version_id="second", supersedes_version_id=first.version_id)
+    third = replace(
+        second, version_id="third", supersedes_version_id="second", available_at=cutoff(3)
+    )
+    assert (
+        revision_label((origin, third, first, second), cutoff(4), mode).source_versions[-1]
+        == "third"
+    )
+    with pytest.raises(EventStudyError, match="PRICE_REVISION_CHAIN_INVALID"):
+        revision_label(
+            (origin, third, first, replace(second, available_at=cutoff(1))), cutoff(4), mode
+        )
+
+
 def test_late_parent_limits_system_replay_and_invalid_correction_does_not_fall_back() -> None:
     origin, close = prices()[:2]
     parent = replace(close, first_seen_at=cutoff(3), recorded_at=cutoff(3))

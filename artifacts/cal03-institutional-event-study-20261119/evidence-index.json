@@ -2568,5 +2568,121 @@
     "pit_qualified": false,
     "real_final_prices_accessed": false,
     "real_final_receipt_consumed": false
+  },
+  "contemporaneous_public_clocks_20261123": {
+    "base_commit": "d986cf9d2860d37d8c72ed0c21e17b83e55e7212",
+    "source_blobs": {
+      "apps/research/domain/institutional_event_study.py": "255ef4908bb43c473ca9036875b466eded9a2ae9",
+      "tests/unit/research/test_institutional_event_study.py": "ba5882f60da25f9ab6387ebd796dc67f7a63f71a"
+    },
+    "acquisitions": [
+      {
+        "path": ".tmp/cal03-event-study-20261119/market-clock-1795443834107/capture.json",
+        "sha256": "7d408ca000f18259b5b7a15df925b3f2ec16dfaee422a3355b6f83d01fff2a9e"
+      },
+      {
+        "path": ".tmp/cal03-event-study-20261119/market-clock-1795443834107/capture2.json",
+        "sha256": "d697f76a764567db5481b91796132719ff7a4ba13c74470e59ad34b9a929c5ca"
+      }
+    ],
+    "audit": {
+      "path": ".tmp/cal03-event-study-20261119/market-clock-1795443834107/verify.py",
+      "sha256": "308a60f87dc5dfebb0e57aac7d89466bdea784a045d7abab9c5e26ab24f91f4d"
+    },
+    "output": {
+      "path": ".tmp/cal03-event-study-20261119/market-clock-1795443834107/result.json",
+      "sha256": "a1d49bb9c7ceebf68e47effc88eef649a3b8ee657556094384142ca3bc590784"
+    },
+    "calendar": [
+      {
+        "year": "2014",
+        "clauses": 7,
+        "first_cutoff_with_retained_public_witness": "2013-12-25T18:00:00+08:00"
+      },
+      {
+        "year": "2016",
+        "clauses": 7,
+        "first_cutoff_with_retained_public_witness": "2015-12-24T18:00:00+08:00"
+      },
+      {
+        "year": "2017",
+        "clauses": 6,
+        "first_cutoff_with_retained_public_witness": "2016-12-23T18:00:00+08:00"
+      }
+    ],
+    "prices": [
+      {
+        "target": "000300",
+        "day": "20210511",
+        "display_close": "5023.06",
+        "witness": "price21",
+        "page_time_local": "2021-05-11T17:10:00+08:00",
+        "issuer_first_release": null
+      },
+      {
+        "target": "000016",
+        "day": "20181130",
+        "display_close": "2428.04",
+        "witness": "price18",
+        "page_time_local": "2018-11-30T15:25:00+08:00",
+        "issuer_first_release": null
+      }
+    ],
+    "excluded": "2018-11-16 09:47 publication predates close; page updated at 19:08:11 CST. Content at the cutoff unspecified.",
+    "scope": "Public witnesses for calendar schedules and rounded closes. Exact publisher release times, official revisions and full historical coverage remain unverified. The earlier indexed 2017 cnstock hit was unavailable on both acquisition attempts.",
+    "tests_passed": 151,
+    "checks": {
+      "red": {
+        "command": "agomtradepro/Scripts/python.exe -m pytest --noconftest -c .tmp/cal03-event-study-20261119/pytest.ini -q tests/unit/research/test_institutional_event_study.py -k revision_publication_chronology",
+        "exit": 1,
+        "path": ".tmp/cal03-event-study-20261119/market-clock-1795443834107/red.log",
+        "sha256": "fb3a74bbe4450495a4170c1ccfb8d47e3448006039b331ebdb36c8e89e577cc6"
+      },
+      "tests": {
+        "command": "agomtradepro/Scripts/python.exe -m pytest --noconftest -c .tmp/cal03-event-study-20261119/pytest.ini -q tests/unit/research/test_institutional_event_study.py tests/unit/research/test_institutional_event_study_walk_forward.py tests/unit/research/test_calendar_validation_report.py tests/unit/research/test_cal03_snapshot_runner.py tests/unit/research/test_calendar_final_scoring.py tests/unit/research/test_snapshot_holiday_overlap.py",
+        "exit": 0,
+        "path": ".tmp/cal03-event-study-20261119/market-clock-1795443834107/tests.log",
+        "sha256": "08294e7e3bf14324ad07c855a6197be8abe3a6ba131761f0fe241be24235769a"
+      },
+      "mypy": {
+        "command": "agomtradepro/Scripts/python.exe scripts/check_mypy_regression.py apps/research/domain/institutional_event_study.py",
+        "exit": 0,
+        "path": ".tmp/cal03-event-study-20261119/market-clock-1795443834107/mypy.log",
+        "sha256": "1696369e79514135c6c84d87d82a0fc9c6a7026a4b6fda77e8a7e9b50eef135b"
+      },
+      "debt": {
+        "command": "agomtradepro/Scripts/python.exe scripts/check_mypy_debt_ceiling.py",
+        "exit": 0,
+        "path": ".tmp/cal03-event-study-20261119/market-clock-1795443834107/debt.log",
+        "sha256": "def6c561b37227470bcda90c8450d9837ca85dd34af34d05e7d6af2afdf85ab1"
+      },
+      "black": {
+        "command": "agomtradepro/Scripts/python.exe -m black --check apps/research/domain/institutional_event_study.py tests/unit/research/test_institutional_event_study.py",
+        "exit": 0,
+        "path": ".tmp/cal03-event-study-20261119/market-clock-1795443834107/black.log",
+        "sha256": "42952929f98ff284b84ffc33f5fca4e517620f9b2ceb3fca1375e504affa8195"
+      },
+      "isort": {
+        "command": "agomtradepro/Scripts/python.exe -m isort --check-only apps/research/domain/institutional_event_study.py tests/unit/research/test_institutional_event_study.py",
+        "exit": 0,
+        "path": ".tmp/cal03-event-study-20261119/market-clock-1795443834107/isort.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "ruff": {
+        "command": "agomtradepro/Scripts/python.exe -m ruff check apps/research/domain/institutional_event_study.py tests/unit/research/test_institutional_event_study.py",
+        "exit": 0,
+        "path": ".tmp/cal03-event-study-20261119/market-clock-1795443834107/ruff.log",
+        "sha256": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0"
+      },
+      "audit1": {
+        "command": "agomtradepro/Scripts/python.exe .tmp/cal03-event-study-20261119/market-clock-1795443834107/verify.py",
+        "exit": 0,
+        "path": ".tmp/cal03-event-study-20261119/market-clock-1795443834107/audit1.log",
+        "sha256": "a541f0cc1fbbbaea50683501e78acdc838b6c1a5c0742ab53dacbdc828a9287c"
+      }
+    },
+    "formal_packages": 0,
+    "real_oos_accessed": false,
+    "real_receipt_consumed": false
   }
 }

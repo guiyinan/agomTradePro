@@ -197,10 +197,12 @@ def _select_close_version(
     selected = tips[0]
     # Walk the explicit links. A unique tip alone can hide a disconnected cycle.
     cursor: str | None = selected.version_id
+    child_available_at = selected.available_at
     while cursor is not None:
         linked = visible.pop(cursor, None)
-        if linked is None:
+        if linked is None or linked.available_at > child_available_at:
             raise EventStudyError("PRICE_REVISION_CHAIN_INVALID")
+        child_available_at = linked.available_at
         cursor = linked.supersedes_version_id
     if visible:
         raise EventStudyError("PRICE_REVISION_CHAIN_INVALID")
