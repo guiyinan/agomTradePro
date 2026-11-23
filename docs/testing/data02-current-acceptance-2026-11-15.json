@@ -10259,6 +10259,14 @@
                                     "sha256": "5c935cc27753302b66af80a84448a4feaf0d3025f823cfcba8c9f6a80df4aae8"
                                   },
                                   {
+                                    "path": ".tmp/data02-guard-20261122/s6-7cfa83a2f-overnight/valuation-readonly-stage-ownership.json",
+                                    "sha256": "e92c950c8343182e8c9154ee7d035dba8d39bb725383f7923f02cd1228b1a773"
+                                  },
+                                  {
+                                    "path": ".tmp/data02-guard-20261122/s6-7cfa83a2f-overnight/staging-forensics-tests.log",
+                                    "sha256": "33d1fc56c0f87d34346da4ef5ddf7b77f2b87c9fdc8d4d34fb1cec921da4d0a7"
+                                  },
+                                  {
                                     "path": ".tmp/data02-guard-20261122/s6-7cfa83a2f-overnight/archive-relocation.json",
                                     "sha256": "ad6ca966471ae98b023992afde0ed848d1839809b8a956d5edfa9dd26b2050de"
                                   },
