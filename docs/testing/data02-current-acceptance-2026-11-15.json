@@ -10327,6 +10327,32 @@
                                 "graph_continue_max": 29,
                                 "market_cumulative_upper": 368,
                                 "full_allocation_if_continued": 534,
+                                "post_prepare_production_comparison": {
+                                  "observed_at": "2026-11-23T14:59:38.876551+00:00",
+                                  "production_configured_assets": 5568,
+                                  "isolated_frozen_assets": 5581,
+                                  "common_assets": 5568,
+                                  "isolated_only_assets": 13,
+                                  "production_only_assets": 0,
+                                  "isolated_selected_per_market_dataset": 5570,
+                                  "shared_missing_market_assets": 11,
+                                  "isolated_price_quote_missing_reason": "full_day_suspension",
+                                  "isolated_valuation_missing_reason": "valuation_source_data_unavailable",
+                                  "production_latest_member_date_by_market_dataset": "2026-09-30",
+                                  "production_financial_covered_assets": 0,
+                                  "production_financial_source_time_witnesses": 0,
+                                  "production_persisted_reconciliation_records": 0,
+                                  "production_writes": 0,
+                                  "provider_requests": 0,
+                                  "production_snapshot": {
+                                    "path": ".tmp/data02-guard-20261122/s6-cb9710345/production-baseline-20261123T145958Z.json",
+                                    "sha256": "956cf0cfc6d7a91044c90ce1652663379b5fc025086bee1dab900978d49296f0"
+                                  },
+                                  "scope_comparison": {
+                                    "path": ".tmp/data02-guard-20261122/s6-7cfa83a2f-evening/production-and-isolated-scope-comparison.json",
+                                    "sha256": "fa08dd617b85b521dc1b352c1cbfa3677b63714df302809da6c206e82a7a9cac"
+                                  }
+                                },
                                 "market_ceiling": 528,
                                 "diagnostic_dispatches": 0,
                                 "financial_stage_dispatches": 0,
