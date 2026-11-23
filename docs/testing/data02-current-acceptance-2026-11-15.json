@@ -10216,6 +10216,62 @@
                               }
                             },
                             "two_stock_s6": {
+                              "overnight_fresh_attempt": {
+                                "attempt_id": "05c231bd41164426a33b499539c4ec3b",
+                                "candidate_sha": "7cfa83a2f5b48f38dbc615f04c3b367061547e17",
+                                "target_trade_date": "2026-11-23",
+                                "same_sha_publication_ci_run": 45175710197,
+                                "latest_runner_start_beijing": "2026-11-24T02:00:00+08:00",
+                                "prepare_terminal_at": "2026-11-23T17:35:59.370316+00:00",
+                                "prepare_exit_code": 60,
+                                "phase": "candidate_exports",
+                                "error_code": "S6_GRAPH_REFRESH_COMMAND_FAILED",
+                                "inner_graph_error": "S6_GRAPH_REFRESH_GRAPH_INVALID",
+                                "task_error": "MARKET_PUBLICATION_VALIDATION_FAILED",
+                                "graph_http_dispatches": 35,
+                                "rejected_dispatches": 0,
+                                "market_cumulative_upper": 406,
+                                "market_cumulative_ceiling": 611,
+                                "diagnostic_dispatches": 0,
+                                "formal_market_and_financial_dispatches": 0,
+                                "runner_started": false,
+                                "production_backfill_or_e1": false,
+                                "new_publication_members": 0,
+                                "valuation_scope": 5581,
+                                "valuation_stage_covered": 5570,
+                                "valuation_preview_covered": 5571,
+                                "stage_missing": 11,
+                                "preview_missing": 10,
+                                "reason": "The target-date candidate preview includes a restored same-day AkShare valuation for 000635.SZ outside the current Tushare stage. Its missing asset set cannot match the stage, so publication failed closed.",
+                                "retired_qa_attempt_id": "2d04ed716c7e482bafc77caf0fcef991",
+                                "verified_local_dump_sha256": "b1e5cf003e61c7f5fa7e8c47eaeef8201e77a23a51594fbd193bdab595b946ce",
+                                "evidence": [
+                                  {
+                                    "path": ".tmp/data02-guard-20261122/s6-7cfa83a2f-overnight/failed-prepare-originals-index.json",
+                                    "sha256": "77842a596963816aa3f73f051d16d30f39aa9eb975f79542ef11b4324aefe83c"
+                                  },
+                                  {
+                                    "path": ".tmp/data02-guard-20261122/s6-7cfa83a2f-overnight/graph-task-readback.json",
+                                    "sha256": "ac5ee1a2da82d4c70e32f64c3346744e77bacaf7387cbbedc806b4d466e2b58a"
+                                  },
+                                  {
+                                    "path": ".tmp/data02-guard-20261122/s6-7cfa83a2f-overnight/valuation-native-preview.json",
+                                    "sha256": "5c935cc27753302b66af80a84448a4feaf0d3025f823cfcba8c9f6a80df4aae8"
+                                  },
+                                  {
+                                    "path": ".tmp/data02-guard-20261122/s6-7cfa83a2f-overnight/archive-relocation.json",
+                                    "sha256": "ad6ca966471ae98b023992afde0ed848d1839809b8a956d5edfa9dd26b2050de"
+                                  },
+                                  {
+                                    "path": ".tmp/data02-guard-20261122/s6-7cfa83a2f-overnight/reclaim.json",
+                                    "sha256": "56a3ca34428cdeda8cc86622ddda86f2737ff143d2e6d1faae707f6c81fc6ccf"
+                                  },
+                                  {
+                                    "path": ".tmp/data02-guard-20261122/s6-7cfa83a2f-overnight/s6-authority.json",
+                                    "sha256": "d85be0f63baa20bb4b1b2a548204376da72b0b1b33f53de4ceb87c18cf04bfb5"
+                                  }
+                                ]
+                              },
                               "candidate_sha": "7cfa83a2f5b48f38dbc615f04c3b367061547e17",
                               "candidate_parent": "cb9710345ae2a5105c15535d3f3a66d7b3a97e0b",
                               "development_integration": "6481872fe70f744f10fb1e78571b2811e76703fc",
