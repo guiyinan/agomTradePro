@@ -1433,22 +1433,23 @@ function formatWorkspacePriceRange(low, high) {
     return `${lowText} - ${highText}`;
 }
 
-function formatWorkspacePriceBand(band) {
-    const priceBand = band && typeof band === 'object' ? band : {};
-    const low = priceBand.low ?? priceBand.price_low ?? priceBand.min;
-    const high = priceBand.high ?? priceBand.price_high ?? priceBand.max;
-    if (low !== undefined || high !== undefined) {
-        return formatWorkspacePriceRange(low, high);
+function getAdvisorOrderPrices(order) {
+    const rawAmount = order.estimated_amount;
+    const amount = (typeof rawAmount === 'number' || (typeof rawAmount === 'string' && rawAmount.trim()))
+        ? Number(rawAmount) : NaN;
+    const band = order.price_band || {};
+    const positive = value => parsePriceValue(value) > 0;
+    const low = [band.low, band.price_low, band.min].find(positive);
+    const high = [band.high, band.price_high, band.max].find(positive);
+    let price = formatWorkspacePriceRange(low, high);
+    if (price === '暂无') {
+        const label = String(band.label || '').trim();
+        const numbers = label.match(/-?\d+(?:\.\d+)?/g) || [];
+        const usableLabel = label && label !== '价格缺失' && label !== '暂无'
+            && (!numbers.length || numbers.some(positive));
+        price = usableLabel ? label : formatWorkspacePrice(order.estimated_price);
     }
-    const label = String(priceBand.label || '').trim();
-    if (!label) {
-        return '';
-    }
-    const numericValues = label.match(/-?\d+(?:\.\d+)?/g) || [];
-    if (numericValues.length > 0 && numericValues.every(value => Number(value) <= 0)) {
-        return '';
-    }
-    return label;
+    return {amount: Number.isFinite(amount) ? amount : null, price};
 }
 
 function calculateRewardRisk(entryPrice, targetPrice, stopLossPrice) {
@@ -1766,7 +1767,7 @@ function syncWorkspaceAccountSummary() {
     });
 }
 
-function formatWorkspaceCurrency(value) {
+function formatWorkspaceCurrency(value, maximumFractionDigits = 0) {
     const numericValue = Number(value);
     if (!Number.isFinite(numericValue)) {
         return '-';
@@ -1774,7 +1775,8 @@ function formatWorkspaceCurrency(value) {
     return new Intl.NumberFormat('zh-CN', {
         style: 'currency',
         currency: 'CNY',
-        maximumFractionDigits: 0,
+        minimumFractionDigits: 0,
+        maximumFractionDigits,
     }).format(numericValue);
 }
 
@@ -2067,7 +2069,8 @@ function renderAdvisorSheet(sheet) {
     }
 
     list.innerHTML = orders.slice(0, 6).map(order => {
-        const band = order.price_band || {};
+        const prices = getAdvisorOrderPrices(order);
+        const amount = prices.amount === null ? '暂无' : formatWorkspaceCurrency(prices.amount, 2);
         const dataAsOf = order.data_asof || {};
         const riskGateStatus = getAdvisorOrderStatusText(order.risk_gate_status);
         const quoteFreshness = getAdvisorOrderStatusText(dataAsOf.quote_freshness_status);
@@ -2086,7 +2089,7 @@ function renderAdvisorSheet(sheet) {
                 </div>
                 <div>
                     <div class="advisor-order-main">${order.delta_quantity ?? 0}</div>
-                    <div class="advisor-order-meta">${formatWorkspaceCurrency(order.estimated_amount)} · ${escapeHtml(formatWorkspacePriceBand(band) || formatWorkspacePrice(order.estimated_price))}</div>
+                    <div class="advisor-order-meta">预计金额：${amount} · 价格区间：${escapeHtml(prices.price)}</div>
                 </div>
                 <div>
                     <div class="advisor-order-meta">${escapeHtml(riskText)}</div>
@@ -2167,15 +2170,15 @@ async function copyAdvisorManualList() {
         return;
     }
     const lines = actionable.map(order => {
-        const band = order.price_band || {};
+        const prices = getAdvisorOrderPrices(order);
         return [
             order.side,
             order.asset_code,
             order.asset_name,
             `delta=${order.delta_quantity}`,
-            `amount=${order.estimated_amount}`,
-            `price=${formatWorkspacePriceBand(band) || formatWorkspacePrice(order.estimated_price)}`,
-            `status=${getWorkspaceBusinessStatusText(order.blocking_status)}`,
+            `amount=${prices.amount ?? '暂无'}`,
+            `price=${prices.price}`,
+            `status=${getAdvisorOrderStatusText(order.blocking_status)}`,
             `reason=${order.reason}`,
         ].join(' | ');
     });

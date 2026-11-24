@@ -203,6 +203,36 @@ def test_workspace_candidate_opens_owned_research_without_creating_config(
             advisor_orders = page.locator("#advisor-order-list")
             expect(advisor_orders).to_contain_text("状态：缺少有效现价，已阻断")
             expect(advisor_orders).not_to_contain_text("BLOCKED_PRICE_MISSING")
+            assert order["price_band"]["low"] is None and order["price_band"]["high"] is None
+            assert order["estimated_amount"] == 0 and order["estimated_price"] is None
+            expected_prices = "预计金额：¥0 · 价格区间：暂无"
+            expect(advisor_orders).to_contain_text(expected_prices)
+            # Capture the button's clipboard write without replacing the host's clipboard.
+            page.evaluate("""() => Object.defineProperty(navigator, 'clipboard', {
+                configurable: true, value: {writeText: async value => {window.copiedAdvisorList = value;}}
+            })""")
+            page.get_by_role("button", name="复制手工执行清单").click()
+            copied = page.evaluate("window.copiedAdvisorList")
+            assert " | amount=0 | price=暂无 | status=缺少有效现价，已阻断 | " in copied
+            assert "BLOCKED_PRICE_MISSING" not in copied
+            samples = page.evaluate("""() => [
+                {estimated_amount:123.45,price_band:{low:9.9,high:10.1}},
+                {estimated_amount:null,price_band:{low:null,high:8}},
+                {estimated_amount:0,price_band:{label:'10.5 - 11'}},
+                {estimated_amount:0,estimated_price:7.5},
+                {estimated_amount:0,price_band:{price_low:3,price_high:4}},
+                {estimated_amount:0,price_band:{label:'价格缺失'}},
+                {estimated_amount:0,estimated_price:8.75,price_band:{low:null,high:null,label:'价格缺失'}}
+            ].map(getAdvisorOrderPrices)""")
+            assert samples == [
+                {"amount": 123.45, "price": "9.90 - 10.10"},
+                {"amount": None, "price": "8.00"},
+                {"amount": 0, "price": "10.5 - 11"},
+                {"amount": 0, "price": "7.50"},
+                {"amount": 0, "price": "3.00 - 4.00"},
+                {"amount": 0, "price": "暂无"},
+                {"amount": 0, "price": "8.75"},
+            ]
             # A future provider code must also stay out of the order's visible status line.
             status_text = page.evaluate("""() => {
                     const sheet = currentAdvisorSheet;
