@@ -3,7 +3,7 @@
 import json
 from collections.abc import Callable
 from dataclasses import replace
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import Mock
 from uuid import uuid4
@@ -415,6 +415,26 @@ def test_any_live_or_incomplete_evidence_preserves_started_record(db, case: str)
     row.refresh_from_db()
     assert result.timed_out_count == 0
     assert row.status == TaskStatus.STARTED.value
+
+
+@pytest.mark.parametrize("invalid_clock", ["observation_without_timezone", "epoch_start"])
+def test_invalid_clock_evidence_preserves_started_attempt(db, invalid_clock: str) -> None:
+    observed_at = timezone.now()
+    started_at = observed_at - timedelta(days=1)
+    if invalid_clock == "epoch_start":
+        started_at = datetime(1970, 1, 1, tzinfo=UTC)
+    else:
+        observed_at = observed_at.replace(tzinfo=None)
+    row = _create_record(started_at=started_at)
+    provider = _EvidenceProvider(_make_snapshot(observed_at=observed_at), _make_evidence())
+
+    result = _run_reconciliation(provider)
+
+    assert (result.checked_count, result.deferred_count, result.timed_out_count) == (1, 1, 0)
+    row.refresh_from_db()
+    assert row.status == TaskStatus.STARTED.value
+    assert row.finished_at is None
+    assert row.result is None
 
 
 def test_pending_records_are_never_inferred_orphan_from_absent_worker_evidence(db) -> None:
