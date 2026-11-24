@@ -1893,3 +1893,7 @@ PostgreSQL 为隔离 Config Center 测试设置，不能替代生产恢复或全
 启用示例为 `python manage.py setup_audit_outbox_dispatch --enable --interval-seconds 300 --limit 1 --worker-id audit-dispatch-01`。它为 DatabaseScheduler 写入名为 `audit-outbox-dispatch` 的调度行；间隔、批量及稳定 worker 身份由操作方指定。相同配置可重放，修改频率复用同一调度。停用使用 `python manage.py setup_audit_outbox_dispatch --disable`，只影响后续排期，已发出的任务继续执行。安装本次代码后仍需显式启用。
 
 隔离 SQLite 验收 23 项全部通过，包括真实 Beat 解码与非法操作零 SQL；独立 PostgreSQL 双连接通过并发创建、改频、重放与停用。本轮仅在隔离库启停。两份源码、测试及 PostgreSQL 原件的身份见本地 `.tmp/aud03-trigger-20261124/scheduler/handoff.json`。
+
+同日后续变更已将启用动作接入 VPS 生产部署。开启 Celery 的 fresh / upgrade 在部署流程中执行 `setup_audit_outbox_dispatch --ensure-enabled`；首次按 300 秒、每批 1 条创建，后续复用并启用已有的有效配置。手动暂停在下一次此类部署时结束。部署步骤与调参命令见 [VPS 部署说明](../../deploy/README_DEPLOY.md#notes)。
+
+隔离验收通过 194 项，两项无关的符号链接检查因 Windows 权限跳过。11 个部署脚本场景覆盖启用、跳过与命令失败；另在独立 PostgreSQL 验证并发首次创建、人工调参与重复部署。原件在本地 `.tmp/audit-deploy-auto-20261124/` 下的 `accepted.xml`、`deploy-smoke.json` 和 `aud03-pg-w4lziobm/result.json`。

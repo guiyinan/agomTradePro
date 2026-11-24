@@ -373,6 +373,18 @@ class ExecutorSuccessTests(ExecutorFixture):
         migration = next(i for i, line in enumerate(text) if "migrator" in line)
         tui = next(i for i, line in enumerate(text) if "publish-tui-release.sh" in line)
         self.assertLess(migration, tui)
+        enable = [
+            i
+            for i, command in enumerate(runner.commands)
+            if "setup_audit_outbox_dispatch" in command
+        ]
+        self.assertEqual(len(enable), 1)
+        self.assertGreater(
+            enable[0], max(i for i, command in enumerate(runner.commands) if "curl" in command)
+        )
+        self.assertEqual(
+            runner.commands[enable[0]][-2:], ("setup_audit_outbox_dispatch", "--ensure-enabled")
+        )
         self.assertFalse(any(" down " in f" {line} " for line in text))
         report = next(config.report_dir.glob("agomtradepro-observed-deploy-*.json"))
         self.assertNotIn(b"secret-fixture-value", report.read_bytes())
@@ -425,6 +437,14 @@ class ExecutorSuccessTests(ExecutorFixture):
 
 
 class ExecutorFailureTests(ExecutorFixture):
+    def test_audit_schedule_failure_prevents_success_and_stops_candidate_workers(self) -> None:
+        config, runner, target, _, _ = self.make_fixture(failure="setup_audit_outbox_dispatch")
+        with FakePointers(target):
+            self.assertEqual(Executor(config, runner).execute(), 23)
+        report = next(config.report_dir.glob("agomtradepro-observed-deploy-*.json"))
+        self.assertEqual(json.loads(report.read_text(encoding="utf-8"))["outcome"], "partial")
+        self.assertEqual(runner.running_services, {"web"})
+
     def test_phase_b_schema_failure_reads_back_readonly_fence_before_partial_report(self) -> None:
         config, _, target, _, _ = self.make_fixture()
 

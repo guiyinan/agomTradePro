@@ -324,4 +324,5 @@ When reporting back to the user, include:
 - running container state
 - Qlib check result: `pyqlib` version, imported `qlib` module path, and absence of the wrong `qlib` distribution
 - whether Celery was enabled
+- the audit outbox schedule status from the standard deployment report (`audit_outbox_schedule`), or from the bundle command output; verify delivery separately using task outcomes and durable receipts
 - deployment report path under `dist/remote-build-reports` when available

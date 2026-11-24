@@ -28,6 +28,32 @@ def enable(**options: object) -> None:
     call_command(COMMAND, "--enable", **(defaults | options))
 
 
+def test_deployment_enables_once_and_preserves_operator_tuning() -> None:
+    call_command(COMMAND, "--ensure-enabled")
+    row = PeriodicTask.objects.get(name=NAME, task=TASK)
+    assert row.enabled and row.interval.schedule.run_every == timedelta(minutes=5)
+    assert ModelEntry(row).kwargs == {"limit": 1, "worker_id": "audit-dispatch-01"}
+    enable()
+    call_command(COMMAND, "--disable")
+    call_command(COMMAND, "--ensure-enabled")
+    row.refresh_from_db()
+    assert row.enabled and row.interval.schedule.run_every == timedelta(minutes=10)
+    assert ModelEntry(row).kwargs == {"limit": 3, "worker_id": "ops-audit-a"}
+    marker = PeriodicTasks.last_change()
+    call_command(COMMAND, "--ensure-enabled")
+    assert PeriodicTasks.last_change() == marker
+    assert PeriodicTask.objects.filter(task=TASK).count() == 1
+
+
+def test_deployment_rejects_an_invalid_stopped_schedule_atomically() -> None:
+    enable()
+    call_command(COMMAND, "--disable")
+    PeriodicTask.objects.filter(name=NAME).update(kwargs='{"worker_id":"ops","limit":true}')
+    with pytest.raises(CommandError):
+        call_command(COMMAND, "--ensure-enabled")
+    assert not PeriodicTask.objects.get(name=NAME).enabled
+
+
 def test_schedule_lifecycle_preserves_history_and_idempotent_beat_marker() -> None:
     assert COMMAND not in SCHEDULER_COMMANDS
     assert TASK not in {entry["task"] for entry in CELERY_BEAT_SCHEDULE.values()}
@@ -78,6 +104,8 @@ def test_schedule_lifecycle_preserves_history_and_idempotent_beat_marker() -> No
         ("--enable", "--interval-seconds", "3", "--limit", "1", "--worker-id", "a" * 129),
         ("--disable", "--enable"),
         ("--disable", "--interval-seconds", "3"),
+        ("--ensure-enabled", "--limit", "1"),
+        ("--ensure-enabled", "--disable"),
     ],
 )
 def test_invalid_scope_has_no_scheduler_side_effects(args: tuple[str, ...]) -> None:

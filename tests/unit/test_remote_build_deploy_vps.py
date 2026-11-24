@@ -1446,6 +1446,34 @@ def test_remote_deploy_blocks_release_on_macro_governance_drift() -> None:
     )
 
 
+def test_forward_deploy_enables_audit_schedule_after_checks_and_only_with_celery() -> None:
+    root = Path(__file__).resolve().parents[2]
+    remote = remote_build_deploy_vps._build_remote_deploy_script()
+    command = "exec -T web python manage.py setup_audit_outbox_dispatch --ensure-enabled"
+    assert remote.count(command) == 1
+    assert remote.index("Celery worker did not respond") < remote.index(command)
+    assert remote.index("release rehearsal identity does not match deployed image") < remote.index(
+        command
+    )
+    assert (
+        f'if [ "$ENABLE_CELERY" = "1" ]; then\n  compose {command}\nfi\nDEPLOY_SUCCEEDED=1'
+        in remote
+    )
+    assert remote.index(command) < remote.index("REPORT_PATH=/tmp/agomtradepro-deploy-report.json")
+    bundle = (root / "scripts/deploy-on-vps.sh").read_text(encoding="utf-8")
+    assert (
+        'if [ "$ACTION" != "restore-only" ] && is_true "$(env_value ENABLE_CELERY deploy/.env)"; then\n'
+        f"    compose_vps {command}\n  fi"
+    ) in bundle
+    powershell = (root / "scripts/deploy-on-vps.ps1").read_text(encoding="utf-8")
+    guard = "if ($Action -in @('fresh','upgrade') -and $services -contains 'celery_beat')"
+    assert powershell.index("bootstrap_cold_start") < powershell.index(guard)
+    assert (
+        "'setup_audit_outbox_dispatch','--ensure-enabled'"
+        in powershell.split(guard)[1].split("}")[0]
+    )
+
+
 def test_data_center_catalog_preservation_is_explicit_and_after_schema_verify() -> None:
     """The opt-in preserve flag skips only catalog sync after schema validation."""
 
@@ -1961,6 +1989,50 @@ def _extract_powershell_function(script: str, function_name: str) -> str:
             if depth == 0:
                 return script[start : index + 1]
     raise AssertionError(f"unterminated {function_name} function")
+
+
+@pytest.mark.parametrize("compose_status", [0, 17])
+def test_bundle_powershell_forwards_compose_arguments_and_exit_status(
+    tmp_path: Path, compose_status: int
+) -> None:
+    pwsh = shutil.which("pwsh")
+    if pwsh is None:
+        pytest.skip("PowerShell is required for bundle command verification")
+    root = Path(__file__).resolve().parents[2]
+    source = (root / "scripts/deploy-on-vps.ps1").read_text(encoding="utf-8")
+    (tmp_path / "compose.py").write_text(
+        f"import json, sys\nprint(json.dumps(sys.argv[1:]))\nsys.exit({compose_status})\n",
+        encoding="utf-8",
+    )
+    harness = tmp_path / "run.ps1"
+    harness.write_text(
+        _extract_powershell_function(source, "Invoke-Compose")
+        + "\nfunction Throw-Err { param([string]$Message) throw $Message }\n"
+        + "$ProjectName = 'test'\n$ComposeCmd = @($env:TEST_PYTHON, 'compose.py')\n"
+        + "Invoke-Compose -Args @('exec','-T','web','python','manage.py',"
+        + "'setup_audit_outbox_dispatch','--ensure-enabled')\n",
+        encoding="utf-8",
+    )
+    result = subprocess.run(
+        [pwsh, "-NoProfile", "-File", str(harness)],
+        cwd=tmp_path,
+        env={**os.environ, "TEST_PYTHON": sys.executable},
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert json.loads(result.stdout) == [
+        "-p",
+        "test",
+        "exec",
+        "-T",
+        "web",
+        "python",
+        "manage.py",
+        "setup_audit_outbox_dispatch",
+        "--ensure-enabled",
+    ]
+    assert (result.returncode == 0) == (compose_status == 0)
 
 
 def _extract_post_deploy_verification_function(script: str) -> str:

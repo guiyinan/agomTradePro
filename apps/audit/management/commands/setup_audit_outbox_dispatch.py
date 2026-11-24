@@ -72,7 +72,15 @@ def _disable() -> str:
     return "disabled"
 
 
-def _enable(seconds: int, limit: int, worker_id: str) -> str:
+def _dispatch_parameters(limit: object, worker_id: object) -> tuple[int, str]:
+    if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= 100:
+        raise CommandError("--limit must be between 1 and 100.")
+    if not isinstance(worker_id, str) or not worker_id.strip() or len(worker_id) > 128:
+        raise CommandError("--worker-id must be nonblank and at most 128 characters.")
+    return limit, worker_id
+
+
+def _enable(seconds: int, limit: int, worker_id: str, *, keep_existing: bool = False) -> str:
     if (
         PeriodicTask.objects.filter(task=TASK_PATH, enabled=True)
         .exclude(name=SCHEDULE_NAME)
@@ -103,13 +111,20 @@ def _enable(seconds: int, limit: int, worker_id: str) -> str:
     _check_task(row)
     existing_kwargs = _existing_kwargs(row)
     changes: list[str] = []
-    if row.interval.every != seconds or row.interval.period != IntervalSchedule.SECONDS:
-        row.interval = _interval(seconds)
-        changes.append("interval")
-    # JSON distinguishes booleans/floats from integer batch limits; Python equality does not.
-    if json.dumps(existing_kwargs, sort_keys=True) != kwargs:
-        row.kwargs = kwargs
-        changes.append("kwargs")
+    if keep_existing:
+        _dispatch_parameters(existing_kwargs.get("limit"), existing_kwargs.get("worker_id"))
+        if row.interval.every <= 0 or row.interval.period not in dict(
+            IntervalSchedule.PERIOD_CHOICES
+        ):
+            raise CommandError(f"Schedule {SCHEDULE_NAME} has an invalid interval.")
+    else:
+        if row.interval.every != seconds or row.interval.period != IntervalSchedule.SECONDS:
+            row.interval = _interval(seconds)
+            changes.append("interval")
+        # JSON distinguishes booleans/floats from integer batch limits; Python equality does not.
+        if json.dumps(existing_kwargs, sort_keys=True) != kwargs:
+            row.kwargs = kwargs
+            changes.append("kwargs")
     if not row.enabled:
         row.enabled = True
         changes.append("enabled")
@@ -134,6 +149,11 @@ class Command(BaseCommand):
         state.add_argument(
             "--disable", action="store_true", help="Stop future dispatch from the named schedule."
         )
+        state.add_argument(
+            "--ensure-enabled",
+            action="store_true",
+            help="Enable for deployment, preserving existing interval and dispatch parameters.",
+        )
         parser.add_argument("--interval-seconds", type=int)
         parser.add_argument(
             "--limit", type=int, help="Maximum number of events per dispatch (1 to 100)."
@@ -144,16 +164,24 @@ class Command(BaseCommand):
         """Save the explicit schedule operation without dispatching directly."""
         enable = options.get("enable", False)
         disable = options.get("disable", False)
-        if not isinstance(enable, bool) or not isinstance(disable, bool) or enable == disable:
-            raise CommandError("Select exactly one boolean action: --enable or --disable.")
+        ensure = options.get("ensure_enabled", False)
+        actions = (enable, disable, ensure)
+        if not all(isinstance(action, bool) for action in actions) or actions.count(True) != 1:
+            raise CommandError(
+                "Select exactly one boolean action: --enable, --disable or --ensure-enabled."
+            )
         seconds, limit, worker_id = (
             options.get(key) for key in ("interval_seconds", "limit", "worker_id")
         )
-        if disable:
+        if disable or ensure:
             if any(value is not None for value in (seconds, limit, worker_id)):
-                raise CommandError("--disable takes no dispatch parameters.")
+                raise CommandError("Only --enable accepts dispatch parameters.")
             with transaction.atomic():
-                result = _disable()
+                result = (
+                    _disable()
+                    if disable
+                    else _enable(300, 1, "audit-dispatch-01", keep_existing=True)
+                )
         else:
             if (
                 isinstance(seconds, bool)
@@ -161,10 +189,7 @@ class Command(BaseCommand):
                 or not 1 <= seconds <= 2_147_483_647
             ):
                 raise CommandError("--interval-seconds must be a positive database integer.")
-            if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= 100:
-                raise CommandError("--limit must be between 1 and 100.")
-            if not isinstance(worker_id, str) or not worker_id.strip() or len(worker_id) > 128:
-                raise CommandError("--worker-id must be nonblank and at most 128 characters.")
+            limit, worker_id = _dispatch_parameters(limit, worker_id)
             with transaction.atomic():
                 result = _enable(seconds, limit, worker_id)
         self.stdout.write(f"{SCHEDULE_NAME}: {result}")

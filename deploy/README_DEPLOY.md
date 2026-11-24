@@ -349,6 +349,20 @@ a newer schema. Implications:
 - `ENABLE_RSSHUB=true` enables self-hosted RSSHub service in the stack.
 - `ENABLE_CELERY=true` is the default production posture; deploy verification
   checks worker/beat containers and `celery inspect ping` when enabled.
+- Fresh and upgrade deployments with Celery enabled run
+  `python manage.py setup_audit_outbox_dispatch --ensure-enabled`. The first
+  deployment creates the Beat entry `audit-outbox-dispatch` with a 300-second
+  interval, batch limit 1 and worker ID `audit-dispatch-01`. Later deployments
+  re-enable the same entry and preserve its valid interval, batch limit and worker ID.
+  A conflict or invalid stored configuration fails the deployment. The standard
+  remote flow runs this step after health, worker and release identity checks.
+  Its successful deployment report records `audit_outbox_schedule` as `enabled`
+  or `skipped_celery_disabled`.
+- To tune the entry, run `python manage.py setup_audit_outbox_dispatch --enable
+  --interval-seconds 600 --limit 3 --worker-id audit-dispatch-01` inside the web
+  container. Use `--disable` alone to pause until the next Celery-enabled deployment.
+  Build-only, restore-only and Celery-disabled operations skip automatic enablement.
+  Task results and durable delivery receipts confirm actual processing.
 - On very small VPS instances, set `ENABLE_CELERY=false` only as an explicit
   maintenance/low-memory mode. In that mode `/api/ready/` will report Celery as
   unavailable because no worker is expected to respond.

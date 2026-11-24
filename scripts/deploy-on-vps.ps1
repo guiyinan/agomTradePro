@@ -38,13 +38,14 @@ function Get-ComposeCmd {
 $ComposeCmd = Get-ComposeCmd
 
 function Invoke-Compose {
-    param([string[]]$Args)
-    $fullArgs = @('-p', $ProjectName) + $Args
+    param([Alias('Args')][string[]]$ComposeArguments)
+    $fullArgs = @('-p', $ProjectName) + $ComposeArguments
     if ($ComposeCmd.Count -eq 2) {
         & $ComposeCmd[0] $ComposeCmd[1] @fullArgs
     } else {
         & $ComposeCmd[0] @fullArgs
     }
+    if ($LASTEXITCODE -ne 0) { Throw-Err "Docker Compose failed (exit $LASTEXITCODE)" }
 }
 
 function Assert-NoConflictingProject {
@@ -283,5 +284,8 @@ Write-Info "Running cold-start bootstrap"
 $alphaUniverses = if ($env:AGOMTRADEPRO_BOOTSTRAP_ALPHA_UNIVERSES) { $env:AGOMTRADEPRO_BOOTSTRAP_ALPHA_UNIVERSES } else { 'csi300' }
 $alphaTopN = if ($env:AGOMTRADEPRO_BOOTSTRAP_ALPHA_TOP_N) { $env:AGOMTRADEPRO_BOOTSTRAP_ALPHA_TOP_N } else { '30' }
 Invoke-Compose -Args @('-f','docker/docker-compose.vps.yml','--env-file','deploy/.env','exec','-T','web','python','manage.py','bootstrap_cold_start','--preserve-protected-schedules-disabled','--with-alpha','--alpha-universes',$alphaUniverses,'--alpha-top-n',$alphaTopN)
+if ($Action -in @('fresh','upgrade') -and $services -contains 'celery_beat') {
+    Invoke-Compose -Args @('-f','docker/docker-compose.vps.yml','--env-file','deploy/.env','exec','-T','web','python','manage.py','setup_audit_outbox_dispatch','--ensure-enabled')
+}
 Invoke-Compose -Args @('-f','docker/docker-compose.vps.yml','--env-file','deploy/.env','ps')
 Write-Info "Deployment done"

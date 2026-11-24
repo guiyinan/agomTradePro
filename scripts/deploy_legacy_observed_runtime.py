@@ -702,6 +702,16 @@ class Executor:
         self.infra_compare()
         self.check_qlib_identity()
         self.wait_public_health()
+        self.compose_run(
+            self.c.release,
+            "exec",
+            "-T",
+            "web",
+            "python",
+            "manage.py",
+            "setup_audit_outbox_dispatch",
+            "--ensure-enabled",
+        )
 
     def complete_phase_b_migrations(self) -> None:
         """Apply the deferred guarded migration before any PhaseB metadata or writer."""

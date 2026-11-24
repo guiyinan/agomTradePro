@@ -459,6 +459,9 @@ if [ "$ACTION" = "fresh" ] || [ "$ACTION" = "upgrade" ] || [ "$ACTION" = "restor
   if ! compose_vps exec -T web python manage.py setup_macro_daily_sync --hour 8 --minute 5; then
     log_warn "Failed to configure macro periodic tasks automatically"
   fi
+  if [ "$ACTION" != "restore-only" ] && is_true "$(env_value ENABLE_CELERY deploy/.env)"; then
+    compose_vps exec -T web python manage.py setup_audit_outbox_dispatch --ensure-enabled
+  fi
 fi
 
 mkdir -p "$TARGET_DIR"

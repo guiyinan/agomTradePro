@@ -3439,7 +3439,7 @@ fi
 
 compose ps > /tmp/agomtradepro-compose-ps.txt || true
 
-python3 - <<'PY'
+DEPLOY_REPORT=$(python3 - <<'PY'
 import json
 import os
 import re
@@ -3491,10 +3491,12 @@ report = {
     "release_manifest": release_manifest,
     "release_rehearsal_sha256": rehearsal_sha256,
     "release_rehearsal_image_id": rehearsal_image_id,
+    "audit_outbox_schedule": "enabled" if os.environ.get("ENABLE_CELERY") == "1" else "skipped_celery_disabled",
     "deployed": True,
 }
-Path("/tmp/agomtradepro-deploy-report.json").write_text(json.dumps(report, ensure_ascii=True, indent=2), encoding="utf-8")
+print(json.dumps(report, ensure_ascii=True, indent=2))
 PY
+)
 
 # Daily database backups are owned by Django Beat.  This deploy path only
 # creates the explicit, verified pre-deploy recovery point above.
@@ -3504,7 +3506,11 @@ else
   echo "[WARN] unable to remove legacy duplicate vps-backup cron" >&2
 fi
 
+if [ "$ENABLE_CELERY" = "1" ]; then
+  compose exec -T web python manage.py setup_audit_outbox_dispatch --ensure-enabled
+fi
 DEPLOY_SUCCEEDED=1
+printf '%s\n' "$DEPLOY_REPORT" > /tmp/agomtradepro-deploy-report.json
 [ -z "$OLD_IMAGE_ARCHIVE" ] || rm -f "$OLD_IMAGE_ARCHIVE" 2>/dev/null || true
 echo "REPORT_PATH=/tmp/agomtradepro-deploy-report.json"
 """.replace("__DOCKER_ENGINE_PREFLIGHT__", _DOCKER_ENGINE_PREFLIGHT).replace(
