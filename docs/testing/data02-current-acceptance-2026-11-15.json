@@ -10225,7 +10225,79 @@
                                   "path": ".tmp/data02-guard-20261122/valuation-bound-local/candidate-verification.json",
                                   "sha256": "482c1046b6eb07bc243618185ea201f7f75bc968f1c1056620d71453ae8a8539"
                                 },
-                                "remote_ci_or_s6": false
+                                "remote_ci_or_s6_at_local_verification": false,
+                                "subsequent_ci": {
+                                  "prior_fast_feedback_failures": [
+                                    45312958285,
+                                    45313005633
+                                  ],
+                                  "prior_failure": "Only the changed Python file-size gate failed on the original candidate.",
+                                  "successor_sha": "216b5a7fd03dfedeff6b1f6efdc6640ca57bff9e",
+                                  "development_integration": "8d56ad22113c4bdd607bf5fb89c6c32a02d34360",
+                                  "repair": "Reused the five-field raw audit serializer. Four output fixtures preserved content and order. File size decreased from 1116 to 1107 nonempty lines.",
+                                  "local_checks": {
+                                    "cumulative_quality_passed": 39,
+                                    "related_tests_passed": 157,
+                                    "domain_tests_passed": 8651,
+                                    "domain_tests_skipped": 2,
+                                    "domain_coverage_percent": 94.49
+                                  },
+                                  "ci_result": "8 of 9 completed workflows passed. All seven push workflows and the manual Quote Metric workflow passed.",
+                                  "push_publication": {
+                                    "run_id": 45317995217,
+                                    "tests_passed": 303,
+                                    "junit_files": 12
+                                  },
+                                  "manual_quote_metric": {
+                                    "run_id": 45318538103,
+                                    "tests_passed": 57
+                                  },
+                                  "manual_fast_feedback": {
+                                    "run_id": 45318011166,
+                                    "url": "https://github.com/guiyinan/agomTradePro/actions/runs/45318011166",
+                                    "conclusion": "failure",
+                                    "job": "Fast feedback (Python 3.11)",
+                                    "test": "test_parallel_command_progress_keeps_each_active_invocation_and_heartbeats",
+                                    "cause": "The test compared snapshots between two successive atomic file replacements. A controlled interleaving reproduced counts 2 and 1, followed by identical two-command payloads."
+                                  },
+                                  "manual_publication_dispatched": false,
+                                  "s6_started": false,
+                                  "production_writes": 0,
+                                  "evidence": [
+                                    {
+                                      "path": ".tmp/data02-guard-20261122/github-ci-1356aacd1/initial-terminal-runs.json",
+                                      "sha256": "36f5a30b57d90d169083c9087a731441cf2eebb3b35f66a4fb09e8869d001a84"
+                                    },
+                                    {
+                                      "path": ".tmp/data02-guard-20261122/github-ci-1356aacd1-successor/equivalence.json",
+                                      "sha256": "38cf9ce3359d42cf8bf1d90eb8e910992aa7e0411acf8621de0b322a74d19db7"
+                                    },
+                                    {
+                                      "path": ".tmp/data02-guard-20261122/github-ci-1356aacd1-successor/cumulative-quality.json",
+                                      "sha256": "7132fb07979b64e1afb2699644627267d65ab42e035745dbff9ed982995ec41d"
+                                    },
+                                    {
+                                      "path": ".tmp/data02-guard-20261122/github-ci-1356aacd1-successor/domain-result.json",
+                                      "sha256": "d5f7e0da04b497301a778ea4beffe4c9a2375cf0b71a3b538257d7360f6c697a"
+                                    },
+                                    {
+                                      "path": ".tmp/data02-guard-20261122/github-ci-1356aacd1-successor/units.log",
+                                      "sha256": "bbc6d982550c940e10879899bebe48e3a5c9e8d00888d3915b77bd71d0095f52"
+                                    },
+                                    {
+                                      "path": ".tmp/data02-guard-20261122/github-ci-1356aacd1-successor/initial-terminal-runs.json",
+                                      "sha256": "c34c7e9fc41b6aab4604a551d6f4e0840186e4ad94a78b05debfde02ad31485c"
+                                    },
+                                    {
+                                      "path": ".tmp/data02-guard-20261122/github-ci-1356aacd1-successor/heartbeat-diagnosis.json",
+                                      "sha256": "f85b989cc6018cbd7ad144eae85628d9ad2a92774dcfdba7dc61685ce8b10097"
+                                    },
+                                    {
+                                      "path": ".tmp/data02-guard-20261122/github-ci-1356aacd1-successor/45318011166-failed.log",
+                                      "sha256": "ad50575993747ca04287dada70d490647ed89002a88551f5ac9d8932e2cad88e"
+                                    }
+                                  ]
+                                }
                               },
                               "overnight_fresh_attempt": {
                                 "attempt_id": "05c231bd41164426a33b499539c4ec3b",
