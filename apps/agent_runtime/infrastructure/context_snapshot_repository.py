@@ -81,17 +81,24 @@ class DjangoContextSnapshotRepository:
             status_payload = get_policy_status_payload()
             latest = get_recent_policy_event_summary(limit=1).get("latest")
             if not isinstance(latest, dict):
-                return {"status": "no_data", "message": "No policy events found"}
+                return {
+                    "status": "no_data",
+                    "message": "No policy events found",
+                    "observed_at": None,
+                    "freshness_status": "unknown",
+                    "must_not_use_for_decision": True,
+                    "blocked_reason": "policy_source_observation_missing",
+                }
             return {
-                "status": "ok",
+                "status": "blocked" if status_payload["must_not_use_for_decision"] else "ok",
                 "current_gear": status_payload.get("current_level"),
-                "event_date": str(latest.get("event_date") or status_payload.get("as_of_date")),
+                "event_date": str(latest.get("event_date") or ""),
                 "description": str(latest.get("title") or ""),
                 "is_intervention_active": bool(status_payload.get("is_intervention_active")),
-                "observed_at": str(latest.get("event_date") or ""),
-                "freshness_status": "effective",
-                "must_not_use_for_decision": False,
-                "blocked_reason": "",
+                "observed_at": status_payload["observed_at"],
+                "freshness_status": status_payload["freshness_status"],
+                "must_not_use_for_decision": status_payload["must_not_use_for_decision"],
+                "blocked_reason": status_payload["blocked_reason"],
             }
         except Exception as exc:
             _log_source_failure("Failed to fetch policy summary", exc)

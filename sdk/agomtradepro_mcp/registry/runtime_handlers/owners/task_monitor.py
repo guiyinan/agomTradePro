@@ -13,11 +13,6 @@ def _fallback_get_task_monitor_statistics(
     from agomtradepro import AgomTradeProClient
 
     client = AgomTradeProClient()
-    if not task_name:
-        return {
-            "success": False,
-            "error": "task_name is required",
-        }
     return client.task_monitor.statistics(task_name=task_name, days=days)
 
 
@@ -28,14 +23,7 @@ def _fallback_get_task_monitor_status(
     from agomtradepro import AgomTradeProClient
 
     client = AgomTradeProClient()
-    try:
-        return client.task_monitor.get_task_status(task_id, diagnostics=diagnostics)
-    except Exception as exc:
-        return {
-            "success": False,
-            "task_id": task_id,
-            "error": str(exc),
-        }
+    return client.task_monitor.get_task_status(task_id, diagnostics=diagnostics)
 
 
 def _fallback_list_task_monitor_tasks(

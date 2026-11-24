@@ -9,6 +9,46 @@ from apps.policy.infrastructure.models import PolicyLog
 from apps.policy.interface import event_api_views
 
 
+@pytest.mark.django_db
+def test_policy_status_observation_belongs_to_the_effective_classification():
+    client = _build_authenticated_api_client()
+    cutoff = "2026-11-20"
+    query = {"as_of_date": cutoff}
+    url = "/api/policy/status/"
+    before = client.get(url, query)
+    assert before.status_code == 200
+    assert before.json()["current_level"] == "P0"
+    assert before.json()["observed_at"] is None
+    assert before.json()["must_not_use_for_decision"] is True
+    assert before.json()["blocked_reason"] == "policy_source_observation_missing"
+
+    PolicyLog.objects.create(
+        event_date=date(2026, 11, 17),
+        level="P0",
+        title="Classified",
+        description="Normal",
+        evidence_url="https://example.org/effective",
+        gate_effective=True,
+    )
+    PolicyLog.objects.create(
+        event_date=date(2026, 11, 19),
+        level="PX",
+        title="Under review",
+        description="Pending",
+        evidence_url="https://example.org/review",
+        gate_effective=False,
+    )
+    observed = client.get(url, query)
+    assert observed.status_code == 200
+    assert observed["Content-Type"].startswith("application/json")
+    body = observed.json()
+    assert body["as_of_date"] == cutoff
+    assert body["current_level"] == "P0"
+    assert body["observed_at"] == "2026-11-17"
+    assert body["latest_event"]["event_date"] == "2026-11-19"
+    assert body["must_not_use_for_decision"] is False
+
+
 @pytest.fixture(autouse=True)
 def _use_locmem_cache(settings):
     """

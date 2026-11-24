@@ -26,10 +26,26 @@ def test_policy_status_maps_canonical_level_and_latest_event() -> None:
         status = client.policy.get_status()
 
     assert status.current_gear == "stimulus"
-    assert status.observed_at == date(2026, 7, 10)
+    assert status.observed_at is None
+    assert status.must_not_use_for_decision
     assert len(status.recent_events) == 1
     assert status.recent_events[0].gear == "tightening"
     mocked.assert_called_once_with("/api/policy/status/", params=None)
+
+
+def test_policy_status_only_reports_neutral_with_an_observed_classification() -> None:
+    client = _client()
+    for observation, gear, blocked in [
+        (None, "unclassified", True),
+        ("2026-07-09", "neutral", False),
+    ]:
+        payload = {"current_level": "P0", "as_of_date": "2026-07-10", "observed_at": observation}
+        with patch.object(client, "get", return_value=payload):
+            status = client.policy.get_status()
+        assert status.current_level == "P0"
+        assert status.current_gear == gear
+        assert status.must_not_use_for_decision is blocked
+        assert status.observed_at == (date(2026, 7, 9) if observation else None)
 
 
 def test_policy_status_preserves_unclassified_manual_review_gate() -> None:

@@ -4,6 +4,41 @@
 from .core_registry_support import *
 
 
+@pytest.mark.parametrize("mode", ["core_only_mcp_server", "legacy_enabled_mcp_server"])
+@pytest.mark.parametrize(
+    ("capability", "method", "arguments"),
+    [
+        ("task_monitor.read.task_status", "get_task_status", {"task_id": "missing"}),
+        ("system.read.task_monitor.statistics", "statistics", {"task_name": "demo.task"}),
+        ("system.read.task_monitor.statistics", "statistics", {"task_name": ""}),
+    ],
+)
+def test_task_read_preserves_upstream_error(
+    request, monkeypatch, mode, capability, method, arguments
+) -> None:
+    """A failed operational read must traverse the dispatcher's typed error path."""
+    request.getfixturevalue(mode)
+    import agomtradepro_mcp.audit as audit
+    import agomtradepro_mcp.server as server
+    from agomtradepro.exceptions import raise_for_status
+    from agomtradepro.modules.task_monitor import TaskMonitorModule
+
+    http_status = 400 if arguments.get("task_name") == "" else 503
+    code = "invalid_task_name" if http_status == 400 else "task_monitor_unavailable"
+    monkeypatch.setattr(audit, "_audit_logger", SimpleNamespace(log_mcp_call=lambda **kwargs: None))
+
+    def unavailable(*args, **kwargs):
+        raise_for_status(http_status, {"code": code, "internal": "private-marker"})
+
+    monkeypatch.setattr(TaskMonitorModule, method, unavailable)
+    response = server.CORE_DISPATCHER.call(capability_key=capability, arguments=arguments)
+
+    assert response["ok"] is False
+    assert response["error"]["code"] == code
+    assert response["error"]["upstream_status_code"] == http_status
+    assert "private-marker" not in str(response)
+
+
 def test_task_monitor_phase_schema_declares_count_units() -> None:
     """Task Monitor MCP output documents the phase count units exposed by the API."""
 

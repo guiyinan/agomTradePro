@@ -8,19 +8,14 @@ from agomtradepro import AgomTradeProClient
 
 
 def register_task_monitor_tools(server: FastMCP) -> None:
+    """Register Task Monitor reads backed by the configured SDK client."""
+
     @server.tool()
     def get_task_monitor_status(task_id: str, diagnostics: bool = False) -> dict[str, Any]:
-        """Read a task projection; diagnostics is restricted by API credentials."""
+        """Read a task projection with diagnostics restricted by API credentials."""
 
         client = AgomTradeProClient()
-        try:
-            return client.task_monitor.get_task_status(task_id, diagnostics=diagnostics)
-        except Exception as exc:
-            return {
-                "success": False,
-                "task_id": task_id,
-                "error": str(exc),
-            }
+        return client.task_monitor.get_task_status(task_id, diagnostics=diagnostics)
 
     @server.tool()
     def list_task_monitor_tasks(
@@ -43,21 +38,9 @@ def register_task_monitor_tools(server: FastMCP) -> None:
 
     @server.tool()
     def get_task_monitor_statistics(task_name: str | None = None, days: int = 7) -> dict[str, Any]:
+        """Read aggregate execution statistics for the selected task."""
         client = AgomTradeProClient()
-        if not task_name:
-            return {
-                "success": False,
-                "error": "task_name is required",
-            }
-        try:
-            return client.task_monitor.statistics(task_name=task_name, days=days)
-        except Exception as exc:
-            return {
-                "success": False,
-                "task_name": task_name,
-                "days": days,
-                "error": str(exc),
-            }
+        return client.task_monitor.statistics(task_name=task_name, days=days)
 
     @server.tool()
     def get_task_monitor_dashboard() -> dict[str, Any]:

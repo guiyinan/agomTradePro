@@ -75,6 +75,10 @@ def test_context_snapshot_primary_summaries_cover_data_and_empty_states() -> Non
                 "current_level": "P1",
                 "is_intervention_active": False,
                 "as_of_date": "2026-07-25",
+                "observed_at": "2026-07-20",
+                "freshness_status": "unknown",
+                "must_not_use_for_decision": True,
+                "blocked_reason": "policy_manual_approval_required",
             },
         ),
         patch(
@@ -88,7 +92,11 @@ def test_context_snapshot_primary_summaries_cover_data_and_empty_states() -> Non
             },
         ),
     ):
-        assert repository.fetch_policy_summary()["current_gear"] == "P1"
+        summary = repository.fetch_policy_summary()
+        assert summary["current_gear"] == "P1"
+        assert summary["observed_at"] == "2026-07-20"
+        assert summary["must_not_use_for_decision"] is True
+        assert summary["blocked_reason"] == "policy_manual_approval_required"
     with (
         patch(
             "apps.policy.application.query_services.get_recent_policy_event_summary",

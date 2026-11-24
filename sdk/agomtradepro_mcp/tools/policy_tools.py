@@ -37,7 +37,7 @@ def register_policy_tools(server: FastMCP) -> None:
             "current_gear": status.current_gear,
             "current_level": status.current_level,
             "level_name": status.level_name,
-            "observed_at": status.observed_at.isoformat(),
+            "observed_at": status.observed_at.isoformat() if status.observed_at else None,
             "recent_events_count": len(status.recent_events),
             "requires_manual_approval": status.requires_manual_approval,
             "must_not_use_for_decision": status.must_not_use_for_decision,

@@ -22,7 +22,8 @@ from uuid import UUID
 from django.core.management import call_command
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db import IntegrityError, transaction
-from django.db.models import Avg, Count
+from django.db.models import Avg, Count, Q
+from django.db.models.functions import Coalesce
 from django.utils import timezone
 
 from apps.task_monitor.domain.entities import (
@@ -420,6 +421,40 @@ class DjangoTaskRecordRepository(TaskRecordRepositoryProtocol):
             updated_at=timezone.now(),
         )
         return updated_count == 1
+
+    def get_attempt_context(
+        self, task_name: str
+    ) -> tuple[TaskExecutionRecord | None, TaskExecutionRecord | None]:
+        """Read both attempt heads in one statement, independently of the requested page."""
+        records = TaskExecutionModel.objects.filter(task_name=task_name)
+        active_statuses = (
+            TaskStatus.PENDING.value,
+            TaskStatus.STARTED.value,
+            TaskStatus.RETRY.value,
+        )
+        completed_statuses = (
+            TaskStatus.SUCCESS.value,
+            TaskStatus.FAILURE.value,
+            TaskStatus.TIMEOUT.value,
+            TaskStatus.REVOKED.value,
+        )
+        active_pk = (
+            records.filter(status__in=active_statuses)
+            .order_by(Coalesce("started_at", "created_at").desc(), "-pk")
+            .values("pk")[:1]
+        )
+        completed_pk = (
+            records.filter(status__in=completed_statuses)
+            .order_by(Coalesce("finished_at", "created_at").desc(), "-pk")
+            .values("pk")[:1]
+        )
+        active = completed = None
+        for row in records.filter(Q(pk__in=active_pk) | Q(pk__in=completed_pk)):
+            if row.status in active_statuses:
+                active = self._model_to_entity(row)
+            else:
+                completed = self._model_to_entity(row)
+        return active, completed
 
     def list_by_task_name(
         self, task_name: str, limit: int = 100, status: str | None = None

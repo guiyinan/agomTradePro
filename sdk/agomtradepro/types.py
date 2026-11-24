@@ -213,7 +213,7 @@ class PolicyStatus:
     """
 
     current_gear: PolicyGear
-    observed_at: date
+    observed_at: date | None
     recent_events: list["PolicyEvent"] = field(default_factory=list)
     current_level: PolicyLevel | None = None
     level_name: str | None = None

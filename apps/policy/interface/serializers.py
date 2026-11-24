@@ -207,7 +207,7 @@ class PolicyStatusSerializer(serializers.Serializer[dict[str, Any]]):
     is_crisis_mode = serializers.BooleanField()
     recommendations = serializers.ListField(child=serializers.CharField())
     as_of_date = serializers.DateField()
-    observed_at = serializers.DateField()
+    observed_at = serializers.DateField(allow_null=True)
     freshness_status = serializers.CharField()
     must_not_use_for_decision = serializers.BooleanField()
     blocked_reason = serializers.CharField(allow_blank=True)

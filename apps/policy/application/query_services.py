@@ -21,14 +21,16 @@ def get_policy_event_count() -> int:
 def get_policy_status_payload(*, as_of_date: date | None = None) -> dict[str, Any]:
     """Return current policy status in command-friendly shape."""
 
-    status = GetPolicyStatusUseCase(
-        event_store=get_current_policy_repository()
-    ).execute(as_of_date)
+    status = GetPolicyStatusUseCase(event_store=get_current_policy_repository()).execute(as_of_date)
     return {
         "current_level": status.current_level.value,
         "level_name": status.level_name,
         "is_intervention_active": status.is_intervention_active,
         "as_of_date": status.as_of_date.isoformat(),
+        "observed_at": status.observed_at.isoformat() if status.observed_at else None,
+        "freshness_status": "unknown",
+        "must_not_use_for_decision": bool(status.blocked_reason),
+        "blocked_reason": status.blocked_reason,
     }
 
 

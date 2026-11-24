@@ -42,14 +42,6 @@ from core.exceptions import ExternalServiceError
 
 logger = logging.getLogger(__name__)
 
-_ACTIVE_TASK_STATUSES = {TaskStatus.PENDING, TaskStatus.STARTED, TaskStatus.RETRY}
-_COMPLETED_TASK_STATUSES = {
-    TaskStatus.SUCCESS,
-    TaskStatus.FAILURE,
-    TaskStatus.TIMEOUT,
-    TaskStatus.REVOKED,
-}
-
 QUOTE_PRE_READINESS_TASK_NAME = "decision-quote-pre-readiness-refresh"
 PERSONAL_READINESS_DAILY_TASK_NAME = "personal-readiness-daily-evidence"
 AUTO_ADVISOR_WEEKLY_TASK_NAME = "dashboard-auto-advisor-weekly-report"
@@ -58,31 +50,6 @@ DEFAULT_PERSONAL_READINESS_DAILY_TIME = "16:10"
 DEFAULT_AUTO_ADVISOR_WEEKLY_TIME = "17:30"
 POST_CLOSE_MINUTES = 15 * 60 + 1
 DAILY_EVIDENCE_MINUTES = 16 * 60
-
-
-def _find_attempt_context(
-    record: TaskExecutionRecord,
-    *,
-    repository: TaskRecordRepositoryProtocol,
-    history: list[TaskExecutionRecord] | None = None,
-) -> tuple[TaskExecutionRecord | None, TaskExecutionRecord | None]:
-    """Return the newest active and completed attempts for the same task name."""
-
-    history_records = (
-        history
-        if history is not None
-        else repository.list_by_task_name(record.task_name, limit=100)
-    )
-    records = [record, *[item for item in history_records if item.task_id != record.task_id]]
-    current_attempt = next(
-        (item for item in records if item.status in _ACTIVE_TASK_STATUSES),
-        None,
-    )
-    last_completed = next(
-        (item for item in records if item.status in _COMPLETED_TASK_STATUSES),
-        None,
-    )
-    return current_attempt, last_completed
 
 
 class RecordTaskExecutionUseCase:
@@ -210,10 +177,7 @@ class GetTaskStatusUseCase:
         if not record:
             return None
 
-        current_attempt, last_completed = _find_attempt_context(
-            record,
-            repository=self.repository,
-        )
+        current_attempt, last_completed = self.repository.get_attempt_context(record.task_name)
         return task_status_response(
             record,
             current_attempt=(
@@ -271,17 +235,11 @@ class ListTasksUseCase:
             records = self.repository.list_recent_failures(limit=limit)
 
         items = []
-        histories: dict[str, list[TaskExecutionRecord]] = {}
+        contexts: dict[str, tuple[TaskExecutionRecord | None, TaskExecutionRecord | None]] = {}
         for record in records:
-            history = histories.get(record.task_name)
-            if history is None:
-                history = self.repository.list_by_task_name(record.task_name, limit=100)
-                histories[record.task_name] = history
-            current_attempt, last_completed = _find_attempt_context(
-                record,
-                repository=self.repository,
-                history=history,
-            )
+            if record.task_name not in contexts:
+                contexts[record.task_name] = self.repository.get_attempt_context(record.task_name)
+            current_attempt, last_completed = contexts[record.task_name]
             items.append(
                 task_status_response(
                     record,

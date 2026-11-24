@@ -84,6 +84,12 @@ class TaskRecordRepositoryProtocol(Protocol):
         """Atomically time out one still-current task attempt."""
         ...
 
+    def get_attempt_context(
+        self, task_name: str
+    ) -> tuple[TaskExecutionRecord | None, TaskExecutionRecord | None]:
+        """Read the newest active attempt and latest completion for this task name."""
+        ...
+
     def list_by_task_name(
         self, task_name: str, limit: int = 100, status: str | None = None
     ) -> list[TaskExecutionRecord]:

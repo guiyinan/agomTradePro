@@ -4,6 +4,31 @@
 from .core_registry_support import *
 
 
+def test_governed_signal_page_when_legacy_tools_are_enabled(
+    monkeypatch, legacy_enabled_mcp_server
+) -> None:
+    """The governed page and the directly registered list keep their own contracts."""
+    import agomtradepro_mcp.audit as audit
+    import agomtradepro_mcp.server as server
+    from agomtradepro.modules.signal import SignalModule
+
+    captured = []
+    monkeypatch.setattr(audit, "_audit_logger", SimpleNamespace(log_mcp_call=lambda **kwargs: None))
+
+    def empty_page(self, **query):
+        captured.append(query)
+        return []
+
+    monkeypatch.setattr(SignalModule, "list", empty_page)
+    query = {"asset_code": "510300.SH", "status": "pending", "offset": 5, "limit": 3}
+    response = server.CORE_DISPATCHER.call(capability_key="signal.read.list", arguments=query)
+
+    assert response["ok"] is True
+    assert response["result"] == {"signals": [], "returned_count": 0, "limit": 3, "offset": 5}
+    assert server._call_registered_tool("list_signals", query) == []
+    assert captured == [query, query]
+
+
 @pytest.mark.parametrize(
     ("capability_key", "legacy_tool_name", "arguments", "payload", "expected"),
     [

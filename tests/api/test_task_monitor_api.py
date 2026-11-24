@@ -245,6 +245,41 @@ def test_get_task_status_returns_serialized_task(staff_client):
 
 
 @pytest.mark.django_db
+def test_task_attempt_context_is_independent_of_requested_row_and_page(staff_client):
+    """A historical row or a page of pending work cannot replace the latest completion."""
+    now = timezone.now()
+    name = "diagnostics.attempt_context"
+    TaskExecutionModel.objects.create(
+        task_id="latest-finish", task_name=name, status="success", finished_at=now
+    )
+    TaskExecutionModel.objects.create(
+        task_id="older-finish",
+        task_name=name,
+        status="failure",
+        finished_at=now - timedelta(minutes=2),
+    )
+    TaskExecutionModel.objects.bulk_create(
+        [
+            TaskExecutionModel(task_id=f"pending-{i}", task_name=name, status="pending")
+            for i in range(101)
+        ]
+    )
+    TaskExecutionModel.objects.create(
+        task_id="active-attempt", task_name=name, status="started", started_at=timezone.now()
+    )
+    detail = staff_client.get("/api/system/status/older-finish/")
+    page = staff_client.get(
+        "/api/system/list/", {"task_name": name, "status": "pending", "limit": 2}
+    )
+    assert detail.status_code == page.status_code == 200
+    assert detail.json()["task_id"] == "older-finish"
+    assert len(page.json()["items"]) == 2
+    for record in [detail.json(), *page.json()["items"]]:
+        assert record["current_attempt"]["task_id"] == "active-attempt"
+        assert record["last_completed"]["task_id"] == "latest-finish"
+
+
+@pytest.mark.django_db
 def test_task_status_projects_business_result_and_gates_raw_diagnostics(staff_client):
     """Business evidence is public while exception text requires diagnostics access."""
 

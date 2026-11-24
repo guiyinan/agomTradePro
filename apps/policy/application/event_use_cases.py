@@ -182,6 +182,21 @@ class PolicyStatusOutput:
     is_crisis_mode: bool
     recommendations: list[str]
     as_of_date: date
+    observed_at: date | None = None
+
+    @property
+    def requires_manual_approval(self) -> bool:
+        """Return whether the source or its classification requires human review."""
+        return self.observed_at is None or self.response_config.requires_manual_approval
+
+    @property
+    def blocked_reason(self) -> str:
+        """Return the decision restriction for this effective policy observation."""
+        if self.observed_at is None:
+            return "policy_source_observation_missing"
+        if self.current_level is PolicyLevel.PENDING:
+            return "policy_unclassified_manual_review"
+        return "policy_manual_approval_required" if self.requires_manual_approval else ""
 
 
 @dataclass
@@ -412,22 +427,16 @@ class GetPolicyStatusUseCase:
 
         # 获取仓储实例以获取当前档位
         repo = self.event_store
+        latest_event = self.event_store.get_latest_event(as_of_date)
         if isinstance(repo, DjangoPolicyRepository):
-            current_level = repo.get_current_policy_level(as_of_date)
-            is_intervention = repo.is_intervention_active(as_of_date)
-            is_crisis = repo.is_crisis_mode(as_of_date)
+            current_level, observed_at = repo.get_policy_level_observation(as_of_date)
         else:
             # 通用仓储，获取最新事件
-            latest = self.event_store.get_latest_event(as_of_date)
-            current_level = latest.level if latest else PolicyLevel.P0
-            is_intervention = is_high_risk_level(current_level)
-            is_crisis = current_level == PolicyLevel.P3
+            current_level = latest_event.level if latest_event else PolicyLevel.P0
+            observed_at = latest_event.event_date if latest_event else None
 
         # 获取响应配置
         response_config = get_policy_response(current_level)
-
-        # 获取最新事件
-        latest_event = self.event_store.get_latest_event(as_of_date)
 
         # 获取建议
         recommendations = get_recommendations_for_level(current_level)
@@ -437,10 +446,11 @@ class GetPolicyStatusUseCase:
             level_name=response_config.name,
             response_config=response_config,
             latest_event=latest_event,
-            is_intervention_active=is_intervention,
-            is_crisis_mode=is_crisis,
+            is_intervention_active=is_high_risk_level(current_level),
+            is_crisis_mode=current_level == PolicyLevel.P3,
             recommendations=recommendations,
             as_of_date=as_of_date,
+            observed_at=observed_at,
         )
 
 

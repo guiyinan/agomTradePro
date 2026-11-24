@@ -273,18 +273,20 @@ class DjangoPolicyRepository:
         Returns:
             PolicyLevel: 当前政策档位
         """
+        level, _ = self.get_policy_level_observation(as_of_date)
+        return level
+
+    def get_policy_level_observation(
+        self, as_of_date: date | None = None
+    ) -> tuple[PolicyLevel, date | None]:
+        """Return the level and event date from the same effective classification."""
         query = self._model.objects.filter(gate_effective=True)
-
-        if as_of_date:
+        if as_of_date is not None:
             query = query.filter(event_date__lte=as_of_date)
-
-        orm_obj = query.order_by("-event_date", "-effective_at").first()
-
-        if orm_obj:
-            return PolicyLevel(orm_obj.level)
-
-        # 默认返回 P0（常态）
-        return PolicyLevel.P0
+        row = query.order_by("-event_date", "-effective_at", "-pk").first()
+        if row is None:
+            return PolicyLevel.P0, None
+        return PolicyLevel(row.level), row.event_date
 
     def is_intervention_active(self, as_of_date: date | None = None) -> bool:
         """

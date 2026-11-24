@@ -586,20 +586,25 @@ class PolicyModule(BaseModule):
 
     def _parse_status(self, data: dict[str, Any]) -> PolicyStatus:
         """解析政策状态数据"""
-        obs_date = data.get("observed_at", data.get("as_of_date"))
-        if isinstance(obs_date, str):
-            obs_date = datetime.fromisoformat(obs_date).date()
-        elif obs_date is None:
-            obs_date = date.today()
+        observed = data.get("observed_at")
+        obs_date: date | None = None
+        if isinstance(observed, str):
+            obs_date = datetime.fromisoformat(observed).date()
+        elif isinstance(observed, datetime):
+            obs_date = observed.date()
+        elif isinstance(observed, date):
+            obs_date = observed
 
         raw_level = data.get("current_level")
         current_level = raw_level if raw_level in {"PX", "P0", "P1", "P2", "P3"} else None
         raw_gear = data.get("current_gear")
-        current_gear = (
+        current_gear: PolicyGear | None = (
             raw_gear if raw_gear in {"stimulus", "neutral", "tightening", "unclassified"} else None
         )
         if current_gear is None:
             current_gear = self._level_to_gear(current_level)
+        if obs_date is None and current_gear == "neutral":
+            current_gear = "unclassified"
         requires_manual_approval = bool(
             data.get("requires_manual_approval", False)
             or current_level == "PX"
@@ -607,6 +612,7 @@ class PolicyModule(BaseModule):
         )
         must_not_use_for_decision = bool(
             data.get("must_not_use_for_decision", False)
+            or obs_date is None
             or current_level == "PX"
             or requires_manual_approval
         )
@@ -632,9 +638,14 @@ class PolicyModule(BaseModule):
             or len(blocked_reason.strip()) > 240
             or _UNSAFE_POLICY_TEXT_PATTERN.search(blocked_reason)
         ):
-            blocked_reason = (
-                "policy_unclassified_manual_review" if must_not_use_for_decision else ""
-            )
+            if current_level == "PX":
+                blocked_reason = "policy_unclassified_manual_review"
+            elif obs_date is None:
+                blocked_reason = "policy_source_observation_missing"
+            else:
+                blocked_reason = (
+                    "policy_unclassified_manual_review" if must_not_use_for_decision else ""
+                )
         trace_id = data.get("trace_id")
         if (
             not isinstance(trace_id, str)

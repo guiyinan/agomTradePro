@@ -58,6 +58,21 @@ def _fallback_get_signal(signal_id: int) -> dict[str, Any]:
     return _serialize_signal_read_model(client.signal.get(signal_id))
 
 
+def _internal_handler_signal_list(**arguments: Any) -> dict[str, Any]:
+    """Preserve the governed page envelope when the registered raw tool returns a list."""
+    page = _call_registered_tool("list_signals", arguments)
+    if isinstance(page, dict):
+        return page
+    if not isinstance(page, list):
+        raise ValueError("Signal list returned an invalid page")
+    return {
+        "signals": page,
+        "returned_count": len(page),
+        "limit": arguments.get("limit", 50),
+        "offset": arguments.get("offset", 0),
+    }
+
+
 def _fallback_check_signal_eligibility(
     asset_code: str,
     logic_desc: str,
@@ -327,6 +342,7 @@ LEGACY_TOOL_FALLBACKS: dict[str, Callable[..., Any]] = {
 }
 
 GOVERNED_HANDLERS: dict[str, Callable[..., Any]] = {
+    "signal_list": _internal_handler_signal_list,
     "signal_create_signal": _internal_handler_signal_create_signal,
     "signal_approve_signal": _internal_handler_signal_approve_signal,
     "signal_reject_signal": _internal_handler_signal_reject_signal,

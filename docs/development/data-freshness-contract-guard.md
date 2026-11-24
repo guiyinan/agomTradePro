@@ -1,5 +1,9 @@
 # 当前数据新鲜度契约与 CI 门禁
 
+### 2026-11-24 政策分级观测
+
+政策状态 API、SDK、MCP 和 Agent Runtime 快照使用生效分级事件的日期作为 `observed_at`。查询截止日单独保留；较晚的待审新闻可作为最新事件展示。缺少生效来源时，领域仍可返回默认档位，用户读口保留空观测和决策阻断。覆盖见 `agent_runtime.current_context`。
+
 ### Portfolio 账户基准日结
 
 当前基准审批绑定账户、租户、所有者、估值版本、双人审批和截止时间。读取时重验原始收盘价、券商签收、账户归属和配置。跨过下一估值截止点、修订输入、撤销审批或失去审批权限后，精确读取返回空。合同由 `portfolio.benchmark_daily_approval` 登记。[签发与撤销流程](../api/portfolio-benchmark-approval.md)

@@ -26,7 +26,7 @@ MANIFESTS = [
                 "current_gear": {"type": "string"},
                 "current_level": {"type": ["string", "null"]},
                 "level_name": {"type": ["string", "null"]},
-                "observed_at": {"type": "string"},
+                "observed_at": {"type": ["string", "null"]},
                 "recent_events_count": {"type": "integer"},
                 "requires_manual_approval": {"type": "boolean"},
                 "must_not_use_for_decision": {"type": "boolean"},
