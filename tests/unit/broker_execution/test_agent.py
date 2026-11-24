@@ -1252,6 +1252,47 @@ def test_fake_adapter_reports_fill_before_final_order_status() -> None:
     assert events[1]["status"] == "FILLED"
 
 
+def test_polled_order_echo_converges_local_state_across_replays_and_restart(tmp_path: Path) -> None:
+    order = _order()
+    client_id = order["client_order_id"]
+    path = tmp_path / "agent.sqlite3"
+    state = AgentStateStore(path)
+    state.mark_submitting(client_id, order)
+    state.mark_result(client_id, "RECONCILIATION_REQUIRED")
+    state.mark_submitting("not-in-batch", {"case": "foreign"})
+    broker = FakeQmtAdapter("filled")
+    broker.submit_order(order)
+
+    class EchoApi(_Api):
+        version = 8
+        status = "FILLED"
+
+        def post(self, endpoint: str, payload: dict[str, Any]) -> dict[str, Any]:
+            super().post(endpoint, payload)
+            row = {
+                "client_order_id": client_id,
+                "version": self.version,
+                "status": self.status,
+                "broker_order_id": "B1",
+            }
+            return {"order_states": [row, {**row, "client_order_id": "not-in-batch"}]}
+
+    api = EchoApi()
+    executor = QmtAgentExecutor(config=SimpleNamespace(), api=api, broker=broker, state=state)
+    executor.sync_broker_events()
+    assert state.get(client_id)["status"] == "FILLED"
+    assert state.get(client_id)["broker_order_id"] == "B1"
+    state.close()
+    restarted = AgentStateStore(path)
+    executor = QmtAgentExecutor(config=SimpleNamespace(), api=api, broker=broker, state=restarted)
+    api.version = 7
+    api.status = "SUBMITTED"
+    executor.sync_broker_events()
+    assert restarted.get(client_id)["status"] == "FILLED"
+    assert [row["client_order_id"] for row in restarted.unresolved()] == ["not-in-batch"]
+    restarted.close()
+
+
 def test_agent_refuses_disabled_tls_verification_for_remote_vps(tmp_path: Path) -> None:
     config = AgentConfig(
         agent_id="agent-1",
@@ -1318,6 +1359,130 @@ def test_qmt_documented_order_states_are_not_silently_dropped() -> None:
 def test_qmt_event_time_preserves_broker_timestamp() -> None:
     assert _qmt_event_time(0, "fallback") == "fallback"
     assert _qmt_event_time(1_700_000_000, "fallback").startswith("2023-11-14T22:13:20")
+
+
+def test_repeated_local_reservation_preserves_first_submission(tmp_path: Path) -> None:
+    state = AgentStateStore(tmp_path / "agent.sqlite3")
+    contender = AgentStateStore(tmp_path / "agent.sqlite3")
+    state.mark_submitting("order", {"quantity": 100})
+    state.mark_result("order", "SUBMITTED", "B1")
+    with pytest.raises(RuntimeError, match="already exists"):
+        contender.mark_submitting("order", {"quantity": 200})
+    assert state.get("order") == {
+        "status": "SUBMITTED",
+        "broker_order_id": "B1",
+        "payload": {"quantity": 100},
+    }
+    contender.close()
+    state.close()
+
+
+def test_ambiguous_candidate_never_becomes_exact_after_restart(tmp_path: Path) -> None:
+    order = _order()
+    state = AgentStateStore(tmp_path / "agent.sqlite3")
+    state.mark_submitting(order["client_order_id"], order)
+    # Older agents may have stored the ID of a price/quantity-only candidate.
+    state.mark_result(order["client_order_id"], "RECONCILIATION_REQUIRED", "foreign-order")
+    broker = FakeQmtAdapter("success")
+    broker.query_order = lambda client_order_id, broker_order_id="": (
+        {"status": "FILLED", "broker_order_id": broker_order_id} if broker_order_id else None
+    )
+    broker.find_order_candidates = lambda payload: [{"broker_order_id": "foreign-order"}]
+    api = _Api()
+    executor = QmtAgentExecutor(config=SimpleNamespace(), api=api, broker=broker, state=state)
+    for _ in range(2):
+        executor.recover_uncertain_submissions()
+        assert state.get(order["client_order_id"])["status"] == "RECONCILIATION_REQUIRED"
+        event = api.calls[-1][1]["events"][0]
+        assert event["broker_order_id"] == ""
+        assert event["payload"]["manual_review_required"] is True
+    state.close()
+
+
+def test_submission_report_is_durable_across_lost_server_reply(tmp_path: Path) -> None:
+    class LostReply(_Api):
+        def post(self, endpoint, payload):
+            response = super().post(endpoint, payload)
+            if endpoint == "events/":
+                raise TimeoutError("event response lost")
+            return response
+
+    broker = _FixtureQmtAdapter("success")
+    broker.connect()
+    scope = SimpleNamespace(
+        kill_switch_file=tmp_path / "STOP",
+        system_account_id=7,
+        dry_run=False,
+        enforce_trading_session=False,
+    )
+    api = LostReply()
+    path = tmp_path / "agent.sqlite3"
+    state = AgentStateStore(path)
+    executor = QmtAgentExecutor(config=scope, api=api, broker=broker, state=state)
+    with pytest.raises(TimeoutError):
+        executor.execute_order(_order())
+    sent_event = api.calls[-1][1]["events"][0]
+    assert sent_event["payload"]["broker_source_at"] is None
+    state.close()
+    restarted = AgentStateStore(path)
+    receiver = _Api()
+    executor = QmtAgentExecutor(config=scope, api=receiver, broker=broker, state=restarted)
+    executor.initialize()
+    events = [e for route, msg in receiver.calls if route == "events/" for e in msg["events"]]
+    assert events == [sent_event]
+    assert len(broker.orders) == 1
+    executor.initialize()
+    assert sum(route == "events/" for route, _ in receiver.calls) == 1
+    restarted.close()
+
+
+def test_manual_pause_survives_restart_and_local_validation(tmp_path: Path) -> None:
+    path = tmp_path / "agent.sqlite3"
+    state = AgentStateStore(path)
+    config = SimpleNamespace(kill_switch_file=tmp_path / "STOP", system_account_id=7)
+    executor = QmtAgentExecutor(config=config, api=_Api(), broker=FakeQmtAdapter(), state=state)
+    executor.paused = True
+    state.close()
+    state = AgentStateStore(path)
+    executor = QmtAgentExecutor(config=config, api=_Api(), broker=FakeQmtAdapter(), state=state)
+    assert executor.paused
+    with pytest.raises(RuntimeError, match="paused"):
+        executor._validate_local_order_identity(_order())
+    state.close()
+
+
+def test_poll_batches_do_not_drop_facts_after_first_two_hundred(tmp_path: Path) -> None:
+    broker = FakeQmtAdapter("success")
+    broker.poll_events = lambda: [{"event_id": str(i)} for i in range(405)]
+    api = _Api()
+    state = AgentStateStore(tmp_path / "agent.sqlite3")
+    executor = QmtAgentExecutor(config=SimpleNamespace(), api=api, broker=broker, state=state)
+    executor.sync_broker_events()
+    assert [len(data["events"]) for _, data in api.calls] == [200, 200, 5]
+    assert [e["event_id"] for _, data in api.calls for e in data["events"]] == [
+        str(i) for i in range(405)
+    ]
+    state.close()
+
+
+def test_pending_pause_is_processed_before_any_new_lease(tmp_path: Path) -> None:
+    class PendingPause(_Api):
+        def post(self, endpoint, payload):
+            result = super().post(endpoint, payload)
+            if endpoint == "commands/lease/":
+                return {"commands": [{"command_type": "pause", "command_id": "stop-1"}]}
+            return result
+
+    api = PendingPause()
+    state = AgentStateStore(tmp_path / "agent.sqlite3")
+    scope = SimpleNamespace(
+        kill_switch_file=tmp_path / "STOP", system_account_id=7, dry_run=False, lease_seconds=30
+    )
+    executor = QmtAgentExecutor(config=scope, api=api, broker=FakeQmtAdapter(), state=state)
+    executor.run_once()
+    assert executor.paused
+    assert all(route != "orders/lease/" for route, _ in api.calls)
+    state.close()
 
 
 def test_agent_preflight_reports_supported_local_runtime(

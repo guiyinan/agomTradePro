@@ -66,10 +66,19 @@ class QmtAgentExecutor:
         self.api = api
         self.broker = broker
         self.state = state
-        self.paused = False
 
-    def ensure_broker_connection(self) -> None:
-        """Reconnect QMT when the polling health probe reports a disconnect."""
+    @property
+    def paused(self) -> bool:
+        """Read the durable manual stop before leasing or submitting."""
+        return self.state.is_paused()
+
+    @paused.setter
+    def paused(self, value: bool) -> None:
+        """Keep the operator's explicit pause across process restarts."""
+        self.state.set_paused(value)
+
+    def ensure_broker_connection(self) -> bool:
+        """Reconnect QMT when needed and indicate that order facts need recovery."""
 
         try:
             connected = bool(self.broker.health().get("qmt_connected"))
@@ -77,12 +86,14 @@ class QmtAgentExecutor:
             connected = False
         if not connected:
             self.broker.connect()
+        return not connected
 
     def initialize(self) -> None:
         """Establish QMT and upload a baseline before any order can be leased."""
 
         self.ensure_broker_connection()
         self.sync_snapshot()
+        self.flush_submission_reports()
         self.recover_uncertain_submissions()
 
     def heartbeat(self) -> dict[str, Any]:
@@ -121,11 +132,10 @@ class QmtAgentExecutor:
     def recover_uncertain_submissions(self) -> None:
         """Query broker state after restart; never blindly resubmit uncertain orders."""
 
-        events: list[dict[str, Any]] = []
         for record in self.state.unresolved():
-            found = self.broker.query_order(
-                record["client_order_id"], record.get("broker_order_id", "")
-            )
+            # Old unresolved rows may contain a price/size candidate's broker ID.
+            # Resolve only against the broker's exact encoded client identity.
+            found = self.broker.query_order(record["client_order_id"])
             candidates = [] if found else self.broker.find_order_candidates(record["payload"])
             conservative_candidate = candidates[0] if len(candidates) == 1 else None
             status = (
@@ -143,34 +153,41 @@ class QmtAgentExecutor:
                 "RECONCILIATION_REQUIRED",
             }:
                 status = "RECONCILIATION_REQUIRED"
-            matched = found or conservative_candidate or {}
+            matched = found or {}
+            candidate_id = str((conservative_candidate or {}).get("broker_order_id") or "")
             recovery_key = (
                 f"{record['client_order_id']}:{status}:{str(matched.get('broker_order_id') or '')}"
+                f":{len(candidates)}:{candidate_id}"
             )
-            events.append(
-                {
-                    "event_id": (
-                        "recovery:" + hashlib.sha256(recovery_key.encode("utf-8")).hexdigest()
-                    ),
-                    "client_order_id": record["client_order_id"],
-                    "event_type": "AGENT_RECOVERY_QUERY",
-                    "status": status,
-                    "occurred_at": datetime.now(UTC).isoformat(),
-                    "broker_order_id": str(matched.get("broker_order_id") or ""),
-                    "payload": {
-                        "found": bool(found),
-                        "conservative_candidate_count": len(candidates),
-                        "manual_review_required": not bool(found),
-                        "broker_status": str(matched.get("broker_status") or ""),
-                        "broker_message": str(matched.get("broker_message") or ""),
-                    },
-                }
-            )
+            event = {
+                "event_id": (
+                    "recovery:" + hashlib.sha256(recovery_key.encode("utf-8")).hexdigest()
+                ),
+                "client_order_id": record["client_order_id"],
+                "event_type": "AGENT_RECOVERY_QUERY",
+                "status": status,
+                "occurred_at": datetime.now(UTC).isoformat(),
+                "broker_order_id": str(matched.get("broker_order_id") or ""),
+                "payload": {
+                    "found": bool(found),
+                    "conservative_candidate_count": len(candidates),
+                    "candidate_broker_order_id": candidate_id,
+                    "manual_review_required": status == "RECONCILIATION_REQUIRED",
+                    "broker_source_at": None,
+                    "clock_source": "agent_observed",
+                    "broker_order_time": matched.get("broker_order_time"),
+                    "broker_status": str(matched.get("broker_status") or ""),
+                    "broker_message": str(matched.get("broker_message") or ""),
+                },
+            }
             self.state.mark_result(
-                record["client_order_id"], status, str(matched.get("broker_order_id") or "")
+                record["client_order_id"],
+                status,
+                str(matched.get("broker_order_id") or ""),
+                event=event,
+                from_unresolved=True,
             )
-        if events:
-            self.api.post("events/", {"contract_version": "1.0", "events": events})
+        self.flush_submission_reports()
 
     def _validate_execution_constraints(
         self, order: dict[str, Any], submitted_at: datetime
@@ -248,6 +265,8 @@ class QmtAgentExecutor:
 
         if self.config.kill_switch_file.exists():
             raise RuntimeError("Local STOP file is active")
+        if self.paused:
+            raise RuntimeError("Agent is paused")
         account_id = _positive_account_id(order.get("account_id"), "account_id")
         if account_id != self.config.system_account_id:
             raise RuntimeError("Leased order account does not match local account")
@@ -478,26 +497,44 @@ class QmtAgentExecutor:
     ) -> None:
         """Report a local submission outcome and whether QMT was called."""
 
-        self.api.post(
-            "events/",
-            {
-                "contract_version": "1.0",
-                "events": [
-                    {
-                        "event_id": event_id or str(uuid.uuid4()),
-                        "client_order_id": order["client_order_id"],
-                        "event_type": event_type,
-                        "status": status,
-                        "occurred_at": datetime.now(UTC).isoformat(),
-                        "broker_order_id": broker_order_id,
-                        "payload": {
-                            "message": message,
-                            "dry_run": self.config.dry_run,
-                            "broker_submit_attempted": broker_submit_attempted,
-                        },
-                    }
-                ],
+        event = {
+            "event_id": event_id or str(uuid.uuid4()),
+            "client_order_id": order["client_order_id"],
+            "event_type": event_type,
+            "status": status,
+            "occurred_at": datetime.now(UTC).isoformat(),
+            "broker_order_id": broker_order_id,
+            "payload": {
+                "message": message,
+                "dry_run": self.config.dry_run,
+                "broker_submit_attempted": broker_submit_attempted,
+                "broker_source_at": None,
+                "clock_source": "agent_observed",
             },
+        }
+        if not status:  # Dry-run validation carries a stable ID and never reserves an order.
+            self.api.post("events/", {"contract_version": "1.0", "events": [event]})
+            return
+        self.state.mark_result(
+            str(order["client_order_id"]),
+            status,
+            broker_order_id,
+            event=event,
+        )
+        self.flush_submission_reports()
+
+    def flush_submission_reports(self) -> None:
+        """Replay the original server event after a disconnect, including a lost reply."""
+        while events := self.state.pending_reports():
+            self._send_events(events)
+            self.state.acknowledge_reports(events)
+
+    def _send_events(self, events: list[dict[str, Any]]) -> None:
+        """Apply the optional versioned server echo after a successful event upload."""
+        response = self.api.post("events/", {"contract_version": "1.0", "events": events})
+        self.state.observe_order_states(
+            response.get("order_states"),
+            {str(event.get("client_order_id") or "") for event in events},
         )
 
     def execute_order(self, order: dict[str, Any]) -> None:
@@ -529,7 +566,6 @@ class QmtAgentExecutor:
                 },
             )
         except Exception as exc:
-            self.state.mark_result(str(order["client_order_id"]), "RECONCILIATION_REQUIRED")
             self._report_submission(
                 order,
                 status="RECONCILIATION_REQUIRED",
@@ -549,7 +585,6 @@ class QmtAgentExecutor:
             TypeError,
             ValueError,
         ) as exc:
-            self.state.mark_result(str(order["client_order_id"]), "FAILED")
             self._report_submission(
                 order,
                 status="FAILED",
@@ -561,7 +596,6 @@ class QmtAgentExecutor:
         try:
             result = self.broker.submit_order(order)
         except Exception as exc:
-            self.state.mark_result(str(order["client_order_id"]), "RECONCILIATION_REQUIRED")
             self._report_submission(
                 order,
                 status="RECONCILIATION_REQUIRED",
@@ -571,7 +605,6 @@ class QmtAgentExecutor:
             )
             return
         status = "SUBMITTED" if result.accepted else "BROKER_REJECTED"
-        self.state.mark_result(str(order["client_order_id"]), status, result.broker_order_id)
         self._report_submission(
             order,
             status=status,
@@ -618,20 +651,23 @@ class QmtAgentExecutor:
         """Report idempotent QMT order and fill facts discovered by polling."""
 
         events = self.broker.poll_events()
-        if events:
-            self.api.post("events/", {"contract_version": "1.0", "events": events[:200]})
+        for start in range(0, len(events), 200):
+            self._send_events(events[start : start + 200])
 
     def run_once(self) -> None:
         """Run one complete polling cycle."""
 
-        self.ensure_broker_connection()
+        reconnected = self.ensure_broker_connection()
+        self.flush_submission_reports()
+        if reconnected:
+            self.recover_uncertain_submissions()
         heartbeat = self.heartbeat()
+        self.process_commands()
         if (
             heartbeat.get("kill_switch_active")
             or self.config.kill_switch_file.exists()
             or self.paused
         ):
-            self.process_commands()
             self.sync_broker_events()
             self.sync_snapshot()
             return
@@ -649,5 +685,4 @@ class QmtAgentExecutor:
             except Exception as exc:
                 logger.exception("order validation/execution failed: %s", exc)
         self.sync_broker_events()
-        self.process_commands()
         self.sync_snapshot()

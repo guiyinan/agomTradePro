@@ -132,6 +132,10 @@ python -m qmt_agent.main --config C:\AgomQmtAgent\config.yaml --once
 
 Agent 每次启动会先连接/重连 QMT、上传资金/持仓/当日委托/当日成交基线并恢复未决订单，然后才允许领取新单。运行中断线会在下一轮保守重连；没有新鲜快照、当前不在配置交易时段、行情价缺失、限价越界/偏离过大、现金或可用持仓不足、持仓数超限时都拒绝本地提交。
 
+提交结果回传中断时，保留原 Agent SQLite。恢复连接后，Agent 以原事件 ID 重传未确认回报，并按唯一客户备注核对券商委托。仅价格与数量吻合、委托身份冲突或状态码无法识别时，保持 `RECONCILIATION_REQUIRED`，人工核对当日委托和成交。服务端返回订单版本时，本地只采纳更新的版本。人工暂停在重启后持续生效，需显式恢复。
+
+核验券商时间时，读取事件或成交的 `payload.broker_source_at`。QMT 成交有可解析的成交时间才填此字段，否则为空。委托的 `broker_order_time` 只代表券商录入委托的时间。只有 Agent 观测时间时，`clock_source` 为 `agent_observed`；旧 Agent 缺少来源字段时，券商时钟按未知处理。
+
 Agent `1.0` heartbeat 会额外上传本机 timezone-aware `observed_at`。服务端分别保存该源观测时间和接收时间，并要求两者顺序正确且都在 90 秒窗口内；缺失、naive、未来或过期源时间都会把连接状态降级并阻断领取订单。旧 Agent 的 heartbeat 仍可被接收用于平滑升级，但缺少 `observed_at` 时不会被视为在线或可执行；升级 Agent 后必须重新观察到 fresh 状态，不能手工修改数据库连接布尔值。
 
 连接页的“测试连接 / 立即同步”不会从 VPS 反向连接家庭电脑，而是通过 Agent 已有的出站轮询下发 `full_sync` 命令。Dry-run 校验结果会以幂等事件回传，但订单不会进入 QMT 提交流程。批准、拒绝和撤单的确认请求必须使用刚才 preview 返回的订单版本；版本已变化时重新预览。

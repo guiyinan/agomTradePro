@@ -183,12 +183,18 @@ def _query(data_type: str) -> List[Dict[str, Any]]:
 def _order_id_for_remark(order_remark: str) -> str:
     """Resolve an exact unique native remark; never guess when identities are ambiguous."""
 
-    matches = [
-        item for item in _query("ORDER") if str(item.get("order_remark") or "") == order_remark
-    ]
+    orders = _query("ORDER")
+    matches = [item for item in orders if str(item.get("order_remark") or "") == order_remark]
     if len(matches) > 1:
         raise RuntimeError("NATIVE_ORDER_IDENTITY_AMBIGUOUS")
-    return str(matches[0].get("order_id") or "") if matches else ""
+    order_id = str(matches[0].get("order_id") or "") if matches else ""
+    if order_id and any(
+        str(item.get("order_id") or "") == order_id
+        and str(item.get("order_remark") or "") != order_remark
+        for item in orders
+    ):
+        raise RuntimeError("NATIVE_ORDER_IDENTITY_AMBIGUOUS")
+    return order_id
 
 
 def _submit(request_id: str, payload: Mapping[str, Any]) -> Dict[str, Any]:

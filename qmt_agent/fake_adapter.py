@@ -87,9 +87,7 @@ class FakeQmtAdapter:
                 return True
         return False
 
-    def query_order(
-        self, client_order_id: str, broker_order_id: str = ""
-    ) -> dict[str, Any] | None:
+    def query_order(self, client_order_id: str, broker_order_id: str = "") -> dict[str, Any] | None:
         return self.orders.get(client_order_id)
 
     def find_order_candidates(self, order: dict[str, Any]) -> list[dict[str, Any]]:
@@ -99,12 +97,14 @@ class FakeQmtAdapter:
             if item["asset_code"] == str(order.get("asset_code"))
             and item["side"] == str(order.get("side"))
             and Decimal(item["quantity"]) == Decimal(str(order.get("quantity") or "0"))
-            and Decimal(item["limit_price"])
-            == Decimal(str(order.get("limit_price") or "0"))
+            and Decimal(item["limit_price"]) == Decimal(str(order.get("limit_price") or "0"))
         ]
 
     def poll_events(self) -> list[dict[str, Any]]:
+        """Report simulated facts with an explicit local observation clock."""
+
         now = datetime.now(UTC).isoformat()
+        clocks = {"broker_source_at": None, "clock_source": "agent_observed"}
         events: list[dict[str, Any]] = []
         for client_order_id, order in self.orders.items():
             status = str(order["status"])
@@ -123,13 +123,14 @@ class FakeQmtAdapter:
                         "status": "",
                         "occurred_at": now,
                         "broker_order_id": order["broker_order_id"],
-                        "payload": {},
+                        "payload": clocks,
                         "fill": {
                             "broker_account_ref": "fake",
                             "broker_trade_id": f"TRADE-{order['broker_order_id']}",
                             "quantity": str(fill_quantity),
                             "price": order["limit_price"],
                             "occurred_at": now,
+                            "payload": clocks,
                         },
                     }
                 )
@@ -141,7 +142,7 @@ class FakeQmtAdapter:
                     "status": status,
                     "occurred_at": now,
                     "broker_order_id": order["broker_order_id"],
-                    "payload": {},
+                    "payload": clocks,
                 }
             )
         return events

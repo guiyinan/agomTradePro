@@ -212,6 +212,7 @@ def test_builtin_adapter_submits_immediate_limit_order_with_native_passorder(
     native_runtime: tuple[_NativeRuntime, str],
 ) -> None:
     runtime, pipe_name = native_runtime
+    runtime.orders = []
     adapter = _adapter(pipe_name, runtime)
     adapter.connect()
     result = adapter.submit_order(_order())
@@ -256,6 +257,112 @@ def test_builtin_adapter_cancels_by_native_order_id(
 
     assert adapter.cancel_order("ORDER-1") is True
     assert runtime.cancel_calls[-1][:3] == ("ORDER-1", runtime.account_id, "STOCK")
+
+
+def test_native_clock_provenance_stays_unknown_when_vendor_omits_fields(
+    native_runtime: tuple[_NativeRuntime, str],
+) -> None:
+    runtime, pipe_name = native_runtime
+    runtime.orders = []
+    runtime.trades = []
+    adapter = _adapter(pipe_name, runtime)
+    adapter.connect()
+    adapter.submit_order(_order())
+    runtime.trades = [runtime._trade()]
+    known_trade, known_order = adapter.poll_events()
+    assert known_trade["payload"]["broker_source_at"] == known_trade["fill"]["occurred_at"]
+    assert (
+        known_trade["fill"]["payload"]["broker_source_at"]
+        == known_trade["payload"]["broker_source_at"]
+    )
+    assert known_order["payload"]["broker_order_time"] is not None
+    runtime.trades[0].m_strTradeTime = ""
+    runtime.orders[0].m_strInsertTime = ""
+    trade, order = adapter.poll_events()
+    assert trade["payload"]["broker_source_at"] is None
+    assert trade["fill"]["payload"]["broker_source_at"] is None
+    assert (
+        order["payload"]["broker_source_at"] is None
+        and order["payload"]["broker_order_time"] is None
+    )
+    assert trade["payload"]["clock_source"] == order["payload"]["clock_source"] == "agent_observed"
+
+
+def test_multiple_broker_orders_for_one_client_remark_are_reconciliation_only(
+    native_runtime: tuple[_NativeRuntime, str],
+) -> None:
+    runtime, pipe_name = native_runtime
+    runtime.orders = []
+    adapter = _adapter(pipe_name, runtime)
+    adapter.connect()
+    order = _order()
+    adapter.submit_order(order)
+    second = SimpleNamespace(**vars(runtime.orders[0]))
+    second.m_strOrderSysID = "ORDER-2"
+    runtime.orders.append(second)
+    assert adapter.query_order(order["client_order_id"]) is None
+    events = adapter.poll_events()
+    assert len(events) == 1
+    assert events[0]["status"] == "RECONCILIATION_REQUIRED"
+    assert events[0]["broker_order_id"] == "" and "fill" not in events[0]
+    snapshot = adapter.account_snapshot()
+    assert all(not row["client_order_id"] for row in snapshot["orders"] + snapshot["trades"])
+    runtime.orders.reverse()
+    assert [e["event_id"] for e in adapter.poll_events()] == [events[0]["event_id"]]
+    assert len(runtime.passorder_calls) == 1
+
+
+def test_multiple_client_remarks_for_one_broker_id_cannot_bind_a_fill(
+    native_runtime: tuple[_NativeRuntime, str],
+) -> None:
+    runtime, pipe_name = native_runtime
+    runtime.orders = []
+    adapter = _adapter(pipe_name, runtime)
+    adapter.connect()
+    order = _order()
+    adapter.submit_order(order)
+    second = SimpleNamespace(**vars(runtime.orders[0]))
+    second.m_strRemark = "00000000-0000-0000-0000-000000000002"
+    runtime.orders.append(second)
+    with pytest.raises(RuntimeError, match="NATIVE_ORDER_IDENTITY_AMBIGUOUS"):
+        builtin_strategy._order_id_for_remark(runtime.orders[0].m_strRemark)
+    assert adapter.query_order(order["client_order_id"], "ORDER-1") is None
+    events = adapter.poll_events()
+    assert {row["client_order_id"] for row in events} == {
+        order["client_order_id"],
+        second.m_strRemark,
+    }
+    assert all(
+        row["event_type"] == "QMT_ORDER_IDENTITY_CONFLICT" and "fill" not in row for row in events
+    )
+    assert not adapter.account_snapshot()["trades"][0]["client_order_id"]
+
+
+def test_vendor_unknown_status_and_cancel_rejection_do_not_fabricate_facts(
+    native_runtime: tuple[_NativeRuntime, str],
+) -> None:
+    runtime, pipe_name = native_runtime
+    runtime.orders = []
+    adapter = _adapter(pipe_name, runtime)
+    adapter.connect()
+    adapter.submit_order(_order())
+    partial = adapter.poll_events()
+    assert partial[-1]["status"] == "PARTIALLY_FILLED"
+    runtime.cancel_result = False
+    assert adapter.cancel_order("ORDER-1") is False
+    assert [event["event_id"] for event in adapter.poll_events()] == [
+        event["event_id"] for event in partial
+    ]
+    runtime.orders[0].m_nOrderStatus = 999
+    unknown = adapter.poll_events()
+    assert unknown[-1]["status"] == "RECONCILIATION_REQUIRED"
+    assert unknown[-1]["payload"]["broker_status"] == "999"
+    runtime.orders[0].m_nOrderStatus = 53
+    canceled = adapter.poll_events()
+    assert (
+        canceled[-1]["status"] == "CANCELED" and canceled[0]["event_id"] == partial[0]["event_id"]
+    )
+    assert len(runtime.passorder_calls) == 1
 
 
 def test_native_strategy_does_not_execute_expired_submission(
@@ -342,6 +449,7 @@ def test_pipe_response_loss_replays_cached_submission_without_duplicate_order(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     runtime, pipe_name = native_runtime
+    runtime.orders = []
     adapter = _adapter(pipe_name, runtime)
     adapter.connect()
     original_client = bridge_adapter.PipeClient
@@ -386,6 +494,7 @@ def test_strategy_restart_recovers_uncertain_submission_without_replaying_passor
     tmp_path: Path,
 ) -> None:
     runtime, pipe_name = native_runtime
+    runtime.orders = []
     adapter = _adapter(pipe_name, runtime)
     adapter.connect()
     order = _order()

@@ -4,12 +4,13 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import logging
 import math
 import operator
 import random
 import threading
 import uuid
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
@@ -61,9 +62,34 @@ def _qmt_order_status_map(xtconstant: Any) -> dict[Any, str]:
     }
 
 
-def _qmt_event_time(raw: Any, fallback: str) -> str:
-    """Return an aware ISO timestamp from QMT epoch seconds when available."""
+def _qmt_order_identities(orders: Iterable[object]) -> tuple[dict[str, str], dict[str, set[str]]]:
+    """Resolve only one-to-one broker ID/remark pairs across the entire query."""
 
+    clients_by_order: dict[str, set[str]] = {}
+    orders_by_client: dict[str, set[str]] = {}
+    for item in orders:
+        vendor_id = str(getattr(item, "order_id", "") or "")
+        client_id = decode_order_remark(str(getattr(item, "order_remark", "") or "")) or ""
+        clients_by_order.setdefault(vendor_id, set()).add(client_id)
+        if client_id:
+            orders_by_client.setdefault(client_id, set()).add(vendor_id)
+    resolved: dict[str, str] = {}
+    conflicts: dict[str, set[str]] = {}
+    for client_id, vendor_ids in orders_by_client.items():
+        if len(vendor_ids) == 1:
+            (vendor_id,) = vendor_ids
+            if vendor_id and len(clients_by_order[vendor_id]) == 1:
+                resolved[vendor_id] = client_id
+                continue
+        conflicts[client_id] = vendor_ids
+    return resolved, conflicts
+
+
+def _qmt_event_time(raw: object, fallback: str | None = None) -> str | None:
+    """Decode QMT epoch seconds while keeping an absent or invalid clock unknown."""
+
+    if isinstance(raw, bool) or not isinstance(raw, (str, SupportsIndex)):
+        return fallback
     try:
         value = int(raw)
         if value > 0:
@@ -685,7 +711,7 @@ class XtQuantAdapter:
         positions = self.trader.query_stock_positions(self.account) or []
         orders = self.trader.query_stock_orders(self.account) or []
         trades = self.trader.query_stock_trades(self.account) or []
-        by_order_id = {str(getattr(item, "order_id", "")): item for item in orders}
+        clients_by_order, _ = _qmt_order_identities(orders)
         status_map = _qmt_order_status_map(xtconstant)
         return {
             "cash_available": str(getattr(asset, "cash", 0)),
@@ -702,10 +728,7 @@ class XtQuantAdapter:
             "orders": [
                 {
                     "broker_order_id": str(getattr(item, "order_id", "")),
-                    "client_order_id": decode_order_remark(
-                        str(getattr(item, "order_remark", "") or "")
-                    )
-                    or "",
+                    "client_order_id": clients_by_order.get(str(getattr(item, "order_id", "")), ""),
                     "asset_code": str(getattr(item, "stock_code", "")),
                     "side": (
                         "BUY"
@@ -729,17 +752,7 @@ class XtQuantAdapter:
                 {
                     "broker_trade_id": str(getattr(item, "traded_id", "")),
                     "broker_order_id": str(getattr(item, "order_id", "")),
-                    "client_order_id": decode_order_remark(
-                        str(
-                            getattr(
-                                by_order_id.get(str(getattr(item, "order_id", ""))),
-                                "order_remark",
-                                "",
-                            )
-                            or ""
-                        )
-                    )
-                    or "",
+                    "client_order_id": clients_by_order.get(str(getattr(item, "order_id", "")), ""),
                     "asset_code": str(getattr(item, "stock_code", "")),
                     "quantity": str(getattr(item, "traded_volume", 0)),
                     "price": str(getattr(item, "traded_price", 0)),
@@ -993,13 +1006,23 @@ class XtQuantAdapter:
 
         status_map = _qmt_order_status_map(xtconstant)
         orders = self.trader.query_stock_orders(self.account) or []
+        _, conflicts = _qmt_order_identities(orders)
+        if client_order_id in conflicts:
+            return None
+        matches: list[dict[str, Any]] = []
         for item in orders:
-            if (
-                str(getattr(item, "order_id", "")) == broker_order_id
-                or decode_order_remark(str(getattr(item, "order_remark", ""))) == client_order_id
-            ):
-                return {
+            vendor_id = str(getattr(item, "order_id", "") or "")
+            client_id = decode_order_remark(str(getattr(item, "order_remark", "") or ""))
+            if not vendor_id or (broker_order_id and vendor_id != broker_order_id):
+                continue
+            if broker_order_id and client_id is not None and client_id != client_order_id:
+                return None
+            if client_id != client_order_id and not (broker_order_id and client_id is None):
+                continue
+            matches.append(
+                {
                     "broker_order_id": str(item.order_id),
+                    "broker_order_time": _qmt_event_time(getattr(item, "order_time", None)),
                     "broker_status": str(item.order_status),
                     "broker_message": str(getattr(item, "status_msg", "") or ""),
                     "status": status_map.get(
@@ -1009,7 +1032,8 @@ class XtQuantAdapter:
                     "traded_volume": str(item.traded_volume),
                     "traded_price": str(item.traded_price),
                 }
-        return None
+            )
+        return matches[0] if len(matches) == 1 else None
 
     def find_order_candidates(self, order: dict[str, Any]) -> list[dict[str, Any]]:
         """Conservatively match fields when the QMT remark cannot be trusted."""
@@ -1049,43 +1073,69 @@ class XtQuantAdapter:
         order_status_map = _qmt_order_status_map(xtconstant)
         now = datetime.now(UTC).isoformat()
         orders = self.trader.query_stock_orders(self.account) or []
-        by_order_id = {str(item.order_id): item for item in orders}
+        clients_by_order, conflicts = _qmt_order_identities(orders)
         order_events: list[dict[str, Any]] = []
-        for item in orders:
-            client_order_id = (
-                decode_order_remark(str(getattr(item, "order_remark", "") or "")) or ""
+        for client_id, vendor_ids in sorted(conflicts.items()):
+            conflict_key = repr((client_id, sorted(vendor_ids))).encode("utf-8")
+            order_events.append(
+                {
+                    "event_id": "qmt-identity:" + hashlib.sha256(conflict_key).hexdigest(),
+                    "client_order_id": client_id,
+                    "event_type": "QMT_ORDER_IDENTITY_CONFLICT",
+                    "status": "RECONCILIATION_REQUIRED",
+                    "occurred_at": now,
+                    "broker_order_id": "",
+                    "payload": {
+                        "manual_review_required": True,
+                        "broker_source_at": None,
+                        "clock_source": "agent_observed",
+                    },
+                }
             )
-            status = order_status_map.get(getattr(item, "order_status", None))
-            if not client_order_id or not status:
+        for item in orders:
+            client_order_id = clients_by_order.get(str(getattr(item, "order_id", "")), "")
+            if not client_order_id:
                 continue
+            broker_status = getattr(item, "order_status", None)
+            status = order_status_map.get(broker_status)
+            if status is None:
+                logging.getLogger(__name__).warning(
+                    "Unrecognized QMT broker status: %r", broker_status
+                )
             order_events.append(
                 {
                     "event_id": (
-                        f"qmt-order:{item.order_id}:{item.order_status}:"
+                        f"qmt-order:{item.order_id}:{broker_status}:"
                         f"{getattr(item, 'traded_volume', 0)}"
                     ),
                     "client_order_id": client_order_id,
-                    "event_type": "QMT_ORDER_STATUS",
-                    "status": status,
-                    "occurred_at": _qmt_event_time(getattr(item, "order_time", None), now),
+                    "event_type": "QMT_ORDER_STATUS" if status else "QMT_ORDER_STATUS_UNKNOWN",
+                    "status": status or "RECONCILIATION_REQUIRED",
+                    "occurred_at": now,
                     "broker_order_id": str(item.order_id),
                     "payload": {
-                        "broker_status": str(item.order_status),
+                        "broker_status": str(broker_status),
                         "status_msg": str(getattr(item, "status_msg", "") or ""),
+                        # order_time is insertion time, not the time of an ACK, cancel or fill.
+                        "broker_order_time": _qmt_event_time(getattr(item, "order_time", None)),
+                        "broker_source_at": None,
+                        "clock_source": "agent_observed",
                     },
                 }
             )
         trade_events: list[dict[str, Any]] = []
         trades = self.trader.query_stock_trades(self.account) or []
         for trade in trades:
-            order = by_order_id.get(str(getattr(trade, "order_id", "")))
-            client_order_id = (
-                decode_order_remark(str(getattr(order, "order_remark", "") or "")) or ""
-            )
+            client_order_id = clients_by_order.get(str(getattr(trade, "order_id", "")), "")
             trade_id = str(getattr(trade, "traded_id", "") or "")
             if not client_order_id or not trade_id:
                 continue
             event_key = f"{self.broker_account_id}:{trade_id}"
+            source_at = _qmt_event_time(getattr(trade, "traded_time", None))
+            clocks = {
+                "broker_source_at": source_at,
+                "clock_source": "broker" if source_at else "agent_observed",
+            }
             trade_events.append(
                 {
                     "event_id": (
@@ -1096,15 +1146,16 @@ class XtQuantAdapter:
                     # A fill is an immutable fact, not authoritative order state.
                     # The QMT order query below supplies PARTIALLY_FILLED/FILLED.
                     "status": "",
-                    "occurred_at": _qmt_event_time(getattr(trade, "traded_time", None), now),
+                    "occurred_at": source_at or now,
                     "broker_order_id": str(getattr(trade, "order_id", "")),
-                    "payload": {},
+                    "payload": clocks,
                     "fill": {
                         "broker_account_ref": self.broker_account_id,
                         "broker_trade_id": trade_id,
                         "quantity": str(getattr(trade, "traded_volume", 0)),
                         "price": str(getattr(trade, "traded_price", 0)),
-                        "occurred_at": _qmt_event_time(getattr(trade, "traded_time", None), now),
+                        "occurred_at": source_at or now,
+                        "payload": clocks,
                     },
                 }
             )
