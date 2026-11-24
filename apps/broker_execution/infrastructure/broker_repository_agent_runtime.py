@@ -107,6 +107,25 @@ def _require_online_agent(agent: BrokerAgentModel, evaluated_at: datetime) -> No
         raise BrokerExecutionConflictError("Agent heartbeat source or receipt is stale")
 
 
+def _require_submitting_window(
+    *,
+    agent: BrokerAgentModel,
+    binding: BrokerAccountBindingModel,
+    order: LiveOrderModel,
+    lease: OrderLeaseModel,
+    evaluated_at: datetime,
+) -> None:
+    _require_online_agent(agent, evaluated_at)
+    if lease.expires_at <= evaluated_at:
+        raise BrokerExecutionConflictError("Order lease is invalid or expired")
+    if order.expires_at is not None and order.expires_at <= evaluated_at:
+        raise BrokerExecutionConflictError("Order expired before broker submission")
+    if binding.enforce_trading_session and not is_trading_session_open(
+        timezone.localtime(evaluated_at), binding.allowed_trading_windows or []
+    ):
+        raise BrokerExecutionConflictError("Trading session is closed")
+
+
 _TRADE_EVENTS = frozenset({"QMT_TRADE", "FAKE_TRADE"})
 _ORDER_REPORTS = frozenset({"QMT_ORDER_STATUS", "FAKE_ORDER_STATUS", "AGENT_RECOVERY_QUERY"})
 _BROKER_ORDER_STATES = frozenset(
@@ -639,21 +658,15 @@ class BrokerExecutionAgentRuntimeMixin(BrokerExecutionRepositoryMixinSupport):
                 kill_switch_active=True,
             ).exists():
                 raise BrokerExecutionConflictError("Trading is stopped")
-            require_current_execution_price(
+            quote_deadline = require_current_execution_price(
                 asset_code=order.asset_code,
                 limit_price=order.limit_price,
                 max_deviation=binding.price_deviation_limit_pct,
             )
             now = timezone.now()
-            _require_online_agent(agent, now)
-            if lease.expires_at <= now:
-                raise BrokerExecutionConflictError("Order lease is invalid or expired")
-            if order.expires_at is not None and order.expires_at <= now:
-                raise BrokerExecutionConflictError("Order expired before broker submission")
-            if binding.enforce_trading_session and not is_trading_session_open(
-                timezone.localtime(now), binding.allowed_trading_windows or []
-            ):
-                raise BrokerExecutionConflictError("Trading session is closed")
+            _require_submitting_window(
+                agent=agent, binding=binding, order=order, lease=lease, evaluated_at=now
+            )
             if not binding.allowed_symbols or order.asset_code not in set(binding.allowed_symbols):
                 raise BrokerExecutionConflictError(
                     "Asset is no longer on the live execution allow-list"
@@ -738,6 +751,20 @@ class BrokerExecutionAgentRuntimeMixin(BrokerExecutionRepositoryMixinSupport):
                 digest_invalid = True
             else:
                 validate_order_transition(order.status, LiveOrderStatus.SUBMITTING.value)
+                write_at = timezone.now()
+                _require_submitting_window(
+                    agent=agent, binding=binding, order=order, lease=lease, evaluated_at=write_at
+                )
+                if write_at >= quote_deadline:
+                    raise BrokerExecutionConflictError("execution_quote_stale")
+                if (
+                    not write_at - timedelta(seconds=binding.max_snapshot_age_seconds)
+                    <= latest_snapshot.captured_at
+                    <= write_at
+                ):
+                    raise BrokerExecutionConflictError(
+                        "Broker account snapshot is stale or unavailable"
+                    )
                 order.status = LiveOrderStatus.SUBMITTING.value
                 order.version += 1
                 order.save(update_fields=["status", "version", "updated_at"])

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from decimal import Decimal
 
 from django.utils import timezone
@@ -14,8 +15,8 @@ from .use_case_errors import BrokerExecutionConflictError
 
 def require_current_execution_price(
     *, asset_code: str, limit_price: Decimal | None, max_deviation: Decimal
-) -> None:
-    """Require a fresh execution quote and compare the limit against the locked account rule."""
+) -> datetime:
+    """Validate the limit against the current quote and return that quote's deadline."""
     if limit_price is None or limit_price <= 0 or max_deviation <= 0:
         raise BrokerExecutionConflictError("Order and price-deviation limits must be positive")
     try:
@@ -28,3 +29,4 @@ def require_current_execution_price(
         raise BrokerExecutionConflictError(
             "Order price exceeds the configured market-price deviation"
         )
+    return quote.freshness_deadline

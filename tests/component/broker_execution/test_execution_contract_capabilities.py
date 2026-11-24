@@ -317,6 +317,103 @@ def test_lease_and_submit_recheck_the_execution_quote(
     assert order.status == "LEASED" and order.submitted_at is None
 
 
+@pytest.mark.parametrize(
+    ("expires", "reason"),
+    [
+        ("none", None),
+        ("quote", "execution_quote_stale"),
+        ("heartbeat", "heartbeat source or receipt is stale"),
+        ("order", "Order expired"),
+        ("lease", "Order lease is invalid or expired"),
+        ("snapshot", "snapshot is stale"),
+        ("session", "Trading session is closed"),
+    ],
+)
+def test_submitting_rechecks_original_deadlines_after_approval_digest(
+    monkeypatch: pytest.MonkeyPatch,
+    expires: str,
+    reason: str | None,
+) -> None:
+    from apps.broker_execution.application import execution_price_guard
+    from tests.component.data_center.test_execution_quote_repository import _seed_quote
+
+    now = datetime(2026, 11, 23, 14, 59, 59, tzinfo=timezone.get_current_timezone())
+    final = now + timedelta(seconds=2)
+    agent = _bound_agent()
+    binding = BrokerAccountBindingModel.objects.get(agent=agent)
+    binding.auto_execution_enabled = True
+    binding.enforce_trading_session = expires == "session"
+    binding.allowed_trading_windows = ["09:30-15:00"]
+    binding.allowed_symbols = ["600000.SH"]
+    binding.max_single_order_amount = binding.daily_order_amount_limit = Decimal("10000")
+    binding.max_snapshot_age_seconds = 120
+    binding.save()
+    source = now - timedelta(seconds=89) if expires == "heartbeat" else now
+    _mark_agent_online_for_submission(agent, now=now, observed_at=source)
+    BrokerAccountSnapshotModel.objects.create(
+        user=agent.user,
+        agent=agent,
+        account_id=7,
+        cash_available=10000,
+        captured_at=now - timedelta(seconds=119) if expires == "snapshot" else now,
+    )
+    repo = DjangoBrokerExecutionRepository()
+    order = _ready_order_for_agent(agent, now=now)
+    order.status = "LEASED"
+    if expires == "order":
+        order.expires_at = final
+    order.save()
+    order.refresh_from_db()
+    order.approval_digest = runtime.approval_digest_for_order(repo._order_payload(order))
+    order.save(update_fields=["approval_digest"])
+    lease = OrderLeaseModel.objects.create(
+        order=order,
+        agent=agent,
+        lease_token_hash=hashlib.sha256(b"lease").hexdigest(),
+        leased_at=now,
+        expires_at=final if expires == "lease" else now + timedelta(minutes=2),
+    )
+    _seed_quote(
+        asset_code=order.asset_code,
+        snapshot_at=now - timedelta(seconds=8),
+        fetched_at=now - timedelta(seconds=7),
+        published_at=now - timedelta(seconds=1),
+        execution_freshness_seconds=10 if expires == "quote" else 60,
+    )
+    clock = Mock(wraps=timezone)
+    clock.now.return_value = now
+    monkeypatch.setattr(runtime, "timezone", clock)
+    monkeypatch.setattr(execution_price_guard, "timezone", clock)
+    # This test exercises the subordinate temporal guards, with formal authority still closed.
+    monkeypatch.setattr(runtime, "broker_order_evidence_integrated", lambda: True)
+    read_quote = Mock(wraps=execution_price_guard.get_execution_quote)
+    monkeypatch.setattr(execution_price_guard, "get_execution_quote", read_quote)
+    original_digest = runtime.approval_digest_for_order
+
+    def advance_clock_after_digest(payload):
+        digest = original_digest(payload)
+        clock.now.return_value = final
+        return digest
+
+    monkeypatch.setattr(runtime, "approval_digest_for_order", advance_clock_after_digest)
+    args = {
+        "agent_pk": agent.pk,
+        "allowed_account_ids": [7],
+        "client_order_id": str(order.client_order_id),
+        "lease_token": "lease",
+    }
+    if reason is None:
+        assert repo.acknowledge_submitting(**args)["accepted"]
+    else:
+        with pytest.raises(BrokerExecutionConflictError, match=reason):
+            repo.acknowledge_submitting(**args)
+    order.refresh_from_db()
+    lease.refresh_from_db()
+    assert (order.status, order.version) == (("SUBMITTING", 2) if reason is None else ("LEASED", 1))
+    assert lease.released_at is None
+    read_quote.assert_called_once_with(order.asset_code, as_of=now)
+
+
 def test_creation_and_approval_use_the_current_execution_quote(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

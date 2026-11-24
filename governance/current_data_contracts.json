@@ -3320,6 +3320,11 @@
           "test_function": "test_creation_and_approval_use_the_current_execution_quote"
         },
         {
+          "case": "original_execution_quote_deadline_at_submit_write",
+          "test_file": "tests/component/broker_execution/test_execution_contract_capabilities.py",
+          "test_function": "test_submitting_rechecks_original_deadlines_after_approval_digest"
+        },
+        {
           "case": "unknown_parent_eligibility_blocked",
           "test_file": "tests/unit/data_center/test_public_current_read_ports.py",
           "test_function": "test_published_latest_quote_blocks_unverified_parent_eligibility"
