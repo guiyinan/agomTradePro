@@ -406,9 +406,12 @@ class _FakeClient:
             clear_cache=lambda: {"cleared": True},
         )
         self.task_monitor = SimpleNamespace(
-            get_task_status=lambda task_id: {"task_id": task_id, "status": "done"},
+            get_task_status=lambda task_id, *, diagnostics=False: {
+                "task_id": task_id,
+                "status": "done",
+            },
             list_tasks=lambda **_kwargs: {"tasks": []},
-            statistics=lambda: {"stats": {}},
+            statistics=lambda task_name=None, days=None: {"stats": {}},
             dashboard=lambda: {"dashboard": {}},
             celery_health=lambda: {"celery": "ok"},
         )

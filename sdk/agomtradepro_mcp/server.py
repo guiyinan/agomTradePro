@@ -37,6 +37,7 @@ from agomtradepro_mcp.registry.read_handlers.config_center import (
 from agomtradepro_mcp.registry.runtime_handlers.common import (
     configure_legacy_tool_caller,
 )
+from agomtradepro_mcp.registry.runtime_handlers.owners.signal import normalize_signal_page
 from agomtradepro_mcp.registry.runtime_handlers.registry import (
     OWNER_GOVERNED_HANDLERS,
     OWNER_LEGACY_TOOL_FALLBACKS,
@@ -196,6 +197,14 @@ def _call_registered_tool(tool_name: str, arguments: dict[str, Any]) -> Any:
     return fn(**arguments)
 
 
+def _call_governed_legacy_tool(tool_name: str, arguments: dict[str, Any]) -> Any:
+    """Run the registered tool and present its result under the governed capability schema."""
+    result = _call_registered_tool(tool_name, arguments)
+    if tool_name == "list_signals":
+        return normalize_signal_page(result, arguments)
+    return result
+
+
 def _call_internal_handler(handler_name: str, arguments: dict[str, Any]) -> Any:
     handler = INTERNAL_GOVERNED_HANDLERS.get(handler_name)
     if handler is None:
@@ -210,7 +219,7 @@ CORE_REGISTRY_LOADER = CapabilityRegistryLoader()
 CORE_CAPABILITY_REGISTRY = CORE_REGISTRY_LOADER.build_registry()
 CORE_DISPATCHER = CapabilityDispatcher(
     registry=CORE_CAPABILITY_REGISTRY,
-    legacy_tool_caller=_call_registered_tool,
+    legacy_tool_caller=_call_governed_legacy_tool,
     internal_handler_caller=_call_internal_handler,
 )
 CORE_WORKFLOW_RUNS: dict[str, dict[str, Any]] = {}
@@ -701,8 +710,9 @@ async def get_prompt(name: str, arguments: dict[str, str] | None = None) -> str:
     result = await server.get_prompt(name, arguments)
     if getattr(result, "messages", None):
         first_msg = result.messages[0]
-        if first_msg.content and getattr(first_msg.content, "text", None):
-            return first_msg.content.text
+        text = getattr(first_msg.content, "text", None)
+        if isinstance(text, str) and text:
+            return text
     return str(result)
 
 

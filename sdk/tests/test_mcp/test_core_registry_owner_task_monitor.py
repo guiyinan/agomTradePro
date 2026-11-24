@@ -6,35 +6,71 @@ from .core_registry_support import *
 
 @pytest.mark.parametrize("mode", ["core_only_mcp_server", "legacy_enabled_mcp_server"])
 @pytest.mark.parametrize(
-    ("capability", "method", "arguments"),
+    ("capability", "arguments", "path", "params", "http_status", "wire_code"),
     [
-        ("task_monitor.read.task_status", "get_task_status", {"task_id": "missing"}),
-        ("system.read.task_monitor.statistics", "statistics", {"task_name": "demo.task"}),
-        ("system.read.task_monitor.statistics", "statistics", {"task_name": ""}),
+        (
+            "task_monitor.read.task_status",
+            {"task_id": "missing"},
+            "/api/system/status/missing/",
+            None,
+            404,
+            "TASK_NOT_FOUND",
+        ),
+        (
+            "system.read.task_monitor.statistics",
+            {"task_name": "demo.task"},
+            "/api/system/statistics/",
+            {"task_name": "demo.task", "days": 7},
+            503,
+            "TASK_MONITOR_UNAVAILABLE",
+        ),
+        (
+            "system.read.task_monitor.statistics",
+            {"task_name": ""},
+            "/api/system/statistics/",
+            {"days": 7},
+            400,
+            "MISSING_PARAMETER",
+        ),
     ],
 )
 def test_task_read_preserves_upstream_error(
-    request, monkeypatch, mode, capability, method, arguments
+    request,
+    monkeypatch,
+    mock_config,
+    mode,
+    capability,
+    arguments,
+    path,
+    params,
+    http_status,
+    wire_code,
 ) -> None:
-    """A failed operational read must traverse the dispatcher's typed error path."""
-    request.getfixturevalue(mode)
+    """The registered MCP tool preserves the error returned to its SDK transport."""
+    mcp = request.getfixturevalue(mode)
     import agomtradepro_mcp.audit as audit
-    import agomtradepro_mcp.server as server
-    from agomtradepro.exceptions import raise_for_status
-    from agomtradepro.modules.task_monitor import TaskMonitorModule
+    from agomtradepro.transport import use_request_transport
 
-    http_status = 400 if arguments.get("task_name") == "" else 503
-    code = "invalid_task_name" if http_status == 400 else "task_monitor_unavailable"
     monkeypatch.setattr(audit, "_audit_logger", SimpleNamespace(log_mcp_call=lambda **kwargs: None))
+    requests = []
 
-    def unavailable(*args, **kwargs):
-        raise_for_status(http_status, {"code": code, "internal": "private-marker"})
+    def upstream(**kwargs):
+        requests.append((kwargs["method"], kwargs["url"], kwargs["params"]))
+        return SimpleNamespace(
+            status_code=http_status,
+            json=lambda: {"code": wire_code, "internal": "private-marker"},
+        )
 
-    monkeypatch.setattr(TaskMonitorModule, method, unavailable)
-    response = server.CORE_DISPATCHER.call(capability_key=capability, arguments=arguments)
+    with use_request_transport(SimpleNamespace(request=upstream)):
+        response = asyncio.run(
+            mcp.call_tool(
+                "agom_capability_call", {"capability_key": capability, "arguments": arguments}
+            )
+        )[1]
 
+    assert requests == [("GET", mock_config["base_url"] + path, params)]
     assert response["ok"] is False
-    assert response["error"]["code"] == code
+    assert response["error"]["code"] == wire_code.lower()
     assert response["error"]["upstream_status_code"] == http_status
     assert "private-marker" not in str(response)
 

@@ -5,7 +5,7 @@ from .core_registry_support import *
 
 
 def test_governed_signal_page_when_legacy_tools_are_enabled(
-    monkeypatch, legacy_enabled_mcp_server
+    monkeypatch, mock_config, legacy_enabled_mcp_server
 ) -> None:
     """The governed page and the directly registered list keep their own contracts."""
     import agomtradepro_mcp.audit as audit
@@ -21,11 +21,24 @@ def test_governed_signal_page_when_legacy_tools_are_enabled(
 
     monkeypatch.setattr(SignalModule, "list", empty_page)
     query = {"asset_code": "510300.SH", "status": "pending", "offset": 5, "limit": 3}
-    response = server.CORE_DISPATCHER.call(capability_key="signal.read.list", arguments=query)
+    capability = "signal.read.list"
+    schema = server.CORE_DISPATCHER.get_schema(capability)
+    assert schema["executor_kind"] == "legacy_tool"
+    assert schema["legacy_tool_names"] == ["list_signals"]
+    args = {"capability_key": capability, "arguments": query}
+    response = asyncio.run(legacy_enabled_mcp_server.call_tool("agom_capability_call", args))[1]
 
     assert response["ok"] is True
     assert response["result"] == {"signals": [], "returned_count": 0, "limit": 3, "offset": 5}
-    assert server._call_registered_tool("list_signals", query) == []
+    raw = asyncio.run(legacy_enabled_mcp_server.call_tool("list_signals", query))[1]
+    assert raw["result"] == []
+    assert captured == [query, query]
+
+    monkeypatch.setenv("AGOMTRADEPRO_MCP_ENFORCE_RBAC", "true")
+    monkeypatch.setenv("AGOMTRADEPRO_MCP_DENIED_TOOLS", "list_signals")
+    denied = asyncio.run(legacy_enabled_mcp_server.call_tool("agom_capability_call", args))[1]
+    assert denied["ok"] is False
+    assert "explicitly denied" in str(denied["error"])
     assert captured == [query, query]
 
 

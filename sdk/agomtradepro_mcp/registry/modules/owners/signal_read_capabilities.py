@@ -19,8 +19,8 @@ MANIFESTS = [
         ),
         owner_app="signal",
         risk_level="low",
-        executor_kind="internal_handler",
-        executor_ref="signal_list",
+        executor_kind="legacy_tool",
+        executor_ref="list_signals",
         tags=("signal", "investment", "list", "read"),
         input_schema={
             "type": "object",
