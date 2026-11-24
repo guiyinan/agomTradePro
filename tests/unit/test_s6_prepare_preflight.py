@@ -113,11 +113,16 @@ def test_failed_focused_tests_prevent_provider_process(monkeypatch, capsys) -> N
     assert json.loads(capsys.readouterr().out)["error_code"] == "S6_PREFLIGHT_TESTS_FAILED"
 
 
-def test_tests_only_does_not_contact_provider(monkeypatch, capsys) -> None:
+def test_tests_only_does_not_contact_provider(monkeypatch, capsys, tmp_path) -> None:
     run = Mock(return_value=subprocess.CompletedProcess([], 0, "passed", ""))
+    monkeypatch.setattr(preflight, "ROOT", tmp_path)
     monkeypatch.setattr(preflight.subprocess, "run", run)
     assert preflight.main([]) == 0
     assert run.call_count == 1
+    base_arg = next(arg for arg in run.call_args.args[0] if arg.startswith("--basetemp="))
+    base = tmp_path / base_arg.removeprefix("--basetemp=")
+    assert base.parent.is_dir()
+    assert not base.exists()
     assert (
         run.call_args.kwargs["env"]["DJANGO_SETTINGS_MODULE"] == "core.settings.development_sqlite"
     )

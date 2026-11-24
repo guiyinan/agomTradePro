@@ -245,6 +245,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.worker:
         return _emit(_worker(args))
     try:
+        test_root = ROOT / ".tmp" / "s6-prepare-preflight"
+        test_root.mkdir(parents=True, exist_ok=True)
         tests = subprocess.run(
             [
                 sys.executable,
@@ -253,7 +255,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 *FOCUSED_TESTS,
                 "-q",
                 "--no-cov",
-                f"--basetemp=.tmp/s6-prepare-preflight/{uuid4().hex}",
+                f"--basetemp={test_root / uuid4().hex}",
             ],
             cwd=ROOT,
             env={**os.environ, "DJANGO_SETTINGS_MODULE": "core.settings.development_sqlite"},
