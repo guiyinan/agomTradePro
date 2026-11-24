@@ -11237,7 +11237,28 @@
           "sha256": "df6d6e794b522eb6e556b2034305105341934b2a30cf08c148d08ae74203ffb6"
         },
         "prior_isolated_prepare_state": "complete",
-        "prior_isolated_prepare_graph_dispatches": 23
+        "prior_isolated_prepare_graph_dispatches": 23,
+        "pre_send_fact_forecast": {
+          "as_of_utc": "2026-11-24T16:38:54.826969+00:00",
+          "scope": {
+            "asset": "000858.SZ",
+            "period": "2026-09-30",
+            "period_type": "quarterly",
+            "source": "akshare",
+            "provider_id": 3
+          },
+          "production_fact_keys_checked": 10,
+          "existing_rows": 0,
+          "conditional_new_keys": 10,
+          "conditional_revision": 1,
+          "publication_activations": 0,
+          "source_request_count": 0,
+          "forecast_receipt": {
+            "path": ".tmp/data02-guard-20261122/e1-8eaba967a-20261125/conditional-write-forecast.json",
+            "sha256": "5a11ccef019b39adda9607df60f4e37268823dd79d736a918de85b9692b80511"
+          },
+          "limit": "Conditional on ten qualified, unique native values and no intervening changes. The execution plan, actual response values, run/audits and independent post-commit comparison remain pending."
+        }
       }
     }
   ],
