@@ -18,10 +18,12 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from threading import Barrier, Event
 from urllib.parse import unquote, urlsplit
+from uuid import UUID
 
 import pytest
-from django.db import close_old_connections, connection, connections
+from django.db import close_old_connections, connection, connections, transaction
 from django.db.migrations.state import ProjectState
+from django.db.models.signals import pre_save
 
 from apps.audit.domain.system_audit_event import JSONValue, SystemAuditEvent
 from apps.audit.infrastructure import system_audit_repository as system_audit_repository_module
@@ -261,7 +263,7 @@ def test_empty_stream_first_winner_is_postgresql_unique_and_not_sqlite_evidence(
     repository = _repository()
     first = _event(event_id="evt-empty-a", idempotency_key="fetch:empty:a")
     second = _event(event_id="evt-empty-b", idempotency_key="fetch:empty:b")
-    original_claim = getattr(system_audit_repository_module, "_claim_system_audit_insert")
+    original_claim = system_audit_repository_module._claim_system_audit_insert
 
     @contextmanager
     def _gated_claim(event_id: str, content_hash: str) -> Iterator[None]:
@@ -396,6 +398,143 @@ def test_outbox_claim_lease_serializes_workers_and_preserves_owner() -> None:
                 claim_token="wrong-token",
                 delivered_at=LATER,
             )
+
+
+def _assert_other_session_can_lock_pending(outbox_id: UUID) -> None:
+    """Probe a specific row before the outer worker commits its transaction."""
+
+    def _lock_unrelated() -> None:
+        close_old_connections()
+        try:
+            with transaction.atomic():
+                row = SystemAuditOutboxModel.objects.select_for_update(nowait=True).get(
+                    pk=outbox_id
+                )
+                assert row.status == SystemAuditOutboxModel.STATUS_PENDING
+                assert row.attempt_count == 0
+        finally:
+            connections["default"].close()
+
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        executor.submit(_lock_unrelated).result(timeout=10)
+
+
+@pytest.mark.parametrize("replay", [False, True], ids=["new", "replay"])
+def test_outbox_enqueue_does_not_lock_an_unrelated_row(replay: bool) -> None:
+    """An ordinary insert or exact replay leaves other outbox identities available."""
+    repository = _outbox_repository()
+    other = _event(event_id="evt-unrelated", idempotency_key="fetch:unrelated")
+    candidate = _event(event_id="evt-enqueue", idempotency_key="fetch:enqueue")
+    with repository.atomic():
+        unrelated = repository.enqueue(other, created_at=NOW, available_at=NOW)
+        if replay:
+            original = repository.enqueue(candidate, created_at=NOW, available_at=NOW)
+
+    with repository.atomic():
+        winner = repository.enqueue(candidate, created_at=NOW, available_at=NOW)
+        if replay:
+            assert winner == original
+        _assert_other_session_can_lock_pending(unrelated.outbox_id)
+    assert SystemAuditOutboxModel.objects.count() == 2
+
+
+def test_outbox_concurrent_identical_enqueues_return_one_first_winner() -> None:
+    """Both true insert contenders return the same durable, untouched outbox identity."""
+    candidate = _event(event_id="evt-race", idempotency_key="fetch:race")
+    barrier = Barrier(2)
+
+    def _synchronize_inserts(**kwargs: object) -> None:
+        barrier.wait(timeout=10)
+
+    def _enqueue() -> UUID:
+        close_old_connections()
+        try:
+            repository = _outbox_repository()
+            with repository.atomic():
+                record = repository.enqueue(candidate, created_at=NOW, available_at=NOW)
+                assert record.event == candidate
+            return record.outbox_id
+        finally:
+            connections["default"].close()
+
+    pre_save.connect(_synchronize_inserts, sender=SystemAuditOutboxModel)
+    try:
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            futures = [executor.submit(_enqueue) for _ in range(2)]
+            winners = [future.result(timeout=15) for future in futures]
+    finally:
+        pre_save.disconnect(_synchronize_inserts, sender=SystemAuditOutboxModel)
+    row = SystemAuditOutboxModel.objects.get()
+    assert winners == [row.outbox_id, row.outbox_id]
+    assert row.status == SystemAuditOutboxModel.STATUS_PENDING
+    assert row.attempt_count == 0
+
+
+def test_outbox_second_worker_claims_another_due_row_before_first_commits() -> None:
+    """A held oldest claim leaves the next due row available to another worker."""
+    repository = _outbox_repository()
+    first = _event(event_id="evt-due-first", idempotency_key="fetch:due:first")
+    second = _event(event_id="evt-due-second", idempotency_key="fetch:due:second")
+    with repository.atomic():
+        oldest = repository.enqueue(first, created_at=NOW, available_at=NOW)
+        next_due = repository.enqueue(second, created_at=LATER, available_at=LATER)
+
+    def _claim_next_due() -> SystemAuditOutboxClaim:
+        close_old_connections()
+        try:
+            worker = _outbox_repository()
+            with worker.atomic():
+                with connection.cursor() as cursor:
+                    cursor.execute("SET LOCAL lock_timeout = '1s'")
+                (claim,) = worker.claim_due(worker_id="worker-two", as_of=LATER, limit=1)
+            return claim
+        finally:
+            connections["default"].close()
+
+    with repository.atomic():
+        (held,) = repository.claim_due(worker_id="worker-one", as_of=LATER, limit=1)
+        assert held.outbox_id == oldest.outbox_id
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            other = executor.submit(_claim_next_due).result(timeout=10)
+        assert other.outbox_id == next_due.outbox_id
+        assert other.worker_id == "worker-two"
+        assert other.attempt_count == 1
+
+
+@pytest.mark.parametrize("transition", ["claim", "deliver", "fail"])
+def test_outbox_transition_does_not_lock_an_unrelated_due_row(transition: str) -> None:
+    """A second PostgreSQL session can lock a due row outside the dispatch batch."""
+    repository = _outbox_repository()
+    first = _event(event_id="evt-batch-first", idempotency_key="fetch:batch:first")
+    other = _event(event_id="evt-batch-other", idempotency_key="fetch:batch:other")
+    with repository.atomic():
+        selected = repository.enqueue(first, created_at=NOW, available_at=NOW)
+        unrelated = repository.enqueue(other, created_at=LATER, available_at=LATER)
+
+    worker_id = "batch-owner"
+    if transition != "claim":
+        with repository.atomic():
+            (claim,) = repository.claim_due(worker_id=worker_id, as_of=NOW, limit=1)
+    with repository.atomic():
+        if transition == "claim":
+            (claim,) = repository.claim_due(worker_id=worker_id, as_of=LATER, limit=1)
+        elif transition == "deliver":
+            repository.mark_delivered(
+                outbox_id=selected.outbox_id,
+                worker_id=worker_id,
+                claim_token=claim.claim_token,
+                delivered_at=LATER,
+            )
+        else:
+            repository.mark_failed(
+                outbox_id=selected.outbox_id,
+                worker_id=worker_id,
+                claim_token=claim.claim_token,
+                error_code="publisher_error",
+                failed_at=LATER,
+            )
+        assert claim.outbox_id == selected.outbox_id
+        _assert_other_session_can_lock_pending(unrelated.outbox_id)
 
 
 def test_outbox_claim_rollback_releases_lease_for_next_worker() -> None:

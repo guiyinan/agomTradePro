@@ -161,6 +161,53 @@ def test_full_table_restore_rejects_payload_tamper() -> None:
         repository.get_exact(outbox_id=record.outbox_id)
 
 
+@pytest.mark.parametrize("operation", ["enqueue", "claim", "deliver", "fail"])
+def test_strict_writes_reject_corrupt_unrelated_row_before_mutation(operation: str) -> None:
+    repository = _repository()
+    with repository.atomic():
+        target = repository.enqueue(make_event(), created_at=NOW, available_at=NOW)
+        other = repository.enqueue(
+            make_event(event_id="other-event", idempotency_key="fetch:other"),
+            created_at=NOW,
+            available_at=LATER + timedelta(hours=1),
+        )
+        claims = (
+            repository.claim_due(worker_id="first", as_of=LATER, limit=1)
+            if operation in {"deliver", "fail"}
+            else ()
+        )
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "UPDATE audit_system_outbox SET payload_hash = %s WHERE outbox_id = %s",
+            ["0" * 64, other.outbox_id.hex],
+        )
+
+    with pytest.raises(SystemAuditOutboxCorruption, match="payload hash"), repository.atomic():
+        if operation == "enqueue":
+            repository.enqueue(make_event(), created_at=NOW, available_at=NOW)
+        elif operation == "claim":
+            repository.claim_due(worker_id="first", as_of=LATER, limit=1)
+        elif operation == "deliver":
+            repository.mark_delivered(
+                outbox_id=target.outbox_id,
+                worker_id="first",
+                claim_token=claims[0].claim_token,
+                delivered_at=LATER,
+            )
+        else:
+            repository.mark_failed(
+                outbox_id=target.outbox_id,
+                worker_id="first",
+                claim_token=claims[0].claim_token,
+                error_code="publisher_error",
+                failed_at=LATER,
+            )
+
+    row = SystemAuditOutboxModel.objects.get(pk=target.outbox_id)
+    assert row.status == ("claimed" if claims else "pending")
+    assert row.attempt_count == len(claims)
+
+
 def test_full_table_restore_rejects_available_before_created_tamper() -> None:
     repository = _repository()
     with repository.atomic():

@@ -2,9 +2,8 @@
 
 The repository owns only outbox persistence and bounded claim-state changes.  It
 does not publish to Data Center, Celery, Kafka, or any other runtime consumer.
-Every selector restores the complete table first so a malformed unrelated row
-cannot be hidden by a filtered query.  PostgreSQL lease/race evidence remains a
-separate deployment gate; the isolated component tests are structural only.
+Dispatch locks only its target rows, then validates a full committed snapshot
+before mutation. Targeted enqueue paths use exact identity checks.
 """
 
 from __future__ import annotations
@@ -186,52 +185,15 @@ class DjangoSystemAuditOutboxRepository:
         if available < created:
             raise SystemAuditOutboxConflict("outbox availability precedes creation")
 
-        state = self._state(lock=True)
-        identity_matches = tuple(item for item in state if item.event.event_id == event.event_id)
-        idempotency_matches = tuple(
-            item for item in state if item.event.idempotency_key == event.idempotency_key
-        )
-        for matches in (identity_matches, idempotency_matches):
-            if len(matches) > 1:
-                raise SystemAuditOutboxCorruption("outbox first-winner identity is ambiguous")
-        existing = (
-            identity_matches[0]
-            if identity_matches
-            else (idempotency_matches[0] if idempotency_matches else None)
-        )
-        if existing is not None:
-            if existing.event != event:
+        matches = self._locked_identity_rows(event)
+        self._state()
+        if matches:
+            existing = self._restore(matches[0])
+            if len(matches) > 1 or existing.event != event:
                 raise SystemAuditOutboxConflict("outbox identity already has another payload")
-            return existing.record
+            return existing
 
-        row = SystemAuditOutboxModel(
-            outbox_id=uuid4(),
-            event_id=event.event_id,
-            idempotency_key=event.idempotency_key,
-            payload=dict(encode(event)),
-            payload_hash=event.content_hash,
-            available_at=available,
-            created_at=created,
-            updated_at=created,
-        )
-        values = {
-            "outbox_id": row.outbox_id,
-            "event_id": row.event_id,
-            "idempotency_key": row.idempotency_key,
-            "payload": row.payload,
-            "payload_hash": row.payload_hash,
-            "status": row.status,
-            "attempt_count": row.attempt_count,
-            "available_at": row.available_at,
-            "claimed_at": row.claimed_at,
-            "claimed_by": row.claimed_by,
-            "claim_token": row.claim_token,
-            "delivered_at": row.delivered_at,
-            "last_error_code": row.last_error_code,
-            "last_error_at": row.last_error_at,
-            "created_at": row.created_at,
-            "updated_at": row.updated_at,
-        }
+        row, values = self._targeted_outbox_row(event, available_at=available, created_at=created)
         try:
             with transaction.atomic(using=self._using):
                 with _claim_system_audit_outbox_insert(
@@ -267,12 +229,7 @@ class DjangoSystemAuditOutboxRepository:
         self._require_aware(available, "available_at")
         if available < created:
             raise SystemAuditOutboxConflict("outbox availability precedes creation")
-        matches = tuple(
-            SystemAuditOutboxModel._default_manager.using(self._using)
-            .select_for_update()
-            .filter(Q(event_id=event.event_id) | Q(idempotency_key=event.idempotency_key))
-            .order_by("created_at", "outbox_id")[:2]
-        )
+        matches = self._locked_identity_rows(event)
         if len(matches) > 1:
             raise SystemAuditOutboxConflict("outbox identities are bound to different rows")
         existing = self._restore(matches[0]) if matches else None
@@ -554,20 +511,28 @@ class DjangoSystemAuditOutboxRepository:
         if not isinstance(limit, int) or isinstance(limit, bool) or not 0 < limit <= 100:
             raise SystemAuditOutboxConflict("outbox claim limit is outside 1..100")
         self._require_cutoff(as_of)
-        state = self._state(lock=True)
-        due = [
-            item
-            for item in state
-            if (item.status == SystemAuditOutboxModel.STATUS_PENDING and item.available_at <= as_of)
-            or (
-                item.status == SystemAuditOutboxModel.STATUS_CLAIMED
-                and item.claimed_at is not None
-                and item.claimed_at + self._lease_duration <= as_of
-            )
-        ][:limit]
+        due = Q(status=SystemAuditOutboxModel.STATUS_PENDING, available_at__lte=as_of)
+        try:
+            expiry_cutoff = as_of - self._lease_duration
+        except OverflowError:
+            pass  # No representable claim timestamp could have expired this early.
+        else:
+            due |= Q(status=SystemAuditOutboxModel.STATUS_CLAIMED, claimed_at__lte=expiry_cutoff)
+        candidates = (
+            SystemAuditOutboxModel.objects.using(self._using)
+            .filter(due)
+            .order_by("available_at", "created_at", "outbox_id")
+        )
+        skip_locked = connections[self._using].features.has_select_for_update_skip_locked
+        rows = list(candidates.select_for_update(skip_locked=skip_locked)[:limit])
+        if skip_locked and not rows:
+            # All eligible rows may belong to transactions about to roll back.
+            # Wait for their outcome before reporting that the queue is empty.
+            rows = list(candidates.select_for_update()[:limit])
+        self._state()
         claims: list[SystemAuditOutboxClaim] = []
-        for item in due:
-            row = item._row
+        for row in rows:
+            item = self._restore(row)
             token = uuid4().hex
             row.status = SystemAuditOutboxModel.STATUS_CLAIMED
             row.attempt_count = item.attempt_count + 1
@@ -664,30 +629,35 @@ class DjangoSystemAuditOutboxRepository:
         ):
             row.save(update_fields=fields, using=self._using)
 
-    def _find_exact_identity(self, event: SystemAuditEvent) -> SystemAuditOutboxRecord | None:
-        state = self._state(lock=True)
-        matches = tuple(
-            item
-            for item in state
-            if item.event.event_id == event.event_id
-            or item.event.idempotency_key == event.idempotency_key
+    def _locked_identity_rows(self, event: SystemAuditEvent) -> tuple[SystemAuditOutboxModel, ...]:
+        return tuple(
+            SystemAuditOutboxModel._default_manager.using(self._using)
+            .select_for_update()
+            .filter(Q(event_id=event.event_id) | Q(idempotency_key=event.idempotency_key))
+            .order_by("created_at", "outbox_id")[:2]
         )
+
+    def _find_exact_identity(self, event: SystemAuditEvent) -> SystemAuditOutboxRecord | None:
+        matches = self._locked_identity_rows(event)
+        self._state()
         if len(matches) > 1:
             raise SystemAuditOutboxCorruption("outbox identity collision is ambiguous")
-        return matches[0].record if matches else None
+        return self._restore(matches[0]) if matches else None
 
     def _locked_item(self, outbox_id: UUID) -> _StateRow:
-        state = self._state(lock=True)
-        matches = tuple(item for item in state if item.outbox_id == outbox_id)
-        if not matches:
+        row = (
+            SystemAuditOutboxModel.objects.using(self._using)
+            .select_for_update()
+            .filter(pk=outbox_id)
+            .first()
+        )
+        self._state()
+        if row is None:
             raise SystemAuditOutboxUnavailable("outbox row is absent")
-        if len(matches) > 1:
-            raise SystemAuditOutboxCorruption("outbox row identity is ambiguous")
-        return matches[0]
+        return _StateRow(self._restore(row), row)
 
-    def _state(self, *, lock: bool = False) -> tuple[_StateRow, ...]:
-        manager = SystemAuditOutboxModel._default_manager.using(self._using)
-        rows = manager.select_for_update() if lock else manager
+    def _state(self) -> tuple[_StateRow, ...]:
+        rows = SystemAuditOutboxModel._default_manager.using(self._using)
         restored = tuple(_StateRow(self._restore(row), row) for row in rows.all())
         _validate_closed_world(restored)
         return restored
