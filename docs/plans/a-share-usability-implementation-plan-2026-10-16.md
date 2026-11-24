@@ -294,6 +294,8 @@ Owner 随后确认 Research 沿用展示权限，本批交付限于 Portfolio �
 
 **2026-11-24 存量租约补验。** 在隔离库分别预置 READY 订单和已有有效租约的 LEASED 订单。相同 Agent、账户及凭据连续两次签名确认提交，均由 Evidence 的 `submitting` 节点返回 HTTP 409。两次请求各自留下认证 nonce，订单和租约原样保留，成交、订单事件与券商提交均为零。原生 PostgreSQL 定向 28 项、Agent 端提交契约 51 项全部通过，无跳过。基线为 `6cf5253ae`，新增测试 Git blob 为 `4824412fd`。运行命令、JUnit 与 SHA-256 索引见本机 `.tmp/ash09-acceptance-20261124/existing-lease/index.json`。该结果补齐升级存量租约的拒绝场景；Research 展示上限和 ASH-09 整块待验状态继续生效。
 
+**2026-11-24 签发依赖修复。** `731318cad` 的远端检查发现 Portfolio 直接依赖 Account，模块依赖数达到 210，预算为 209。签发、复核和撤销改由 Core 注入 Account 的实际会话、账户与角色读取入口。审批原件继续绑定账户身份与策略的 ID、版本和内容哈希。按同一源码重新生成 Data Center 架构清单及模块地图，依赖数回到 209。隔离复验索引见本机 `.tmp/ash09-acceptance-20261124/portfolio-ci/index.json`。具体订单仍需获准的执行证据与同范围 Risk 回执，ASH-09 保持待验。
+
 ## 14. ASH-10：真实账户复盘
 
 1. 先对齐初始资产、入出金、分红、费用、成交和期末估值，区分投资收益与外部现金流；按任务明确时间加权或资金加权口径。

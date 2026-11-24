@@ -110,6 +110,20 @@ def benchmark_world(monkeypatch, request):
 
 def test_portfolio_approval_and_revocation(benchmark_world):
     owner, _, _, review, _, _, identity, approved, valuation = benchmark_world
+    reviewed = review.get(f"/api/portfolio/benchmark-approvals/{approved.approval_id}/")
+    assert reviewed.status_code == 200, reviewed.content[:500]
+    source = reviewed.json()["source"]
+    assert source["physical_row_pk"] == identity.physical_row_pk
+    assert source["identity"] == [
+        identity.source_id,
+        identity.source_version,
+        identity.identity_hash,
+    ]
+    assert source["account_policy"] == [
+        identity.policy_id,
+        identity.policy_version,
+        identity.policy_hash,
+    ]
     query = {
         "approval_id": approved.approval_id,
         "expected_version": approved.version,

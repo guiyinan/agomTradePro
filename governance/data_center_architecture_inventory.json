@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 7699,
+    "current_surface_references": 7750,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -2561,6 +2561,14 @@
     {
       "path": "apps/account/application/use_cases.py",
       "text": "logger.exception(\"Failed to resolve current regime for macro sizing context\")"
+    },
+    {
+      "path": "apps/account/benchmark_actor_composition.py",
+      "text": "\"\"\"Current authenticated human staff eligible for Portfolio benchmark governance.\"\"\""
+    },
+    {
+      "path": "apps/account/benchmark_actor_composition.py",
+      "text": "\"\"\"Require current strategy-write staff with existing owner/superuser account access.\"\"\""
     },
     {
       "path": "apps/account/domain/account_owner_assignment_actor_authority_source_v3.py",
@@ -7823,6 +7831,10 @@
       "text": "\"\"\"Current Agent/QMT connection projection with source-time preservation.\"\"\""
     },
     {
+      "path": "apps/broker_execution/application/execution_price_guard.py",
+      "text": "\"\"\"Validate the limit against the current quote and return that quote's deadline.\"\"\""
+    },
+    {
       "path": "apps/broker_execution/application/order_catalog.py",
       "text": "\"\"\"One bounded order summary with non-authoritative action hints.\"\"\""
     },
@@ -8071,6 +8083,10 @@
       "text": "risk_snapshot[\"violations\"].append(\"latest market quote is unavailable\")"
     },
     {
+      "path": "apps/broker_execution/ash09_checkpoint_composition.py",
+      "text": "\"\"\"Explain the current owner's closed gate without exporting any artifact or hash.\"\"\""
+    },
+    {
       "path": "apps/broker_execution/domain/connection_freshness.py",
       "text": "\"\"\"Pure source/receipt clock rules for Broker Agent current health.\"\"\""
     },
@@ -8104,6 +8120,10 @@
     },
     {
       "path": "apps/broker_execution/domain/rules.py",
+      "text": "def is_prior_broker_status(current: str, reported: str) -> bool:"
+    },
+    {
+      "path": "apps/broker_execution/domain/rules.py",
       "text": "def target_status_for_order_action(current: str, action: str) -> LiveOrderStatus:"
     },
     {
@@ -8113,6 +8133,14 @@
     {
       "path": "apps/broker_execution/domain/rules.py",
       "text": "if start <= current <= end:"
+    },
+    {
+      "path": "apps/broker_execution/domain/rules.py",
+      "text": "return current in {\"PARTIALLY_FILLED\", \"FILLED\", \"CANCEL_PENDING\", \"CANCELED\"}"
+    },
+    {
+      "path": "apps/broker_execution/domain/rules.py",
+      "text": "return reported == LiveOrderStatus.PARTIALLY_FILLED.value and current in {\"FILLED\", \"CANCELED\"}"
     },
     {
       "path": "apps/broker_execution/infrastructure/broker_account_identity_snapshot_repository.py",
@@ -11581,6 +11609,38 @@
     {
       "path": "apps/data_center/asset_active_maintenance_composition.py",
       "text": "\"\"\"Bind current credential and model-permission reads inside Data Center infrastructure.\"\"\""
+    },
+    {
+      "path": "apps/data_center/benchmark_close_price_composition.py",
+      "text": ".filter(dataset_key=\"equity.price.bar\", publication_key=\"current\")"
+    },
+    {
+      "path": "apps/data_center/benchmark_close_price_composition.py",
+      "text": "\"\"\"Read the current, locked price publication for an exact Portfolio benchmark close.\"\"\""
+    },
+    {
+      "path": "apps/data_center/benchmark_close_price_composition.py",
+      "text": "\"\"\"Verify the public price row was derived from the current pointer that's locked through use.\"\"\""
+    },
+    {
+      "path": "apps/data_center/benchmark_close_price_composition.py",
+      "text": "asset, publication_key=\"current\", start=day, end=day, limit=1, knowledge_cutoff=at"
+    },
+    {
+      "path": "apps/data_center/benchmark_history_composition.py",
+      "text": "\"equity.price.bar\", \"current\", as_of=at, asset_code=asset"
+    },
+    {
+      "path": "apps/data_center/benchmark_history_composition.py",
+      "text": "original = get_publication_as_of(\"equity.price.bar\", \"current\", issued_at)"
+    },
+    {
+      "path": "apps/data_center/benchmark_history_composition.py",
+      "text": "publication_key=\"current\","
+    },
+    {
+      "path": "apps/data_center/benchmark_history_composition.py",
+      "text": "scope = {\"dataset_key\": \"equity.price.bar\", \"publication_key\": \"current\"}"
     },
     {
       "path": "apps/data_center/calendar_audit_read_authority_composition.py",
@@ -17731,6 +17791,14 @@
       "text": "summary=\"触发RSS抓取\","
     },
     {
+      "path": "apps/portfolio/application/benchmark_daily_sources.py",
+      "text": "\"\"\"Current verified staff identity and strategy-write role for one account.\"\"\""
+    },
+    {
+      "path": "apps/portfolio/application/benchmark_daily_sources.py",
+      "text": "\"\"\"Recheck and hold the named signer's current staff and account authority.\"\"\""
+    },
+    {
       "path": "apps/portfolio/application/build_macro_risk_candidate_family.py",
       "text": "\"\"\"Provide the current UTC cutoff for future-request rejection.\"\"\""
     },
@@ -18059,6 +18127,86 @@
       "text": "current=current,"
     },
     {
+      "path": "apps/portfolio/benchmark_daily_valuation_composition.py",
+      "text": "\"\"\"Begin an owner-certified buy-and-hold epoch prospectively, using current Portfolio heads.\"\"\""
+    },
+    {
+      "path": "apps/portfolio/benchmark_daily_valuation_composition.py",
+      "text": "\"\"\"Portfolio's authenticated live-inception, daily close and exact-current valuation workflows.\"\"\""
+    },
+    {
+      "path": "apps/portfolio/benchmark_daily_valuation_composition.py",
+      "text": "\"\"\"Verify the current day, exact scope, source, configuration and clock in the caller's transaction.\"\"\""
+    },
+    {
+      "path": "apps/portfolio/benchmark_daily_valuation_composition.py",
+      "text": "current = get_current_benchmark_valuation("
+    },
+    {
+      "path": "apps/portfolio/benchmark_daily_valuation_composition.py",
+      "text": "if current is None:"
+    },
+    {
+      "path": "apps/portfolio/benchmark_daily_valuation_composition.py",
+      "text": "raise BenchmarkDayUnavailable(\"current live account owner unavailable\")"
+    },
+    {
+      "path": "apps/portfolio/benchmark_daily_valuation_composition.py",
+      "text": "raise BenchmarkDayUnavailable(\"daily valuation is no longer current\")"
+    },
+    {
+      "path": "apps/portfolio/benchmark_daily_valuation_composition.py",
+      "text": "raise BenchmarkDayUnavailable(\"no current and next approved valuation session\")"
+    },
+    {
+      "path": "apps/portfolio/benchmark_daily_valuation_composition.py",
+      "text": "raise RuntimeError(\"benchmark current read requires caller transaction\")"
+    },
+    {
+      "path": "apps/portfolio/benchmark_daily_valuation_composition.py",
+      "text": "return current"
+    },
+    {
+      "path": "apps/portfolio/benchmark_execution_composition.py",
+      "text": "\"\"\"Approve one still-current submission with a separately authenticated staff identity.\"\"\""
+    },
+    {
+      "path": "apps/portfolio/benchmark_execution_composition.py",
+      "text": "\"\"\"Authenticated Portfolio benchmark issuance, revocation and transaction-bound current reads.\"\"\""
+    },
+    {
+      "path": "apps/portfolio/benchmark_execution_composition.py",
+      "text": "\"\"\"Hold the latest independent approval and all its current sources through the caller's transaction.\"\"\""
+    },
+    {
+      "path": "apps/portfolio/benchmark_execution_composition.py",
+      "text": "\"\"\"Resolve the signed source manifest for the current account's authorized reviewer.\"\"\""
+    },
+    {
+      "path": "apps/portfolio/benchmark_execution_composition.py",
+      "text": "\"\"\"Return the exact current approval matching all supplied immutable selectors.\"\"\""
+    },
+    {
+      "path": "apps/portfolio/benchmark_execution_composition.py",
+      "text": "current = _source(subject.valuation_id, subject.valuation_version, using)"
+    },
+    {
+      "path": "apps/portfolio/benchmark_execution_composition.py",
+      "text": "return subject, \"pending\" if current.seal == subject.source_seal else \"source_changed\""
+    },
+    {
+      "path": "apps/portfolio/benchmark_predecessor_composition.py",
+      "text": "\"\"\"Revalidate each predecessor in genesis order in the current owner's epoch transaction.\"\"\""
+    },
+    {
+      "path": "apps/portfolio/domain/benchmark_approval_history.py",
+      "text": "\"\"\"A current Portfolio or Account source is missing or expired.\"\"\""
+    },
+    {
+      "path": "apps/portfolio/domain/benchmark_execution_approval.py",
+      "text": "\"\"\"Portfolio's independent benchmark approval for one exact current valuation.\"\"\""
+    },
+    {
       "path": "apps/portfolio/domain/canonical_snapshots.py",
       "text": "raise ValueError(\"snapshot as_of must preserve the latest source observation time\")"
     },
@@ -18319,6 +18467,18 @@
       "text": "raise ValueError(\"first source observation must not follow the latest observation\")"
     },
     {
+      "path": "apps/portfolio/infrastructure/benchmark_approval_configuration.py",
+      "text": "\"\"\"Exact current planning policy and benchmark methodology checks at issuance and use.\"\"\""
+    },
+    {
+      "path": "apps/portfolio/infrastructure/benchmark_daily_configuration.py",
+      "text": "!= (\"data_center\", \"equity.price.bar.current\")"
+    },
+    {
+      "path": "apps/portfolio/infrastructure/benchmark_daily_configuration.py",
+      "text": "\"\"\"Restore current Portfolio planning and benchmark methodology heads and all five pinned bodies.\"\"\""
+    },
+    {
       "path": "apps/portfolio/infrastructure/deterministic_optimizer.py",
       "text": "\"canonical current configuration has no positive portfolio value\","
     },
@@ -18493,6 +18653,26 @@
     {
       "path": "apps/portfolio/interface/api_views.py",
       "text": "current=current,"
+    },
+    {
+      "path": "apps/portfolio/interface/benchmark_approval_views.py",
+      "text": "{\"detail\": \"Current authenticated session required.\"},"
+    },
+    {
+      "path": "apps/portfolio/interface/benchmark_approval_views.py",
+      "text": "{\"detail\": \"Current authenticated session required.\"},"
+    },
+    {
+      "path": "apps/portfolio/interface/benchmark_valuation_urls.py",
+      "text": "return JsonResponse({\"error\": \"current owner session required\"}, status=403)"
+    },
+    {
+      "path": "apps/portfolio/interface/benchmark_valuation_urls.py",
+      "text": "return JsonResponse({\"error\": \"current owner session required\"}, status=403)"
+    },
+    {
+      "path": "apps/portfolio/interface/benchmark_valuation_urls.py",
+      "text": "return JsonResponse({\"error\": \"current owner session required\"}, status=403)"
     },
     {
       "path": "apps/prompt/application/context_builders.py",
@@ -21625,6 +21805,18 @@
     {
       "path": "apps/risk_center/application/trade_guard.py",
       "text": "violations.append(f\"{label} exceeded: current={value:.4f}, limit={numeric_limit:.4f}\")"
+    },
+    {
+      "path": "apps/risk_center/broker_checkpoint_composition.py",
+      "text": "\"\"\"Risk-owned current authorization and active policy under the caller's transaction.\"\"\""
+    },
+    {
+      "path": "apps/risk_center/broker_checkpoint_composition.py",
+      "text": "\"current risk checkpoint requires a PostgreSQL transaction\""
+    },
+    {
+      "path": "apps/risk_center/broker_checkpoint_composition.py",
+      "text": "\"current risk checkpoint requires read committed\""
     },
     {
       "path": "apps/risk_center/domain/close_snapshot_simulation.py",
@@ -30465,6 +30657,18 @@
     {
       "path": "core/integration/policy_hedging_registry.py",
       "text": "\"\"\"Return the registered Realtime price repository.\"\"\""
+    },
+    {
+      "path": "core/integration/portfolio_benchmark_daily_sources.py",
+      "text": "\"\"\"Read and lock the current Account staff role on the caller's transaction.\"\"\""
+    },
+    {
+      "path": "core/integration/portfolio_benchmark_daily_sources.py",
+      "text": "\"\"\"Read the exact past row in the current owner publication.\"\"\""
+    },
+    {
+      "path": "core/integration/portfolio_benchmark_daily_sources.py",
+      "text": "or payload.get(\"publication_key\") != \"current\""
     },
     {
       "path": "core/integration/price_history.py",

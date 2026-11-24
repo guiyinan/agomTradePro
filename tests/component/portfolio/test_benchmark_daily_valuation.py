@@ -66,6 +66,10 @@ def test_session_owner_publishes_and_rechecks_real_configuration_and_broker_run(
                 "a" * 64,
                 "b" * 64,
                 cutoff + timedelta(days=3),
+                source_id="fixture-identity",
+                source_version="v1",
+                policy_id="fixture-policy",
+                policy_version="v1",
             )
         return None
 

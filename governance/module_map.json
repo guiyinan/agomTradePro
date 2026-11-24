@@ -42,9 +42,6 @@
         "factor": {
           "imports": 1
         },
-        "portfolio": {
-          "imports": 3
-        },
         "simulated_trading": {
           "imports": 87
         },
@@ -8069,14 +8066,6 @@
         }
       },
       "depends_on": {
-        "account": {
-          "imports": 3,
-          "target_layers": [
-            "benchmark_actor_composition",
-            "creation_authentication_composition",
-            "live_account_owner_composition"
-          ]
-        },
         "fixed_income": {
           "imports": 14,
           "target_layers": [
@@ -8088,6 +8077,7 @@
       "entrypoints": {
         "application/benchmark_daily_sources.py": [
           "BenchmarkDaySources",
+          "BenchmarkGovernanceActor",
           "ClosingFixing",
           "DayOwner",
           "DayReconciliation",

@@ -1,4 +1,4 @@
-"""Owner-source boundaries for prospective Portfolio benchmark day closes."""
+"""Owner-source boundaries for Portfolio benchmark day closes and independent approvals."""
 
 from __future__ import annotations
 
@@ -22,6 +22,18 @@ class DayOwner:
     identity_hash: str
     policy_hash: str
     valid_until: datetime
+    source_id: str
+    source_version: str
+    policy_id: str
+    policy_version: str
+
+
+@dataclass(frozen=True, slots=True)
+class BenchmarkGovernanceActor:
+    """Current verified staff identity and strategy-write role for one account."""
+
+    user_id: int
+    role: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -55,6 +67,16 @@ class BenchmarkDaySources(Protocol):
     def signer(
         self, *, request: Request, using: str, before_commit: Callable[[], None]
     ) -> AbstractContextManager[int]: ...
+    def approval_reviewer(self, *, request: Request, using: str) -> AbstractContextManager[int]:
+        """Hold the authenticated reviewer identity and credentials through the read."""
+        ...
+
+    def governance_actor(
+        self, *, user_id: int, owner_user_id: int, using: str
+    ) -> BenchmarkGovernanceActor | None:
+        """Recheck and hold the named signer's current staff and account authority."""
+        ...
+
     def owner(
         self, *, namespace: str, account_id: str, user_id: int, using: str
     ) -> DayOwner | None: ...

@@ -12,6 +12,7 @@ from rest_framework.request import Request
 
 from apps.portfolio.application.benchmark_daily_sources import (
     BenchmarkDaySources,
+    BenchmarkGovernanceActor,
     ClosingFixing,
     DayOwner,
     DayReconciliation,
@@ -32,6 +33,37 @@ class _OwnerSources:
         ) as user:
             yield int(user.pk)
 
+    @contextmanager
+    def approval_reviewer(self, *, request: Request, using: str) -> Iterator[int]:
+        """Return the real reviewer identity while Account holds its authentication locks."""
+        from django.contrib.auth.models import User
+
+        from apps.account.creation_authentication_composition import (
+            authenticated_account_creation_transaction,
+        )
+        from apps.portfolio.domain.benchmark_approval_history import BenchmarkApprovalDenied
+
+        with authenticated_account_creation_transaction(request=request, using=using) as identity:
+            user = request.user
+            if (
+                not isinstance(user, User)
+                or not user.is_authenticated
+                or user.pk != identity.user_id
+            ):
+                raise BenchmarkApprovalDenied("benchmark_scope_access_denied")
+            yield identity.user_id
+
+    def governance_actor(
+        self, *, user_id: int, owner_user_id: int, using: str
+    ) -> BenchmarkGovernanceActor | None:
+        """Read and lock the current Account staff role on the caller's transaction."""
+        from apps.account.benchmark_actor_composition import read_benchmark_governance_actor
+
+        actor = read_benchmark_governance_actor(
+            user_id=user_id, owner_user_id=owner_user_id, using=using
+        )
+        return None if actor is None else BenchmarkGovernanceActor(actor.user_id, actor.role)
+
     def owner(
         self, *, namespace: str, account_id: str, user_id: int, using: str
     ) -> DayOwner | None:
@@ -44,11 +76,21 @@ class _OwnerSources:
         if owner is None:
             return None
         return DayOwner(
-            BenchmarkScope(namespace, account_id, user_id, owner.tenant_id, owner.owner_id),
+            BenchmarkScope(
+                owner.account_namespace,
+                owner.account_id,
+                owner.owner_user_id,
+                owner.tenant_id,
+                owner.owner_id,
+            ),
             owner.physical_row_pk,
             owner.identity_hash,
             owner.policy_hash,
             owner.valid_until,
+            source_id=owner.source_id,
+            source_version=owner.source_version,
+            policy_id=owner.policy_id,
+            policy_version=owner.policy_version,
         )
 
     def reconciliation(

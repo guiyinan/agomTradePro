@@ -8,20 +8,12 @@ from dataclasses import asdict, dataclass
 from datetime import datetime
 from uuid import UUID
 
-from django.contrib.auth.models import User
 from rest_framework.request import Request
 
-from apps.account.benchmark_actor_composition import (
+from apps.portfolio.application.benchmark_daily_sources import (
     BenchmarkGovernanceActor,
-    read_benchmark_governance_actor,
-)
-from apps.account.creation_authentication_composition import (
-    authenticated_account_creation_transaction,
-)
-from apps.account.live_account_owner_composition import (
-    LiveAccountOwner,
-    locked_account_owner_session,
-    read_live_account_owner,
+    DayOwner,
+    benchmark_day_sources,
 )
 from apps.portfolio.benchmark_daily_valuation_composition import get_current_benchmark_valuation
 from apps.portfolio.domain.benchmark_approval_history import (
@@ -61,23 +53,21 @@ class _Source:
     valid_until: datetime
 
 
-def _owner(scope: BenchmarkScope, using: str) -> LiveAccountOwner:
-    owner = read_live_account_owner(
-        account_namespace=scope.account_namespace,
+def _owner(scope: BenchmarkScope, using: str) -> DayOwner:
+    owner = benchmark_day_sources().owner(
+        namespace=scope.account_namespace,
         account_id=scope.account_id,
-        owner_user_id=scope.owner_user_id,
+        user_id=scope.owner_user_id,
         using=using,
     )
-    if owner is None or (owner.tenant_id, owner.owner_id) != (scope.tenant_id, scope.owner_id):
+    if owner is None or owner.scope != scope:
         raise BenchmarkApprovalUnavailable("benchmark_current_account_scope_unavailable")
     return owner
 
 
-def _operator(principal: object, scope: BenchmarkScope, using: str) -> BenchmarkGovernanceActor:
-    if not isinstance(principal, User) or not principal.is_authenticated or principal.pk is None:
-        raise BenchmarkApprovalDenied("benchmark_scope_access_denied")
-    actor = read_benchmark_governance_actor(
-        user_id=principal.pk, owner_user_id=scope.owner_user_id, using=using
+def _operator(user_id: int, scope: BenchmarkScope, using: str) -> BenchmarkGovernanceActor:
+    actor = benchmark_day_sources().governance_actor(
+        user_id=user_id, owner_user_id=scope.owner_user_id, using=using
     )
     if actor is None:
         raise BenchmarkApprovalDenied("benchmark_scope_access_denied")
@@ -109,7 +99,7 @@ def _source(valuation_id: UUID, valuation_version: int, using: str) -> _Source:
         raise BenchmarkApprovalUnavailable("benchmark_current_configuration_unavailable")
     source = {
         "valuation": asdict(facts),
-        "physical_row_pk": owner.physical_row_pk,
+        "physical_row_pk": owner.physical_id,
         "identity": [owner.source_id, owner.source_version, owner.identity_hash],
         "account_policy": [owner.policy_id, owner.policy_version, owner.policy_hash],
     }
@@ -157,17 +147,17 @@ def _new_event(
 
 
 @contextmanager
-def _authenticated_change(request: Request, using: str) -> Iterator[tuple[User, list[datetime]]]:
+def _authenticated_change(request: Request, using: str) -> Iterator[tuple[int, list[datetime]]]:
     deadlines: list[datetime] = []
 
     def recheck_expiry() -> None:
         if deadlines and current_database_time(using) >= min(deadlines):
             raise BenchmarkApprovalUnavailable("benchmark_expired_before_commit")
 
-    with locked_account_owner_session(
+    with benchmark_day_sources().signer(
         request=request, using=using, before_commit=recheck_expiry
-    ) as user:
-        yield user, deadlines
+    ) as user_id:
+        yield user_id, deadlines
 
 
 def submit_benchmark_approval(
@@ -179,13 +169,13 @@ def submit_benchmark_approval(
     using: str = "default",
 ) -> BenchmarkApprovalEvent:
     """Submit an exact server-resolved daily valuation from the authenticated operator."""
-    with _authenticated_change(request, using) as (principal, deadlines):
+    with _authenticated_change(request, using) as (user_id, deadlines):
         require_approval_transaction(using)
         candidate_owner = valuation_owner_selector(valuation_id, using)
         if (
             candidate_owner is None
-            or read_benchmark_governance_actor(
-                user_id=principal.pk, owner_user_id=candidate_owner, using=using
+            or benchmark_day_sources().governance_actor(
+                user_id=user_id, owner_user_id=candidate_owner, using=using
             )
             is None
         ):
@@ -193,7 +183,7 @@ def submit_benchmark_approval(
         src = _source(valuation_id, valuation_version, using)
         deadlines.append(src.valid_until)
         scope = src.valuation.scope
-        actor = _operator(principal, scope, using)
+        actor = _operator(user_id, scope, using)
         lock_approval_scope(scope=scope, using=using, write=True)
         history = read_approval_history(scope=scope, using=using)
         first = find_event(request_id=request_id, action="submitted", using=using)
@@ -221,12 +211,12 @@ def submit_benchmark_approval(
 
 
 def _authorized_subject(
-    principal: object, request_id: UUID, using: str
+    user_id: int, request_id: UUID, using: str
 ) -> tuple[BenchmarkApprovalEvent, BenchmarkGovernanceActor]:
     subject = find_event(request_id=request_id, action="submitted", using=using)
     if subject is None:
         raise BenchmarkApprovalDenied("benchmark_scope_access_denied")
-    actor = _operator(principal, subject.scope, using)
+    actor = _operator(user_id, subject.scope, using)
     _owner(subject.scope, using)
     return subject, actor
 
@@ -235,9 +225,9 @@ def approve_benchmark(
     *, request: Request, request_id: UUID, expected_submission_hash: str, using: str = "default"
 ) -> BenchmarkApprovalEvent:
     """Approve one still-current submission with a separately authenticated staff identity."""
-    with _authenticated_change(request, using) as (principal, deadlines):
+    with _authenticated_change(request, using) as (user_id, deadlines):
         require_approval_transaction(using)
-        subject, actor = _authorized_subject(principal, request_id, using)
+        subject, actor = _authorized_subject(user_id, request_id, using)
         if (
             subject.content_hash != expected_submission_hash
             or actor.user_id == subject.actor_user_id
@@ -247,7 +237,7 @@ def approve_benchmark(
         deadlines.append(src.valid_until)
         if (src.seal, src.valid_until) != (subject.source_seal, subject.valid_until):
             raise BenchmarkApprovalConflict("benchmark_source_changed")
-        requester = read_benchmark_governance_actor(
+        requester = benchmark_day_sources().governance_actor(
             user_id=subject.actor_user_id,
             owner_user_id=subject.scope.owner_user_id,
             using=using,
@@ -284,9 +274,9 @@ def revoke_benchmark(
     *, request: Request, request_id: UUID, expected_approval_hash: str, using: str = "default"
 ) -> BenchmarkApprovalEvent:
     """Withdraw an exact approval even when its underlying valuation has expired."""
-    with _authenticated_change(request, using) as (principal, _deadlines):
+    with _authenticated_change(request, using) as (user_id, _deadlines):
         require_approval_transaction(using)
-        subject, actor = _authorized_subject(principal, request_id, using)
+        subject, actor = _authorized_subject(user_id, request_id, using)
         lock_approval_scope(scope=subject.scope, using=using, write=True)
         history = read_approval_history(scope=subject.scope, using=using)
         approval = find_event(request_id=request_id, action="approved", using=using)
@@ -333,7 +323,7 @@ def select_current_benchmark_approval(
     except BenchmarkApprovalUnavailable:
         return None
     for event in (subject, active):
-        actor = read_benchmark_governance_actor(
+        actor = benchmark_day_sources().governance_actor(
             user_id=event.actor_user_id, owner_user_id=owner_user_id, using=using
         )
         if actor is None or actor.role != event.actor_role:
@@ -391,9 +381,9 @@ def read_benchmark_submission_for_review(
     *, request: Request, request_id: UUID, using: str = "default"
 ) -> tuple[BenchmarkApprovalEvent, str]:
     """Resolve the signed source manifest for the current account's authorized reviewer."""
-    with authenticated_account_creation_transaction(request=request, using=using):
+    with benchmark_day_sources().approval_reviewer(request=request, using=using) as user_id:
         require_approval_transaction(using)
-        subject, _actor = _authorized_subject(request.user, request_id, using)
+        subject, _actor = _authorized_subject(user_id, request_id, using)
         lock_approval_scope(scope=subject.scope, using=using, write=False)
         history = read_approval_history(scope=subject.scope, using=using)
         if history.pending == subject:

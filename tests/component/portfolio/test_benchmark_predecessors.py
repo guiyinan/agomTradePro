@@ -93,6 +93,10 @@ def test_authenticated_withdrawal_requires_exact_original_and_invalidates_descen
         "a" * 64,
         "b" * 64,
         now + timedelta(hours=1),
+        source_id="fixture-identity",
+        source_version="v1",
+        policy_id="fixture-policy",
+        policy_version="v1",
     )
     epoch = history.Epoch(
         owner_user_id=user,
