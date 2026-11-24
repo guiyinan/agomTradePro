@@ -3460,7 +3460,7 @@
       "layers": {
         "application": 30,
         "domain": 13,
-        "infrastructure": 31,
+        "infrastructure": 32,
         "interface": 6,
         "root": 8
       },
