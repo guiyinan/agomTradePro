@@ -23,17 +23,23 @@ from apps.audit.application.system_audit_outbox_dispatcher import (
 logger = logging.getLogger(__name__)
 
 
-def _failure_result(*, reason_code: str, requested: int = 0) -> dict[str, object]:
+def _failure_result(
+    *, reason_code: str, requested: int = 0, counts_unavailable: bool = False
+) -> dict[str, object]:
     """Return bounded failure counters without exposing implementation details."""
 
+    confirmed_zero = None if counts_unavailable else 0
     return {
         "outcome": "failed",
         "success": False,
         "reason_code": reason_code,
         "requested": requested,
-        "claimed": 0,
-        "delivered": 0,
-        "failed": 1,
+        "claimed": confirmed_zero,
+        "delivered": confirmed_zero,
+        "succeeded": confirmed_zero,
+        "stored": confirmed_zero,
+        "counts_unavailable": counts_unavailable,
+        "failed": None if counts_unavailable else 1,
     }
 
 
@@ -126,7 +132,11 @@ def dispatch_system_audit_outbox_task(
                 requested=command.limit,
                 reason_code=exc.reason_code,
             ).as_task_result()
-        return _failure_result(reason_code=exc.reason_code, requested=command.limit)
+        return _failure_result(
+            reason_code=exc.reason_code,
+            requested=command.limit,
+            counts_unavailable=exc.reason_code == "dispatch_unavailable",
+        )
     except Exception as exc:
         logger.warning(
             "Audit outbox dispatch failed (error_type=%s)",
@@ -135,15 +145,24 @@ def dispatch_system_audit_outbox_task(
         return _failure_result(
             reason_code="dispatch_execution_failed",
             requested=command.limit,
+            counts_unavailable=True,
         )
 
+    outcome = result.outcome
     return {
-        "outcome": result.outcome,
-        "success": result.outcome in {"success", "noop"},
-        "reason_code": "dispatch_completed" if result.delivered else "no_due_rows",
+        "outcome": outcome,
+        "success": outcome in {"success", "noop"},
+        "reason_code": {
+            "success": "dispatch_completed",
+            "noop": "no_due_rows",
+            "partial": "dispatch_partially_failed",
+            "failed": "dispatch_failed",
+        }[outcome],
         "requested": result.requested,
         "claimed": result.claimed,
         "delivered": result.delivered,
+        "succeeded": result.delivered,
+        "stored": result.delivered,
         "failed": result.failed,
     }
 

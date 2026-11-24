@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from unittest.mock import Mock
 
 import pytest
 
 from apps.audit.application import tasks
 from apps.audit.application.system_audit_composition import SystemAuditCompositionUnavailable
 from apps.audit.application.system_audit_outbox_dispatcher import (
+    DispatchSystemAuditOutboxResult,
+    DispatchSystemAuditOutboxUseCase,
     SystemAuditOutboxDispatchUnavailable,
 )
 from apps.audit.infrastructure import system_audit_outbox_runtime as runtime_composition_root
@@ -18,6 +21,36 @@ from apps.audit.infrastructure.system_audit_outbox_runtime import (
 )
 
 NOW = datetime(2026, 8, 15, 12, 0, tzinfo=UTC)
+
+
+@pytest.mark.parametrize(
+    ("delivered", "failed", "outcome", "reason"),
+    (
+        (0, 0, "noop", "no_due_rows"),
+        (2, 0, "success", "dispatch_completed"),
+        (1, 1, "partial", "dispatch_partially_failed"),
+        (0, 2, "failed", "dispatch_failed"),
+    ),
+)
+def test_dispatch_task_reports_finalized_batch(
+    monkeypatch: pytest.MonkeyPatch, delivered: int, failed: int, outcome: str, reason: str
+) -> None:
+    """Expose confirmed deliveries and failures for a bounded recovery batch."""
+    dispatcher = Mock(spec=DispatchSystemAuditOutboxUseCase)
+    dispatcher.execute.return_value = DispatchSystemAuditOutboxResult(
+        requested=3, claimed=delivered + failed, delivered=delivered, failed=failed
+    )
+    monkeypatch.setattr(tasks, "get_system_audit_outbox_dispatcher", lambda: dispatcher)
+
+    result = tasks.dispatch_system_audit_outbox_task.run(limit=3, worker_id="audit-worker")
+
+    assert result["outcome"] == outcome
+    assert result["reason_code"] == reason
+    assert result["success"] == (failed == 0)
+    assert result["requested"] == 3
+    assert result["claimed"] == delivered + failed
+    assert result["delivered"] == result["succeeded"] == result["stored"] == delivered
+    assert result["failed"] == failed
 
 
 def test_dispatch_task_rejects_invalid_limit_before_composition(
@@ -43,6 +76,9 @@ def test_dispatch_task_rejects_invalid_limit_before_composition(
         "requested": 0,
         "claimed": 0,
         "delivered": 0,
+        "succeeded": 0,
+        "stored": 0,
+        "counts_unavailable": False,
         "failed": 1,
     }
 
@@ -109,8 +145,34 @@ def test_dispatch_task_returns_blocked_for_authority_preflight_failure(
         "requested": 20,
         "claimed": 0,
         "delivered": 0,
+        "succeeded": 0,
+        "stored": 0,
         "failed": 0,
     }
+
+
+@pytest.mark.parametrize(
+    ("error", "reason"),
+    (
+        (RuntimeError("completion unknown"), "dispatch_execution_failed"),
+        (SystemAuditOutboxDispatchUnavailable("claim result unknown"), "dispatch_unavailable"),
+    ),
+)
+def test_dispatch_execution_interruption_requires_receipt_reconciliation(
+    monkeypatch: pytest.MonkeyPatch, error: Exception, reason: str
+) -> None:
+    """A missing batch result cannot certify zero writes across committed transactions."""
+    dispatcher = Mock(spec=DispatchSystemAuditOutboxUseCase)
+    dispatcher.execute.side_effect = error
+    monkeypatch.setattr(tasks, "get_system_audit_outbox_dispatcher", lambda: dispatcher)
+
+    result = tasks.dispatch_system_audit_outbox_task.run(limit=2, worker_id="audit-worker")
+
+    assert result["outcome"] == "failed"
+    assert result["reason_code"] == reason
+    assert result["counts_unavailable"] is True
+    assert result["claimed"] is result["delivered"] is None
+    assert result["succeeded"] is result["stored"] is result["failed"] is None
 
 
 def test_dispatch_task_redacts_unexpected_composition_failure(

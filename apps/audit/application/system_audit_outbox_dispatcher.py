@@ -158,6 +158,8 @@ class BlockedSystemAuditOutboxDispatchResult:
             "requested": self.requested,
             "claimed": self.claimed,
             "delivered": self.delivered,
+            "succeeded": self.delivered,
+            "stored": self.delivered,
             "failed": self.failed,
         }
 

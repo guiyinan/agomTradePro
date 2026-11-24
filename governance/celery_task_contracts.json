@@ -89,6 +89,18 @@
       "source_file": "apps/audit/application/tasks.py",
       "criticality": "data_mutation_critical",
       "required_cases": {
+        "all_success": {
+          "test_file": "tests/unit/audit/test_outbox_dispatch_task_contracts.py",
+          "test_function": "test_dispatch_task_reports_finalized_batch"
+        },
+        "zero_output": {
+          "test_file": "tests/unit/audit/test_outbox_dispatch_task_contracts.py",
+          "test_function": "test_dispatch_task_reports_finalized_batch"
+        },
+        "partial_failure": {
+          "test_file": "tests/unit/audit/test_outbox_dispatch_task_contracts.py",
+          "test_function": "test_dispatch_task_reports_finalized_batch"
+        },
         "invalid_input": {
           "test_file": "tests/unit/audit/test_outbox_dispatch_task_contracts.py",
           "test_function": "test_dispatch_task_rejects_invalid_limit_before_composition"

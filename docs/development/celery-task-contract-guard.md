@@ -42,6 +42,8 @@
 
 ## 结果契约
 
+审计 outbox 投递的 `requested` 是批次上限，`claimed` 是实际领取行数；正常返回时 `succeeded/stored/delivered` 都按已确认完成投递的事件行计数。空批返回 `no_due_rows`，全失败返回 `dispatch_failed`，混合成功返回 `dispatch_partially_failed`。本任务保留混合成功时 `success=false` 的既有兼容语义，监控读取 `outcome=partial`。执行过程意外中断且未拿到批次结果时，`counts_unavailable=true`，已领取和已完成数为 null；恢复前按 outbox 状态和持久回执对账。
+
 关键任务的返回载荷必须包含 `outcome`：
 
 | outcome | 含义 | 兼容字段 `success` |
