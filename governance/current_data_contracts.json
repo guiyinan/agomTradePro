@@ -3116,6 +3116,7 @@
         "apps/broker_execution/application/query_services.py",
         "apps/broker_execution/domain/connection_freshness.py",
         "apps/broker_execution/infrastructure/broker_repository_access.py",
+        "apps/broker_execution/infrastructure/broker_agent_account_reports.py",
         "apps/broker_execution/infrastructure/broker_repository_agent_runtime.py",
         "apps/broker_execution/interface/serializers.py",
         "docs/api/qmt-agent-v1.schema.json",
@@ -3142,8 +3143,13 @@
           "\"source_observed_at\"",
           "\"received_at\""
         ],
-        "apps/broker_execution/infrastructure/broker_repository_agent_runtime.py": [
+        "apps/broker_execution/infrastructure/broker_agent_account_reports.py": [
           "reported_qmt_connected",
+          "effective_qmt_connected = bool(reported_qmt_connected and source_is_fresh)",
+          "source_observed_at",
+          "execution_constraint_schemas"
+        ],
+        "apps/broker_execution/infrastructure/broker_repository_agent_runtime.py": [
           "Agent heartbeat source or receipt is stale",
           "execution_constraint_schemas",
           "AGENT_EXECUTION_CONTRACT_UNSUPPORTED"

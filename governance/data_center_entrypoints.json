@@ -5271,7 +5271,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=9",
+      "evidence": "governed current-data contract; source_files=10",
       "id": "current_data_surface:governance/current_data_contracts.json:broker_execution.connection_status:Agent heartbeat -> GET /api/broker-execution/connections/ -> SDK connection status",
       "locator": "Agent heartbeat -> GET /api/broker-execution/connections/ -> SDK connection status",
       "path": "governance/current_data_contracts.json",
