@@ -122,10 +122,14 @@ def get_alerts(request: HttpRequest) -> dict[str, list[GlobalAlert]]:
     alerts: list[GlobalAlert] = []
 
     try:
+        from apps.account.application.interface_services import list_investment_account_options
         from apps.decision_rhythm.application.global_alert_service import (
             get_decision_rhythm_global_alert_service,
         )
 
+        user_id = getattr(user, "pk", None)
+        options = list_investment_account_options(user_id) if user_id is not None else []
+        account_ids = [str(option["value"]) for option in options]
         decision_service = get_decision_rhythm_global_alert_service()
     except Exception as exc:
         _log_context_failure("decision_alert_service", exc)
@@ -133,7 +137,7 @@ def get_alerts(request: HttpRequest) -> dict[str, list[GlobalAlert]]:
 
     if decision_service is not None:
         try:
-            quota_usage = decision_service.get_weekly_quota_usage()
+            quota_usage = decision_service.get_weekly_quota_usage(account_ids=account_ids)
             if quota_usage:
                 quota_remaining = _nonnegative_count(quota_usage["quota_remaining"])
                 usage_percent = safe_float(quota_usage["usage_percent"])
@@ -186,7 +190,7 @@ def get_alerts(request: HttpRequest) -> dict[str, list[GlobalAlert]]:
 
         try:
             high_priority_count = _nonnegative_count(
-                decision_service.count_high_priority_pending_requests()
+                decision_service.count_high_priority_pending_requests(account_ids=account_ids)
             )
             if high_priority_count > 0:
                 alerts.append(

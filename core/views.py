@@ -465,6 +465,17 @@ def decision_workspace_view(request: AuthenticatedHttpRequest) -> HttpResponse:
                 logger.warning("Initial workspace recommendation read failed: %s", exc)
         return render(request, "decision/workspace.html", context)
 
+    read_errors = (
+        AgomTradeProException,
+        DatabaseError,
+        RuntimeError,
+        KeyError,
+        TypeError,
+        ValueError,
+    )
+    unavailable: dict[str, str] = {}
+    actionable_count: int | None
+    pending_count: int | None
     # ========== Alpha Trigger 数据 ==========
     try:
         from apps.alpha_trigger.application.global_alert_service import (
@@ -473,9 +484,10 @@ def decision_workspace_view(request: AuthenticatedHttpRequest) -> HttpResponse:
 
         summary = get_alpha_trigger_global_alert_service().get_workspace_summary()
         actionable_count = min(5, len(_group_by_asset_code(summary["actionable_candidates"])))
-    except Exception as exc:
-        logger.warning("Failed to get alpha trigger data: %s", exc)
-        actionable_count = 0
+    except read_errors as exc:
+        logger.warning("Failed to get alpha trigger data: %s", type(exc).__name__)
+        actionable_count = None
+        unavailable["alpha"] = "market_alpha_unavailable"
 
     # ========== Decision Rhythm 数据 ==========
     try:
@@ -483,12 +495,17 @@ def decision_workspace_view(request: AuthenticatedHttpRequest) -> HttpResponse:
             get_decision_rhythm_global_alert_service,
         )
 
-        quota_usage = get_decision_rhythm_global_alert_service().get_weekly_quota_usage()
-        quota_remaining = quota_usage["quota_remaining"] if quota_usage else 10
-        quota_percent = quota_usage["usage_percent"] if quota_usage else 0
-    except Exception as exc:
-        logger.warning("Failed to get decision rhythm data: %s", exc)
-        quota_remaining, quota_percent = 10, 0
+        quota_usage = get_decision_rhythm_global_alert_service().get_weekly_quota_usage(
+            account_ids=account_ids
+        )
+        quota_remaining = quota_usage["quota_remaining"] if quota_usage is not None else None
+        quota_percent = quota_usage["usage_percent"] if quota_usage is not None else None
+        if quota_usage is None:
+            unavailable["quota"] = "weekly_quota_missing"
+    except read_errors as exc:
+        logger.warning("Failed to get decision rhythm data: %s", type(exc).__name__)
+        quota_remaining, quota_percent = None, None
+        unavailable["quota"] = "weekly_quota_unavailable"
 
     # ========== 决策待办列表（优先级排序） ==========
     try:
@@ -502,19 +519,25 @@ def decision_workspace_view(request: AuthenticatedHttpRequest) -> HttpResponse:
             )
         )
         pending_count = min(10, len(_group_by_asset_code(raw_pending_requests)))
-    except Exception as exc:
-        logger.warning("Failed to get pending requests: %s", exc)
-        pending_count = 0
+    except read_errors as exc:
+        logger.warning("Failed to get pending requests: %s", type(exc).__name__)
+        pending_count = None
+        unavailable["pending"] = "pending_queue_unavailable"
 
-    return JsonResponse(
-        {
-            "success": True,
-            "quota_usage_percent": quota_percent,
-            "quota_remaining": quota_remaining,
-            "pending_count": pending_count,
-            "alpha_actionable_count": actionable_count,
-        }
-    )
+    payload: dict[str, object] = {
+        "success": not unavailable,
+        "outcome": "partial" if unavailable else "success",
+        "unavailable_reasons": unavailable,
+        "quota_usage_percent": quota_percent,
+        "quota_remaining": quota_remaining,
+        "pending_count": pending_count,
+        "alpha_actionable_count": actionable_count,
+        "alpha_actionable_scope": "market",
+    }
+    if actionable_count is None and quota_remaining is None and pending_count is None:
+        payload.update(outcome="failed", code="workspace_summary_unavailable")
+        return JsonResponse(payload, status=503)
+    return JsonResponse(payload)
 
 
 @login_required
