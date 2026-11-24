@@ -11217,7 +11217,27 @@
         "source_evidence": "No active public_document provider or current calendar publication found. Retained issuer report precision gaps are in d1_e1_report_field_precision_review.",
         "remaining": "Current authority and audit, qualified sources, reversible deployment and current backup, pre-send write prediction, real E1 and independent numerical readback remain to be demonstrated.",
         "expansion_gate": "Full same-candidate S6, full coverage, capacity and four-Publication reconciliation before security two. Release 10, 100 and full universe separately. Stop on the second consecutive failure at the same stage.",
-        "s6_prepare_only": "d2843f4552a641d5903476ab9d3f0d60"
+        "s6_prepare_only": "d2843f4552a641d5903476ab9d3f0d60",
+        "historical_backup_rehearsal": {
+          "path": ".tmp/data02-guard-20261122/e1-8eaba967a-20261125/historical-migration-rehearsal.json",
+          "sha256": "1f51ebfe34204ee80911879154ae4a65a78f1729bd852e4394b15469056c3c7b"
+        },
+        "deployed_reader_reproduction": {
+          "path": ".tmp/data02-guard-20261122/e1-8eaba967a-20261125/old-reader-contract.json",
+          "sha256": "63d7f1264e8fce70af87dfc6d0402f63d54ff1895597164908ccf75520d12269"
+        },
+        "production_reader_file_binding": {
+          "path": ".tmp/data02-guard-20261122/e1-8eaba967a-20261125/production-reader-binding.json",
+          "sha256": "e2363f4dfaf247dafa4fbc4f75ac6c697205f32ed1e56937abdb033dd21a769a"
+        },
+        "deployment_compatibility": "The live reader file matches deployed Git bytes. get_facts/get_latest select financial facts independently of Publication and fail on the new native row shape. A one-shot candidate writer with existing readers retained fails this gate.",
+        "historical_backup_result": "Restored the 2026-11-18 PostgreSQL backup locally. All 11 forward and 11 reverse migrations passed before new E1 evidence. The ordered IDs and value text of 487624 existing financial facts had identical fingerprints at all three stages.",
+        "prior_isolated_prepare_terminal": {
+          "path": ".tmp/data02-guard-20261122/s6-8eaba967a-20261124/prepare-originals/terminal-observation.json",
+          "sha256": "df6d6e794b522eb6e556b2034305105341934b2a30cf08c148d08ae74203ffb6"
+        },
+        "prior_isolated_prepare_state": "complete",
+        "prior_isolated_prepare_graph_dispatches": 23
       }
     }
   ],
