@@ -202,6 +202,9 @@ class PolicyStatusSerializer(serializers.Serializer[dict[str, Any]]):
     """政策状态序列化器"""
 
     current_level = PolicyLevelField()
+    current_gear = serializers.ChoiceField(
+        choices=("neutral", "tightening", "stimulus", "unclassified")
+    )
     level_name = serializers.CharField()
     is_intervention_active = serializers.BooleanField()
     is_crisis_mode = serializers.BooleanField()

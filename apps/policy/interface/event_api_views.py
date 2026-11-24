@@ -94,6 +94,7 @@ class PolicyStatusView(APIView):
             # 序列化响应
             response_data: Payload = {
                 "current_level": output.current_level.value,
+                "current_gear": output.current_gear,
                 "level_name": output.level_name,
                 "is_intervention_active": output.is_intervention_active,
                 "is_crisis_mode": output.is_crisis_mode,

@@ -529,8 +529,15 @@ InflationLevel = Literal["up", "down", "neutral"]
 SignalStatus = Literal["pending", "approved", "rejected", "invalidated"]
 
 # Policy types
-PolicyGear = Literal["stimulus", "neutral", "tightening"]
+PolicyGear = Literal["stimulus", "neutral", "tightening", "unclassified"]
 ```
+
+Policy status and Agent context publish the effective classification in `current_level`.
+Its compatibility field `current_gear` maps an observed P0 to `neutral`, P1 to
+`tightening`, P2 and P3 to `stimulus`, and PX to `unclassified`. With no
+effective observation, the default level is P0 and its gear is `unclassified`.
+Read `requires_manual_approval`, `must_not_use_for_decision` and `blocked_reason`
+alongside the gear. PX requires manual review even when an observation is present.
 
 
 Company-action owner readbacks retain nullable tax coverage and valuation clocks. If a caller passes through `reference_returns`, preserve `status=unknown`, null amounts, `source_observed_at=null` and `must_not_use_for_decision=true`. Complete rows describe a gross, unreinvested fixed record-date reference holding using currently known original sources; they do not grant account return, available cash or financial permission. See [the owner readback contract](../api/a-share-simulated-current-reference-manual.md#公司行动读回与登记日参考持仓). No dedicated SDK/MCP workflow wrapper is introduced; existing generic TUI bridges retain server authorization and explicit confirmation.

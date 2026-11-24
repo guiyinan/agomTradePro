@@ -185,6 +185,19 @@ class PolicyStatusOutput:
     observed_at: date | None = None
 
     @property
+    def current_gear(self) -> str:
+        """Project the effective observation to the public policy gear vocabulary."""
+        if self.observed_at is None:
+            return "unclassified"
+        return {
+            PolicyLevel.PENDING: "unclassified",
+            PolicyLevel.P0: "neutral",
+            PolicyLevel.P1: "tightening",
+            PolicyLevel.P2: "stimulus",
+            PolicyLevel.P3: "stimulus",
+        }[self.current_level]
+
+    @property
     def requires_manual_approval(self) -> bool:
         """Return whether the source or its classification requires human review."""
         return self.observed_at is None or self.response_config.requires_manual_approval

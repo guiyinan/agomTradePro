@@ -24,6 +24,8 @@ def get_policy_status_payload(*, as_of_date: date | None = None) -> dict[str, An
     status = GetPolicyStatusUseCase(event_store=get_current_policy_repository()).execute(as_of_date)
     return {
         "current_level": status.current_level.value,
+        "current_gear": status.current_gear,
+        "requires_manual_approval": status.requires_manual_approval,
         "level_name": status.level_name,
         "is_intervention_active": status.is_intervention_active,
         "as_of_date": status.as_of_date.isoformat(),
