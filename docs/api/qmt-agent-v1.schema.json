@@ -141,7 +141,17 @@
         "positions": {"type": "array", "maxItems": 5000, "items": {"$ref": "#/$defs/position"}},
         "orders": {"type": "array", "maxItems": 5000, "items": {"$ref": "#/$defs/snapshotOrder"}},
         "trades": {"type": "array", "maxItems": 5000, "items": {"$ref": "#/$defs/snapshotTrade"}},
-        "payload": {"type": "object"}
+        "payload": {
+          "type": "object",
+          "properties": {
+            "valuation_close": {
+              "type": "object",
+              "properties": {
+                "sampling_challenge": {"type": "string", "maxLength": 2048, "description": "Optional opaque snapshot_challenge from the authenticated single-account heartbeat response, received before sampling and echoed with the same credential."}
+              }
+            }
+          }
+        }
       },
       "additionalProperties": false
     },

@@ -20,6 +20,7 @@ from apps.broker_execution.infrastructure.models import (
     BrokerAgentModel,
     BrokerPositionSnapshotModel,
 )
+from apps.broker_execution.snapshot_challenge import confirmed_sampling_lower_bound
 
 
 @dataclass(frozen=True, slots=True)
@@ -53,6 +54,7 @@ class SignedBrokerBalances:
     positions: tuple[SignedPosition, ...]
     content_hash: str
     signed_receipt: str
+    sampling_challenge_at: datetime | None = None
 
 
 def _amount(raw: object) -> Decimal:
@@ -113,6 +115,13 @@ def read_benchmark_broker_balances(
         received = datetime.fromisoformat(receipt["received_at"])
         credential_id = UUID(receipt["credential_id"])
         positions = payload["positions"]
+        sampling_challenge_at = confirmed_sampling_lower_bound(
+            token=close.get("sampling_challenge"),
+            agent_pk=binding.agent_id,
+            account_id=account_id,
+            credential_id=credential_id,
+            received_at=received,
+        )
         if (
             receipt["agent_pk"] != binding.agent_id
             or not receipt["request_id"]
@@ -208,4 +217,5 @@ def read_benchmark_broker_balances(
         exact,
         digest,
         evidence,
+        sampling_challenge_at,
     )

@@ -46,6 +46,24 @@ def read_current_broker_order_risk(
     *, account_id: int, client_order_id: UUID, using: str
 ) -> CurrentBrokerOrderRisk | None:
     """Hold replacement fences until the owning transaction ends and read both heads."""
+    as_of = lock_broker_risk_heads(
+        account_id=account_id, client_order_id=client_order_id, using=using
+    )
+    clock = _CheckpointClock(as_of)
+    return _read_current(
+        account_id=account_id, client_order_id=client_order_id, using=using, clock=clock
+    )
+
+
+def lock_broker_risk_heads(
+    *,
+    account_id: int,
+    client_order_id: UUID,
+    using: str,
+    write_policy: bool = False,
+    write_authorization: bool = False,
+) -> datetime:
+    """Fence both ledger heads before reading or issuing an order-bound Risk decision."""
     db = connections[using]
     if type(account_id) is not int or account_id < 1 or type(client_order_id) is not UUID:
         raise ValueError("invalid Risk checkpoint identity")
@@ -79,12 +97,23 @@ def read_current_broker_order_risk(
             raise BrokerOrderRiskAuthorizationUnavailable("risk checkpoint fences are unavailable")
         for scope, order_id in (("policy", ""), ("authorization", str(client_order_id))):
             cursor.execute(
-                "SELECT pg_advisory_xact_lock_shared(risk_broker_checkpoint_scope(%s, %s, %s))",
+                (
+                    "SELECT pg_advisory_xact_lock(risk_broker_checkpoint_scope(%s, %s, %s))"
+                    if (scope == "policy" and write_policy)
+                    or (scope == "authorization" and write_authorization)
+                    else "SELECT pg_advisory_xact_lock_shared(risk_broker_checkpoint_scope(%s, %s, %s))"
+                ),
                 (scope, account_id, order_id),
             )
         cursor.execute("SELECT clock_timestamp()")
         as_of: datetime = cursor.fetchone()[0]
-    clock = _CheckpointClock(as_of)
+    return as_of
+
+
+def _read_current(
+    *, account_id: int, client_order_id: UUID, using: str, clock: _CheckpointClock
+) -> CurrentBrokerOrderRisk | None:
+    as_of = clock.as_of
     authorization = DjangoBrokerOrderRiskAuthorizationRepository(
         using=using, clock=clock
     ).get_current_head(account_id=account_id, order_id=str(client_order_id), as_of=as_of)

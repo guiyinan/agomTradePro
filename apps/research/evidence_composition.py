@@ -30,6 +30,7 @@ from apps.research.application.evidence_scope_source_v1_provider import (
     EvidenceScopeSourceV1SelectorProvider,
 )
 from apps.research.domain.evidence_contracts import ArtifactRef
+from apps.research.domain.evidence_scope_source_v1 import EvidenceScopeSourceV1
 
 # Keep callers typed without exposing the infrastructure implementation name
 # outside this composition root.  The concrete facade remains mandatory and
@@ -173,6 +174,21 @@ def make_authorized_evidence_read_facade(
         evidence_repository,
         scope_authorizer=EvidenceScopeAuthorizer(scope_provider),
     )
+
+
+def read_evidence_scope_source_head(
+    *, source_id: str, as_of: datetime, using: str
+) -> EvidenceScopeSourceV1 | None:
+    """Read the final logical source, including terminal heads, for a server-side selector."""
+    from apps.research.infrastructure.evidence_scope_source_v1_repository import (
+        DjangoEvidenceScopeSourceV1Repository,
+    )
+
+    repository = DjangoEvidenceScopeSourceV1Repository(using=using)
+    _require_unit_of_work_key(
+        repository, expected=_django_unit_of_work_key(using), label="scope source"
+    )
+    return repository.get_current_head(source_id=source_id, as_of=as_of)
 
 
 def make_evidence_scope_source_v1_lifecycle_repository(

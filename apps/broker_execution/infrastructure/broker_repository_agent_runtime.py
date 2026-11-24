@@ -38,6 +38,7 @@ from apps.broker_execution.domain.rules import (
     validate_order_transition,
 )
 from apps.broker_execution.domain.services import approval_digest_for_order
+from apps.broker_execution.order_checkpoint_composition import verify_existing_order
 
 from .broker_repository_contract import BrokerExecutionRepositoryMixinSupport
 from .broker_trade_receipt import _TRADE_EVENTS, _read_trade_receipt, _receipt_clock, _receipt_time
@@ -159,6 +160,41 @@ _AGENT_OUTCOMES = {
     "QMT_ORDER_IDENTITY_CONFLICT": "RECONCILIATION_REQUIRED",
     "QMT_ORDER_STATUS_UNKNOWN": "RECONCILIATION_REQUIRED",
 }
+
+
+def _snapshot_rows(rows: list[dict[str, Any]]) -> list[dict[str, object]]:
+    """Preserve exact validated numbers and source timestamps in the JSON ledger."""
+    return [
+        {
+            key: (
+                value.isoformat()
+                if isinstance(value, datetime)
+                else str(value) if isinstance(value, Decimal) else value
+            )
+            for key, value in row.items()
+        }
+        for row in rows
+    ]
+
+
+def _record_agent_checkpoint(order: LiveOrderModel, action: str) -> None:
+    """Archive one server transition without exposing the lease credential."""
+    BrokerExecutionAuditModel._default_manager.create(
+        user_id=order.user_id,
+        actor_type="agent",
+        action=action,
+        account_id=order.account_id,
+        resource_type="live_order",
+        resource_id=str(order.client_order_id),
+        request_id=f"{order.client_order_id}:{order.version}",
+        after={
+            "version": order.version,
+            "status": order.status,
+            "authority_pin": order.authority_pin,
+            "agent_pk": order.agent_id,
+            "clock_source": "server",
+        },
+    )
 
 
 def _event_target(
@@ -481,7 +517,16 @@ class BrokerExecutionAgentRuntimeMixin(BrokerExecutionRepositoryMixinSupport):
                 ).exists():
                     continue
                 try:
-                    require_current_execution_price(
+                    checked = verify_existing_order(
+                        client_order_id=order.client_order_id,
+                        account_id=order.account_id,
+                        owner_user_id=order.user_id,
+                        authority_pin=order.authority_pin,
+                        payload=self._order_payload(order),
+                    )
+                    if order.approval_digest != checked.intent.sources.order.approval_digest:
+                        continue
+                    quote_deadline = require_current_execution_price(
                         asset_code=order.asset_code,
                         limit_price=order.limit_price,
                         max_deviation=binding.price_deviation_limit_pct,
@@ -503,6 +548,8 @@ class BrokerExecutionAgentRuntimeMixin(BrokerExecutionRepositoryMixinSupport):
                     captured_at__gte=now - timedelta(seconds=binding.max_snapshot_age_seconds),
                 ).exists():
                     continue
+                if timezone.now() >= min(checked.valid_until, quote_deadline):
+                    continue
                 validate_order_transition(order.status, LiveOrderStatus.LEASED.value)
                 raw_token = secrets.token_urlsafe(32)
                 OrderLeaseModel._default_manager.update_or_create(
@@ -518,6 +565,7 @@ class BrokerExecutionAgentRuntimeMixin(BrokerExecutionRepositoryMixinSupport):
                 order.status = LiveOrderStatus.LEASED.value
                 order.version += 1
                 order.save(update_fields=["status", "version", "updated_at"])
+                _record_agent_checkpoint(order, "order_lease")
                 payload = self._order_payload(order)
                 payload["lease_token"] = raw_token
                 payload["lease_expires_at"] = (now + timedelta(seconds=lease_seconds)).isoformat()
@@ -673,7 +721,15 @@ class BrokerExecutionAgentRuntimeMixin(BrokerExecutionRepositoryMixinSupport):
                 digest_invalid = True
             else:
                 validate_order_transition(order.status, LiveOrderStatus.SUBMITTING.value)
+                checked = verify_existing_order(
+                    client_order_id=order.client_order_id,
+                    account_id=order.account_id,
+                    owner_user_id=order.user_id,
+                    authority_pin=order.authority_pin,
+                    payload=current,
+                )
                 write_at = timezone.now()
+                checked.require_unexpired(write_at)
                 _require_submitting_window(
                     agent=agent, binding=binding, order=order, lease=lease, evaluated_at=write_at
                 )
@@ -690,6 +746,7 @@ class BrokerExecutionAgentRuntimeMixin(BrokerExecutionRepositoryMixinSupport):
                 order.status = LiveOrderStatus.SUBMITTING.value
                 order.version += 1
                 order.save(update_fields=["status", "version", "updated_at"])
+                _record_agent_checkpoint(order, "order_submitting")
                 result = {"accepted": True, "order": self._order_payload(order)}
         if digest_invalid:
             raise BrokerExecutionConflictError("Order approval digest is no longer valid")
@@ -834,6 +891,7 @@ class BrokerExecutionAgentRuntimeMixin(BrokerExecutionRepositoryMixinSupport):
                             "reported_event_type": raw_type,
                             "reported_status": reported,
                             "order_version": order.version + 1,
+                            "authority_pin": order.authority_pin,
                             "receipt_identity_v1": identity,
                         },
                         "occurred_at": occurred_at,
@@ -932,7 +990,12 @@ class BrokerExecutionAgentRuntimeMixin(BrokerExecutionRepositoryMixinSupport):
                             "price": fill.price,
                             "amount": fill.quantity * fill.price,
                             "occurred_at": fill.occurred_at,
-                            "payload": fill.payload,
+                            "payload": fill.payload
+                            | {
+                                "event_id": event_id,
+                                "order_version": order.version + 1,
+                                "authority_pin": order.authority_pin,
+                            },
                         },
                     )
                     if persisted_fill.order_id != order.pk:
@@ -1044,8 +1107,8 @@ class BrokerExecutionAgentRuntimeMixin(BrokerExecutionRepositoryMixinSupport):
                     "total_asset": Decimal(str(payload.get("total_asset") or "0")),
                     "payload": dict(payload.get("payload") or {})
                     | {
-                        "orders": list(payload.get("orders") or []),
-                        "trades": list(payload.get("trades") or []),
+                        "orders": _snapshot_rows(payload.get("orders") or []),
+                        "trades": _snapshot_rows(payload.get("trades") or []),
                     },
                 },
             )

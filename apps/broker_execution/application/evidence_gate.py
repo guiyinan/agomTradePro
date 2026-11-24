@@ -4,6 +4,9 @@ from __future__ import annotations
 
 from typing import NoReturn
 
+from django.conf import settings
+from django.db import connection
+
 from .use_case_errors import BrokerExecutionConflictError
 
 BROKER_ORDER_EVIDENCE_BLOCKER = "broker_order_evidence_receipt_not_integrated"
@@ -23,9 +26,18 @@ def require_broker_order_evidence(*, checkpoint: str) -> NoReturn:
 
 
 def broker_order_evidence_integrated() -> bool:
-    """Return the closed-world rollout state; no runtime bypass is supported."""
-
-    return False
+    """Permit source verification only inside the named local PostgreSQL rehearsal database."""
+    if settings.SETTINGS_MODULE != "core.settings.critical_postgres_test":
+        return False
+    db = connection.settings_dict
+    name = db["NAME"]
+    return (
+        connection.vendor == "postgresql"
+        and db["HOST"] in {"127.0.0.1", "::1"}
+        and isinstance(name, str)
+        and name.startswith("test_ash09_rehearsal_")
+        and name == db["TEST"]["NAME"]
+    )
 
 
 def blocked_lease_result() -> dict[str, object]:

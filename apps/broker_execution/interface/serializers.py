@@ -22,6 +22,20 @@ class PreviewCommitSerializer(serializers.Serializer[dict[str, Any]]):
         return attrs
 
 
+class SignedOrderCreateSerializer(serializers.Serializer[dict[str, Any]]):
+    """Select a sealed order without accepting order economics or approval claims."""
+
+    account_id = serializers.IntegerField(min_value=1)
+    client_order_id = serializers.UUIDField()
+    idempotency_key = serializers.CharField(max_length=128)
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        """Accept only the server-side order selector and its request key."""
+        if set(self.initial_data) != set(self.fields):
+            raise serializers.ValidationError("Only the signed order selector is accepted.")
+        return attrs
+
+
 class OrderActionSerializer(PreviewCommitSerializer):
     """Validate preview/commit order actions with optimistic concurrency."""
 

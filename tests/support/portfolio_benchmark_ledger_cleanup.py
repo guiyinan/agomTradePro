@@ -17,22 +17,27 @@ _TABLES = (
 
 
 @pytest.fixture
-def isolated_benchmark_ledger(transactional_db: None) -> Iterator[None]:
+def isolated_benchmark_ledger(
+    transactional_db: None, request: pytest.FixtureRequest
+) -> Iterator[None]:
     """Clear the named test's ledgers inside one exclusive transaction before Django flushes."""
     if settings.SETTINGS_MODULE != "core.settings.critical_postgres_test":
         yield
         return
-    if not str(connection.settings_dict["TEST"].get("NAME", "")).startswith(
-        "test_portfolio_benchmark_"
-    ):
+    signed_order = request.node.nodeid == (
+        "tests/component/broker_execution/test_signed_order_checkpoints.py::test_signed_account_order_checkpoints"
+    )
+    prefix = "test_ash09_rehearsal_" if signed_order else "test_portfolio_benchmark_"
+    protected_tables = (*_TABLES, "broker_execution_order_scope") if signed_order else _TABLES
+    if not str(connection.settings_dict["TEST"].get("NAME", "")).startswith(prefix):
         pytest.skip("requires a dedicated Portfolio benchmark test database")
     name = assert_native_postgres_test_database(database=connection)
-    assert name.startswith("test_portfolio_benchmark_")
+    assert name.startswith(prefix)
     assert connection.settings_dict["HOST"] in {"127.0.0.1", "::1"}
     with connection.cursor() as cursor:
         cursor.execute("SELECT inet_server_addr()::text")
         assert cursor.fetchone()[0].split("/")[0] in {"127.0.0.1", "::1"}
-        for table in _TABLES:
+        for table in protected_tables:
             cursor.execute(f"SELECT EXISTS (SELECT FROM {connection.ops.quote_name(table)})")
             assert cursor.fetchone() == (False,), "rehearsal ledger must start empty"
     try:
@@ -41,7 +46,7 @@ def isolated_benchmark_ledger(transactional_db: None) -> Iterator[None]:
         with transaction.atomic(), connection.cursor() as cursor:
             assert_native_postgres_test_database(expected_name=name, database=connection)
 
-            tables = ", ".join(connection.ops.quote_name(t) for t in _TABLES)
+            tables = ", ".join(connection.ops.quote_name(t) for t in protected_tables)
             cursor.execute(f"LOCK TABLE {tables} IN ACCESS EXCLUSIVE MODE NOWAIT")
             cursor.execute(
                 """
@@ -51,7 +56,7 @@ def isolated_benchmark_ledger(transactional_db: None) -> Iterator[None]:
                   AND NOT t.tgisinternal AND t.tgtype::integer & 32 = 32
                 ORDER BY c.relname, t.tgname
             """,
-                [list(_TABLES)],
+                [list(protected_tables)],
             )
             guards = cursor.fetchall()
             expected = {
@@ -60,9 +65,13 @@ def isolated_benchmark_ledger(transactional_db: None) -> Iterator[None]:
                 ("portfolio_benchmark_daily_valuation", "pf_bench_valuation_truncate", "A"),
                 ("portfolio_benchmark_valuation_epoch", "pf_bench_valuation_truncate", "A"),
             }
+            if signed_order:
+                expected.add(
+                    ("broker_execution_order_scope", "broker_execution_order_scope_truncate", "A")
+                )
             assert set(guards) == expected, "unexpected native rehearsal truncate fences"
             for table, trigger, enabled in guards:
-                assert table in _TABLES and enabled == "A"
+                assert table in protected_tables and enabled == "A"
                 sql_table, sql_trigger = map(connection.ops.quote_name, (table, trigger))
                 cursor.execute(f"ALTER TABLE {sql_table} DISABLE TRIGGER {sql_trigger}")
             cursor.execute(f"TRUNCATE {tables}")

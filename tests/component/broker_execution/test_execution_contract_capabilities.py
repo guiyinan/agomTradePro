@@ -7,6 +7,7 @@ import json
 from datetime import datetime, timedelta
 from decimal import Decimal
 from unittest.mock import Mock
+from uuid import uuid4
 
 import pytest
 from django.contrib.auth import get_user_model
@@ -266,6 +267,9 @@ def test_lease_rechecks_account_state_at_the_write_boundary(
 def test_lease_and_submit_recheck_the_execution_quote(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    checkpoint = Mock(valid_until=timezone.now() + timedelta(hours=1))
+    checkpoint.intent.sources.order.approval_digest = ""
+    monkeypatch.setattr(runtime, "verify_existing_order", lambda **kwargs: checkpoint)
     from apps.broker_execution.application import execution_price_guard
     from tests.component.data_center.test_execution_quote_repository import _seed_quote
 
@@ -384,6 +388,7 @@ def test_submitting_rechecks_original_deadlines_after_approval_digest(
     clock.now.return_value = now
     monkeypatch.setattr(runtime, "timezone", clock)
     monkeypatch.setattr(execution_price_guard, "timezone", clock)
+    monkeypatch.setattr(runtime, "verify_existing_order", lambda **kwargs: Mock())
     # This test exercises the subordinate temporal guards, with formal authority still closed.
     monkeypatch.setattr(runtime, "broker_order_evidence_integrated", lambda: True)
     read_quote = Mock(wraps=execution_price_guard.get_execution_quote)
@@ -440,6 +445,16 @@ def test_creation_and_approval_use_the_current_execution_quote(
         "risk_policy_version": "test-policy",
         "risk_snapshot": {"passed": True, "market_snapshot": {"current_price": "10"}},
     }
+    # This scenario is limited to market guards. The native signed-order suite owns authority.
+    payload["client_order_id"] = str(uuid4())
+    checkpoint = Mock(valid_until=now + timedelta(minutes=1))
+    checkpoint.intent.snapshot.risk_snapshot_json = json.dumps(payload["risk_snapshot"])
+    checkpoint.intent.snapshot.risk_policy_version = payload["risk_policy_version"]
+    checkpoint.pin.return_value = {}
+    monkeypatch.setattr(repositories, "verify_order_checkpoint", lambda **kwargs: checkpoint)
+    monkeypatch.setattr(
+        broker_repository_order_control, "verify_existing_order", lambda **kwargs: checkpoint
+    )
     # Exercise only the market prerequisite under the real database writer.
     monkeypatch.setattr(repositories, "broker_order_evidence_integrated", lambda: True)
     monkeypatch.setattr(

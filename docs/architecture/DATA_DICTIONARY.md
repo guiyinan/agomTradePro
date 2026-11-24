@@ -7,8 +7,8 @@
 ## 概览
 
 - App 数：42
-- 模型数：629
-- 字段数：9725
+- 模型数：630
+- 字段数：9740
 
 口径说明：仅覆盖 `apps/*/infrastructure/` 下的 `models.py`、`models/` 包与 `*_models.py`；字段为类体内显式赋值的 Django 字段，继承字段不展开，动态字段与隐式自增主键不在投影内。
 
@@ -3695,6 +3695,7 @@
 | `risk_policy_version` | `CharField` |  |  |  |  |  |
 | `risk_snapshot` | `JSONField` |  |  | dict |  |  |
 | `approval_mode` | `CharField` |  |  | manual |  |  |
+| `authority_pin` | `JSONField` |  |  | dict |  |  |
 | `approval_digest` | `CharField` |  |  |  |  |  |
 | `approved_by` | `ForeignKey` | 是 |  |  |  | settings.AUTH_USER_MODEL |
 | `approved_at` | `DateTimeField` | 是 |  |  |  |  |
@@ -3806,6 +3807,29 @@
 | `content_hash` | `CharField` |  | 是 |  |  |  |
 | `ledger_header_hash` | `CharField` |  | 是 |  |  |  |
 | `persisted_at` | `DateTimeField` |  |  |  |  |  |
+
+### BrokerOrderExecutionScopeModel
+
+- 来源文件：`apps/broker_execution/infrastructure/order_execution_scope_models.py`
+- 数据表：`broker_execution_order_scope`
+- 说明：Account-bound owner signature over immutable source identities and deadlines.
+
+| 字段 | 类型 | null | unique | 默认值 | 说明 | 关系目标 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `scope_id` | `UUIDField` |  |  |  |  |  |
+| `client_order_id` | `UUIDField` |  |  |  |  |  |
+| `order_version` | `PositiveIntegerField` |  |  |  |  |  |
+| `account_id` | `PositiveIntegerField` |  |  |  |  |  |
+| `owner_user_id` | `PositiveBigIntegerField` |  |  |  |  |  |
+| `recorded_at` | `DateTimeField` |  |  |  |  |  |
+| `valid_until` | `DateTimeField` |  |  |  |  |  |
+| `benchmark_approval_id` | `UUIDField` |  |  |  |  |  |
+| `benchmark_approval_version` | `PositiveIntegerField` |  |  |  |  |  |
+| `benchmark_content_hash` | `CharField` |  |  |  |  |  |
+| `manifest` | `JSONField` |  |  |  |  |  |
+| `content_hash` | `CharField` |  | 是 |  |  |  |
+| `issuer_mac` | `CharField` |  |  |  |  |  |
+| `revoked_at` | `DateTimeField` | 是 |  |  |  |  |
 
 ### BrokerPlanOrderBindingModel
 

@@ -143,6 +143,8 @@
     "apps/strategy/interface"
   ],
   "http_surfaces": [
+    "apps/broker_execution/interface/api_views.py::BrokerExecutionOrderListView.post",
+    "apps/broker_execution/interface/order_scope_views.py::BrokerOrderExecutionScopeView.post",
     "apps/broker_execution/interface/api_views.py::AgentCommandCompleteView.post",
     "apps/broker_execution/interface/api_views.py::AgentCommandsView.post",
     "apps/broker_execution/interface/api_views.py::AgentEventsView.post",
@@ -346,6 +348,7 @@
     "trading.submit.simulated_order"
   ],
   "notes": [
+    "Order scope preview, signature, withdrawal and creation require a scoped session. Signed execution is restricted to a dedicated local PostgreSQL rehearsal, with separate current Risk approval for the same order.",
     "Portfolio benchmark submissions, independent approvals and revocations use authenticated sessions and scoped source hashes. The approval covers the account benchmark valuation only. Live orders require their own authority.",
     "Inventory presence does not attest that the legacy surface already enforces an evidence receipt.",
     "Fee correction policy PUT requires the current active simulated-account owner, explicit expected version and operator-attestation acknowledgement; it changes evidence eligibility only, retains token write scope and session CSRF, and does not post cash, change positions or authorize orders.",

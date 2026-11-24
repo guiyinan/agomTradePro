@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import hashlib
+import json
+from collections import Counter
 from datetime import timedelta
 from decimal import Decimal, InvalidOperation
 from typing import Any, TypeVar
@@ -35,6 +37,7 @@ from .models import (
     ReconciliationRunModel,
     TradingControlModel,
 )
+from .signed_order_reconciliation import matched_signed_snapshot
 
 ModelT = TypeVar("ModelT", bound=Model)
 
@@ -361,8 +364,11 @@ class BrokerExecutionReconciliationMixin(BrokerExecutionRepositoryMixinSupport):
         binding: BrokerAccountBindingModel,
         snapshot: BrokerAccountSnapshotModel,
         projection: dict[str, Any] | None,
-    ) -> list[dict[str, Any]]:
+    ) -> tuple[
+        list[dict[str, Any]], list[tuple[LiveOrderModel, dict[str, object]]], list[tuple[str, int]]
+    ]:
         differences: list[dict[str, Any]] = []
+        matches: list[tuple[LiveOrderModel, dict[str, object]]] = []
         snapshot_payload = snapshot.payload or {}
         broker_orders = list(snapshot_payload.get("orders") or [])
         broker_trades = list(snapshot_payload.get("trades") or [])
@@ -381,6 +387,11 @@ class BrokerExecutionReconciliationMixin(BrokerExecutionRepositoryMixinSupport):
                 ]
             )
         )
+        signed_versions = sorted(
+            (str(order.client_order_id), order.version)
+            for order in server_orders
+            if order.authority_pin
+        )
         by_broker_id = {
             str(row.get("broker_order_id") or ""): row
             for row in broker_orders
@@ -395,6 +406,8 @@ class BrokerExecutionReconciliationMixin(BrokerExecutionRepositoryMixinSupport):
         server_broker_ids = {
             order.broker_order_id for order in server_orders if order.broker_order_id
         }
+        server_broker_counts = Counter(order.broker_order_id for order in server_orders)
+        trade_id_counts = Counter(str(row.get("broker_trade_id") or "") for row in broker_trades)
         for order in server_orders:
             broker_order = by_broker_id.get(order.broker_order_id) or by_client_id.get(
                 str(order.client_order_id)
@@ -427,6 +440,27 @@ class BrokerExecutionReconciliationMixin(BrokerExecutionRepositoryMixinSupport):
                         reason="VPS and QMT order statuses differ",
                     )
                 )
+            elif order.authority_pin:
+                observed = matched_signed_snapshot(
+                    order=order,
+                    snapshot=snapshot,
+                    broker_orders=broker_orders,
+                    broker_trades=broker_trades,
+                    broker_trade_id_counts=trade_id_counts,
+                )
+                if observed is None or server_broker_counts[order.broker_order_id] != 1:
+                    differences.append(
+                        self._difference(
+                            "order",
+                            str(order.client_order_id),
+                            severity="P1",
+                            expected={"version": order.version, "status": order.status},
+                            actual={"snapshot_id": snapshot.pk},
+                            reason="Signed order identity, economics or fills do not match the captured snapshot",
+                        )
+                    )
+                else:
+                    matches.append((order, observed))
         for row in broker_orders:
             client_id = str(row.get("client_order_id") or "")
             broker_id = str(row.get("broker_order_id") or "")
@@ -488,7 +522,7 @@ class BrokerExecutionReconciliationMixin(BrokerExecutionRepositoryMixinSupport):
                     reason="Unified real-account projection is unavailable",
                 )
             )
-            return differences
+            return differences, matches, signed_versions
         expected_cash = Decimal(str(projection.get("cash_available") or "0"))
         if abs(expected_cash - snapshot.cash_available) > Decimal("0.01"):
             differences.append(
@@ -529,7 +563,7 @@ class BrokerExecutionReconciliationMixin(BrokerExecutionRepositoryMixinSupport):
                         reason="Unified ledger and QMT position quantities differ",
                     )
                 )
-        return differences
+        return differences, matches, signed_versions
 
     def generate_reconciliation_runs(
         self, *, account_projections: dict[int, dict[str, Any] | None] | None = None
@@ -557,14 +591,36 @@ class BrokerExecutionReconciliationMixin(BrokerExecutionRepositoryMixinSupport):
             run_key = self._reconciliation_fingerprint(
                 snapshot_id=snapshot.pk, projection=projection
             )
-            if ReconciliationRunModel._default_manager.filter(run_key=run_key).exists():
-                duplicate += 1
-                continue
-            differences = self._collect_reconciliation_differences(
+            differences, matches, signed_versions = self._collect_reconciliation_differences(
                 binding=binding,
                 snapshot=snapshot,
                 projection=projection,
             )
+            # A new broker snapshot correction or a newly received fill can change the
+            # outcome for the same snapshot primary key. Preserve the old run and evidence.
+            if signed_versions:
+                observed_hash = hashlib.sha256(
+                    json.dumps(
+                        {
+                            "projection_key": run_key,
+                            "signed_versions": signed_versions,
+                            "orders": (snapshot.payload or {}).get("orders"),
+                            "trades": (snapshot.payload or {}).get("trades"),
+                            "cash": str(snapshot.cash_available),
+                            "differences": differences,
+                            "signed": sorted(
+                                (
+                                    (str(order.client_order_id), order.version)
+                                    for order, _observed in matches
+                                ),
+                                key=lambda pair: pair[0],
+                            ),
+                        },
+                        sort_keys=True,
+                        separators=(",", ":"),
+                    ).encode()
+                ).hexdigest()
+                run_key = f"signed-snapshot:{observed_hash}"
             counts = {
                 dimension: sum(1 for row in differences if row["dimension"] == dimension)
                 for dimension in ("order", "fill", "cash", "position")
@@ -575,27 +631,52 @@ class BrokerExecutionReconciliationMixin(BrokerExecutionRepositoryMixinSupport):
                     BrokerAccountBindingModel._default_manager.select_for_update().get(
                         pk=binding.pk
                     )
-                run = ReconciliationRunModel._default_manager.create(
-                    user_id=binding.user_id,
-                    account_id=binding.account_id,
+                run, new = ReconciliationRunModel._default_manager.get_or_create(
                     run_key=run_key,
-                    status="review_required" if differences else "completed",
-                    order_difference_count=counts["order"],
-                    fill_difference_count=counts["fill"],
-                    cash_difference_count=counts["cash"],
-                    position_difference_count=counts["position"],
-                    started_at=now,
-                    completed_at=None if differences else now,
-                    summary={
-                        "source": "qmt_snapshot_reconciliation",
-                        "snapshot_id": snapshot.pk,
-                        "snapshot_captured_at": snapshot.captured_at.isoformat(),
-                        "difference_count": len(differences),
-                        "p0_auto_stop": has_p0,
+                    defaults={
+                        "user_id": binding.user_id,
+                        "account_id": binding.account_id,
+                        "status": "review_required" if differences else "completed",
+                        "order_difference_count": counts["order"],
+                        "fill_difference_count": counts["fill"],
+                        "cash_difference_count": counts["cash"],
+                        "position_difference_count": counts["position"],
+                        "started_at": now,
+                        "completed_at": None if differences else now,
+                        "summary": {
+                            "source": "qmt_snapshot_reconciliation",
+                            "snapshot_id": snapshot.pk,
+                            "snapshot_captured_at": snapshot.captured_at.isoformat(),
+                            "difference_count": len(differences),
+                            "p0_auto_stop": has_p0,
+                        },
                     },
                 )
+                if not new:
+                    duplicate += 1
+                    continue
                 ReconciliationDifferenceModel._default_manager.bulk_create(
                     [ReconciliationDifferenceModel(run=run, **row) for row in differences]
+                )
+                BrokerExecutionAuditModel._default_manager.bulk_create(
+                    [
+                        BrokerExecutionAuditModel(
+                            user_id=order.user_id,
+                            actor_type="system",
+                            action="order_reconciled",
+                            account_id=order.account_id,
+                            resource_type="live_order",
+                            resource_id=str(order.client_order_id),
+                            request_id=str(run.pk),
+                            after=observed
+                            | {
+                                "scope": "order_and_fills",
+                                "run_id": run.pk,
+                                "run_status": run.status,
+                            },
+                        )
+                        for order, observed in matches
+                    ]
                 )
                 if has_p0:
                     control, _ = TradingControlModel._default_manager.get_or_create(

@@ -114,7 +114,9 @@ class _TestAuthorityCapture:
     authority_proof: object
 
 
-def _reader_context() -> SystemAuditReaderContext:
+def _reader_context(
+    *, tenant_id: str = "fixture-tenant", owner_id: str = "fixture-owner"
+) -> SystemAuditReaderContext:
     """Build a capability-bearing test preflight context for the activation seam."""
 
     now = datetime.now(UTC)
@@ -123,8 +125,8 @@ def _reader_context() -> SystemAuditReaderContext:
         authority_source_version="1",
         actor_id="fixture:operator",
         user_id=7,
-        tenant_id="fixture-tenant",
-        owner_id="fixture-owner",
+        tenant_id=tenant_id,
+        owner_id=owner_id,
         authority_content_hash="a" * 64,
         is_authenticated=True,
         is_staff=True,
@@ -142,6 +144,7 @@ def _seed_execution_quote(
     run_id: str | None = None,
     asset_code: str = "600000.SH",
     create_catalog: bool = True,
+    dataset: DatasetKey | None = None,
 ) -> tuple[QuoteSnapshotModel, RawAudit, str, str]:
     """Persist synthetic quote, catalog, policy, and matching successful RawAudit."""
 
@@ -150,7 +153,7 @@ def _seed_execution_quote(
     fetched_at = observed_at + timedelta(seconds=2)
     run_id = run_id or str(uuid4())
     ingested_run_id = str(uuid4())
-    dataset = DatasetKey("equity.quote.snapshot", "2.0", "1.0")
+    dataset = dataset or DatasetKey("equity.quote.snapshot", "2.0", "1.0")
     policy = PublicationPolicy(
         dataset=dataset,
         minimum_coverage_ratio=1.0,

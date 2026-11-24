@@ -6,7 +6,7 @@ from typing import Any, cast
 
 from django.apps import apps as django_apps
 from django.db import transaction
-from django.db.models import Model
+from django.db.models import Model, Q
 from django.utils import timezone
 
 from apps.risk_center.domain.entities import (
@@ -349,7 +349,7 @@ class DjangoRiskExceptionRepository(SnapshotMixin):
             is_active=True,
             expires_at__gt=now,
         )
-        qs = qs.filter(account_id__in=[account_id, None])
+        qs = qs.filter(Q(account_id=account_id) | Q(account_id__isnull=True))
         return [
             RiskException(
                 account_id=item.account_id,

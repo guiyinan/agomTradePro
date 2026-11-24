@@ -177,3 +177,25 @@ def read_live_account_owner(
         policy.content_hash,
         deadline,
     )
+
+
+def read_current_order_owner_role(*, owner_user_id: int, using: str) -> str | None:
+    """Fence the active account owner's current approved Broker role through the caller transaction."""
+    from apps.account.application.rbac import normalize_role
+    from apps.account.infrastructure.identity_models import AccountProfileModel
+
+    db = connections[using]
+    if db.vendor != "postgresql" or not db.in_atomic_block:
+        return None
+    users, profiles = (db.ops.quote_name(m._meta.db_table) for m in (User, AccountProfileModel))
+    with db.cursor() as cursor:
+        cursor.execute(
+            f"""
+            SELECT u.is_superuser, p.rbac_role FROM {users} u JOIN {profiles} p ON p.user_id=u.id
+            WHERE u.id=%s AND u.is_active AND p.approval_status='approved'
+            FOR SHARE OF u, p NOWAIT
+        """,
+            [owner_user_id],
+        )
+        result = cursor.fetchone()
+    return None if result is None else ("admin" if result[0] else normalize_role(result[1]))

@@ -23,6 +23,7 @@ from apps.broker_execution.domain.rules import (
     target_status_for_order_action,
 )
 from apps.broker_execution.domain.services import approval_digest_for_order
+from apps.broker_execution.order_checkpoint_composition import verify_existing_order
 
 from .broker_repository_contract import BrokerExecutionRepositoryMixinSupport
 from .models import (
@@ -75,6 +76,16 @@ class BrokerExecutionOrderControlMixin(BrokerExecutionRepositoryMixinSupport):
         except IntegrityError as exc:
             raise BrokerExecutionConflictError("Concurrent idempotent write conflict") from exc
 
+    def _verify_order_replay(self, order: LiveOrderModel) -> None:
+        checked = verify_existing_order(
+            client_order_id=order.client_order_id,
+            account_id=order.account_id,
+            owner_user_id=order.user_id,
+            authority_pin=order.authority_pin,
+            payload=self._order_payload(order),
+        )
+        checked.require_unexpired(timezone.now())
+
     def mutate_order(
         self,
         *,
@@ -96,17 +107,13 @@ class BrokerExecutionOrderControlMixin(BrokerExecutionRepositoryMixinSupport):
             idempotency_key=idempotency_key,
             request_digest=request_digest,
         )
-        if replay is not None:
+        if replay is not None and action != "approve":
             return replay
         with transaction.atomic():
             queryset = LiveOrderModel._default_manager.select_for_update()
             order = queryset.filter(client_order_id=client_order_id).first()
             if order is None:
                 raise BrokerExecutionNotFoundError("Live order does not exist")
-            if order.version != int(expected_version):
-                raise BrokerExecutionConflictError(
-                    "Order changed after preview; preview the current version again"
-                )
             if not self.has_account_access(
                 user_id=user_id,
                 is_admin=is_admin,
@@ -114,6 +121,20 @@ class BrokerExecutionOrderControlMixin(BrokerExecutionRepositoryMixinSupport):
                 action=action,
             ):
                 raise BrokerExecutionPermissionError("Account access is not authorized")
+            if action == "approve":
+                replay = self._replay_or_conflict(
+                    user_id=user_id,
+                    action=idempotency_action,
+                    idempotency_key=idempotency_key,
+                    request_digest=request_digest,
+                )
+                if replay is not None:
+                    self._verify_order_replay(order)
+                    return replay
+            if order.version != int(expected_version):
+                raise BrokerExecutionConflictError(
+                    "Order changed after preview; preview the current version again"
+                )
             before = self._order_payload(order)
             target_status = target_status_for_order_action(order.status, action)
             if action == "approve":
@@ -138,7 +159,14 @@ class BrokerExecutionOrderControlMixin(BrokerExecutionRepositoryMixinSupport):
                     raise BrokerExecutionConflictError(
                         "Trading is stopped; the order cannot be approved"
                     )
-                require_current_execution_price(
+                checked = verify_existing_order(
+                    client_order_id=order.client_order_id,
+                    account_id=order.account_id,
+                    owner_user_id=order.user_id,
+                    authority_pin=order.authority_pin,
+                    payload=before,
+                )
+                quote_deadline = require_current_execution_price(
                     asset_code=order.asset_code,
                     limit_price=order.limit_price,
                     max_deviation=binding.price_deviation_limit_pct,
@@ -148,6 +176,9 @@ class BrokerExecutionOrderControlMixin(BrokerExecutionRepositoryMixinSupport):
                 order.approval_digest = approval_digest_for_order(before)
                 order.approved_by_id = user_id
                 order.approved_at = timezone.now()
+                checked.require_unexpired(order.approved_at)
+                if order.approved_at >= quote_deadline:
+                    raise BrokerExecutionConflictError("execution_quote_stale")
             target = target_status.value
             order.status = target
             order.version += 1
@@ -171,7 +202,7 @@ class BrokerExecutionOrderControlMixin(BrokerExecutionRepositoryMixinSupport):
                 resource_type="live_order",
                 resource_id=str(order.client_order_id),
                 before=before,
-                after=after,
+                after=after | {"authority_pin": order.authority_pin, "clock_source": "server"},
                 reason=reason,
                 request_id=idempotency_key,
             )

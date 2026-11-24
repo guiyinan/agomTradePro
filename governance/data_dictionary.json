@@ -24065,6 +24065,15 @@
               "positional_args": []
             },
             {
+              "field_type": "JSONField",
+              "kwargs": {
+                "blank": true,
+                "default": "dict"
+              },
+              "name": "authority_pin",
+              "positional_args": []
+            },
+            {
               "field_type": "CharField",
               "kwargs": {
                 "blank": true,
@@ -24750,6 +24759,113 @@
             "indexes": "[models.Index(fields=('client_order_id', 'order_version', 'recorded_at'), name='broker_ord_ap_art_pit_ix')]"
           },
           "source_file": "infrastructure/order_approval_artifact_models.py"
+        },
+        {
+          "bases": [
+            "models.Model"
+          ],
+          "class_name": "BrokerOrderExecutionScopeModel",
+          "docstring": "Account-bound owner signature over immutable source identities and deadlines.",
+          "fields": [
+            {
+              "field_type": "UUIDField",
+              "kwargs": {
+                "primary_key": true
+              },
+              "name": "scope_id",
+              "positional_args": []
+            },
+            {
+              "db_index": true,
+              "field_type": "UUIDField",
+              "kwargs": {
+                "db_index": true
+              },
+              "name": "client_order_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "PositiveIntegerField",
+              "name": "order_version",
+              "positional_args": []
+            },
+            {
+              "field_type": "PositiveIntegerField",
+              "name": "account_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "PositiveBigIntegerField",
+              "name": "owner_user_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "name": "recorded_at",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "name": "valid_until",
+              "positional_args": []
+            },
+            {
+              "field_type": "UUIDField",
+              "name": "benchmark_approval_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "PositiveIntegerField",
+              "name": "benchmark_approval_version",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "benchmark_content_hash",
+              "positional_args": []
+            },
+            {
+              "field_type": "JSONField",
+              "name": "manifest",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64,
+                "unique": true
+              },
+              "name": "content_hash",
+              "positional_args": [],
+              "unique": true
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "issuer_mac",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "kwargs": {
+                "null": true
+              },
+              "name": "revoked_at",
+              "null": true,
+              "positional_args": []
+            }
+          ],
+          "meta": {
+            "app_label": "broker_execution",
+            "constraints": "[models.UniqueConstraint(fields=('client_order_id', 'order_version'), name='uq_broker_order_signed_version')]",
+            "db_table": "broker_execution_order_scope"
+          },
+          "source_file": "infrastructure/order_execution_scope_models.py"
         },
         {
           "bases": [
