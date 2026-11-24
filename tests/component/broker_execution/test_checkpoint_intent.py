@@ -29,7 +29,20 @@ from tests.component.broker_execution import test_pre_risk_execution_scope_repos
 
 
 @pytest.mark.django_db
-def test_real_persisted_order_intent_and_later_artifact_supersession(monkeypatch):
+@pytest.mark.parametrize(
+    ("row_changes", "accepted"),
+    [
+        ({}, True),
+        ({"status": "partial", "remaining_quantity": 900}, True),
+        ({"status": "blocked"}, False),
+        ({"asset_code": "000001.SZ"}, False),
+        ({"side": "sell"}, False),
+        ({"quantity": 200}, False),
+    ],
+)
+def test_real_persisted_order_intent_and_later_artifact_supersession(
+    monkeypatch, row_changes, accepted
+):
     order = orders._artifact()
     stored_at = orders.RECORDED_AT
     cutoff = stored_at + timedelta(minutes=1)
@@ -38,6 +51,7 @@ def test_real_persisted_order_intent_and_later_artifact_supersession(monkeypatch
     with ledger.atomic():
         ledger.append(order, recorded_at=stored_at)
     plan = plans._binding(
+        plan_order_payload_json=plans._payload(**row_changes),
         order_artifact_identity_hash=order.identity_hash,
         order_artifact_content_hash=order.content_hash,
         order_approval_digest=order.approval_digest,
@@ -75,6 +89,10 @@ def test_real_persisted_order_intent_and_later_artifact_supersession(monkeypatch
         scope_ledger.append(scope, recorded_at=stored_at, expected_predecessor_hash=None)
 
     order_uuid = UUID(order.client_order_id)
+    if not accepted:
+        with pytest.raises(BrokerExecutionConflictError, match="plan_order_terms_mismatch"):
+            resolve_current_intent(client_order_id=order_uuid, using="default")
+        return
     resolved = resolve_current_intent(client_order_id=order_uuid, using="default")
     assert resolved.snapshot == order.approval_snapshot
     assert resolved.owner_user_id == account.owner_user_id

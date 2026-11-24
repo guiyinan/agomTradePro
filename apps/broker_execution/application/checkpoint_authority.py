@@ -65,6 +65,14 @@ class BrokerCheckpointSources:
     def require_matches(self, intent: BrokerCheckpointIntent, as_of: datetime) -> None:
         """Reject a crossed source, stale receipt, altered economics or unbound plan."""
         order, plan, account, pre_risk = self.order, self.plan, self.account, self.pre_risk
+        row = plan.plan_order_payload
+        if (
+            row["status"] == "blocked"
+            or row["asset_code"] != intent.snapshot.asset_code
+            or row["side"] != intent.snapshot.side.value.lower()
+            or row["quantity"] != intent.snapshot.quantity
+        ):
+            raise BrokerExecutionConflictError("broker_checkpoint_plan_order_terms_mismatch")
         if not (
             order.client_order_id
             == str(intent.client_order_id)
