@@ -286,6 +286,8 @@ Agent 本地提交 `e5749eb30` 已验证断连后按原回报 ID 重放、暂停
 
 上游每日估值和基准显式批准归 Evidence 整改计划 M3 管理。其第 6 节定义账户基准的币种、估值截止时间与外部现金流口径。[Evidence 整改计划](evidence-governance-and-decision-hard-gate-remediation-plan-2026-08-12.md)
 
+Owner 已将 Portfolio 上游正式签发链纳入本轮。以 `ea92250b2` 为隔离起点，Portfolio 按第 6 节的已有规则完成逐日估值及独立审批、撤销。Broker 将订单、账户、Research 来源及该次审批固化到订单执行范围，Risk 按同一范围签发。由 ASH-09 主会话依次整合 `apps/portfolio`、`apps/broker_execution`、`apps/risk_center` 的对应验收批。最近的可提交事项为验证当日账本及基准估值、按账户签发并读取精确审批。生产保持关闭。
+
 ## 14. ASH-10：真实账户复盘
 
 1. 先对齐初始资产、入出金、分红、费用、成交和期末估值，区分投资收益与外部现金流；按任务明确时间加权或资金加权口径。
