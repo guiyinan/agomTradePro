@@ -11188,6 +11188,36 @@
         "bilingual_display_consistency_only": "Existing numeric 0/0 checker reports eight display-value matches from separately label-extracted Chinese/English texts; both documents are issuer disclosures and this is not independent API reconciliation.",
         "actual_provider_response_or_catalog_qualification_claimed": false,
         "d1_full_matrix_passed": false
+      },
+      "single_security_e1_owner_gate": {
+        "decision_date_beijing": "2026-11-25",
+        "candidate": "8eaba967a047d1f7e22c6084ca613a36cf371588",
+        "owner_scope": {
+          "path": ".tmp/data02-guard-20261122/e1-8eaba967a-20261125/owner-scope.json",
+          "sha256": "fd31eacd9ab4adceeaf4b07378de5ff7159935b6dbe12e973178eaa68e9b25fa"
+        },
+        "approval_call": "call_7d4b7f5706de407aa292611f1007a587",
+        "scope_ref": "followups[14].selected_e1_scope",
+        "main_metrics": 7,
+        "balance_metrics": 3,
+        "status": "blocked_before_first_request",
+        "physical_e1_requests": 0,
+        "production_e1_business_writes": 0,
+        "publication_activated": false,
+        "preflight": {
+          "path": ".tmp/data02-guard-20261122/e1-8eaba967a-20261125/production-preflight.json",
+          "sha256": "effc366e3b4c4a470bee5dd205fdb4c3d9e0cc821de28a28ec1930fd86d9a244"
+        },
+        "schema_delta": {
+          "path": ".tmp/data02-guard-20261122/e1-8eaba967a-20261125/schema-delta.json",
+          "sha256": "ed472ae943036ae9260d33d418d9326f35a22ed1beb67ebd2a3149741c4e905f"
+        },
+        "production_revision": "4149a9cf4a3738f38d0ca62979fa9bfed56a6a07",
+        "runtime_and_storage": "Production lacks the E1 command and exact storage. The data_center dependency delta from 0107 to 0118 is 11 migrations.",
+        "source_evidence": "No active public_document provider or current calendar publication found. Retained issuer report precision gaps are in d1_e1_report_field_precision_review.",
+        "remaining": "Current authority and audit, qualified sources, reversible deployment and current backup, pre-send write prediction, real E1 and independent numerical readback remain to be demonstrated.",
+        "expansion_gate": "Full same-candidate S6, full coverage, capacity and four-Publication reconciliation before security two. Release 10, 100 and full universe separately. Stop on the second consecutive failure at the same stage.",
+        "s6_prepare_only": "d2843f4552a641d5903476ab9d3f0d60"
       }
     }
   ],

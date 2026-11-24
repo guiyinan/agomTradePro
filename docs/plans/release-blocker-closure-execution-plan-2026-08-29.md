@@ -573,7 +573,7 @@ Owner 本次要求更新现有计划和看板、清理过时阻塞，暂缓任�
 
 | 次序 | 既有单元 | 推进方式 | 必须满足的退出条件 |
 | --- | --- | --- | --- |
-| 先完成数据闭环 | DATA-02 | 冻结候选的完整 S6 → 满足部署门禁 → 单证券真实 E1 → 正式批处理接线与完整资产池逐批对账；E1 冻结期间只修必要阻塞 | 保留真实来源观测/可用时间及原件；native Main/Balance、C2 witness、D1 精确数值验证进入正式写入及写后读回；完整冻结 universe 的 quote/price/valuation/financial 四 Publication 达到覆盖、历史深度、新鲜度、指标完整性及治理容差要求。单资产、离线报告或 partial 成功不关闭全单元 |
+| 先完成数据闭环 | DATA-02 | 固定候选通过单证券生产门后执行 E1，独立读回并逐项对账。第 2 只证券前通过同候选完整 S6、全量行情覆盖、容量及四类 Publication 对账，再按 10 只、100 只、全量分别放行。同阶段连续失败两次即停止请求并修复确定性问题 | 保留真实来源观测/可用时间及原件；native Main/Balance、C2 witness、D1 精确数值验证进入正式写入及写后读回；完整冻结 universe 的 quote/price/valuation/financial 四 Publication 达到覆盖、历史深度、新鲜度、指标完整性及治理容差要求。单资产、离线报告或 partial 成功不关闭全单元 |
 | 数据收尾期间准备 | EVID-01/02、AUD-03、STRAT-01 | 准备真实身份/账户范围、审批与审计验收输入，核对同候选 dry-run；不等 DATA-02 结束后才找输入，也不新增仓库执行焦点 | 准备不等于退出。生产写入必须先满足本动作实际所需权限/审计；EVID/AUD 完整生产验收不因某次 lease 有效而豁免 |
 | 数据退出后优先推进 | DATA-03 | 仅在 DATA-02 整单元退出后做严格 preflight、受审计 CAS 激活、立即复验与漂移自动 re-block | §6.2 的三项数据 preflight 全部 ok 且无 must-not-use，decision-ready=200、完整检查通过；同候选完成行情至少 3 个交易日加周末、宏观 2 个调度周期的真实观察及 smoke；维护状态解除须具备适用 Owner 批准。任一 stale/conflict/身份漂移重新阻断 |
 | 分单元合批生产验收 | EVID-01/02、AUD-03、DATA-18 | 复用未变化且身份/时间窗仍有效的输入，分别按真实使用路径收口；动作前置先满足，不把“后收口”误作“先无权限执行” | EVID-01：真实用户/tenant/owner/account 范围、current/revocation、生产 composition、独立复核与 Owner 签收；EVID-02：真实审批及 PostgreSQL first-winner/successor/current-head/撤销/回滚证据；AUD-03：迁移回滚、积压恢复、告警、管理 TUI、归档恢复与生产签收；DATA-18：原 R1–R4/S1–S6、无隐式写入、API/SDK/MCP/浏览器、PG 并发与真实 provider 预演门全部满足。各单元单独记结论，不互相代验 |
