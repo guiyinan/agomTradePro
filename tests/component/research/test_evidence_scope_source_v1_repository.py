@@ -93,12 +93,11 @@ class _NoObservationProvider:
 
 
 @pytest.fixture(autouse=True)
-def _schema(django_db_blocker: object) -> Iterator[None]:
+def _schema(transactional_db: None) -> Iterator[None]:
     """Create only the target table, avoiding the full project migration graph."""
 
-    with django_db_blocker.unblock():  # type: ignore[attr-defined]
-        with isolated_schema((EvidenceScopeSourceV1Model,)):
-            yield
+    with isolated_schema((EvidenceScopeSourceV1Model,)):
+        yield
 
 
 def _artifact(identifier: str = "operator-1") -> ArtifactRef:

@@ -122,12 +122,11 @@ def test_read_phase_reuses_rbac_closed_world_and_new_phase_reloads() -> None:
 
 
 @pytest.fixture(autouse=True)
-def _schema(django_db_blocker: object) -> Iterator[None]:
-    with django_db_blocker.unblock():  # type: ignore[attr-defined]
-        with isolated_schema(
-            (AccountRbacAuthoritySourceV3AnchorModel, AccountRbacAuthoritySourceV3Model)
-        ):
-            yield
+def _schema(transactional_db: None) -> Iterator[None]:
+    with isolated_schema(
+        (AccountRbacAuthoritySourceV3AnchorModel, AccountRbacAuthoritySourceV3Model)
+    ):
+        yield
 
 
 def _repository() -> DjangoAccountRbacAuthoritySourceV3Repository:

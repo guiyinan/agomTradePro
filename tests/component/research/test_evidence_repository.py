@@ -63,14 +63,13 @@ class _FailingClock:
 
 
 @pytest.fixture(autouse=True)
-def _schema(django_db_blocker: object) -> Iterator[None]:
+def _schema(transactional_db: None) -> Iterator[None]:
     """Create only the three evidence tables used by this component module."""
 
-    with django_db_blocker.unblock():  # type: ignore[attr-defined]
-        with isolated_schema(
-            (EvidenceOperatorSpecModel, EvidenceTrackRecordModel, EvidenceEnvelopeModel)
-        ):
-            yield
+    with isolated_schema(
+        (EvidenceOperatorSpecModel, EvidenceTrackRecordModel, EvidenceEnvelopeModel)
+    ):
+        yield
 
 
 def _artifact(identifier: str, digest: str) -> ArtifactRef:
