@@ -9,7 +9,7 @@ from decimal import Decimal
 from typing import TypeVar
 
 from django.db import connection, models, transaction
-from django.db.models import OuterRef, QuerySet, Subquery
+from django.db.models import OuterRef, Q, QuerySet, Subquery
 
 from core.exceptions import DataFetchError
 
@@ -24,15 +24,19 @@ VersionedFact = TypeVar(
 
 
 def latest_fact_revisions(
-    model: type[VersionedFact], natural_key: tuple[str, ...]
+    model: type[VersionedFact], natural_key: tuple[str, ...], *, within: Q | None = None
 ) -> QuerySet[VersionedFact]:
-    """Select one newest revision per source natural key for unpinned raw reads."""
+    """Select the newest eligible revision per source natural key."""
+
+    rows = model._default_manager.all()
+    if within is not None:
+        rows = rows.filter(within)
     newest = (
-        model._default_manager.filter(**{name: OuterRef(name) for name in natural_key})
+        rows.filter(**{name: OuterRef(name) for name in natural_key})
         .order_by("-revision_number", "-pk")
         .values("pk")[:1]
     )
-    return model._default_manager.filter(pk=Subquery(newest))
+    return rows.filter(pk=Subquery(newest))
 
 
 def latest_versioned_rows_for_assets(

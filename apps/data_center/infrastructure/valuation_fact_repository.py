@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from datetime import UTC, date, datetime
+from itertools import groupby
 
-from django.db.models import Max
+from django.db.models import F, Max, Q
 
 from apps.data_center.domain.control_plane import PublicationFactReference
 from apps.data_center.domain.entities import ValuationFact
@@ -20,6 +21,14 @@ from .published_fact_versions import (
 )
 
 _NATURAL_KEY = ("asset_code", "val_date", "source")
+_VALUATION_ORDER = (
+    "val_date",
+    "observed_at",
+    "available_at",
+    "fetched_at",
+    "revision_number",
+    "id",
+)
 
 
 class ValuationFactRepository:
@@ -193,6 +202,33 @@ class ValuationFactRepository:
             references.append(_valuation_publication_reference(row, now=now))
         return references
 
+    def list_audited_valuation_candidates(
+        self,
+        asset_codes: tuple[str, ...],
+        audit_sources: Mapping[str, str],
+        observation_date: date | None,
+    ) -> list[PublicationFactReference]:
+        """Rank only facts owned by the exact RawAudit ingestion/source pairs."""
+
+        if not audit_sources:
+            raise ValueError("Audited valuation selection requires an ingestion and source")
+        owners = Q()
+        for ingested_run_id, source in audit_sources.items():
+            owners |= Q(ingested_run_id=ingested_run_id, source=source)
+        rows = latest_fact_revisions(ValuationFactModel, _NATURAL_KEY, within=owners).filter(
+            asset_code__in=asset_codes
+        )
+        if observation_date is not None:
+            rows = rows.filter(val_date=observation_date)
+        ordered = rows.order_by(
+            "asset_code", *(F(field).desc(nulls_last=True) for field in _VALUATION_ORDER)
+        )
+        now = datetime.now(UTC)
+        return [
+            _valuation_publication_reference(next(revisions), now=now)
+            for _, revisions in groupby(ordered.iterator(), key=lambda row: row.asset_code)
+        ]
+
     def list_current_publication_candidates(
         self,
         asset_codes: tuple[str, ...],
@@ -204,14 +240,7 @@ class ValuationFactRepository:
             natural_key=_NATURAL_KEY,
             asset_codes=asset_codes,
             observation_field="val_date",
-            asset_order=(
-                "-val_date",
-                "-observed_at",
-                "-available_at",
-                "-fetched_at",
-                "-revision_number",
-                "-id",
-            ),
+            asset_order=tuple(f"-{field}" for field in _VALUATION_ORDER),
         )
         now = datetime.now(UTC)
         return [_valuation_publication_reference(row, now=now) for row in rows]

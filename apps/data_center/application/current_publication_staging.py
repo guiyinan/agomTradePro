@@ -60,6 +60,7 @@ class CurrentPublicationStageCommand:
     raw_audit_bindings: tuple[CurrentPublicationStageRawAuditBinding, ...]
     scope_exclusions: tuple[CurrentPublicationScopeExclusion, ...] = ()
     required_observation_date: date | None = None
+    expected_valuation_gaps: tuple[str, ...] | None = None
 
     def __post_init__(self) -> None:
         if not self.asset_codes or any(not code.strip() for code in self.asset_codes):
@@ -193,16 +194,9 @@ class CurrentPublicationStagingUseCase:
         if type(command) is not CurrentPublicationStageCommand:
             raise CurrentPublicationStagingError("staging command has an invalid type")
         try:
-            candidate = self._rebuilder.prepare_candidate(
-                asset_codes=command.asset_codes,
-                published_at=command.published_at,
-                run_id=command.run_id,
-                scope_exclusions=command.scope_exclusions,
-                required_observation_date=command.required_observation_date,
-            )
             raw_references = self._raw_audit_resolver.resolve(
                 command.raw_audit_bindings,
-                dataset_key=candidate.publication.dataset_key,
+                dataset_key=self._rebuilder.dataset.dataset_key,
             )
             if len(raw_references) != len(command.raw_audit_bindings):
                 raise ValueError("RawAudit resolver returned an incomplete reference set")
@@ -226,6 +220,24 @@ class CurrentPublicationStagingUseCase:
                     binding.expected_source_type
                 )
 
+            candidate = self._rebuilder.prepare_candidate(
+                asset_codes=command.asset_codes,
+                published_at=command.published_at,
+                run_id=command.run_id,
+                scope_exclusions=command.scope_exclusions,
+                required_observation_date=command.required_observation_date,
+                valuation_audit_sources=(
+                    source_types_by_ingested_run_id
+                    if self._rebuilder.dataset.dataset_key == "equity.valuation.fact"
+                    else None
+                ),
+            )
+            if command.expected_valuation_gaps is not None and (
+                candidate.publication.dataset_key != "equity.valuation.fact"
+                or tuple(block.asset_code for block in candidate.publication.scope_blocks)
+                != command.expected_valuation_gaps
+            ):
+                raise ValueError("Staged valuation gaps differ from the audited refresh")
             manifest = CandidateRawAuditManifest.create(
                 publication_id=candidate.publication.publication_id,
                 publication_hash=candidate.publication.publication_hash,

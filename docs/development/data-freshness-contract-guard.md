@@ -508,7 +508,7 @@ S6 HTTP 观察器消费响应后，须为 identity 编码响应恢复由同一�
 窗口时必须返回 `canonical_publication_stale`。预演不得通过延长正式新鲜度或把执行时间写成
 源观测时间来获得成功。
 
-当前估值的 `requested` 始终是运行时冻结的完整 active universe。缺口由 `requested - target_session_succeeded` 动态计算，禁止把某次故障的证券代码、数量或排除结果写入生产规则。只有活动政策 `allow_partial=true`、实际覆盖率达到 `minimum_coverage_ratio`、逐证券原因均为 `valuation_source_data_unavailable` 且 Publication scope block 与事实集合可对账时，合格成员才可形成 `partial` 发布。报价仍要求完整；政策缺失、低于门槛、来源日期不符或证据链不完整继续全局阻断。
+当前估值的 `requested` 始终是运行时冻结的完整 active universe。预览与候选发布在目标交易日内，先按本轮 RawAudit 的采集批次与实际来源筛选估值事实，再按证券选取版本。缺口由 `requested - target_session_succeeded` 动态计算，禁止把某次故障的证券代码、数量或排除结果写入生产规则。只有活动政策 `allow_partial=true`、实际覆盖率达到 `minimum_coverage_ratio`、逐证券原因均为 `valuation_source_data_unavailable` 且 Publication scope block 与事实集合可对账时，合格成员才可形成 `partial` 发布。报价仍要求完整；政策缺失、低于门槛、来源日期不符或证据链不完整继续全局阻断。
 
 全市场完成会话发布必须把本次目标交易日显式绑定到 quote 与 valuation 的 Publication candidate 选择。候选 repository 的 `latest` 结果属于其他交易日时，只能作为本次会话缺口处理，不能用旧事实补足本次覆盖；完整 active universe 仍作为 requested 分母。valuation 自然键中的 `val_date` 必须与 `observed_at` 推导的中国市场日期一致，不一致时失败关闭，禁止选择其中任一日期来掩盖脏事实。目标日筛选后的 valuation 缺口只有在既有版本化 partial 政策和覆盖率门槛同时满足时才能生成 scope block；未声明的额外缺口、低于门槛、未知数据集绑定或保留成员日期不一致均失败关闭并保留旧 Publication。其他未参与本次会话刷新的数据集不得被这个日期绑定隐式过滤。
 

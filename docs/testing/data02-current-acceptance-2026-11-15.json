@@ -10216,6 +10216,17 @@
                               }
                             },
                             "two_stock_s6": {
+                              "valuation_audit_repair": {
+                                "candidate_sha": "1356aacd16b90f18b02bfc8f9a8a8fd76d158ae8",
+                                "parent_sha": "7cfa83a2f5b48f38dbc615f04c3b367061547e17",
+                                "fix": "Select valuation facts by audited ingestion and actual source before ranking eligible revisions. Preserve the frozen denominator and recheck exact valuation gaps before staging.",
+                                "verification": "Local PostgreSQL fixture: 5581 requested, 5570 selected, 11 missing, 384 other-source rows retained. Final PostgreSQL group activation, SQLite staging and full mypy ceiling passed.",
+                                "local_evidence": {
+                                  "path": ".tmp/data02-guard-20261122/valuation-bound-local/candidate-verification.json",
+                                  "sha256": "482c1046b6eb07bc243618185ea201f7f75bc968f1c1056620d71453ae8a8539"
+                                },
+                                "remote_ci_or_s6": false
+                              },
                               "overnight_fresh_attempt": {
                                 "attempt_id": "05c231bd41164426a33b499539c4ec3b",
                                 "candidate_sha": "7cfa83a2f5b48f38dbc615f04c3b367061547e17",

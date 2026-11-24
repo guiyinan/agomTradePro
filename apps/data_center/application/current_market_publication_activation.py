@@ -206,6 +206,7 @@ def stage_and_activate_current_market_group(
     scope_exclusions_by_dataset: Mapping[str, tuple[CurrentPublicationScopeExclusion, ...]],
     raw_audit_bindings_by_dataset: Mapping[str, tuple[CurrentPublicationStageRawAuditBinding, ...]],
     preflight_context: SystemAuditReaderContext,
+    expected_valuation_gaps: tuple[str, ...] | None = None,
 ) -> CoreCurrentPublicationRebuildResult:
     """Stage all fixed datasets, then activate their exact candidates as one group."""
 
@@ -272,6 +273,9 @@ def stage_and_activate_current_market_group(
                     run_id=run_id,
                     task_attempt_id=task_attempt_id,
                     raw_audit_bindings=raw_audit_bindings_by_dataset[dataset_key],
+                    expected_valuation_gaps=(
+                        expected_valuation_gaps if dataset_key == "equity.valuation.fact" else None
+                    ),
                     scope_exclusions=scope_exclusions_by_dataset.get(dataset_key, ()),
                     required_observation_date=required_observation_date,
                 )

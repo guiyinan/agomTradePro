@@ -8822,6 +8822,11 @@
           "test_function": "test_cn_market_session_close_maps_to_official_close_in_utc"
         },
         {
+          "case": "valuation_preview_and_stage_preserve_raw_audit_owned_scope",
+          "test_file": "tests/component/data_center/test_current_publication_staging.py",
+          "test_function": "test_valuation_sync_reference_stages_actual_source_and_rejects_route_binding_postgresql"
+        },
+        {
           "case": "policy_allowed_partial_valuation_keeps_full_denominator",
           "test_file": "tests/unit/data_center/test_current_publication_rebuild.py",
           "test_function": "test_rebuild_publishes_policy_allowed_partial_valuation_with_scope_block"

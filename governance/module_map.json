@@ -4394,6 +4394,7 @@
           "current_publication_evidence_blocked_reason"
         ],
         "application/current_publication_rebuild.py": [
+          "AuditedValuationCandidateRepository",
           "CoreCurrentPublicationPreview",
           "CoreCurrentPublicationRebuildResult",
           "CoreCurrentPublicationRebuildUseCase",

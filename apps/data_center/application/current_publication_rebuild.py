@@ -48,6 +48,19 @@ class CurrentPublicationCandidateRepositoryProtocol(Protocol):
         """Return deterministic current fact references for the requested assets."""
 
 
+@runtime_checkable
+class AuditedValuationCandidateRepository(Protocol):
+    """Select valuation rows owned by the supplied ingestion and source pairs."""
+
+    def list_audited_valuation_candidates(
+        self,
+        asset_codes: tuple[str, ...],
+        audit_sources: Mapping[str, str],
+        observation_date: date | None,
+    ) -> list[PublicationFactReference]:
+        """Return at most one audit-owned valuation per requested asset."""
+
+
 class ExecutionPublicationCandidateGuardProtocol(Protocol):
     """Verify an execution quote candidate against active catalog versions."""
 
@@ -125,6 +138,7 @@ class CurrentPublicationRebuildUseCase:
         published_at: datetime,
         scope_exclusions: Sequence[CurrentPublicationScopeExclusion] = (),
         required_observation_date: date | None = None,
+        valuation_audit_sources: Mapping[str, str] | None = None,
     ) -> CurrentPublicationPreview:
         """Inspect exact coverage without writing publication state."""
 
@@ -139,6 +153,7 @@ class CurrentPublicationRebuildUseCase:
             excluded_asset_codes=frozenset(item.asset_code for item in exclusions),
             exclusion_target_trade_date=(exclusions[0].target_trade_date if exclusions else None),
             required_observation_date=required_observation_date,
+            valuation_audit_sources=valuation_audit_sources,
         )
         self._validate_quote_suspension_candidate_conflicts(
             selection=selection,
@@ -154,6 +169,7 @@ class CurrentPublicationRebuildUseCase:
         run_id: str = "",
         scope_exclusions: Sequence[CurrentPublicationScopeExclusion] = (),
         required_observation_date: date | None = None,
+        valuation_audit_sources: Mapping[str, str] | None = None,
     ) -> CurrentPublicationCandidateSnapshot:
         """Build a validated CANDIDATE snapshot without reading or moving current."""
 
@@ -168,6 +184,7 @@ class CurrentPublicationRebuildUseCase:
             excluded_asset_codes=frozenset(item.asset_code for item in exclusions),
             exclusion_target_trade_date=(exclusions[0].target_trade_date if exclusions else None),
             required_observation_date=required_observation_date,
+            valuation_audit_sources=valuation_audit_sources,
         )
         self._validate_quote_suspension_candidate_conflicts(
             selection=selection,
@@ -378,6 +395,7 @@ class CurrentPublicationRebuildUseCase:
         excluded_asset_codes: frozenset[str] = frozenset(),
         exclusion_target_trade_date: date | None = None,
         required_observation_date: date | None = None,
+        valuation_audit_sources: Mapping[str, str] | None = None,
     ) -> _CurrentPublicationSelection:
         """Normalize a universe and validate deterministic candidate identities."""
 
@@ -390,6 +408,7 @@ class CurrentPublicationRebuildUseCase:
             asset_codes=eligible_codes,
             published_at=published_at,
             required_observation_date=required_observation_date,
+            valuation_audit_sources=valuation_audit_sources,
         )
         excluded_target_date_codes: tuple[str, ...] = ()
         if excluded_asset_codes:
@@ -443,6 +462,7 @@ class CurrentPublicationRebuildUseCase:
         asset_codes: tuple[str, ...],
         published_at: datetime,
         required_observation_date: date | None,
+        valuation_audit_sources: Mapping[str, str] | None = None,
     ) -> tuple[PublicationFactReference, ...]:
         """Load and validate deterministic candidate identities for one scope."""
 
@@ -450,7 +470,17 @@ class CurrentPublicationRebuildUseCase:
             return ()
         by_natural_key: dict[str, PublicationFactReference] = {}
         by_fact_reference: dict[tuple[str, str], str] = {}
-        for reference in self._candidates.list_current_publication_candidates(asset_codes):
+        if valuation_audit_sources is None:
+            candidates = self._candidates.list_current_publication_candidates(asset_codes)
+        else:
+            if self.dataset.dataset_key != "equity.valuation.fact" or not isinstance(
+                self._candidates, AuditedValuationCandidateRepository
+            ):
+                raise ValueError("Audit-bound valuation selection requires a valuation repository")
+            candidates = self._candidates.list_audited_valuation_candidates(
+                asset_codes, valuation_audit_sources, required_observation_date
+            )
+        for reference in candidates:
             if reference.fact_table != self.dataset.fact_table:
                 raise ValueError(
                     f"Current publication fact table mismatch for {self.dataset.dataset_key}"
@@ -681,6 +711,7 @@ class CoreCurrentPublicationRebuildUseCase:
             Mapping[str, Sequence[CurrentPublicationScopeExclusion]] | None
         ) = None,
         required_observation_dates: Mapping[str, date] | None = None,
+        valuation_audit_sources: Mapping[str, str] | None = None,
     ) -> CoreCurrentPublicationPreview:
         """Return one consistent read-only coverage preview."""
 
@@ -702,6 +733,11 @@ class CoreCurrentPublicationRebuildUseCase:
                         (),
                     ),
                     required_observation_date=observation_dates.get(rebuilder.dataset.dataset_key),
+                    valuation_audit_sources=(
+                        valuation_audit_sources
+                        if rebuilder.dataset.dataset_key == "equity.valuation.fact"
+                        else None
+                    ),
                 )
                 for rebuilder in self._rebuilders
             )

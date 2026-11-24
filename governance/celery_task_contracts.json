@@ -1914,7 +1914,7 @@
         "partial_failure": {
           "test_file": "tests/unit/data_center/test_market_publication_refresh.py",
           "test_function": "test_task_verifies_dynamic_quote_gap_and_publishes_full_scope_with_exclusion",
-          "coverage_note": "Full-day suspensions remain exact quote-scope exclusions. The active-universe sync count/hash stays the raw current candidate scope; formal requested valuation and quote scope is separately derived for target_trade_date. Only a verified source-backed list_date later than target_trade_date can be excluded; same-day listings are included, and unknown/conflicted/source-less dates stay requested. Ordinary provider omissions remain blocking. S6 capacity and market rehearsals use the same target-date resolver and retain candidate, requested, exclusion, and unknown-listing evidence."
+          "coverage_note": "Full-day suspensions remain exact quote-scope exclusions. The active-universe sync count/hash stays the raw current candidate scope; formal requested valuation and quote scope is separately derived for target_trade_date. Only a verified source-backed list_date later than target_trade_date can be excluded; same-day listings are included, and unknown/conflicted/source-less dates stay requested. Ordinary provider omissions remain blocking. S6 capacity and market rehearsals use the same target-date resolver and retain candidate, requested, exclusion, and unknown-listing evidence. Valuation preview and staging select current RawAudit ingestion/source pairs and retain full-scope gaps."
         },
         "complete_failure": {
           "test_file": "tests/unit/data_center/test_market_publication_refresh.py",

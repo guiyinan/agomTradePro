@@ -71,6 +71,7 @@ from apps.data_center.infrastructure.models import (
     QuoteSnapshotModel,
     RawAuditModel,
     RawPayloadModel,
+    ValuationFactModel,
 )
 from apps.data_center.infrastructure.price_bar_repository import PriceBarRepository
 from apps.data_center.infrastructure.provider_state_repositories import RawAuditRepository
@@ -83,6 +84,7 @@ from apps.data_center.infrastructure.valuation_fact_repository import ValuationF
 from apps.data_center.publication_candidate_activation_composition import (
     build_production_current_market_publication_bundle,
 )
+from apps.data_center.publication_rebuild_composition import build_current_publication_rebuild
 from tests.support.account_authority_generation_flush import (  # noqa: F401
     preserve_account_authority_generation,
 )
@@ -587,11 +589,26 @@ def test_valuation_sync_reference_stages_actual_source_and_rejects_route_binding
         fact_table="data_center_valuation_fact",
         created_by="ops.current_publication_rebuild",
     )
+    policy = replace(
+        _PolicyRepository().get_active(valuation_dataset.dataset_key),
+        minimum_coverage_ratio=0.25,
+        allow_partial=True,
+        required_evidence=(
+            "source",
+            "observed_at",
+            "fetched_at",
+            "payload_hash",
+            "fact_content_hash",
+        ),
+        policy_version="valuation-stage-lineage-v1",
+    )
+    policies = PublicationPolicyRepository()
+    policies.save(policy)
     rebuilder = CurrentPublicationRebuildUseCase(
         dataset=valuation_dataset,
         candidate_repository=fact_repository,
         publication_repository=CanonicalPublicationRepository(),
-        policy_repository=_PolicyRepository(),
+        policy_repository=policies,
     )
     staging = CurrentPublicationStagingUseCase(
         rebuilder=rebuilder,
@@ -602,19 +619,80 @@ def test_valuation_sync_reference_stages_actual_source_and_rejects_route_binding
         reference=result.raw_audit_reference,
         expected_source_type=result.fact_source_type or "",
     )
+    # Historical rows include a higher-ranked alternative for a covered asset,
+    # plus same-day rows whose source or ingestion does not belong to this audit.
+    owned = ValuationFactModel.objects.get(asset_code=asset_code)
+    template = ValuationFactModel.objects.filter(pk=owned.pk).values().get()
+    template.pop("id")
+    # The newest revision within the current audit remains authoritative even
+    # when an older revision has a later availability timestamp.
+    latest_owned = ValuationFactModel.objects.create(
+        **{**template, "revision_number": 2, "available_at": fetched_at - timedelta(minutes=1)}
+    )
+    ValuationFactModel.objects.create(
+        **{**template, "revision_number": 3, "ingested_run_id": uuid4()}
+    )
+    gaps = ("000002.SZ", "000003.SZ", "000635.SZ")
+    for code, source, ingestion in (
+        (asset_code, "akshare", uuid4()),
+        (gaps[0], "tencent", uuid4()),
+        (gaps[1], "akshare", owned.ingested_run_id),
+        (gaps[2], "akshare", None),
+    ):
+        ValuationFactModel.objects.create(
+            **{
+                **template,
+                "asset_code": code,
+                "source": source,
+                "ingested_run_id": ingestion,
+                "available_at": fetched_at + timedelta(minutes=1),
+            }
+        )
+    scope = (asset_code, *gaps)
+    assert rebuilder.preview(
+        asset_codes=scope, published_at=PUBLISHED_AT, required_observation_date=target_date
+    ).covered_asset_count == len(scope)
+    preview = (
+        build_current_publication_rebuild(dataset_keys=(valuation_dataset.dataset_key,))
+        .preview(
+            asset_codes=scope,
+            published_at=PUBLISHED_AT,
+            required_observation_dates={valuation_dataset.dataset_key: target_date},
+            valuation_audit_sources={
+                binding.reference.ingested_run_id: binding.expected_source_type
+            },
+        )
+        .datasets[0]
+    )
+    assert preview.missing_asset_codes == gaps
+    assert (preview.requested_asset_count, preview.covered_asset_count, preview.member_count) == (
+        4,
+        1,
+        1,
+    )
     command = CurrentPublicationStageCommand(
-        asset_codes=(asset_code,),
+        asset_codes=scope,
         published_at=PUBLISHED_AT,
         run_id=str(uuid4()),
         task_attempt_id="valuation-source-stage-actual",
         raw_audit_bindings=(binding,),
+        expected_valuation_gaps=gaps,
         required_observation_date=target_date,
     )
 
+    with pytest.raises(CurrentPublicationStagingError, match="gaps differ"):
+        staging.execute(replace(command, expected_valuation_gaps=()))
+    _assert_no_partial_stage()
     staged = staging.execute(command)
 
     assert staged.publication.state is PublicationState.CANDIDATE
     assert staged.manifest.raw_audits[0].raw_audit_id == result.raw_audit_reference.raw_audit_id
+    assert tuple(block.asset_code for block in staged.publication.scope_blocks) == gaps
+    assert {block.reason_code for block in staged.publication.scope_blocks} == {
+        "valuation_source_data_unavailable"
+    }
+    member = PublicationMemberModel.objects.get(publication_id=staged.publication.publication_id)
+    assert member.fact_pk == str(latest_owned.pk)
     pointer = CanonicalPublicationPointerModel._default_manager.get(
         dataset_key=valuation_dataset.dataset_key,
         publication_key="current",
