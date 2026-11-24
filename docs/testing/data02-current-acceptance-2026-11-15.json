@@ -11258,6 +11258,21 @@
             "sha256": "5a11ccef019b39adda9607df60f4e37268823dd79d736a918de85b9692b80511"
           },
           "limit": "Conditional on ten qualified, unique native values and no intervening changes. The execution plan, actual response values, run/audits and independent post-commit comparison remain pending."
+        },
+        "legacy_service_compatibility_candidate": {
+          "sha": "11a755e4a3cba1affbd9169a3b4031861d513196",
+          "base": "4149a9cf4a3738f38d0ca62979fa9bfed56a6a07",
+          "branch": "maintenance/data02-financial-compat-4149",
+          "owner_decision": "call_82164d6f087045aabb1a43666089eac4",
+          "status": "local_verified_pending_release_decision",
+          "acceptance": {
+            "path": ".tmp/data02-guard-20261122/e1-8eaba967a-20261125/legacy-compat/candidate-acceptance.json",
+            "sha256": "7ea93489df6be77c712d39f8d1124f6cefd0b7115989945b852fb03914fd35d4"
+          },
+          "verified": "Legacy visibility, exact native readback, mixed-batch atomic refusal, ordinary legacy insert and replay, two-backend concurrency, Publication candidate selection and database-matched rollback.",
+          "release_impact": "Code-only maintenance release for legacy services accessing financial facts. Drain or replace old readers and writers before first native fact. Full E1 migration and source/calendar prerequisites are separate.",
+          "production_e1_requests": 0,
+          "production_e1_writes": 0
         }
       }
     }
