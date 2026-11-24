@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from apps.decision_rhythm.application.advisor_contracts import (
@@ -29,6 +30,9 @@ from apps.decision_rhythm.application.advisor_performance import (
     _recommendation_performance_payload,
     _recommendation_tracking_payload,
 )
+from core.exceptions import DataFetchError
+
+logger = logging.getLogger(__name__)
 
 
 class AdvisorSheetContextMixin:
@@ -59,12 +63,16 @@ class AdvisorSheetContextMixin:
                 self.data_health_provider.get_health(asset_codes=asset_codes)
             )
         except Exception as exc:
+            logger.warning("Advisor decision-data readiness lookup failed", exc_info=True)
+            reason = "decision_data_health_unavailable"
+            if isinstance(exc, DataFetchError) and exc.code == "MARKET_CALENDAR_UNAVAILABLE":
+                reason = f"{reason}:{exc.code}"
             return _normalize_data_health_payload(
                 {
                     "status": "blocked",
                     "asset_codes": asset_codes,
                     "must_not_use_for_decision": True,
-                    "blocked_reasons": [f"decision_data_health_unavailable:{exc}"],
+                    "blocked_reasons": [reason],
                 }
             )
 
