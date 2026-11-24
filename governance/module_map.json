@@ -2881,7 +2881,7 @@
         "domain": 12,
         "infrastructure": 28,
         "interface": 14,
-        "management": 8,
+        "management": 9,
         "root": 12,
         "templatetags": 2
       },

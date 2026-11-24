@@ -1887,3 +1887,9 @@ PostgreSQL 为隔离 Config Center 测试设置，不能替代生产恢复或全
 普通入队与并发冲突后的重读按事件 ID、幂等键锁定已有身份。到期领取在数据库中过滤待处理行和已过租约的行，按可用时间、创建时间、主键排序，最多锁定本批上限。PostgreSQL 忙时先领取其他可用行；所有候选都被占用时等待事务结束，原领取事务回滚后，等待者可接手。投递成功和失败按主键锁定，仍核对 worker、令牌和时钟。在这些严格写入路径上，取得目标锁后、写入前按一次已提交快照无锁检验全表；非目标行损坏会阻止操作。全表解码成本仍随积压数量增长。
 
 独立回环 PostgreSQL 的 12 项并发验收均通过，涵盖另一个连接同时领取不同到期行、提交与回滚后的所有权、旧令牌、普通入队和精确重放，并验证同身份并发插入只产生一个持久结果。相同规模的 3,918 条合成积压再次通过真实任务、仓储与回执发布器处理 1 条。领取和完成的两次 outbox 锁查询各返回 **1 行**，修复前各为 3,918 行；最终 1 条 delivered、1 份匹配回执、3,917 条 pending。本次耗时 8.63 秒，采用测试配置与权限读取。源码及原件见本地 `.tmp/aud03-fixes-20261124/pg/final-b009-sources.json`、`aud03-pg-x27a_x2x/postgres.xml` 和 `aud03-pg-snol35u9/metrics.json`（后两者位于同一 pg 目录）。
+
+#### 2026-11-24 仓库修复：显式配置审计投递周期
+
+启用示例为 `python manage.py setup_audit_outbox_dispatch --enable --interval-seconds 300 --limit 1 --worker-id audit-dispatch-01`。它为 DatabaseScheduler 写入名为 `audit-outbox-dispatch` 的调度行；间隔、批量及稳定 worker 身份由操作方指定。相同配置可重放，修改频率复用同一调度。停用使用 `python manage.py setup_audit_outbox_dispatch --disable`，只影响后续排期，已发出的任务继续执行。安装本次代码后仍需显式启用。
+
+隔离 SQLite 验收 23 项全部通过，包括真实 Beat 解码与非法操作零 SQL；独立 PostgreSQL 双连接通过并发创建、改频、重放与停用。本轮仅在隔离库启停。两份源码、测试及 PostgreSQL 原件的身份见本地 `.tmp/aud03-trigger-20261124/scheduler/handoff.json`。
