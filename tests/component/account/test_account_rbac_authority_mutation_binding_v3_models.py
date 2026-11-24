@@ -38,10 +38,9 @@ NEW_MODELS = (
 
 
 @pytest.fixture(autouse=True)
-def _schema(django_db_blocker: object) -> Iterator[None]:
-    with django_db_blocker.unblock():  # type: ignore[attr-defined]
-        with isolated_schema((*RAW_MODELS, *NEW_MODELS)):
-            yield
+def _schema(transactional_db: None) -> Iterator[None]:
+    with isolated_schema((*RAW_MODELS, *NEW_MODELS)):
+        yield
 
 
 def _claim_insert(row: models.Model) -> None:

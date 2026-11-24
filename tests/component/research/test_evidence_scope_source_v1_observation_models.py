@@ -32,12 +32,11 @@ NOW = datetime(2026, 8, 15, 8, tzinfo=UTC)
 
 
 @pytest.fixture(autouse=True)
-def _schema(django_db_blocker: object) -> Iterator[None]:
+def _schema(transactional_db: None) -> Iterator[None]:
     """Create only the observation table and keep every test zero-seed."""
 
-    with django_db_blocker.unblock():  # type: ignore[attr-defined]
-        with isolated_schema((EvidenceScopeSourceV1ObservationModel,)):
-            yield
+    with isolated_schema((EvidenceScopeSourceV1ObservationModel,)):
+        yield
 
 
 def _artifact() -> ArtifactRef:

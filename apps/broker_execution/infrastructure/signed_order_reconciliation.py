@@ -4,7 +4,12 @@ from collections import Counter
 from collections.abc import Mapping, Sequence
 from decimal import Decimal, InvalidOperation
 
-from .models import BrokerAccountSnapshotModel, LiveOrderModel
+from .models import (
+    BrokerAccountSnapshotModel,
+    BrokerExecutionAuditModel,
+    LiveOrderModel,
+    ReconciliationRunModel,
+)
 
 
 def _number(value: object) -> Decimal | None:
@@ -110,3 +115,29 @@ def matched_signed_snapshot(
         "source_order": dict(observed),
         "source_trades": [dict(row) for row in trades],
     }
+
+
+def record_signed_order_matches(
+    *, run: ReconciliationRunModel, matches: Sequence[tuple[LiveOrderModel, dict[str, object]]]
+) -> None:
+    """Append one scoped reconciliation audit for each matched order in the caller's transaction."""
+    BrokerExecutionAuditModel._default_manager.bulk_create(
+        [
+            BrokerExecutionAuditModel(
+                user_id=order.user_id,
+                actor_type="system",
+                action="order_reconciled",
+                account_id=order.account_id,
+                resource_type="live_order",
+                resource_id=str(order.client_order_id),
+                request_id=str(run.pk),
+                after=observed
+                | {
+                    "scope": "order_and_fills",
+                    "run_id": run.pk,
+                    "run_status": run.status,
+                },
+            )
+            for order, observed in matches
+        ]
+    )

@@ -43,10 +43,9 @@ SCHEMA_MODELS = (
 
 
 @pytest.fixture(autouse=True)
-def _schema(django_db_blocker: object) -> Iterator[None]:
-    with django_db_blocker.unblock():  # type: ignore[attr-defined]
-        with isolated_schema(SCHEMA_MODELS):
-            yield
+def _schema(transactional_db: None) -> Iterator[None]:
+    with isolated_schema(SCHEMA_MODELS):
+        yield
 
 
 def test_empty_world_readers_are_stable_and_do_not_seed() -> None:

@@ -46,15 +46,14 @@ class _Clock:
 
 
 @pytest.fixture(autouse=True)
-def _schema(django_db_blocker: object) -> Iterator[None]:
-    with django_db_blocker.unblock():  # type: ignore[attr-defined]
-        with isolated_schema(
-            (
-                AccountAuthenticationContextSourceV3AnchorModel,
-                AccountAuthenticationContextSourceV3Model,
-            )
-        ):
-            yield
+def _schema(transactional_db: None) -> Iterator[None]:
+    with isolated_schema(
+        (
+            AccountAuthenticationContextSourceV3AnchorModel,
+            AccountAuthenticationContextSourceV3Model,
+        )
+    ):
+        yield
 
 
 def _repository() -> DjangoAccountAuthenticationContextSourceV3Repository:

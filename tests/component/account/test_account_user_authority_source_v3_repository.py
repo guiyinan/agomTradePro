@@ -51,12 +51,11 @@ def _record(source: AccountUserAuthoritySourceV3) -> PersistedAccountUserAuthori
 
 
 @pytest.fixture(autouse=True)
-def _schema(django_db_blocker: object) -> Iterator[None]:
-    with django_db_blocker.unblock():  # type: ignore[attr-defined]
-        with isolated_schema(
-            (AccountUserAuthoritySourceV3AnchorModel, AccountUserAuthoritySourceV3Model)
-        ):
-            yield
+def _schema(transactional_db: None) -> Iterator[None]:
+    with isolated_schema(
+        (AccountUserAuthoritySourceV3AnchorModel, AccountUserAuthoritySourceV3Model)
+    ):
+        yield
 
 
 def _repository() -> DjangoAccountUserAuthoritySourceV3Repository:

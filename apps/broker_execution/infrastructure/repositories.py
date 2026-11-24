@@ -20,13 +20,13 @@ from apps.broker_execution.application.use_case_errors import (
     BrokerExecutionConflictError,
     BrokerExecutionPermissionError,
 )
-from apps.broker_execution.ash09_checkpoint_composition import resolve_current_intent
 from apps.broker_execution.domain.entities import LiveOrderStatus
 from apps.broker_execution.domain.rules import (
     validate_order_transition,
 )
 from apps.broker_execution.order_checkpoint_composition import verify_order_checkpoint
 
+from . import broker_order_checkpoint_queries
 from .broker_repository_access import BrokerExecutionAccessMixin
 from .broker_repository_agent_administration import (
     BrokerExecutionAgentAdministrationMixin,
@@ -57,25 +57,9 @@ class DjangoBrokerExecutionRepository(
         self, *, user_id: int, account_id: int, client_order_id: UUID
     ) -> dict[str, Any]:
         """Read the source order for risk evaluation before the locked creation check."""
-        with transaction.atomic():
-            intent = resolve_current_intent(
-                client_order_id=client_order_id, account_id=account_id, using="default"
-            )
-            if intent.owner_user_id != user_id:
-                raise BrokerExecutionPermissionError("Account access is not authorized")
-            order = intent.snapshot
-            return {
-                "client_order_id": str(client_order_id),
-                "account_id": account_id,
-                "asset_code": order.asset_code,
-                "side": order.side.value,
-                "market": order.market,
-                "quantity": str(order.quantity),
-                "limit_price": str(order.limit_price),
-                "expires_at": order.expires_at,
-                "source_recommendation_ids": list(order.source_recommendation_ids),
-                "source_signal_ids": list(order.source_signal_ids),
-            }
+        return broker_order_checkpoint_queries.get_signed_order_plan(
+            user_id=user_id, account_id=account_id, client_order_id=client_order_id
+        )
 
     def create_live_order(
         self,

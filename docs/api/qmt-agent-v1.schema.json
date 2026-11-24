@@ -19,6 +19,7 @@
         "qmt_connected": {"type": "boolean"},
         "account_ids": {"type": "array", "maxItems": 50, "items": {"type": "integer", "minimum": 1}},
         "agent_version": {"type": "string", "maxLength": 32},
+        "request_snapshot_challenge": {"type": "boolean", "default": false, "description": "Request data.snapshot_challenge for a single account authorized for this credential. Omit or set false to receive the legacy heartbeat response."},
         "execution_constraint_schemas": {
           "type": "array",
           "maxItems": 8,

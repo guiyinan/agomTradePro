@@ -4,7 +4,7 @@
 
 ## 在途订单占用与账户快照
 
-同一凭证的单账户心跳返回可选字段 `data.snapshot_challenge`。官方 Agent 收到后才开始本次 QMT 资产与持仓查询，在签名快照的 `payload.valuation_close.sampling_challenge` 原样回送。服务端验证 Agent、凭证、账户及从挑战签发到快照接收的 90 秒有效期。挑战只能证明本次读取晚于服务端签发时刻；成交状态仍取券商订单及成交回报。
+官方 Agent 在单账户心跳中发送 `request_snapshot_challenge: true`。服务端核实凭证对该账户的授权后，返回 `data.snapshot_challenge`。省略该请求字段或传入 `false` 时沿用旧版心跳响应。Agent 收到挑战后开始本次 QMT 资产与持仓查询，在签名快照的 `payload.valuation_close.sampling_challenge` 原样回送。服务端验证 Agent、凭证、账户及从挑战签发到快照接收的 90 秒有效期。挑战只能证明本次读取晚于服务端签发时刻；成交状态仍取券商订单及成交回报。
 
 实盘核验会扣除其他订单仍占用的买入资金与同证券可卖量。撤单申请和提交结果未知期间继续预留。正式成交或撤单终态后，等一份挑战签发晚于该终态的完整资产快照再释放。旧版本或本次缺有效挑战时，系统保守保留占用，也可能返回 `signed_account_risk_sampling_challenge_required`。请确认 Agent 与服务端的版本和凭证，等下轮完整心跳、快照及对账，再走原有审批流程。
 
