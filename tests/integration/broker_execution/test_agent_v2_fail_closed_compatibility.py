@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import io
 import json
+import secrets
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -24,6 +25,7 @@ from apps.broker_execution.infrastructure.models import (
     BrokerAccountSnapshotModel,
     BrokerAgentCredentialModel,
     BrokerAgentModel,
+    BrokerAgentNonceModel,
     LiveOrderModel,
     OrderLeaseModel,
 )
@@ -65,7 +67,9 @@ class _CountingFakeQmtAdapter(FakeQmtAdapter):
 
 
 @pytest.mark.django_db(transaction=True)
+@pytest.mark.parametrize("already_leased", [False, True], ids=["ready", "existing-lease"])
 def test_current_agent_runtime_persists_v2_heartbeat_and_fails_closed_on_orders(
+    already_leased: bool,
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
@@ -89,8 +93,7 @@ def test_current_agent_runtime_persists_v2_heartbeat_and_fails_closed_on_orders(
         allowed_symbols=["510300.SH"],
         enforce_trading_session=False,
     )
-    # A READY row only exercises the server's closed lease boundary. This direct
-    # fixture is not an approval, risk receipt, V2 envelope, or submission grant.
+    # Recreate the persisted state at rollout, including an outstanding lease in the second case.
     candidate = LiveOrderModel.objects.create(
         user=owner,
         account_id=binding.account_id,
@@ -102,9 +105,23 @@ def test_current_agent_runtime_persists_v2_heartbeat_and_fails_closed_on_orders(
         estimated_amount="390.00",
         risk_policy_version="TEST_FIXTURE_ONLY",
         risk_snapshot={"fixture_only": True},
-        status=LiveOrderStatus.READY.value,
+        status=LiveOrderStatus.LEASED.value if already_leased else LiveOrderStatus.READY.value,
         expires_at=timezone.now() + timedelta(hours=1),
     )
+    lease_token = secrets.token_urlsafe(32)
+    if already_leased:
+        leased_at = timezone.now() - timedelta(seconds=5)
+        OrderLeaseModel.objects.create(
+            order=candidate,
+            agent=agent,
+            lease_token_hash=hashlib.sha256(lease_token.encode()).hexdigest(),
+            leased_at=leased_at,
+            expires_at=leased_at + timedelta(minutes=5),
+        )
+    leases = OrderLeaseModel.objects.filter(order=candidate)
+    original_leases = list(leases.values())
+    original_order = LiveOrderModel.objects.values().get(pk=candidate.pk)
+    submitting_nonces: list[str] = []
     secret = "synthetic-agent-v2-secret"
     credential = BrokerAgentCredentialModel.objects.create(
         agent=agent,
@@ -131,6 +148,10 @@ def test_current_agent_runtime_persists_v2_heartbeat_and_fails_closed_on_orders(
         request_headers = {name.lower(): value for name, value in request.header_items()}
         body = request.data or b""
         path = urlsplit(request.full_url).path
+        if path.endswith("/orders/submitting/"):
+            submitting_nonces.append(
+                hashlib.sha256(request_headers["x-nonce"].encode()).hexdigest()
+            )
         response = django_client.post(
             path,
             data=body,
@@ -222,8 +243,7 @@ def test_current_agent_runtime_persists_v2_heartbeat_and_fails_closed_on_orders(
         )
         assert second_lease["orders"] == []
         assert second_lease["evidence_gate_active"] is True
-        assert candidate.status == LiveOrderStatus.READY.value
-        assert not OrderLeaseModel.objects.filter(order=candidate).exists()
+        assert list(leases.values()) == original_leases
 
         for attempt in range(2):
             with pytest.raises(AgentApiError, match="409") as rejected:
@@ -232,7 +252,7 @@ def test_current_agent_runtime_persists_v2_heartbeat_and_fails_closed_on_orders(
                     {
                         "contract_version": "1.0",
                         "client_order_id": str(candidate.client_order_id),
-                        "lease_token": "synthetic-token-never-issued-by-blocked-lease",
+                        "lease_token": lease_token,
                     },
                 )
             assert BROKER_ORDER_EVIDENCE_BLOCK_MESSAGE in str(rejected.value)
@@ -242,7 +262,23 @@ def test_current_agent_runtime_persists_v2_heartbeat_and_fails_closed_on_orders(
             assert ack_record["status"] == 409
             assert ack_record["request_content_type"] == "application/json"
             assert str(ack_record["response_content_type"]).startswith("application/json")
-            assert BROKER_ORDER_EVIDENCE_BLOCK_MESSAGE in ack_record["body"]["error"]
+            assert (
+                ack_record["body"]["error"] == f"{BROKER_ORDER_EVIDENCE_BLOCK_MESSAGE} [submitting]"
+            )
+            assert LiveOrderModel.objects.values().get(pk=candidate.pk) == original_order
+            assert list(leases.values()) == original_leases
+            assert not candidate.broker_events.exists()
+            assert not candidate.fills.exists()
+            if already_leased:
+                assert original_leases[0]["expires_at"] > timezone.now()
+
+        assert len(set(submitting_nonces)) == 2
+        assert (
+            BrokerAgentNonceModel.objects.filter(
+                credential=credential, nonce_hash__in=submitting_nonces
+            ).count()
+            == 2
+        )
 
         called_paths = [str(item["path"]) for item in transport_records]
         assert called_paths.count("/api/broker-execution/agent/v1/heartbeat/") == 1
@@ -266,8 +302,6 @@ def test_current_agent_runtime_persists_v2_heartbeat_and_fails_closed_on_orders(
         ] == [409, 409]
         assert broker.submit_calls == 0
         assert broker.orders == {}
-        order = LiveOrderModel.objects.get(pk=candidate.pk)
-        assert order.status == LiveOrderStatus.READY.value
-        assert not OrderLeaseModel.objects.filter(order=order).exists()
+
     finally:
         state.close()
