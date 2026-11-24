@@ -783,11 +783,21 @@ class FundNavFactModel(models.Model):
         super().save(*args, **kwargs)
 
 
+class LegacyFinancialFactManager(models.Manager["FinancialFactModel"]):
+    """Keep exact-only facts out of callers using the four-place legacy schema."""
+
+    def get_queryset(self) -> models.QuerySet["FinancialFactModel"]:
+        """Select only revisions readable on both the old and expanded schemas."""
+        return super().get_queryset().filter(value__isnull=False)
+
+
 class FinancialFactModel(models.Model):
     """Financial statement fact (single line-item per row).
 
     Natural key: (asset_code, period_end, period_type, metric_code, source).
     """
+
+    objects = LegacyFinancialFactManager()
 
     PERIOD_TYPE_CHOICES = [
         ("annual", "Annual"),

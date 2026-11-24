@@ -300,7 +300,7 @@ def _lock_rows_by_natural_key(
                 source=source,
             )
         for row in (
-            FinancialFactModel._default_manager.select_for_update()
+            FinancialFactModel._base_manager.select_for_update()
             .filter(predicate)
             .order_by(
                 "asset_code",
@@ -312,6 +312,11 @@ def _lock_rows_by_natural_key(
                 "-pk",
             )
         ):
+            # Native and legacy revisions share a natural-key write lock.
+            if row.value is None:
+                raise FinancialFactProvenanceConflictError(
+                    "Legacy writes cannot modify a financial key with native revisions"
+                )
             key = _row_natural_key(row)
             if key in rows and rows[key] is None:
                 rows[key] = row

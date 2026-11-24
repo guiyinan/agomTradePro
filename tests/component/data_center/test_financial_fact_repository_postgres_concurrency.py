@@ -41,6 +41,7 @@ from apps.data_center.domain.financial_source_time_evidence import (
 )
 from apps.data_center.infrastructure import financial_fact_write_guard as guard
 from apps.data_center.infrastructure.models import FinancialFactModel
+from apps.data_center.infrastructure.publication_models import PublicationMemberModel
 
 _POSTGRES_FLAG = "AGOM_EVID06_POSTGRES_TEST"
 _POSTGRES_URL = "AGOM_EVID06_POSTGRES_TEST_DATABASE_URL"
@@ -107,7 +108,7 @@ def _database_observation(wrapper) -> tuple[str, int, int]:
 
 @pytest.fixture(scope="module")
 def _financial_postgres_schema(django_db_blocker) -> Iterator[None]:
-    """Create and remove only the financial fact table in the empty test DB."""
+    """Create and remove the fact and publication lookup tables in the empty test DB."""
 
     credentials = _credentials()
     original = connections["default"]
@@ -147,13 +148,18 @@ def _financial_postgres_schema(django_db_blocker) -> Iterator[None]:
             assert other_clients == 0
             with wrapper.schema_editor() as editor:
                 editor.create_model(FinancialFactModel)
+                editor.create_model(PublicationMemberModel)
             created = True
-            assert wrapper.introspection.table_names() == [FinancialFactModel._meta.db_table]
+            assert set(wrapper.introspection.table_names()) == {
+                FinancialFactModel._meta.db_table,
+                PublicationMemberModel._meta.db_table,
+            }
             yield
         finally:
             if created:
                 wrapper.rollback()
                 with wrapper.schema_editor() as editor:
+                    editor.delete_model(PublicationMemberModel)
                     editor.delete_model(FinancialFactModel)
                 database_name, table_count, other_clients = _database_observation(wrapper)
                 assert database_name == _DATABASE_NAME
@@ -263,7 +269,7 @@ def _fact(metric_code: str) -> FinancialFact:
     )
 
 
-def _run_batch(facts: list[FinancialFact]) -> _WorkerResult:
+def _run_batch(facts: list[FinancialFact], barrier: Barrier) -> _WorkerResult:
     """Run one write and report its real connection identity and count."""
 
     close_old_connections()
@@ -280,6 +286,7 @@ def _run_batch(facts: list[FinancialFact]) -> _WorkerResult:
         backend_pid = int(identity[0])
         database_name = str(identity[1])
         vendor = str(connection.vendor)
+        barrier.wait(timeout=8)
         stored_count = guard.bulk_upsert_financial_facts(
             facts,
             source_time_evidence_verifier=lambda _witness: True,
@@ -317,28 +324,16 @@ def _write_result(
     )
 
 
-def test_reversed_new_key_batches_complete_without_deadlock(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_reversed_new_key_batches_complete_without_deadlock() -> None:
     """Two real PostgreSQL writers converge when their new keys are reversed."""
 
     barrier = Barrier(2)
-    original_insert = guard._insert_new_batch
-
-    def synchronized_insert(facts: list[FinancialFact]) -> int:
-        """Align both writers immediately before their first insert attempt."""
-
-        if facts:
-            barrier.wait(timeout=8)
-        return original_insert(facts)
-
-    monkeypatch.setattr(guard, "_insert_new_batch", synchronized_insert)
     facts = [_fact("metric_b"), _fact("metric_a")]
 
     with ThreadPoolExecutor(max_workers=2, thread_name_prefix="data02-pg") as executor:
         futures = [
-            executor.submit(_run_batch, list(facts)),
-            executor.submit(_run_batch, list(reversed(facts))),
+            executor.submit(_run_batch, list(facts), barrier),
+            executor.submit(_run_batch, list(reversed(facts)), barrier),
         ]
         try:
             results = [future.result(timeout=25) for future in futures]

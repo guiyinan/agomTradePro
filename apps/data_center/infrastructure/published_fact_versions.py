@@ -93,6 +93,8 @@ def latest_versioned_rows_for_assets(
     filter_sql = "".join(
         f" AND base.{quote_name(field_name)} = %s" for field_name in normalized_filters
     )
+    if model is FinancialFactModel:
+        filter_sql += " AND base.value IS NOT NULL"
     natural_columns = ", ".join(f"base.{quote_name(name)}" for name in natural_key)
     asset_order_sql = ", ".join(
         _postgres_order_term(term, table_alias="latest_revisions") for term in asset_order

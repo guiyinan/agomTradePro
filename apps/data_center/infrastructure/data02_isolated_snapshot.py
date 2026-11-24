@@ -444,6 +444,7 @@ class PostgresData02HistoricalSnapshotAdapter:
                 SELECT asset_code, MAX(period_end) AS period_end
                 FROM data_center_financial_fact
                 WHERE asset_code = ANY(%s::text[]) AND available_at IS NOT NULL
+                  AND value IS NOT NULL
                 GROUP BY asset_code
             ), ranked AS (
                 SELECT fact.id, fact.asset_code, fact.source, fact.available_at,
@@ -459,7 +460,7 @@ class PostgresData02HistoricalSnapshotAdapter:
                 JOIN latest_period
                   ON latest_period.asset_code = fact.asset_code
                  AND latest_period.period_end = fact.period_end
-                WHERE fact.available_at IS NOT NULL
+                WHERE fact.available_at IS NOT NULL AND fact.value IS NOT NULL
             )
             SELECT id, asset_code, source, available_at, quality_status,
                    period_end, period_type, metric_code

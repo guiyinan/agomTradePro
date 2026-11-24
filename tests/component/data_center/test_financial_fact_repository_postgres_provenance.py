@@ -11,7 +11,7 @@ from urllib.parse import unquote, urlsplit
 from uuid import UUID
 
 import pytest
-from django.db import connections
+from django.db import connections, transaction
 from django.db.utils import load_backend
 
 from apps.data_center.domain.entities import FinancialFact
@@ -379,3 +379,38 @@ def test_financial_repository_stale_witness_rolls_back_postgresql_batch() -> Non
     assert protected.value == Decimal("100.0000")
     assert protected.raw_payload_hash == _SOURCE_HASH
     assert not FinancialFactModel.objects.filter(metric_code="pg_new").exists()
+
+
+def test_legacy_service_skips_exact_only_rows_and_protects_the_key() -> None:
+    """Legacy reads retain their visible revision and a mixed legacy write is atomic."""
+    repository = _repository()
+    legacy = _direct_model_row(metric_code="protected", value=12.3456)
+    native = _direct_model_row(metric_code="native_fixture", value=1)
+    with transaction.atomic(), connections["default"].cursor() as cursor:
+        # The old model can use the same query before and after migration 0114.
+        cursor.execute("ALTER TABLE data_center_financial_fact ALTER COLUMN value DROP NOT NULL")
+        cursor.execute("ALTER TABLE data_center_financial_fact ADD COLUMN exact_value_text text")
+        cursor.execute(
+            "UPDATE data_center_financial_fact SET metric_code = %s, revision_number = 2, "
+            "value = NULL, exact_value_text = %s WHERE id = %s",
+            [legacy.metric_code, "12.3456789012345678901", native.pk],
+        )
+        assert repository.get_facts(_ASSET_CODE, fact_pks=[str(native.pk)]) == []
+        assert repository.get_latest(_ASSET_CODE).value == 12.3456
+        assert [fact.value for fact in repository.get_facts(_ASSET_CODE)] == [12.3456]
+        with pytest.raises(FinancialFactProvenanceConflictError, match="native revisions"):
+            repository.bulk_upsert(
+                [
+                    _fact(metric_code="new_metric", value=1, evidence=_evidence()),
+                    _fact(metric_code="protected", value=2, evidence=_evidence()),
+                ]
+            )
+        cursor.execute(
+            "SELECT id, revision_number, value, exact_value_text FROM data_center_financial_fact "
+            "ORDER BY revision_number"
+        )
+        assert cursor.fetchall() == [
+            (legacy.pk, 1, Decimal("12.3456"), None),
+            (native.pk, 2, None, "12.3456789012345678901"),
+        ]
+        transaction.set_rollback(True)
