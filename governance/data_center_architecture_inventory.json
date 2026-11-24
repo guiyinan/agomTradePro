@@ -15364,11 +15364,11 @@
     },
     {
       "path": "apps/decision_rhythm/application/global_alert_service.py",
-      "text": "\"\"\"Return latest weekly quota usage.\"\"\""
+      "text": "\"\"\"Return current weekly usage across the specified authorized accounts.\"\"\""
     },
     {
       "path": "apps/decision_rhythm/application/global_alert_service.py",
-      "text": "\"\"\"Return latest weekly quota usage.\"\"\""
+      "text": "\"\"\"Return current weekly usage across the specified authorized accounts.\"\"\""
     },
     {
       "path": "apps/decision_rhythm/application/integration_adapters.py",
@@ -15476,7 +15476,7 @@
     },
     {
       "path": "apps/decision_rhythm/infrastructure/global_alert_repository.py",
-      "text": "\"\"\"Return latest weekly quota usage.\"\"\""
+      "text": "\"\"\"Read current weekly limits for a complete authorized set of accounts.\"\"\""
     },
     {
       "path": "apps/decision_rhythm/infrastructure/recommendation_repositories.py",
