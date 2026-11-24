@@ -37,7 +37,7 @@ from .models import (
     ReconciliationRunModel,
     TradingControlModel,
 )
-from .signed_order_reconciliation import matched_signed_snapshot
+from .signed_order_reconciliation import matched_signed_snapshot, record_signed_order_matches
 
 ModelT = TypeVar("ModelT", bound=Model)
 
@@ -658,26 +658,7 @@ class BrokerExecutionReconciliationMixin(BrokerExecutionRepositoryMixinSupport):
                 ReconciliationDifferenceModel._default_manager.bulk_create(
                     [ReconciliationDifferenceModel(run=run, **row) for row in differences]
                 )
-                BrokerExecutionAuditModel._default_manager.bulk_create(
-                    [
-                        BrokerExecutionAuditModel(
-                            user_id=order.user_id,
-                            actor_type="system",
-                            action="order_reconciled",
-                            account_id=order.account_id,
-                            resource_type="live_order",
-                            resource_id=str(order.client_order_id),
-                            request_id=str(run.pk),
-                            after=observed
-                            | {
-                                "scope": "order_and_fills",
-                                "run_id": run.pk,
-                                "run_status": run.status,
-                            },
-                        )
-                        for order, observed in matches
-                    ]
-                )
+                record_signed_order_matches(run=run, matches=matches)
                 if has_p0:
                     control, _ = TradingControlModel._default_manager.get_or_create(
                         user_id=binding.user_id,
