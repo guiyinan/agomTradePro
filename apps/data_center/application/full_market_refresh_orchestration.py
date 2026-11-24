@@ -1020,16 +1020,7 @@ def run_full_market_publication_refresh(
                 }
                 for evidence in price_suspension_evidence
             ],
-            raw_audit_references=[
-                {
-                    "raw_audit_id": reference.raw_audit_id,
-                    "version": reference.version,
-                    "content_hash": reference.content_hash,
-                    "run_id": reference.run_id,
-                    "ingested_run_id": reference.ingested_run_id,
-                }
-                for _raw_audit_id, reference in sorted(price_audit_references.items())
-            ],
+            raw_audit_references=market_task.serialize_raw_audit_references(price_audit_references),
         )
         stage_bindings_by_dataset = {
             "equity.quote.snapshot": tuple(
