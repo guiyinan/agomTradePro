@@ -738,6 +738,7 @@
                     </div>
                     <span id="advisor-verdict" class="advisor-verdict">未加载</span>
                 </div>
+                <div id="advisor-data-health" class="advisor-subtitle" role="status"></div>
                 <div class="advisor-kpis">
                     <div class="advisor-kpi">
                         <span class="workspace-kpi-label">建议订单</span>
@@ -752,7 +753,7 @@
                         <span class="workspace-kpi-value" id="advisor-sell-orders">-</span>
                     </div>
                     <div class="advisor-kpi">
-                        <span class="workspace-kpi-label">阻断项</span>
+                        <span class="workspace-kpi-label">订单阻断项</span>
                         <span class="workspace-kpi-value" id="advisor-blocked-orders">-</span>
                     </div>
                 </div>
@@ -1973,6 +1974,36 @@ async function loadWorkspaceAccountSnapshot(generation = workspaceAccountLoadGen
     }
 }
 
+function getAdvisorDataHealthText(health) {
+    const status = health?.status;
+    if (status === 'ok' && health.must_not_use_for_decision === false) {
+        return '决策数据：可用';
+    }
+    const retry = '请稍后刷新页面；持续受限请联系数据管理员。';
+    if (health?.must_not_use_for_decision !== true && status !== 'blocked' && status !== 'failed') {
+        return '决策数据：可用性待核实。' + retry;
+    }
+    const reasons = new Set();
+    if (health.blocked_reasons?.includes('decision_data_health_unavailable:MARKET_CALENDAR_UNAVAILABLE')) {
+        reasons.add('交易日历不可用，无法核对数据日期');
+    }
+    for (const quote of Object.values(health.quotes || {})) {
+        if (quote?.must_not_use_for_decision !== true && quote?.status !== 'blocked') continue;
+        const freshness = quote.freshness_status;
+        if (['stale', 'unverified_observation', 'future_observation', 'future_fetch'].includes(freshness)) {
+            reasons.add('行情' + getAdvisorOrderStatusText(freshness));
+        } else {
+            reasons.add('行情不可用');
+        }
+    }
+    const thermometer = health.market_thermometer;
+    if (thermometer?.must_not_use_for_decision === true || thermometer?.status === 'blocked') {
+        reasons.add('市场温度计数据不可用');
+    }
+    const detail = Array.from(reasons).join('；') || '尚未取得可用于决策的核验结果';
+    return '决策数据：受限。' + detail + '。' + retry;
+}
+
 function renderAdvisorEmpty(message, retryHandler = '') {
     currentAdvisorSheet = null;
     const verdict = document.getElementById('advisor-verdict');
@@ -1989,6 +2020,7 @@ function renderAdvisorEmpty(message, retryHandler = '') {
     setWorkspaceSnapshotValue('advisor-buy-orders', '-');
     setWorkspaceSnapshotValue('advisor-sell-orders', '-');
     setWorkspaceSnapshotValue('advisor-blocked-orders', '-');
+    setWorkspaceSnapshotValue('advisor-data-health', '');
     if (list) {
         const retryButton = retryHandler
             ? `<button type="button" class="btn btn-outline btn-sm" onclick="${retryHandler}">重试</button>`
@@ -2001,7 +2033,7 @@ function renderAdvisorSheet(sheet) {
     currentAdvisorSheet = sheet;
     const account = sheet.account || {};
     const summary = sheet.order_summary || {};
-    const verdictText = sheet.today_conclusion || 'WAIT';
+    const verdictText = sheet.today_conclusion;
     const verdict = document.getElementById('advisor-verdict');
     const accountLine = document.getElementById('advisor-account-line');
     const list = document.getElementById('advisor-order-list');
@@ -2013,12 +2045,13 @@ function renderAdvisorSheet(sheet) {
             REVIEW: '今日建议：复核',
             WAIT: '今日建议：等待',
             BLOCKED: '今日建议：阻断',
-        }[verdictText] || `今日建议：${verdictText}`;
+        }[verdictText] || '今日建议：待核实';
     }
     if (accountLine) {
-        accountLine.textContent = `${account.account_name || '-'} · ${account.account_type_label || account.account_type || '账户'} · ${getWorkspaceBusinessStatusText(account.account_status)} · 持仓 ${account.holding_count || 0} 个 · 可用资金 ${formatWorkspaceCurrency(account.available_cash)}`;
+        accountLine.textContent = `${account.account_name || '-'} · ${account.account_type_label || account.account_type || '账户'} · ${getWorkspaceBusinessStatusText(account.account_status, '状态待核实')} · 持仓 ${account.holding_count || 0} 个 · 可用资金 ${formatWorkspaceCurrency(account.available_cash)}`;
     }
 
+    setWorkspaceSnapshotValue('advisor-data-health', getAdvisorDataHealthText(sheet.data_health));
     setWorkspaceSnapshotValue('advisor-total-orders', String(summary.total ?? 0));
     setWorkspaceSnapshotValue('advisor-buy-orders', `${summary.buy ?? 0}/${summary.add ?? 0}`);
     setWorkspaceSnapshotValue('advisor-sell-orders', `${summary.reduce ?? 0}/${summary.exit ?? 0}`);
@@ -2074,6 +2107,7 @@ async function loadAdvisorSheet(generation = workspaceAccountLoadGeneration) {
     const list = document.getElementById('advisor-order-list');
     if (list) {
         list.innerHTML = '<div class="workspace-sidebar-subtitle">正在生成账户级建议单...</div>';
+        setWorkspaceSnapshotValue('advisor-data-health', '');
     }
     try {
         const payload = await fetchWorkspaceJson(`/api/decision/advisor/sheet/?account_id=${encodeURIComponent(accountId)}`, {

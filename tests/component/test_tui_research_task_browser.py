@@ -25,6 +25,7 @@ from playwright.sync_api import expect, sync_playwright
 from apps.data_center.infrastructure.models import FinancialFactModel, MarketThermometerConfigModel
 from apps.decision_rhythm.infrastructure.models import UnifiedRecommendationModel
 from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
+from core.exceptions import DataFetchError
 from tests.playwright.runtime_compatibility import ensure_subprocess_event_loop_policy
 from tests.support.tui_research.scenario import research_scenario
 
@@ -104,9 +105,20 @@ def _submit(page, value: str, *, keyboard: bool = False):
 
 @pytest.mark.django_db(transaction=True)
 def test_workspace_candidate_opens_owned_research_without_creating_config(
-    live_server, django_user_model, subprocess_policy
+    live_server, django_user_model, subprocess_policy, monkeypatch
 ) -> None:
     """An ordinary investor can read the selected account's candidate and follow its detail."""
+    source_health = DataFetchError("private provider detail", code="MARKET_CALENDAR_UNAVAILABLE")
+
+    def read_health(self, *, asset_codes):
+        if isinstance(source_health, Exception):
+            raise source_health
+        return source_health
+
+    monkeypatch.setattr(
+        "apps.decision_rhythm.application.advisor_providers.DecisionDataHealthProvider.get_health",
+        read_health,
+    )
     owner = django_user_model.objects.create_user(username="workspace-research-owner")
     account = SimulatedAccountModel.objects.create(
         user=owner,
@@ -137,6 +149,14 @@ def test_workspace_candidate_opens_owned_research_without_creating_config(
         security_code="600547.SH",
         side="BUY",
         human_rationale="第二账户独立依据",
+    )
+    empty_account = SimulatedAccountModel.objects.create(
+        user=owner,
+        account_name="新账户",
+        account_type="simulated",
+        initial_capital="10000",
+        current_cash="10000",
+        total_value="10000",
     )
     MarketThermometerConfigModel.objects.filter(pk=1).delete()
     client = Client()
@@ -170,7 +190,15 @@ def test_workspace_candidate_opens_owned_research_without_creating_config(
             ) as advisor_response:
                 page.goto(url)
             assert advisor_response.value.status == 200
-            order = advisor_response.value.json()["data"]["order_intents"][0]
+            sheet = advisor_response.value.json()["data"]
+            order = sheet["order_intents"][0]
+            assert sheet["data_health"]["blocked_reasons"] == [
+                "decision_data_health_unavailable:MARKET_CALENDAR_UNAVAILABLE"
+            ]
+            assert "private provider detail" not in advisor_response.value.text()
+            health = page.locator("#advisor-data-health")
+            expect(health).to_contain_text("交易日历不可用")
+            expect(health).to_contain_text("联系数据管理员")
             assert order["blocking_status"] == "BLOCKED_PRICE_MISSING"
             advisor_orders = page.locator("#advisor-order-list")
             expect(advisor_orders).to_contain_text("状态：缺少有效现价，已阻断")
@@ -193,6 +221,32 @@ def test_workspace_candidate_opens_owned_research_without_creating_config(
             expect(card).to_contain_text("山东黄金研究样本")
             selector = page.locator("#workspace-account-selector")
             expect(selector.locator(f'option[value="{second_account.pk}"]')).to_be_attached()
+            selector.select_option(str(empty_account.pk))
+            expect(page.locator("#advisor-order-list")).to_contain_text("暂无建议订单")
+            expect(page.locator("#advisor-verdict")).to_have_text("今日建议：复核")
+            expect(page.locator("#advisor-blocked-orders")).to_have_text("0")
+            expect(health).to_contain_text("决策数据：受限")
+            stale_quote = {
+                "status": "blocked",
+                "must_not_use_for_decision": True,
+                "freshness_status": "stale",
+            }
+            for next_health, message in [
+                (RuntimeError("private provider detail"), "尚未取得可用于决策的核验结果"),
+                ({"status": "ok", "must_not_use_for_decision": False}, "决策数据：可用"),
+                ({"status": "blocked", "quotes": {"600547.SH": stale_quote}}, "行情数据已过期"),
+            ]:
+                source_health = next_health
+                selector.select_option("default")
+                expect(health).to_be_empty()
+                with page.expect_response(
+                    lambda response: urlsplit(response.url).path == "/api/decision/advisor/sheet/"
+                ) as updated:
+                    selector.select_option(str(account.pk))
+                assert updated.value.status == 200
+                assert "private provider detail" not in updated.value.text()
+                expect(health).to_contain_text(message)
+            expect(card).to_contain_text("山东黄金研究样本")
             held = []
 
             def is_first_list(request):

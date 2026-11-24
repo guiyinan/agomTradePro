@@ -2935,7 +2935,8 @@
         "apps/alpha/application/services.py",
         "apps/alpha_trigger/application/query_services.py",
         "apps/alpha/infrastructure/adapters/etf_adapter.py",
-        "apps/dashboard/application/queries.py"
+        "apps/dashboard/application/queries.py",
+        "apps/decision_rhythm/application/advisor_sheet_context.py"
       ],
       "required_markers": {
         "apps/decision_rhythm/infrastructure/feature_providers.py": [
@@ -2988,6 +2989,11 @@
           "\"must_not_use_for_decision\"",
           "\"source_evidence_by_asset\"",
           "\"reliability_notice\""
+        ],
+        "apps/decision_rhythm/application/advisor_sheet_context.py": [
+          "\"decision_data_health_unavailable\"",
+          "\"MARKET_CALENDAR_UNAVAILABLE\"",
+          "\"must_not_use_for_decision\": True"
         ]
       },
       "required_tests": [
@@ -3105,6 +3111,11 @@
           "case": "dashboard_does_not_invent_missing_source_qualification",
           "test_file": "apps/dashboard/tests/test_query_safety.py",
           "test_function": "test_stock_score_meta_does_not_invent_missing_decision_fields"
+        },
+        {
+          "case": "workspace_separates_data_readiness_from_local_order_counts",
+          "test_file": "tests/component/test_tui_research_task_browser.py",
+          "test_function": "test_workspace_candidate_opens_owned_research_without_creating_config"
         }
       ]
     },
