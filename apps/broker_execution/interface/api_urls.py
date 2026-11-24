@@ -29,6 +29,7 @@ from .api_views import (
     BrokerExecutionReconciliationView,
     BrokerExecutionSettingsView,
 )
+from .order_scope_views import BrokerOrderExecutionScopeView
 
 app_name = "broker_execution_api"
 
@@ -44,6 +45,23 @@ urlpatterns = [
         "orders/<uuid:client_order_id>/",
         BrokerExecutionOrderDetailView.as_view(),
         name="order-detail",
+    ),
+    path(
+        "orders/<uuid:client_order_id>/execution-scope/preview/",
+        BrokerOrderExecutionScopeView.as_view(),
+        {"preview": True},
+        name="execution-scope-preview",
+    ),
+    path(
+        "orders/<uuid:client_order_id>/execution-scope/sign/",
+        BrokerOrderExecutionScopeView.as_view(),
+        name="execution-scope-sign",
+    ),
+    path(
+        "orders/<uuid:client_order_id>/execution-scope/revoke/",
+        BrokerOrderExecutionScopeView.as_view(),
+        {"withdrawal": True},
+        name="execution-scope-revoke",
     ),
     path(
         "orders/<uuid:client_order_id>/<str:action>/",

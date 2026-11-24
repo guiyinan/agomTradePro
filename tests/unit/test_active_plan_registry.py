@@ -448,6 +448,7 @@ def test_registry_accepts_explicit_ash07_closure_handoff_without_starting_succes
         ("GOV-04", "GOV-05", "ASH-05", "19.166"),
         ("REF-05", "ASH-08", "ASH-05", "19.167"),
         ("ASH-04", "ASH-05", "ASH-06", "19.187"),
+        ("ASH-08", "ASH-09", "ASH-10", "13.1"),
         ("CAL-01", "CAL-02", "CAL-03", "13.13"),
         ("CAL-02", "CAL-03", "CAL-04", "13.16"),
     ],

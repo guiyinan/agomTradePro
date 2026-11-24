@@ -1,15 +1,20 @@
 {
-  "version": "2026-11-24.v628",
+  "version": "2026-11-24.v629",
   "updated_at": "2026-11-24",
   "execution_focus": {
-    "unit_id": "ASH-09",
+    "unit_id": null,
     "allowed_parallel_execution_modes": [
       "production",
       "external",
       "governance"
     ],
-    "policy": "Owner explicitly requests Root-led Luna Max work toward full DATA-02 exit then DATA-03. Complete bounded C2/D1 repository prerequisites within the existing production unit with non-overlapping source/test scopes and serialized shared Git/index/projections. Existing C/D/E scheme approval persists; User delegated concrete C2 choice to Root: TTL3600/coverage100/no partial/conflict block/09:30 continuous auction selected and recorded in existing plan §48; exact official rule/calendar/source qualifications and persisted Owner events remain required. No unknown units, rounding exception, maintenance removal or production qualification inferred. E1 scope choice remains delegated; exact authority/source/budget/candidate/backup gates remain. DATA-03 waits for DATA-02 full-universe exit; CAL-04/05 unstarted and ASH06/09/12 deferred. Preserve protected ASH databases and .task-logs/. Owner subsequently freezes the E1 candidate: fix only necessary acceptance/deployment/real E1 blockers, commit promptly after applicable checks, reuse unchanged bound inputs, and defer DATA-02 scope expansion. Exact progress and remaining production gates are in existing plan §48.4 and acceptance followups[14]; no DATA-02 closure or DATA-03 start is inferred. On 2026-11-19 Owner separately authorized CAL-03 formal adoption in a short serialized local integration window and continued M2 research. CAL-02 dependency is complete. CAL-03 completed on 2026-11-23 under the accepted public snapshot research scope; repository handoff is pending; DATA-02 production work continues against sealed c5b42e20cc97a7e166e6d3f88254d05b0605667a with its existing S6 window and budgets unchanged. No CAL-04/05, DATA-03, signal promotion, trading or production qualification is authorized by CAL-03 work. On 2026-11-24 the Owner resumed ASH-09 for isolated repository acceptance and local integration only. The separate DATA-02 session retains its candidate and heavy-test window. TAR-05 may prepare its staging inputs concurrently; load, chaos and production activation are outside this preparation.",
-    "parallel_preparation": []
+    "policy": "Owner explicitly requests Root-led Luna Max work toward full DATA-02 exit then DATA-03. Complete bounded C2/D1 repository prerequisites within the existing production unit with non-overlapping source/test scopes and serialized shared Git/index/projections. Existing C/D/E scheme approval persists; User delegated concrete C2 choice to Root: TTL3600/coverage100/no partial/conflict block/09:30 continuous auction selected and recorded in existing plan §48; exact official rule/calendar/source qualifications and persisted Owner events remain required. No unknown units, rounding exception, maintenance removal or production qualification inferred. E1 scope choice remains delegated; exact authority/source/budget/candidate/backup gates remain. DATA-03 waits for DATA-02 full-universe exit; CAL-04/05 unstarted and ASH06/09/12 deferred. Preserve protected ASH databases and .task-logs/. Owner subsequently freezes the E1 candidate: fix only necessary acceptance/deployment/real E1 blockers, commit promptly after applicable checks, reuse unchanged bound inputs, and defer DATA-02 scope expansion. Exact progress and remaining production gates are in existing plan §48.4 and acceptance followups[14]; no DATA-02 closure or DATA-03 start is inferred. On 2026-11-19 Owner separately authorized CAL-03 formal adoption in a short serialized local integration window and continued M2 research. CAL-02 dependency is complete. CAL-03 completed on 2026-11-23 under the accepted public snapshot research scope; repository handoff is pending; DATA-02 production work continues against sealed c5b42e20cc97a7e166e6d3f88254d05b0605667a with its existing S6 window and budgets unchanged. No CAL-04/05, DATA-03, signal promotion, trading or production qualification is authorized by CAL-03 work. On 2026-11-24 the Owner resumed ASH-09 for isolated repository acceptance and local integration only. The separate DATA-02 session retains its candidate and heavy-test window. TAR-05 may prepare its staging inputs concurrently; load, chaos and production activation are outside this preparation. The order-specific repository exit was verified under the Owner's delegated acceptance. The repository focus is open for handoff. DATA-02 retains its production window and TAR-05 retains staging preparation.",
+    "parallel_preparation": [],
+    "handoff_pending": {
+      "completed_unit_id": "ASH-09",
+      "owner_decision_ref": "docs/plans/a-share-usability-implementation-plan-2026-10-16.md#13.1",
+      "reason": "The authorized scope ends at repository acceptance of order-specific signing and reconciliation. Successors are available for scheduling. Production execution remains closed."
+    }
   },
   "workstreams": [
     {
@@ -395,7 +400,7 @@
       "priority": "P0/P1",
       "owner": "portfolio+risk_center+data_center+simulated_trading+backtest+broker_execution+terminal",
       "status": "active",
-      "next_gate": "ASH-09 is the resumed repository focus: bind the four live-order checkpoints to exact current authority, preserve operational and reconciliation guards, and pass isolated PostgreSQL concurrency/rollback and Agent acceptance. Integrate locally in a serialized window. ASH-06 and ASH-12 remain deferred; no production trading or account activation. CAL-03 is completed, CAL-04 is planned.",
+      "next_gate": "ASH-09 completed its isolated repository exit under A-share plan §13.1. The repository handoff is pending. Live-account activation has separate Evidence and QMT production gates. ASH-06 and ASH-12 remain deferred.",
       "documents": [
         {
           "path": "docs/plans/a-share-usability-implementation-plan-2026-10-16.md",
@@ -1871,7 +1876,7 @@
         "wave": 3,
         "priority": "P0",
         "execution_mode": "repository",
-        "status": "active",
+        "status": "completed",
         "title": "Wire exact Evidence and current risk authorization through live-order checkpoints",
         "depends_on": [
           "ASH-02",
@@ -1880,7 +1885,7 @@
           "ASH-07",
           "ASH-08"
         ],
-        "exit_gate": "Existing canonical account/plan/order/risk receipts and authority bind exact scope, hashes, versions and validity at create/approve/lease/submitting. Revocation, policy/quote drift, tampering, lease expiry and uncertain submission fail closed or reconcile without duplicate broker calls. Isolated PostgreSQL and Agent regressions pass; no constant-true rollout, generic bypass or production activation is introduced. EVID/QMT production acceptance stays separate. The decision-to-reconciliation event chain preserves applicable source/received timestamps, clock provenance, account/plan/order/approval versions and idempotent sequencing; missing broker source time remains null and recovery reconciles broker facts rather than inferring orders from local logs alone. Owner resumed isolated repository development on 2026-11-24 under the A-share plan §13. Existing receipt, safety and event-chain criteria apply in full. Production activation, broker calls and ASH-12 remain separate."
+        "exit_gate": "Existing canonical account/plan/order/risk receipts and authority bind exact scope, hashes, versions and validity at create/approve/lease/submitting. Revocation, policy/quote drift, tampering, lease expiry and uncertain submission fail closed or reconcile without duplicate broker calls. Isolated PostgreSQL and Agent regressions pass; no constant-true rollout, generic bypass or production activation is introduced. EVID/QMT production acceptance stays separate. The decision-to-reconciliation event chain preserves applicable source/received timestamps, clock provenance, account/plan/order/approval versions and idempotent sequencing; missing broker source time remains null and recovery reconciles broker facts rather than inferring orders from local logs alone. Owner resumed isolated repository development on 2026-11-24 under the A-share plan §13. Existing receipt, safety and event-chain criteria apply in full. Production activation, broker calls and ASH-12 remain separate. Repository exit verified on a55d5b3c5 with same-source native PostgreSQL and Agent regressions; see A-share plan §13.1."
       },
       {
         "id": "ASH-10",

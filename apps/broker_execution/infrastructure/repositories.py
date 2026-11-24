@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import json
 from decimal import Decimal
 from typing import Any, TypeVar
+from uuid import UUID
 
 from django.db import transaction
 from django.db.models import Model, Sum
@@ -18,10 +20,12 @@ from apps.broker_execution.application.use_case_errors import (
     BrokerExecutionConflictError,
     BrokerExecutionPermissionError,
 )
+from apps.broker_execution.ash09_checkpoint_composition import resolve_current_intent
 from apps.broker_execution.domain.entities import LiveOrderStatus
 from apps.broker_execution.domain.rules import (
     validate_order_transition,
 )
+from apps.broker_execution.order_checkpoint_composition import verify_order_checkpoint
 
 from .broker_repository_access import BrokerExecutionAccessMixin
 from .broker_repository_agent_administration import (
@@ -49,6 +53,30 @@ class DjangoBrokerExecutionRepository(
 ):
     """Compose scoped broker-execution repository responsibilities."""
 
+    def get_signed_order_plan(
+        self, *, user_id: int, account_id: int, client_order_id: UUID
+    ) -> dict[str, Any]:
+        """Read the source order for risk evaluation before the locked creation check."""
+        with transaction.atomic():
+            intent = resolve_current_intent(
+                client_order_id=client_order_id, account_id=account_id, using="default"
+            )
+            if intent.owner_user_id != user_id:
+                raise BrokerExecutionPermissionError("Account access is not authorized")
+            order = intent.snapshot
+            return {
+                "client_order_id": str(client_order_id),
+                "account_id": account_id,
+                "asset_code": order.asset_code,
+                "side": order.side.value,
+                "market": order.market,
+                "quantity": str(order.quantity),
+                "limit_price": str(order.limit_price),
+                "expires_at": order.expires_at,
+                "source_recommendation_ids": list(order.source_recommendation_ids),
+                "source_signal_ids": list(order.source_signal_ids),
+            }
+
     def create_live_order(
         self,
         *,
@@ -64,14 +92,6 @@ class DjangoBrokerExecutionRepository(
             require_broker_order_evidence(checkpoint="create")
 
         action = "create_live_order"
-        replay = self._replay_or_conflict(
-            user_id=user_id,
-            action=action,
-            idempotency_key=idempotency_key,
-            request_digest=request_digest,
-        )
-        if replay is not None:
-            return replay
         binding = (
             BrokerAccountBindingModel._default_manager.select_related("agent")
             .filter(account_id=int(payload["account_id"]), is_active=True, agent__is_active=True)
@@ -150,8 +170,6 @@ class DjangoBrokerExecutionRepository(
                 idempotency_key=idempotency_key,
                 request_digest=request_digest,
             )
-            if replay is not None:
-                return replay
             if not is_admin and not self.has_account_access(
                 user_id=user_id,
                 is_admin=False,
@@ -174,6 +192,17 @@ class DjangoBrokerExecutionRepository(
                     raise BrokerExecutionConflictError(
                         "Order price exceeds the configured market-price deviation"
                     )
+
+            if replay is not None:
+                previous = LiveOrderModel._default_manager.filter(
+                    client_order_id=payload["client_order_id"],
+                    user_id=user_id,
+                    account_id=binding.account_id,
+                ).first()
+                if previous is None:
+                    raise BrokerExecutionConflictError("broker_checkpoint_replay_order_unavailable")
+                self._verify_order_replay(previous)
+                return replay
 
             today_amount = LiveOrderModel._default_manager.filter(
                 user_id=binding.user_id,
@@ -213,14 +242,32 @@ class DjangoBrokerExecutionRepository(
             }:
                 raise BrokerExecutionConflictError("Invalid initial live-order status")
             if final_status == LiveOrderStatus.WAITING_APPROVAL.value:
-                require_current_execution_price(
+                quote_deadline = require_current_execution_price(
                     asset_code=symbol,
                     limit_price=price,
                     max_deviation=binding.price_deviation_limit_pct,
                 )
                 if expires_at <= timezone.now():
                     raise BrokerExecutionConflictError("Order expired before creation")
+            try:
+                client_order_id = UUID(str(payload.get("client_order_id", "")))
+            except ValueError as error:
+                raise BrokerExecutionConflictError(
+                    "broker_checkpoint_signed_order_required"
+                ) from error
+            if user_id != binding.user_id or final_status != LiveOrderStatus.WAITING_APPROVAL.value:
+                raise BrokerExecutionConflictError("broker_checkpoint_owner_or_trade_risk_rejected")
+            checked = verify_order_checkpoint(
+                client_order_id=client_order_id,
+                account_id=binding.account_id,
+                owner_user_id=binding.user_id,
+                using="default",
+            )
+            if LiveOrderModel._default_manager.filter(client_order_id=client_order_id).exists():
+                raise BrokerExecutionConflictError("broker_checkpoint_order_already_created")
             order = LiveOrderModel._default_manager.create(
+                client_order_id=client_order_id,
+                authority_pin=checked.pin(),
                 user_id=binding.user_id,
                 account_id=binding.account_id,
                 agent=binding.agent,
@@ -233,16 +280,23 @@ class DjangoBrokerExecutionRepository(
                 estimated_amount=amount,
                 source_recommendation_ids=source_recommendation_ids,
                 source_signal_ids=list(payload.get("source_signal_ids") or []),
-                risk_policy_version=str(payload.get("risk_policy_version") or "")[:128],
-                risk_snapshot=dict(payload["risk_snapshot"]),
+                risk_policy_version=checked.intent.snapshot.risk_policy_version,
+                risk_snapshot=json.loads(checked.intent.snapshot.risk_snapshot_json),
                 expires_at=expires_at,
                 status=LiveOrderStatus.DRAFT.value,
             )
+            # Compare after database conversion, including stored price/quantity precision.
+            order.refresh_from_db()
+            checked.require_order(self._order_payload(order))
+            checked.require_unexpired(timezone.now())
+            if timezone.now() >= min(quote_deadline, expires_at):
+                raise BrokerExecutionConflictError("broker_checkpoint_quote_or_order_expired")
             validate_order_transition(order.status, final_status)
             order.status = final_status
             order.version += 1
             order.save(update_fields=["status", "version", "updated_at"])
-            result = {"success": True, "order": self._order_payload(order)}
+            order_payload = self._order_payload(order)
+            result = {"success": True, "order": order_payload}
             BrokerExecutionAuditModel._default_manager.create(
                 user_id=binding.user_id,
                 actor_id=user_id,
@@ -254,7 +308,8 @@ class DjangoBrokerExecutionRepository(
                 account_id=binding.account_id,
                 resource_type="live_order",
                 resource_id=str(order.client_order_id),
-                after=result["order"],
+                after=order_payload
+                | {"authority_pin": order.authority_pin, "clock_source": "server"},
                 request_id=idempotency_key,
             )
             self._save_idempotent_result(

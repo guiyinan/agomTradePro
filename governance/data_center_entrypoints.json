@@ -3,13 +3,13 @@
     "by_category": {
       "admin_surface": 16,
       "agent_skill": 3,
-      "application_consumer": 163,
+      "application_consumer": 164,
       "beat_schedule": 61,
       "capability_runtime": 25,
       "celery_dispatch_edge": 18,
       "celery_task": 130,
       "compatibility_facade": 95,
-      "current_data_surface": 122,
+      "current_data_surface": 123,
       "dynamic_import_edge": 15,
       "management_command": 56,
       "management_command_edge": 66,
@@ -30,13 +30,13 @@
       "workflow_step": 11
     },
     "by_status": {
-      "active_public": 947,
+      "active_public": 949,
       "adjacent_operational": 349,
       "candidate-review": 86,
       "compatibility": 139,
       "retired_blocked": 0
     },
-    "total": 1521
+    "total": 1523
   },
   "entries": [
     {
@@ -505,6 +505,16 @@
       "id": "application_consumer:apps/broker_execution/application/execution_price_guard.py:get_execution_quote:semantic:get_execution_quote",
       "locator": "semantic:get_execution_quote",
       "path": "apps/broker_execution/application/execution_price_guard.py",
+      "status": "active_public",
+      "symbol": "get_execution_quote",
+      "target": ""
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/broker_execution/application/use_cases.py:get_execution_quote:semantic:get_execution_quote",
+      "locator": "semantic:get_execution_quote",
+      "path": "apps/broker_execution/application/use_cases.py",
       "status": "active_public",
       "symbol": "get_execution_quote",
       "target": ""
@@ -5297,6 +5307,16 @@
       "path": "governance/current_data_contracts.json",
       "status": "active_public",
       "symbol": "broker_execution.qmt_onboarding",
+      "target": ""
+    },
+    {
+      "category": "current_data_surface",
+      "evidence": "governed current-data contract; source_files=3",
+      "id": "current_data_surface:governance/current_data_contracts.json:broker_execution.signed_order_checkpoints:Current order-specific operator and Risk approvals at creation, approval, lease and submission",
+      "locator": "Current order-specific operator and Risk approvals at creation, approval, lease and submission",
+      "path": "governance/current_data_contracts.json",
+      "status": "active_public",
+      "symbol": "broker_execution.signed_order_checkpoints",
       "target": ""
     },
     {
@@ -15261,7 +15281,7 @@
   },
   "source_contract_counts": {
     "celery_tasks": 95,
-    "current_data_contracts": 122,
+    "current_data_contracts": 123,
     "legacy_entrypoints_and_wrappers": 0,
     "operational_governance_rules": 45,
     "runtime_config_keys": 52

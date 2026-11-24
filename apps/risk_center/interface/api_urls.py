@@ -17,6 +17,7 @@ from apps.risk_center.interface.api_views import (
     RiskTemplateDetailView,
     RiskTemplateListCreateView,
 )
+from apps.risk_center.interface.broker_order_risk_views import BrokerOrderRiskDecisionView
 from apps.risk_center.interface.evidence_operator_spec_approval_api_views import (
     ApproveEvidenceOperatorSpecView,
     RegisterEvidenceOperatorSpecApprovalSubjectView,
@@ -38,6 +39,24 @@ from apps.risk_center.interface.scenario_api_views import (
 app_name = "api_risk_center"
 
 urlpatterns = [
+    path(
+        "broker-orders/<int:account_id>/<uuid:client_order_id>/risk-policy/",
+        BrokerOrderRiskDecisionView.as_view(),
+        {"operation": "policy"},
+        name="broker-order-risk-policy",
+    ),
+    path(
+        "broker-orders/<int:account_id>/<uuid:client_order_id>/risk-subject/",
+        BrokerOrderRiskDecisionView.as_view(),
+        {"operation": "subject"},
+        name="broker-order-risk-subject",
+    ),
+    path(
+        "broker-orders/<int:account_id>/<uuid:client_order_id>/risk-approval/",
+        BrokerOrderRiskDecisionView.as_view(),
+        {"operation": "approval"},
+        name="broker-order-risk-approval",
+    ),
     path("", RiskCenterApiHomeView.as_view(), name="home"),
     path("floor/", RiskFloorView.as_view(), name="floor"),
     path("templates/", RiskTemplateListCreateView.as_view(), name="templates"),

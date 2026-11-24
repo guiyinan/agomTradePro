@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from typing import Any, Protocol
+from uuid import UUID
 
 PartialBatchAlertHandler = Callable[[list[dict[str, Any]]], object]
 
@@ -265,6 +266,13 @@ class BrokerExecutionRepositoryProtocol(Protocol):
     def generate_reconciliation_runs(
         self, *, account_projections: dict[int, dict[str, Any] | None] | None = None
     ) -> dict[str, Any]: ...
+
+    def get_signed_order_plan(
+        self, *, user_id: int, account_id: int, client_order_id: UUID
+    ) -> dict[str, Any]:
+        """Return server-sealed inputs for the identified account owner's order."""
+
+        ...
 
     def create_live_order(
         self,

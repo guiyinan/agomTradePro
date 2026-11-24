@@ -11,6 +11,7 @@ from datetime import timedelta
 from decimal import Decimal
 from queue import Queue
 from typing import Any, TypeVar
+from unittest.mock import Mock
 from uuid import uuid4
 
 import pytest
@@ -35,6 +36,9 @@ from apps.broker_execution.infrastructure.repositories import DjangoBrokerExecut
 from tests.component.broker_execution.test_execution_contract_capabilities import (
     _mark_agent_online_for_submission,
     _ready_order_for_agent,
+)
+from tests.support.account_authority_generation_flush import (  # noqa: F401
+    preserve_account_authority_generation,
 )
 from tests.unit.data_center.test_execution_quotes import _quote
 
@@ -134,6 +138,9 @@ def test_subordinate_checkpoint_rechecks_committed_change_after_wait(
     order.refresh_from_db()
     order.approval_digest = approval_digest_for_order(repo._order_payload(order))
     order.save(update_fields=["approval_digest"])
+    signed = Mock(valid_until=quote.freshness_deadline)
+    signed.intent.sources.order.approval_digest = order.approval_digest
+    monkeypatch.setattr(runtime, "verify_existing_order", lambda **kwargs: signed)
     if stage == "submitting":
         order.status = "LEASED"
         order.save(update_fields=["status"])

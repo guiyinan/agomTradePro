@@ -21,6 +21,23 @@ def read_benchmark_governance_actor(
     *, user_id: int, owner_user_id: int, using: str
 ) -> BenchmarkGovernanceActor | None:
     """Require current strategy-write staff with existing owner/superuser account access."""
+    return _read_governance_actor(
+        user_id=user_id, owner_user_id=owner_user_id, capability="strategy", using=using
+    )
+
+
+def read_order_risk_actor(
+    *, user_id: int, owner_user_id: int, using: str
+) -> BenchmarkGovernanceActor | None:
+    """Lock and verify a human staff account with risk-write access to this owner."""
+    return _read_governance_actor(
+        user_id=user_id, owner_user_id=owner_user_id, capability="risk", using=using
+    )
+
+
+def _read_governance_actor(
+    *, user_id: int, owner_user_id: int, capability: str, using: str
+) -> BenchmarkGovernanceActor | None:
     db = connections[using]
     if db.vendor != "postgresql" or not db.in_atomic_block:
         return None
@@ -42,6 +59,6 @@ def read_benchmark_governance_actor(
     if actor is None:
         return None
     role = "admin" if actor[1] else normalize_role(actor[2])
-    if not role_allows_by_matrix(role, "write", "strategy"):
+    if not role_allows_by_matrix(role, "write", capability):
         return None
     return BenchmarkGovernanceActor(user_id=actor[0], role=role)

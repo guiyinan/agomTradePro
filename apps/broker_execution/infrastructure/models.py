@@ -8,6 +8,10 @@ from decimal import Decimal
 from django.conf import settings
 from django.db import models
 
+from .order_execution_scope_models import (
+    BrokerOrderExecutionScopeModel as BrokerOrderExecutionScopeModel,
+)
+
 
 def default_trading_windows() -> list[str]:
     """Return the default China A-share continuous trading windows."""
@@ -195,6 +199,7 @@ class LiveOrderModel(models.Model):
     risk_policy_version = models.CharField(max_length=128, blank=True, default="")
     risk_snapshot = models.JSONField(default=dict, blank=True)
     approval_mode = models.CharField(max_length=32, default="manual")
+    authority_pin = models.JSONField(default=dict, blank=True)
     approval_digest = models.CharField(max_length=64, blank=True, default="")
     approved_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,

@@ -60,3 +60,8 @@ def action_permissions(user: Any) -> dict[str, bool]:
 
     _user_id, role, _is_admin = actor_context(user)
     return {action: role in roles for action, roles in _ACTION_ROLES.items()}
+
+
+def role_can_approve_order(role: str) -> bool:
+    """Apply Broker approval eligibility to an independently verified, locked account role."""
+    return role in _ACTION_ROLES["approve"]

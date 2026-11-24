@@ -66,6 +66,7 @@ class QmtAgentExecutor:
         self.api = api
         self.broker = broker
         self.state = state
+        self._snapshot_challenge: str | None = None
 
     @property
     def paused(self) -> bool:
@@ -100,7 +101,8 @@ class QmtAgentExecutor:
         """Report local health and the execution schema supported by this agent."""
 
         health = self.broker.health()
-        return self.api.post(
+        self._snapshot_challenge = None
+        result = self.api.post(
             "heartbeat/",
             {
                 "contract_version": "1.0",
@@ -117,8 +119,31 @@ class QmtAgentExecutor:
             },
         )
 
+        challenge = result.get("snapshot_challenge")
+        if isinstance(challenge, str) and 0 < len(challenge) <= 2048:
+            self._snapshot_challenge = challenge
+        return result
+
     def sync_snapshot(self) -> dict[str, Any]:
+        """Sample after heartbeat and attach its challenge to this account capture."""
+        challenge, self._snapshot_challenge = self._snapshot_challenge, None
         snapshot = self.broker.account_snapshot()
+        metadata = snapshot.get("payload")
+        if (
+            challenge
+            and isinstance(metadata, dict)
+            and isinstance(metadata.get("valuation_close"), dict)
+        ):
+            snapshot = {
+                **snapshot,
+                "payload": {
+                    **metadata,
+                    "valuation_close": {
+                        **metadata["valuation_close"],
+                        "sampling_challenge": challenge,
+                    },
+                },
+            }
         return self.api.post(
             "snapshots/",
             {

@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 7750,
+    "current_surface_references": 7784,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -4371,6 +4371,10 @@
       "text": "\"current\": {"
     },
     {
+      "path": "apps/account/live_account_owner_composition.py",
+      "text": "\"\"\"Fence the active account owner's current approved Broker role through the caller transaction.\"\"\""
+    },
+    {
       "path": "apps/account/management/commands/backfill_canonical_account_creation_consumption_v1.py",
       "text": "raise CommandError(\"expected inventory hash does not match current inventory\")"
     },
@@ -8187,6 +8191,10 @@
       "text": "while current.snapshot.content_hash not in visited:"
     },
     {
+      "path": "apps/broker_execution/infrastructure/broker_order_scope_seal.py",
+      "text": "\"\"\"Shared digest implementation for Broker snapshot issuance and current binding checks.\"\"\""
+    },
+    {
       "path": "apps/broker_execution/infrastructure/broker_repository_access.py",
       "text": "\"\"\"Collect scoped source facts; Application owns current-readiness semantics.\"\"\""
     },
@@ -8216,6 +8224,10 @@
     },
     {
       "path": "apps/broker_execution/infrastructure/broker_repository_agent_runtime.py",
+      "text": "payload=current,"
+    },
+    {
+      "path": "apps/broker_execution/infrastructure/broker_repository_agent_runtime.py",
       "text": "raise BrokerExecutionConflictError(\"Order exceeds the current single-order limit\")"
     },
     {
@@ -8225,6 +8237,10 @@
     {
       "path": "apps/broker_execution/infrastructure/broker_repository_order_control.py",
       "text": "\"Order changed after preview; preview the current version again\""
+    },
+    {
+      "path": "apps/broker_execution/infrastructure/broker_repository_reconciliation.py",
+      "text": "\"summary\": {"
     },
     {
       "path": "apps/broker_execution/infrastructure/broker_repository_reconciliation.py",
@@ -8253,10 +8269,6 @@
     {
       "path": "apps/broker_execution/infrastructure/broker_repository_reconciliation.py",
       "text": "run.summary = dict(run.summary or {}) | {"
-    },
-    {
-      "path": "apps/broker_execution/infrastructure/broker_repository_reconciliation.py",
-      "text": "summary={"
     },
     {
       "path": "apps/broker_execution/infrastructure/models.py",
@@ -8412,6 +8424,10 @@
     },
     {
       "path": "apps/broker_execution/interface/api_views.py",
+      "text": "BrokerExecutionPermissionError(\"Current authenticated session required\")"
+    },
+    {
+      "path": "apps/broker_execution/interface/api_views.py",
       "text": "\"\"\"Download the current Windows bridge ZIP to an authorized administrator.\"\"\""
     },
     {
@@ -8425,6 +8441,38 @@
     {
       "path": "apps/broker_execution/interface/views.py",
       "text": "\"summary\": {\"title\": title, \"subtitle\": subtitle},"
+    },
+    {
+      "path": "apps/broker_execution/order_execution_scope_composition.py",
+      "text": "\"\"\"Recompute the originally signed receipt under current source locks.\"\"\""
+    },
+    {
+      "path": "apps/broker_execution/order_execution_scope_composition.py",
+      "text": "\"summary\": material.research_summary,"
+    },
+    {
+      "path": "apps/broker_execution/order_execution_scope_composition.py",
+      "text": "broker = current.snapshot"
+    },
+    {
+      "path": "apps/broker_execution/order_execution_scope_composition.py",
+      "text": "current = DjangoBrokerAccountIdentitySnapshotRepository(using=using).get_current_head("
+    },
+    {
+      "path": "apps/broker_execution/order_execution_scope_composition.py",
+      "text": "if current is None:"
+    },
+    {
+      "path": "apps/broker_execution/signed_account_risk_composition.py",
+      "text": "if latest is not None"
+    },
+    {
+      "path": "apps/broker_execution/signed_account_risk_composition.py",
+      "text": "latest = ("
+    },
+    {
+      "path": "apps/broker_execution/signed_account_risk_composition.py",
+      "text": "snapshot_id=latest, owner_user_id=user_id, account_id=account_id, using=using"
     },
     {
       "path": "apps/config_center/application/capacity_profile.py",
@@ -18675,6 +18723,10 @@
       "text": "return JsonResponse({\"error\": \"current owner session required\"}, status=403)"
     },
     {
+      "path": "apps/portfolio/transition_plan_checkpoint_composition.py",
+      "text": "\"\"\"Lock the unique current plan and its immutable approval until the caller commits.\"\"\""
+    },
+    {
       "path": "apps/prompt/application/context_builders.py",
       "text": "data[\"current\"] = self._adapter.get_current_regime(as_of_date)"
     },
@@ -21567,6 +21619,14 @@
       "text": "\"\"\"Return the current timezone-aware server timestamp.\"\"\""
     },
     {
+      "path": "apps/research/order_execution_evidence_composition.py",
+      "text": "\"\"\"Select a unique current immutable source for this exact actor and artifact.\"\"\""
+    },
+    {
+      "path": "apps/research/order_execution_evidence_composition.py",
+      "text": "summary: dict[str, str | int | bool]"
+    },
+    {
       "path": "apps/research/r4_research_control_composition.py",
       "text": "\"\"\"Read-only runtime with no writer, consumer, current, or execution port.\"\"\""
     },
@@ -21817,6 +21877,26 @@
     {
       "path": "apps/risk_center/broker_checkpoint_composition.py",
       "text": "\"current risk checkpoint requires read committed\""
+    },
+    {
+      "path": "apps/risk_center/broker_risk_issuance_composition.py",
+      "text": "\"\"\"Register an exact subject or independently approve it using current Risk policy.\"\"\""
+    },
+    {
+      "path": "apps/risk_center/broker_risk_issuance_composition.py",
+      "text": "current = provider.get_exact_active("
+    },
+    {
+      "path": "apps/risk_center/broker_risk_issuance_composition.py",
+      "text": "current is None"
+    },
+    {
+      "path": "apps/risk_center/broker_risk_issuance_composition.py",
+      "text": "or current.content_hash != policy.source_snapshot_hash"
+    },
+    {
+      "path": "apps/risk_center/broker_risk_issuance_composition.py",
+      "text": "or current.controls != policy.controls"
     },
     {
       "path": "apps/risk_center/domain/close_snapshot_simulation.py",
@@ -30381,6 +30461,62 @@
     {
       "path": "core/integration/bound_single_owner_policy_publication.py",
       "text": "return current if current == self.expected else None"
+    },
+    {
+      "path": "core/integration/broker_order_risk_authority.py",
+      "text": "\"\"\"Activate current controls, request Risk review or independently sign one exact order.\"\"\""
+    },
+    {
+      "path": "core/integration/broker_order_risk_authority.py",
+      "text": "\"\"\"Verify approved configuration, current staff and exact policy at a Broker checkpoint.\"\"\""
+    },
+    {
+      "path": "core/integration/broker_order_risk_authority.py",
+      "text": "auth = current.authorization"
+    },
+    {
+      "path": "core/integration/broker_order_risk_authority.py",
+      "text": "current = read_current_broker_order_risk("
+    },
+    {
+      "path": "core/integration/broker_order_risk_authority.py",
+      "text": "def current(self, as_of: datetime) -> BrokerOrderExecutionScopeDefinition | None:"
+    },
+    {
+      "path": "core/integration/broker_order_risk_authority.py",
+      "text": "if activation.content_hash != current.policy.policy_activation_hash:"
+    },
+    {
+      "path": "core/integration/broker_order_risk_authority.py",
+      "text": "if current is None:"
+    },
+    {
+      "path": "core/integration/broker_order_risk_authority.py",
+      "text": "return current"
+    },
+    {
+      "path": "core/integration/broker_order_risk_authority.py",
+      "text": "scope = scopes.current(timezone.now())"
+    },
+    {
+      "path": "core/integration/broker_order_risk_authority.py",
+      "text": "scope = self.current(as_of)"
+    },
+    {
+      "path": "core/integration/broker_order_scope_sources.py",
+      "text": "\"\"\"Bind the actual physical real account, policy and current staff role.\"\"\""
+    },
+    {
+      "path": "core/integration/broker_order_scope_sources.py",
+      "text": "research.summary,"
+    },
+    {
+      "path": "core/integration/broker_signed_order_checkpoint.py",
+      "text": "\"\"\"Join current Portfolio and Risk authority to an owner-signed Broker order.\"\"\""
+    },
+    {
+      "path": "core/integration/broker_signed_order_checkpoint.py",
+      "text": "\"\"\"Verify the exact signed order, current policy and account balances under the caller's locks.\"\"\""
     },
     {
       "path": "core/integration/calendar_formal_publication_audit.py",

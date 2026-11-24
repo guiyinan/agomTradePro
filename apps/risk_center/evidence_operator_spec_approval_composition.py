@@ -114,3 +114,44 @@ __all__ = [
     "EvidenceOperatorSpecApprovalWriteRuntime",
     "build_evidence_operator_spec_approval_write_runtime",
 ]
+
+
+def current_order_material_spec_approval(
+    *,
+    approval_id: str,
+    approval_version: str,
+    expected_content_hash: str,
+    operator_id: str,
+    operator_version: str,
+    definition_hash: str,
+    using: str,
+    as_of: datetime,
+) -> bool:
+    """Fence and verify Research's retained reference to the actual Risk approval."""
+    from django.db import connections
+
+    db = connections[using]
+    if db.vendor != "postgresql" or not db.in_atomic_block:
+        return False
+    with db.cursor() as cursor:
+        cursor.execute(
+            "LOCK TABLE risk_center_evidence_operator_spec_subject, risk_center_evidence_operator_spec_approval IN SHARE MODE NOWAIT"
+        )
+    record = DjangoEvidenceOperatorSpecApprovalRepository(using=using).get_exact_by_hash(
+        approval_id=approval_id,
+        approval_version=approval_version,
+        expected_content_hash=expected_content_hash,
+        as_of=as_of,
+    )
+    return (
+        record is not None
+        and record.owner == "risk_center"
+        and record.capability == "evidence_operator_spec_activation"
+        and record.issued_at <= as_of < record.valid_until
+        and (
+            record.subject.operator_id,
+            record.subject.operator_version,
+            record.subject.definition_hash,
+        )
+        == (operator_id, operator_version, definition_hash)
+    )

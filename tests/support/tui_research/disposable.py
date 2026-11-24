@@ -14,6 +14,7 @@ from tests.support.native_postgres_database import assert_native_postgres_test_d
 
 _NATIVE_POSTGRES_SYNTHETIC_TEST_IDS: Final[frozenset[str]] = frozenset(
     {
+        "tests/component/broker_execution/test_signed_order_checkpoints.py::test_signed_account_order_checkpoints",
         "tests/component/portfolio/test_benchmark_approval_native.py::test_benchmark_current_signers_fences_and_replay",
         "tests/component/portfolio/test_benchmark_issuance_native.py::test_portfolio_approval_and_revocation",
         "tests/component/portfolio/test_benchmark_issuance_native.py::test_withdrawn_first_close_invalidates_approved_second_close",

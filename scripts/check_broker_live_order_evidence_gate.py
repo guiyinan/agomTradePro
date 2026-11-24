@@ -11,6 +11,9 @@ REQUIRED_MARKERS = {
     "apps/broker_execution/application/evidence_gate.py": (
         "def broker_order_evidence_integrated() -> bool:",
         "return False",
+        'settings.SETTINGS_MODULE != "core.settings.critical_postgres_test"',
+        'name.startswith("test_ash09_rehearsal_")',
+        'name == db["TEST"]["NAME"]',
         "broker_order_evidence_receipt_not_integrated",
     ),
     "apps/broker_execution/application/use_cases.py": (
@@ -25,17 +28,34 @@ REQUIRED_MARKERS = {
         'require_broker_order_evidence(checkpoint="submitting")',
     ),
     "apps/broker_execution/infrastructure/repositories.py": (
+        "checked = verify_order_checkpoint(",
+        "authority_pin=checked.pin()",
+        "checked.require_order(",
         "if not broker_order_evidence_integrated():",
         'require_broker_order_evidence(checkpoint="create")',
     ),
     "apps/broker_execution/infrastructure/broker_repository_order_control.py": (
+        "checked = verify_existing_order(",
         'if action == "approve" and not broker_order_evidence_integrated():',
         'require_broker_order_evidence(checkpoint="approve")',
     ),
     "apps/broker_execution/infrastructure/broker_repository_agent_runtime.py": (
+        "checked = verify_existing_order(",
         "if not broker_order_evidence_integrated():",
         "return blocked_lease_result()",
         'require_broker_order_evidence(checkpoint="submitting")',
+    ),
+    "apps/broker_execution/order_checkpoint_composition.py": (
+        "broker_checkpoint_authority_changed",
+        "broker_checkpoint_order_content_mismatch",
+        "_lock_intent_ledgers(using)",
+    ),
+    "core/integration/broker_signed_order_checkpoint.py": (
+        "read_current_order_execution_scope(",
+        "read_current_signed_order_risk(",
+        "read_locked_transition_order(",
+        "sealed.execution_scope_hash",
+        "require_signed_account_risk(",
     ),
     "sdk/agomtradepro_mcp/registry/modules/owners/broker_execution_write_capabilities.py": (
         'key="broker_execution.approve.order"',

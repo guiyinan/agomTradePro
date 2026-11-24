@@ -2,6 +2,39 @@
   "schema_version": 1,
   "contracts": [
     {
+      "id": "broker_execution.signed_order_checkpoints",
+      "surface": "Current order-specific operator and Risk approvals at creation, approval, lease and submission",
+      "source_files": [
+        "apps/broker_execution/order_checkpoint_composition.py",
+        "core/integration/broker_signed_order_checkpoint.py",
+        "core/integration/broker_order_risk_authority.py"
+      ],
+      "required_markers": {
+        "apps/broker_execution/order_checkpoint_composition.py": [
+          "authority_pin != checked.pin()",
+          "checked.require_order(payload)",
+          "_lock_intent_ledgers(using)"
+        ],
+        "core/integration/broker_signed_order_checkpoint.py": [
+          "read_current_order_execution_scope(",
+          "read_current_signed_order_risk(",
+          "balances.valid_until",
+          "result.require_unexpired("
+        ],
+        "core/integration/broker_order_risk_authority.py": [
+          "require_current_account_policy(",
+          "_authorized_actor("
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "same_order_authority_and_revocation_at_execution",
+          "test_file": "tests/component/broker_execution/test_signed_order_checkpoints.py",
+          "test_function": "test_signed_account_order_checkpoints"
+        }
+      ]
+    },
+    {
       "id": "portfolio.benchmark_daily_approval",
       "surface": "Current account benchmark approval over a source-verified daily valuation, bounded by its next fixing and the validity of each owner source",
       "source_files": [

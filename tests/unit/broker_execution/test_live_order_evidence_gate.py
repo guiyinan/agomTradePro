@@ -8,7 +8,7 @@ from typing import Any, cast
 
 import pytest
 
-from apps.broker_execution.application import use_cases
+from apps.broker_execution.application import evidence_gate, use_cases
 from apps.broker_execution.application.agent_use_cases import (
     AcknowledgeSubmittingUseCase,
     LeaseAgentOrdersUseCase,
@@ -41,6 +41,66 @@ class _Actor:
 
 def _repository(**methods: Any) -> BrokerExecutionRepositoryProtocol:
     return cast(BrokerExecutionRepositoryProtocol, SimpleNamespace(**methods))
+
+
+@pytest.mark.parametrize(
+    ("settings_module", "vendor", "host", "name", "test_name"),
+    [
+        (
+            "core.settings.production",
+            "postgresql",
+            "127.0.0.1",
+            "test_ash09_rehearsal_a",
+            "test_ash09_rehearsal_a",
+        ),
+        (
+            "core.settings.critical_postgres_test",
+            "postgresql",
+            "db",
+            "test_ash09_rehearsal_a",
+            "test_ash09_rehearsal_a",
+        ),
+        (
+            "core.settings.critical_postgres_test",
+            "postgresql",
+            "127.0.0.1",
+            "agomtradepro",
+            "agomtradepro",
+        ),
+        (
+            "core.settings.critical_postgres_test",
+            "postgresql",
+            "::1",
+            "test_ash09_rehearsal_a",
+            "test_ash09_rehearsal_b",
+        ),
+        (
+            "core.settings.critical_postgres_test",
+            "sqlite",
+            "127.0.0.1",
+            "test_ash09_rehearsal_a",
+            "test_ash09_rehearsal_a",
+        ),
+    ],
+)
+def test_signed_order_reader_stays_closed_outside_its_rehearsal(
+    monkeypatch: pytest.MonkeyPatch,
+    settings_module: str,
+    vendor: str,
+    host: str,
+    name: str,
+    test_name: str,
+) -> None:
+    monkeypatch.setattr(evidence_gate, "settings", SimpleNamespace(SETTINGS_MODULE=settings_module))
+    monkeypatch.setattr(
+        evidence_gate,
+        "connection",
+        SimpleNamespace(
+            vendor=vendor,
+            settings_dict={"HOST": host, "NAME": name, "TEST": {"NAME": test_name}},
+        ),
+    )
+    assert not evidence_gate.broker_order_evidence_integrated()
 
 
 @pytest.mark.parametrize("checkpoint", ["create", "approve", "lease", "submitting"])

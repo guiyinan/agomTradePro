@@ -11,7 +11,7 @@ from django.core import signing
 from django.http import FileResponse
 from django.utils import timezone
 from rest_framework import status
-from rest_framework.authentication import BaseAuthentication
+from rest_framework.authentication import BaseAuthentication, SessionAuthentication
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -48,10 +48,12 @@ from apps.broker_execution.application.use_case_errors import (
     BrokerExecutionValidationError,
 )
 from apps.broker_execution.application.use_cases import (
+    CreateLiveOrderFromExecutionPlanUseCase,
     PreviewOrCreateAdvisorLiveOrdersUseCase,
     PreviewOrMutateOrderUseCase,
     PreviewOrSetKillSwitchUseCase,
 )
+from apps.broker_execution.snapshot_challenge import issue_snapshot_challenge
 
 from .serializers import (
     AccountAccessSerializer,
@@ -71,6 +73,7 @@ from .serializers import (
     KillSwitchSerializer,
     OrderActionSerializer,
     ReconciliationResolutionSerializer,
+    SignedOrderCreateSerializer,
 )
 
 
@@ -135,6 +138,27 @@ class BrokerExecutionOrderListView(APIView):
             )
             return _success(data, permissions=action_permissions(request.user))
         except (BrokerExecutionPermissionError, BrokerExecutionValidationError, ValueError) as exc:
+            return _error_response(exc)
+
+    def post(self, request: Request) -> Response:
+        """Materialize an order from its authenticated owner's previously signed selectors."""
+        if not isinstance(request.successful_authenticator, SessionAuthentication):
+            return _error_response(
+                BrokerExecutionPermissionError("Current authenticated session required")
+            )
+        serializer = SignedOrderCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            return _success(
+                CreateLiveOrderFromExecutionPlanUseCase().execute_signed(
+                    actor=request.user, **serializer.validated_data
+                )
+            )
+        except (
+            BrokerExecutionConflictError,
+            BrokerExecutionPermissionError,
+            BrokerExecutionValidationError,
+        ) as exc:
             return _error_response(exc)
 
 
@@ -589,10 +613,25 @@ class AgentHeartbeatView(AgentApiView):
     serializer_class = AgentHeartbeatSerializer
 
     def post(self, request: Request) -> Response:
-        return self.handle_agent(
-            request,
-            lambda agent, data: AgentHeartbeatUseCase().execute(agent=agent, payload=data),
-        )
+        """Offer a scoped sampling challenge only after authenticating this heartbeat."""
+
+        def heartbeat(agent: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
+            result = AgentHeartbeatUseCase().execute(agent=agent, payload=data)
+            accounts = data.get("account_ids")
+            if (
+                isinstance(accounts, list)
+                and len(accounts) == 1
+                and accounts[0] in agent["allowed_account_ids"]
+            ):
+                credential = UUID(
+                    request.headers["Authorization"].removeprefix("Agent ").partition(".")[0]
+                )
+                result["snapshot_challenge"] = issue_snapshot_challenge(
+                    agent_pk=agent["agent_pk"], account_id=accounts[0], credential_id=credential
+                )
+            return result
+
+        return self.handle_agent(request, heartbeat)
 
 
 class AgentOrderLeaseView(AgentApiView):

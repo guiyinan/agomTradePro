@@ -3178,7 +3178,7 @@
           ]
         },
         "data_center": {
-          "imports": 3,
+          "imports": 5,
           "target_layers": [
             "application"
           ]
@@ -3233,7 +3233,8 @@
         "application/authorization.py": [
           "action_permissions",
           "actor_context",
-          "require_action"
+          "require_action",
+          "role_can_approve_order"
         ],
         "application/broker_account_identity_snapshot.py": [
           "AccountIdentitySourceDefinition",
@@ -3297,6 +3298,16 @@
         "application/order_detail_evidence.py": [
           "BrokerOrderDetailResult",
           "project_broker_order_detail"
+        ],
+        "application/order_scope_sources.py": [
+          "OrderArtifactRef",
+          "OrderBenchmarkPin",
+          "OrderMaterialSelector",
+          "OrderReviewMaterials",
+          "OrderScopeOwner",
+          "OrderScopeSources",
+          "install_order_scope_sources",
+          "order_scope_sources"
         ],
         "application/overview_status.py": [
           "OverviewAccountEvidenceFact",
@@ -3425,6 +3436,9 @@
           "orders/",
           "orders/from-advisor-sheet/",
           "orders/<uuid:client_order_id>/",
+          "orders/<uuid:client_order_id>/execution-scope/preview/",
+          "orders/<uuid:client_order_id>/execution-scope/sign/",
+          "orders/<uuid:client_order_id>/execution-scope/revoke/",
           "orders/<uuid:client_order_id>/<str:action>/",
           "kill-switch/",
           "connections/",
@@ -3458,11 +3472,11 @@
         ]
       },
       "layers": {
-        "application": 30,
+        "application": 31,
         "domain": 13,
-        "infrastructure": 32,
-        "interface": 6,
-        "root": 8
+        "infrastructure": 36,
+        "interface": 7,
+        "root": 12
       },
       "orm_models": {
         "infrastructure/models.py": [
@@ -4114,7 +4128,7 @@
           "imports": 5
         },
         "broker_execution": {
-          "imports": 3
+          "imports": 5
         },
         "dashboard": {
           "imports": 9
@@ -8376,7 +8390,7 @@
         "domain": 55,
         "infrastructure": 82,
         "interface": 6,
-        "root": 16
+        "root": 17
       }
     },
     "prompt": {
@@ -9853,7 +9867,7 @@
         "infrastructure": 112,
         "interface": 6,
         "management": 1,
-        "root": 35
+        "root": 36
       },
       "orm_models": {
         "infrastructure/models.py": [
@@ -10339,6 +10353,9 @@
       },
       "http_routes": {
         "interface/api_urls.py": [
+          "broker-orders/<int:account_id>/<uuid:client_order_id>/risk-policy/",
+          "broker-orders/<int:account_id>/<uuid:client_order_id>/risk-subject/",
+          "broker-orders/<int:account_id>/<uuid:client_order_id>/risk-approval/",
           "",
           "floor/",
           "templates/",
@@ -10376,10 +10393,10 @@
       "layers": {
         "application": 57,
         "domain": 33,
-        "infrastructure": 32,
-        "interface": 11,
+        "infrastructure": 33,
+        "interface": 12,
         "management": 2,
-        "root": 10
+        "root": 11
       },
       "orm_models": {
         "infrastructure/models.py": [

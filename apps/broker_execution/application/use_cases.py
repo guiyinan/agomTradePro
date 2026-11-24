@@ -9,6 +9,7 @@ from dataclasses import asdict, is_dataclass
 from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
 from typing import Any, Protocol, cast
+from uuid import UUID
 
 from ..domain.rules import InvalidOrderTransitionError, target_status_for_order_action
 from .authorization import require_action
@@ -111,15 +112,51 @@ class CreateLiveOrderFromExecutionPlanUseCase:
         else:
             self.risk_evaluator = risk_evaluator
         if latest_quote_provider is None:
-            from apps.data_center.application.public import (
-                get_published_latest_quote_payload,
-            )
+            from apps.data_center.application.public import get_published_latest_quote_payload
 
             def latest_quote_provider(asset_code: str) -> dict[str, Any] | None:
                 return get_published_latest_quote_payload(asset_code)
 
         self.account_projection_provider = account_projection_provider
         self.latest_quote_provider = latest_quote_provider
+
+    def execute_signed(
+        self, *, actor: Any, account_id: int, client_order_id: UUID, idempotency_key: str
+    ) -> dict[str, Any]:
+        """Materialize the existing signed economics for the authenticated account owner."""
+        user_id, _, is_admin = require_action(actor, "create_draft")
+        if not broker_order_evidence_integrated():
+            require_broker_order_evidence(checkpoint="create")
+        plan = self.repository.get_signed_order_plan(
+            user_id=user_id, account_id=account_id, client_order_id=client_order_id
+        )
+        key = idempotency_key.strip()
+        if not key:
+            raise BrokerExecutionValidationError("idempotency_key is required")
+        from apps.data_center.application.execution_quotes import ExecutionQuoteUnavailable
+        from apps.data_center.application.public import get_execution_quote
+
+        try:
+            quote = get_execution_quote(plan["asset_code"], as_of=datetime.now(UTC))
+        except ExecutionQuoteUnavailable as error:
+            raise BrokerExecutionConflictError(
+                "broker_checkpoint_execution_quote_unavailable"
+            ) from error
+        # The transactional writer checks the signed Broker balance, actual exposure and live Risk
+        # policy again. The unified positions ledger cannot certify settled cash for a real account.
+        return self.repository.create_live_order(
+            user_id=user_id,
+            is_admin=is_admin,
+            payload={
+                **plan,
+                "risk_snapshot": {"market_snapshot": {"current_price": str(quote.last)}},
+                "initial_status": "WAITING_APPROVAL",
+            },
+            idempotency_key=key,
+            request_digest=_request_digest(
+                {"client_order_id": str(client_order_id), "account_id": account_id}
+            ),
+        )
 
     def execute(
         self,
