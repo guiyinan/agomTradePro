@@ -11,6 +11,7 @@ from collections.abc import Callable, Iterable, Iterator
 from contextlib import contextmanager
 
 from django.db import connection, models
+from django.db.backends.sqlite3.creation import DatabaseCreation
 
 ModelType = type[models.Model]
 
@@ -44,6 +45,14 @@ def isolated_schema(
     fixture will roll back or flush the test. In that mode, existing tables are
     left untouched and this helper drops only tables it created.
     """
+
+    if connection.vendor == "sqlite":
+        active_name = str(connection.settings_dict["NAME"])
+        test_name = connection.settings_dict["TEST"]["NAME"]
+        if not DatabaseCreation.is_in_memory_db(active_name) and (
+            not test_name or active_name != str(test_name)
+        ):
+            raise RuntimeError("isolated_schema requires the configured SQLite test database")
 
     ordered_models = _unique_models(model_types)
     existing_tables = set(connection.introspection.table_names())

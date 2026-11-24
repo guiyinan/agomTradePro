@@ -23,6 +23,8 @@ from apps.audit.infrastructure.system_audit_outbox_repository import (
 from tests.support.isolated_schema import isolated_schema
 from tests.unit.audit.test_system_audit_event import make_event
 
+pytestmark = pytest.mark.django_db(transaction=True)
+
 NOW = datetime(2026, 8, 14, 12, 0, 0, 123456, tzinfo=UTC)
 LATER = NOW + timedelta(minutes=1)
 
@@ -35,7 +37,8 @@ class FixedClock:
 
 
 @pytest.fixture(scope="module", autouse=True)
-def _outbox_table(django_db_blocker: object) -> Iterator[None]:
+def _outbox_table(django_db_setup: object, django_db_blocker: object) -> Iterator[None]:
+    """Bind schema creation and row cleanup to the pytest-owned database."""
     with django_db_blocker.unblock():  # type: ignore[attr-defined]
         with isolated_schema((SystemAuditOutboxModel,)):
             yield

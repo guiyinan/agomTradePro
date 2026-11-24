@@ -54,7 +54,10 @@ class _FakeSchemaEditor:
 
 
 class _FakeConnection:
+    vendor = "sqlite"
+
     def __init__(self, existing_tables: set[str]) -> None:
+        self.settings_dict = {"NAME": "audit-test.sqlite3", "TEST": {"NAME": "audit-test.sqlite3"}}
         self.introspection = type(
             "Introspection", (), {"table_names": lambda self: sorted(existing_tables)}
         )()
@@ -108,6 +111,24 @@ def test_only_missing_models_are_created_and_dropped(monkeypatch: pytest.MonkeyP
         'DELETE FROM "missing_model_table"',
         'DELETE FROM "existing_model_table"',
     ]
+
+
+@pytest.mark.parametrize("clear_existing_rows", [True, False])
+def test_file_backed_sqlite_requires_the_test_target(
+    monkeypatch: pytest.MonkeyPatch, clear_existing_rows: bool
+) -> None:
+    connection = _FakeConnection({"existing_model_table"})
+    connection.settings_dict["NAME"] = "development.sqlite3"
+    monkeypatch.setattr(isolated_schema_support, "connection", connection)
+
+    with pytest.raises(RuntimeError, match="configured SQLite test database"):
+        with isolated_schema_support.isolated_schema(
+            (ExistingModel, MissingModel), clear_existing_rows=clear_existing_rows
+        ):
+            pytest.fail("the test body must not run on the development database")
+
+    assert connection.schema_editor_calls == 0
+    assert connection.statements == []
 
 
 def test_existing_tables_can_defer_cleanup_to_pytest_db_isolation(
