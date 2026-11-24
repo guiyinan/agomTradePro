@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+import re
 from types import SimpleNamespace
 
 import pytest
@@ -341,3 +343,74 @@ def test_pending_execution_requests_are_limited_to_owned_account_ids() -> None:
         other_request.request_id,
         unbound_request.request_id,
     }
+
+
+@pytest.mark.django_db
+def test_initial_workspace_list_matches_owned_api_and_rechecks_access(
+    authenticated_client, test_user, django_user_model, settings
+) -> None:
+    """The first HTML read publishes only the same scoped fields as the read API."""
+    owner_account = SimulatedAccountModel.objects.create(
+        user=test_user,
+        account_name="初始推荐账户",
+        account_type="simulated",
+        initial_capital=10000,
+        current_cash=10000,
+        total_value=10000,
+    )
+    other = django_user_model.objects.create_user(username="r3-initial-other")
+    other_account = SimulatedAccountModel.objects.create(
+        user=other,
+        account_name="另一个账户",
+        account_type="simulated",
+        initial_capital=10000,
+        current_cash=10000,
+        total_value=10000,
+    )
+    for account, key in ((owner_account, "owned"), (other_account, "foreign")):
+        UnifiedRecommendationModel.objects.create(
+            recommendation_id=f"r3-initial-{key}",
+            account_id=str(account.pk),
+            security_code="600547.SH",
+            side="BUY",
+            human_rationale=f"R3 {key} private thesis </script>",
+        )
+    url = "/decision/workspace/"
+    api = "/api/decision/workspace/recommendations/"
+    params = {"account_id": str(owner_account.pk), "security_code": "600547.SH", "step": "4"}
+    for code, account_token, count in (
+        ("600547.SH", str(owner_account.pk), 1),
+        ("600547.sh", f"00{owner_account.pk}", 1),
+        ("000001.SZ", str(owner_account.pk), 0),
+    ):
+        response = authenticated_client.get(
+            url, params | {"security_code": code, "account_id": account_token}
+        )
+        api_response = authenticated_client.get(api, params | {"security_code": code.upper()})
+        assert response.status_code == api_response.status_code == 200
+        assert "actionable_candidates" not in response.context
+        html = response.content.decode()
+        assert "R3 foreign private thesis" not in html
+        script = re.search(
+            r'<script id="workspace-initial-recommendations" type="application/json">(.*?)</script>',
+            html,
+            re.DOTALL,
+        )
+        assert script is not None
+        initial = json.loads(script.group(1))
+        assert initial.pop("account_id") == str(owner_account.pk)
+        assert initial == api_response.json()["data"]
+        assert initial["total_count"] == count
+    settings.DECISION_WORKSPACE_V2_ENABLED = False
+    disabled = authenticated_client.get(url, params)
+    assert disabled.status_code == 200 and not disabled.context.get(
+        "workspace_initial_recommendations"
+    )
+    assert authenticated_client.get(api, params).status_code == 503
+    settings.DECISION_WORKSPACE_V2_ENABLED = True
+    owner_account.user = other
+    owner_account.save(update_fields=["user"])
+    for path in (url, api):
+        response = authenticated_client.get(path, params)
+        assert response.status_code == 403
+        assert "R3 owned private thesis" not in response.content.decode()

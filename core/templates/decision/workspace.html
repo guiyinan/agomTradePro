@@ -596,7 +596,9 @@
                 <div class="workspace-sidebar-title">决策账户</div>
                 <p class="workspace-sidebar-subtitle">页面级直接切换账户。后续推荐、审批和冲突都按该账户口径刷新。</p>
                 <select id="workspace-account-selector" name="account_id" class="form-select" style="width: 100%; margin-top: 14px;" onchange="handleWorkspaceAccountChange()">
-                    <option value="">加载账户中...</option>
+                    {% if workspace_initial_account %}
+                    <option value="{{ workspace_initial_account.value }}" selected>{{ workspace_initial_account.account_name }}</option>
+                    {% else %}<option value="">加载账户中...</option>{% endif %}
                 </select>
             </div>
 
@@ -831,7 +833,7 @@
                      hx-trigger="stepChanged4 from:body" 
                      hx-target="#step-4-content"
                      hx-indicator="#funnel-loading-indicator">
-                    <div id="step-4-content"></div>
+                    <div id="step-4-content">{% if workspace_initial_recommendations %}{% include 'decision/steps/screen.html' %}{% endif %}</div>
                 </div>
 
                 <!-- Step 5 Container (Transition Plan) -->
@@ -905,9 +907,11 @@ document.addEventListener('alpine:init', () => {
                 const targetStep = normalizeDecisionStepRequest(requestedStep);
                 this.maxReached = Math.max(this.maxReached, targetStep);
                 this.currentStep = targetStep;
-                this.$nextTick(() => {
-                    document.body.dispatchEvent(new Event(`stepChanged${this.currentStep}`));
-                });
+                if (targetStep !== 4 || !hasInitialRecommendations()) {
+                    this.$nextTick(() => {
+                        document.body.dispatchEvent(new Event(`stepChanged${this.currentStep}`));
+                    });
+                }
                 if (targetStep !== requestedStep) {
                     window.showToast(getDecisionStepGuardMessage(requestedStep), 'warning');
                 }
@@ -1169,6 +1173,7 @@ document.addEventListener('alpine:init', () => {
     </div>
 </div>
 
+{% if workspace_initial_recommendations %}{{ workspace_initial_recommendations|json_script:"workspace-initial-recommendations" }}{% endif %}
 <script>
 // ===== 全局状态 =====
 const workspaceParams = new URLSearchParams(window.location.search);
@@ -1185,13 +1190,19 @@ let workspaceAccountLoadGeneration = 0;
 const selectedRecommendationIds = new Set();
 const workspaceBridge = {
     source: workspaceParams.get('source') || (workspaceParams.get('execute_request') ? 'alpha-trigger-execute' : ''),
-    securityCode: workspaceParams.get('security_code') || workspaceParams.get('asset_code') || '',
+    securityCode: (workspaceParams.get('security_code') || workspaceParams.get('asset_code') || '').trim().toUpperCase(),
     action: workspaceParams.get('action') || workspaceParams.get('direction') || '',
     legacyRequestId: workspaceParams.get('execute_request') || '',
     handled: false,
     highlightedRecommendationId: '',
 };
-const requestedWorkspaceAccountId = workspaceParams.get('account_id') || '';
+const requestedWorkspaceAccountId = (workspaceParams.get('account_id') || '').trim().replace(/^0+(?=\d)/, '');
+const initialWorkspaceData = document.getElementById('workspace-initial-recommendations');
+let initialRecommendationsAccount = '';
+
+function hasInitialRecommendations() {
+    return Boolean(initialRecommendationsAccount) && initialRecommendationsAccount === getSelectedWorkspaceAccountId();
+}
 
 function isCurrentWorkspaceAccount(accountId, generation) {
     return generation === workspaceAccountLoadGeneration
@@ -1817,6 +1828,12 @@ function renderWorkspaceDefaultSnapshot() {
 
 function renderWorkspaceUnavailableAccount() {
     const message = '请求的账户不存在或无权访问，请从账户列表选择可用账户。';
+    initialRecommendationsAccount = '';
+    currentWorkspaceRecommendations = [];
+    const list = document.getElementById('recommendations-list');
+    if (list) list.textContent = message;
+    const entry = document.getElementById('workspace-bridge-research-entry');
+    if (entry) entry.replaceChildren();
     const meta = document.getElementById('workspace-account-meta');
     const status = document.getElementById('workspace-account-status');
     if (meta) {
@@ -2123,8 +2140,8 @@ function refreshCurrentDecisionStep() {
     }
 }
 
-function refreshWorkspaceDecisionLists(generation = workspaceAccountLoadGeneration) {
-    loadRecommendations(generation);
+function refreshWorkspaceDecisionLists(generation = workspaceAccountLoadGeneration, reloadRecommendations = true) {
+    if (reloadRecommendations) loadRecommendations(generation);
     loadApprovals(generation);
     loadConflicts(generation);
     loadTransitionPlanStep(generation);
@@ -2157,6 +2174,7 @@ function toggleIgnoredRecommendationsFilter() {
 }
 
 function handleWorkspaceAccountChange() {
+    initialRecommendationsAccount = '';
     const generation = ++workspaceAccountLoadGeneration;
     const accountId = getSelectedWorkspaceAccountId();
     const url = new URL(window.location.href);
@@ -2211,6 +2229,9 @@ async function bootstrapWorkspaceBridge() {
         }
 
         workspaceBridge.highlightedRecommendationId = targetRecommendation.recommendation_id;
+        document.querySelectorAll('#recommendations-list .recommendation-card').forEach(card => {
+            card.classList.toggle('recommendation-card-highlight', card.dataset.recommendationId === targetRecommendation.recommendation_id);
+        });
 
         const bridgeUserAction = normalizeWorkspaceBridgeUserAction(workspaceBridge.action);
         const bridgeActionLabel = {
@@ -2250,7 +2271,7 @@ window.initializeDecisionWorkspace = async function() {
         return;
     }
     await bootstrapWorkspaceBridge();
-    refreshWorkspaceDecisionLists();
+    refreshWorkspaceDecisionLists(workspaceAccountLoadGeneration, !hasInitialRecommendations());
 
     // 模态框点击外部关闭
     document.getElementById('approvalModal').addEventListener('click', function(e) {
@@ -2321,7 +2342,7 @@ async function loadUserAccounts() {
             loadWorkspaceAccountSnapshot(generation),
             loadAdvisorSheet(generation),
         ]);
-        refreshCurrentDecisionStep();
+        if (!hasInitialRecommendations()) refreshCurrentDecisionStep();
         return true;
     } catch (error) {
         if (generation !== workspaceAccountLoadGeneration) {
@@ -3656,6 +3677,15 @@ Object.assign(window, {
     refreshAdvisorSheet,
     copyAdvisorManualList,
 });
+
+if (initialWorkspaceData) {
+    const initial = JSON.parse(initialWorkspaceData.textContent);
+    if (initial.account_id === getSelectedWorkspaceAccountId()) {
+        initialRecommendationsAccount = initial.account_id;
+        showWorkspaceBridgeResearchEntry();
+        renderRecommendations(initial.recommendations, initial.total_count);
+    }
+}
 </script>
 
 <style>

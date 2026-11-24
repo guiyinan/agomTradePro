@@ -5,7 +5,7 @@ Core Views for AgomTradePro
 """
 
 from collections.abc import Iterable
-from datetime import UTC, date, datetime
+from datetime import UTC, datetime
 from typing import Any, TypedDict
 
 from django.contrib.auth.decorators import login_required, user_passes_test
@@ -351,20 +351,24 @@ def decision_workspace_view(request: AuthenticatedHttpRequest) -> HttpResponse:
     """
     import logging
 
+    from django.conf import settings
+    from django.db import DatabaseError
+
     from apps.account.application.interface_services import list_investment_account_options
-    from apps.policy.application.repository_provider import get_current_policy_repository
-    from apps.policy.application.use_cases import GetCurrentPolicyUseCase
+    from apps.decision_rhythm.application.dtos import RecommendationsListDTO
+    from apps.decision_rhythm.application.workspace_services import list_workspace_recommendations
+    from core.exceptions import AgomTradeProException
 
     logger = logging.getLogger(__name__)
     requested_workspace_account_id = str(request.GET.get("account_id") or "").strip()
     requested_security_code = str(request.GET.get("security_code") or "").strip().upper()
     requested_workspace_source = str(request.GET.get("source") or "").strip().lower()
-    account_ids = (
-        [str(option["value"]) for option in list_investment_account_options(request.user.pk)]
-        if request.user.pk is not None
-        else []
+    account_options = (
+        list_investment_account_options(request.user.pk) if request.user.pk is not None else []
     )
+    account_ids = [str(option["value"]) for option in account_options]
     parsed_workspace_account_id = None
+    selected_option = None
     if requested_workspace_account_id not in {"", "default"}:
         if (
             not requested_workspace_account_id.isascii()
@@ -372,7 +376,10 @@ def decision_workspace_view(request: AuthenticatedHttpRequest) -> HttpResponse:
         ):
             return HttpResponse("账户编号无效", status=400)
         selected_id = requested_workspace_account_id.lstrip("0")
-        if selected_id not in account_ids:
+        selected_option = next(
+            (row for row in account_options if str(row["value"]) == selected_id), None
+        )
+        if selected_option is None:
             return HttpResponse("所选账户不可用", status=403)
         parsed_workspace_account_id = int(selected_id)
         account_ids = [selected_id]
@@ -381,51 +388,82 @@ def decision_workspace_view(request: AuthenticatedHttpRequest) -> HttpResponse:
         "page_title": "决策工作台",
         "page_description": "统一管理投资决策流程",
     }
-    try:
-        from apps.equity.application.config import get_valuation_repair_config_summary
+    if request.GET.get("refresh") != "1":
+        # ========== 当前持仓退出链路 ==========
+        try:
+            from apps.dashboard.application import (
+                interface_services as dashboard_interface_services,
+            )
+            from apps.dashboard.interface import views as dashboard_views
 
-        context["valuation_repair_config_summary"] = get_valuation_repair_config_summary(
-            use_cache=False
-        )
-    except Exception as e:
-        logger.warning(f"Failed to get valuation repair config summary: {e}")
-        context["valuation_repair_config_summary"] = None
+            direct_research_request = bool(requested_security_code) and (
+                requested_workspace_source != "dashboard-exit"
+            )
+            exit_alpha_payload = dashboard_interface_services.get_alpha_exit_watch_payload(
+                user=request.user,
+                query_factory=dashboard_views.get_alpha_homepage_query,
+                account_id=parsed_workspace_account_id if direct_research_request else None,
+                asset_code=requested_security_code if direct_research_request else None,
+            )
+            workspace_exit_watchlist = dashboard_views._mark_alpha_exit_watchlist_selection(
+                dashboard_views._annotate_alpha_exit_watchlist_navigation(
+                    exit_alpha_payload.get("exit_watchlist", []),
+                    alpha_scope=dashboard_views.ALPHA_SCOPE_PORTFOLIO,
+                ),
+                account_id=parsed_workspace_account_id,
+                asset_code=requested_security_code or None,
+            )
+            workspace_exit_detail = dashboard_views._build_alpha_exit_detail_panel_context(
+                exit_watchlist=workspace_exit_watchlist,
+                account_id=parsed_workspace_account_id,
+                asset_code=requested_security_code or None,
+            )
+            context["workspace_exit_watchlist"] = workspace_exit_watchlist[:5]
+            context["workspace_exit_watch_summary"] = exit_alpha_payload.get(
+                "exit_watch_summary", {}
+            )
+            context["workspace_selected_exit_item"] = workspace_exit_detail.get("selected")
+            context["workspace_exit_watch_available"] = exit_alpha_payload.get(
+                "exit_watch_available", False
+            )
+            context["workspace_exit_watch_error_code"] = exit_alpha_payload.get(
+                "exit_watch_error_code", "exit_watch_unavailable"
+            )
+            context["workspace_exit_watch_scoped"] = direct_research_request
+        except Exception as e:
+            logger.warning(f"Failed to get workspace exit watchlist: {e}")
+            context["workspace_exit_watchlist"] = []
+            context["workspace_exit_watch_summary"] = {}
+            context["workspace_selected_exit_item"] = None
+            context["workspace_exit_watch_available"] = False
+            context["workspace_exit_watch_error_code"] = "exit_watch_unavailable"
+            context["workspace_exit_watch_scoped"] = bool(requested_security_code)
 
-    # ========== 获取当前 Regime（与 Regime 页面保持同口径） ==========
-    try:
-        current_regime = resolve_current_regime(as_of_date=date.today())
-        context["current_regime"] = current_regime.dominant_regime
-        context["regime_confidence"] = current_regime.confidence
-    except Exception as e:
-        logger.warning(f"Failed to get current regime: {e}")
-        context["current_regime"] = "Unknown"
-        context["regime_confidence"] = 0.0
-
-    # ========== 获取当前 Policy ==========
-    try:
-        policy_use_case = GetCurrentPolicyUseCase(get_current_policy_repository())
-        policy_response = policy_use_case.execute()
-        if policy_response.success and policy_response.policy_level:
-            context["current_policy"] = policy_response.policy_level.value
-    except Exception as e:
-        logger.warning(f"Failed to get current policy: {e}")
-        context["current_policy"] = "P0"
-
-    # ========== Beta Gate 数据 ==========
-    try:
-        from apps.beta_gate.application.config_summary_service import (
-            get_beta_gate_config_summary_service,
-        )
-
-        beta_gate_context = get_beta_gate_config_summary_service().get_active_config_context()
-        context["beta_gate_allowed_classes"] = beta_gate_context["allowed_asset_classes"]
-        if beta_gate_context["config_id"]:
-            context["beta_gate_config_id"] = beta_gate_context["config_id"]
-        else:
-            context["beta_gate_allowed_classes"] = []
-    except Exception as e:
-        logger.warning(f"Failed to get beta gate config: {e}")
-        context["beta_gate_allowed_classes"] = []
+        if (
+            parsed_workspace_account_id is not None
+            and requested_security_code
+            and request.GET.get("step") == "4"
+            and getattr(settings, "DECISION_WORKSPACE_V2_ENABLED", True)
+        ):
+            try:
+                rows, total = list_workspace_recommendations(
+                    account_id=str(parsed_workspace_account_id),
+                    status=None,
+                    user_action=None,
+                    security_code=requested_security_code,
+                    include_ignored=False,
+                    recommendation_id=None,
+                    page=1,
+                    page_size=20,
+                )
+                context["workspace_initial_recommendations"] = {
+                    "account_id": str(parsed_workspace_account_id),
+                    **RecommendationsListDTO(recommendations=rows, total_count=total).to_dict(),
+                }
+                context["workspace_initial_account"] = selected_option
+            except (AgomTradeProException, DatabaseError, RuntimeError, ValueError) as exc:
+                logger.warning("Initial workspace recommendation read failed: %s", exc)
+        return render(request, "decision/workspace.html", context)
 
     # ========== Alpha Trigger 数据 ==========
     try:
@@ -433,24 +471,11 @@ def decision_workspace_view(request: AuthenticatedHttpRequest) -> HttpResponse:
             get_alpha_trigger_global_alert_service,
         )
 
-        alpha_summary = get_alpha_trigger_global_alert_service().get_workspace_summary()
-        context["alpha_trigger_count"] = alpha_summary["alpha_trigger_count"]
-        context["alpha_watch_count"] = alpha_summary["alpha_watch_count"]
-        context["alpha_candidate_count"] = alpha_summary["alpha_candidate_count"]
-        context["alpha_actionable_count"] = alpha_summary["alpha_actionable_count"]
-        raw_actionable_candidates = alpha_summary["actionable_candidates"]
-        actionable_candidates = _group_by_asset_code(
-            raw_actionable_candidates, direction_attr="direction"
-        )[:5]
-        context["actionable_candidates"] = actionable_candidates
-        context["alpha_actionable_count"] = len(actionable_candidates)
-    except Exception as e:
-        logger.warning(f"Failed to get alpha trigger data: {e}")
-        context["alpha_trigger_count"] = 0
-        context["alpha_watch_count"] = 0
-        context["alpha_candidate_count"] = 0
-        context["alpha_actionable_count"] = 0
-        context["actionable_candidates"] = []
+        summary = get_alpha_trigger_global_alert_service().get_workspace_summary()
+        actionable_count = min(5, len(_group_by_asset_code(summary["actionable_candidates"])))
+    except Exception as exc:
+        logger.warning("Failed to get alpha trigger data: %s", exc)
+        actionable_count = 0
 
     # ========== Decision Rhythm 数据 ==========
     try:
@@ -459,22 +484,11 @@ def decision_workspace_view(request: AuthenticatedHttpRequest) -> HttpResponse:
         )
 
         quota_usage = get_decision_rhythm_global_alert_service().get_weekly_quota_usage()
-        if quota_usage:
-            context["quota_total"] = quota_usage["quota_total"]
-            context["quota_used"] = quota_usage["quota_used"]
-            context["quota_remaining"] = quota_usage["quota_remaining"]
-            context["quota_usage_percent"] = quota_usage["usage_percent"]
-        else:
-            context["quota_total"] = 10
-            context["quota_used"] = 0
-            context["quota_remaining"] = 10
-            context["quota_usage_percent"] = 0
-    except Exception as e:
-        logger.warning(f"Failed to get decision rhythm data: {e}")
-        context["quota_total"] = 10
-        context["quota_used"] = 0
-        context["quota_remaining"] = 10
-        context["quota_usage_percent"] = 0
+        quota_remaining = quota_usage["quota_remaining"] if quota_usage else 10
+        quota_percent = quota_usage["usage_percent"] if quota_usage else 0
+    except Exception as exc:
+        logger.warning("Failed to get decision rhythm data: %s", exc)
+        quota_remaining, quota_percent = 10, 0
 
     # ========== 决策待办列表（优先级排序） ==========
     try:
@@ -487,119 +501,20 @@ def decision_workspace_view(request: AuthenticatedHttpRequest) -> HttpResponse:
                 account_ids=account_ids
             )
         )
-        pending_requests = _group_by_asset_code(raw_pending_requests, direction_attr="direction")[
-            :10
-        ]
-        context["pending_requests"] = pending_requests
-        context["pending_count"] = len(pending_requests)
-    except Exception as e:
-        logger.warning(f"Failed to get pending requests: {e}")
-        context["pending_requests"] = []
-        context["pending_count"] = 0
+        pending_count = min(10, len(_group_by_asset_code(raw_pending_requests)))
+    except Exception as exc:
+        logger.warning("Failed to get pending requests: %s", exc)
+        pending_count = 0
 
-    # ========== 当前持仓退出链路 ==========
-    try:
-        from apps.dashboard.application import interface_services as dashboard_interface_services
-        from apps.dashboard.interface import views as dashboard_views
-
-        direct_research_request = bool(requested_security_code) and (
-            requested_workspace_source != "dashboard-exit"
-        )
-        exit_alpha_payload = dashboard_interface_services.get_alpha_exit_watch_payload(
-            user=request.user,
-            query_factory=dashboard_views.get_alpha_homepage_query,
-            account_id=parsed_workspace_account_id if direct_research_request else None,
-            asset_code=requested_security_code if direct_research_request else None,
-        )
-        workspace_exit_watchlist = dashboard_views._mark_alpha_exit_watchlist_selection(
-            dashboard_views._annotate_alpha_exit_watchlist_navigation(
-                exit_alpha_payload.get("exit_watchlist", []),
-                alpha_scope=dashboard_views.ALPHA_SCOPE_PORTFOLIO,
-            ),
-            account_id=parsed_workspace_account_id,
-            asset_code=requested_security_code or None,
-        )
-        workspace_exit_detail = dashboard_views._build_alpha_exit_detail_panel_context(
-            exit_watchlist=workspace_exit_watchlist,
-            account_id=parsed_workspace_account_id,
-            asset_code=requested_security_code or None,
-        )
-        context["workspace_exit_watchlist"] = workspace_exit_watchlist[:5]
-        context["workspace_exit_watch_summary"] = exit_alpha_payload.get("exit_watch_summary", {})
-        context["workspace_selected_exit_item"] = workspace_exit_detail.get("selected")
-        context["workspace_exit_watch_available"] = exit_alpha_payload.get(
-            "exit_watch_available", False
-        )
-        context["workspace_exit_watch_error_code"] = exit_alpha_payload.get(
-            "exit_watch_error_code", "exit_watch_unavailable"
-        )
-        context["workspace_exit_watch_scoped"] = direct_research_request
-    except Exception as e:
-        logger.warning(f"Failed to get workspace exit watchlist: {e}")
-        context["workspace_exit_watchlist"] = []
-        context["workspace_exit_watch_summary"] = {}
-        context["workspace_selected_exit_item"] = None
-        context["workspace_exit_watch_available"] = False
-        context["workspace_exit_watch_error_code"] = "exit_watch_unavailable"
-        context["workspace_exit_watch_scoped"] = bool(requested_security_code)
-
-    # ========== 告警信息 ==========
-    alerts: list[dict[str, str]] = []
-
-    # 配额告警
-    if context.get("quota_usage_percent", 0) >= 100:
-        alerts.append(
-            {
-                "type": "danger",
-                "icon": "🚨",
-                "title": "配额已耗尽",
-                "message": "本周决策配额已用完，请联系管理员重置。",
-            }
-        )
-    elif context.get("quota_usage_percent", 0) >= 80:
-        alerts.append(
-            {
-                "type": "warning",
-                "icon": "⚠️",
-                "title": "配额即将耗尽",
-                "message": f'本周剩余配额仅 {context.get("quota_remaining", 0)} 次。',
-            }
-        )
-
-    # 候选即将过期告警
-    try:
-        from apps.alpha_trigger.application.global_alert_service import (
-            get_alpha_trigger_global_alert_service,
-        )
-
-        expiring_soon = get_alpha_trigger_global_alert_service().count_expiring_candidates()
-        if expiring_soon > 0:
-            alerts.append(
-                {
-                    "type": "info",
-                    "icon": "⏰",
-                    "title": f"{expiring_soon} 个候选即将过期",
-                    "message": "请在过期前处理相关投资机会。",
-                }
-            )
-    except Exception as e:
-        logger.warning(f"Failed to check expiring candidates: {e}")
-
-    context["alerts"] = alerts
-
-    # 轻量刷新接口（前端每 30 秒调用）
-    if request.GET.get("refresh") == "1":
-        return JsonResponse(
-            {
-                "success": True,
-                "quota_usage_percent": context.get("quota_usage_percent", 0),
-                "quota_remaining": context.get("quota_remaining", 0),
-                "pending_count": context.get("pending_count", 0),
-                "alpha_actionable_count": context.get("alpha_actionable_count", 0),
-            }
-        )
-
-    return render(request, "decision/workspace.html", context)
+    return JsonResponse(
+        {
+            "success": True,
+            "quota_usage_percent": quota_percent,
+            "quota_remaining": quota_remaining,
+            "pending_count": pending_count,
+            "alpha_actionable_count": actionable_count,
+        }
+    )
 
 
 @login_required

@@ -1,4 +1,4 @@
-<div class="funnel-step-content" x-init="$nextTick(() => window.loadRecommendations())" style="animation: fadeIn 0.3s ease-in-out;">
+<div class="funnel-step-content" {% if not workspace_initial_recommendations %}x-init="$nextTick(() => window.loadRecommendations())"{% endif %} style="animation: fadeIn 0.3s ease-in-out;">
     <h3 style="margin-bottom: 20px;">阶段 4: 推优筛选</h3>
     
     <div class="attention-card" style="margin-bottom: 20px;">

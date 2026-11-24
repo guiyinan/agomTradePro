@@ -123,11 +123,26 @@ def test_workspace_candidate_opens_owned_research_without_creating_config(
         side="BUY",
         human_rationale="山东黄金研究样本",
     )
+    second_account = SimulatedAccountModel.objects.create(
+        user=owner,
+        account_name="第二个研究账户",
+        account_type="simulated",
+        initial_capital="10000",
+        current_cash="10000",
+        total_value="10000",
+    )
+    second = UnifiedRecommendationModel.objects.create(
+        recommendation_id="workspace-second-owned",
+        account_id=str(second_account.pk),
+        security_code="600547.SH",
+        side="BUY",
+        human_rationale="第二账户独立依据",
+    )
     MarketThermometerConfigModel.objects.filter(pk=1).delete()
     client = Client()
     client.force_login(owner)
     methods: list[str] = []
-    url = f"{live_server.url}/decision/workspace/?source=dashboard-alpha&security_code=600547.SH&account_id={account.pk}&step=4"
+    url = f"{live_server.url}/decision/workspace/?source=dashboard-alpha&security_code=600547.sh&account_id=00{account.pk}&step=4"
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(headless=True)
         try:
@@ -155,6 +170,46 @@ def test_workspace_candidate_opens_owned_research_without_creating_config(
             card = page.locator(
                 f'[data-recommendation-id="{recommendation.recommendation_id}"].recommendation-card'
             )
+            expect(card).to_contain_text("山东黄金研究样本")
+            selector = page.locator("#workspace-account-selector")
+            expect(selector.locator(f'option[value="{second_account.pk}"]')).to_be_attached()
+            held = []
+
+            def is_first_list(request):
+                query = parse_qs(urlsplit(request.url).query)
+                return (
+                    urlsplit(request.url).path == "/api/decision/workspace/recommendations/"
+                    and query.get("account_id") == [str(account.pk)]
+                    and "include_ignored" not in query
+                )
+
+            def delay_first_list(route):
+                if is_first_list(route.request):
+                    held.append(route)
+                else:
+                    route.continue_()
+
+            page.route("**/api/decision/workspace/recommendations/**", delay_first_list)
+            with page.expect_request(is_first_list):
+                page.locator('button[onclick="window.loadRecommendations()"]').click()
+            expect(page.locator("#recommendations-list .app-loading-text")).to_be_visible()
+            selector.select_option(str(second_account.pk))
+            second_card = page.locator(
+                f'.recommendation-card[data-recommendation-id="{second.recommendation_id}"]'
+            )
+            expect(second_card).to_contain_text("第二账户独立依据")
+            assert held
+            with page.expect_response(lambda response: is_first_list(response.request)) as resumed:
+                held[0].continue_()
+            assert resumed.value.status == 200
+            resumed.value.finished()
+            page.evaluate(
+                "() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))"
+            )
+            expect(second_card).to_contain_text("第二账户独立依据")
+            expect(card).to_have_count(0)
+            page.unroute("**/api/decision/workspace/recommendations/**", delay_first_list)
+            selector.select_option(str(account.pk))
             expect(card).to_contain_text("山东黄金研究样本")
             link = page.locator("#workspace-bridge-research-entry").get_by_role("link")
             target = f"/equity/detail/600547.SH/?account_id={account.pk}"
