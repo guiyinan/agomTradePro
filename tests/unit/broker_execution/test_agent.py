@@ -529,6 +529,7 @@ def test_heartbeat_publishes_agent_source_observation_time(tmp_path: Path) -> No
     assert endpoint == "heartbeat/"
     assert payload["contract_version"] == "1.0"
     assert payload["observed_at"].endswith("+00:00")
+    assert payload["request_snapshot_challenge"] is True
     assert payload["execution_constraint_schemas"] == ["a-share-execution-constraints.v2"]
     state.close()
 

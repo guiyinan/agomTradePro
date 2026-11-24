@@ -619,7 +619,8 @@ class AgentHeartbeatView(AgentApiView):
             result = AgentHeartbeatUseCase().execute(agent=agent, payload=data)
             accounts = data.get("account_ids")
             if (
-                isinstance(accounts, list)
+                data["request_snapshot_challenge"]
+                and isinstance(accounts, list)
                 and len(accounts) == 1
                 and accounts[0] in agent["allowed_account_ids"]
             ):

@@ -224,6 +224,7 @@ class AgentHeartbeatSerializer(serializers.Serializer[dict[str, Any]]):
         max_length=50,
     )
     agent_version = serializers.CharField(max_length=32)
+    request_snapshot_challenge = serializers.BooleanField(default=False)
     execution_constraint_schemas = serializers.ListField(
         child=serializers.RegexField(r"\A[a-z][a-z0-9._-]{0,95}\Z", trim_whitespace=False),
         required=False,

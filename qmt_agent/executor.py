@@ -110,6 +110,7 @@ class QmtAgentExecutor:
                 "qmt_connected": bool(health.get("qmt_connected")),
                 "account_ids": [self.config.system_account_id],
                 "agent_version": __version__,
+                "request_snapshot_challenge": True,
                 "execution_constraint_schemas": ["a-share-execution-constraints.v2"],
                 "qmt_version": str(health.get("qmt_version") or ""),
                 "dry_run": self.config.dry_run,

@@ -21,7 +21,7 @@ from .models import BrokerCommandModel, BrokerExecutionAuditModel, LiveOrderMode
 
 
 def lease_agent_commands(
-    self, *, agent_pk: int, allowed_account_ids: list[int], limit: int
+    *, agent_pk: int, allowed_account_ids: list[int], limit: int
 ) -> dict[str, Any]:
     """Lease pending commands for delivery to one Agent."""
 
