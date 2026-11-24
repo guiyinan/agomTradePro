@@ -17,13 +17,13 @@ class QuotaUsage(TypedDict):
 class DecisionRhythmGlobalAlertRepository(Protocol):
     """Read model contract for decision-rhythm global alerts."""
 
-    def get_weekly_quota_usage(self) -> QuotaUsage | None:
-        """Return latest weekly quota usage."""
+    def get_weekly_quota_usage(self, *, account_ids: list[str]) -> QuotaUsage | None:
+        """Return current weekly usage across the specified authorized accounts."""
 
     def count_active_cooldowns(self, window_hours: int) -> int:
         """Return approximate active cooldown count."""
 
-    def count_high_priority_pending_requests(self) -> int:
+    def count_high_priority_pending_requests(self, *, account_ids: list[str]) -> int:
         """Return pending high-priority request count."""
 
     def list_pending_execution_requests(
@@ -40,20 +40,20 @@ class DecisionRhythmGlobalAlertService:
     def __init__(self, repository: DecisionRhythmGlobalAlertRepository):
         self.repository = repository
 
-    def get_weekly_quota_usage(self) -> QuotaUsage | None:
-        """Return latest weekly quota usage."""
+    def get_weekly_quota_usage(self, *, account_ids: list[str]) -> QuotaUsage | None:
+        """Return current weekly usage across the specified authorized accounts."""
 
-        return self.repository.get_weekly_quota_usage()
+        return self.repository.get_weekly_quota_usage(account_ids=account_ids)
 
     def count_active_cooldowns(self, window_hours: int = 72) -> int:
         """Return approximate active cooldown count."""
 
         return self.repository.count_active_cooldowns(window_hours)
 
-    def count_high_priority_pending_requests(self) -> int:
+    def count_high_priority_pending_requests(self, *, account_ids: list[str]) -> int:
         """Return pending high-priority request count."""
 
-        return self.repository.count_high_priority_pending_requests()
+        return self.repository.count_high_priority_pending_requests(account_ids=account_ids)
 
     def list_pending_execution_requests(
         self,

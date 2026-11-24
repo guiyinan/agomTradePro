@@ -605,7 +605,7 @@ class DecisionPlaneQuery:
             if max_candidates > 0
             else all_actionable_candidates
         )
-        quota = self._get_quota_usage()
+        quota = self._get_quota_usage(user_id=user_id)
 
         return DecisionPlaneData(
             beta_gate_visible_classes=self._get_beta_gate_visible_classes(),
@@ -673,7 +673,7 @@ class DecisionPlaneQuery:
         """获取决策配额使用百分比"""
         return self._get_quota_usage().usage_percent
 
-    def _get_quota_usage(self) -> DecisionQuotaData:
+    def _get_quota_usage(self, *, user_id: int | None = None) -> DecisionQuotaData:
         """Load and validate one coherent weekly quota snapshot."""
 
         unavailable = DecisionQuotaData(
@@ -684,11 +684,15 @@ class DecisionPlaneQuery:
             available=False,
         )
         try:
+            from apps.account.application.interface_services import list_investment_account_options
             from apps.decision_rhythm.application.global_alert_service import (
                 get_decision_rhythm_global_alert_service,
             )
 
-            quota = get_decision_rhythm_global_alert_service().get_weekly_quota_usage()
+            options = list_investment_account_options(user_id) if user_id is not None else []
+            quota = get_decision_rhythm_global_alert_service().get_weekly_quota_usage(
+                account_ids=[str(option["value"]) for option in options]
+            )
             if not isinstance(quota, dict):
                 return unavailable
             total = self._non_negative_int(quota.get("quota_total"))

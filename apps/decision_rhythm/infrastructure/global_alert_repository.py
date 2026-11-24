@@ -15,21 +15,29 @@ from .models import CooldownPeriodModel, DecisionQuotaModel, DecisionRequestMode
 class DjangoDecisionRhythmGlobalAlertRepository:
     """ORM-backed decision-rhythm global-alert repository."""
 
-    def get_weekly_quota_usage(self) -> QuotaUsage | None:
-        """Return latest weekly quota usage."""
+    def get_weekly_quota_usage(self, *, account_ids: list[str]) -> QuotaUsage | None:
+        """Read current weekly limits for a complete authorized set of accounts."""
 
-        current_quota = (
-            DecisionQuotaModel._default_manager.filter(period=QuotaPeriod.WEEKLY.value)
-            .order_by("-period_start")
-            .first()
-        )
-        if current_quota is None:
+        accounts = set(account_ids)
+        if not accounts:
             return None
-
-        quota_total = int(getattr(current_quota, "max_decisions", 10))
-        quota_used = int(getattr(current_quota, "used_decisions", 0))
-        quota_remaining = max(0, quota_total - quota_used)
-        usage_percent = round(quota_used / quota_total * 100, 1) if quota_total > 0 else 0
+        now = timezone.now()
+        rows = list(
+            DecisionQuotaModel._default_manager.filter(
+                account_id__in=accounts,
+                period=QuotaPeriod.WEEKLY.value,
+                period_start__lte=now,
+                period_end__gte=now,
+            ).values_list("max_decisions", "used_decisions")
+        )
+        if len(rows) != len(accounts):
+            return None
+        if any(total < 0 or used < 0 or used > total for total, used in rows):
+            return None
+        quota_total = sum(total for total, _ in rows)
+        quota_used = sum(used for _, used in rows)
+        quota_remaining = quota_total - quota_used
+        usage_percent = round(quota_used / quota_total * 100, 1) if quota_total else 0.0
         return {
             "quota_total": quota_total,
             "quota_used": quota_used,
@@ -43,12 +51,13 @@ class DjangoDecisionRhythmGlobalAlertRepository:
         threshold = timezone.now() - timedelta(hours=window_hours)
         return CooldownPeriodModel._default_manager.filter(last_decision_at__gte=threshold).count()
 
-    def count_high_priority_pending_requests(self) -> int:
+    def count_high_priority_pending_requests(self, *, account_ids: list[str]) -> int:
         """Return pending high-priority request count."""
 
         return DecisionRequestModel._default_manager.filter(
             execution_status="PENDING",
             priority="high",
+            unified_recommendation__account_id__in=account_ids,
         ).count()
 
     def list_pending_execution_requests(

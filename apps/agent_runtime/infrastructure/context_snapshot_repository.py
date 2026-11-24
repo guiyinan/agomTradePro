@@ -84,6 +84,9 @@ class DjangoContextSnapshotRepository:
                 return {
                     "status": "no_data",
                     "message": "No policy events found",
+                    "current_level": status_payload["current_level"],
+                    "current_gear": "unclassified",
+                    "requires_manual_approval": True,
                     "observed_at": None,
                     "freshness_status": "unknown",
                     "must_not_use_for_decision": True,
@@ -91,7 +94,9 @@ class DjangoContextSnapshotRepository:
                 }
             return {
                 "status": "blocked" if status_payload["must_not_use_for_decision"] else "ok",
-                "current_gear": status_payload.get("current_level"),
+                "current_level": status_payload["current_level"],
+                "current_gear": status_payload["current_gear"],
+                "requires_manual_approval": status_payload["requires_manual_approval"],
                 "event_date": str(latest.get("event_date") or ""),
                 "description": str(latest.get("title") or ""),
                 "is_intervention_active": bool(status_payload.get("is_intervention_active")),
@@ -102,7 +107,16 @@ class DjangoContextSnapshotRepository:
             }
         except Exception as exc:
             _log_source_failure("Failed to fetch policy summary", exc)
-            return _unavailable("policy")
+            return {
+                **_unavailable("policy"),
+                "current_level": None,
+                "current_gear": "unclassified",
+                "requires_manual_approval": True,
+                "observed_at": None,
+                "freshness_status": "unknown",
+                "must_not_use_for_decision": True,
+                "blocked_reason": "source_fetch_failed",
+            }
 
     def fetch_portfolio_summary(self) -> dict[str, Any]:
         """Fetch portfolio overview."""

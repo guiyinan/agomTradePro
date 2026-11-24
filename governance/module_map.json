@@ -31,7 +31,7 @@
           "imports": 1
         },
         "dashboard": {
-          "imports": 21
+          "imports": 22
         },
         "decision_rhythm": {
           "imports": 5
@@ -3764,7 +3764,7 @@
       },
       "depends_on": {
         "account": {
-          "imports": 21,
+          "imports": 22,
           "target_layers": [
             "application",
             "domain",

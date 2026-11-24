@@ -43,9 +43,7 @@ def test_dispatch_helpers_cover_registered_fallback_and_error_paths(
         "fallback",
         lambda value: {"value": value},
     )
-    assert server_module._call_registered_tool("fallback", {"value": 3}) == {
-        "value": 3
-    }
+    assert server_module._call_registered_tool("fallback", {"value": 3}) == {"value": 3}
     with pytest.raises(KeyError, match="not registered"):
         server_module._call_registered_tool("missing", {})
 
@@ -115,7 +113,7 @@ def test_regime_policy_and_contract_resources(
     )
     event = SimpleNamespace(event_date=date(2026, 7, 24), description="rate decision")
     server_client.policy.get_status.return_value = SimpleNamespace(
-        current_gear="P1",
+        current_gear="tightening",
         observed_at=datetime(2026, 7, 25, tzinfo=UTC),
         recent_events=[event],
     )
@@ -146,7 +144,7 @@ def test_context_resources_and_workflow_prompts(
             "growth_level": "up",
             "inflation_level": "down",
         },
-        "policy_summary": {"status": "ok", "current_gear": "P1"},
+        "policy_summary": {"status": "ok", "current_level": "P1", "current_gear": "tightening"},
         "portfolio_summary": {"status": "ok", "position_count": 2},
         "active_signals_summary": {"status": "ok", "active_count": 3},
         "open_decisions_summary": {},

@@ -73,6 +73,8 @@ def test_context_snapshot_primary_summaries_cover_data_and_empty_states() -> Non
             "apps.policy.application.query_services.get_policy_status_payload",
             return_value={
                 "current_level": "P1",
+                "current_gear": "tightening",
+                "requires_manual_approval": True,
                 "is_intervention_active": False,
                 "as_of_date": "2026-07-25",
                 "observed_at": "2026-07-20",
@@ -93,7 +95,9 @@ def test_context_snapshot_primary_summaries_cover_data_and_empty_states() -> Non
         ),
     ):
         summary = repository.fetch_policy_summary()
-        assert summary["current_gear"] == "P1"
+        assert summary["current_level"] == "P1"
+        assert summary["current_gear"] == "tightening"
+        assert summary["requires_manual_approval"] is True
         assert summary["observed_at"] == "2026-07-20"
         assert summary["must_not_use_for_decision"] is True
         assert summary["blocked_reason"] == "policy_manual_approval_required"
@@ -106,12 +110,31 @@ def test_context_snapshot_primary_summaries_cover_data_and_empty_states() -> Non
             "apps.policy.application.query_services.get_policy_status_payload",
             return_value={
                 "current_level": "P0",
+                "current_gear": "unclassified",
+                "requires_manual_approval": True,
                 "is_intervention_active": False,
                 "as_of_date": "2026-07-25",
             },
         ),
     ):
-        assert repository.fetch_policy_summary()["status"] == "no_data"
+        empty = repository.fetch_policy_summary()
+        assert empty["status"] == "no_data"
+        assert (empty["current_level"], empty["current_gear"]) == ("P0", "unclassified")
+        assert empty["requires_manual_approval"] is True
+
+    with patch(
+        "apps.policy.application.query_services.get_policy_status_payload",
+        side_effect=RuntimeError("private error"),
+    ):
+        failed = repository.fetch_policy_summary()
+    assert failed["status"] == "unavailable"
+    assert failed["current_level"] is None
+    assert failed["current_gear"] == "unclassified"
+    assert failed["observed_at"] is None
+    assert failed["requires_manual_approval"] is True
+    assert failed["must_not_use_for_decision"] is True
+    assert failed["blocked_reason"] == "source_fetch_failed"
+    assert "private error" not in str(failed)
 
     portfolio_manager = MagicMock()
     portfolio_manager.filter.return_value.first.return_value = SimpleNamespace(

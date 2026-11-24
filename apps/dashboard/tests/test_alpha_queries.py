@@ -1797,7 +1797,7 @@ def test_decision_plane_query_loads_one_consistent_quota_snapshot(monkeypatch):
     calls = 0
 
     class FakeService:
-        def get_weekly_quota_usage(self):
+        def get_weekly_quota_usage(self, *, account_ids):
             nonlocal calls
             calls += 1
             return {
@@ -1834,7 +1834,7 @@ def test_decision_plane_query_does_not_invent_quota_when_snapshot_is_invalid(mon
         global_alert_service,
         "get_decision_rhythm_global_alert_service",
         lambda: SimpleNamespace(
-            get_weekly_quota_usage=lambda: {
+            get_weekly_quota_usage=lambda *, account_ids: {
                 "quota_total": 10,
                 "quota_used": 3,
                 "quota_remaining": 10,

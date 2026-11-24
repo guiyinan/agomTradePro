@@ -197,6 +197,10 @@ handoff receipt 与同镜像部署证据，并冻结 provider、资产/公告日
 
 `2040dbe267f96ebac571e54addac88b44d2c83f5` 的 28 项浏览器及配套回归全过。10 对 Chromium 旅程正文冷/热 P95 为 1281.2/177.0 毫秒，20 次分页 P95 为 98.34 毫秒，报价缺失诊断独立到达。原件见 `reads/candidate-2040dbe267f9-20261124-233021-271/`。同 SHA 的 Windows 全组 52/53，持锁 2.613582 秒；[累计 Fast Feedback](https://github.com/guiyinan/agomTradePro/actions/runs/45425734265) 在任务仓储的 isort 检查报错。纠正该文件混合换行后，忽略换行差异的 Git diff 为空，LF 正文 SHA-256 前后同为 `26460ea4ba5247996c7bf5fe26f4791edd3505aba1ac97cb4922a37d02075444`。
 
+候选 `6c6dd3f57dc988dbf4fef83ab4dd4ebebcaed1d8` 的[官方 PostgreSQL 原件](https://github.com/guiyinan/agomTradePro/actions/runs/45433004164)包含 304 项通过、零跳过，71 个必验身份全部通过。ZIP 的 SHA-256 为 `34c013c74f7fe1d2ef7c10bbb38d497ac510e646ccb2af59eb6a8162e1d04e96`。同 SHA 本机 585 项通过，S6 离线诊断 105 项通过。Windows 原生 PG 八组 112/113，5001 成员耗时 2.0775 秒，门槛 2 秒；六个事务阶段的第二连接取锁均被拒绝，提交后 publication、pointer、audit、outbox 各 3 条。原件见 `pg/candidate-6c6dd3f57dc9/index.json`。浏览器全包初测 27/28，冷正文 P95 为 2529.9 毫秒。TUI 返回超时在相同 SHA 四个角色/视口组合的单例复测中均正常返回，初测失败保留。[累计 CI](https://github.com/guiyinan/agomTradePro/actions/runs/45432609085) 的 Python 3.11、3.13 均通过，Task Monitor 领域覆盖率 88.29%，低于 90%。
+
+独立 Luna max 复核原件为 `root/6c6dd3f57dc9-ci/luna-preliminary-review.md`。后继修复区分政策等级、政策方向、人工审批与观测时间；工作台刷新分别标识市场候选计数、当前账户范围的待办和周配额。配额资料要求覆盖当前时点及所有请求账户；缺少资料时返回空值，部分成功时保留可用分项，三项均不可用时返回 503。双账户真实 GET 反例记录了旧查询给 A 用户返回 B 用户的余额。候选独立的 provider 预算、时窗与真实 S6 原件仍待取得。
+
 以下为历次执行记录。
 
 | 项目 | 状态 | 当前证据 / 下一步 |

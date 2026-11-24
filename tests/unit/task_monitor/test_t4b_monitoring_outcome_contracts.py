@@ -18,6 +18,7 @@ from apps.task_monitor.application.tracking import (
     TaskProgressPhase,
     record_task_progress,
 )
+from apps.task_monitor.application.use_cases import RecordTaskExecutionUseCase
 from apps.task_monitor.domain.entities import (
     TaskExecutionRecord,
     TaskPriority,
@@ -664,6 +665,54 @@ def test_task_signal_lifecycle_records_start_retry_failure_and_revocation(
     assert "terminated=True" in (repository.record.exception or "")
 
 
+@pytest.mark.django_db
+def test_last_retry_exports_terminal_evidence_and_sends_critical_alert(monkeypatch) -> None:
+    repository = DjangoTaskRecordRepository()
+    previous = _record(retries=2, attempt_id="previous-attempt")
+    repository.save(previous)
+    channel = Mock()
+    channel.is_available.return_value = True
+    use_case = RecordTaskExecutionUseCase(repository, [channel])
+    monkeypatch.setattr(tasks, "get_repository", lambda: repository)
+    monkeypatch.setattr(tasks, "get_use_case", lambda: use_case)
+
+    tasks.task_retry_handler(task_id=previous.task_id, reason="temporary")
+    retry = repository.get_by_task_id(previous.task_id)
+    assert retry is not None
+    retry_export = retry.to_dict()
+    assert (retry_export["status"], retry_export["retries"], retry_export["finished_at"]) == (
+        "retry",
+        3,
+        None,
+    )
+    channel.send_alert.assert_not_called()
+
+    task = SimpleNamespace(name=previous.task_name, request={"retries": 3, "hostname": "worker-2"})
+    tasks.task_prerun_handler(task_id=previous.task_id, task=task)
+    tasks.task_failure_handler(
+        sender=task, task_id=previous.task_id, exception=RuntimeError("private")
+    )
+    terminal = repository.get_by_task_id(previous.task_id)
+    assert terminal is not None and terminal.finished_at is not None
+    exported = terminal.to_dict()
+    assert (exported["status"], exported["retries"], exported["exception"]) == (
+        "failure",
+        3,
+        "RuntimeError",
+    )
+    assert exported["started_at"] == retry_export["started_at"]
+    assert exported["finished_at"] == terminal.finished_at.isoformat()
+    assert terminal.attempt_id == task.request["_task_monitor_attempt_id"] != previous.attempt_id
+    channel.send_alert.assert_called_once()
+    alert = channel.send_alert.call_args.kwargs
+    assert alert["level"] == "critical"
+    assert alert["metadata"] == {
+        "task_id": previous.task_id,
+        "exception": "RuntimeError",
+        "is_final_failure": True,
+    }
+
+
 def test_signal_handlers_ignore_missing_identity_or_record(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -704,6 +753,11 @@ def test_missing_worker_heartbeat_marks_celery_health_unhealthy(
     assert result.backend_reachable is True
     assert result.active_workers == []
     assert result.is_healthy is False
+    exported = result.to_dict()
+    assert exported["is_healthy"] is False
+    assert exported["broker_reachable"] is True and exported["backend_reachable"] is True
+    assert exported["active_workers"] == []
+    assert exported["last_check"] == result.last_check.isoformat()
 
 
 def test_worker_heartbeat_and_queue_counts_produce_healthy_snapshot(

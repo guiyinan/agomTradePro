@@ -440,12 +440,12 @@ def test_policy_fallback_matrix_formats_workbench_records(
     """Policy fallbacks must normalize status, events, workbench rows, and actions."""
     service = sdk_client.policy
     service.get_status.return_value = SimpleNamespace(
-        current_gear="P1",
+        current_gear="tightening",
         current_level="P1",
         level_name="observe",
         observed_at=datetime(2026, 7, 25, tzinfo=UTC),
         recent_events=[{"id": 1}],
-        requires_manual_approval=True,
+        requires_manual_approval=False,
         must_not_use_for_decision=False,
     )
     service.get_events.return_value = [
@@ -454,7 +454,7 @@ def test_policy_fallback_matrix_formats_workbench_records(
             event_date=date(2026, 7, 25),
             event_type="rate",
             description="decision",
-            gear="P1",
+            gear="tightening",
         )
     ]
     service.get_workbench_bootstrap.return_value = {"tabs": ["pending"]}
@@ -511,7 +511,9 @@ def test_policy_fallback_matrix_formats_workbench_records(
     ):
         getattr(service, method_name).return_value = {"success": True}
 
-    assert policy._fallback_get_policy_status()["recent_events_count"] == 1
+    status = policy._fallback_get_policy_status()
+    assert status["recent_events_count"] == 1
+    assert (status["current_level"], status["current_gear"]) == ("P1", "tightening")
     assert policy._fallback_get_policy_events("2026-01-01", "2026-07-25", 10)["total_count"] == 1
     assert policy._fallback_get_workbench_bootstrap()["tabs"] == ["pending"]
     summary = policy._fallback_get_workbench_summary()

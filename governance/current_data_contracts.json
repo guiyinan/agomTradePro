@@ -9527,16 +9527,21 @@
       "surface": "Agent Runtime context snapshot current regime/policy summaries",
       "source_files": [
         "apps/agent_runtime/infrastructure/context_snapshot_repository.py",
+        "apps/policy/application/event_use_cases.py",
         "apps/policy/application/query_services.py",
         "apps/policy/interface/event_api_views.py"
       ],
       "required_markers": {
-        "apps/policy/application/query_services.py": ["observed_at", "blocked_reason", "must_not_use_for_decision"],
-        "apps/policy/interface/event_api_views.py": ["output.observed_at", "output.blocked_reason"],
+        "apps/policy/application/event_use_cases.py": ["def current_gear(", "policy_unclassified_manual_review"],
+        "apps/policy/application/query_services.py": ["status.current_gear", "status.requires_manual_approval", "observed_at", "blocked_reason", "must_not_use_for_decision"],
+        "apps/policy/interface/event_api_views.py": ["output.current_gear", "output.observed_at", "output.blocked_reason"],
         "apps/agent_runtime/infrastructure/context_snapshot_repository.py": [
           "resolve_current_regime",
           "get_policy_status_payload",
           "get_recent_policy_event_summary",
+          "current_gear",
+          "current_level",
+          "requires_manual_approval",
           "must_not_use_for_decision",
           "freshness_status"
         ]
@@ -9551,6 +9556,11 @@
           "case": "policy_effective_event_supplies_observation_date",
           "test_file": "tests/integration/policy/test_policy_api_contract.py",
           "test_function": "test_policy_status_observation_belongs_to_the_effective_classification"
+        },
+        {
+          "case": "policy_gear_and_review_match_across_agent_and_api",
+          "test_file": "tests/integration/policy/test_policy_api_contract.py",
+          "test_function": "test_policy_gear_and_approval_agree_across_status_and_agent_context"
         },
         {
           "case": "policy_summary_uses_application_queries",

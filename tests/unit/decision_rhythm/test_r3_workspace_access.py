@@ -6,6 +6,7 @@ from types import SimpleNamespace
 
 import pytest
 from django.contrib.auth import get_user_model
+from django.templatetags.static import static
 from django.test import Client
 
 from apps.decision_rhythm.infrastructure.global_alert_repository import (
@@ -338,6 +339,12 @@ def test_pending_execution_requests_are_limited_to_owned_account_ids() -> None:
     )
     assert [item.request_id for item in scoped] == [owned_request.request_id]
     assert repository.list_pending_execution_requests(limit=10, account_ids=[]) == []
+    DecisionRequestModel.objects.filter(pk__in=[other_request.pk, unbound_request.pk]).update(
+        priority="high"
+    )
+    assert repository.count_high_priority_pending_requests(account_ids=[str(owner_account.pk)]) == 0
+    assert repository.count_high_priority_pending_requests(account_ids=[str(other_account.pk)]) == 1
+    assert repository.count_high_priority_pending_requests(account_ids=[]) == 0
     assert {item.request_id for item in repository.list_pending_execution_requests(limit=10)} == {
         owned_request.request_id,
         other_request.request_id,
@@ -378,6 +385,8 @@ def test_initial_workspace_list_matches_owned_api_and_rechecks_access(
     url = "/decision/workspace/"
     api = "/api/decision/workspace/recommendations/"
     params = {"account_id": str(owner_account.pk), "security_code": "600547.SH", "step": "4"}
+    assets = ("flatpickr.min.js", "flatpickr.zh.js", "sweetalert2.all.min.js")
+    deferred_tags = [f'<script defer src="{static(f"vendor/js/{asset}")}">' for asset in assets]
     for code, account_token, count in (
         ("600547.SH", str(owner_account.pk), 1),
         ("600547.sh", f"00{owner_account.pk}", 1),
@@ -390,6 +399,7 @@ def test_initial_workspace_list_matches_owned_api_and_rechecks_access(
         assert response.status_code == api_response.status_code == 200
         assert "actionable_candidates" not in response.context
         html = response.content.decode()
+        assert all(tag in html for tag in deferred_tags)
         assert "R3 foreign private thesis" not in html
         script = re.search(
             r'<script id="workspace-initial-recommendations" type="application/json">(.*?)</script>',
@@ -406,6 +416,7 @@ def test_initial_workspace_list_matches_owned_api_and_rechecks_access(
     assert disabled.status_code == 200 and not disabled.context.get(
         "workspace_initial_recommendations"
     )
+    assert all(tag not in disabled.content.decode() for tag in deferred_tags)
     assert authenticated_client.get(api, params).status_code == 503
     settings.DECISION_WORKSPACE_V2_ENABLED = True
     owner_account.user = other
@@ -414,3 +425,160 @@ def test_initial_workspace_list_matches_owned_api_and_rechecks_access(
         response = authenticated_client.get(path, params)
         assert response.status_code == 403
         assert "R3 owned private thesis" not in response.content.decode()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("quota_available", [True, False])
+def test_workspace_refresh_distinguishes_zero_quota_from_missing(
+    authenticated_client, monkeypatch, quota_available: bool
+) -> None:
+    """A market count and owned empty queue remain usable when the weekly quota is missing."""
+    from apps.decision_rhythm.application.global_alert_service import (
+        DecisionRhythmGlobalAlertService,
+    )
+
+    usage = {"quota_total": 10, "quota_used": 10, "quota_remaining": 0, "usage_percent": 100.0}
+    monkeypatch.setattr(
+        DecisionRhythmGlobalAlertService,
+        "get_weekly_quota_usage",
+        lambda self, *, account_ids: usage if quota_available else None,
+    )
+    response = authenticated_client.get("/decision/workspace/", {"refresh": "1"})
+    assert response.status_code == 200 and response["Content-Type"].startswith("application/json")
+    data = response.json()
+    assert data["quota_remaining"] == (0 if quota_available else None)
+    assert data["quota_usage_percent"] == (100.0 if quota_available else None)
+    assert data["pending_count"] == data["alpha_actionable_count"] == 0
+    assert data["alpha_actionable_scope"] == "market"
+    assert data["outcome"] == ("success" if quota_available else "partial")
+    assert data["unavailable_reasons"] == (
+        {} if quota_available else {"quota": "weekly_quota_missing"}
+    )
+
+
+@pytest.mark.django_db
+def test_workspace_refresh_reports_unavailable_queries(authenticated_client, monkeypatch) -> None:
+    """Failed reads retain their own cause without publishing a fictitious zero or quota."""
+    from django.db import DatabaseError
+
+    from apps.alpha_trigger.application.global_alert_service import AlphaTriggerGlobalAlertService
+    from apps.decision_rhythm.application.global_alert_service import (
+        DecisionRhythmGlobalAlertService,
+    )
+
+    def fail(*args: object, **kwargs: object) -> None:
+        raise DatabaseError("private SQL diagnostic")
+
+    monkeypatch.setattr(AlphaTriggerGlobalAlertService, "get_workspace_summary", fail)
+    monkeypatch.setattr(DecisionRhythmGlobalAlertService, "list_pending_execution_requests", fail)
+    monkeypatch.setattr(DecisionRhythmGlobalAlertService, "get_weekly_quota_usage", fail)
+    response = authenticated_client.get("/decision/workspace/", {"refresh": "1"})
+    assert response.status_code == 503 and response["Content-Type"].startswith("application/json")
+    data = response.json()
+    assert data["success"] is False and data["outcome"] == "failed"
+    assert data["code"] == "workspace_summary_unavailable"
+    assert data["unavailable_reasons"] == {
+        "alpha": "market_alpha_unavailable",
+        "pending": "pending_queue_unavailable",
+        "quota": "weekly_quota_unavailable",
+    }
+    assert all(
+        data[key] is None
+        for key in (
+            "quota_remaining",
+            "quota_usage_percent",
+            "pending_count",
+            "alpha_actionable_count",
+        )
+    )
+    assert "private SQL diagnostic" not in response.content.decode()
+
+
+@pytest.mark.django_db
+def test_workspace_quota_uses_owned_current_periods(client, django_user_model) -> None:
+    """A newer foreign or out-of-period quota must never appear in investor reads."""
+    from datetime import timedelta
+
+    from django.test import RequestFactory
+    from django.utils import timezone
+
+    from apps.dashboard.application.queries import DecisionPlaneQuery
+    from apps.decision_rhythm.domain.entities import QuotaPeriod
+    from apps.decision_rhythm.infrastructure.models import DecisionQuotaModel
+    from core.context_processors import get_alerts
+
+    now = timezone.now()
+    alice = django_user_model.objects.create_user(username="quota-alice")
+    bob = django_user_model.objects.create_user(username="quota-bob")
+    quotas = []
+    for user, used in [(alice, 1), (bob, 9)]:
+        account = SimulatedAccountModel.objects.create(
+            user=user,
+            account_name=user.username,
+            account_type="simulated",
+            initial_capital="100000",
+            current_cash="100000",
+            total_value="100000",
+        )
+        quotas.append(
+            DecisionQuotaModel.objects.create(
+                quota_id=user.username,
+                account_id=str(account.pk),
+                period=QuotaPeriod.WEEKLY.value,
+                max_decisions=10,
+                used_decisions=used,
+                period_start=now - timedelta(hours=11 - used),
+                period_end=now + timedelta(days=1),
+            )
+        )
+        # Registration can provision additional real accounts. Give each a known weekly limit.
+        for extra_id in (
+            SimulatedAccountModel.objects.filter(user=user)
+            .exclude(pk=account.pk)
+            .values_list("pk", flat=True)
+        ):
+            DecisionQuotaModel.objects.update_or_create(
+                account_id=str(extra_id),
+                period=QuotaPeriod.WEEKLY.value,
+                defaults={
+                    "quota_id": f"extra-{extra_id}",
+                    "max_decisions": 0,
+                    "used_decisions": 0,
+                    "period_start": now - timedelta(days=1),
+                    "period_end": now + timedelta(days=1),
+                },
+            )
+    client.force_login(alice)
+
+    def summary():
+        response = client.get(
+            "/decision/workspace/", {"refresh": "1", "account_id": quotas[0].account_id}
+        )
+        assert response.status_code == 200 and response["Content-Type"].startswith(
+            "application/json"
+        )
+        return response.json()
+
+    assert summary()["quota_remaining"] == 9
+    assert DecisionPlaneQuery()._get_quota_usage(user_id=alice.pk).remaining == 9
+    request = RequestFactory().get("/dashboard/")
+    request.user = alice
+    assert all("配额" not in alert["title"] for alert in get_alerts(request)["global_alerts"])
+    repository = DjangoDecisionRhythmGlobalAlertRepository()
+    assert repository.get_weekly_quota_usage(account_ids=[]) is None
+    assert repository.get_weekly_quota_usage(account_ids=["missing", quotas[0].account_id]) is None
+    assert client.get("/decision/workspace/", {"refresh": "1"}).json()["quota_remaining"] == 9
+    request.user = bob
+    assert any("配额" in alert["title"] for alert in get_alerts(request)["global_alerts"])
+    for start, end in [
+        (now - timedelta(days=8), now - timedelta(days=1)),
+        (now + timedelta(days=1), now + timedelta(days=8)),
+    ]:
+        DecisionQuotaModel.objects.filter(pk=quotas[0].pk).update(
+            period_start=start, period_end=end
+        )
+        data = summary()
+        assert (
+            data["quota_remaining"] is None
+            and data["unavailable_reasons"]["quota"] == "weekly_quota_missing"
+        )

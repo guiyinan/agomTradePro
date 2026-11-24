@@ -30,7 +30,7 @@ def test_alert_services_are_reused_once_per_request(monkeypatch):
     factory_calls = {"decision": 0, "alpha": 0}
 
     class _DecisionService:
-        def get_weekly_quota_usage(self):
+        def get_weekly_quota_usage(self, *, account_ids):
             return {
                 "quota_total": 10,
                 "quota_used": 9,
@@ -41,7 +41,7 @@ def test_alert_services_are_reused_once_per_request(monkeypatch):
         def count_active_cooldowns(self):
             return 6
 
-        def count_high_priority_pending_requests(self):
+        def count_high_priority_pending_requests(self, *, account_ids):
             return 1
 
     class _AlphaService:
@@ -86,12 +86,12 @@ def test_alert_services_are_reused_once_per_request(monkeypatch):
 
 def test_invalid_counts_and_non_finite_quota_do_not_create_alerts(monkeypatch):
     decision_service = SimpleNamespace(
-        get_weekly_quota_usage=lambda: {
+        get_weekly_quota_usage=lambda *, account_ids: {
             "quota_remaining": -1,
             "usage_percent": float("nan"),
         },
         count_active_cooldowns=lambda: True,
-        count_high_priority_pending_requests=lambda: -1,
+        count_high_priority_pending_requests=lambda *, account_ids: -1,
     )
     alpha_service = SimpleNamespace(
         count_expiring_candidates=lambda: True,

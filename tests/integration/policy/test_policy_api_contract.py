@@ -49,6 +49,45 @@ def test_policy_status_observation_belongs_to_the_effective_classification():
     assert body["must_not_use_for_decision"] is False
 
 
+@pytest.mark.django_db
+def test_policy_gear_and_approval_agree_across_status_and_agent_context():
+    from apps.agent_runtime.infrastructure.context_snapshot_repository import (
+        DjangoContextSnapshotRepository,
+    )
+
+    client = _build_authenticated_api_client()
+    agent = DjangoContextSnapshotRepository()
+    cases = [
+        (None, "P0", "unclassified", True, "policy_source_observation_missing"),
+        ("P0", "P0", "neutral", False, ""),
+        ("P1", "P1", "tightening", False, ""),
+        ("P2", "P2", "stimulus", True, "policy_manual_approval_required"),
+        ("P3", "P3", "stimulus", True, "policy_manual_approval_required"),
+        ("PX", "PX", "unclassified", True, "policy_unclassified_manual_review"),
+    ]
+    for day, (recorded, level, gear, needs_approval, reason) in enumerate(cases, start=1):
+        observed = date(2020, 1, day)
+        if recorded:
+            PolicyLog.objects.create(
+                event_date=observed,
+                level=recorded,
+                title=f"Effective {recorded}",
+                description="Effective classification",
+                evidence_url="https://example.org/source",
+                gate_effective=True,
+            )
+        response = client.get("/api/policy/status/")
+        assert response.status_code == 200
+        assert response.headers["Content-Type"].startswith("application/json")
+        for payload in [response.json(), agent.fetch_policy_summary()]:
+            assert payload["current_level"] == level
+            assert payload["current_gear"] == gear
+            assert payload["requires_manual_approval"] is needs_approval
+            assert payload["must_not_use_for_decision"] is bool(reason)
+            assert payload["blocked_reason"] == reason
+            assert payload["observed_at"] == (observed.isoformat() if recorded else None)
+
+
 @pytest.fixture(autouse=True)
 def _use_locmem_cache(settings):
     """

@@ -199,7 +199,7 @@ def test_decision_plane_config_counts_and_quota_degradation(
         }
     )
     quota_service = SimpleNamespace(
-        get_weekly_quota_usage=lambda: {
+        get_weekly_quota_usage=lambda *, account_ids: {
             "quota_total": 8,
             "quota_used": 3,
             "quota_remaining": 5,
@@ -228,7 +228,7 @@ def test_decision_plane_config_counts_and_quota_degradation(
     assert query._get_quota_usage_percent() == 37.5
 
     beta_service.get_active_config_context = lambda: {}
-    quota_service.get_weekly_quota_usage = lambda: None
+    quota_service.get_weekly_quota_usage = lambda *, account_ids: None
     assert query._get_beta_gate_visible_classes() == "全部"
     assert query._get_quota_total() == 0
     assert query._get_quota_used() == 0
