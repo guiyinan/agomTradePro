@@ -1595,7 +1595,7 @@ function getWorkspaceSideText(side) {
     }[String(side || '').trim().toUpperCase()] || '待定';
 }
 
-function getWorkspaceBusinessStatusText(status) {
+function getWorkspaceBusinessStatusText(status, fallback = status || '未知') {
     const normalized = String(status || '').trim().toUpperCase();
     return {
         OK: '正常',
@@ -1619,7 +1619,27 @@ function getWorkspaceBusinessStatusText(status) {
         WAITING: '等待中',
         SKIPPED: '已跳过',
         UNKNOWN: '未知',
-    }[normalized] || (status || '未知');
+    }[normalized] || fallback;
+}
+
+function getAdvisorOrderStatusText(status) {
+    const normalized = String(status || 'UNKNOWN').trim().toUpperCase();
+    return {
+        BLOCKED_PRICE_MISSING: '缺少有效现价，已阻断',
+        BLOCKED_NO_CASH: '可用资金不足，已阻断',
+        BLOCKED_MIN_SIZE: '不足最小下单数量，已阻断',
+        BLOCKED_RISK_GATE: '未通过风控检查',
+        BLOCKED_RISK_POLICY_UNAVAILABLE: '风险策略不可用，已阻断',
+        BLOCKED_EXECUTION_GUARD: '未通过执行检查',
+        BLOCKED_EXPOSURE_LIMIT: '风险敞口超限，已阻断',
+        REVIEW: '待复核',
+        NOT_CHECKED: '尚未检查',
+        FRESH: '时效正常',
+        LATEST_COMPLETED_SESSION: '最近已收盘交易日',
+        UNVERIFIED_OBSERVATION: '观测时间未经核实',
+        FUTURE_OBSERVATION: '观测时间晚于核验时间',
+        FUTURE_FETCH: '采集时间晚于核验时间',
+    }[normalized] || getWorkspaceBusinessStatusText(normalized, '待核实');
 }
 
 function normalizeWorkspaceBridgeUserAction(action) {
@@ -2016,8 +2036,8 @@ function renderAdvisorSheet(sheet) {
     list.innerHTML = orders.slice(0, 6).map(order => {
         const band = order.price_band || {};
         const dataAsOf = order.data_asof || {};
-        const riskGateStatus = getWorkspaceBusinessStatusText(order.risk_gate_status);
-        const quoteFreshness = getWorkspaceBusinessStatusText(dataAsOf.quote_freshness_status);
+        const riskGateStatus = getAdvisorOrderStatusText(order.risk_gate_status);
+        const quoteFreshness = getAdvisorOrderStatusText(dataAsOf.quote_freshness_status);
         const riskText = Array.isArray(order.risk_notes) && order.risk_notes.length
             ? order.risk_notes.join('；')
             : '风险提示按账户风控和推荐失效规则执行';
@@ -2038,7 +2058,7 @@ function renderAdvisorSheet(sheet) {
                 <div>
                     <div class="advisor-order-meta">${escapeHtml(riskText)}</div>
                     <div class="advisor-order-meta">执行：${escapeHtml(order.execution_hint || '-')}</div>
-                    <div class="advisor-order-meta">状态：${escapeHtml(getWorkspaceBusinessStatusText(order.blocking_status || 'OK'))} · 风控：${escapeHtml(riskGateStatus)} · 数据：${escapeHtml(quoteFreshness)}</div>
+                    <div class="advisor-order-meta">状态：${escapeHtml(getAdvisorOrderStatusText(order.blocking_status))} · 风控：${escapeHtml(riskGateStatus)} · 数据：${escapeHtml(quoteFreshness)}</div>
                 </div>
             </div>
         `;

@@ -201,6 +201,10 @@ handoff receipt 与同镜像部署证据，并冻结 provider、资产/公告日
 
 独立 Luna max 复核原件为 `root/6c6dd3f57dc9-ci/luna-preliminary-review.md`。后继修复区分政策等级、政策方向、人工审批与观测时间；工作台刷新分别标识市场候选计数、当前账户范围的待办和周配额。配额资料要求覆盖当前时点及所有请求账户；缺少资料时返回空值，部分成功时保留可用分项，三项均不可用时返回 503。双账户真实 GET 反例记录了旧查询给 A 用户返回 B 用户的余额。候选独立的 provider 预算、时窗与真实 S6 原件仍待取得。
 
+候选 `c19ea19cb68515b2143be0ff46bcdf68b4e19394` 的[官方 PostgreSQL](https://github.com/guiyinan/agomTradePro/actions/runs/45441795052) 通过 304 项，零跳过，71 个必验身份齐全。ZIP SHA-256 为 `37b950f116bb429f9c935131880db58a01fe234d6d25ba397d2e4c0222f62a60`。[累计 CI](https://github.com/guiyinan/agomTradePro/actions/runs/45441842259) 的 Python 3.11/3.13 各通过 12,517 项，各跳过 677 项，Task Monitor 领域覆盖率为 90.54%。Windows 原生 PG 发布组 53/53，独立 5001 成员实测 32 次 SQL、持锁 0.703 秒、竞争等待 0.209 秒。六阶段提交前后可见性在真实工厂复核。浏览器包 32/32，正文冷/热 P95 为 1009.8/215.8 毫秒，独立缺价提示仍需约 12 秒。
+
+同候选的总索引在 `.tmp/data18-20261124/root/c19ea19cb685-ci/acceptance.json`，SHA-256 为 `f7cb2dfa3ca0f10f4a53d00be9c4686725bb193c57872ac406147ddcb6984be6`。独立复核要求补证的配额完整性已在 SQLite 和 PostgreSQL 重现：两种迁移库均拒绝同账户同周期重复行，缺任一请求账户时返回空值。R3.3 的 48 项定向测试通过，但真实普通用户订单行仍展示 `BLOCKED_PRICE_MISSING`，后继候选修复该显示并复验。R1 生产回执、全范围 S4 与当前候选的真实 S6 仍待独立资源。
+
 以下为历次执行记录。
 
 | 项目 | 状态 | 当前证据 / 下一步 |

@@ -165,7 +165,27 @@ def test_workspace_candidate_opens_owned_research_without_creating_config(
                 ),
             )
             page.on("request", lambda request: methods.append(request.method))
-            page.goto(url)
+            with page.expect_response(
+                lambda response: urlsplit(response.url).path == "/api/decision/advisor/sheet/"
+            ) as advisor_response:
+                page.goto(url)
+            assert advisor_response.value.status == 200
+            order = advisor_response.value.json()["data"]["order_intents"][0]
+            assert order["blocking_status"] == "BLOCKED_PRICE_MISSING"
+            advisor_orders = page.locator("#advisor-order-list")
+            expect(advisor_orders).to_contain_text("状态：缺少有效现价，已阻断")
+            expect(advisor_orders).not_to_contain_text("BLOCKED_PRICE_MISSING")
+            # A future provider code must also stay out of the order's visible status line.
+            status_text = page.evaluate("""() => {
+                    const sheet = currentAdvisorSheet;
+                    const order = {...sheet.order_intents[0], blocking_status: 'FUTURE_ORDER',
+                        risk_gate_status: 'FUTURE_RISK', data_asof: {quote_freshness_status: 'FUTURE_QUOTE'}};
+                    renderAdvisorSheet({...sheet, order_intents: [order]});
+                    const text = document.querySelector('#advisor-order-list').innerText;
+                    renderAdvisorSheet(sheet);
+                    return text;
+                }""")
+            assert "状态：待核实 · 风控：待核实 · 数据：待核实" in status_text
             expect(page.locator("#workspace-account-selector")).to_have_value(str(account.pk))
             card = page.locator(
                 f'[data-recommendation-id="{recommendation.recommendation_id}"].recommendation-card'
