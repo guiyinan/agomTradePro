@@ -111,7 +111,7 @@ def _optional_status(value: str | None) -> str | None:
     try:
         return LiveOrderStatus(normalized).value
     except (AttributeError, ValueError):
-        raise BrokerExecutionValidationError("status is invalid")
+        raise BrokerExecutionValidationError("status is invalid") from None
 
 
 def _client_order_id(value: str | UUID) -> str:
@@ -230,6 +230,7 @@ class BrokerExecutionQueryService:
         *,
         actor: Any,
         client_order_id: str | UUID,
+        include_checkpoint: bool = False,
     ) -> dict[str, Any]:
         """Return one scoped order and its execution timeline."""
 
@@ -255,11 +256,25 @@ class BrokerExecutionQueryService:
             )
             for action in ("approve", "reject", "cancel")
         }
-        return project_broker_order_detail(
+        result = project_broker_order_detail(
             order,
             evaluated_at=self._now(),
             actor_authorization=actor_authorization,
         ).to_payload()
+
+        if include_checkpoint:
+            codes = self.repository.inspect_owned_order_checkpoint(
+                user_id=user_id,
+                account_id=account_id,
+                client_order_id=_client_order_id(client_order_id),
+            )
+            if codes is not None:
+                result["checkpoint_diagnostics"] = {
+                    "permission": "display_only",
+                    "must_not_execute": True,
+                    "blocker_codes": list(codes),
+                }
+        return result
 
     def connections(self, *, actor: Any) -> dict[str, Any]:
         """Return source-time-preserving, freshness-derived connection health."""

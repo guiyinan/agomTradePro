@@ -120,6 +120,13 @@ def validate_order_transition(current: str, target: str) -> None:
         )
 
 
+def is_prior_broker_status(current: str, reported: str) -> bool:
+    """Recognize an earlier broker acknowledgement for the same bound order."""
+    if reported == LiveOrderStatus.SUBMITTED.value:
+        return current in {"PARTIALLY_FILLED", "FILLED", "CANCEL_PENDING", "CANCELED"}
+    return reported == LiveOrderStatus.PARTIALLY_FILLED.value and current in {"FILLED", "CANCELED"}
+
+
 def target_status_for_order_action(current: str, action: str) -> LiveOrderStatus:
     """Return and validate the canonical target for a human order action."""
 

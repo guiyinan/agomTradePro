@@ -211,6 +211,185 @@ def _ready_order_for_agent(agent: BrokerAgentModel, *, now: datetime) -> LiveOrd
     )
 
 
+@pytest.mark.parametrize("change", ["disable", "stop", "future_snapshot", "disconnect"])
+def test_lease_rechecks_account_state_at_the_write_boundary(
+    change: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    agent = _bound_agent()
+    binding = BrokerAccountBindingModel.objects.get(agent=agent, account_id=7)
+    binding.auto_execution_enabled = True
+    binding.enforce_trading_session = False
+    binding.save()
+    now = timezone.now()
+    _mark_agent_online_for_submission(agent, now=now, observed_at=now)
+    order = _ready_order_for_agent(agent, now=now)
+    captured_at = now + timedelta(seconds=30) if change == "future_snapshot" else now
+    BrokerAccountSnapshotModel.objects.create(
+        user=agent.user, agent=agent, account_id=7, captured_at=captured_at
+    )
+    # Reach only the subordinate operational guard. This fixture supplies no Evidence grant.
+    monkeypatch.setattr(runtime, "broker_order_evidence_integrated", lambda: True)
+    original = runtime.transaction.atomic
+
+    def begin():
+        monkeypatch.setattr(runtime.transaction, "atomic", original)
+        if change == "disable":
+            BrokerAccountBindingModel.objects.filter(pk=binding.pk).update(
+                auto_execution_enabled=False
+            )
+        elif change == "stop":
+            TradingControlModel.objects.create(
+                user=agent.user, account_id=7, kill_switch_active=True
+            )
+        elif change == "disconnect":
+            BrokerAgentModel.objects.filter(pk=agent.pk).update(qmt_connected=False)
+        return original()
+
+    monkeypatch.setattr(runtime.transaction, "atomic", begin)
+    repository = DjangoBrokerExecutionRepository()
+    if change == "disconnect":
+        with pytest.raises(BrokerExecutionConflictError, match="not online"):
+            repository.lease_agent_orders(
+                agent_pk=agent.pk, allowed_account_ids=[7], limit=1, lease_seconds=30
+            )
+    else:
+        result = repository.lease_agent_orders(
+            agent_pk=agent.pk, allowed_account_ids=[7], limit=1, lease_seconds=30
+        )
+        assert result["orders"] == []
+    assert not OrderLeaseModel.objects.filter(order=order).exists()
+    order.refresh_from_db()
+    assert order.status == "READY"
+
+
+def test_lease_and_submit_recheck_the_execution_quote(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from apps.broker_execution.application import execution_price_guard
+    from tests.component.data_center.test_execution_quote_repository import _seed_quote
+
+    agent = _bound_agent()
+    binding = BrokerAccountBindingModel.objects.get(agent=agent, account_id=7)
+    binding.auto_execution_enabled = True
+    binding.enforce_trading_session = False
+    binding.save()
+    now = timezone.now()
+    _mark_agent_online_for_submission(agent, now=now, observed_at=now)
+    order = _ready_order_for_agent(agent, now=now)
+    BrokerAccountSnapshotModel.objects.create(
+        user=agent.user, agent=agent, account_id=7, captured_at=now
+    )
+    _seed_quote(
+        asset_code=order.asset_code,
+        snapshot_at=now - timedelta(seconds=10),
+        fetched_at=now - timedelta(seconds=9),
+        published_at=now - timedelta(seconds=1),
+        execution_freshness_seconds=60,
+    )
+    # Isolate the market guard from the still-closed authorization gate.
+    monkeypatch.setattr(runtime, "broker_order_evidence_integrated", lambda: True)
+    repository = DjangoBrokerExecutionRepository()
+    binding.price_deviation_limit_pct = Decimal("0.001")
+    binding.save()
+    poll = repository.lease_agent_orders(
+        agent_pk=agent.pk, allowed_account_ids=[7], limit=1, lease_seconds=30
+    )
+    assert poll["orders"] == [] and not OrderLeaseModel.objects.filter(order=order).exists()
+    binding.price_deviation_limit_pct = Decimal("0.03")
+    binding.save()
+    poll = repository.lease_agent_orders(
+        agent_pk=agent.pk, allowed_account_ids=[7], limit=1, lease_seconds=30
+    )
+    assert len(poll["orders"]) == 1
+    token = poll["orders"][0]["lease_token"]
+    clock = Mock(wraps=timezone)
+    clock.now.return_value = now + timedelta(seconds=51)
+    monkeypatch.setattr(execution_price_guard, "timezone", clock)
+    with pytest.raises(BrokerExecutionConflictError, match="execution_quote_stale"):
+        repository.acknowledge_submitting(
+            agent_pk=agent.pk,
+            allowed_account_ids=[7],
+            client_order_id=str(order.client_order_id),
+            lease_token=token,
+        )
+    order.refresh_from_db()
+    assert order.status == "LEASED" and order.submitted_at is None
+
+
+def test_creation_and_approval_use_the_current_execution_quote(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from apps.broker_execution.infrastructure import broker_repository_order_control, repositories
+    from tests.component.data_center.test_execution_quote_repository import _seed_quote
+
+    agent = _bound_agent()
+    binding = BrokerAccountBindingModel.objects.get(agent=agent, account_id=7)
+    binding.auto_execution_enabled = True
+    binding.allowed_symbols = ["600000.SH"]
+    binding.max_single_order_amount = Decimal("2000")
+    binding.daily_order_amount_limit = Decimal("10000")
+    binding.save()
+    now = timezone.now()
+    payload = {
+        "account_id": 7,
+        "asset_code": "600000.SH",
+        "side": "BUY",
+        "quantity": "100",
+        "limit_price": "10",
+        "source_recommendation_ids": ["scenario"],
+        "expires_at": now + timedelta(minutes=1),
+        "initial_status": "WAITING_APPROVAL",
+        "risk_policy_version": "test-policy",
+        "risk_snapshot": {"passed": True, "market_snapshot": {"current_price": "10"}},
+    }
+    # Exercise only the market prerequisite under the real database writer.
+    monkeypatch.setattr(repositories, "broker_order_evidence_integrated", lambda: True)
+    monkeypatch.setattr(
+        broker_repository_order_control, "broker_order_evidence_integrated", lambda: True
+    )
+    repository = DjangoBrokerExecutionRepository()
+    with pytest.raises(BrokerExecutionConflictError, match="execution_quote_"):
+        repository.create_live_order(
+            user_id=agent.user_id,
+            is_admin=False,
+            payload=payload,
+            idempotency_key="price-check",
+            request_digest="create",
+        )
+    assert not LiveOrderModel.objects.filter(account_id=7).exists()
+    _seed_quote(
+        asset_code="600000.SH",
+        snapshot_at=now - timedelta(seconds=10),
+        fetched_at=now - timedelta(seconds=9),
+        published_at=now - timedelta(seconds=1),
+        execution_freshness_seconds=60,
+    )
+    repository.create_live_order(
+        user_id=agent.user_id,
+        is_admin=False,
+        payload=payload,
+        idempotency_key="price-check",
+        request_digest="create",
+    )
+    order = LiveOrderModel.objects.get(account_id=7)
+    binding.price_deviation_limit_pct = Decimal("0.001")
+    binding.save()
+    with pytest.raises(BrokerExecutionConflictError, match="market-price deviation"):
+        repository.mutate_order(
+            user_id=agent.user_id,
+            is_admin=False,
+            client_order_id=str(order.client_order_id),
+            action="approve",
+            expected_version=order.version,
+            reason="test",
+            idempotency_key="price-approve",
+            request_digest="approve",
+        )
+    order.refresh_from_db()
+    assert order.status == "WAITING_APPROVAL" and order.approved_at is None
+
+
 @pytest.mark.parametrize("binding_state", ["missing", "inactive", "disabled"])
 def test_lease_requires_an_active_auto_enabled_binding_after_test_only_gate_bypass(
     binding_state: str,

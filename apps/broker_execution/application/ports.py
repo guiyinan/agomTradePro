@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Any, Protocol
+
+PartialBatchAlertHandler = Callable[[list[dict[str, Any]]], object]
 
 
 class BrokerExecutionRepositoryProtocol(Protocol):
@@ -47,6 +50,12 @@ class BrokerExecutionRepositoryProtocol(Protocol):
     def get_order(
         self, *, user_id: int, is_admin: bool, client_order_id: str
     ) -> dict[str, Any] | None: ...
+
+    def inspect_owned_order_checkpoint(
+        self, *, user_id: int, account_id: int, client_order_id: str
+    ) -> tuple[str, ...] | None:
+        """Return display-only blocker codes for the owner of the bound live order."""
+        ...
 
     def list_connections(self, *, user_id: int, is_admin: bool) -> list[dict[str, Any]]: ...
 
@@ -152,6 +161,7 @@ class BrokerExecutionRepositoryProtocol(Protocol):
         agent_pk: int,
         allowed_account_ids: list[int],
         events: list[dict[str, Any]],
+        on_partial_alerts: PartialBatchAlertHandler | None = None,
     ) -> dict[str, Any]: ...
 
     def sync_agent_snapshot(

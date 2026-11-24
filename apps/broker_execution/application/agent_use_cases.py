@@ -144,6 +144,8 @@ class ReportAgentEventsUseCase:
         self.repository = repository or get_broker_execution_repository()
 
     def execute(self, *, agent: dict[str, Any], events: list[dict[str, Any]]) -> dict[str, Any]:
+        """Forward alerts for all committed receipts, including a partially rejected batch."""
+
         if not 1 <= len(events) <= 200:
             raise BrokerExecutionValidationError("Between 1 and 200 events are required")
         agent_pk, allowed_account_ids = _agent_scope(agent)
@@ -151,6 +153,7 @@ class ReportAgentEventsUseCase:
             agent_pk=agent_pk,
             allowed_account_ids=allowed_account_ids,
             events=events,
+            on_partial_alerts=forward_operational_alerts,
         )
         alert_ids, failure_count = forward_operational_alerts(result.get("alerts"))
         result["task_monitor_alert_ids"] = alert_ids

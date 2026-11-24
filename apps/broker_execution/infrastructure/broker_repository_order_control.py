@@ -12,6 +12,7 @@ from apps.broker_execution.application.evidence_gate import (
     broker_order_evidence_integrated,
     require_broker_order_evidence,
 )
+from apps.broker_execution.application.execution_price_guard import require_current_execution_price
 from apps.broker_execution.application.use_case_errors import (
     BrokerExecutionConflictError,
     BrokerExecutionNotFoundError,
@@ -116,6 +117,19 @@ class BrokerExecutionOrderControlMixin(BrokerExecutionRepositoryMixinSupport):
             before = self._order_payload(order)
             target_status = target_status_for_order_action(order.status, action)
             if action == "approve":
+                binding = (
+                    BrokerAccountBindingModel._default_manager.select_for_update()
+                    .filter(
+                        user_id=order.user_id,
+                        agent_id=order.agent_id,
+                        account_id=order.account_id,
+                        is_active=True,
+                        auto_execution_enabled=True,
+                    )
+                    .first()
+                )
+                if binding is None:
+                    raise BrokerExecutionConflictError("Live account execution is disabled")
                 if TradingControlModel._default_manager.filter(
                     user_id=order.user_id,
                     account_id__in=[0, order.account_id],
@@ -124,6 +138,13 @@ class BrokerExecutionOrderControlMixin(BrokerExecutionRepositoryMixinSupport):
                     raise BrokerExecutionConflictError(
                         "Trading is stopped; the order cannot be approved"
                     )
+                require_current_execution_price(
+                    asset_code=order.asset_code,
+                    limit_price=order.limit_price,
+                    max_deviation=binding.price_deviation_limit_pct,
+                )
+                if order.expires_at is not None and order.expires_at <= timezone.now():
+                    raise BrokerExecutionConflictError("Order expired before approval")
                 order.approval_digest = approval_digest_for_order(before)
                 order.approved_by_id = user_id
                 order.approved_at = timezone.now()

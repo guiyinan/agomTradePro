@@ -348,6 +348,11 @@ ASH-05 的 `simulated_trading.corporate_action_price_basis_and_nav` 要求公司
 
 ## 现有受管数据面
 
+实盘订单的创建、审批、领取和提交确认在持有账户绑定锁时，通过 Data Center 的
+`get_execution_quote` 读取该证券的执行发布，按源时钟有效期与账户当前允许的限价偏离复核。
+缺少执行发布、报价到期或偏离超限时，该节点不能推进。对应回归登记在
+`broker_execution.live_order_quote`。正式执行还须通过订单 Evidence 授权。
+
 受管数据面数量以当前 manifest 为准，覆盖：
 
 - Realtime 市场概况、轮询副作用、板块表现与缓存榜单；

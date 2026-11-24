@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import logging
 import secrets
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from typing import Any, TypeVar
 
 from django.db import IntegrityError, transaction
@@ -21,6 +23,8 @@ from apps.broker_execution.application.evidence_gate import (
 from apps.broker_execution.application.execution_contract_capabilities import (
     parse_agent_execution_contracts,
 )
+from apps.broker_execution.application.execution_price_guard import require_current_execution_price
+from apps.broker_execution.application.ports import PartialBatchAlertHandler
 from apps.broker_execution.application.use_case_errors import (
     BrokerAgentAuthenticationError,
     BrokerExecutionConflictError,
@@ -28,8 +32,9 @@ from apps.broker_execution.application.use_case_errors import (
     BrokerExecutionValidationError,
 )
 from apps.broker_execution.domain.connection_freshness import heartbeat_times_are_fresh
-from apps.broker_execution.domain.entities import LiveOrderStatus
+from apps.broker_execution.domain.entities import TERMINAL_ORDER_STATUSES, LiveOrderStatus
 from apps.broker_execution.domain.rules import (
+    is_prior_broker_status,
     is_trading_session_open,
     validate_order_transition,
 )
@@ -76,6 +81,185 @@ def _require_agent_submission_contract(agent: BrokerAgentModel | None) -> None:
         raise BrokerExecutionConflictError("AGENT_EXECUTION_CONTRACT_UNSUPPORTED") from error
     if not capabilities.supports_submission_v2:
         raise BrokerExecutionConflictError("AGENT_EXECUTION_CONTRACT_UNSUPPORTED")
+
+
+def _require_online_agent(agent: BrokerAgentModel, evaluated_at: datetime) -> None:
+    _require_agent_submission_contract(agent)
+    if (
+        not agent.is_active
+        or agent.status != BrokerAgentModel.STATUS_ONLINE
+        or not agent.qmt_connected
+    ):
+        raise BrokerExecutionConflictError("Agent or QMT is not online")
+    try:
+        observed_at = datetime.fromisoformat(
+            str((agent.health_snapshot or {}).get("source_observed_at") or "").replace(
+                "Z", "+00:00"
+            )
+        )
+    except ValueError:
+        observed_at = None
+    if not heartbeat_times_are_fresh(
+        source_observed_at=observed_at,
+        received_at=agent.last_heartbeat_at,
+        evaluated_at=evaluated_at,
+    ):
+        raise BrokerExecutionConflictError("Agent heartbeat source or receipt is stale")
+
+
+_TRADE_EVENTS = frozenset({"QMT_TRADE", "FAKE_TRADE"})
+_ORDER_REPORTS = frozenset({"QMT_ORDER_STATUS", "FAKE_ORDER_STATUS", "AGENT_RECOVERY_QUERY"})
+_BROKER_ORDER_STATES = frozenset(
+    {
+        "SUBMITTED",
+        "PARTIALLY_FILLED",
+        "FILLED",
+        "CANCEL_PENDING",
+        "CANCELED",
+        "BROKER_REJECTED",
+        "RECONCILIATION_REQUIRED",
+    }
+)
+_TRADE_COMPATIBLE_STATES = frozenset(
+    {
+        "SUBMITTING",
+        "SUBMITTED",
+        "PARTIALLY_FILLED",
+        "FILLED",
+        "CANCEL_PENDING",
+        "CANCELED",
+        "RECONCILIATION_REQUIRED",
+    }
+)
+_AGENT_OUTCOMES = {
+    "DRY_RUN_VALIDATED": "",
+    "ORDER_SUBMITTED": "SUBMITTED",
+    "BROKER_REJECTED": "BROKER_REJECTED",
+    "LOCAL_SUBMIT_VALIDATION_FAILED": "FAILED",
+    "SERVER_ACK_OUTCOME_UNKNOWN": "RECONCILIATION_REQUIRED",
+    "SUBMIT_OUTCOME_UNKNOWN": "RECONCILIATION_REQUIRED",
+    "QMT_ORDER_IDENTITY_CONFLICT": "RECONCILIATION_REQUIRED",
+    "QMT_ORDER_STATUS_UNKNOWN": "RECONCILIATION_REQUIRED",
+}
+
+
+def _receipt_time(raw: object) -> datetime:
+    try:
+        instant = datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
+    except ValueError as error:
+        raise BrokerExecutionConflictError("Invalid broker report timestamp") from error
+    if instant.utcoffset() is None:
+        raise BrokerExecutionConflictError("Broker report timestamp requires a timezone")
+    return instant.astimezone(UTC)
+
+
+def _receipt_clock(
+    payload: dict[str, Any], occurred_at: datetime, received_at: datetime
+) -> tuple[str, str | None]:
+    source = payload.get("broker_source_at")
+    clock = payload.get("clock_source", "unknown")
+    if clock not in ("broker", "agent_observed", "unknown") or occurred_at > received_at:
+        raise BrokerExecutionConflictError("Invalid broker report clock or future observation")
+    if clock == "broker":
+        if _receipt_time(source) != occurred_at:
+            raise BrokerExecutionConflictError("Broker source time differs from occurrence")
+        return "broker", occurred_at.isoformat()
+    if source is not None:
+        raise BrokerExecutionConflictError("Unverified broker source time")
+    return str(clock), None
+
+
+def _trade_decimal(raw: object) -> Decimal:
+    try:
+        value = Decimal(str(raw))
+    except InvalidOperation as error:
+        raise BrokerExecutionConflictError("Invalid broker trade economics") from error
+    if not value.is_finite() or value <= 0:
+        raise BrokerExecutionConflictError("Broker fill quantity and price must be positive")
+    return value
+
+
+@dataclass(frozen=True)
+class _TradeReceipt:
+    account_ref: str | None
+    trade_id: str
+    quantity: Decimal
+    price: Decimal
+    occurred_at: datetime
+    payload: dict[str, Any]
+
+
+def _read_trade_receipt(
+    fill: object,
+    event_type: str,
+    occurred_at: datetime,
+    received_at: datetime,
+    event_payload: dict[str, Any],
+) -> _TradeReceipt | None:
+    if event_type not in _TRADE_EVENTS:
+        if fill is not None and event_type != "UNKNOWN":
+            raise BrokerExecutionConflictError("Broker fill requires a trade event")
+        return None
+    if not isinstance(fill, dict) or not fill.get("broker_trade_id"):
+        raise BrokerExecutionConflictError("Broker trade report lacks a trade identity")
+    timestamp = _receipt_time(fill.get("occurred_at") or occurred_at)
+    payload = dict(fill.get("payload") or {})
+    clock_payload = (
+        payload if "clock_source" in payload or "broker_source_at" in payload else event_payload
+    )
+    clock, source = _receipt_clock(clock_payload, timestamp, received_at)
+    if (clock, source) != (event_payload["clock_source"], event_payload["broker_source_at"]):
+        raise BrokerExecutionConflictError("Fill and event source clocks disagree")
+    return _TradeReceipt(
+        account_ref=str(fill["broker_account_ref"]) if fill.get("broker_account_ref") else None,
+        trade_id=str(fill["broker_trade_id"]),
+        quantity=_trade_decimal(fill.get("quantity")),
+        price=_trade_decimal(fill.get("price")),
+        occurred_at=timestamp,
+        payload=payload | {"clock_source": clock, "broker_source_at": source},
+    )
+
+
+def _event_target(
+    order: LiveOrderModel, reported: str, event_type: str, broker_id: str
+) -> tuple[str, bool]:
+    """Return the resulting order state and any discrepancy requiring a stop."""
+
+    if (
+        event_type == "UNKNOWN"
+        or (event_type in _AGENT_OUTCOMES and reported != _AGENT_OUTCOMES[event_type])
+        or (event_type in _ORDER_REPORTS and reported not in _BROKER_ORDER_STATES)
+        or (
+            event_type in _TRADE_EVENTS
+            and (reported or order.status not in _TRADE_COMPATIBLE_STATES)
+        )
+    ):
+        reported = LiveOrderStatus.RECONCILIATION_REQUIRED.value
+    if order.failure_code == "BROKER_OVERFILL":
+        return LiveOrderStatus.RECONCILIATION_REQUIRED.value, True
+    if not reported or reported == order.status:
+        return reported, reported == LiveOrderStatus.RECONCILIATION_REQUIRED.value
+    same_broker = bool(broker_id and order.broker_order_id == broker_id)
+    if same_broker and is_prior_broker_status(order.status, reported):
+        return order.status, False
+    if (
+        same_broker
+        and order.status == "SUBMITTING"
+        and event_type in _ORDER_REPORTS
+        and (
+            (reported == "PARTIALLY_FILLED" and 0 < order.filled_quantity < order.quantity)
+            or (reported == "FILLED" and order.filled_quantity == order.quantity)
+        )
+    ):
+        # A broker fill and aggregate report may both reach the server before the ACK.
+        return reported, False
+    try:
+        validate_order_transition(order.status, reported)
+    except ValueError:
+        if order.status in TERMINAL_ORDER_STATUSES:
+            return order.status, True
+        return LiveOrderStatus.RECONCILIATION_REQUIRED.value, True
+    return reported, reported == LiveOrderStatus.RECONCILIATION_REQUIRED.value
 
 
 class BrokerExecutionAgentRuntimeMixin(BrokerExecutionRepositoryMixinSupport):
@@ -254,24 +438,7 @@ class BrokerExecutionAgentRuntimeMixin(BrokerExecutionRepositoryMixinSupport):
 
         now = timezone.now()
         agent = BrokerAgentModel._default_manager.get(pk=agent_pk, is_active=True)
-        _require_agent_submission_contract(agent)
-        try:
-            source_observed_at = datetime.fromisoformat(
-                str((agent.health_snapshot or {}).get("source_observed_at") or "").replace(
-                    "Z", "+00:00"
-                )
-            )
-        except ValueError:
-            source_observed_at = None
-        heartbeat_is_fresh = heartbeat_times_are_fresh(
-            source_observed_at=source_observed_at,
-            received_at=agent.last_heartbeat_at,
-            evaluated_at=now,
-        )
-        if agent.status != BrokerAgentModel.STATUS_ONLINE or not agent.qmt_connected:
-            raise BrokerExecutionConflictError("Agent or QMT is not online")
-        if not heartbeat_is_fresh:
-            raise BrokerExecutionConflictError("Agent heartbeat source or receipt is stale")
+        _require_online_agent(agent, now)
         bindings = list(
             agent.account_bindings.filter(
                 account_id__in=allowed_account_ids,
@@ -287,14 +454,15 @@ class BrokerExecutionAgentRuntimeMixin(BrokerExecutionRepositoryMixinSupport):
             or is_trading_session_open(local_now, binding.allowed_trading_windows or [])
         ]
         fresh_account_ids: list[int] = []
-        for binding in bindings:
-            fresh_after = now - timedelta(seconds=binding.max_snapshot_age_seconds)
+        for candidate_binding in bindings:
+            fresh_after = now - timedelta(seconds=candidate_binding.max_snapshot_age_seconds)
             if BrokerAccountSnapshotModel._default_manager.filter(
                 agent=agent,
-                account_id=binding.account_id,
+                account_id=candidate_binding.account_id,
                 captured_at__gte=fresh_after,
+                captured_at__lte=now,
             ).exists():
-                fresh_account_ids.append(binding.account_id)
+                fresh_account_ids.append(candidate_binding.account_id)
         account_ids = fresh_account_ids
         blocked_accounts = set(
             TradingControlModel._default_manager.filter(
@@ -309,10 +477,18 @@ class BrokerExecutionAgentRuntimeMixin(BrokerExecutionRepositoryMixinSupport):
             return {"orders": [], "total_count": 0, "stopped": bool(blocked_accounts)}
         leased: list[dict[str, Any]] = []
         with transaction.atomic():
+            agent = BrokerAgentModel._default_manager.select_for_update().get(pk=agent_pk)
+            now = timezone.now()
+            _require_online_agent(agent, now)
             stale_leases = list(
                 OrderLeaseModel._default_manager.select_for_update()
                 .select_related("order")
-                .filter(agent=agent, released_at__isnull=True, expires_at__lte=now)
+                .filter(
+                    agent=agent,
+                    order__account_id__in=account_ids,
+                    released_at__isnull=True,
+                    expires_at__lte=now,
+                )
             )
             for stale in stale_leases:
                 if stale.order.status == LiveOrderStatus.LEASED.value:
@@ -343,6 +519,49 @@ class BrokerExecutionAgentRuntimeMixin(BrokerExecutionRepositoryMixinSupport):
                 .order_by("created_at")[:limit]
             )
             for order in candidates:
+                # Serialize advancement with a disable or kill switch on this account.
+                binding = (
+                    BrokerAccountBindingModel._default_manager.select_for_update()
+                    .filter(
+                        agent=agent,
+                        user_id=order.user_id,
+                        account_id=order.account_id,
+                        is_active=True,
+                        auto_execution_enabled=True,
+                    )
+                    .first()
+                )
+                if binding is None:
+                    continue
+                if TradingControlModel._default_manager.filter(
+                    user_id=order.user_id,
+                    account_id__in=[0, order.account_id],
+                    kill_switch_active=True,
+                ).exists():
+                    continue
+                try:
+                    require_current_execution_price(
+                        asset_code=order.asset_code,
+                        limit_price=order.limit_price,
+                        max_deviation=binding.price_deviation_limit_pct,
+                    )
+                except BrokerExecutionConflictError:
+                    continue
+                now = timezone.now()
+                _require_online_agent(agent, now)
+                if order.expires_at is not None and order.expires_at <= now:
+                    continue
+                if binding.enforce_trading_session and not is_trading_session_open(
+                    timezone.localtime(now), binding.allowed_trading_windows or []
+                ):
+                    continue
+                if not BrokerAccountSnapshotModel._default_manager.filter(
+                    agent=agent,
+                    account_id=order.account_id,
+                    captured_at__lte=now,
+                    captured_at__gte=now - timedelta(seconds=binding.max_snapshot_age_seconds),
+                ).exists():
+                    continue
                 validate_order_transition(order.status, LiveOrderStatus.LEASED.value)
                 raw_token = secrets.token_urlsafe(32)
                 OrderLeaseModel._default_manager.update_or_create(
@@ -377,10 +596,10 @@ class BrokerExecutionAgentRuntimeMixin(BrokerExecutionRepositoryMixinSupport):
         if not broker_order_evidence_integrated():
             require_broker_order_evidence(checkpoint="submitting")
 
-        now = timezone.now()
         digest_invalid = False
         result: dict[str, Any] | None = None
         with transaction.atomic():
+            agent = BrokerAgentModel._default_manager.select_for_update().get(pk=agent_pk)
             order = (
                 LiveOrderModel._default_manager.select_for_update(of=("self",))
                 .select_related("lease", "agent")
@@ -391,15 +610,27 @@ class BrokerExecutionAgentRuntimeMixin(BrokerExecutionRepositoryMixinSupport):
                 raise BrokerExecutionNotFoundError("Leased order does not exist")
             if order.account_id not in set(allowed_account_ids):
                 raise BrokerAgentAuthenticationError("Order exceeds the credential account scope")
-            _require_agent_submission_contract(order.agent)
+            _require_online_agent(agent, timezone.now())
+            binding = (
+                BrokerAccountBindingModel._default_manager.select_for_update()
+                .filter(
+                    agent_id=agent_pk,
+                    user_id=order.user_id,
+                    account_id=order.account_id,
+                    is_active=True,
+                    auto_execution_enabled=True,
+                )
+                .first()
+            )
+            if binding is None:
+                raise BrokerExecutionConflictError("Live account binding is disabled")
             lease = getattr(order, "lease", None)
             token_hash = hashlib.sha256(lease_token.encode("utf-8")).hexdigest()
             if (
                 lease is None
                 or lease.agent_id != agent_pk
                 or lease.released_at is not None
-                or lease.expires_at <= now
-                or lease.lease_token_hash != token_hash
+                or not hmac.compare_digest(lease.lease_token_hash, token_hash)
             ):
                 raise BrokerExecutionConflictError("Order lease is invalid or expired")
             if TradingControlModel._default_manager.filter(
@@ -408,14 +639,15 @@ class BrokerExecutionAgentRuntimeMixin(BrokerExecutionRepositoryMixinSupport):
                 kill_switch_active=True,
             ).exists():
                 raise BrokerExecutionConflictError("Trading is stopped")
-            binding = BrokerAccountBindingModel._default_manager.filter(
-                agent_id=agent_pk,
-                account_id=order.account_id,
-                is_active=True,
-                auto_execution_enabled=True,
-            ).first()
-            if binding is None:
-                raise BrokerExecutionConflictError("Live account binding is disabled")
+            require_current_execution_price(
+                asset_code=order.asset_code,
+                limit_price=order.limit_price,
+                max_deviation=binding.price_deviation_limit_pct,
+            )
+            now = timezone.now()
+            _require_online_agent(agent, now)
+            if lease.expires_at <= now:
+                raise BrokerExecutionConflictError("Order lease is invalid or expired")
             if order.expires_at is not None and order.expires_at <= now:
                 raise BrokerExecutionConflictError("Order expired before broker submission")
             if binding.enforce_trading_session and not is_trading_session_open(
@@ -455,21 +687,20 @@ class BrokerExecutionAgentRuntimeMixin(BrokerExecutionRepositoryMixinSupport):
                 raise BrokerExecutionConflictError(
                     "Current live orders exceed the configured daily limit"
                 )
-            if not BrokerAccountSnapshotModel._default_manager.filter(
-                agent_id=agent_pk,
-                account_id=order.account_id,
-                captured_at__gte=now - timedelta(seconds=binding.max_snapshot_age_seconds),
-            ).exists():
-                raise BrokerExecutionConflictError("Broker account snapshot is stale")
             latest_snapshot = (
                 BrokerAccountSnapshotModel._default_manager.filter(
-                    agent_id=agent_pk, account_id=order.account_id
+                    agent_id=agent_pk,
+                    account_id=order.account_id,
+                    captured_at__lte=now,
+                    captured_at__gte=now - timedelta(seconds=binding.max_snapshot_age_seconds),
                 )
                 .order_by("-captured_at")
                 .first()
             )
             if latest_snapshot is None:
-                raise BrokerExecutionConflictError("Broker account snapshot is unavailable")
+                raise BrokerExecutionConflictError(
+                    "Broker account snapshot is stale or unavailable"
+                )
             latest_positions = BrokerPositionSnapshotModel._default_manager.filter(
                 agent_id=agent_pk,
                 account_id=order.account_id,
@@ -530,17 +761,44 @@ class BrokerExecutionAgentRuntimeMixin(BrokerExecutionRepositoryMixinSupport):
         agent_pk: int,
         allowed_account_ids: list[int],
         events: list[dict[str, Any]],
+        on_partial_alerts: PartialBatchAlertHandler | None = None,
     ) -> dict[str, Any]:
-        """Apply idempotent broker events and conservatively handle unknown outcomes."""
+        """Apply broker receipts and deliver earlier committed alerts if a later receipt fails."""
 
+        alerts: list[dict[str, Any]] = []
+        try:
+            return self._apply_agent_event_batch(
+                agent_pk=agent_pk,
+                allowed_account_ids=allowed_account_ids,
+                events=events,
+                alerts=alerts,
+            )
+        except Exception:
+            if alerts and on_partial_alerts is not None:
+
+                def forward_committed_prefix() -> None:
+                    on_partial_alerts(alerts)
+
+                transaction.on_commit(forward_committed_prefix, robust=True)
+            raise
+
+    def _apply_agent_event_batch(
+        self,
+        *,
+        agent_pk: int,
+        allowed_account_ids: list[int],
+        events: list[dict[str, Any]],
+        alerts: list[dict[str, Any]],
+    ) -> dict[str, Any]:
         accepted = 0
         duplicates = 0
-        alerts: list[dict[str, Any]] = []
+        reported_orders: set[int] = set()
         for item in events:
             event_id = str(item.get("event_id") or "").strip()
             client_order_id = str(item.get("client_order_id") or "").strip()
             if not event_id or not client_order_id:
                 raise BrokerExecutionConflictError("event_id and client_order_id are required")
+            committed_alert: dict[str, Any] | None = None
             with transaction.atomic():
                 order = (
                     LiveOrderModel._default_manager.select_for_update()
@@ -553,46 +811,136 @@ class BrokerExecutionAgentRuntimeMixin(BrokerExecutionRepositoryMixinSupport):
                     raise BrokerAgentAuthenticationError(
                         "Event exceeds the credential account scope"
                     )
-                if BrokerOrderEventModel._default_manager.filter(
+                reported_orders.add(order.pk)
+                broker_id = str(item.get("broker_order_id") or "")
+                reported = str(item.get("status") or "").upper()
+                raw_type = str(item.get("event_type") or "UNKNOWN")
+                event_type = (
+                    raw_type
+                    if (
+                        raw_type in _TRADE_EVENTS
+                        or raw_type in _ORDER_REPORTS
+                        or raw_type in _AGENT_OUTCOMES
+                    )
+                    else "UNKNOWN"
+                )
+                if event_type != "UNKNOWN" and reported in {
+                    "DRAFT",
+                    "WAITING_APPROVAL",
+                    "READY",
+                    "LEASED",
+                    "SUBMITTING",
+                }:
+                    raise BrokerExecutionConflictError(
+                        "Broker report cannot advance a server authorization checkpoint"
+                    )
+                event_payload = dict(item.get("payload") or {})
+                received_at = timezone.now()
+                occurred_at = _receipt_time(item.get("occurred_at"))
+                clock, source = _receipt_clock(event_payload, occurred_at, received_at)
+                if source is not None and event_type not in {"QMT_TRADE", "UNKNOWN"}:
+                    raise BrokerExecutionConflictError(
+                        "This broker event has no broker source clock"
+                    )
+                event_payload.update(clock_source=clock, broker_source_at=source)
+                fill = _read_trade_receipt(
+                    item.get("fill"), event_type, occurred_at, received_at, event_payload
+                )
+                identity: dict[str, object] = {
+                    "broker_order_id": broker_id,
+                    "event_type": raw_type,
+                    "reported_status": reported,
+                    "clock_source": clock,
+                    "broker_source_at": source,
+                }
+                if fill is not None:
+                    identity.update(
+                        broker_trade_id=fill.trade_id,
+                        quantity=str(fill.quantity.normalize()),
+                        price=str(fill.price.normalize()),
+                    )
+                    if fill.account_ref is not None:
+                        # Preserve account identity on replay without copying the vendor account into the timeline.
+                        identity["broker_account_ref_hash"] = hashlib.sha256(
+                            fill.account_ref.encode()
+                        ).hexdigest()
+                elif isinstance(item.get("fill"), dict):
+                    # An unknown sender's claim is retained for review and never posted as a fill.
+                    claimed = item["fill"]
+                    identity.update(
+                        broker_trade_id=str(claimed.get("broker_trade_id") or ""),
+                        quantity=str(claimed.get("quantity")),
+                        price=str(claimed.get("price")),
+                    )
+                target, needs_review = _event_target(order, reported, event_type, broker_id)
+                event, created = BrokerOrderEventModel._default_manager.get_or_create(
                     agent_id=agent_pk,
                     event_id=event_id,
-                ).exists():
+                    defaults={
+                        "order": order,
+                        "event_type": event_type,
+                        "status": target,
+                        "payload": event_payload
+                        | {
+                            "reported_event_type": raw_type,
+                            "reported_status": reported,
+                            "order_version": order.version + 1,
+                            "receipt_identity_v1": identity,
+                        },
+                        "occurred_at": occurred_at,
+                    },
+                )
+                if not created:
+                    previous = event.payload or {}
+                    stored_identity = previous.get("receipt_identity_v1")
+                    if stored_identity is None:
+                        # Legacy rows did not store the original broker or fill selector.
+                        matches = (
+                            event.event_type == raw_type
+                            and previous.get("reported_status", reported) == reported
+                        )
+                    else:
+                        matches = stored_identity == identity
+                    if event.order_id != order.pk or not matches:
+                        raise BrokerExecutionConflictError(
+                            "Broker event identity conflicts with its first report"
+                        )
                     duplicates += 1
                     continue
-                target = str(item.get("status") or "").upper()
-                if (
-                    order.failure_code == "BROKER_OVERFILL"
-                    and target
-                    and target != LiveOrderStatus.RECONCILIATION_REQUIRED.value
-                ):
-                    target = LiveOrderStatus.RECONCILIATION_REQUIRED.value
-                if target:
-                    try:
-                        validate_order_transition(order.status, target)
-                    except ValueError:
-                        if target not in LiveOrderStatus._value2member_map_:
-                            target = LiveOrderStatus.RECONCILIATION_REQUIRED.value
-                        elif order.status != target:
-                            target = LiveOrderStatus.RECONCILIATION_REQUIRED.value
-                        if (
-                            order.status in {status.value for status in LiveOrderStatus}
-                            and order.status != target
-                        ):
-                            try:
-                                validate_order_transition(order.status, target)
-                            except ValueError:
-                                target = order.status
-                BrokerOrderEventModel._default_manager.create(
-                    agent_id=agent_pk,
-                    order=order,
-                    event_id=event_id,
-                    event_type=str(item.get("event_type") or "UNKNOWN")[:64],
-                    status=target,
-                    payload=dict(item.get("payload") or {}),
-                    occurred_at=self._parse_agent_datetime(item.get("occurred_at")),
-                )
-                if item.get("broker_order_id"):
-                    order.broker_order_id = str(item["broker_order_id"])[:128]
+                binding: BrokerAccountBindingModel | None = None
+                if event_type.startswith(("QMT_", "FAKE_")):
+                    binding = (
+                        BrokerAccountBindingModel._default_manager.select_for_update()
+                        .filter(
+                            agent_id=agent_pk,
+                            user_id=order.user_id,
+                            account_id=order.account_id,
+                        )
+                        .first()
+                    )
+                    if binding is None or (fill is not None and not binding.is_active):
+                        raise BrokerAgentAuthenticationError(
+                            "Event account is not bound to this Agent"
+                        )
+                    # The fake adapter identifies its single vendor account as the literal "fake".
+                    if event_type.startswith("FAKE_") != (binding.broker_account_ref == "fake"):
+                        raise BrokerExecutionConflictError(
+                            "Broker account and report source disagree"
+                        )
+                    if (
+                        fill is not None
+                        and fill.account_ref is not None
+                        and fill.account_ref != binding.broker_account_ref
+                    ):
+                        raise BrokerExecutionConflictError(
+                            "Broker trade account differs from the order binding"
+                        )
+                if event_type == "UNKNOWN":
+                    logging.getLogger(__name__).warning("Unknown broker event type %r", raw_type)
+                elif broker_id and order.broker_order_id and broker_id != order.broker_order_id:
+                    raise BrokerExecutionConflictError("Broker order identity changed")
+                elif broker_id:
+                    order.broker_order_id = broker_id
                 if target and target != order.status:
                     order.status = target
                 if (
@@ -604,9 +952,10 @@ class BrokerExecutionAgentRuntimeMixin(BrokerExecutionRepositoryMixinSupport):
                         LiveOrderStatus.CANCEL_PENDING.value,
                         LiveOrderStatus.CANCELED.value,
                     }
+                    and not needs_review
                     and order.submitted_at is None
                 ):
-                    order.submitted_at = timezone.now()
+                    order.submitted_at = received_at
                 if (
                     target
                     in {
@@ -616,49 +965,44 @@ class BrokerExecutionAgentRuntimeMixin(BrokerExecutionRepositoryMixinSupport):
                     }
                     and order.failure_code != "BROKER_OVERFILL"
                 ):
-                    event_payload = dict(item.get("payload") or {})
-                    order.failure_code = str(item.get("event_type") or target)[:64]
+                    order.failure_code = event_type
                     order.failure_message = str(
                         event_payload.get("status_msg")
                         or event_payload.get("broker_message")
                         or event_payload.get("message")
                         or ""
                     )[:2000]
-                fill = item.get("fill")
-                if isinstance(fill, dict) and fill.get("broker_trade_id"):
-                    quantity = Decimal(str(fill.get("quantity") or "0"))
-                    price = Decimal(str(fill.get("price") or "0"))
-                    if quantity <= 0 or price <= 0:
-                        raise BrokerExecutionConflictError(
-                            "Broker fill quantity and price must be positive"
-                        )
-                    binding = BrokerAccountBindingModel._default_manager.filter(
-                        agent_id=agent_pk,
-                        account_id=order.account_id,
-                        is_active=True,
-                    ).first()
-                    if binding is None:
-                        raise BrokerAgentAuthenticationError(
-                            "Event account is not actively bound to this Agent"
-                        )
+                if fill is not None and binding is not None:
                     persisted_fill, _created = BrokerFillModel._default_manager.get_or_create(
                         broker_account_ref=binding.broker_account_ref,
-                        broker_trade_id=str(fill["broker_trade_id"])[:128],
+                        broker_trade_id=fill.trade_id,
                         defaults={
                             "order": order,
                             "agent_id": agent_pk,
-                            "quantity": quantity,
-                            "price": price,
-                            "amount": quantity * price,
-                            "occurred_at": self._parse_agent_datetime(
-                                fill.get("occurred_at") or item.get("occurred_at")
-                            ),
-                            "payload": dict(fill.get("payload") or {}),
+                            "quantity": fill.quantity,
+                            "price": fill.price,
+                            "amount": fill.quantity * fill.price,
+                            "occurred_at": fill.occurred_at,
+                            "payload": fill.payload,
                         },
                     )
                     if persisted_fill.order_id != order.pk:
                         raise BrokerExecutionConflictError(
                             "Broker trade is already attached to another order"
+                        )
+                    if (
+                        persisted_fill.quantity != fill.quantity
+                        or persisted_fill.price != fill.price
+                    ):
+                        raise BrokerExecutionConflictError(
+                            "Broker trade identity has different fill economics"
+                        )
+                    first_source = (persisted_fill.payload or {}).get("broker_source_at")
+                    if first_source is not None and (
+                        source is None or _receipt_time(first_source) != _receipt_time(source)
+                    ):
+                        raise BrokerExecutionConflictError(
+                            "Broker trade identity has a different source time"
                         )
                     totals = order.fills.aggregate(quantity=Sum("quantity"), amount=Sum("amount"))
                     order.filled_quantity = totals["quantity"] or Decimal("0")
@@ -675,36 +1019,47 @@ class BrokerExecutionAgentRuntimeMixin(BrokerExecutionRepositoryMixinSupport):
                         )
                 order.version += 1
                 order.save()
-                if target == LiveOrderStatus.RECONCILIATION_REQUIRED.value:
+                if needs_review or target == LiveOrderStatus.RECONCILIATION_REQUIRED.value:
                     is_overfill = order.failure_code == "BROKER_OVERFILL"
-                    alerts.append(
-                        self._upsert_operational_alert(
-                            user_id=order.user_id,
-                            account_id=order.account_id,
-                            code=(
-                                "P0_BROKER_OVERFILL" if is_overfill else "P0_ORDER_OUTCOME_UNKNOWN"
-                            ),
-                            severity="P0",
-                            title=(
-                                "券商累计成交超过批准数量，已自动停止新单"
-                                if is_overfill
-                                else "实盘订单结果未知，已自动停止新单"
-                            ),
-                            message=(
-                                f"订单 {order.client_order_id} 出现超额成交，必须立即核验券商事实。"
-                                if is_overfill
-                                else f"订单 {order.client_order_id} 必须先查询券商事实并完成对账。"
-                            ),
-                            resource_key=str(order.client_order_id),
-                            payload={"client_order_id": str(order.client_order_id)},
-                            auto_stop=True,
-                        )
+                    committed_alert = self._upsert_operational_alert(
+                        user_id=order.user_id,
+                        account_id=order.account_id,
+                        code=("P0_BROKER_OVERFILL" if is_overfill else "P0_ORDER_OUTCOME_UNKNOWN"),
+                        severity="P0",
+                        title=(
+                            "券商累计成交超过批准数量，已自动停止新单"
+                            if is_overfill
+                            else "实盘订单结果未知，已自动停止新单"
+                        ),
+                        message=(
+                            f"订单 {order.client_order_id} 出现超额成交，必须立即核验券商事实。"
+                            if is_overfill
+                            else f"订单 {order.client_order_id} 必须先查询券商事实并完成对账。"
+                        ),
+                        resource_key=str(order.client_order_id),
+                        payload={"client_order_id": str(order.client_order_id)},
+                        auto_stop=True,
                     )
                 accepted += 1
+            if committed_alert is not None:
+                alerts.append(committed_alert)
         return {
             "accepted_count": accepted,
             "duplicate_count": duplicates,
             "alerts": alerts,
+            "order_states": [
+                {
+                    "client_order_id": str(order_id),
+                    "status": status,
+                    "broker_order_id": broker_id,
+                    "version": version,
+                }
+                for order_id, status, broker_id, version in LiveOrderModel._default_manager.filter(
+                    pk__in=reported_orders, agent_id=agent_pk, account_id__in=allowed_account_ids
+                )
+                .order_by("pk")
+                .values_list("client_order_id", "status", "broker_order_id", "version")
+            ],
         }
 
     def sync_agent_snapshot(
@@ -720,12 +1075,16 @@ class BrokerExecutionAgentRuntimeMixin(BrokerExecutionRepositoryMixinSupport):
         account_id = int(payload.get("account_id") or 0)
         if account_id not in set(allowed_account_ids):
             raise BrokerAgentAuthenticationError("Snapshot exceeds the credential account scope")
-        if not agent.account_bindings.filter(account_id=account_id, is_active=True).exists():
-            raise BrokerAgentAuthenticationError("Snapshot account is not bound to this Agent")
         captured_at = self._parse_agent_datetime(payload.get("captured_at"))
         if captured_at > timezone.now() + timedelta(minutes=5):
             raise BrokerExecutionConflictError("Broker snapshot timestamp is too far in the future")
         with transaction.atomic():
+            if (
+                not agent.account_bindings.select_for_update()
+                .filter(account_id=account_id, is_active=True)
+                .exists()
+            ):
+                raise BrokerAgentAuthenticationError("Snapshot account is not bound to this Agent")
             BrokerAccountSnapshotModel._default_manager.update_or_create(
                 agent=agent,
                 account_id=account_id,

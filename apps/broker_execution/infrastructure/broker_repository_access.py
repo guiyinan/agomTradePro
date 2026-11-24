@@ -8,9 +8,15 @@ from decimal import Decimal
 from typing import Any, TypeVar
 from uuid import UUID
 
+from django.db import DatabaseError, OperationalError, router, transaction
 from django.db.models import Count, Min, Model, Q, QuerySet, Sum
 from django.utils import timezone
 
+from apps.broker_execution.application.evidence_gate import BROKER_ORDER_EVIDENCE_BLOCKER
+from apps.broker_execution.ash09_checkpoint_composition import (
+    bounded_checkpoint_diagnostic,
+    inspect_checkpoint_blockers,
+)
 from apps.broker_execution.domain.connection_freshness import heartbeat_times_are_fresh
 from apps.broker_execution.domain.entities import LiveOrderStatus
 from apps.broker_execution.domain.rules import (
@@ -18,7 +24,6 @@ from apps.broker_execution.domain.rules import (
 )
 
 from .broker_repository_audit_access import BrokerExecutionAuditAccessMixin
-from .broker_repository_contract import BrokerExecutionRepositoryMixinSupport
 from .models import (
     BrokerAccountAccessModel,
     BrokerAccountBindingModel,
@@ -58,6 +63,7 @@ class BrokerExecutionAccessMixin(BrokerExecutionAuditAccessMixin):
         return grants.values_list("account_id", flat=True)
 
     @staticmethod
+    @transaction.atomic
     def _upsert_operational_alert(
         *,
         user_id: int,
@@ -70,10 +76,19 @@ class BrokerExecutionAccessMixin(BrokerExecutionAuditAccessMixin):
         payload: dict[str, Any] | None = None,
         auto_stop: bool = False,
     ) -> dict[str, Any]:
+        if auto_stop:
+            # Account switches and auto-stops serialize with the order checkpoint.
+            BrokerAccountBindingModel._default_manager.select_for_update().filter(
+                user_id=user_id,
+                account_id=account_id,
+            ).exists()
         fingerprint = hashlib.sha256(
             f"{code}:{user_id}:{account_id}:{resource_key}".encode()
         ).hexdigest()
-        alert, created = BrokerExecutionAlertModel._default_manager.get_or_create(
+        (
+            alert,
+            created,
+        ) = BrokerExecutionAlertModel._default_manager.select_for_update().get_or_create(
             fingerprint=fingerprint,
             defaults={
                 "user_id": user_id,
@@ -369,6 +384,8 @@ class BrokerExecutionAccessMixin(BrokerExecutionAuditAccessMixin):
                     "status": event.status,
                     "payload": event.payload or {},
                     "occurred_at": event.occurred_at.isoformat(),
+                    "broker_source_at": (event.payload or {}).get("broker_source_at"),
+                    "clock_source": (event.payload or {}).get("clock_source", "unknown"),
                     "received_at": event.received_at.isoformat(),
                 }
                 for event in order.broker_events.all()
@@ -380,6 +397,9 @@ class BrokerExecutionAccessMixin(BrokerExecutionAuditAccessMixin):
                     "price": _decimal_text(fill.price),
                     "amount": _decimal_text(fill.amount),
                     "occurred_at": fill.occurred_at.isoformat(),
+                    "broker_source_at": (fill.payload or {}).get("broker_source_at"),
+                    "clock_source": (fill.payload or {}).get("clock_source", "unknown"),
+                    "received_at": fill.created_at.isoformat(),
                 }
                 for fill in order.fills.all()
             ]
@@ -715,6 +735,52 @@ class BrokerExecutionAccessMixin(BrokerExecutionAuditAccessMixin):
         )
         order = queryset.filter(client_order_id=client_order_id).first()
         return self._order_payload(order, include_events=True) if order else None
+
+    def inspect_owned_order_checkpoint(
+        self, *, user_id: int, account_id: int, client_order_id: str
+    ) -> tuple[str, ...] | None:
+        """Inspect only an authenticated owner of both the live order and its active binding."""
+        using = router.db_for_write(LiveOrderModel)
+        bindings = BrokerAccountBindingModel._default_manager.using(using).filter(
+            user_id=user_id,
+            account_id=account_id,
+            is_active=True,
+        )
+        orders = LiveOrderModel._default_manager.using(using).filter(
+            client_order_id=client_order_id,
+            user_id=user_id,
+            account_id=account_id,
+        )
+        try:
+            with bounded_checkpoint_diagnostic(using=using):
+                # A nonlocking read proves visibility before reporting even a generic busy state.
+                if not orders.filter(agent_id__in=bindings.values("agent_id")).exists():
+                    return None
+                try:
+                    with transaction.atomic(using=using):
+                        order = orders.select_for_update(nowait=True, of=("self",)).first()
+                        if (
+                            order is None
+                            or not bindings.select_for_update(nowait=True)
+                            .filter(agent_id=order.agent_id)
+                            .exists()
+                        ):
+                            return None
+                        return inspect_checkpoint_blockers(
+                            user_id=user_id,
+                            client_order_id=order.client_order_id,
+                            account_id=account_id,
+                            order_payload=self._order_payload(order),
+                            using=using,
+                        )
+                except OperationalError:
+                    return (
+                        BROKER_ORDER_EVIDENCE_BLOCKER,
+                        "broker_checkpoint_temporarily_unavailable",
+                    )
+        except DatabaseError:
+            # Without an owned order and binding, no diagnostic facts may be disclosed.
+            return None
 
     def list_connections(self, *, user_id: int, is_admin: bool) -> list[dict[str, Any]]:
         queryset = self._user_scope(

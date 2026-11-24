@@ -236,8 +236,16 @@ def test_order_catalog_supports_an_order_not_yet_assigned_to_an_agent() -> None:
 
 
 @pytest.mark.django_db
-def test_account_access_catalog_supports_a_deleted_granting_administrator() -> None:
-    administrator = _user("deleted-grant-administrator", "admin", superuser=True)
+def test_account_access_catalog_supports_a_deleted_granting_administrator(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # A staff identity without trading accounts can be deleted. Account owners have
+    # immutable ownership history and exercise a different deletion policy.
+    with monkeypatch.context() as fixture:
+        fixture.setenv("AGOMTRADEPRO_DISABLE_USER_PROVISIONING_SIGNALS", "1")
+        administrator = User.objects.create_user(
+            username="deleted-grant-administrator", is_staff=True, is_superuser=True
+        )
     grantee = _user("access-grantee", "operator")
     grant = BrokerAccountAccessModel.objects.create(
         user=grantee,
@@ -1117,6 +1125,55 @@ def test_broker_event_idempotency_is_scoped_to_agent() -> None:
     first_order.refresh_from_db()
     assert first_order.failure_code == "QMT_ORDER_STATUS"
     assert first_order.failure_message == "broker price validation rejected"
+
+
+@pytest.mark.django_db
+def test_late_ack_preserves_partial_fill_and_unknown_broker_source_time() -> None:
+    owner = _user("late-broker-event", "owner")
+    agent, _ = _binding(owner, account_id=91)
+    order = _order(owner, agent, account_id=91)
+    LiveOrderModel.objects.filter(pk=order.pk).update(
+        status="PARTIALLY_FILLED", broker_order_id="B1"
+    )
+    repository = DjangoBrokerExecutionRepository()
+    observed = timezone.now().isoformat()
+    event = {
+        "event_id": "late-ack",
+        "client_order_id": str(order.client_order_id),
+        "event_type": "QMT_ORDER_STATUS",
+        "status": "SUBMITTED",
+        "broker_order_id": "B1",
+        "occurred_at": observed,
+        "payload": {"clock_source": "agent_observed", "broker_source_at": None},
+    }
+    result = repository.report_agent_events(
+        agent_pk=agent.pk, allowed_account_ids=[91], events=[event]
+    )
+    assert result["accepted_count"] == 1 and result["alerts"] == []
+    order.refresh_from_db()
+    assert order.status == "PARTIALLY_FILLED"
+    recorded = repository._order_payload(order, include_events=True)["events"][0]
+    assert recorded["payload"]["reported_status"] == "SUBMITTED"
+    assert recorded["broker_source_at"] is None and recorded["received_at"]
+    assert result["order_states"] == [
+        {
+            "client_order_id": str(order.client_order_id),
+            "status": "PARTIALLY_FILLED",
+            "broker_order_id": "B1",
+            "version": order.version,
+        }
+    ]
+    replay = repository.report_agent_events(
+        agent_pk=agent.pk, allowed_account_ids=[91], events=[event]
+    )
+    assert replay["duplicate_count"] == 1 and replay["order_states"] == result["order_states"]
+    other = _order(owner, agent, account_id=91)
+    with pytest.raises(BrokerExecutionConflictError):
+        repository.report_agent_events(
+            agent_pk=agent.pk,
+            allowed_account_ids=[91],
+            events=[{**event, "client_order_id": str(other.client_order_id)}],
+        )
 
 
 @pytest.mark.django_db

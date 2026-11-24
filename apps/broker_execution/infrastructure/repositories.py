@@ -13,6 +13,7 @@ from apps.broker_execution.application.evidence_gate import (
     broker_order_evidence_integrated,
     require_broker_order_evidence,
 )
+from apps.broker_execution.application.execution_price_guard import require_current_execution_price
 from apps.broker_execution.application.use_case_errors import (
     BrokerExecutionConflictError,
     BrokerExecutionPermissionError,
@@ -131,7 +132,12 @@ class DjangoBrokerExecutionRepository(
             binding = (
                 BrokerAccountBindingModel._default_manager.select_for_update()
                 .select_related("agent")
-                .filter(pk=binding.pk, is_active=True, agent__is_active=True)
+                .filter(
+                    pk=binding.pk,
+                    is_active=True,
+                    agent__is_active=True,
+                    auto_execution_enabled=True,
+                )
                 .first()
             )
             if binding is None:
@@ -206,6 +212,14 @@ class DjangoBrokerExecutionRepository(
                 LiveOrderStatus.RISK_REJECTED.value,
             }:
                 raise BrokerExecutionConflictError("Invalid initial live-order status")
+            if final_status == LiveOrderStatus.WAITING_APPROVAL.value:
+                require_current_execution_price(
+                    asset_code=symbol,
+                    limit_price=price,
+                    max_deviation=binding.price_deviation_limit_pct,
+                )
+                if expires_at <= timezone.now():
+                    raise BrokerExecutionConflictError("Order expired before creation")
             order = LiveOrderModel._default_manager.create(
                 user_id=binding.user_id,
                 account_id=binding.account_id,

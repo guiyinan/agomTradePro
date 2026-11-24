@@ -3262,7 +3262,11 @@
       "source_files": [
         "apps/data_center/application/public.py",
         "apps/data_center/application/public_published_queries.py",
-        "apps/broker_execution/application/use_cases.py"
+        "apps/broker_execution/application/use_cases.py",
+        "apps/broker_execution/application/execution_price_guard.py",
+        "apps/broker_execution/infrastructure/repositories.py",
+        "apps/broker_execution/infrastructure/broker_repository_order_control.py",
+        "apps/broker_execution/infrastructure/broker_repository_agent_runtime.py"
       ],
       "required_markers": {
         "apps/data_center/application/public_published_queries.py": [
@@ -3274,6 +3278,19 @@
         "apps/broker_execution/application/use_cases.py": [
           "from apps.data_center.application.public import",
           "get_published_latest_quote_payload(asset_code)"
+        ],
+        "apps/broker_execution/application/execution_price_guard.py": [
+          "get_execution_quote(asset_code, as_of=timezone.now())",
+          "quote.freshness_deadline"
+        ],
+        "apps/broker_execution/infrastructure/repositories.py": [
+          "require_current_execution_price("
+        ],
+        "apps/broker_execution/infrastructure/broker_repository_order_control.py": [
+          "require_current_execution_price("
+        ],
+        "apps/broker_execution/infrastructure/broker_repository_agent_runtime.py": [
+          "require_current_execution_price("
         ]
       },
       "required_tests": [
@@ -3291,6 +3308,16 @@
           "case": "broker_default_provider_uses_public_port",
           "test_file": "tests/unit/broker_execution/test_application_boundaries.py",
           "test_function": "test_live_order_default_quote_provider_uses_published_public_port"
+        },
+        {
+          "case": "execution_price_revalidated_at_lease_and_submitting",
+          "test_file": "tests/component/broker_execution/test_execution_contract_capabilities.py",
+          "test_function": "test_lease_and_submit_recheck_the_execution_quote"
+        },
+        {
+          "case": "execution_price_revalidated_at_create_and_approve",
+          "test_file": "tests/component/broker_execution/test_execution_contract_capabilities.py",
+          "test_function": "test_creation_and_approval_use_the_current_execution_quote"
         },
         {
           "case": "unknown_parent_eligibility_blocked",

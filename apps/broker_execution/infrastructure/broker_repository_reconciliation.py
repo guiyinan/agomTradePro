@@ -571,6 +571,10 @@ class BrokerExecutionReconciliationMixin(BrokerExecutionRepositoryMixinSupport):
             }
             has_p0 = any(row["severity"] == "P0" for row in differences)
             with transaction.atomic():
+                if has_p0:
+                    BrokerAccountBindingModel._default_manager.select_for_update().get(
+                        pk=binding.pk
+                    )
                 run = ReconciliationRunModel._default_manager.create(
                     user_id=binding.user_id,
                     account_id=binding.account_id,

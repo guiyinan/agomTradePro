@@ -172,6 +172,8 @@ New-Item -ItemType File -Path C:\AgomQmtAgent\STOP
 - 本地状态损坏：停止 Agent，保留 SQLite 和日志副本，先通过 QMT 查询所有未决委托，再恢复；
 - 重复单疑似发生：立即触发 VPS 与本地 STOP，保留日志、订单事件和审计证据。
 
+已登录的订单及有效账户绑定所有者可从既有订单详情查看授权来源阻断原因。浏览器打开 `/api/broker-execution/orders/<订单 UUID>/?checkpoint=1`，查看 `data.checkpoint_diagnostics.blocker_codes`。SQLite 环境返回 `broker_checkpoint_risk_fence_unavailable`。检查保持 `must_not_execute=true`，默认详情请求可省略参数。
+
 ## 7. 当前外部验收项
 
 仓库提供了 Fake Adapter、签名 Agent 契约和自动测试，但无法替代目标券商环境。上线前仍需记录券商、QMT/MiniQMT 版本、Python、`xtquant` 版本、普通股票账户类型，以及查询、报单、撤单、回调、重连和部分成交的实测证据。首版拒绝信用账户，不能用 `CREDIT` 绕过该门禁。

@@ -3178,7 +3178,7 @@
           ]
         },
         "data_center": {
-          "imports": 1,
+          "imports": 3,
           "target_layers": [
             "application"
           ]
@@ -3190,9 +3190,10 @@
           ]
         },
         "risk_center": {
-          "imports": 1,
+          "imports": 3,
           "target_layers": [
-            "application"
+            "application",
+            "broker_checkpoint_composition"
           ]
         },
         "simulated_trading": {
@@ -3253,6 +3254,10 @@
           "IssueBrokerAccountIdentitySnapshotCommand",
           "PersistedBrokerAccountIdentitySnapshot"
         ],
+        "application/checkpoint_authority.py": [
+          "BrokerCheckpointIntent",
+          "BrokerCheckpointSources"
+        ],
         "application/connection_status.py": [
           "project_connection_status"
         ],
@@ -3263,6 +3268,9 @@
         ],
         "application/execution_contract_capabilities.py": [
           "parse_agent_execution_contracts"
+        ],
+        "application/execution_price_guard.py": [
+          "require_current_execution_price"
         ],
         "application/management_use_cases.py": [
           "AccountBindingIdentityProviderProtocol",
@@ -3450,11 +3458,11 @@
         ]
       },
       "layers": {
-        "application": 28,
+        "application": 30,
         "domain": 13,
         "infrastructure": 31,
         "interface": 6,
-        "root": 6
+        "root": 7
       },
       "orm_models": {
         "infrastructure/models.py": [
@@ -4106,7 +4114,7 @@
           "imports": 5
         },
         "broker_execution": {
-          "imports": 1
+          "imports": 3
         },
         "dashboard": {
           "imports": 9
@@ -9850,7 +9858,7 @@
           "imports": 7
         },
         "broker_execution": {
-          "imports": 1
+          "imports": 3
         },
         "decision_rhythm": {
           "imports": 2
@@ -10357,7 +10365,7 @@
         "infrastructure": 32,
         "interface": 11,
         "management": 2,
-        "root": 9
+        "root": 10
       },
       "orm_models": {
         "infrastructure/models.py": [

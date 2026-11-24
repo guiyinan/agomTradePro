@@ -169,8 +169,13 @@ class BrokerExecutionOrderDetailView(APIView):
 
     def get(self, request: Request, client_order_id: UUID) -> Response:
         try:
+            selectors = request.query_params.getlist("checkpoint")
+            if selectors and selectors not in (["0"], ["1"]):
+                raise BrokerExecutionValidationError("checkpoint must be 0 or 1")
             data = BrokerExecutionQueryService().order_detail(
-                actor=request.user, client_order_id=client_order_id
+                actor=request.user,
+                client_order_id=client_order_id,
+                include_checkpoint=selectors == ["1"],
             )
             return _success(data, permissions=action_permissions(request.user))
         except (
