@@ -191,7 +191,7 @@ python scripts/check_celery_task_contracts.py \
 
 2026-09-26 估值日期校验：只读生产证据显示，Tushare 缺失的 12 个估值代码由 Tencent 对 2026-09-24 目标日 12/12 返回，且 PE、PB、市值、原始响应哈希和 `available_at` 齐全。AKShare 估值适配器通过 Tencent 批量响应取值，只接受 `snapshot.observed_at.date() == as_of_date`，旧日和未来快照均不进入估值事实；精确目标日事实继续保留 `actual_source`、`available_at`、`fetched_at`、`raw_payload_hash`、`raw_payload_scope` 和 `source_record_id`。全市场任务与 Beat 默认估值源改为该 Tencent 合同，报价继续默认 Tushare；显式 `valuation_source=tushare` 保留用于诊断和回滚。
 
-2026-09-26 估值局部缺失契约：全市场任务顶层 `requested/succeeded/failed` 使用估值证券口径，`stored` 使用实际事实行口径，并另保留 operation 统计；允许 partial 时每只缺失证券记录 `valuation_source_data_unavailable`，Publication 覆盖、scope block、policy identity、publication id/hash 和 run id 必须一致。兼容 `success=false` 不能把明确的 `outcome=partial` 降格为 failed；Task Monitor 以 outcome 为准。
+2026-09-26 估值局部缺失契约：全市场任务顶层 `requested/succeeded/failed` 使用估值证券口径，`stored` 使用实际事实行口径，并另保留 operation 统计；允许 partial 时每只缺失证券记录 `valuation_source_data_unavailable`，Publication 覆盖、scope block、policy identity、publication id/hash 和 run id 必须一致。兼容 `success=false` 不能把明确的 `outcome=partial` 降格为 failed；Task Monitor 以 outcome 为准。 估值预览与发布按本轮 RawAudit 的采集批次和实际事实来源选取成员。同日其他批次或来源的估值保留在事实库；发布前复核缺口证券清单，覆盖率沿用冻结全集作为分母。
 
 生产 200 只批次实测约 65 秒，全市场约 28 批；全市场任务的 Celery soft/hard limit 为 5400/5700 秒，只作为外层兜底。Redis broker visibility timeout 为 7200 秒，必须严格高于全仓受管任务的最大 hard limit，并保留网络与收尾余量；不得恢复默认约 3600 秒。审计授权预检至少覆盖 6300 秒（严格高于 hard limit 加 300 秒收尾预算）。该调整不放宽 provider 单次请求、重试或锁时限；三者必须保持各自独立，禁止让合法全集刷新在发布前被 visibility 重投或旧预算终止。
 

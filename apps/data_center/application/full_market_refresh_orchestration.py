@@ -908,6 +908,12 @@ def run_full_market_publication_refresh(
             "equity.price.bar": target_date,
             "equity.valuation.fact": target_date,
         }
+        valuation_fact_source_type = valuation_seed.fact_source_type
+        if not valuation_fact_source_type:
+            raise DataFetchError(
+                "Current valuation sync did not return its actual fact source type",
+                code="CURRENT_VALUATION_SOURCE_TYPE_MISSING",
+            )
         publication_cutoff = datetime.now(UTC)
         try:
             preview = publication_bundle.previewer.preview(
@@ -915,6 +921,9 @@ def run_full_market_publication_refresh(
                 published_at=publication_cutoff,
                 scope_exclusions_by_dataset=publication_scope_exclusions,
                 required_observation_dates=required_observation_dates,
+                valuation_audit_sources={
+                    valuation_reference.ingested_run_id: valuation_fact_source_type
+                },
             )
         except (
             DataValidationError,
@@ -940,7 +949,7 @@ def run_full_market_publication_refresh(
             )
         )
         valuation_preview_allowed = valuation_preview is not None and (
-            valuation_preview.ready
+            (not missing_codes and valuation_preview.ready)
             or (
                 valuation_partial_allowed
                 and set(valuation_preview.missing_asset_codes) == set(missing_codes)
@@ -1022,12 +1031,6 @@ def run_full_market_publication_refresh(
                 for _raw_audit_id, reference in sorted(price_audit_references.items())
             ],
         )
-        valuation_fact_source_type = valuation_seed.fact_source_type
-        if not valuation_fact_source_type:
-            raise DataFetchError(
-                "Current valuation sync did not return its actual fact source type",
-                code="CURRENT_VALUATION_SOURCE_TYPE_MISSING",
-            )
         stage_bindings_by_dataset = {
             "equity.quote.snapshot": tuple(
                 CurrentPublicationStageRawAuditBinding(
@@ -1060,6 +1063,7 @@ def run_full_market_publication_refresh(
             required_observation_date=target_date,
             scope_exclusions_by_dataset=publication_scope_exclusions,
             raw_audit_bindings_by_dataset=stage_bindings_by_dataset,
+            expected_valuation_gaps=tuple(missing_codes),
             preflight_context=authority,
         )
         publication_evidence.update(publication_result.to_dict())

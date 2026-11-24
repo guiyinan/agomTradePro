@@ -2559,6 +2559,9 @@ def test_task_publishes_policy_allowed_partial_valuation_and_reports_asset_count
         "equity.valuation.fact": date(2026, 9, 18),
     }
     assert preview_calls[0]["required_observation_dates"] == required_observation_dates
+    assert preview_calls[0]["valuation_audit_sources"] == {
+        "valuation-test-audit-ingested": "akshare"
+    }
     assert publication_calls[0]["required_observation_dates"] == required_observation_dates
     assert progress_snapshots[0].phase == "universe"
     assert progress_snapshots[0].requested == 1
