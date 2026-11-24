@@ -4,6 +4,8 @@
 
 ## 操作方式
 
+离线路由诊断在全新 checkout 中自动建立 pytest 临时目录的父目录。每次运行使用独立的 UUID 子目录，失败原件保留。正式 Publication PostgreSQL 证据包含同库生产装配用例，覆盖权限预检、完整图捕获、短事务围栏以及三个数据集的指针、审计与 outbox 提交。
+
 需要排查 prepare 的目标日或 provider 路由时，先在开发 checkout 运行
 `python -m scripts.run_s6_prepare_preflight`。需真实响应时，在目标 PostgreSQL 只读环境加
 `--live --target-date <YYYY-MM-DD> --sample-size 10 --timeout 120`；精确单测失败时不会发起 provider

@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import timedelta
 
+from django.db import connections
+
 from apps.account.application.account_owner_assignment_actor_authority_source_v3 import (
     GetExactAccountOwnerAssignmentActorAuthoritySourceV3,
     GetExactAccountOwnerAssignmentActorAuthoritySourceV3Command,
@@ -27,6 +29,9 @@ from apps.account.domain.account_owner_assignment_actor_authority_source_v3 impo
     AccountOwnerAssignmentActorAuthoritySourceV3,
 )
 from apps.account.domain.owner_tenant_authority_v3 import OwnerTenantAuthorityV3
+from apps.account.infrastructure.account_authority_shadow_scanner import (
+    AccountAuthorityShadowScannerV3,
+)
 from apps.account.infrastructure.account_owner_assignment_actor_authority_source_v3_repository import (
     DjangoAccountOwnerAssignmentActorAuthoritySourceV3Repository,
 )
@@ -40,7 +45,7 @@ from apps.account.owner_tenant_authority_v3_composition import (
 
 @dataclass(frozen=True, slots=True)
 class AccountSystemAuditOwnerTenantAuthorityV3Reader:
-    """Rebuild a V3 current facade from immutable actor and authority selectors."""
+    """Read the complete V3 authority graph for the exact configured selectors."""
 
     actor_source_id: str
     actor_source_version: str
@@ -76,6 +81,17 @@ class AccountSystemAuditOwnerTenantAuthorityV3Reader:
         if type(command) is not GetCurrentOwnerTenantAuthorityV3Command:
             raise TypeError("command must be exact GetCurrentOwnerTenantAuthorityV3Command")
         command.__post_init__()
+        connection = connections[self.database_alias]
+        if connection.vendor == "postgresql" and not connection.in_atomic_block:
+            return AccountAuthorityShadowScannerV3(
+                actor_source_id=self.actor_source_id,
+                actor_source_version=self.actor_source_version,
+                actor_content_hash=self.actor_content_hash,
+                physical_row_provider=self.physical_row_provider,
+                using=self.database_alias,
+            ).read_current_snapshot(command)
+
+        # An existing write transaction needs its original lock lifetime through commit.
         authority = self._sealed_authority(command)
         if authority is None:
             return None

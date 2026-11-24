@@ -579,19 +579,7 @@ class AccountAuthorityCurrentGraphReaderV3:
 
 
 class AccountAuthorityShadowScannerV3:
-    """Compare legacy output with a full Application restore in one RR snapshot.
-
-    This scanner is intentionally a separate shadow entry point. It does not
-    authorize requests, acquire the RC final fence, publish data, or persist
-    scan results. Call it only after the legacy preflight has produced its
-    result; that result remains the sole decision input. The legacy observation
-    and this scan use independent repository clock reads: shadow first uses a
-    repository clock for provisional root selection and another for actor
-    validation, then the existing service applies its own cutoff and deliberately
-    rechecks sources at multiple later cutoffs. The legacy observation completed
-    earlier with its own clock reads. Expiry or source changes between those
-    observations are diagnostic differences and never replace the legacy result.
-    """
+    """Restore the complete graph at one RR cutoff for reads and preflight comparison."""
 
     def __init__(
         self,
@@ -651,6 +639,42 @@ class AccountAuthorityShadowScannerV3:
                     "legacy authority observation selectors do not match shadow command"
                 )
 
+        with self._read_snapshot(command) as (proof, graph_read):
+            comparison = _compare_current_observations(legacy_current, graph_read.authority)
+        return AccountAuthorityShadowScanResultV3(
+            database_alias=self._using,
+            proof_generation=proof.generation,
+            comparison=comparison,
+            selector=self._graph_reader().selector_for(command),
+            checked_at=graph_read.checked_at,
+            physical_identity=graph_read.physical_identity,
+        )
+
+    def read_current_snapshot(
+        self,
+        command: GetCurrentOwnerTenantAuthorityV3Command,
+    ) -> CurrentOwnerTenantAuthorityV3 | None:
+        """Observe current authority at the RR cutoff; writes require separate final fencing."""
+
+        if type(command) is not GetCurrentOwnerTenantAuthorityV3Command:
+            raise TypeError("command must be exact GetCurrentOwnerTenantAuthorityV3Command")
+        command.__post_init__()
+        with self._read_snapshot(command) as (_proof, graph_read):
+            current = graph_read.authority
+            if current is None:
+                return None
+            finished_at = _read_database_clock_timestamp(_connection(self._using), self._using)
+            if finished_at < graph_read.checked_at:
+                raise AccountAuthorityGenerationUnavailable(
+                    "current graph database clock moved backwards"
+                )
+            return current if finished_at < current.valid_until else None
+
+    @contextmanager
+    def _read_snapshot(
+        self,
+        command: GetCurrentOwnerTenantAuthorityV3Command,
+    ) -> Iterator[tuple[AccountAuthorityGenerationProof, AccountAuthorityCurrentGraphReadV3]]:
         connection = _connection(self._using)
         with suspend_immutable_read_reuse():
             with _read_only_repeatable_read_transaction(self._using, connection):
@@ -668,14 +692,7 @@ class AccountAuthorityShadowScannerV3:
                         )
                     shadow_current.__post_init__()
 
-        return AccountAuthorityShadowScanResultV3(
-            database_alias=self._using,
-            proof_generation=proof.generation,
-            comparison=_compare_current_observations(legacy_current, shadow_current),
-            selector=self._graph_reader().selector_for(command),
-            checked_at=graph_read.checked_at,
-            physical_identity=graph_read.physical_identity,
-        )
+                yield proof, graph_read
 
     def _read_shadow(
         self,

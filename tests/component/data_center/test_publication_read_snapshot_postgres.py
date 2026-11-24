@@ -1145,6 +1145,120 @@ def _build_activation_soak_snapshot(
     )
 
 
+def test_production_authority_capture_through_publication_group_commit(
+    activation_runtime_pg,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Use the physical runtime role and the complete Account graph from preflight through commit."""
+    from apps.account.infrastructure.owner_tenant_authority_v3_repository import (
+        DjangoOwnerTenantAuthorityV3Repository,
+    )
+    from apps.audit.application.system_audit_authority_provider import (
+        ExactScopedSystemAuditAuthorityProvider,
+        SystemAuditAuthorityBundleSelector,
+    )
+    from apps.audit.application.system_audit_authority_schema import SYSTEM_AUDIT_SCOPE_SCHEMA_V3
+    from apps.audit.application.system_audit_composition import get_system_audit_reader_context
+    from core.integration import production_account_authority_capture as production
+    from core.integration.system_audit_authority import build_system_audit_authority_readers
+    from core.integration.system_audit_runtime_config import SystemAuditRuntimeConfigBinding
+    from tests.component.account.test_owner_tenant_authority_v3_composition import (
+        _append_source_v2_for_physical,
+    )
+    from tests.component.account.test_owner_tenant_authority_v3_repository import (
+        _append_owner,
+        _owner_seed,
+    )
+    from tests.support.owner_authority_current_sources import seed_current_actor_source
+    from tests.unit.account.test_account_owner_assignment_evidence_v5 import _evidence
+
+    capture_at = datetime(2026, 8, 15, 14, 20, tzinfo=UTC)
+    monkeypatch.setattr("django.utils.timezone.now", lambda: capture_at)
+    seed_alias = "evid06_authority_test"
+    assert seed_alias not in connections.databases
+    runtime = connections["default"]
+    assert runtime.vendor == "postgresql"
+    with runtime.cursor() as cursor:
+        cursor.execute("SELECT current_database()")
+        assert cursor.fetchone() == ("agom_release_rehearsal_ci",)
+    seed_connection = runtime.copy(alias=seed_alias)
+    connections[seed_alias] = seed_connection
+    try:
+        actor_source = seed_current_actor_source(
+            seed_alias, capture_at, _evidence().approval_valid_until + timedelta(minutes=1)
+        )
+    finally:
+        seed_connection.close()
+        del connections[seed_alias]
+    seed_now = _evidence().recorded_at + timedelta(minutes=1)
+    monkeypatch.setattr("django.utils.timezone.now", lambda: seed_now)
+    persisted = _owner_seed("default", monkeypatch, actor_source=actor_source)
+    issue = persisted.authority
+    _append_source_v2_for_physical(
+        "default", issue.assignment.subject.reobservation.current_physical
+    )
+    _append_owner(DjangoOwnerTenantAuthorityV3Repository(using="default"), persisted)
+    now = issue.recorded_at + timedelta(seconds=1)
+    monkeypatch.setattr("django.utils.timezone.now", lambda: now)
+    request, candidate_ids, _ = _build_activation_soak_snapshot(valuation_member_count=2)
+    bundle_selector = SystemAuditAuthorityBundleSelector(
+        actor_source_id=actor_source.source_id,
+        actor_source_version=actor_source.source_version,
+        actor_content_hash=actor_source.content_hash,
+        scope_source_id=issue.authority_id,
+        scope_source_version=issue.authority_version,
+        scope_content_hash=issue.content_hash,
+        scope_schema=SYSTEM_AUDIT_SCOPE_SCHEMA_V3,
+    )
+    binding = SystemAuditRuntimeConfigBinding(
+        mode="required",
+        outbox_enabled=True,
+        authority_selector=bundle_selector,
+        issuer_id="audit-config:issuer",
+        snapshot_id="snapshot-1",
+        snapshot_hash="b" * 64,
+        profile_id="profile-1",
+        profile_key="profile-key-1",
+        profile_version=1,
+        environment="production",
+    )
+    monkeypatch.setattr(production, "load_system_audit_runtime_config", lambda **_: binding)
+    readers = build_system_audit_authority_readers(using="default", selector=bundle_selector)
+    provider = ExactScopedSystemAuditAuthorityProvider(
+        actor_reader=readers.actor, scope_reader=readers.scope, selector=bundle_selector
+    )
+    connection = connections["default"]
+    statements = []
+
+    def observe(execute, sql, params, many, context):
+        statements.append(sql.lower())
+        if sql.strip().lower() == "select clock_timestamp()":
+            return execute("SELECT %s::timestamptz", (now,), many, context)
+        return execute(sql, params, many, context)
+
+    with connection.execute_wrapper(observe):
+        context = get_system_audit_reader_context(provider, as_of=now)
+        capture = production.capture_production_account_authority(
+            using="default", as_of=now, preflight_context=context
+        )
+        activated = ActivateCanonicalPublicationGroupUseCase(
+            DjangoPublicationActivationRepository()
+        ).execute(
+            request,
+            audit_writer=_PostgresActivationAuditWriter(),
+            authority_fence=capture.authority_fence,
+            authority_proof=capture.authority_proof,
+        )
+    assert {publication.publication_id for publication in activated} == set(candidate_ids.values())
+    assert set(
+        map(str, CanonicalPublicationPointerModel.objects.values_list("publication_id", flat=True))
+    ) == set(candidate_ids.values())
+    assert SystemAuditEventModel.objects.count() == SystemAuditOutboxModel.objects.count() == 3
+    assert any("repeatable read read only" in sql for sql in statements)
+    assert any("account_authority_generation_lock()" in sql for sql in statements)
+    assert not any("lock table" in sql for sql in statements)
+
+
 def test_activation_5001_members_has_fixed_queries_locks_and_retry(
     activation_runtime_pg,
 ) -> None:
@@ -1338,7 +1452,7 @@ def test_connected_database_identity_returns_real_postgres_address_without_cidr(
     assert database_name == configured["NAME"]
     assert "/" not in server_address
     ipaddress.ip_address(server_address)
-    assert server_port == 5432
+    assert server_port == int(configured["PORT"])
 
     monkeypatch.setenv("AGOM_S6_ISOLATED_DATABASE_MIGRATION", "1")
     monkeypatch.setenv("AGOM_RELEASE_REHEARSAL_DATABASE", "1")

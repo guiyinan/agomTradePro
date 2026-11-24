@@ -1028,6 +1028,14 @@ def test_shadow_proof_and_closed_world_reader_share_one_rr_transaction_without_w
     assert result.selector is not None
     assert result.comparison.shadow is not None
     assert result.selector == scanner._graph_reader().selector_for(command)
+    connection.database_clock_timestamp = legacy.observed_at
+    assert scanner.read_current_snapshot(command) == legacy
+    assert current_reads == [(connection, True, "repeatable read", "on")] * 2
+    connection.database_clock_timestamp = legacy.valid_until
+    assert scanner.read_current_snapshot(command) is None
+    connection.database_clock_timestamp = legacy.observed_at - timedelta(microseconds=1)
+    with pytest.raises(AccountAuthorityGenerationUnavailable, match="clock moved backwards"):
+        scanner.read_current_snapshot(command)
     assert legacy is legacy_before
     assert legacy == legacy_before
     forbidden = ("lock table", "pg_advisory", "insert ", "update ", "delete ", "truncate ")

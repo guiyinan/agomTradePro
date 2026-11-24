@@ -20,19 +20,8 @@ from tests.component.account.test_account_actor_authority_raw_source_publisher_p
 
 pytest_plugins = (
     "tests.component.account.test_account_actor_authority_raw_source_publisher_postgres",
+    "tests.component.account.creation_chain_postgres_fixture",
 )
-
-
-@pytest.fixture
-def ownership_alias(evid06_alias):
-    connection = connections[evid06_alias]
-    with connection.schema_editor() as editor:
-        editor.create_model(SimulatedAccountModel)
-    try:
-        yield evid06_alias
-    finally:
-        with connection.schema_editor() as editor:
-            editor.delete_model(SimulatedAccountModel)
 
 
 def _row(alias):

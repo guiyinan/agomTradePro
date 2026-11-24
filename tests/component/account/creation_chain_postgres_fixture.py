@@ -19,6 +19,7 @@ from apps.account.infrastructure.canonical_account_creation_models import (
 from apps.account.infrastructure.physical_account_row_observation_v2_models import (
     PhysicalAccountRowObservationV2Model,
 )
+from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
 from apps.simulated_trading.infrastructure.simulated_account_raw_observation_models import (
     SimulatedAccountRawObservationModel,
 )
@@ -36,6 +37,20 @@ CREATION_LEDGER_MODELS: tuple[type[models.Model], ...] = (
     CanonicalAccountCreationBindingModel,
     CanonicalAccountCreationBindingV2Model,
 )
+
+
+@pytest.fixture
+def ownership_alias(evid06_alias: str) -> Iterator[str]:
+    """Build the shared live ownership table on the isolated PostgreSQL alias."""
+
+    connection = connections[evid06_alias]
+    with connection.schema_editor() as editor:
+        editor.create_model(SimulatedAccountModel)
+    try:
+        yield evid06_alias
+    finally:
+        with connection.schema_editor() as editor:
+            editor.delete_model(SimulatedAccountModel)
 
 
 @pytest.fixture

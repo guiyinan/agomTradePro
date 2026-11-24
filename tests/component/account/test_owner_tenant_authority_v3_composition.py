@@ -943,15 +943,13 @@ def test_opt_in_postgres_facade_issues_reads_and_revokes(
         generation_migration.seed_generation_row(apps, editor)
         generation_migration.install_source_triggers(apps, editor)
     try:
-        legacy_reader = AccountSystemAuditOwnerTenantAuthorityV3Reader(
+        audit_reader = AccountSystemAuditOwnerTenantAuthorityV3Reader(
             actor_source_id=actor_source.source_id,
             actor_source_version=actor_source.source_version,
             actor_content_hash=actor_source.content_hash,
             physical_row_provider=physical_provider,
             database_alias=owner_alias,
         )
-        legacy_observed = legacy_reader.execute(selector)
-        assert legacy_observed is not None and legacy_observed == observed
         generation_before = _read_authority_generation(owner_alias)
         scanner = AccountAuthorityShadowScannerV3(
             actor_source_id=actor_source.source_id,
@@ -961,6 +959,11 @@ def test_opt_in_postgres_facade_issues_reads_and_revokes(
             using=owner_alias,
         )
         shadow_statements: list[str] = []
+        relation_share_locks: list[int] = []
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT pg_backend_pid()")
+            reader_pid = cursor.fetchone()[0]
+        writer = connection.copy()
 
         def capture_shadow_sql(
             execute: Callable[..., object],
@@ -971,6 +974,14 @@ def test_opt_in_postgres_facade_issues_reads_and_revokes(
         ) -> object:
             shadow_statements.append(sql)
             if "clock_timestamp()" in sql.lower():
+                if writer.connection is not None:
+                    with writer.cursor() as probe:
+                        probe.execute(
+                            "SELECT count(*) FROM pg_locks WHERE pid = %s AND granted "
+                            "AND locktype = 'relation' AND mode = 'ShareLock'",
+                            (reader_pid,),
+                        )
+                        relation_share_locks.append(probe.fetchone()[0])
                 return execute(
                     "SELECT %s::timestamptz",
                     (now,),
@@ -979,11 +990,27 @@ def test_opt_in_postgres_facade_issues_reads_and_revokes(
                 )
             return execute(sql, params, many, context)
 
+        try:
+            writer.set_autocommit(False)
+            with writer.cursor() as cursor:
+                cursor.execute(
+                    "UPDATE public.simulated_account_row_source_v2_ledger "
+                    "SET id = id WHERE FALSE"
+                )
+            with connection.execute_wrapper(capture_shadow_sql):
+                preflight = audit_reader.execute(selector)
+            assert preflight == observed
+            assert relation_share_locks == [0, 0]
+            assert not any("lock table" in sql.lower() for sql in shadow_statements)
+            assert sum("clock_timestamp()" in sql.lower() for sql in shadow_statements) == 2
+        finally:
+            writer.rollback()
+            writer.close()
+        shadow_statements.clear()
         with connection.execute_wrapper(capture_shadow_sql):
-            shadow_result = scanner.scan(selector, legacy_observed)
+            shadow_result = scanner.scan(selector, preflight)
         assert shadow_result.comparison.matches is True
         assert shadow_result.comparison.differing_fields == ()
-        assert legacy_observed == observed
         assert _read_authority_generation(owner_alias) == generation_before
         lower_statements = tuple(statement.lower() for statement in shadow_statements)
         assert any(

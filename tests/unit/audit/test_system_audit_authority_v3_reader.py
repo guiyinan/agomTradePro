@@ -4,6 +4,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import replace
 from datetime import timedelta
+from types import SimpleNamespace
 
 import pytest
 
@@ -75,11 +76,51 @@ class _PhysicalProvider:
         return None
 
 
+def test_standalone_postgres_preflight_reads_snapshot_without_entering_legacy_lock_path(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from apps.account import system_audit_authority_v3_composition as module
+    from apps.account.infrastructure.account_authority_shadow_scanner import (
+        AccountAuthorityShadowScannerV3,
+    )
+
+    authority = _authority()
+    command = GetCurrentOwnerTenantAuthorityV3Command(
+        authority.authority_id, authority.authority_version, authority.content_hash
+    )
+    provider = _PhysicalProvider()
+    reader = AccountSystemAuditOwnerTenantAuthorityV3Reader(
+        "audit-actor-v3", "v1", "a" * 64, provider
+    )
+    calls = []
+    monkeypatch.setattr(
+        module,
+        "connections",
+        {"default": SimpleNamespace(vendor="postgresql", in_atomic_block=False)},
+    )
+    monkeypatch.setattr(
+        AccountSystemAuditOwnerTenantAuthorityV3Reader,
+        "_sealed_authority",
+        lambda *args: pytest.fail("standalone preflight entered the legacy relation-lock path"),
+    )
+    monkeypatch.setattr(
+        AccountAuthorityShadowScannerV3,
+        "read_current_snapshot",
+        lambda scanner, selected: calls.append(selected),
+        raising=False,
+    )
+    assert reader.execute(command) is None
+    assert calls == [command]
+
+
 def test_v3_reader_derives_facade_inputs_only_from_exact_immutable_sources(
     monkeypatch,
 ) -> None:
     from apps.account import system_audit_authority_v3_composition as module
 
+    monkeypatch.setattr(
+        module, "connections", {"audit": SimpleNamespace(vendor="postgresql", in_atomic_block=True)}
+    )
     authority = _authority()
     cutoff = authority.recorded_at + timedelta(microseconds=1)
     authentication = _authority_source(authority.assignment, valid_until=authority.valid_until)
