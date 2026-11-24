@@ -7,7 +7,9 @@ from typing import Any
 from uuid import UUID
 
 from django.conf import settings
+from django.core import signing
 from django.http import FileResponse
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.authentication import BaseAuthentication
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -639,10 +641,28 @@ class AgentSnapshotView(AgentApiView):
     serializer_class = AgentSnapshotSerializer
 
     def post(self, request: Request) -> Response:
-        return self.handle_agent(
-            request,
-            lambda agent, data: SyncAgentSnapshotUseCase().execute(agent=agent, payload=data),
-        )
+        def store_snapshot(agent: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
+            metadata = dict(data.get("payload") or {})
+            metadata.pop("authenticated_close", None)
+            if "valuation_close" in metadata and len(request.body) <= 2_000_000:
+                # Executed only after credential scope, body HMAC and replay nonce validation.
+                metadata["authenticated_close"] = signing.dumps(
+                    {
+                        "body": request.body.decode("utf-8"),
+                        "agent_pk": agent["agent_pk"],
+                        "received_at": timezone.now().isoformat(),
+                        "request_id": request.headers.get("X-Request-ID"),
+                        "credential_id": request.headers.get("Authorization", "")
+                        .removeprefix("Agent ")
+                        .partition(".")[0],
+                    },
+                    salt="broker-execution.valuation-close.v1",
+                )
+            return SyncAgentSnapshotUseCase().execute(
+                agent=agent, payload=data | {"payload": metadata}
+            )
+
+        return self.handle_agent(request, store_snapshot)
 
 
 class AgentCommandsView(AgentApiView):

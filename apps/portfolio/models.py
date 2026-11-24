@@ -1,5 +1,9 @@
 """Django model discovery for portfolio."""
 
+from apps.portfolio.infrastructure.benchmark_approval_models import BenchmarkApprovalEventModel
+from apps.portfolio.infrastructure.benchmark_statement_revocation_models import (
+    BenchmarkStatementRevocationModel,
+)
 from apps.portfolio.infrastructure.models import (
     CanonicalPortfolioSnapshotModel,
     GovernedOptimizationInputReceiptModel,
@@ -7,6 +11,8 @@ from apps.portfolio.infrastructure.models import (
     GovernedOptimizationMonitoringAuditSnapshotModel,
     GovernedOptimizationMonitoringObservationModel,
     OrderIntentModel,
+    PortfolioBenchmarkDailyValuationModel,
+    PortfolioBenchmarkValuationEpochModel,
     PortfolioExecutionFeedbackModel,
     PortfolioPlanningPolicyActivationModel,
     PortfolioPlanningPolicyActivationSubjectModel,
@@ -28,6 +34,10 @@ from apps.portfolio.infrastructure.models import (
 )
 
 __all__ = [
+    "BenchmarkStatementRevocationModel",
+    "PortfolioBenchmarkDailyValuationModel",
+    "PortfolioBenchmarkValuationEpochModel",
+    "BenchmarkApprovalEventModel",
     "CanonicalPortfolioSnapshotModel",
     "GovernedOptimizationInputReceiptModel",
     "GovernedOptimizationMonitoringObservationModel",

@@ -54613,6 +54613,162 @@
     "portfolio": {
       "models": [
         {
+          "bases": [
+            "models.Model"
+          ],
+          "class_name": "BenchmarkApprovalEventModel",
+          "docstring": "One signed submission, approval or withdrawal in a canonical account's chain.",
+          "fields": [
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "scope_key",
+              "positional_args": []
+            },
+            {
+              "field_type": "PositiveBigIntegerField",
+              "name": "sequence",
+              "positional_args": []
+            },
+            {
+              "db_index": true,
+              "field_type": "UUIDField",
+              "kwargs": {
+                "db_index": true
+              },
+              "name": "request_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 16
+              },
+              "name": "action",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 192
+              },
+              "name": "account_namespace",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 192
+              },
+              "name": "account_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "PositiveBigIntegerField",
+              "name": "owner_user_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 192
+              },
+              "name": "tenant_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 192
+              },
+              "name": "owner_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "UUIDField",
+              "name": "valuation_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "PositiveBigIntegerField",
+              "name": "valuation_version",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "source_seal",
+              "positional_args": []
+            },
+            {
+              "field_type": "TextField",
+              "name": "source_manifest",
+              "positional_args": []
+            },
+            {
+              "field_type": "PositiveBigIntegerField",
+              "name": "actor_user_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 32
+              },
+              "name": "actor_role",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "name": "recorded_at",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "name": "valid_until",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "previous_hash",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64,
+                "unique": true
+              },
+              "name": "content_hash",
+              "positional_args": [],
+              "unique": true
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 128
+              },
+              "name": "signature",
+              "positional_args": []
+            }
+          ],
+          "meta": {
+            "app_label": "portfolio",
+            "base_manager_name": "objects",
+            "constraints": "[models.UniqueConstraint(fields=['scope_key', 'sequence'], name='pf_bm_scope_seq_uq'), models.UniqueConstraint(fields=['request_id', 'action'], name='pf_bm_request_action_uq'), models.CheckConstraint(condition=models.Q(action__in=['submitted', 'approved', 'revoked']), name='pf_bm_event_action_ck')]",
+            "db_table": "portfolio_benchmark_approval_event",
+            "default_manager_name": "objects"
+          },
+          "source_file": "infrastructure/benchmark_approval_models.py"
+        },
+        {
           "abstract": true,
           "bases": [
             "models.Model"
@@ -57287,6 +57443,19 @@
             "indexes": "[models.Index(fields=('methodology_id', 'methodology_version', 'recorded_at'), name='port_bench_costtax_pit_ix')]"
           },
           "source_file": "infrastructure/policy_benchmark_cost_tax_models.py"
+        },
+        {
+          "abstract": true,
+          "bases": [
+            "models.Model"
+          ],
+          "class_name": "_ImmutableValuation",
+          "meta": {
+            "abstract": true,
+            "base_manager_name": "objects",
+            "default_manager_name": "objects"
+          },
+          "source_file": "infrastructure/policy_benchmark_daily_valuation_models.py"
         },
         {
           "bases": [

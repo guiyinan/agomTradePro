@@ -708,12 +708,27 @@ class XtQuantAdapter:
         xtconstant = _load_xtquant_constants()
 
         asset = self.trader.query_stock_asset(self.account)
-        positions = self.trader.query_stock_positions(self.account) or []
+        position_result = self.trader.query_stock_positions(self.account)
+        positions = position_result or []
         orders = self.trader.query_stock_orders(self.account) or []
         trades = self.trader.query_stock_trades(self.account) or []
         clients_by_order, _ = _qmt_order_identities(orders)
         status_map = _qmt_order_status_map(xtconstant)
         return {
+            "payload": {
+                "valuation_close": {
+                    "source": "xtquant.stock",
+                    "broker_account_ref": self.broker_account_id,
+                    "currency": "CNY",
+                    "positions_complete": isinstance(position_result, (list, tuple)),
+                    "assets_complete": all(
+                        getattr(asset, key, None) is not None
+                        for key in ("cash", "frozen_cash", "market_value", "total_asset")
+                    ),
+                    "cash_frozen": str(getattr(asset, "frozen_cash", "")),
+                    "position_market_value": str(getattr(asset, "market_value", "")),
+                },
+            },
             "cash_available": str(getattr(asset, "cash", 0)),
             "total_asset": str(getattr(asset, "total_asset", 0)),
             "positions": [
@@ -721,7 +736,7 @@ class XtQuantAdapter:
                     "asset_code": item.stock_code,
                     "quantity": str(item.volume),
                     "available_quantity": str(item.can_use_volume),
-                    "payload": {},
+                    "payload": {"market_value": str(getattr(item, "market_value", ""))},
                 }
                 for item in positions
             ],

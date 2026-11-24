@@ -7,8 +7,8 @@
 ## 概览
 
 - App 数：42
-- 模型数：627
-- 字段数：9705
+- 模型数：629
+- 字段数：9725
 
 口径说明：仅覆盖 `apps/*/infrastructure/` 下的 `models.py`、`models/` 包与 `*_models.py`；字段为类体内显式赋值的 Django 字段，继承字段不展开，动态字段与隐式自增主键不在投影内。
 
@@ -8515,6 +8515,35 @@
 
 ## portfolio
 
+### BenchmarkApprovalEventModel
+
+- 来源文件：`apps/portfolio/infrastructure/benchmark_approval_models.py`
+- 数据表：`portfolio_benchmark_approval_event`
+- 说明：One signed submission, approval or withdrawal in a canonical account's chain.
+
+| 字段 | 类型 | null | unique | 默认值 | 说明 | 关系目标 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `scope_key` | `CharField` |  |  |  |  |  |
+| `sequence` | `PositiveBigIntegerField` |  |  |  |  |  |
+| `request_id` | `UUIDField` |  |  |  |  |  |
+| `action` | `CharField` |  |  |  |  |  |
+| `account_namespace` | `CharField` |  |  |  |  |  |
+| `account_id` | `CharField` |  |  |  |  |  |
+| `owner_user_id` | `PositiveBigIntegerField` |  |  |  |  |  |
+| `tenant_id` | `CharField` |  |  |  |  |  |
+| `owner_id` | `CharField` |  |  |  |  |  |
+| `valuation_id` | `UUIDField` |  |  |  |  |  |
+| `valuation_version` | `PositiveBigIntegerField` |  |  |  |  |  |
+| `source_seal` | `CharField` |  |  |  |  |  |
+| `source_manifest` | `TextField` |  |  |  |  |  |
+| `actor_user_id` | `PositiveBigIntegerField` |  |  |  |  |  |
+| `actor_role` | `CharField` |  |  |  |  |  |
+| `recorded_at` | `DateTimeField` |  |  |  |  |  |
+| `valid_until` | `DateTimeField` |  |  |  |  |  |
+| `previous_hash` | `CharField` |  |  |  |  |  |
+| `content_hash` | `CharField` |  | 是 |  |  |  |
+| `signature` | `CharField` |  |  |  |  |  |
+
 ### _ImmutablePortfolioRecord
 
 - 来源文件：`apps/portfolio/infrastructure/canonical_snapshot_models.py`
@@ -8931,6 +8960,11 @@
 | `identity_hash` | `CharField` |  | 是 |  |  |  |
 | `content_hash` | `CharField` |  | 是 |  |  |  |
 | `ledger_header_hash` | `CharField` |  | 是 |  |  |  |
+
+### _ImmutableValuation
+
+- 来源文件：`apps/portfolio/infrastructure/policy_benchmark_daily_valuation_models.py`
+- 抽象模型：是
 
 ### PortfolioPolicyBenchmarkDefinitionModel
 

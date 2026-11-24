@@ -1,5 +1,9 @@
 # 当前数据新鲜度契约与 CI 门禁
 
+### Portfolio 账户基准日结
+
+当前基准审批绑定账户、租户、所有者、估值版本、双人审批和截止时间。读取时重验原始收盘价、券商签收、账户归属和配置。跨过下一估值截止点、修订输入、撤销审批或失去审批权限后，精确读取返回空。合同由 `portfolio.benchmark_daily_approval` 登记。[签发与撤销流程](../api/portfolio-benchmark-approval.md)
+
 ## 2026-11-16 原生财务数值目录与 Owner 记录
 
 数值目录把原始公开文档捕获、精确合同版本与正常 Django 身份认证的 Owner apply/revoke

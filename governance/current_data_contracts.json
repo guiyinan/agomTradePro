@@ -2,6 +2,45 @@
   "schema_version": 1,
   "contracts": [
     {
+      "id": "portfolio.benchmark_daily_approval",
+      "surface": "Current account benchmark approval over a source-verified daily valuation, bounded by its next fixing and the validity of each owner source",
+      "source_files": [
+        "apps/portfolio/benchmark_execution_composition.py",
+        "apps/portfolio/benchmark_daily_valuation_composition.py",
+        "apps/portfolio/infrastructure/benchmark_approval_configuration.py",
+        "apps/broker_execution/benchmark_day_source_composition.py"
+      ],
+      "required_markers": {
+        "apps/portfolio/benchmark_execution_composition.py": [
+          "read_current_benchmark_approval(",
+          "expected_content_hash",
+          "require_approval_transaction("
+        ],
+        "apps/portfolio/benchmark_daily_valuation_composition.py": [
+          "get_current_benchmark_valuation(",
+          "head.valid_until",
+          "head.fixing_hash"
+        ],
+        "apps/broker_execution/benchmark_day_source_composition.py": [
+          "read_benchmark_broker_balances(",
+          "authenticated_close",
+          "positions_complete"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "account_owner_daily_valuation_approval_and_revocation",
+          "test_file": "tests/component/portfolio/test_benchmark_issuance_native.py",
+          "test_function": "test_portfolio_approval_and_revocation"
+        },
+        {
+          "case": "current_signer_fences_and_replay",
+          "test_file": "tests/component/portfolio/test_benchmark_approval_native.py",
+          "test_function": "test_benchmark_current_signers_fences_and_replay"
+        }
+      ]
+    },
+    {
       "id": "data_center.price_limit_reference_publication",
       "surface": "Permission-bound exact provider/security/date reference publication; current and PIT reads never grant decision or execution eligibility",
       "source_files": [

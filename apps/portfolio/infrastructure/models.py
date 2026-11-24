@@ -4,6 +4,10 @@ The transition table keeps its historical implementation import path during
 the compatibility window, while its Django owner is now ``portfolio``.
 """
 
+from apps.portfolio.infrastructure.benchmark_approval_models import BenchmarkApprovalEventModel
+from apps.portfolio.infrastructure.benchmark_statement_revocation_models import (
+    BenchmarkStatementRevocationModel,
+)
 from apps.portfolio.infrastructure.canonical_snapshot_models import (
     CanonicalPortfolioSnapshotModel,
     PortfolioExecutionFeedbackModel,
@@ -31,6 +35,10 @@ from apps.portfolio.infrastructure.policy_benchmark_corporate_action_models impo
 )
 from apps.portfolio.infrastructure.policy_benchmark_cost_tax_models import (
     PortfolioPolicyBenchmarkCostTaxModel,
+)
+from apps.portfolio.infrastructure.policy_benchmark_daily_valuation_models import (
+    PortfolioBenchmarkDailyValuationModel,
+    PortfolioBenchmarkValuationEpochModel,
 )
 from apps.portfolio.infrastructure.policy_benchmark_definition_models import (
     PortfolioPolicyBenchmarkDefinitionModel,
@@ -75,6 +83,10 @@ from apps.portfolio.infrastructure.transition_plan_inactive_approval_models impo
 )
 
 __all__ = [
+    "BenchmarkStatementRevocationModel",
+    "PortfolioBenchmarkDailyValuationModel",
+    "PortfolioBenchmarkValuationEpochModel",
+    "BenchmarkApprovalEventModel",
     "OrderIntentModel",
     "CanonicalPortfolioSnapshotModel",
     "PortfolioExecutionFeedbackModel",

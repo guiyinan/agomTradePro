@@ -14,6 +14,9 @@ from tests.support.native_postgres_database import assert_native_postgres_test_d
 
 _NATIVE_POSTGRES_SYNTHETIC_TEST_IDS: Final[frozenset[str]] = frozenset(
     {
+        "tests/component/portfolio/test_benchmark_approval_native.py::test_benchmark_current_signers_fences_and_replay",
+        "tests/component/portfolio/test_benchmark_issuance_native.py::test_portfolio_approval_and_revocation",
+        "tests/component/portfolio/test_benchmark_issuance_native.py::test_withdrawn_first_close_invalidates_approved_second_close",
         "tests/api/test_equity_published_valuation_member_read.py::"
         "test_published_valuation_api_reads_exact_current_members_and_source_clocks",
         "tests/api/test_equity_published_valuation_member_read.py::"
@@ -23,7 +26,7 @@ _NATIVE_POSTGRES_SYNTHETIC_TEST_IDS: Final[frozenset[str]] = frozenset(
 
 
 def require_test_database(*, allow_native_postgres_test: bool = False) -> Path | None:
-    """Reject unsafe fixture databases; opt PostgreSQL in for two exact CI contracts."""
+    """Reject unsafe fixture databases; opt PostgreSQL in only for the enumerated acceptance contracts."""
 
     if connection.vendor == "postgresql":
         current_test = os.environ.get("PYTEST_CURRENT_TEST", "").partition(" ")[0]

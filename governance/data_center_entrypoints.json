@@ -3,13 +3,13 @@
     "by_category": {
       "admin_surface": 16,
       "agent_skill": 3,
-      "application_consumer": 162,
+      "application_consumer": 163,
       "beat_schedule": 61,
       "capability_runtime": 25,
       "celery_dispatch_edge": 18,
       "celery_task": 130,
       "compatibility_facade": 95,
-      "current_data_surface": 121,
+      "current_data_surface": 122,
       "dynamic_import_edge": 15,
       "management_command": 56,
       "management_command_edge": 66,
@@ -30,13 +30,13 @@
       "workflow_step": 11
     },
     "by_status": {
-      "active_public": 945,
+      "active_public": 947,
       "adjacent_operational": 349,
       "candidate-review": 86,
       "compatibility": 139,
       "retired_blocked": 0
     },
-    "total": 1519
+    "total": 1521
   },
   "entries": [
     {
@@ -497,6 +497,16 @@
       "path": "apps/backtest/infrastructure/adapters/tushare_price_adapter.py",
       "status": "active_public",
       "symbol": "get_price_bar_repository_port",
+      "target": ""
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:apps/broker_execution/application/execution_price_guard.py:get_execution_quote:semantic:get_execution_quote",
+      "locator": "semantic:get_execution_quote",
+      "path": "apps/broker_execution/application/execution_price_guard.py",
+      "status": "active_public",
+      "symbol": "get_execution_quote",
       "target": ""
     },
     {
@@ -5261,7 +5271,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=3",
+      "evidence": "governed current-data contract; source_files=7",
       "id": "current_data_surface:governance/current_data_contracts.json:broker_execution.live_order_quote:Live-order pre-trade quote evidence",
       "locator": "Live-order pre-trade quote evidence",
       "path": "governance/current_data_contracts.json",
@@ -5837,6 +5847,16 @@
       "path": "governance/current_data_contracts.json",
       "status": "active_public",
       "symbol": "policy.sentiment_gate.current",
+      "target": ""
+    },
+    {
+      "category": "current_data_surface",
+      "evidence": "governed current-data contract; source_files=4",
+      "id": "current_data_surface:governance/current_data_contracts.json:portfolio.benchmark_daily_approval:Current account benchmark approval over a source-verified daily valuation, bounded by its next fixing and the validity of each owner source",
+      "locator": "Current account benchmark approval over a source-verified daily valuation, bounded by its next fixing and the validity of each owner source",
+      "path": "governance/current_data_contracts.json",
+      "status": "active_public",
+      "symbol": "portfolio.benchmark_daily_approval",
       "target": ""
     },
     {
@@ -15241,7 +15261,7 @@
   },
   "source_contract_counts": {
     "celery_tasks": 95,
-    "current_data_contracts": 121,
+    "current_data_contracts": 122,
     "legacy_entrypoints_and_wrappers": 0,
     "operational_governance_rules": 45,
     "runtime_config_keys": 52

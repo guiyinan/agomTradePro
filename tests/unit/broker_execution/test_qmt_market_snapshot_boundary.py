@@ -7,11 +7,45 @@ from dataclasses import is_dataclass
 from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
-from types import ModuleType
+from types import ModuleType, SimpleNamespace
+from unittest.mock import Mock
 
 import pytest
 
 from qmt_agent.qmt_adapter import XtQuantAdapter
+
+
+@pytest.mark.parametrize("capture", ["held", "empty", "unknown", "partial_assets"])
+def test_account_close_distinguishes_empty_and_unknown_vendor_balances(monkeypatch, capture):
+    monkeypatch.setattr("qmt_agent.qmt_adapter._load_xtquant_constants", lambda: SimpleNamespace())
+    adapter = XtQuantAdapter(userdata_path=Path("unused"), broker_account_id="custody-account")
+    vendor = Mock()
+    adapter.trader, adapter.account = vendor, object()
+    asset = SimpleNamespace(cash=900, frozen_cash=20, market_value=80, total_asset=1000)
+    if capture == "partial_assets":
+        del asset.frozen_cash
+    position = SimpleNamespace(stock_code="600000.SH", volume=8, can_use_volume=7, market_value=80)
+    vendor.query_stock_asset.return_value = asset
+    vendor.query_stock_positions.return_value = (
+        None if capture == "unknown" else [position] if capture == "held" else []
+    )
+    vendor.query_stock_orders.return_value = []
+    vendor.query_stock_trades.return_value = []
+    snapshot = adapter.account_snapshot()
+    close = snapshot["payload"]["valuation_close"]
+    assert close["broker_account_ref"] == "custody-account"
+    assert close["positions_complete"] is (capture != "unknown")
+    assert close["assets_complete"] is (capture != "partial_assets")
+    if capture == "held":
+        assert close["cash_frozen"] == "20" and close["position_market_value"] == "80"
+        assert snapshot["positions"] == [
+            {
+                "asset_code": "600000.SH",
+                "quantity": "8",
+                "available_quantity": "7",
+                "payload": {"market_value": "80"},
+            }
+        ]
 
 
 class _FakeXtData:

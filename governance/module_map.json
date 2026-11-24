@@ -42,6 +42,9 @@
         "factor": {
           "imports": 1
         },
+        "portfolio": {
+          "imports": 3
+        },
         "simulated_trading": {
           "imports": 87
         },
@@ -1135,7 +1138,7 @@
         "infrastructure": 154,
         "interface": 24,
         "management": 14,
-        "root": 31
+        "root": 33
       }
     },
     "agent_runtime": {
@@ -3462,7 +3465,7 @@
         "domain": 13,
         "infrastructure": 31,
         "interface": 6,
-        "root": 7
+        "root": 8
       },
       "orm_models": {
         "infrastructure/models.py": [
@@ -5893,7 +5896,7 @@
         "infrastructure": 293,
         "interface": 35,
         "management": 48,
-        "root": 52
+        "root": 54
       },
       "orm_models": {
         "infrastructure/models.py": [
@@ -8066,6 +8069,14 @@
         }
       },
       "depends_on": {
+        "account": {
+          "imports": 3,
+          "target_layers": [
+            "benchmark_actor_composition",
+            "creation_authentication_composition",
+            "live_account_owner_composition"
+          ]
+        },
         "fixed_income": {
           "imports": 14,
           "target_layers": [
@@ -8075,6 +8086,14 @@
         }
       },
       "entrypoints": {
+        "application/benchmark_daily_sources.py": [
+          "BenchmarkDaySources",
+          "ClosingFixing",
+          "DayOwner",
+          "DayReconciliation",
+          "benchmark_day_sources",
+          "register_benchmark_day_sources"
+        ],
         "application/build_macro_risk_candidate_family.py": [
           "BuildMacroRiskCandidateFamily",
           "BuildMacroRiskCandidateFamilyCommand",
@@ -8351,6 +8370,11 @@
       },
       "http_routes": {
         "interface/api_urls.py": [
+          "benchmark-valuations/",
+          "benchmark-approvals/<uuid:request_id>/",
+          "benchmark-approvals/",
+          "benchmark-approvals/<uuid:request_id>/approve/",
+          "benchmark-approvals/<uuid:request_id>/revoke/",
           "transition-plans/",
           "transition-plans/<str:plan_id>/",
           "transition-plans/<str:plan_id>/approve/",
@@ -8358,11 +8382,11 @@
         ]
       },
       "layers": {
-        "application": 27,
-        "domain": 52,
-        "infrastructure": 75,
-        "interface": 4,
-        "root": 13
+        "application": 28,
+        "domain": 55,
+        "infrastructure": 82,
+        "interface": 6,
+        "root": 16
       }
     },
     "prompt": {
