@@ -1,20 +1,15 @@
 {
-  "version": "2026-11-24.v629",
+  "version": "2026-11-24.v630",
   "updated_at": "2026-11-24",
   "execution_focus": {
-    "unit_id": null,
+    "unit_id": "DATA-18",
     "allowed_parallel_execution_modes": [
       "production",
       "external",
       "governance"
     ],
-    "policy": "Owner explicitly requests Root-led Luna Max work toward full DATA-02 exit then DATA-03. Complete bounded C2/D1 repository prerequisites within the existing production unit with non-overlapping source/test scopes and serialized shared Git/index/projections. Existing C/D/E scheme approval persists; User delegated concrete C2 choice to Root: TTL3600/coverage100/no partial/conflict block/09:30 continuous auction selected and recorded in existing plan §48; exact official rule/calendar/source qualifications and persisted Owner events remain required. No unknown units, rounding exception, maintenance removal or production qualification inferred. E1 scope choice remains delegated; exact authority/source/budget/candidate/backup gates remain. DATA-03 waits for DATA-02 full-universe exit; CAL-04/05 unstarted and ASH06/09/12 deferred. Preserve protected ASH databases and .task-logs/. Owner subsequently freezes the E1 candidate: fix only necessary acceptance/deployment/real E1 blockers, commit promptly after applicable checks, reuse unchanged bound inputs, and defer DATA-02 scope expansion. Exact progress and remaining production gates are in existing plan §48.4 and acceptance followups[14]; no DATA-02 closure or DATA-03 start is inferred. On 2026-11-19 Owner separately authorized CAL-03 formal adoption in a short serialized local integration window and continued M2 research. CAL-02 dependency is complete. CAL-03 completed on 2026-11-23 under the accepted public snapshot research scope; repository handoff is pending; DATA-02 production work continues against sealed c5b42e20cc97a7e166e6d3f88254d05b0605667a with its existing S6 window and budgets unchanged. No CAL-04/05, DATA-03, signal promotion, trading or production qualification is authorized by CAL-03 work. On 2026-11-24 the Owner resumed ASH-09 for isolated repository acceptance and local integration only. The separate DATA-02 session retains its candidate and heavy-test window. TAR-05 may prepare its staging inputs concurrently; load, chaos and production activation are outside this preparation. The order-specific repository exit was verified under the Owner's delegated acceptance. The repository focus is open for handoff. DATA-02 retains its production window and TAR-05 retains staging preparation.",
-    "parallel_preparation": [],
-    "handoff_pending": {
-      "completed_unit_id": "ASH-09",
-      "owner_decision_ref": "docs/plans/a-share-usability-implementation-plan-2026-10-16.md#13.1",
-      "reason": "The authorized scope ends at repository acceptance of order-specific signing and reconciliation. Successors are available for scheduling. Production execution remains closed."
-    }
+    "policy": "Owner explicitly requests Root-led Luna Max work toward full DATA-02 exit then DATA-03. Complete bounded C2/D1 repository prerequisites within the existing production unit with non-overlapping source/test scopes and serialized shared Git/index/projections. Existing C/D/E scheme approval persists; User delegated concrete C2 choice to Root: TTL3600/coverage100/no partial/conflict block/09:30 continuous auction selected and recorded in existing plan §48; exact official rule/calendar/source qualifications and persisted Owner events remain required. No unknown units, rounding exception, maintenance removal or production qualification inferred. E1 scope choice remains delegated; exact authority/source/budget/candidate/backup gates remain. DATA-03 waits for DATA-02 full-universe exit; CAL-04/05 unstarted and ASH06/09/12 deferred. Preserve protected ASH databases and .task-logs/. Owner subsequently freezes the E1 candidate: fix only necessary acceptance/deployment/real E1 blockers, commit promptly after applicable checks, reuse unchanged bound inputs, and defer DATA-02 scope expansion. Exact progress and remaining production gates are in existing plan §48.4 and acceptance followups[14]; no DATA-02 closure or DATA-03 start is inferred. On 2026-11-19 Owner separately authorized CAL-03 formal adoption in a short serialized local integration window and continued M2 research. CAL-02 dependency is complete. CAL-03 completed on 2026-11-23 under the accepted public snapshot research scope; repository handoff is pending; DATA-02 production work continues against sealed c5b42e20cc97a7e166e6d3f88254d05b0605667a with its existing S6 window and budgets unchanged. No CAL-04/05, DATA-03, signal promotion, trading or production qualification is authorized by CAL-03 work. On 2026-11-24 the Owner resumed ASH-09 for isolated repository acceptance and local integration only. The separate DATA-02 session retains its candidate and heavy-test window. TAR-05 may prepare its staging inputs concurrently; load, chaos and production activation are outside this preparation. The order-specific repository exit was verified under the Owner's delegated acceptance. The repository focus is open for handoff. DATA-02 retains its production window and TAR-05 retains staging preparation. On 2026-11-24 the Owner assigned DATA-18 as the sole repository focus after ASH-09 handoff. Use isolated local resources. The separate DATA-02 session owns its production quota, backfill, deployment, S6 window and outstanding acceptance records. Production trading remains closed.",
+    "parallel_preparation": []
   },
   "workstreams": [
     {
@@ -1590,7 +1585,7 @@
         "wave": 3,
         "priority": "P0",
         "execution_mode": "repository",
-        "status": "planned",
+        "status": "active",
         "title": "Close publication integrity, read-only investor flows, SDK/MCP and task diagnostics with production rehearsal gates",
         "depends_on": [
           "AUD-05"
