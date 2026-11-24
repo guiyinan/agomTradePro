@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-11-14",
+  "updated_at": "2026-11-24",
   "status": "frozen_pending_evidence_gate",
   "transition_plan_internal_writer_scopes": [
     "apps/decision_rhythm/application/workspace_services.py",
@@ -182,6 +182,7 @@
     "apps/portfolio/interface/api_views.py::TransitionPlanApproveView.post",
     "apps/portfolio/interface/api_views.py::TransitionPlanListCreateView.post",
     "apps/portfolio/interface/api_views.py::TransitionPlanSubmitView.post",
+    "apps/portfolio/interface/benchmark_approval_views.py::BenchmarkApprovalCommandView.post",
     "apps/simulated_trading/interface/_account_views.py::AccountBatchDeleteAPIView.post",
     "apps/simulated_trading/interface/_account_views.py::AccountDetailAPIView.delete",
     "apps/simulated_trading/interface/corporate_action_consent_views.py::SimulatedActionConsentAPIView.post",
@@ -345,6 +346,7 @@
     "trading.submit.simulated_order"
   ],
   "notes": [
+    "Portfolio benchmark submissions, independent approvals and revocations use authenticated sessions and scoped source hashes. The approval covers the account benchmark valuation only. Live orders require their own authority.",
     "Inventory presence does not attest that the legacy surface already enforces an evidence receipt.",
     "Fee correction policy PUT requires the current active simulated-account owner, explicit expected version and operator-attestation acknowledgement; it changes evidence eligibility only, retains token write scope and session CSRF, and does not post cash, change positions or authorize orders.",
     "Evidence POST stores bounded owner-attested material under the original request key and does not post cash. Correction POST revalidates owner, current policy, immutable source, expected revision and full ledger history before atomic cash/cost posting; original trades and slippage remain unchanged. These authenticated writes retain token write scope and session CSRF. Indeterminate corrections require original-key readback. Uncertain uploads retain the same key and bytes for replay while policy remains valid; never retry under a new key. Inventory classification does not authorize production use or external execution.",
