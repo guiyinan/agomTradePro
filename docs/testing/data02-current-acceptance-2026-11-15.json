@@ -10226,6 +10226,78 @@
                                   "sha256": "482c1046b6eb07bc243618185ea201f7f75bc968f1c1056620d71453ae8a8539"
                                 },
                                 "remote_ci_or_s6_at_local_verification": false,
+                                "heartbeat_test_candidate": {
+                                  "sha": "8eaba967a047d1f7e22c6084ca613a36cf371588",
+                                  "parent": "216b5a7fd03dfedeff6b1f6efdc6640ca57bff9e",
+                                  "development_integration": "f9f9b64bcc8c85e121f572ea089851c054b1103d",
+                                  "change": "The heartbeat test retains each subprocess until its release marker. The test waits for matching two-command snapshots, then checks quick completion, remaining-command heartbeat, zero active commands, and both histories.",
+                                  "local": {
+                                    "related_tests_passed": 133,
+                                    "related_tests_skipped": 10,
+                                    "interleavings_forced": 3,
+                                    "persistent_stale_mirror_rejected": true,
+                                    "cumulative_quality_checks_passed": 40,
+                                    "cumulative_domain_coverage_percent": 94.49
+                                  },
+                                  "repaired_test_verified_in": [
+                                    "Fast feedback (Python 3.11)",
+                                    "Fast feedback (Python 3.13)"
+                                  ],
+                                  "ci_branch": "dev/data02-ci-451cc90c4",
+                                  "successful_run_ids": {
+                                    "push": {
+                                      "Architecture Layer Guard": 45323285435,
+                                      "Security Scan": 45323285454,
+                                      "Consistency Check": 45323285458,
+                                      "CI Fast Feedback": 45323285552,
+                                      "Engineering progress dashboard": 45323285590
+                                    },
+                                    "workflow_dispatch": {
+                                      "CI Fast Feedback": 45323307393,
+                                      "Quote Metric PostgreSQL contracts": 45323319835,
+                                      "Publication PostgreSQL contracts": 45358808953
+                                    }
+                                  },
+                                  "quote_metric_tests_passed": 57,
+                                  "publication": {
+                                    "official_run": "https://github.com/guiyinan/agomTradePro/actions/runs/45358808953",
+                                    "artifact_id": 14906151167,
+                                    "archive_digest": "sha256:c2076a0c51f4caa3919ad3686487636ea8d7079e023858a09e507d9bc5626dbc",
+                                    "xml_files": 12,
+                                    "tests_passed": 303,
+                                    "required_cases_present": 69,
+                                    "valid_through_beijing": "2026-11-25T16:44:49+08:00",
+                                    "planning_cutoff_beijing": "2026-11-25T16:30:00+08:00"
+                                  },
+                                  "s6_started": false,
+                                  "production_writes": 0,
+                                  "evidence": [
+                                    {
+                                      "path": ".tmp/data02-guard-20261122/github-ci-heartbeat-216b5a7fd/rehearsal-suite.log",
+                                      "sha256": "31e5b9326f2d7eb243e619c3205cb6bdaba7b4158a2bb4c076f4746b6b6d5bd4"
+                                    },
+                                    {
+                                      "path": ".tmp/data02-guard-20261122/github-ci-heartbeat-216b5a7fd/interleavings.log",
+                                      "sha256": "35c673770efdf348e33f9700265e0c17884e9ae512cfc3fb1b4296fe3c56eb5b"
+                                    },
+                                    {
+                                      "path": ".tmp/data02-guard-20261122/github-ci-heartbeat-216b5a7fd/heartbeat-ci-verification.json",
+                                      "sha256": "a69da22e205cd3f575ad72c7574d48bcbb925a77f1d56b6c1e04f29fa6626582"
+                                    },
+                                    {
+                                      "path": ".tmp/data02-guard-20261122/github-ci-heartbeat-216b5a7fd/cumulative-quality.json",
+                                      "sha256": "b28e33bfc45d6568ea60321584b7d09ab36999af5a32b54e2a2174e6c3e070ef"
+                                    },
+                                    {
+                                      "path": ".tmp/data02-guard-20261122/github-ci-heartbeat-216b5a7fd/first-seven.json",
+                                      "sha256": "fd63f84579c25e44fb712f3aeefe0599016ac1340ccb68f9f098991f3d7d63df"
+                                    },
+                                    {
+                                      "path": ".tmp/data02-guard-20261122/github-ci-heartbeat-216b5a7fd/publication-fit.json",
+                                      "sha256": "f7a5863b0afd9b787fe93adafb630ea7bca1932a30b324e1a79362b8d97dd7b4"
+                                    }
+                                  ]
+                                },
                                 "subsequent_ci": {
                                   "prior_fast_feedback_failures": [
                                     45312958285,
