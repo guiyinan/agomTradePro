@@ -11,7 +11,7 @@
       "compatibility_facade": 95,
       "current_data_surface": 121,
       "dynamic_import_edge": 15,
-      "management_command": 55,
+      "management_command": 56,
       "management_command_edge": 66,
       "mcp_tool": 40,
       "migration_evidence": 14,
@@ -23,20 +23,20 @@
       "runbook": 7,
       "runtime_config_key": 52,
       "scheduler_writer": 18,
-      "script": 20,
+      "script": 22,
       "sdk": 57,
       "terminal_tui": 32,
       "test_evidence": 168,
       "workflow_step": 11
     },
     "by_status": {
-      "active_public": 944,
+      "active_public": 945,
       "adjacent_operational": 349,
-      "candidate-review": 84,
+      "candidate-review": 86,
       "compatibility": 139,
       "retired_blocked": 0
     },
-    "total": 1516
+    "total": 1519
   },
   "entries": [
     {
@@ -5531,7 +5531,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=16",
+      "evidence": "governed current-data contract; source_files=17",
       "id": "current_data_surface:governance/current_data_contracts.json:data_center.model_market_history:Provider-neutral Qlib and Equity historical model inputs",
       "locator": "Provider-neutral Qlib and Equity historical model inputs",
       "path": "governance/current_data_contracts.json",
@@ -6747,6 +6747,16 @@
       "path": "apps/data_center/management/commands/manage_financial_numeric_catalog.py",
       "status": "active_public",
       "symbol": "manage_financial_numeric_catalog",
+      "target": ""
+    },
+    {
+      "category": "management_command",
+      "evidence": "Data Center-owned Django command",
+      "id": "management_command:apps/data_center/management/commands/merge_index_closes.py:merge_index_closes:",
+      "locator": "",
+      "path": "apps/data_center/management/commands/merge_index_closes.py",
+      "status": "active_public",
+      "symbol": "merge_index_closes",
       "target": ""
     },
     {
@@ -12455,6 +12465,26 @@
       "id": "script:scripts/replay_ref05_public_evidence.py:__main__:",
       "locator": "",
       "path": "scripts/replay_ref05_public_evidence.py",
+      "status": "candidate-review",
+      "symbol": "__main__",
+      "target": ""
+    },
+    {
+      "category": "script",
+      "evidence": "static Data Center reference; explicit owner review required",
+      "id": "script:scripts/run_cal03_snapshot_walk_forward.py:__main__:",
+      "locator": "",
+      "path": "scripts/run_cal03_snapshot_walk_forward.py",
+      "status": "candidate-review",
+      "symbol": "__main__",
+      "target": ""
+    },
+    {
+      "category": "script",
+      "evidence": "static Data Center reference; explicit owner review required",
+      "id": "script:scripts/run_cal03_synthetic_walk_forward.py:__main__:",
+      "locator": "",
+      "path": "scripts/run_cal03_synthetic_walk_forward.py",
       "status": "candidate-review",
       "symbol": "__main__",
       "target": ""

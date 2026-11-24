@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 7698,
+    "current_surface_references": 7699,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -20821,6 +20821,10 @@
     {
       "path": "apps/research/domain/advanced_state_model.py",
       "text": "publish current state, authorize decisions, or replace the canonical Regime."
+    },
+    {
+      "path": "apps/research/domain/institutional_event_study.py",
+      "text": "must provide normalized exact price versions, never a mutable latest-price pointer."
     },
     {
       "path": "apps/research/domain/r1_forecast_promotion_lifecycle.py",
