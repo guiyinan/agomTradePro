@@ -21,11 +21,11 @@
 
     <!-- Flatpickr 日期选择器 (本地) -->
     <link rel="stylesheet" href="{% static 'vendor/css/flatpickr.min.css' %}">
-    <script src="{% static 'vendor/js/flatpickr.min.js' %}"></script>
-    <script src="{% static 'vendor/js/flatpickr.zh.js' %}"></script>
+    <script{% if workspace_initial_recommendations %} defer{% endif %} src="{% static 'vendor/js/flatpickr.min.js' %}"></script>
+    <script{% if workspace_initial_recommendations %} defer{% endif %} src="{% static 'vendor/js/flatpickr.zh.js' %}"></script>
 
     <!-- SweetAlert2 确认框 (本地) -->
-    <script src="{% static 'vendor/js/sweetalert2.all.min.js' %}"></script>
+    <script{% if workspace_initial_recommendations %} defer{% endif %} src="{% static 'vendor/js/sweetalert2.all.min.js' %}"></script>
 
     <!-- Alpine.js (轻量级响应式框架, 本地) -->
     <script defer src="{% static 'vendor/js/alpine.min.js' %}"></script>

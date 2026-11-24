@@ -6,6 +6,7 @@ from types import SimpleNamespace
 
 import pytest
 from django.contrib.auth import get_user_model
+from django.templatetags.static import static
 from django.test import Client
 
 from apps.decision_rhythm.infrastructure.global_alert_repository import (
@@ -378,6 +379,8 @@ def test_initial_workspace_list_matches_owned_api_and_rechecks_access(
     url = "/decision/workspace/"
     api = "/api/decision/workspace/recommendations/"
     params = {"account_id": str(owner_account.pk), "security_code": "600547.SH", "step": "4"}
+    assets = ("flatpickr.min.js", "flatpickr.zh.js", "sweetalert2.all.min.js")
+    deferred_tags = [f'<script defer src="{static(f"vendor/js/{asset}")}">' for asset in assets]
     for code, account_token, count in (
         ("600547.SH", str(owner_account.pk), 1),
         ("600547.sh", f"00{owner_account.pk}", 1),
@@ -390,6 +393,7 @@ def test_initial_workspace_list_matches_owned_api_and_rechecks_access(
         assert response.status_code == api_response.status_code == 200
         assert "actionable_candidates" not in response.context
         html = response.content.decode()
+        assert all(tag in html for tag in deferred_tags)
         assert "R3 foreign private thesis" not in html
         script = re.search(
             r'<script id="workspace-initial-recommendations" type="application/json">(.*?)</script>',
@@ -406,6 +410,7 @@ def test_initial_workspace_list_matches_owned_api_and_rechecks_access(
     assert disabled.status_code == 200 and not disabled.context.get(
         "workspace_initial_recommendations"
     )
+    assert all(tag not in disabled.content.decode() for tag in deferred_tags)
     assert authenticated_client.get(api, params).status_code == 503
     settings.DECISION_WORKSPACE_V2_ENABLED = True
     owner_account.user = other
