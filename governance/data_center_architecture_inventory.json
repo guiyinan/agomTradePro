@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 7785,
+    "current_surface_references": 7786,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -3332,6 +3332,10 @@
     },
     {
       "path": "apps/account/infrastructure/account_authority_shadow_scanner.py",
+      "text": "\"\"\"Observe current authority at the RR cutoff; writes require separate final fencing.\"\"\""
+    },
+    {
+      "path": "apps/account/infrastructure/account_authority_shadow_scanner.py",
       "text": "\"\"\"Project one checked current result without exposing actor or account IDs.\"\"\""
     },
     {
@@ -3361,6 +3365,10 @@
     {
       "path": "apps/account/infrastructure/account_authority_shadow_scanner.py",
       "text": "\"current graph cutoff requires its caller-owned PostgreSQL alias\""
+    },
+    {
+      "path": "apps/account/infrastructure/account_authority_shadow_scanner.py",
+      "text": "\"current graph database clock moved backwards\""
     },
     {
       "path": "apps/account/infrastructure/account_authority_shadow_scanner.py",
@@ -3416,6 +3424,14 @@
     },
     {
       "path": "apps/account/infrastructure/account_authority_shadow_scanner.py",
+      "text": "current = graph_read.authority"
+    },
+    {
+      "path": "apps/account/infrastructure/account_authority_shadow_scanner.py",
+      "text": "if current is None:"
+    },
+    {
+      "path": "apps/account/infrastructure/account_authority_shadow_scanner.py",
       "text": "raise AccountAuthorityGenerationUnavailable(\"current graph reader requires PostgreSQL\")"
     },
     {
@@ -3429,6 +3445,10 @@
     {
       "path": "apps/account/infrastructure/account_authority_shadow_scanner.py",
       "text": "raise ValueError(\"physical row provider must use the current graph database alias\")"
+    },
+    {
+      "path": "apps/account/infrastructure/account_authority_shadow_scanner.py",
+      "text": "return current if finished_at < current.valid_until else None"
     },
     {
       "path": "apps/account/infrastructure/account_identity_raw_source_repository.py",
@@ -4720,10 +4740,6 @@
     },
     {
       "path": "apps/account/system_audit_authority_v3_composition.py",
-      "text": "\"\"\"Rebuild a V3 current facade from immutable actor and authority selectors.\"\"\""
-    },
-    {
-      "path": "apps/account/system_audit_authority_v3_composition.py",
       "text": "\"\"\"Restore exact original principal clocks, granting no current authority."
     },
     {
@@ -5152,7 +5168,7 @@
     },
     {
       "path": "apps/agent_runtime/infrastructure/context_snapshot_repository.py",
-      "text": "\"event_date\": str(latest.get(\"event_date\") or status_payload.get(\"as_of_date\")),"
+      "text": "\"event_date\": str(latest.get(\"event_date\") or \"\"),"
     },
     {
       "path": "apps/agent_runtime/infrastructure/context_snapshot_repository.py",
@@ -5173,10 +5189,6 @@
     {
       "path": "apps/agent_runtime/infrastructure/context_snapshot_repository.py",
       "text": "\"observed_at\": _to_iso(current.observed_at),"
-    },
-    {
-      "path": "apps/agent_runtime/infrastructure/context_snapshot_repository.py",
-      "text": "\"observed_at\": str(latest.get(\"event_date\") or \"\"),"
     },
     {
       "path": "apps/agent_runtime/infrastructure/context_snapshot_repository.py",
@@ -17427,14 +17439,6 @@
       "text": "current policy level, status, history). Also hosts the dependency-injection"
     },
     {
-      "path": "apps/policy/application/event_use_cases.py",
-      "text": "current_level = latest.level if latest else PolicyLevel.P0"
-    },
-    {
-      "path": "apps/policy/application/event_use_cases.py",
-      "text": "latest = self.event_store.get_latest_event(as_of_date)"
-    },
-    {
       "path": "apps/policy/application/hedging_use_cases.py",
       "text": "\"\"\"Latest-price projection consumed by hedge execution.\"\"\""
     },
@@ -28735,6 +28739,10 @@
       "text": "\"\"\"Atomically time out one still-current task attempt.\"\"\""
     },
     {
+      "path": "apps/task_monitor/domain/interfaces.py",
+      "text": "\"\"\"Read the newest active attempt and latest completion for this task name.\"\"\""
+    },
+    {
       "path": "apps/task_monitor/infrastructure/backup_service.py",
       "text": "backup_file = output_path / \"postgres-current.dump\""
     },
@@ -31284,15 +31292,11 @@
     },
     {
       "path": "core/views.py",
-      "text": "logger.warning(f\"Failed to get current policy: {e}\")"
+      "text": "actionable_count = min(5, len(_group_by_asset_code(summary[\"actionable_candidates\"])))"
     },
     {
       "path": "core/views.py",
-      "text": "logger.warning(f\"Failed to get current regime: {e}\")"
-    },
-    {
-      "path": "core/views.py",
-      "text": "logger.warning(f\"Failed to get valuation repair config summary: {e}\")"
+      "text": "summary = get_alpha_trigger_global_alert_service().get_workspace_summary()"
     },
     {
       "path": "shared/date_utils.py",

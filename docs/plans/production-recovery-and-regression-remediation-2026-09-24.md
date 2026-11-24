@@ -187,6 +187,14 @@ handoff receipt 与同镜像部署证据，并冻结 provider、资产/公告日
 - R1 的重试、部分发布、决策门复验、Alpha 阻断，以及 S5 的选择器与 PG 工作流合同，共 194 项通过，见 `root/recovery.xml`。S6 prepare 另修复全新 checkout 的临时目录缺失，保留了原入口失败和定向红灯。
 - 原生 PG 16.15 的旧源码在无关写事务持锁时实际返回 `LockNotAvailable`。改后独立预检在 RR/RO 中还原完整父图并复查数据库时钟；调用方写事务继续使用既有锁协议。受限 runtime 角色下，生产 preflight、完整证明、RC 围栏、三个数据集的指针、审计及 outbox 同库提交均已沿实际 factory 验证。测试身份和历史业务时钟为隔离夹具。对应原件为 `pg/writer-red2/`、`pg/writer-corrected/` 与 `pg/factory-test-3/`。
 
+首轮冻结候选为 `f8b3575eda467d243d84fbe2fdd1528deb72b0a5`，原件仍在上述目录，结果按候选单独保留。
+
+- GitHub Publication PostgreSQL [45413915891](https://github.com/guiyinan/agomTradePro/actions/runs/45413915891) 通过。下载的 artifact `14933606584` SHA-256 为 `33a3d41a32e54552ffd52890c412616f837c498bb2655563cbeea951bcc42ea7`，304 项全绿，零跳过，release validator 的 71 个必需节点逐一命中。本机 Windows PG 完整发布组两次各 52/53，一次持锁 2.559409 秒，另一次拒绝被锁指针用了 0.256882 秒，保留两次超限原件与独占相位测量。实际工厂的第二连接在提交前六次探锁均返回 55P03，发布、指针、审计、outbox 位于同一 RC/RW 后端及 XID，提交后四类数据各三条可见。见 `root/f8b3575e-regression/official-pg-verification.json`、`pg/candidate-f8b3575eda46/trace-xid/trace.json`。
+- 本机冻结源码回归 585 项、S6 离线诊断 105 项均通过。API/SDK/MCP 定向 14 项通过，普通用户真实 stdio 的七次调用与十表对账均通过。浏览器包 18 项通过，分页 P95 59.11 毫秒，超时后重试返回 200。工作台正文冷/热 P95 为 2427.7/3318.4 毫秒，超过 2 秒目标。独立 Luna max 首审暂缓关闭，列出原生事务围栏可观测性、候选回归和真实 S6 证据待补，原件见 `root/luna-packet-review.md`。
+- 官方 Consistency [45413915726](https://github.com/guiyinan/agomTradePro/actions/runs/45413915726) 检出信号 MCP 读证据登记及两份 Data Center 生成清单失配；Fast Feedback [45413915575](https://github.com/guiyinan/agomTradePro/actions/runs/45413915575) 的 Python 3.11 目标套件另报九个 SDK/MCP 失败。首轮候选保留为整改依据。后继开发提交 `a4996cd02` 用已授权的推荐列表及 API 同一 DTO 提供深链首屏，移除 HTML 未消费的全局读取，覆盖格式等价参数及切换账户后旧响应迟到的浏览器反例。
+
+提交 `8c01b92d7` 恢复已登记的信号 MCP 工具派发，并在受治理调用出口补齐分页字段。原工具的权限和审计检查仍经正常入口执行。任务错误测试使用显式本地认证配置，从 HTTP 响应验证 SDK 和两类 MCP 装配；官方 Python 3.11/3.13 失败原件保留在 `root/f8b3575e-regression/`。两份 Data Center 清单由其生成器重建。
+
 以下为历次执行记录。
 
 | 项目 | 状态 | 当前证据 / 下一步 |

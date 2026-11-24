@@ -5241,7 +5241,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=1",
+      "evidence": "governed current-data contract; source_files=3",
       "id": "current_data_surface:governance/current_data_contracts.json:agent_runtime.current_context:Agent Runtime context snapshot current regime/policy summaries",
       "locator": "Agent Runtime context snapshot current regime/policy summaries",
       "path": "governance/current_data_contracts.json",
