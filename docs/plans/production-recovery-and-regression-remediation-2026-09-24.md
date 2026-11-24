@@ -195,6 +195,8 @@ handoff receipt 与同镜像部署证据，并冻结 provider、资产/公告日
 
 提交 `8c01b92d7` 恢复已登记的信号 MCP 工具派发，并在受治理调用出口补齐分页字段。原工具的权限和审计检查仍经正常入口执行。任务错误测试使用显式本地认证配置，从 HTTP 响应验证 SDK 和两类 MCP 装配；官方 Python 3.11/3.13 失败原件保留在 `root/f8b3575e-regression/`。两份 Data Center 清单由其生成器重建。
 
+`2040dbe267f96ebac571e54addac88b44d2c83f5` 的 28 项浏览器及配套回归全过。10 对 Chromium 旅程正文冷/热 P95 为 1281.2/177.0 毫秒，20 次分页 P95 为 98.34 毫秒，报价缺失诊断独立到达。原件见 `reads/candidate-2040dbe267f9-20261124-233021-271/`。同 SHA 的 Windows 全组 52/53，持锁 2.613582 秒；[累计 Fast Feedback](https://github.com/guiyinan/agomTradePro/actions/runs/45425734265) 在任务仓储的 isort 检查报错。纠正该文件混合换行后，忽略换行差异的 Git diff 为空，LF 正文 SHA-256 前后同为 `26460ea4ba5247996c7bf5fe26f4791edd3505aba1ac97cb4922a37d02075444`。
+
 以下为历次执行记录。
 
 | 项目 | 状态 | 当前证据 / 下一步 |
