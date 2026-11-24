@@ -1868,55 +1868,61 @@ def test_parallel_command_progress_keeps_each_active_invocation_and_heartbeats(
     runner = SubprocessRunner(progress_dir, activity_status_path)
     results: dict[str, CommandResult] = {}
 
-    def execute(label: str, delay: float) -> None:
-        results[label] = runner.run(
-            Command(
-                (sys.executable, "-c", f"import time; time.sleep({delay})"),
-                tmp_path,
-                {},
-                15,
-                label,
-            )
+    def execute(label: str) -> None:
+        wait_for_release = (
+            "from pathlib import Path\n"
+            "import sys, time\n"
+            "while not Path(sys.argv[1]).exists():\n"
+            "    time.sleep(0.02)\n"
         )
+        args = (sys.executable, "-c", wait_for_release, f"release-{label}")
+        results[label] = runner.run(Command(args, tmp_path, {}, 20, label))
 
-    slow = threading.Thread(target=execute, args=("slow", 6.5))
-    quick = threading.Thread(target=execute, args=("quick", 0.5))
+    slow = threading.Thread(target=execute, args=("slow",))
+    quick = threading.Thread(target=execute, args=("quick",))
     slow.start()
     quick.start()
 
     summary_path = progress_dir / "active-commands.json"
-    deadline = time.monotonic() + 5
-    summary: dict[str, object] = {}
-    while time.monotonic() < deadline:
-        if summary_path.exists():
-            summary = json.loads(summary_path.read_text(encoding="utf-8"))
-            if summary.get("active_count") == 2:
-                break
-        time.sleep(0.02)
-    assert summary["active_count"] == 2
-    assert json.loads(activity_status_path.read_text(encoding="utf-8")) == summary
-    active_commands = cast(list[dict[str, object]], summary["active_commands"])
-    assert {item["command"] for item in active_commands} == {"quick", "slow"}
-    slow_first_update = next(
-        item["updated_at"] for item in active_commands if item["command"] == "slow"
-    )
-
-    quick.join(timeout=3)
-    assert not quick.is_alive()
-    summary = json.loads(summary_path.read_text(encoding="utf-8"))
-    assert summary["active_count"] == 1
-    assert [item["command"] for item in summary["active_commands"]] == ["slow"]
-
-    deadline = time.monotonic() + 7
-    while time.monotonic() < deadline:
-        summary = json.loads(summary_path.read_text(encoding="utf-8"))
+    try:
+        deadline = time.monotonic() + 5
+        summary: dict[str, object] = {}
+        activity: dict[str, object] = {}
+        while time.monotonic() < deadline:
+            if summary_path.exists() and activity_status_path.exists():
+                summary = json.loads(summary_path.read_text(encoding="utf-8"))
+                activity = json.loads(activity_status_path.read_text(encoding="utf-8"))
+                if summary.get("active_count") == 2 and summary == activity:
+                    break
+            time.sleep(0.02)
+        assert summary["active_count"] == 2
+        assert activity == summary
         active_commands = cast(list[dict[str, object]], summary["active_commands"])
-        if active_commands and active_commands[0]["updated_at"] != slow_first_update:
-            break
-        time.sleep(0.05)
-    assert active_commands[0]["updated_at"] != slow_first_update
+        assert {item["command"] for item in active_commands} == {"quick", "slow"}
+        slow_first_update = next(
+            item["updated_at"] for item in active_commands if item["command"] == "slow"
+        )
 
-    slow.join(timeout=4)
+        (tmp_path / "release-quick").touch()
+        quick.join(timeout=3)
+        assert not quick.is_alive()
+        summary = json.loads(summary_path.read_text(encoding="utf-8"))
+        assert summary["active_count"] == 1
+        assert [item["command"] for item in summary["active_commands"]] == ["slow"]
+
+        deadline = time.monotonic() + 7
+        while time.monotonic() < deadline:
+            summary = json.loads(summary_path.read_text(encoding="utf-8"))
+            active_commands = cast(list[dict[str, object]], summary["active_commands"])
+            if active_commands and active_commands[0]["updated_at"] != slow_first_update:
+                break
+            time.sleep(0.05)
+        assert active_commands[0]["updated_at"] != slow_first_update
+    finally:
+        (tmp_path / "release-quick").touch(exist_ok=True)
+        (tmp_path / "release-slow").touch()
+        quick.join(timeout=3)
+        slow.join(timeout=4)
     assert not slow.is_alive()
     assert results["quick"].returncode == 0
     assert results["slow"].returncode == 0
