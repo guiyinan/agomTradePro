@@ -23,20 +23,25 @@ class MarketThermometerConfigRepository:
         return MarketThermometerConfigModel.load().to_domain()
 
     def save(self, config: MarketThermometerConfig) -> MarketThermometerConfig:
-        model = MarketThermometerConfigModel.load()
-        model.short_window = config.short_window
-        model.medium_window = config.medium_window
-        model.long_window = config.long_window
-        model.monthly_long_window = config.monthly_long_window
-        model.daily_stale_days = config.daily_stale_days
-        model.monthly_stale_days = config.monthly_stale_days
-        model.min_valid_components = config.min_valid_components
-        model.component_weights = dict(config.component_weights)
-        model.warm_threshold = config.thresholds.warm_threshold
-        model.hot_threshold = config.thresholds.hot_threshold
-        model.overheat_threshold = config.thresholds.overheat_threshold
-        model.extreme_threshold = config.thresholds.extreme_threshold
-        model.save()
+        """Store the explicitly supplied configuration at the singleton key."""
+
+        model, _ = MarketThermometerConfigModel.objects.update_or_create(
+            pk=MarketThermometerConfigModel.SINGLETON_PK,
+            defaults={
+                "short_window": config.short_window,
+                "medium_window": config.medium_window,
+                "long_window": config.long_window,
+                "monthly_long_window": config.monthly_long_window,
+                "daily_stale_days": config.daily_stale_days,
+                "monthly_stale_days": config.monthly_stale_days,
+                "min_valid_components": config.min_valid_components,
+                "component_weights": dict(config.component_weights),
+                "warm_threshold": config.thresholds.warm_threshold,
+                "hot_threshold": config.thresholds.hot_threshold,
+                "overheat_threshold": config.thresholds.overheat_threshold,
+                "extreme_threshold": config.thresholds.extreme_threshold,
+            },
+        )
         return model.to_domain()
 
 

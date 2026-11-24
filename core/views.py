@@ -351,6 +351,7 @@ def decision_workspace_view(request: AuthenticatedHttpRequest) -> HttpResponse:
     """
     import logging
 
+    from apps.account.application.interface_services import list_investment_account_options
     from apps.policy.application.repository_provider import get_current_policy_repository
     from apps.policy.application.use_cases import GetCurrentPolicyUseCase
 
@@ -358,6 +359,23 @@ def decision_workspace_view(request: AuthenticatedHttpRequest) -> HttpResponse:
     requested_workspace_account_id = str(request.GET.get("account_id") or "").strip()
     requested_security_code = str(request.GET.get("security_code") or "").strip().upper()
     requested_workspace_source = str(request.GET.get("source") or "").strip().lower()
+    account_ids = (
+        [str(option["value"]) for option in list_investment_account_options(request.user.pk)]
+        if request.user.pk is not None
+        else []
+    )
+    parsed_workspace_account_id = None
+    if requested_workspace_account_id not in {"", "default"}:
+        if (
+            not requested_workspace_account_id.isascii()
+            or not requested_workspace_account_id.isdecimal()
+        ):
+            return HttpResponse("账户编号无效", status=400)
+        selected_id = requested_workspace_account_id.lstrip("0")
+        if selected_id not in account_ids:
+            return HttpResponse("所选账户不可用", status=403)
+        parsed_workspace_account_id = int(selected_id)
+        account_ids = [selected_id]
 
     context: dict[str, Any] = {
         "page_title": "决策工作台",
@@ -465,7 +483,9 @@ def decision_workspace_view(request: AuthenticatedHttpRequest) -> HttpResponse:
         )
 
         raw_pending_requests = (
-            get_decision_rhythm_global_alert_service().list_pending_execution_requests()
+            get_decision_rhythm_global_alert_service().list_pending_execution_requests(
+                account_ids=account_ids
+            )
         )
         pending_requests = _group_by_asset_code(raw_pending_requests, direction_attr="direction")[
             :10
@@ -482,12 +502,6 @@ def decision_workspace_view(request: AuthenticatedHttpRequest) -> HttpResponse:
         from apps.dashboard.application import interface_services as dashboard_interface_services
         from apps.dashboard.interface import views as dashboard_views
 
-        parsed_workspace_account_id = None
-        if requested_workspace_account_id not in {"", "default"}:
-            try:
-                parsed_workspace_account_id = int(requested_workspace_account_id)
-            except (TypeError, ValueError):
-                parsed_workspace_account_id = None
         direct_research_request = bool(requested_security_code) and (
             requested_workspace_source != "dashboard-exit"
         )

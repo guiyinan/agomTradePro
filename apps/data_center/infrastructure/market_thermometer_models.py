@@ -28,7 +28,7 @@ from .fact_json_values import (
 class MarketThermometerConfigModel(models.Model):
     """Singleton configuration for market thermometer scoring."""
 
-    _SINGLETON_PK = 1
+    SINGLETON_PK = 1
 
     short_window = models.PositiveIntegerField(default=5)
     medium_window = models.PositiveIntegerField(default=20)
@@ -57,27 +57,19 @@ class MarketThermometerConfigModel(models.Model):
     def save(self, *args: Any, **kwargs: Any) -> None:
         """Persist the singleton config at primary key 1."""
 
-        self.pk = self._SINGLETON_PK
+        self.pk = self.SINGLETON_PK
         super().save(*args, **kwargs)
 
     @classmethod
     def load(cls) -> "MarketThermometerConfigModel":
-        """Return the singleton config, creating it with defaults if absent."""
+        """Read the singleton or return its unsaved defaults."""
 
-        obj, _ = cls.objects.get_or_create(
-            pk=cls._SINGLETON_PK,
-            defaults={
-                "component_weights": {
-                    "turnover": 0.25,
-                    "margin_balance": 0.20,
-                    "new_investor_accounts": 0.15,
-                    "etf_net_flow": 0.15,
-                    "market_news_count": 0.15,
-                    "market_news_sentiment": 0.10,
-                }
-            },
+        stored = cls.objects.filter(pk=cls.SINGLETON_PK).first()
+        if stored is not None:
+            return stored
+        return cls(
+            pk=cls.SINGLETON_PK, component_weights=MarketThermometerConfig().component_weights
         )
-        return obj
 
     def to_domain(self) -> MarketThermometerConfig:
         """Convert to domain MarketThermometerConfig value object."""

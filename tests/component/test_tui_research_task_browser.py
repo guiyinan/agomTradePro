@@ -22,7 +22,9 @@ from django.db import connections
 from django.test import Client
 from playwright.sync_api import expect, sync_playwright
 
-from apps.data_center.infrastructure.models import FinancialFactModel
+from apps.data_center.infrastructure.models import FinancialFactModel, MarketThermometerConfigModel
+from apps.decision_rhythm.infrastructure.models import UnifiedRecommendationModel
+from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
 from tests.playwright.runtime_compatibility import ensure_subprocess_event_loop_policy
 from tests.support.tui_research.scenario import research_scenario
 
@@ -98,6 +100,72 @@ def _submit(page, value: str, *, keyboard: bool = False):
         else:
             form.locator(".tui-action-button").click()
     return response.value
+
+
+@pytest.mark.django_db(transaction=True)
+def test_workspace_candidate_opens_owned_research_without_creating_config(
+    live_server, django_user_model, subprocess_policy
+) -> None:
+    """An ordinary investor can read the selected account's candidate and follow its detail."""
+    owner = django_user_model.objects.create_user(username="workspace-research-owner")
+    account = SimulatedAccountModel.objects.create(
+        user=owner,
+        account_name="研究账户",
+        account_type="simulated",
+        initial_capital="10000",
+        current_cash="10000",
+        total_value="10000",
+    )
+    recommendation = UnifiedRecommendationModel.objects.create(
+        recommendation_id="workspace-research-only",
+        account_id=str(account.pk),
+        security_code="600547.SH",
+        side="BUY",
+        human_rationale="山东黄金研究样本",
+    )
+    MarketThermometerConfigModel.objects.filter(pk=1).delete()
+    client = Client()
+    client.force_login(owner)
+    methods: list[str] = []
+    url = f"{live_server.url}/decision/workspace/?source=dashboard-alpha&security_code=600547.SH&account_id={account.pk}&step=4"
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch(headless=True)
+        try:
+            page = browser.new_page()
+            page.context.add_cookies(
+                [
+                    {
+                        "name": settings.SESSION_COOKIE_NAME,
+                        "value": client.cookies[settings.SESSION_COOKIE_NAME].value,
+                        "url": live_server.url,
+                    }
+                ]
+            )
+            page.route(
+                "**/*",
+                lambda route: (
+                    route.continue_()
+                    if urlsplit(route.request.url).netloc == urlsplit(live_server.url).netloc
+                    else route.abort("blockedbyclient")
+                ),
+            )
+            page.on("request", lambda request: methods.append(request.method))
+            page.goto(url)
+            expect(page.locator("#workspace-account-selector")).to_have_value(str(account.pk))
+            card = page.locator(
+                f'[data-recommendation-id="{recommendation.recommendation_id}"].recommendation-card'
+            )
+            expect(card).to_contain_text("山东黄金研究样本")
+            link = page.locator("#workspace-bridge-research-entry").get_by_role("link")
+            target = f"/equity/detail/600547.SH/?account_id={account.pk}"
+            expect(link).to_have_attribute("href", target)
+            link.click()
+            expect(page).to_have_url(live_server.url + target)
+            expect(page.locator("#stockCode")).to_have_text("600547.SH")
+        finally:
+            browser.close()
+    assert not MarketThermometerConfigModel.objects.exists()
+    assert set(methods) == {"GET"}
 
 
 @pytest.mark.django_db(transaction=True)

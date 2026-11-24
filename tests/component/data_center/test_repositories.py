@@ -1,5 +1,6 @@
 import hashlib
 import json
+from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
 from uuid import uuid4
 
@@ -41,6 +42,7 @@ from apps.data_center.infrastructure.models import (
     CanonicalPublicationModel,
     FinancialFactModel,
     MacroFactModel,
+    MarketThermometerConfigModel,
     MarketThermometerSnapshotModel,
     NewsFactModel,
     PriceBarModel,
@@ -311,11 +313,20 @@ def test_publisher_catalog_repository_persists_aliases():
 
 @pytest.mark.django_db
 def test_market_thermometer_config_repository_loads_default_weights():
-    config = MarketThermometerConfigRepository().load()
+    MarketThermometerConfigModel.objects.filter(pk=1).delete()
+    repo = MarketThermometerConfigRepository()
+    config = repo.load()
 
     assert config.short_window == 5
     assert config.component_weights["turnover"] == 0.25
     assert config.thresholds.overheat_threshold == 75.0
+    assert repo.load() == config
+    assert not MarketThermometerConfigModel.objects.exists()
+
+    configured = replace(config, short_window=7)
+    assert repo.save(configured) == configured
+    assert repo.load() == configured
+    assert MarketThermometerConfigModel.objects.count() == 1
 
 
 @pytest.mark.django_db

@@ -36,6 +36,71 @@ def test_workspace_account_access_rejects_anonymous_reads() -> None:
     assert response.data["success"] is False
 
 
+@pytest.mark.django_db
+def test_workspace_summary_reads_pending_queue_for_authenticated_user(
+    authenticated_client, test_user, monkeypatch
+) -> None:
+    """The workspace refresh must request the current investor's pending queue."""
+    from apps.decision_rhythm.application.global_alert_service import (
+        DecisionRhythmGlobalAlertService,
+    )
+
+    account = SimulatedAccountModel.objects.create(
+        user=test_user,
+        account_name="R3 scoped summary",
+        account_type="simulated",
+        initial_capital="100000",
+        current_cash="100000",
+        total_value="100000",
+    )
+    calls = []
+
+    def read_pending(self, limit=100, account_ids=None):
+        calls.append((limit, account_ids))
+        return []
+
+    monkeypatch.setattr(
+        DecisionRhythmGlobalAlertService, "list_pending_execution_requests", read_pending
+    )
+    response = authenticated_client.get("/decision/workspace/", {"refresh": "1"})
+    assert response.status_code == 200
+    assert response["Content-Type"].startswith("application/json")
+    assert response.json()["pending_count"] == 0
+    owned_ids = {
+        str(pk)
+        for pk in SimulatedAccountModel.objects.filter(user=test_user).values_list("pk", flat=True)
+    }
+    [(limit, account_ids)] = calls
+    assert limit == 100
+    assert set(account_ids) == owned_ids
+
+    # A selected account stays bound even if the investor owns a second account.
+    SimulatedAccountModel.objects.create(
+        user=test_user,
+        account_name="R3 second account",
+        account_type="simulated",
+        initial_capital="100000",
+        current_cash="100000",
+        total_value="100000",
+    )
+    calls.clear()
+    response = authenticated_client.get(
+        "/decision/workspace/", {"refresh": "1", "account_id": account.pk}
+    )
+    assert response.status_code == 200
+    assert (100, [str(account.pk)]) in calls
+    calls.clear()
+    assert (
+        authenticated_client.get("/decision/workspace/", {"account_id": "invalid"}).status_code
+        == 400
+    )
+    assert (
+        authenticated_client.get("/decision/workspace/", {"account_id": "999999"}).status_code
+        == 403
+    )
+    assert not calls
+
+
 def test_workspace_account_access_checks_numeric_owner_scope(monkeypatch) -> None:
     calls: list[tuple[object, int, str]] = []
 

@@ -175,7 +175,7 @@ def test_inspection_notification_context_handles_missing_config_and_persists_upd
         get_account_model_for_user=lambda account_id, user_id: (account if user_id == 7 else None)
     )
     inspection_repository = SimpleNamespace(
-        get_or_create_notification_config_model=lambda account_id: None,
+        get_notification_config=lambda account_id: SimpleNamespace(recipient_emails=[]),
         update_notification_config=lambda **kwargs: kwargs,
     )
     monkeypatch.setattr(
@@ -189,13 +189,10 @@ def test_inspection_notification_context_handles_missing_config_and_persists_upd
         lambda: inspection_repository,
     )
     assert module.build_inspection_notify_context(_user(user_id=8), 3) is None
-    assert module.build_inspection_notify_context(_user(), 3) is None
+    assert module.build_inspection_notify_context(_user(), 3)["recipient_emails_text"] == ""
 
     config = SimpleNamespace(recipient_emails=["a@example.test", "b@example.test"])
-    inspection_repository.get_or_create_notification_config_model = lambda account_id: (
-        False,
-        config,
-    )
+    inspection_repository.get_notification_config = lambda account_id: config
     context = module.build_inspection_notify_context(_user(), 3)
     assert context is not None
     assert context["recipient_emails_text"] == "a@example.test\nb@example.test"

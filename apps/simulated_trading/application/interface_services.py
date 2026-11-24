@@ -534,12 +534,7 @@ def build_inspection_notify_context(user: Any, account_id: int) -> dict[str, Any
     if not account:
         return None
 
-    context = get_simulated_inspection_repository().get_or_create_notification_config_model(
-        account.id
-    )
-    if context is None:
-        return None
-    _, config = context
+    config = get_simulated_inspection_repository().get_notification_config(account.id)
 
     return {
         "account": account,

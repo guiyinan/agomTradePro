@@ -14,6 +14,7 @@ from apps.simulated_trading.domain.execution_settlement_uow import (
     SimulatedTradeSide,
 )
 from apps.simulated_trading.infrastructure.models import (
+    DailyInspectionNotificationConfigModel,
     PositionModel,
     SimulatedAccountModel,
     SimulatedTradeModel,
@@ -282,11 +283,15 @@ def test_inspection_notification_api_enforces_owner_scope_and_validates_emails(
     owned_account,
     django_user_model,
 ):
-    read_response = authenticated_client.get(
-        f"/api/simulated-trading/accounts/{owned_account.id}/inspection-notification/"
-    )
-    assert read_response.status_code == 200
-    assert read_response.json()["config"]["notify_on"] == "warning_error"
+    config_rows = DailyInspectionNotificationConfigModel.objects.filter(account=owned_account)
+    url = f"/api/simulated-trading/accounts/{owned_account.id}/inspection-notification/"
+    for _ in range(2):
+        read_response = authenticated_client.get(url)
+        assert read_response.status_code == 200
+        assert read_response["Content-Type"].startswith("application/json")
+        assert read_response.json()["config"]["notify_on"] == "warning_error"
+        assert not config_rows.exists()
+        assert read_response.json()["config"]["updated_at"] is None
 
     invalid_response = authenticated_client.patch(
         f"/api/simulated-trading/accounts/{owned_account.id}/inspection-notification/",
@@ -300,6 +305,7 @@ def test_inspection_notification_api_enforces_owner_scope_and_validates_emails(
     )
     assert invalid_response.status_code == 400
     assert "recipient_emails" in invalid_response.json()["details"]
+    assert not config_rows.exists()
 
     update_response = authenticated_client.patch(
         f"/api/simulated-trading/accounts/{owned_account.id}/inspection-notification/",
@@ -312,6 +318,9 @@ def test_inspection_notification_api_enforces_owner_scope_and_validates_emails(
         format="json",
     )
     assert update_response.status_code == 200
+    assert config_rows.count() == 1
+    assert update_response.json()["config"]["updated_at"]
+    assert authenticated_client.get(url).json() == update_response.json()
     assert update_response.json()["config"] == {
         "is_enabled": False,
         "notify_on": "all",
@@ -333,6 +342,9 @@ def test_inspection_notification_api_enforces_owner_scope_and_validates_emails(
         f"/api/simulated-trading/accounts/{foreign_account.id}/inspection-notification/"
     )
     assert forbidden_response.status_code == 404
+    assert not DailyInspectionNotificationConfigModel.objects.filter(
+        account=foreign_account
+    ).exists()
 
 
 @pytest.mark.django_db

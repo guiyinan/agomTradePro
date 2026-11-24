@@ -17,7 +17,7 @@ from apps.simulated_trading.interface.tui_serializers import (
 
 
 def _notification_payload(context: dict[str, Any]) -> dict[str, Any]:
-    """Project the persisted notification model into a stable JSON envelope."""
+    """Project saved settings or unsaved defaults into the account response."""
 
     account = context["account"]
     config = context["config"]
@@ -30,7 +30,7 @@ def _notification_payload(context: dict[str, Any]) -> dict[str, Any]:
             "notify_on": config.notify_on,
             "include_owner_email": config.include_owner_email,
             "recipient_emails": list(config.recipient_emails or []),
-            "updated_at": config.updated_at.isoformat(),
+            "updated_at": config.updated_at.isoformat() if config.updated_at else None,
         },
     }
 

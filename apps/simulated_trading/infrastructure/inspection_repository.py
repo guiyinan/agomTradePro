@@ -22,16 +22,15 @@ from apps.simulated_trading.infrastructure.models import (
 class DjangoInspectionRepository:
     """日更巡检相关仓储。"""
 
-    def get_or_create_notification_config_model(self, account_id: int) -> tuple[Any, Any] | None:
-        """Return account and notification config ORM rows for the settings page."""
+    def get_notification_config(self, account_id: int) -> DailyInspectionNotificationConfigModel:
+        """Return the stored settings or the model defaults without persisting them."""
 
-        account = SimulatedAccountModel._default_manager.filter(id=account_id).first()
-        if not account:
-            return None
-        config, _ = DailyInspectionNotificationConfigModel._default_manager.get_or_create(
-            account=account
-        )
-        return account, config
+        config = DailyInspectionNotificationConfigModel._default_manager.filter(
+            account_id=account_id
+        ).first()
+        if config is not None:
+            return config
+        return DailyInspectionNotificationConfigModel(account_id=account_id)
 
     def update_notification_config(
         self,
@@ -41,18 +40,20 @@ class DjangoInspectionRepository:
         include_owner_email: bool,
         notify_on: str,
         recipient_emails: list[str],
-    ) -> Any | None:
+    ) -> DailyInspectionNotificationConfigModel | None:
         """Persist notification settings for one account."""
 
-        context = self.get_or_create_notification_config_model(account_id)
-        if context is None:
+        if not SimulatedAccountModel._default_manager.filter(pk=account_id).exists():
             return None
-        _, config = context
-        config.is_enabled = is_enabled
-        config.include_owner_email = include_owner_email
-        config.notify_on = notify_on
-        config.recipient_emails = sorted(set(recipient_emails))
-        config.save()
+        config, _ = DailyInspectionNotificationConfigModel._default_manager.update_or_create(
+            account_id=account_id,
+            defaults={
+                "is_enabled": is_enabled,
+                "include_owner_email": include_owner_email,
+                "notify_on": notify_on,
+                "recipient_emails": sorted(set(recipient_emails)),
+            },
+        )
         return config
 
     def list_report_payloads(
@@ -138,9 +139,7 @@ class DjangoInspectionRepository:
         )
         if not account:
             return None
-        config, _ = DailyInspectionNotificationConfigModel._default_manager.get_or_create(
-            account=account
-        )
+        config = self.get_notification_config(account_id)
         return {
             "account_id": account.id,
             "account_name": account.account_name,
