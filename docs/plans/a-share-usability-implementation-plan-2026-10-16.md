@@ -304,6 +304,11 @@ Owner 随后确认 Research 沿用展示权限，本批交付限于 Portfolio �
 
 **2026-11-24 仓库验收通过。** 候选 `a55d5b3c5` 在隔离 PostgreSQL 完成签发、并发预留和费用边界 5 项，生产关闭配置下的 PostgreSQL 与 Agent 回归 235 项，接口及治理契约 173 项，均无跳过。迁移 0014→0012→0014 的触发器数量为 3→0→3，非空签章订单拒绝降级。逐项索引在本机 `.tmp/ash09-acceptance-20261124/signed-order-a55d5b3c5/index.json`。ASH-09 仓库退出门关闭，生产交易继续关闭。TAR-05 继续准备 staging，DATA-02 由原会话负责。
 
+| base_sha | identity | change_kind | rationale | consumer_audit | compatibility_or_rollback |
+| --- | --- | --- | --- | --- | --- |
+| a8a163bcbf8c07862605041c763ef3d9b8e2a1fa | broker_execution.BrokerOrderExecutionScopeModel | added_concrete | 保存经账户会话签认的具体订单范围、来源版本和撤回时间。 | 操作员签章入口和四个执行节点逐次重读；普通 Research 材料保留展示权限。 | 0013 建空表，已有签章即拒绝反向迁移，以便保留历史。 |
+| a8a163bcbf8c07862605041c763ef3d9b8e2a1fa | broker_execution.LiveOrderModel | model_change | 在订单创建时记录不可变的签章、风险及计划引用。 | 审批、领取、提交确认和逐笔对账以这些引用核对原件。 | 0014 为历史订单填入空引用；有已签订单时拒绝回退，空库往返迁移已实测。 |
+
 ## 14. ASH-10：真实账户复盘
 
 1. 先对齐初始资产、入出金、分红、费用、成交和期末估值，区分投资收益与外部现金流；按任务明确时间加权或资金加权口径。
