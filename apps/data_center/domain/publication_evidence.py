@@ -6,7 +6,7 @@ import hashlib
 import json
 import re
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime
 from typing import Final
 
@@ -174,7 +174,10 @@ def validate_calendar_publication_evidence(
         if item.member.dataset_key != policy.dataset.value:
             raise ValueError("calendar member dataset_key differs from the publication policy")
         item.to_payload()
-        views.append(_view(item.member))
+        view = _view(item.member)
+        # The retained lookup key includes its algorithm. Only its digest enters the
+        # hash-format check. The member manifest keeps the full lookup key.
+        views.append(replace(view, raw_payload_hash=view.raw_payload_hash.removeprefix("sha256:")))
     _validate_evidence_views(
         policy,
         tuple(views),
