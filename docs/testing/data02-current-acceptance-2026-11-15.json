@@ -11217,7 +11217,7 @@
         "production_revision": "4149a9cf4a3738f38d0ca62979fa9bfed56a6a07",
         "runtime_and_storage": "Serving maintenance SHA 27d25afaf85909aed26272b98c026a9e7fd4a81e; the one-shot E1 ran in its separately verified successor image c6c2437d4f59cd37110d4ecf3e3326da1d694bb7.",
         "source_evidence": "Four native numeric-source captures and statutory evidence are retained. The two AKShare documentation tables match the reviewed originals field by field. Issuer comparison limits remain in the precision review.",
-        "remaining": "Balance has no upstream response. The two transport attempts for this E1 are spent. There are no target facts to reconcile. Full S6 remains before the second security.",
+        "remaining": "The second independent two-attempt E1 is authorized. Its formal SZSE calendar expired and refresh requires an authorized calendar publisher. Fresh write preflight and a single governed execution with independent readback remain.",
         "expansion_gate": "Full same-candidate S6, full coverage, capacity and four-Publication reconciliation before security two. Release 10, 100 and full universe separately. Stop on the second consecutive failure at the same stage.",
         "s6_prepare_only": "d2843f4552a641d5903476ab9d3f0d60",
         "historical_backup_rehearsal": {
@@ -12273,6 +12273,42 @@
               },
               "production_financial_attempts_during_regression": 0
             }
+          },
+          "second_independent_e1_admission": {
+            "as_of": "2026-11-25T13:14:06.504878+00:00",
+            "candidate": "c6c2437d4f59cd37110d4ecf3e3326da1d694bb7",
+            "previous_terminal_run": "d17e6368-14e5-4311-aae1-372182923c74",
+            "scope": "000858.SZ 2026-09-30, simulated account 631, Main7 + Balance3",
+            "authorized_transport_attempts": 2,
+            "charged_transport_attempts": 0,
+            "new_facts": 0,
+            "stage": "before_financial_dispatch",
+            "calendar_status": "CALENDAR_FORMAL_TTL_EXPIRED",
+            "refresh_status": "CALENDAR_PUBLISHER_PERMISSION_REQUIRED",
+            "publisher_action_required": "Publish or refresh the formal SZSE calendar covering 2026-10-27 through 2026-10-30 through an authorized publisher.",
+            "qualification_expiry": "2026-11-25T15:59:59+00:00",
+            "actor_and_account_checked": true,
+            "both_dns_targets_resolved": true,
+            "qualified_entries": 10,
+            "forecast_new_facts": 10,
+            "receipts": [
+              {
+                "path": ".tmp/data02-e1-admission-20261125/e1-independent-02/owner-scope.json",
+                "sha256": "515e282033e23f31122af289077afe37b4cbfbd87e7d7977083220d7870348d8"
+              },
+              {
+                "path": ".tmp/data02-e1-admission-20261125/e1-independent-02/calendar-before.json",
+                "sha256": "ed4a0e4c9b9fb3499a6c94ce3dec6d66171bb1e596f661df875a66eec3a02993"
+              },
+              {
+                "path": ".tmp/data02-e1-admission-20261125/e1-independent-02/calendar-prepare.json",
+                "sha256": "baf49129d1a29d50c452dbcecbc32ceb6ffe5ec222fbc2cfefbdb9a82b2d400f"
+              },
+              {
+                "path": ".tmp/data02-e1-admission-20261125/e1-independent-02/noncalendar-preflight.json",
+                "sha256": "5f89fc4a3671c815e1f0bf6e1191479e27ab579096c1555f2daab091de55b8bb"
+              }
+            ]
           }
         },
         "charged_transport_attempts": 2
