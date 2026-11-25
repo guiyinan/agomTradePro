@@ -19,7 +19,7 @@ on:
 jobs:
   nightly:
     if: ${{ github.event_name != 'workflow_dispatch' || github.workflow != 'Nightly Tests' || inputs.suite != 'critical-pg-only' }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 180
     permissions:
       contents: read
@@ -667,7 +667,7 @@ jobs:
   critical-postgres:
     if: ${{ github.event_name != 'workflow_dispatch' || github.workflow != 'Nightly Tests' || inputs.suite != 'unit-only' }}
     name: Critical Reliability (PostgreSQL)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 90
     services:
       postgres:
@@ -717,11 +717,23 @@ jobs:
           tests/unit/ci/test_publication_postgres_workflow.py
           -c /dev/null --confcutdir=tests/unit/ci -p no:cacheprovider -q
 
+      - name: Select PostgreSQL 16 client tools for backup and restore
+        run: |
+          set -euo pipefail
+          pg_bin=/usr/lib/postgresql/16/bin
+          if [[ ! -x "$pg_bin/pg_dump" || ! -x "$pg_bin/pg_restore" ]]; then
+            sudo apt-get update
+            sudo apt-get install -y postgresql-client-16
+          fi
+          echo "$pg_bin" >> "$GITHUB_PATH"
+
       - name: Record PostgreSQL runtime versions
         run: |
           mkdir -p reports/quality/postgres
           {
             python --version
+            pg_dump --version
+            pg_restore --version
             psql --version
             psql "$DATABASE_URL" --tuples-only --no-align --command="SELECT version();"
           } > reports/quality/postgres/runtime-versions.txt
