@@ -51,6 +51,7 @@ from apps.data_center.domain.formal_exchange_calendar_publication import (
     exchange_calendar_publication_key,
     validate_current_calendar_publication,
 )
+from apps.data_center.domain.publication_evidence import validate_calendar_publication_evidence
 
 NOW = datetime(2026, 10, 16, 4, 0, 10, tzinfo=UTC)
 CALENDAR_DATE = date(2026, 10, 16)
@@ -264,6 +265,41 @@ def test_seal_rejects_policy_without_explicit_nullable_codec() -> None:
         _seal(policy=policy)
 
     assert caught.value.code == "CALENDAR_FORMAL_POLICY_CODEC_INVALID"
+
+
+def test_calendar_policy_verifies_the_retained_lookup_digest_without_changing_its_key() -> None:
+    snapshot = _snapshot()
+    policy = _policy(
+        required_evidence=(
+            "source",
+            "source_record_id",
+            "raw_payload_hash",
+            "raw_payload_scope",
+            "fetched_at",
+            "fact_content_hash",
+        )
+    )
+
+    seal = _seal(snapshot=snapshot, policy=policy)
+
+    assert seal.member_reference.member.raw_payload_hash == snapshot.raw_reference.payload_hash
+    assert seal.member_reference.member.raw_payload_hash == "sha256:" + "1" * 64
+    assert snapshot.raw_reference.body_sha256 == "3" * 64
+
+
+@pytest.mark.parametrize(
+    "invalid_key", ["sha256:" + "A" * 64, "sha256:sha256:" + "1" * 64, "md5:" + "1" * 64]
+)
+def test_calendar_policy_rejects_malformed_retained_lookup_digests(invalid_key: str) -> None:
+    snapshot = _snapshot()
+    member = _member_reference(snapshot, raw_payload_hash=invalid_key)
+    with pytest.raises(ValueError):
+        validate_calendar_publication_evidence(
+            _policy(required_evidence=("raw_payload_hash",)),
+            (member,),
+            codec_version=CalendarNullableMemberCodecVersion.V1,
+            published_at=NOW,
+        )
 
 
 def test_seal_rejects_policy_that_requires_unknown_source_time() -> None:
