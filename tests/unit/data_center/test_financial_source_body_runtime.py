@@ -12,6 +12,7 @@ from uuid import UUID
 import pytest
 from django.core.management.base import CommandError
 
+from apps.config_center.application.runtime_public import get_runtime_definition_repository
 from apps.data_center import financial_availability_owner_api_composition as owner_module
 from apps.data_center.application.financial_availability_governance_ports import (
     FinancialAvailabilitySourceRead,
@@ -22,6 +23,7 @@ from apps.data_center.application.statutory_source_documents import (
 )
 from apps.data_center.domain.statutory_source_documents import StatutorySourceBodyReference
 from apps.data_center.infrastructure import financial_source_body_runtime as runtime_module
+from apps.data_center.management.commands import initialize_statutory_source_body_storage
 from apps.data_center.management.commands.initialize_statutory_source_body_storage import (
     Command as InitializeSourceBodyStorageCommand,
 )
@@ -144,6 +146,32 @@ def test_missing_active_value_blocks_without_fallback(
 
     assert captured.value.code == "STATUTORY_SOURCE_BODY_CONFIG_INVALID"
     assert not (tmp_path / "private-body-store").exists()
+
+
+@pytest.mark.django_db
+def test_failed_activation_rolls_back_source_storage_definitions(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    definitions = get_runtime_definition_repository()
+    before = definitions.list_all()
+
+    def reject_profile(**options: object) -> None:
+        assert definitions.get(runtime_module.STATUTORY_SOURCE_BODY_ROOT_KEY) is not None
+        raise ValueError("critical configuration is incomplete")
+
+    monkeypatch.setattr(
+        initialize_statutory_source_body_storage, "activate_runtime_profile_patch", reject_profile
+    )
+    with pytest.raises(CommandError, match="activation failed"):
+        InitializeSourceBodyStorageCommand().handle(
+            activate=True,
+            environment="development",
+            root=str(tmp_path),
+            max_body_bytes=8192,
+            actor="test-operator",
+            reason="exercise rejected profile",
+        )
+    assert definitions.list_all() == before
 
 
 def test_operator_activation_requires_explicit_values_without_creating_root(

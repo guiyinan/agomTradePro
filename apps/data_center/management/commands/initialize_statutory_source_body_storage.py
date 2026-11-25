@@ -6,6 +6,7 @@ from argparse import ArgumentParser
 from typing import Any
 
 from django.core.management.base import BaseCommand, CommandError
+from django.db import transaction
 
 from apps.data_center.infrastructure.financial_source_body_runtime import (
     STATUTORY_SOURCE_BODY_MAX_BYTES_KEY,
@@ -60,29 +61,27 @@ class Command(BaseCommand):
         activation: tuple[dict[str, object], str, str, str] | None = None
         if activate:
             activation = self._activation_input(options)
-        if register or activate:
+        with transaction.atomic():
             saved = register_runtime_definitions(statutory_source_body_storage_definitions())
-            self.stdout.write(
-                self.style.SUCCESS(
-                    "Registered statutory source body storage definitions: " + ", ".join(saved)
-                )
+            if activation is not None:
+                patch, environment, actor, reason = activation
+                try:
+                    evidence = activate_runtime_profile_patch(
+                        environment=environment,
+                        patch=patch,
+                        bootstrap_values=None,
+                        actor=actor,
+                        reason=reason,
+                    )
+                except (DataValidationError, OSError, RuntimeError, TypeError, ValueError) as error:
+                    raise CommandError("statutory source body storage activation failed") from error
+        self.stdout.write(
+            self.style.SUCCESS(
+                "Registered statutory source body storage definitions: " + ", ".join(saved)
             )
-        if not activate:
+        )
+        if activation is None:
             return
-        if activation is None:  # pragma: no cover - guarded by the branch above
-            raise CommandError("runtime activation input is unavailable")
-
-        patch, environment, actor, reason = activation
-        try:
-            evidence = activate_runtime_profile_patch(
-                environment=environment,
-                patch=patch,
-                bootstrap_values=None,
-                actor=actor,
-                reason=reason,
-            )
-        except (DataValidationError, OSError, RuntimeError, TypeError, ValueError) as error:
-            raise CommandError("statutory source body storage activation failed") from error
         self.stdout.write(
             self.style.SUCCESS(
                 f"Activated runtime profile {evidence['profile_key']} "
