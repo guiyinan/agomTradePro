@@ -6,9 +6,14 @@ from pathlib import Path
 
 from django.core.management.base import BaseCommand, CommandError, CommandParser
 
+from apps.data_center.akshare_financial_capture_composition import (
+    AKSHARE_MAIN_FINANCIAL_DATA_ENDPOINT_URL,
+)
 from apps.data_center.application.financial_v3_e1_verification import (
     FinancialV3OfficialSourceProfileExpectation,
 )
+from apps.data_center.domain.egress_routing import EgressRoutingError
+from apps.data_center.infrastructure.egress_target import resolve_public_target
 from apps.data_center.infrastructure.financial_e1_discovery_composition import (
     build_django_financial_e1_discovery_use_case,
 )
@@ -19,6 +24,9 @@ from apps.data_center.infrastructure.financial_e1_governed_execution import (
     finish_django_financial_e1_non_success_run,
     preflight_django_financial_e1_actor_simulated_account,
     start_django_financial_e1_sync_run,
+)
+from apps.data_center.infrastructure.financial_numeric_qualification.balance_verifier import (
+    AKSHARE_BALANCE_API_URL,
 )
 from core.exceptions import DataValidationError
 
@@ -82,6 +90,16 @@ class Command(BaseCommand):
                 official_source_profile_expectation=expectation,
                 authority_guard=authority_guard,
             )
+            for role, url in (
+                ("Main", AKSHARE_MAIN_FINANCIAL_DATA_ENDPOINT_URL),
+                ("Balance", AKSHARE_BALANCE_API_URL),
+            ):
+                try:
+                    resolve_public_target(url)
+                except EgressRoutingError as error:
+                    raise CommandError(
+                        f"E1 {role} target preflight failed: {error.code}"
+                    ) from error
             run = start_django_financial_e1_sync_run(
                 pinned,
                 authority_guard=authority_guard,

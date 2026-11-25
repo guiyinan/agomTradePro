@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from unittest.mock import Mock
 
 import pytest
 from django.core.management import call_command
@@ -10,7 +11,9 @@ from django.core.management.base import CommandError
 
 from apps.audit.application.system_audit_query import SystemAuditReaderContext
 from apps.data_center.application.data02_task_authority import Data02AuthorityRevalidation
+from apps.data_center.domain.egress_routing import EgressRoutingError
 from apps.data_center.infrastructure import financial_e1_governed_execution as _guard_module
+from apps.data_center.management.commands import run_financial_e1_discovery as _command_module
 from core.integration import financial_e1_simulated_account_owner as _binding_module
 
 
@@ -25,6 +28,45 @@ def test_real_command_imports_and_refuses_execution_before_reading_a_plan() -> N
             operator="django-user:7",
             execute=False,
         )
+
+
+def test_balance_dns_failure_blocks_before_starting_e1_run(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Exercise the execution command with a valid Main lookup and unavailable Balance DNS."""
+
+    pinned = Mock()
+    profile = pinned.official_source_profile_pin
+    profile.profile_id = "official-source-e1"
+    profile.profile_version = "v1"
+    profile.publisher_code = "SZSE"
+    profile.publisher_class = "market_infrastructure"
+    profile.profile_content_sha256 = "a" * 64
+    monkeypatch.setattr(_command_module, "load_pinned_financial_e1_plan", Mock(return_value=pinned))
+    monkeypatch.setattr(
+        _command_module, "preflight_django_financial_e1_actor_simulated_account", Mock()
+    )
+    build = Mock()
+    start = Mock()
+    monkeypatch.setattr(_command_module, "build_django_financial_e1_discovery_use_case", build)
+    monkeypatch.setattr(_command_module, "start_django_financial_e1_sync_run", start)
+    resolver = Mock(side_effect=[None, EgressRoutingError("timed out", code="EGRESS_DNS_TIMEOUT")])
+    monkeypatch.setattr(_command_module, "resolve_public_target", resolver)
+
+    with pytest.raises(CommandError, match="Balance.*EGRESS_DNS_TIMEOUT"):
+        call_command(
+            "run_financial_e1_discovery",
+            plan_file="pinned-plan.json",
+            plan_sha256="a" * 64,
+            operator="django-user:7",
+            execute=True,
+        )
+
+    build.assert_called_once()
+    assert [call.args[0] for call in resolver.call_args_list] == [
+        _command_module.AKSHARE_MAIN_FINANCIAL_DATA_ENDPOINT_URL,
+        _command_module.AKSHARE_BALANCE_API_URL,
+    ]
+    start.assert_not_called()
+    build.return_value.execute.assert_not_called()
 
 
 def _authority(*, actor_id: str = "django-user:7", user_id: int = 7) -> SystemAuditReaderContext:

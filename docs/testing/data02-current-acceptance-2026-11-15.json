@@ -12262,7 +12262,17 @@
                 "path": ".tmp/data02-e1-admission-20261125/issuer-local-atomic-rehearsal/actual.xml",
                 "sha256": "100804e44dbfd123fb6175ca9246e87b5277b04d2559b371e58d9ff29ca7b7de"
               }
-            ]
+            ],
+            "development_regression": {
+              "scope": "Local regression on dev/next-development following the partial run.",
+              "behavior": "The execution command validates both public targets after plan, authority and route preflight, before starting the SyncRun. A failed run counts accepted retained captures in fetched. Transport accounting remains independent.",
+              "regression_tests_passed": 40,
+              "junit": {
+                "path": ".tmp/data02-e1-admission-20261125/e1-dns-accounting.xml",
+                "sha256": "eef04d743a85c6e2795e1148d5c3bb56da819011cabe9693710f073ce170cc2b"
+              },
+              "production_financial_attempts_during_regression": 0
+            }
           }
         },
         "charged_transport_attempts": 2

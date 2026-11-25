@@ -44,6 +44,10 @@ from apps.data_center.infrastructure import financial_e1_discovery_replay as _re
 from apps.data_center.infrastructure import (
     financial_e1_execution_plan_file as _execution_plan_file_module,
 )
+from apps.data_center.infrastructure.control_plane_repositories import SyncRunRepository
+from apps.data_center.infrastructure.financial_e1_governed_execution import (
+    finish_django_financial_e1_non_success_run,
+)
 from apps.data_center.infrastructure.financial_numeric_qualification.balance_raw_boundary import (
     BalanceCandidateRequest,
     build_balance_candidate_query,
@@ -539,7 +543,9 @@ def test_discovery_use_case_blocks_before_capture_when_preflight_fails() -> None
     assert guard.calls == 0
 
 
-def test_discovery_use_case_stops_after_two_sends_when_balance_fails() -> None:
+def test_discovery_use_case_stops_after_two_sends_when_balance_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """A successful Main response plus Balance failure never reaches fact DML."""
 
     main = _qualification(
@@ -650,7 +656,8 @@ def test_discovery_use_case_stops_after_two_sends_when_balance_fails() -> None:
         authority_guard=guard,
     )
 
-    result = use_case.execute(plan, run=_run(plan))
+    run = _run(plan)
+    result = use_case.execute(plan, run=run)
 
     assert result.outcome == "partial"
     assert result.requested == 4
@@ -662,6 +669,10 @@ def test_discovery_use_case_stops_after_two_sends_when_balance_fails() -> None:
     assert guard.calls == 2
     assert len(result.retained_capture_ids) == 1
     assert writer.calls == 0
+
+    monkeypatch.setattr(SyncRunRepository, "save", lambda self, record: record)
+    terminal = finish_django_financial_e1_non_success_run(run, result, authority_guard=guard)
+    assert (terminal.outcome, terminal.fetched, terminal.stored) == ("partial", 1, 0)
 
 
 def test_pinned_plan_file_requires_the_independent_raw_file_digest(tmp_path: Path) -> None:

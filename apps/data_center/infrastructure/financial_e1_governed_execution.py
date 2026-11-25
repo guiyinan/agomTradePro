@@ -201,7 +201,7 @@ def finish_django_financial_e1_non_success_run(
         run,
         status=status,
         outcome=outcome,
-        fetched=result.physical_attempts,
+        fetched=len(result.retained_capture_ids),
         validated=result.succeeded,
         succeeded=result.succeeded,
         failed=result.failed,
