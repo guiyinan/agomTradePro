@@ -11450,6 +11450,81 @@
               "publication_tests": 115,
               "projection_committed_to_candidate": false
             }
+          },
+          "projection_ci_successor": {
+            "sha": "6a292b8bf981fa292f926b52725403b93ff2877d",
+            "parent": "29262138e0a17c47cbce5a1626d6f65d9ef035d4",
+            "ci_comparison_base": "4149a9cf4a3738f38d0ca62979fa9bfed56a6a07",
+            "authorization": "call_937564a5be6b40279f8cc088cf26332a",
+            "status": "ci_verified_pending_release_decision",
+            "changed_file": "governance/data_center_entrypoints.json",
+            "committed_blob_sha256": "b3ae3afc79bf357f535efa789bdf83956193578b1cd0843abe61d18002e78574",
+            "local_inventory_tests": 32,
+            "isolated_projection_check": {
+              "path": ".tmp/data02-guard-20261122/e1-8eaba967a-20261125/legacy-compat/ci-successor/full-projections.log",
+              "sha256": "034648c414e5cb40cdb3c6fca8de79778739b5acf407cc7bb0e48aef2b5351cf"
+            },
+            "official_runs": {
+              "Publication PostgreSQL contracts (workflow_dispatch)": {
+                "id": 45525713670,
+                "conclusion": "success"
+              },
+              "Quote Metric PostgreSQL contracts (workflow_dispatch)": {
+                "id": 45525703152,
+                "conclusion": "success"
+              },
+              "CI Fast Feedback (workflow_dispatch)": {
+                "id": 45525682536,
+                "conclusion": "success"
+              },
+              "Engineering progress dashboard (push)": {
+                "id": 45525671024,
+                "conclusion": "success"
+              },
+              "Security Scan (push)": {
+                "id": 45525670902,
+                "conclusion": "success"
+              },
+              "Architecture Layer Guard (push)": {
+                "id": 45525670915,
+                "conclusion": "success"
+              },
+              "Consistency Check (push)": {
+                "id": 45525670900,
+                "conclusion": "success"
+              },
+              "CI Fast Feedback (push)": {
+                "id": 45525670864,
+                "conclusion": "success"
+              }
+            },
+            "manual_dispatches": {
+              "fast": 1,
+              "quote": 1,
+              "publication": 1
+            },
+            "postgres_junit_totals": {
+              "Publication PostgreSQL contracts": {
+                "tests": 115,
+                "failures": 0,
+                "errors": 0,
+                "skipped": 0
+              },
+              "Quote Metric PostgreSQL contracts": {
+                "tests": 57,
+                "failures": 0,
+                "errors": 0,
+                "skipped": 0
+              }
+            },
+            "verified_originals": {
+              "path": ".tmp/data02-guard-20261122/e1-8eaba967a-20261125/legacy-compat/ci-projection-successor/verified-ci.json",
+              "sha256": "b241370f02a7a99d636564b2196ed0ec75a29b328c32289b34831a5089bb782a"
+            },
+            "production_release": false,
+            "e1_candidate": "8eaba967a047d1f7e22c6084ca613a36cf371588",
+            "production_e1_requests": 0,
+            "production_e1_writes": 0
           }
         }
       }
