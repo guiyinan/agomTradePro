@@ -509,6 +509,19 @@ def test_exact_daily_capture_stages_and_activates_m1_publication(
 ) -> None:
     """Run exact sync through real stage/group repos and the member-scoped M1 reader."""
 
+    # The captured daily fact is date-only for 2026-10-27. Keep the test's
+    # source availability and public-query cutoff on the following day so the
+    # seven-day freshness contract is exercised without requiring a calendar
+    # exception for an observation that is now stale.
+    as_of = datetime(
+        2026,
+        10,
+        28,
+        8,
+        0,
+        tzinfo=timezone.get_fixed_timezone(timedelta(0)),
+    )
+    monkeypatch.setattr(timezone, "now", lambda: as_of)
     use_case, source, provider_id, activation = _build_m1_test_use_case()
     target_date = date(2026, 10, 27)
     outcome = use_case.execute(
