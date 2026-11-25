@@ -11213,9 +11213,9 @@
           "sha256": "ed472ae943036ae9260d33d418d9326f35a22ed1beb67ebd2a3149741c4e905f"
         },
         "production_revision": "4149a9cf4a3738f38d0ca62979fa9bfed56a6a07",
-        "runtime_and_storage": "Exact candidate one-shot image built; all 11 data_center migrations are committed on the target. The maintenance reader verified the original sample. Activating shared numeric-document storage remains blocked by the missing critical risk configuration.",
-        "source_evidence": "SZSE rule captured on the target and independently reread with one matching successful egress audit. Exchange-calendar catalog ready; current calendar publication and paired numeric source captures are absent. Issuer precision limits remain in d1_e1_report_field_precision_review.",
-        "remaining": "Actual calendar publisher grant and formal calendar publication, approved critical runtime configuration, paired source capture and qualified numeric/availability records, then the bounded E1 and independent value reconciliation.",
+        "runtime_and_storage": "Exact writer image and 11 target migrations verified. Config Center v23 supplies the native document store while preserving all 49 prior values. The production maintenance revision is 6a292b8bf.",
+        "source_evidence": "Four native numeric-source captures and statutory evidence are retained. The two AKShare documentation tables match the reviewed originals field by field. Issuer comparison limits remain in the precision review.",
+        "remaining": "Deploy and verify the calendar reader and authenticated availability apply/revoke routes, publish the scoped calendar, establish numeric and availability qualification, then run the two-call E1 and reconcile independent raw-to-fact readback.",
         "expansion_gate": "Full same-candidate S6, full coverage, capacity and four-Publication reconciliation before security two. Release 10, 100 and full universe separately. Stop on the second consecutive failure at the same stage.",
         "s6_prepare_only": "d2843f4552a641d5903476ab9d3f0d60",
         "historical_backup_rehearsal": {
@@ -11816,6 +11816,110 @@
             "storage": "Production runtime profile v22 has no approved simulated portfolio risk value. Scoped source-storage activation stopped. No value found in any retained profile.",
             "catalog": "Native metric qualifications, Owner events and availability governance records are empty. Two ratios lack a directly disclosed value and three percentages have published display precision only.",
             "financial": "All ten selected financial keys remain empty in the independent read-only query. The two AKShare requests are unspent."
+          },
+          "recovery_after_storage_failure": {
+            "as_of": "2026-11-25T05:46:15.111496+00:00",
+            "production_read_at": "2026-11-25 05:25:56.6663+00",
+            "financial_sends": 0,
+            "target_financial_facts": 0,
+            "verified_audit_deliveries": 21,
+            "production_storage_profile": 23,
+            "source_documents": [
+              "SZSE rule paired with statutory source",
+              "issuer Chinese and English originals",
+              "AKShare financial interface documentation"
+            ],
+            "native_numeric_catalog": 0,
+            "production_calendar_pointers": [],
+            "production_owner_route_http": 404,
+            "calendar_prepare_http": 503,
+            "calendar_error": "TUSHARE_INVALID_PAYLOAD",
+            "calendar_maintenance_candidate": "bb06bcb959815e5b1d0ad2877424789c093cb74d",
+            "maintenance_url_trial": {
+              "environment": "local restored PostgreSQL",
+              "http": [
+                403,
+                201,
+                201
+              ],
+              "reread_owner_events": 2,
+              "unchanged_fact_count": 487624
+            },
+            "source_limits": "Three percentages have issuer display precision only. ROA and debt ratio have no directly disclosed comparator. Real Balance row identity, source context, and completeness still require evidence.",
+            "evidence": [
+              {
+                "path": ".tmp/data02-e1-admission-20261125/registry-rehearsal.json",
+                "sha256": "cad8eba84bc0a53e9bd3de50c8f4cc25521f89f3fa71f869fe093bafbcb39690"
+              },
+              {
+                "path": ".tmp/data02-e1-admission-20261125/registry-recovery-apply.json",
+                "sha256": "00debc747782f23b6d9c0fe845c1ea0e1e4d320b9a843f1ec24325512bec627c"
+              },
+              {
+                "path": ".tmp/data02-e1-admission-20261125/storage-readback.json",
+                "sha256": "f59b10c99ef1a064711c36bf0e30a718dffd00686d6d64b42f407db9dc5c76b0"
+              },
+              {
+                "path": ".tmp/data02-e1-admission-20261125/szse-native-source-readback.json",
+                "sha256": "6db2da22e640c3434d969fd34e35525e93ccf063eab235f850529aa8c48176c8"
+              },
+              {
+                "path": ".tmp/data02-e1-admission-20261125/issuer-captures.json",
+                "sha256": "972e72add920444318ec7186022b080c4e1017d913b78dab63b99ee11a979c47"
+              },
+              {
+                "path": ".tmp/data02-e1-admission-20261125/akshare-doc-capture.json",
+                "sha256": "82cdad4cbe77795f7e70ecdea538013b0095735f295002e96143e3e8cc9e312a"
+              },
+              {
+                "path": ".tmp/data02-e1-admission-20261125/source-interface-diff.json",
+                "sha256": "152e323457211e3edc5f2743a0ebf2e3ab534a6723658a1a00f0a92ab90edbd1"
+              },
+              {
+                "path": ".tmp/data02-e1-admission-20261125/financial-parser-routes-r2.json",
+                "sha256": "d7ddd9e347640f2b3a8bfcd6c4a1d19f44407ec18e9207ae0ba632d8e3cd8815"
+              },
+              {
+                "path": ".tmp/data02-e1-admission-20261125/independent-after-recovery.json",
+                "sha256": "4118d54b685d38fdae1a48f7151d6925f6367a26215abfdc421b34f9ee72af3b"
+              },
+              {
+                "path": ".tmp/data02-e1-admission-20261125/calendar-admin-20261125T043649.json",
+                "sha256": "868485ae74b7475a888f13e385b4c8424b9c92b6e918eed76b2f102f9c01ef0e"
+              },
+              {
+                "path": ".tmp/data02-e1-admission-20261125/calendar-after-503.json",
+                "sha256": "6e46887bd1481ce1535a23d7d3733753694112b8ad9b5b0e51240f6f0099da9b"
+              },
+              {
+                "path": ".tmp/data02-e1-admission-20261125/calendar-wire-r2.json",
+                "sha256": "d6aafcd89701b4b4ba3c1dec56a4261423052b19efc531d4a8a5d6ca4e64b26e"
+              },
+              {
+                "path": ".tmp/data02-e1-admission-20261125/calendar-ci/45550977174.json",
+                "sha256": "bceb2d4dbb2dfd89487ae77c960738407d2985d2604830f618eb3539de9935ad"
+              },
+              {
+                "path": ".tmp/data02-e1-admission-20261125/calendar-ci/45550982338.json",
+                "sha256": "31a0addec68f0a175f6a77b9137915b69c8012626827bbcdee175e349abb2a5b"
+              },
+              {
+                "path": ".tmp/data02-e1-admission-20261125/calendar-ci/45550987069.json",
+                "sha256": "7203bb352f4c71de6bcb0b645b8384ab3578d6db39466df36e23ff772e7e989d"
+              },
+              {
+                "path": ".tmp/data02-e1-admission-20261125/availability-route-readback.json",
+                "sha256": "11a182178f5f5c7e15dca0a0cb14506518cd8fbb547019ace9faa168c4264a36"
+              },
+              {
+                "path": ".tmp/data02-e1-admission-20261125/availability-isolated-pg.json",
+                "sha256": "958c95548838d1d57759a1e0557b7e9a47d61ef22888d78bc01539a7dd34178c"
+              },
+              {
+                "path": ".tmp/data02-e1-admission-20261125/cold-image-space-recovery.json",
+                "sha256": "54fe9a43eb0b7436dd5d006787a3fb09423ca1e7cc8a422cff4316da01ec02a2"
+              }
+            ]
           }
         }
       }
