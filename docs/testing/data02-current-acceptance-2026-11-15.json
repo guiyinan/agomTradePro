@@ -11812,8 +11812,8 @@
             "financial_total": 487624
           },
           "remaining": {
-            "calendar": "Four real SZSE rows retained. The live publication preview rejected the qualified raw-payload lookup key. Native sealing passed in isolated PostgreSQL after the digest format fix. No live calendar pointer at this read.",
-            "numeric": "Ten metric qualifications are selected in the frozen plan. No catalog entries existed at this read. The Balance source still needs evidence of CNY consolidated scope for the three fields.",
+            "calendar": "Real calendar source and full authenticated publish/readback verified in an isolated restore. Production calendar maintenance candidate 27d25afaf awaits rollout.",
+            "numeric": "Seven original Main entries and Owner events verified. Three Balance entries await exact source-context qualification. The newer decimal comparison contract has only been exercised locally.",
             "financial": "No E1 requests or facts. Independent write/readback awaits authentic qualification and calendar publication."
           },
           "recovery_after_storage_failure": {
@@ -11995,6 +11995,57 @@
               {
                 "path": ".tmp/data02-e1-admission-20261125/retained-balance-source-search.json",
                 "sha256": "dc219663f85156caf8cbc6a509cfd88fa1cd38fc7ef4d2fd6c1afb6a30fd5788"
+              }
+            ]
+          },
+          "qualified_main_and_local_balance_comparison": {
+            "original_writer": "8eaba967a047d1f7e22c6084ca613a36cf371588",
+            "production_main_qualifications": 7,
+            "independently_verified_owner_apply_events": 7,
+            "transaction_read_at": "2026-11-25 09:52:11.240885+00",
+            "production_balance_qualifications": 0,
+            "production_financial_requests": 0,
+            "production_e1_writes": 0,
+            "issuer_comparison_candidate": "b4003f3e2ced57f941c390e8048f57838d740f6f",
+            "development_commit": "eb82a369e8ddc5fdf02ca44625b91a5242ce5499",
+            "issuer_comparison_scope": "Each proposed Balance qualification requires all three original consolidated CNY amounts on the same target row. One-cent mismatches fail. Only the successor understands the typed decimal guard. Its three proposals remain offline.",
+            "calendar_maintenance_candidate": "27d25afaf85909aed26272b98c026a9e7fd4a81e",
+            "isolated_calendar_http": [
+              200,
+              201,
+              200
+            ],
+            "isolated_calendar_publication_id": "31193ad4-0d2f-44e5-b01c-be87650cd374",
+            "isolated_calendar_snapshot": "c1c20f4f-8c95-4923-b553-caee31524c87",
+            "isolated_provider_requests": 0,
+            "receipts": [
+              {
+                "path": ".tmp/data02-e1-admission-20261125/main-qualification-independent.json",
+                "sha256": "ffe1c9971aca4525c9b5fa2f18efedb77c80f2f800e7620b76196a185ef0b413"
+              },
+              {
+                "path": ".tmp/data02-e1-admission-20261125/issuer-writer-candidate.json",
+                "sha256": "9837bc37a75811aff779c6edb191c926541d30c24269601374851ee8aa18e4b9"
+              },
+              {
+                "path": ".tmp/data02-e1-admission-20261125/issuer-conditional-balance/index.json",
+                "sha256": "1f020d87fb99df7a4c6f11ca379bc37a50197d85e3057ce1c24f412ae16bd768"
+              },
+              {
+                "path": ".tmp/data02-e1-admission-20261125/issuer-backward-wire.log",
+                "sha256": "33e503658f9db202a954d2b22db94d62b7ef700e952ed32a738a4c930359d41c"
+              },
+              {
+                "path": ".tmp/data02-e1-admission-20261125/issuer-comparator-final.xml",
+                "sha256": "fab8453596355fa4050ff7e7aedb127d209387d93fc11466132d1c2d07946d65"
+              },
+              {
+                "path": ".tmp/data02-e1-admission-20261125/calendar-digest-isolated-publish.json",
+                "sha256": "1fffa458f594a6225a9da3f7486ce6ffa9a0b45a8b57f71f8413bb515dc8cf3d"
+              },
+              {
+                "path": ".tmp/data02-e1-admission-20261125/calendar-digest-cycle/restore-proof.json",
+                "sha256": "a6c30aeb63649bf13bc84f413f123ad4197acb5f6131f9015fb7dacf2f3838d4"
               }
             ]
           }
