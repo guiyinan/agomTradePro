@@ -11213,9 +11213,9 @@
           "sha256": "ed472ae943036ae9260d33d418d9326f35a22ed1beb67ebd2a3149741c4e905f"
         },
         "production_revision": "4149a9cf4a3738f38d0ca62979fa9bfed56a6a07",
-        "runtime_and_storage": "Exact writer image and 11 target migrations verified. Config Center v23 supplies the native document store while preserving all 49 prior values. The production maintenance revision is 6a292b8bf.",
+        "runtime_and_storage": "Five maintenance services run ce9164e34 on schema 0118. The separately pinned E1 writer is 8eaba967a. Source archive profile v23 retains the official documents.",
         "source_evidence": "Four native numeric-source captures and statutory evidence are retained. The two AKShare documentation tables match the reviewed originals field by field. Issuer comparison limits remain in the precision review.",
-        "remaining": "Deploy and verify the calendar reader and authenticated availability apply/revoke routes, publish the scoped calendar, establish numeric and availability qualification, then run the two-call E1 and reconcile independent raw-to-fact readback.",
+        "remaining": "Publish the scoped SZSE calendar, satisfy the native numeric qualification and availability inputs, execute within the two-call E1 limit and reconcile the actual facts against retained originals.",
         "expansion_gate": "Full same-candidate S6, full coverage, capacity and four-Publication reconciliation before security two. Release 10, 100 and full universe separately. Stop on the second consecutive failure at the same stage.",
         "s6_prepare_only": "d2843f4552a641d5903476ab9d3f0d60",
         "historical_backup_rehearsal": {
@@ -11618,16 +11618,16 @@
           }
         },
         "current_runtime_after_maintenance": {
-          "revision": "6a292b8bf981fa292f926b52725403b93ff2877d",
-          "image": "sha256:658ec8b87451f5968967e4ddcfab80fb1c4e95e70cda4ecf43db5acbf3563b60",
-          "release_dir": "/opt/agomtradepro/releases/source-20261125102323",
+          "revision": "ce9164e34b1bcfefe6471fff0d7bef29988c172a",
+          "image": "sha256:d54f97cab1007bbfdcb6627f60cdcff3cfd514f752d25d9f85e7da98a8787a10",
+          "release_dir": "/opt/agomtradepro/releases/source-20261125152114",
           "status": "deployed_and_read_back",
           "e1_writer": "8eaba967a047d1f7e22c6084ca613a36cf371588",
           "production_e1_status": "blocked_before_first_request"
         },
         "admission_20261125": {
           "writer": "8eaba967a047d1f7e22c6084ca613a36cf371588",
-          "serving_release": "6a292b8bf981fa292f926b52725403b93ff2877d",
+          "serving_release": "ce9164e34b1bcfefe6471fff0d7bef29988c172a",
           "financial_send_count": 0,
           "e1_fact_writes": 0,
           "e1_reconciled": false,
@@ -11804,7 +11804,7 @@
               "sha256": "7a4114cb27243e46844b97a9cf6f2eb73d8dd97d175c023a4be429ede87d299c"
             }
           },
-          "as_of": "2026-11-25 04:18:39.17259+00",
+          "as_of": "2026-11-25 09:35:08.524329+00",
           "live_schema": {
             "scoped_forward_count": 11,
             "highest": "0118_financial_numeric_origin_snapshot",
@@ -11812,10 +11812,9 @@
             "financial_total": 487624
           },
           "remaining": {
-            "calendar": "Owner 1 has zero direct/group grants for the dedicated exchange-calendar publisher permission. Signed-in HTTPS prepare returned 403.",
-            "storage": "Production runtime profile v22 has no approved simulated portfolio risk value. Scoped source-storage activation stopped. No value found in any retained profile.",
-            "catalog": "Native metric qualifications, Owner events and availability governance records are empty. Two ratios lack a directly disclosed value and three percentages have published display precision only.",
-            "financial": "All ten selected financial keys remain empty in the independent read-only query. The two AKShare requests are unspent."
+            "calendar": "Four real SZSE rows retained. The live publication preview rejected the qualified raw-payload lookup key. Native sealing passed in isolated PostgreSQL after the digest format fix. No live calendar pointer at this read.",
+            "numeric": "Ten metric qualifications are selected in the frozen plan. No catalog entries existed at this read. The Balance source still needs evidence of CNY consolidated scope for the three fields.",
+            "financial": "No E1 requests or facts. Independent write/readback awaits authentic qualification and calendar publication."
           },
           "recovery_after_storage_failure": {
             "as_of": "2026-11-25T05:46:15.111496+00:00",
@@ -11918,6 +11917,84 @@
               {
                 "path": ".tmp/data02-e1-admission-20261125/cold-image-space-recovery.json",
                 "sha256": "54fe9a43eb0b7436dd5d006787a3fb09423ca1e7cc8a422cff4316da01ec02a2"
+              }
+            ]
+          },
+          "verified_maintenance_and_admission": {
+            "as_of": "2026-11-25 09:35:08.524329+00",
+            "release": "ce9164e34b1bcfefe6471fff0d7bef29988c172a",
+            "ci_runs": 8,
+            "database_migrations_performed_by_release": 0,
+            "legacy_financial_facts": 487624,
+            "official_document_captures": 4,
+            "availability_records": [
+              {
+                "id": "data02-e1-000858-2026q3-disclosure",
+                "version": "20261125.v1",
+                "sha256": "11e5743229c4509537172be61ca8d1a9a48f815e728768322654068508e03728"
+              },
+              {
+                "id": "data02-e1-000858-2026q3-szse-open",
+                "version": "20261125.v1",
+                "sha256": "062c9b9117ee7ef22d9011588616287be2e3813c35aac45416fd9192b2ebed28"
+              }
+            ],
+            "verified_system_audit_deliveries": 69,
+            "calendar_snapshot": "c1c20f4f-8c95-4923-b553-caee31524c87",
+            "published_calendar_pointers": [],
+            "financial_catalog_entries": 0,
+            "native_loader": {
+              "at": "2026-11-25T09:09:12.893161+00:00",
+              "database": "agomtradepro",
+              "role": "agomtradepro_runtime",
+              "transaction_read_only": "on",
+              "plan_sha256": "7965c14f729ed1c45c0a6c3e0140e10f565828a9df822b18528dc2f4563b7def",
+              "outcome": "blocked",
+              "reason": "FINANCIAL_E1_SELECTION_MISMATCH",
+              "selected": 10,
+              "financial_http_dispatches": 0
+            },
+            "e1_target_rows": 0,
+            "receipts": [
+              {
+                "path": ".tmp/data02-e1-admission-20261125/c2-tested-ci/verified.json",
+                "sha256": "687c480817d3e55ef745608deebcf7e6ccbb31d6fa5fbc45d1a0c2a3e0a6540b"
+              },
+              {
+                "path": ".tmp/data02-e1-admission-20261125/c2-maintenance-cycle/restore-proof.json",
+                "sha256": "e018ec183378c6c29bfc5c257e803077c641092993a7f74e04a882b36be8fe04"
+              },
+              {
+                "path": ".tmp/data02-e1-admission-20261125/c2-maintenance-cycle/host-qa-cycle.json",
+                "sha256": "4712ea2b7364692876d7517cd30ee7b326dcf21877c330a79556bed5a1dd7e32"
+              },
+              {
+                "path": ".tmp/data02-e1-admission-20261125/c2-maintenance-cycle/host-deployed.json",
+                "sha256": "fd57b6e6ee399c57e0aa0bafc8f69659e2539c0ce49c5aac68b86ee5071c0d44"
+              },
+              {
+                "path": ".tmp/data02-e1-admission-20261125/c2-governance-independent.json",
+                "sha256": "5e7382a995cf6e9508c6086d3b8f6c42b70eb153dd02fb9156ed57e7e0453c92"
+              },
+              {
+                "path": ".tmp/data02-e1-admission-20261125/c2-independent-after-maintenance.json",
+                "sha256": "e45ebddf519da22284e2a0e903ed4797d17150f1866d1fc32fd3a909a9e3199e"
+              },
+              {
+                "path": ".tmp/data02-e1-admission-20261125/c2-production-e1-selection.json",
+                "sha256": "e30c95522f8354d2a9f5cab36377df1205a192378883f04201f8ccf438ff2bf4"
+              },
+              {
+                "path": ".tmp/data02-e1-admission-20261125/calendar-digest-native-replay.json",
+                "sha256": "0864686208ac6b6df67b33dc2cd6885a84a094c67cba282c835efb073e57c6ce"
+              },
+              {
+                "path": ".tmp/data02-e1-admission-20261125/frozen-issuer-comparator-capability.json",
+                "sha256": "d163978e66ccca98166def28e5991c86c30381d40106fbbe07cc0e0a4a438d59"
+              },
+              {
+                "path": ".tmp/data02-e1-admission-20261125/retained-balance-source-search.json",
+                "sha256": "dc219663f85156caf8cbc6a509cfd88fa1cd38fc7ef4d2fd6c1afb6a30fd5788"
               }
             ]
           }
