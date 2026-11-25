@@ -6368,6 +6368,7 @@
         "apps/data_center/infrastructure/financial_fact_write_guard.py",
         "apps/data_center/infrastructure/financial_decision_evidence_codec.py",
         "apps/data_center/infrastructure/models.py",
+        "apps/data_center/infrastructure/financial_fact_models.py",
         "apps/data_center/migrations/0082_financial_fact_decision_evidence.py",
         "apps/data_center/financial_response_artifact_composition.py",
         "apps/data_center/infrastructure/financial_response_artifact_repository.py",
@@ -6701,7 +6702,6 @@
           "FinancialDecisionEvidenceCodecError"
         ],
         "apps/data_center/infrastructure/models.py": [
-          "decision_evidence = models.JSONField(default=dict, blank=True)",
           "class FinancialCapacityGovernanceRecordModel(models.Model):",
           "class FinancialCapacityGovernanceRevocationModel(models.Model):",
           "class FinancialCapacityOwnerApprovalEventModel(models.Model):"
@@ -7305,6 +7305,9 @@
           "def capture_account_authority_for_environment(",
           "_require_capture_environment",
           "binding.environment != environment"
+        ],
+        "apps/data_center/infrastructure/financial_fact_models.py": [
+          "decision_evidence = models.JSONField(default=dict, blank=True)"
         ]
       },
       "required_tests": [
