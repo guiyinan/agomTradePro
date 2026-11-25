@@ -3823,9 +3823,11 @@
         "new candidate deployment and regular manifest file"
       ],
       "e1_financial_http": {
-        "used": 0,
+        "used": 2,
         "maximum": 2,
-        "automatic_retry_or_pagination_allowed": false
+        "automatic_retry_or_pagination_allowed": false,
+        "budget_unit": "bounded transport attempts",
+        "confirmed_upstream_http_requests": 1
       },
       "retained_intermediate_results": [
         "runner-canonical-pure-r1:65 passed/1 failed because a new test expected an internal collision code instead of the stable projection-blocked code; corrected test, no transport had run",
@@ -3924,7 +3926,7 @@
         "provider_id": 3,
         "provider_name": "akshare",
         "period_end": "2026-09-30",
-        "status": "selected_not_executed_or_qualified",
+        "status": "executed_once_partial_zero_facts",
         "physical_http_maximum": 2,
         "max_attempts_per_request": 1,
         "pagination_allowed": false,
@@ -11200,8 +11202,8 @@
         "scope_ref": "followups[14].selected_e1_scope",
         "main_metrics": 7,
         "balance_metrics": 3,
-        "status": "blocked_before_first_request",
-        "physical_e1_requests": 0,
+        "status": "single_security_e1_terminal_partial_zero_financial_facts",
+        "physical_e1_requests": 1,
         "production_e1_business_writes": 0,
         "publication_activated": false,
         "preflight": {
@@ -11213,9 +11215,9 @@
           "sha256": "ed472ae943036ae9260d33d418d9326f35a22ed1beb67ebd2a3149741c4e905f"
         },
         "production_revision": "4149a9cf4a3738f38d0ca62979fa9bfed56a6a07",
-        "runtime_and_storage": "Five maintenance services run 27d25afaf85909aed26272b98c026a9e7fd4a81e on schema 0118. The original E1 Owner decision names 8eaba967a. The separately tested successor is c6c2437d4f59cd37110d4ecf3e3326da1d694bb7.",
+        "runtime_and_storage": "Serving maintenance SHA 27d25afaf85909aed26272b98c026a9e7fd4a81e; the one-shot E1 ran in its separately verified successor image c6c2437d4f59cd37110d4ecf3e3326da1d694bb7.",
         "source_evidence": "Four native numeric-source captures and statutory evidence are retained. The two AKShare documentation tables match the reviewed originals field by field. Issuer comparison limits remain in the precision review.",
-        "remaining": "The live SZSE calendar is published. The successor E1 runtime still needs its exact image, three bounded Balance entries, fresh forecast, native financial acquisition and independent reconciliation.",
+        "remaining": "Balance has no upstream response. The two transport attempts for this E1 are spent. There are no target facts to reconcile. Full S6 remains before the second security.",
         "expansion_gate": "Full same-candidate S6, full coverage, capacity and four-Publication reconciliation before security two. Release 10, 100 and full universe separately. Stop on the second consecutive failure at the same stage.",
         "s6_prepare_only": "d2843f4552a641d5903476ab9d3f0d60",
         "historical_backup_rehearsal": {
@@ -11626,9 +11628,9 @@
           "production_e1_status": "blocked_before_first_request"
         },
         "admission_20261125": {
-          "writer": "8eaba967a047d1f7e22c6084ca613a36cf371588",
+          "writer": "c6c2437d4f59cd37110d4ecf3e3326da1d694bb7",
           "serving_release": "27d25afaf85909aed26272b98c026a9e7fd4a81e",
-          "financial_send_count": 0,
+          "financial_send_count": 1,
           "e1_fact_writes": 0,
           "e1_reconciled": false,
           "production_financial_publication_activated": false,
@@ -11650,7 +11652,13 @@
               "path": ".tmp/data02-e1-admission-20261125/audit-calendar-2026-11-25T034755.json",
               "sha256": "94345fb6fa446f910c2896f1b9cd2c18a5bb39bd2c086d4d0685203a3b0cb305"
             },
-            "later_verified_deliveries": 7
+            "later_verified_deliveries": 7,
+            "post_attempt_readback": {
+              "at": "2026-11-25T12:33:41.890442+00:00",
+              "verified_platform_deliveries": 105,
+              "run_specific_outbox_rows": 0,
+              "run_specific_events": 0
+            }
           },
           "migration_rehearsal": {
             "current_backup": "2026-11-25",
@@ -11832,13 +11840,14 @@
             }
           },
           "one_shot_image": {
-            "image_id": "sha256:887f9a99009b742b9264a7627ac60ac00764225133f626ec3248a6b987d13f6e",
+            "image_id": "sha256:ef5e74e75260be58d6756a2ef52b71d104b4b8dd8fe3978d8311dc7754fbd15e",
             "manifest": {
-              "path": ".tmp/data02-e1-admission-20261125/writer-build-report/remote-build-report-20261125114204-08955c19a63d8f2884177d65cddc52c7.json",
-              "sha256": "7a4114cb27243e46844b97a9cf6f2eb73d8dd97d175c023a4be429ede87d299c"
-            }
+              "path": ".tmp/data02-e1-admission-20261125/issuer-calendar-build-report/remote-build-report-20261125194753-8ed0ee83a07b868a4245fbbe1c9d3fa6.json",
+              "sha256": "cc4f70e5f892f0d2173795de24c7392da7f92595d2fc6557642d8863c0759155"
+            },
+            "serving_deployment": false
           },
-          "as_of": "2026-11-25T11:41:45.091878+00:00",
+          "as_of": "2026-11-25T12:33:41.890442+00:00",
           "live_schema": {
             "scoped_forward_count": 11,
             "highest": "0118_financial_numeric_origin_snapshot",
@@ -11846,9 +11855,9 @@
             "financial_total": 487624
           },
           "remaining": {
-            "calendar": "The dedicated SZSE pointer, member and source bytes were independently read on the live database. Recheck calendar freshness at E1 execution.",
-            "numeric": "Seven Main entries are registered. Three issuer-bounded Balance entries await the exact successor runtime. Actual provider rows remain unobserved.",
-            "financial": "No E1 requests or facts. Independent write/readback awaits authentic qualification and calendar publication."
+            "balance": "EGRESS_DNS_TIMEOUT before HTTP; zero Balance body and zero Balance facts.",
+            "readback": "Independent source-only checks succeeded for Main. There are no stored target facts or E1 successful-write SystemAudit receipts.",
+            "next_scope": "Current E1 budget exhausted, no automatic retry. Full S6 before the second security."
           },
           "recovery_after_storage_failure": {
             "as_of": "2026-11-25T05:46:15.111496+00:00",
@@ -12156,8 +12165,107 @@
                 "sha256": "f1ae5639624d075647946c19b00bc38dfb1887db33f73144aa33a9153044e50c"
               }
             }
+          },
+          "financial_attempts_charged": 2,
+          "original_one_shot_image_at_admission": {
+            "image_id": "sha256:887f9a99009b742b9264a7627ac60ac00764225133f626ec3248a6b987d13f6e",
+            "manifest": {
+              "path": ".tmp/data02-e1-admission-20261125/writer-build-report/remote-build-report-20261125114204-08955c19a63d8f2884177d65cddc52c7.json",
+              "sha256": "7a4114cb27243e46844b97a9cf6f2eb73d8dd97d175c023a4be429ede87d299c"
+            }
+          },
+          "single_use_outcome": {
+            "run_id": "d17e6368-14e5-4311-aae1-372182923c74",
+            "asset": "000858.SZ",
+            "period": "2026-09-30",
+            "account": 631,
+            "owner_decision_candidate": "8eaba967a047d1f7e22c6084ca613a36cf371588",
+            "execution_candidate": "c6c2437d4f59cd37110d4ecf3e3326da1d694bb7",
+            "selection_basis": "Operator selected the two-fix successor under the later Owner direction to repair DATA-02, retain real gaps, and directly execute this one E1 when its conditions pass.",
+            "plan_sha256": "e708a0fcaa501b15c3741463f3b69f82308d6c6b47c02c6359ab5a4809c34e21",
+            "status": "failed",
+            "outcome": "partial",
+            "classified_failure": "FINANCIAL_E1_BALANCE_CAPTURE_FAILED",
+            "requested_metrics": 10,
+            "new_facts": 0,
+            "main": {
+              "http": "success",
+              "raw_audit": 75439,
+              "bytes": 3654,
+              "sha256": "e1acfe47f0eee9476ea157ba0fc3bc000afefea7d7e5d35b409d0e99dc5f0a75",
+              "currency": "CNY",
+              "notice_date": "2026-10-28",
+              "exact_issuer_amounts_matched": 2,
+              "reported_precision_percentages_matched": 3,
+              "derived_debt_ratio_percent": "29.6600617209",
+              "roa_direct_issuer_comparator": false
+            },
+            "balance": {
+              "http_sent": false,
+              "retained_body": false,
+              "guard": "EGRESS_DNS_TIMEOUT",
+              "rule_id": 10,
+              "later_dns_only_ms": 434
+            },
+            "scope_qualifications_verified": 10,
+            "isolated_postgres_atomicity_cases": 5,
+            "receipts": [
+              {
+                "path": ".tmp/data02-e1-admission-20261125/issuer-e1-single-use.json",
+                "sha256": "efd9148499b08389e06314147ca73ef66177ea66c3b5bf1d87bcfa15bb45a002"
+              },
+              {
+                "path": ".tmp/data02-e1-admission-20261125/original-writer-live-calendar.json",
+                "sha256": "cc3a23d49698d669f385e02254cdeb067b3972d6bd857e602c23499705566f6d"
+              },
+              {
+                "path": ".tmp/data02-e1-admission-20261125/issuer-ten-qualified-independent.json",
+                "sha256": "76b0523a47c5766548045bdf0e9b92ed8ce082dee66285ca0e143c9c6771020d"
+              },
+              {
+                "path": ".tmp/data02-e1-admission-20261125/issuer-prewrite-forecast.json",
+                "sha256": "0cfb463313d32ee99668841b73cc5b2bf11ee3b3eaa2669d6e59870f7d1bffc9"
+              },
+              {
+                "path": ".tmp/data02-e1-admission-20261125/issuer-e1-command-result.json",
+                "sha256": "8e6fd25392813e31ac894c2098ccc1af612f59a785a7e7791ee9b1a5fd1199ac"
+              },
+              {
+                "path": ".tmp/data02-e1-admission-20261125/issuer-e1-independent-readback.json",
+                "sha256": "2a2e6c2b457abfc9c5e7c7f7e98d0362e462f17ac207c299d3400ef2e648a8b6"
+              },
+              {
+                "path": ".tmp/data02-e1-admission-20261125/issuer-e1-independent-readback-sync.json",
+                "sha256": "58b5cc6427b968b4076f9359f729836001d44fa6cb12058f6f21661ef4feccc3"
+              },
+              {
+                "path": ".tmp/data02-e1-admission-20261125/issuer-egress-and-originals.json",
+                "sha256": "e022f01cdfea035d0e7a41fbe9298990c1ba54336494233e50f51b1d160b6edd"
+              },
+              {
+                "path": ".tmp/data02-e1-admission-20261125/issuer-main-retained-readback.json",
+                "sha256": "f4c4e59cd968268c32c1c7293e92b821e2f381dff6e340112a999b1dc781938d"
+              },
+              {
+                "path": ".tmp/data02-e1-admission-20261125/issuer-derived-debt-ratio.json",
+                "sha256": "4706d180438dc31cb63a388862345b18ebc458a8378d4b007fb2a66b446a6cae"
+              },
+              {
+                "path": ".tmp/data02-e1-admission-20261125/issuer-dns-only-diagnostic.json",
+                "sha256": "03200552311cd722d5d1674f082defbcb13afd7934876f9f5e65e733261bf6d6"
+              },
+              {
+                "path": ".tmp/data02-e1-admission-20261125/issuer-run-audit-delivery-readback.json",
+                "sha256": "67616c0aadcfb364fa01c8194ff356fa96aeb41a045b2ff7720787a6aecd9e1a"
+              },
+              {
+                "path": ".tmp/data02-e1-admission-20261125/issuer-local-atomic-rehearsal/actual.xml",
+                "sha256": "100804e44dbfd123fb6175ca9246e87b5277b04d2559b371e58d9ff29ca7b7de"
+              }
+            ]
           }
-        }
+        },
+        "charged_transport_attempts": 2
       }
     }
   ],
