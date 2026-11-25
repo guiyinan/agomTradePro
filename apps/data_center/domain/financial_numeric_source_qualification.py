@@ -16,13 +16,15 @@ import re
 import sys
 import unicodedata
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 from typing import TypeAlias, cast
 from urllib.parse import urlsplit
 from uuid import UUID
 
 from apps.data_center.domain.financial_numeric_evidence import FinancialMetricSourceContract
+from apps.data_center.domain.numeric_tolerance import canonical_decimal_text
 
 _QUALIFICATION_SCHEMA = "financial-metric-source-qualification.v1"
 _DOCUMENT_REFERENCE_SCHEMA = "financial-metric-source-document-capture-ref.v1"
@@ -197,37 +199,56 @@ def _same_wire_value(left: object, right: object) -> bool:
 class FinancialNumericSourceContextRequirement:
     """One caller-supplied exact source-row field/value prerequisite.
 
-    Values are not normalized, converted, or defaulted. In particular, a
-    currency label or field condition must be supplied explicitly by the
-    catalog input; this type has no currency or metric defaults.
+    Ordinary assertions compare exact scalar types. A decimal assertion
+    carries a canonical amount as JSON text and compares it with a Decimal
+    decoded from an original response. The catalog supplies every condition.
     """
 
     field_name: str
     expected_value: FinancialNumericSourceContextScalar
+    compare_as_decimal: bool = field(default=False, kw_only=True)
 
     def __post_init__(self) -> None:
-        """Reject empty field names and untyped or floating context values."""
+        """Validate the field, scalar type and any declared decimal comparator."""
 
         _required_text(self.field_name, field_name="context field", maximum=256)
         _context_scalar(self.expected_value, field_name="context expected value")
+        if type(self.compare_as_decimal) is not bool:
+            raise TypeError("decimal context comparison requires an explicit boolean")
+        if self.compare_as_decimal:
+            text = self.expected_value
+            if (
+                type(text) is not str
+                or not text.isascii()
+                or canonical_decimal_text(text, field_name=self.field_name) != text
+            ):
+                raise ValueError("decimal context comparison requires canonical decimal text")
 
     def matches(self, context: Mapping[str, object]) -> bool:
-        """Return true only for a present source value with the exact same scalar type."""
+        """Match a present source field with the scalar type declared by the catalog."""
 
         if not isinstance(context, Mapping):
             return False
         if any(type(key) is not str for key in context):
             return False
         actual = context.get(self.field_name)
+        if self.compare_as_decimal:
+            return (
+                type(actual) is Decimal
+                and actual.is_finite()
+                and actual == Decimal(self.expected_value)
+            )
         return type(actual) is type(self.expected_value) and actual == self.expected_value
 
     def to_dict(self) -> dict[str, object]:
-        """Return exact JSON fields with a type tag that distinguishes bool and int."""
+        """Serialize the typed assertion without converting amounts to JSON floats."""
 
         return {
             "expected_value": self.expected_value,
             "field_name": self.field_name,
-            "value_type": _scalar_type_name(self.expected_value),
+            "value_type": (
+                "decimal" if self.compare_as_decimal else _scalar_type_name(self.expected_value)
+            ),
         }
 
     @classmethod
@@ -242,9 +263,13 @@ class FinancialNumericSourceContextRequirement:
         field_name = _text(payload, "field_name", field_name="context field")
         expected = _context_scalar(payload.get("expected_value"), field_name="expected value")
         value_type = _text(payload, "value_type", field_name="context value type")
-        if value_type != _scalar_type_name(expected):
+        if value_type != "decimal" and value_type != _scalar_type_name(expected):
             raise ValueError("context value type tag does not match its exact value")
-        result = cls(field_name=field_name, expected_value=expected)
+        result = cls(
+            field_name=field_name,
+            expected_value=expected,
+            compare_as_decimal=value_type == "decimal",
+        )
         if not _same_wire_value(payload, result.to_dict()):
             raise ValueError("context requirement does not round-trip exactly")
         return result

@@ -594,6 +594,15 @@ def test_complete_raw_context_preserves_unconfigured_fields_and_exact_json_types
         context_requirements=(
             FinancialNumericSourceContextRequirement("CURRENCY", "SYNTH-CURRENCY"),
             FinancialNumericSourceContextRequirement("CONSOLIDATED", False),
+            FinancialNumericSourceContextRequirement(
+                "TOTAL_ASSETS", "123456789012345.1234567", compare_as_decimal=True
+            ),
+            FinancialNumericSourceContextRequirement(
+                "TOTAL_LIABILITIES", "234567890123.45009", compare_as_decimal=True
+            ),
+            FinancialNumericSourceContextRequirement(
+                "TOTAL_EQUITY", "987654321.875", compare_as_decimal=True
+            ),
         ),
     )
     verifier, catalog, _, _ = _verifier(
