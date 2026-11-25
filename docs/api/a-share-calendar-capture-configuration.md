@@ -65,6 +65,8 @@ Policy-only 的 `activate_publication_policies` 命令参数为必需的 `--expe
 
 ## 采集入口与时间含义
 
+当 Tushare 返回非空明细、`count=0` 且显式给出 `has_more=false` 时，传输层按未提供总行数处理。日历仍逐日校验请求区间、交易所和前一交易日，并保留原始响应。正数总行数与明细不符或存在下一页时，采集停止。
+
 内部 capture intent 要求调用方明确传入交易所标识、`coverage_start` 和 `coverage_end`；没有默认交易所、默认日期范围或“今天”替代值。Tushare 请求严格使用 `exchange,cal_date,is_open,pretrade_date` 完整日期字段，由 exact full-date parser 从保留的原始响应重新解析。此链路保留 RawPayload，但没有 Calendar 专属 RawAudit occurrence/run 合同；不能把 RawPayload 保留描述成已验证的 RawAudit 请求审计。
 
 `response_completed_at` 是本地收到完整响应的时间，不是交易所发布时间或观测时间。上游时间未提供时 `source_published_at` 等 source-time 字段保持 `None`，不得用请求时间、capture 时间或数据库记录时钟填充。Capture 只产生 unpublished snapshot，不能改动 current pointer。
