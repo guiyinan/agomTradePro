@@ -7,7 +7,7 @@ from datetime import UTC, datetime
 import django
 import pytest
 
-os.environ["DJANGO_SETTINGS_MODULE"] = "tests.settings_account_actor_authority_source_v3"
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "tests.settings_account_actor_authority_source_v3")
 django.setup()
 
 from django.core.exceptions import ValidationError
