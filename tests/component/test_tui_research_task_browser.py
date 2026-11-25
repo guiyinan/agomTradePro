@@ -27,6 +27,9 @@ from apps.decision_rhythm.infrastructure.models import UnifiedRecommendationMode
 from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
 from core.exceptions import DataFetchError
 from tests.playwright.runtime_compatibility import ensure_subprocess_event_loop_policy
+from tests.support.account_authority_generation_flush import (  # noqa: F401
+    preserve_account_authority_generation,
+)
 from tests.support.tui_research.scenario import research_scenario
 
 TASK = "task.asset-research"
@@ -103,7 +106,7 @@ def _submit(page, value: str, *, keyboard: bool = False):
     return response.value
 
 
-@pytest.mark.django_db(transaction=True)
+@pytest.mark.django_db(transaction=True, serialized_rollback=True)
 def test_workspace_candidate_opens_owned_research_without_creating_config(
     live_server, django_user_model, subprocess_policy, monkeypatch
 ) -> None:
@@ -118,6 +121,15 @@ def test_workspace_candidate_opens_owned_research_without_creating_config(
     monkeypatch.setattr(
         "apps.decision_rhythm.application.advisor_providers.DecisionDataHealthProvider.get_health",
         read_health,
+    )
+    # The destination page starts a quote refresh after navigation.
+    monkeypatch.setattr(
+        "apps.realtime.infrastructure.repositories.AKSharePriceDataProvider.get_realtime_price",
+        lambda self, asset_code: None,
+    )
+    monkeypatch.setattr(
+        "apps.realtime.infrastructure.repositories.AKSharePriceDataProvider.get_realtime_prices_batch",
+        lambda self, asset_codes: [],
     )
     owner = django_user_model.objects.create_user(username="workspace-research-owner")
     account = SimulatedAccountModel.objects.create(
