@@ -1065,13 +1065,13 @@ jobs:
           expected = {
               "tests.component.data_center.test_audited_price_sync_transaction": 20,
               "tests.component.data_center.test_audited_macro_sync_transaction": 3,
-              "tests.component.config_center.test_aud05_atomic_activation": 18,
+              "tests.component.config_center.test_aud05_atomic_activation": 20,
               "tests.component.data_center.test_audited_quote_sync_transaction": 7,
               "tests.component.data_center.test_current_publication_staging": 30,
               "tests.component.data_center.test_financial_source_time_audit_claim": 2,
           }
           expected_count = sum(expected.values())
-          assert expected_count == 80
+          assert expected_count == 82
           assert len(cases) == expected_count
           assert collections.Counter(case.attrib["classname"] for case in cases) == expected
           assert not any(case.find(tag) is not None for case in cases for tag in ("failure", "error", "skipped"))
