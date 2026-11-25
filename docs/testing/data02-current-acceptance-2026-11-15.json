@@ -11213,9 +11213,9 @@
           "sha256": "ed472ae943036ae9260d33d418d9326f35a22ed1beb67ebd2a3149741c4e905f"
         },
         "production_revision": "4149a9cf4a3738f38d0ca62979fa9bfed56a6a07",
-        "runtime_and_storage": "Production lacks the E1 command and exact storage. The data_center dependency delta from 0107 to 0118 is 11 migrations.",
-        "source_evidence": "No active public_document provider or current calendar publication found. Retained issuer report precision gaps are in d1_e1_report_field_precision_review.",
-        "remaining": "Current authority and audit, qualified sources, reversible deployment and current backup, pre-send write prediction, real E1 and independent numerical readback remain to be demonstrated.",
+        "runtime_and_storage": "Exact candidate one-shot image built; all 11 data_center migrations are committed on the target. The maintenance reader verified the original sample. Activating shared numeric-document storage remains blocked by the missing critical risk configuration.",
+        "source_evidence": "SZSE rule captured on the target and independently reread with one matching successful egress audit. Exchange-calendar catalog ready; current calendar publication and paired numeric source captures are absent. Issuer precision limits remain in d1_e1_report_field_precision_review.",
+        "remaining": "Actual calendar publisher grant and formal calendar publication, approved critical runtime configuration, paired source capture and qualified numeric/availability records, then the bounded E1 and independent value reconciliation.",
         "expansion_gate": "Full same-candidate S6, full coverage, capacity and four-Publication reconciliation before security two. Release 10, 100 and full universe separately. Stop on the second consecutive failure at the same stage.",
         "s6_prepare_only": "d2843f4552a641d5903476ab9d3f0d60",
         "historical_backup_rehearsal": {
@@ -11624,6 +11624,199 @@
           "status": "deployed_and_read_back",
           "e1_writer": "8eaba967a047d1f7e22c6084ca613a36cf371588",
           "production_e1_status": "blocked_before_first_request"
+        },
+        "admission_20261125": {
+          "writer": "8eaba967a047d1f7e22c6084ca613a36cf371588",
+          "serving_release": "6a292b8bf981fa292f926b52725403b93ff2877d",
+          "financial_send_count": 0,
+          "e1_fact_writes": 0,
+          "e1_reconciled": false,
+          "production_financial_publication_activated": false,
+          "security": "000858.SZ",
+          "report_period": "2026-09-30",
+          "actor": 1,
+          "simulated_account": 631,
+          "audit": {
+            "schedule": "audit-outbox-dispatch",
+            "interval_seconds": 300,
+            "batch_size": 1,
+            "before": {
+              "pending": 3947
+            },
+            "observed_at": "2026-11-25 03:47:55.055776+00",
+            "confirmed_deliveries": 1,
+            "pending": 3946,
+            "receipt": {
+              "path": ".tmp/data02-e1-admission-20261125/audit-calendar-2026-11-25T034755.json",
+              "sha256": "94345fb6fa446f910c2896f1b9cd2c18a5bb39bd2c086d4d0685203a3b0cb305"
+            },
+            "later_verified_deliveries": 7
+          },
+          "migration_rehearsal": {
+            "current_backup": "2026-11-25",
+            "verified_forward": 11,
+            "verified_reverse_before_new_evidence": 11,
+            "preserved_legacy_facts": 487624,
+            "legacy_key_value_sha256": "a6c8b2f2e6d6f52279045de16a4a09bb9496ddd23f0f94b4f313aab61da82d5d"
+          },
+          "source": {
+            "publisher": {
+              "code": "SZSE",
+              "canonical_name": "深圳证券交易所",
+              "website": "https://docs.static.szse.cn",
+              "publisher_class": "market_infrastructure",
+              "is_active": true
+            },
+            "source_profile_sha256": "bd624ae41d86939c9db8894f5089076bf0b03c7569bee2684b070821e293f2ef",
+            "issuer_originals_rehashed": 2,
+            "provider_id": 5,
+            "egress_scope": "dedicated demo-vps direct rule for docs.static.szse.cn, dataset statutory_source_documents",
+            "profile_max_age_seconds": 86400,
+            "szse_capture": "b9eb9bca-74c9-4221-8cbc-3b60860301a9",
+            "source_bytes": 282084,
+            "independent_sha256": "9b66f8b0db70f84a25ef1ccb4ee2351001724e408117552d75f6d8993483c586",
+            "source_audit_count": 1,
+            "numeric_document_captures": 0
+          },
+          "calendar": {
+            "current_pointers_at_probe": [],
+            "target_snapshots_at_probe": [],
+            "capture_config_at_probe": {
+              "ready": false,
+              "causes": [
+                [
+                  "CalendarCaptureConfigurationError",
+                  "CALENDAR_CAPTURE_DATASET_MISSING"
+                ]
+              ]
+            },
+            "explicit_user_or_group_grant_at_probe": false,
+            "publication_activated": false,
+            "catalog_apply": "CALENDAR_CATALOG_CREATED",
+            "catalog_readback": "CALENDAR_CATALOG_EXACT_REPLAY",
+            "capture_configuration_ready": true,
+            "prepare_http": 403,
+            "prepare_reason": "CALENDAR_PUBLISHER_PERMISSION_REQUIRED",
+            "final_pointers": []
+          },
+          "receipts": {
+            "live-before.json": {
+              "path": ".tmp/data02-e1-admission-20261125/live-before.json",
+              "sha256": "89a3cd3bc3427d38187d61f5fa676fdcbb9ae9899d62b7b209c1eb7391a6aaf1"
+            },
+            "audit-schedule.json": {
+              "path": ".tmp/data02-e1-admission-20261125/audit-schedule.json",
+              "sha256": "c1e64201af878cfced04215c547f383272ed7d8577f063f9843126ad612e6223"
+            },
+            "migration-current-backup.json": {
+              "path": ".tmp/data02-e1-admission-20261125/migration-current-backup.json",
+              "sha256": "a34923d249afff13e6671208e3722bbdde8421bbb24a43da76d9061bf449c5e3"
+            },
+            "origin-inventory.json": {
+              "path": ".tmp/data02-e1-admission-20261125/origin-inventory.json",
+              "sha256": "4549fd24de0c9b69f57870d91db4dca43aa836d8695639fe2a0b836a8ca83364"
+            },
+            "szse-publisher.json": {
+              "path": ".tmp/data02-e1-admission-20261125/szse-publisher.json",
+              "sha256": "da519f27e2c20d64baadec26c8dc7c38f03bf3c358d3fab7ff9f5cc4a63c3375"
+            },
+            "validated-source-profile.json": {
+              "path": ".tmp/data02-e1-admission-20261125/validated-source-profile.json",
+              "sha256": "bd1d6e32cb442d3615c08f5ee62fa108483b9206977205e3fbacca661d0e424d"
+            },
+            "exact-calendar-readback.json": {
+              "path": ".tmp/data02-e1-admission-20261125/exact-calendar-readback.json",
+              "sha256": "293fdae4e0115668ffdf7907f0dcfa7663e1596848960a5aa5d814090555359d"
+            },
+            "calendar-selection.json": {
+              "path": ".tmp/data02-e1-admission-20261125/calendar-selection.json",
+              "sha256": "231199930ced0b9eb27fce765c979370b3d25cab5f23633ff0caa9ee46d6e961"
+            },
+            "calendar-actor-grant.json": {
+              "path": ".tmp/data02-e1-admission-20261125/calendar-actor-grant.json",
+              "sha256": "421c8e852ad860859a71a3adeea1cc1e4561e61fff88e94daf2c37a8278f814f"
+            },
+            "route-inventory.json": {
+              "path": ".tmp/data02-e1-admission-20261125/route-inventory.json",
+              "sha256": "51aed51118dde7074d957b5c5260825bfa16f3759299e92ebd9f5693c44fc3bb"
+            },
+            "calendar-authenticated-prepare.json": {
+              "path": ".tmp/data02-e1-admission-20261125/calendar-authenticated-prepare.json",
+              "sha256": "1acb57967d69748df91ec0ca4db1f5ad04d530144acd4042138a546bbd10c095"
+            },
+            "writer-schema-preview.json": {
+              "path": ".tmp/data02-e1-admission-20261125/writer-schema-preview.json",
+              "sha256": "3c0dcca910f95e2939ace40b1a491ddc0718b3cbf41770beed132285a7e1dba5"
+            },
+            "writer-schema-apply.json": {
+              "path": ".tmp/data02-e1-admission-20261125/writer-schema-apply.json",
+              "sha256": "5002699dd5670c2b086fa748115736c43e1181ce7ec0af824ef51c2dfc25079f"
+            },
+            "calendar-catalog-preview.json": {
+              "path": ".tmp/data02-e1-admission-20261125/calendar-catalog-preview.json",
+              "sha256": "2e52c9384cded5d4c962732bed7c1655dcb285bfc13115c2f72a8a2eb2d0d804"
+            },
+            "calendar-catalog-apply.json": {
+              "path": ".tmp/data02-e1-admission-20261125/calendar-catalog-apply.json",
+              "sha256": "996f134a93f4cc48036f9a5a9b377cb451c5384ee57b5082cede2dd966f9729e"
+            },
+            "native-source-provider.json": {
+              "path": ".tmp/data02-e1-admission-20261125/native-source-provider.json",
+              "sha256": "3cdc518a27011d38d277d5c9b14018f85b63c6480e75da93ae03efc0b96b6e0c"
+            },
+            "storage-apply.json": {
+              "path": ".tmp/data02-e1-admission-20261125/storage-apply.json",
+              "sha256": "9b38effb5b7022c7add43c6c20b8be98af8d20c98234105fdfb9134be1d4362f"
+            },
+            "independent-final-read.json": {
+              "path": ".tmp/data02-e1-admission-20261125/independent-final-read.json",
+              "sha256": "448540f993240024650316855f8620080c30838bece4c2d734db95664f8c2481"
+            },
+            "calendar-selection-after-bootstrap.json": {
+              "path": ".tmp/data02-e1-admission-20261125/calendar-selection-after-bootstrap.json",
+              "sha256": "ea429c5bd39962c9d0e07995f0b8d2cbb87636efa974a8c90f69bb4761909c37"
+            },
+            "standalone-statutory-capture.json": {
+              "path": ".tmp/data02-e1-admission-20261125/standalone-statutory-capture.json",
+              "sha256": "8a8e4ceb7321815bdb0603afb8d6475df93db7086f77958b06776bb75babe859"
+            },
+            "statutory-independent-read.json": {
+              "path": ".tmp/data02-e1-admission-20261125/statutory-independent-read.json",
+              "sha256": "6b1fe19cb9bb8ce58b5b6bfe4f8b61aafb74b7cd0d71cddba47d9d259467c14f"
+            },
+            "storage-diagnostic.json": {
+              "path": ".tmp/data02-e1-admission-20261125/storage-diagnostic.json",
+              "sha256": "ebdad76cd8cbb15a2d43b7fd0a77ce2ebc7c171a6ffd40f7dc3733b8c87ab44f"
+            },
+            "storage-predecessor.json": {
+              "path": ".tmp/data02-e1-admission-20261125/storage-predecessor.json",
+              "sha256": "dbbd27195236dd9567c817e75d28e544d74e57fbf31ef94601c1299cc49e54b8"
+            },
+            "storage-guard-rollback.json": {
+              "path": ".tmp/data02-e1-admission-20261125/storage-guard-rollback.json",
+              "sha256": "7243cdb392d564fc0ab80c9519218cfa0022c587f9cae8510af18f31996cae95"
+            }
+          },
+          "one_shot_image": {
+            "image_id": "sha256:887f9a99009b742b9264a7627ac60ac00764225133f626ec3248a6b987d13f6e",
+            "manifest": {
+              "path": ".tmp/data02-e1-admission-20261125/writer-build-report/remote-build-report-20261125114204-08955c19a63d8f2884177d65cddc52c7.json",
+              "sha256": "7a4114cb27243e46844b97a9cf6f2eb73d8dd97d175c023a4be429ede87d299c"
+            }
+          },
+          "as_of": "2026-11-25 04:18:39.17259+00",
+          "live_schema": {
+            "scoped_forward_count": 11,
+            "highest": "0118_financial_numeric_origin_snapshot",
+            "legacy_read_by_serving_release": "64054972918.06",
+            "financial_total": 487624
+          },
+          "remaining": {
+            "calendar": "Owner 1 has zero direct/group grants for the dedicated exchange-calendar publisher permission. Signed-in HTTPS prepare returned 403.",
+            "storage": "Production runtime profile v22 has no approved simulated portfolio risk value. Scoped source-storage activation stopped. No value found in any retained profile.",
+            "catalog": "Native metric qualifications, Owner events and availability governance records are empty. Two ratios lack a directly disclosed value and three percentages have published display precision only.",
+            "financial": "All ten selected financial keys remain empty in the independent read-only query. The two AKShare requests are unspent."
+          }
         }
       }
     }
