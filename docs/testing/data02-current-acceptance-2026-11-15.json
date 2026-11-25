@@ -11202,8 +11202,8 @@
         "scope_ref": "followups[14].selected_e1_scope",
         "main_metrics": 7,
         "balance_metrics": 3,
-        "status": "single_security_e1_terminal_partial_zero_financial_facts",
-        "physical_e1_requests": 1,
+        "status": "second_e1_terminal_both_originals_retained_zero_facts",
+        "physical_e1_requests": 3,
         "production_e1_business_writes": 0,
         "publication_activated": false,
         "preflight": {
@@ -11217,7 +11217,7 @@
         "production_revision": "4149a9cf4a3738f38d0ca62979fa9bfed56a6a07",
         "runtime_and_storage": "Serving maintenance SHA 27d25afaf85909aed26272b98c026a9e7fd4a81e; the one-shot E1 ran in its separately verified successor image c6c2437d4f59cd37110d4ecf3e3326da1d694bb7.",
         "source_evidence": "Four native numeric-source captures and statutory evidence are retained. The two AKShare documentation tables match the reviewed originals field by field. Issuer comparison limits remain in the precision review.",
-        "remaining": "The second independent two-attempt E1 is authorized. Its formal SZSE calendar expired and refresh requires an authorized calendar publisher. Fresh write preflight and a single governed execution with independent readback remain.",
+        "remaining": "Resolve the verified raw-audit contract before a governed financial write. Both new originals are retained. Independent readback found zero target facts and zero successful-write audit receipts.",
         "expansion_gate": "Full same-candidate S6, full coverage, capacity and four-Publication reconciliation before security two. Release 10, 100 and full universe separately. Stop on the second consecutive failure at the same stage.",
         "s6_prepare_only": "d2843f4552a641d5903476ab9d3f0d60",
         "historical_backup_rehearsal": {
@@ -11630,7 +11630,7 @@
         "admission_20261125": {
           "writer": "c6c2437d4f59cd37110d4ecf3e3326da1d694bb7",
           "serving_release": "27d25afaf85909aed26272b98c026a9e7fd4a81e",
-          "financial_send_count": 1,
+          "financial_send_count": 3,
           "e1_fact_writes": 0,
           "e1_reconciled": false,
           "production_financial_publication_activated": false,
@@ -11847,7 +11847,7 @@
             },
             "serving_deployment": false
           },
-          "as_of": "2026-11-25T12:33:41.890442+00:00",
+          "as_of": "2026-11-25 14:37:23.366653+00:00",
           "live_schema": {
             "scoped_forward_count": 11,
             "highest": "0118_financial_numeric_origin_snapshot",
@@ -11855,9 +11855,9 @@
             "financial_total": 487624
           },
           "remaining": {
-            "balance": "EGRESS_DNS_TIMEOUT before HTTP; zero Balance body and zero Balance facts.",
-            "readback": "Independent source-only checks succeeded for Main. There are no stored target facts or E1 successful-write SystemAudit receipts.",
-            "next_scope": "Current E1 budget exhausted, no automatic retry. Full S6 before the second security."
+            "write": "Reconcile the v1 capture and verified-reader audit contracts. Preserve both original links and the terminal SyncRun.",
+            "readback": "No financial fact exists for a stored-value comparison. The two authorized transmissions are exhausted.",
+            "expansion": "Full S6 before a second security."
           },
           "recovery_after_storage_failure": {
             "as_of": "2026-11-25T05:46:15.111496+00:00",
@@ -12166,7 +12166,7 @@
               }
             }
           },
-          "financial_attempts_charged": 2,
+          "financial_attempts_charged": 4,
           "original_one_shot_image_at_admission": {
             "image_id": "sha256:887f9a99009b742b9264a7627ac60ac00764225133f626ec3248a6b987d13f6e",
             "manifest": {
@@ -12275,17 +12275,16 @@
             }
           },
           "second_independent_e1_admission": {
-            "as_of": "2026-11-25T13:14:06.504878+00:00",
+            "as_of": "2026-11-25 14:37:23.366653+00:00",
             "candidate": "c6c2437d4f59cd37110d4ecf3e3326da1d694bb7",
             "previous_terminal_run": "d17e6368-14e5-4311-aae1-372182923c74",
             "scope": "000858.SZ 2026-09-30, simulated account 631, Main7 + Balance3",
             "authorized_transport_attempts": 2,
-            "charged_transport_attempts": 0,
+            "charged_transport_attempts": 2,
             "new_facts": 0,
-            "stage": "before_financial_dispatch",
-            "calendar_status": "CALENDAR_FORMAL_TTL_EXPIRED",
-            "refresh_status": "CALENDAR_PUBLISHER_PERMISSION_REQUIRED",
-            "publisher_action_required": "Publish or refresh the formal SZSE calendar covering 2026-10-27 through 2026-10-30 through an authorized publisher.",
+            "stage": "terminal_failed_zero_facts_after_both_captures",
+            "calendar_status": "published_and_independently_read",
+            "refresh_status": "confirmed",
             "qualification_expiry": "2026-11-25T15:59:59+00:00",
             "actor_and_account_checked": true,
             "both_dns_targets_resolved": true,
@@ -12307,11 +12306,108 @@
               {
                 "path": ".tmp/data02-e1-admission-20261125/e1-independent-02/noncalendar-preflight.json",
                 "sha256": "5f89fc4a3671c815e1f0bf6e1191479e27ab579096c1555f2daab091de55b8bb"
+              },
+              {
+                "path": ".tmp/data02-e1-admission-20261125/calendar-admin-20261125T135753.json",
+                "sha256": "d93a825572ecf233deabe7209bbb7bfc75943ecc947ebbd81a6b5900155a2415"
+              },
+              {
+                "path": ".tmp/data02-e1-admission-20261125/calendar-admin-20261125T141153.json",
+                "sha256": "f25d91a52a5afff0161b2a163514bdfcb69ab7b0d4c5eb5ec8e9b3bdce0db1fd"
+              },
+              {
+                "path": ".tmp/data02-e1-admission-20261125/e1-independent-02/calendar-member.json",
+                "sha256": "ef692f71db624bb46e31280d51bbf3c6f2e1321069b79181b2bdd7acff2c2015"
+              },
+              {
+                "path": ".tmp/data02-e1-admission-20261125/e1-independent-02/current-calendar-143510.json",
+                "sha256": "4d3e08b3a214260775121d36d37bd513972c86cc5024ed7bc886c1b73dbc2412"
+              },
+              {
+                "path": ".tmp/data02-e1-admission-20261125/e1-independent-02/config-change-fields.json",
+                "sha256": "8d60f4b633bf320979892dc8bcb04a71a72f129e159e3cb94e18dedd950f3e0d"
+              },
+              {
+                "path": ".tmp/data02-e1-admission-20261125/e1-independent-02/offline-interlock-sqlite.log",
+                "sha256": "b812b7032ddb2b7d8e73506807c7903acafc2d553634a532171f9b9b610aaa2b"
+              },
+              {
+                "path": ".tmp/data02-e1-admission-20261125/e1-independent-02/command-result.json",
+                "sha256": "412cb5129201988581da8ae6e6470caee19e168274d878e8d74a5e5c36d9e040"
+              },
+              {
+                "path": ".tmp/data02-e1-admission-20261125/e1-independent-02/command-result-after-zero.json",
+                "sha256": "7487b1d0a7e3ed3fcfa2c6d82c0feea16150c14f7c2f6763c389753727499d18"
+              },
+              {
+                "path": ".tmp/data02-e1-admission-20261125/e1-independent-02/financial-intent-after-valuation.json",
+                "sha256": "729424f394303007125e37d2fb21ecd12677b136c6e9e91bee91167004c4a6fc"
+              },
+              {
+                "path": ".tmp/data02-e1-admission-20261125/e1-independent-02/prewrite-143510.json",
+                "sha256": "1dcc437ee7e4a82ec3753c9c7c487cc9b01eb3ec80fe4c4bda5884befb31e964"
+              },
+              {
+                "path": ".tmp/data02-e1-admission-20261125/e1-independent-02/command-result-after-valuation.json",
+                "sha256": "4dede8c2ee780c97c481643832fc20dbfda065a470d959d55aa9675017d28b49"
+              },
+              {
+                "path": ".tmp/data02-e1-admission-20261125/e1-independent-02/ledger-143732.json",
+                "sha256": "7537d95ff6182a8f586523e13e40946f9dbea6c8be6678ba17f0440224a8ad99"
+              },
+              {
+                "path": ".tmp/data02-e1-admission-20261125/e1-independent-02/retained-comparison.json",
+                "sha256": "8f068b216000751f8d1ddcbfedf2b1f08acec40ba37d1f4abcd0cb6d0964814c"
+              },
+              {
+                "path": ".tmp/data02-e1-admission-20261125/e1-independent-02/native-verifier-145216.json",
+                "sha256": "8f72a1532c578b12061a1e51e7699f36afa4e3216e94db9047b55d193d7dd6c6"
               }
-            ]
+            ],
+            "initial_block": {
+              "as_of": "2026-11-25T13:14:06.504878+00:00",
+              "stage": "before_financial_dispatch",
+              "calendar_status": "CALENDAR_FORMAL_TTL_EXPIRED",
+              "refresh_status": "CALENDAR_PUBLISHER_PERMISSION_REQUIRED",
+              "publisher_action_required": "Publish or refresh the formal SZSE calendar covering 2026-10-27 through 2026-10-30 through an authorized publisher."
+            },
+            "calendar_snapshot": "69cd850d-3479-4da3-a506-ea5d5b8914d5",
+            "calendar_dates": [
+              "2026-10-27",
+              "2026-10-28",
+              "2026-10-29",
+              "2026-10-30"
+            ],
+            "successful_http_requests": 2,
+            "run_id": "7df2a51c-6e89-493d-8e60-3ceb9398bd28",
+            "failure_code": "FINANCIAL_FACT_PROVENANCE_CONFLICT",
+            "financial_publication_activated": false,
+            "success_audit_delivered": false,
+            "pre_send_blocks": [
+              "746017f8-d740-4234-8a53-84c40dae695d",
+              "9ab1391e-03ae-4d18-ba65-4db50a02432a"
+            ],
+            "source_reconciliation": {
+              "raw_audit_ids": [
+                "75738",
+                "75739"
+              ],
+              "same_run": true,
+              "verified_originals": 2,
+              "metrics_replayed": 10,
+              "issuer_matches": 8,
+              "debt_ratio_derived_percent": "29.66006172093540051461683303",
+              "provider_debt_ratio_percent": "29.6600617209",
+              "no_direct_issuer_value": [
+                "roa",
+                "debt_ratio"
+              ],
+              "stored_value_comparisons": 0
+            },
+            "root_cause": "Both immutable v1 retention links carry the verified raw body SHA-256. Their separate response_payload_hash fields are empty. The native endpoint verifier rejects the audit before financial facts or the success outbox event can commit."
           }
         },
-        "charged_transport_attempts": 2
+        "charged_transport_attempts": 4
       }
     }
   ],
