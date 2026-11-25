@@ -24,6 +24,7 @@ from apps.data_center.application.financial_response_artifact import (
     FinancialResponseFailureAuditError,
     RetainFinancialResponseArtifactUseCase,
     RetainFinancialResponseFailureUseCase,
+    matches_financial_response_body_digest,
 )
 from apps.data_center.application.sync_use_cases import SyncFinancialUseCase
 from apps.data_center.domain.egress_routing import (
@@ -367,6 +368,40 @@ def test_retention_binds_exact_bytes_without_secret_or_source_claims(
     assert "test-token" not in repr(result.audit)
     encrypted = next(artifact_tmp_path.rglob("*.frb")).read_bytes()
     assert BODY not in encrypted
+
+
+def test_run_bound_v1_receipt_verifies_its_original_body_digest(artifact_tmp_path: Path) -> None:
+    """Use the retainer's exact persisted layout, including the empty legacy hash column."""
+
+    from apps.data_center.domain.entities import raw_audit_content_hash
+
+    result = RetainFinancialResponseArtifactUseCase(
+        _store(artifact_tmp_path), _AuditRepository()
+    ).execute(
+        capture_id=CAPTURE_ID,
+        evidence=_evidence(),
+        body=BODY,
+        provider_name=_evidence().request_scope.provider_name,
+        request_params={"asset_code": "000001.SZ"},
+        provider_id=7,
+        row_count=_evidence().response_scope.row_count,
+        run_id=UUID("6548ceb1-e60c-45da-8b97-bbf6558a9302"),
+    )
+    audit = replace(result.audit, content_hash=raw_audit_content_hash(result.audit))
+    assert audit.response_payload_hash == ""
+    assert matches_financial_response_body_digest(audit, result.reference)
+    for changed in (
+        replace(audit, ingested_run_id=""),
+        replace(audit, request_params_hash="a" * 64),
+        replace(audit, parser_version="unknown"),
+        replace(audit, response_payload_hash="f" * 64),
+        replace(audit, extra={}),
+    ):
+        rehashed = replace(changed, content_hash=raw_audit_content_hash(changed))
+        assert not matches_financial_response_body_digest(rehashed, result.reference)
+    assert not matches_financial_response_body_digest(
+        replace(audit, content_hash=""), result.reference
+    )
 
 
 def test_retention_replay_is_idempotent_and_conflict_is_immutable(

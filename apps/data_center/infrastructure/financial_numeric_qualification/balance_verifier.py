@@ -29,6 +29,9 @@ from apps.data_center.application.financial_numeric_verification import (
     FinancialNativeProviderIdentityPort,
     FinancialProviderIdentity,
 )
+from apps.data_center.application.financial_response_artifact import (
+    matches_financial_response_body_digest,
+)
 from apps.data_center.domain.entities import FinancialFact, RawAudit, raw_audit_content_hash
 from apps.data_center.domain.financial_numeric_evidence import (
     NativeFinancialMetricObservation,
@@ -180,7 +183,7 @@ class _VerifiedBalanceAuditReader:
             or (is_balance and params.get("reportName") != AKSHARE_BALANCE_REPORT_NAME)
             or (expected_endpoint is not None and endpoint != expected_endpoint)
             or audit.fetched_at != evidence.response_completed_at
-            or audit.response_payload_hash != reference.body_sha256
+            or not matches_financial_response_body_digest(audit, reference)
             or audit.payload_size_bytes != reference.body_size_bytes
             or audit.row_count != response_scope.row_count
             or not audit.content_hash

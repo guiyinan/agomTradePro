@@ -11,7 +11,7 @@
       "compatibility_facade": 95,
       "current_data_surface": 124,
       "dynamic_import_edge": 15,
-      "management_command": 56,
+      "management_command": 57,
       "management_command_edge": 66,
       "mcp_tool": 40,
       "migration_evidence": 14,
@@ -27,16 +27,16 @@
       "sdk": 57,
       "terminal_tui": 32,
       "test_evidence": 168,
-      "workflow_step": 11
+      "workflow_step": 13
     },
     "by_status": {
-      "active_public": 953,
+      "active_public": 956,
       "adjacent_operational": 349,
       "candidate-review": 86,
       "compatibility": 139,
       "retired_blocked": 0
     },
-    "total": 1527
+    "total": 1530
   },
   "entries": [
     {
@@ -5411,7 +5411,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=175",
+      "evidence": "governed current-data contract; source_files=177",
       "id": "current_data_surface:governance/current_data_contracts.json:data_center.core_current_publication_rebuild:Active A-share quote/price/valuation/financial full-universe current publication rebuild and fact remediation",
       "locator": "Active A-share quote/price/valuation/financial full-universe current publication rebuild and fact remediation",
       "path": "governance/current_data_contracts.json",
@@ -6897,6 +6897,16 @@
       "path": "apps/data_center/management/commands/record_financial_scope_manifest_pointer.py",
       "status": "active_public",
       "symbol": "record_financial_scope_manifest_pointer",
+      "target": ""
+    },
+    {
+      "category": "management_command",
+      "evidence": "Data Center-owned Django command",
+      "id": "management_command:apps/data_center/management/commands/recover_financial_e1_retained.py:recover_financial_e1_retained:",
+      "locator": "",
+      "path": "apps/data_center/management/commands/recover_financial_e1_retained.py",
+      "status": "active_public",
+      "symbol": "recover_financial_e1_retained",
       "target": ""
     },
     {
@@ -15278,6 +15288,26 @@
       "status": "active_public",
       "symbol": "django:migrate",
       "target": "django:migrate"
+    },
+    {
+      "category": "workflow_step",
+      "evidence": "CI-owned database setup or PostgreSQL migration/backup/restore verification step",
+      "id": "workflow_step:.github/workflows/nightly-tests.yml:postgres:pg_dump,postgres:pg_restore:semantic:postgres:pg_dump,postgres:pg_restore:occurrence:1",
+      "locator": "semantic:postgres:pg_dump,postgres:pg_restore:occurrence:1",
+      "path": ".github/workflows/nightly-tests.yml",
+      "status": "active_public",
+      "symbol": "postgres:pg_dump,postgres:pg_restore",
+      "target": "postgres:pg_dump,postgres:pg_restore"
+    },
+    {
+      "category": "workflow_step",
+      "evidence": "CI-owned database setup or PostgreSQL migration/backup/restore verification step",
+      "id": "workflow_step:.github/workflows/nightly-tests.yml:postgres:pg_dump,postgres:pg_restore:semantic:postgres:pg_dump,postgres:pg_restore:occurrence:2",
+      "locator": "semantic:postgres:pg_dump,postgres:pg_restore:occurrence:2",
+      "path": ".github/workflows/nightly-tests.yml",
+      "status": "active_public",
+      "symbol": "postgres:pg_dump,postgres:pg_restore",
+      "target": "postgres:pg_dump,postgres:pg_restore"
     },
     {
       "category": "workflow_step",

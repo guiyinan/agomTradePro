@@ -384,6 +384,44 @@ def _failure_link(
     }
 
 
+def matches_financial_response_body_digest(
+    audit: RawAudit, reference: FinancialResponseArtifactRef
+) -> bool:
+    """Match an explicit digest or the full immutable v1 run-bound retention receipt."""
+
+    if audit.response_payload_hash != "":
+        return audit.response_payload_hash == reference.body_sha256
+    if not audit.raw_audit_id or not audit.content_hash or not audit.run_id:
+        return False
+    try:
+        if str(UUID(audit.run_id)) != audit.run_id:
+            return False
+    except (ValueError, TypeError, AttributeError):
+        return False
+    link = audit.extra.get("financial_response_artifact")
+    if not isinstance(link, Mapping):
+        return False
+    provider_id = link.get("provider_id")
+    if type(provider_id) is not int or provider_id <= 0:
+        return False
+    evidence = reference.evidence
+    return _artifact_audit_matches(
+        audit,
+        provider_name=evidence.request_scope.provider_name,
+        request_params=audit.request_params,
+        evidence=evidence,
+        row_count=evidence.response_scope.row_count,
+        expected_extra={
+            "financial_response_artifact": {
+                "schema": "financial-response-artifact-link.v1",
+                **reference.to_dict(),
+                "provider_id": provider_id,
+            }
+        },
+        expected_run_id=audit.run_id,
+    )
+
+
 def _artifact_audit_matches(
     audit: RawAudit,
     *,

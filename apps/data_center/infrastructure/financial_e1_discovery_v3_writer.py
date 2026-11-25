@@ -48,9 +48,16 @@ from apps.data_center.domain.financial_source_evidence import (
     FinancialFactDecisionEvidence,
     FinancialFactSourceEvidence,
 )
+from apps.data_center.infrastructure.financial_e1_recovery_binding import (
+    RECOVERY_TRIGGER,
+    validate_recovery_commit,
+)
 from apps.data_center.infrastructure.financial_fact_models import FinancialFactModel
 from apps.data_center.infrastructure.financial_numeric_qualification.balance_verifier import (
     AKSHARE_BALANCE_FINANCIAL_DATA_ENDPOINT,
+)
+from apps.data_center.infrastructure.financial_response_artifact_repository import (
+    reference_from_audit,
 )
 from apps.data_center.infrastructure.financial_source_time_matchers import (
     AKSHARE_MAIN_FINANCIAL_DATA_ENDPOINT,
@@ -58,8 +65,16 @@ from apps.data_center.infrastructure.financial_source_time_matchers import (
 from apps.data_center.infrastructure.financial_v3_current_uow import (
     financial_v3_current_operation_uow,
 )
+from apps.data_center.infrastructure.publication_fact_write_lock import publication_fact_write_lock
+from apps.data_center.infrastructure.publication_rollback_models import (
+    CanonicalPublicationPointerModel,
+)
 from core.exceptions import DataValidationError
-from core.integration.data_center_audit import AuditOutcome, DataFetchAuditObservation
+from core.integration.data_center_audit import (
+    AuditEvidenceRef,
+    AuditOutcome,
+    DataFetchAuditObservation,
+)
 
 
 class FinancialE1WitnessBuilderPort(Protocol):
@@ -77,6 +92,12 @@ class FinancialE1WitnessBuilderPort(Protocol):
 
 class FinancialE1FactRepositoryPort(Protocol):
     """The canonical write/read methods needed for one E1 finite batch."""
+
+    def verify_recovery_fact(
+        self, fact: FinancialFact, request: FinancialV3FactVerificationRequest
+    ) -> bool:
+        """Check the proposed v3 fact using the same verifier as a current write."""
+        ...
 
     def bulk_upsert(
         self,
@@ -154,6 +175,31 @@ class FinancialE1V3FactWriterReadback:
         self._authority_guard = authority_guard
         self._using = using
 
+    def preview_recovery(
+        self,
+        candidates: tuple[FinancialE1FactWriteCandidate, ...],
+        *,
+        exchange: str,
+        calendar_dataset_key: str,
+    ) -> tuple[FinancialFact, ...]:
+        """Build and verify each forecast row with current authorities before accepting a write."""
+        self._authority_guard.assert_current()
+        with financial_v3_current_operation_uow(using=self._using):
+            _require_empty_recovery_target(candidates)
+            facts = tuple(
+                self._build_fact(c, exchange=exchange, calendar_dataset_key=calendar_dataset_key)
+                for c in candidates
+            )
+            request = FinancialV3FactVerificationRequest(
+                FinancialNumericVerificationPurpose.CURRENT_WRITE
+            )
+            if not all(self._repository.verify_recovery_fact(fact, request) for fact in facts):
+                raise DataValidationError(
+                    "Retained recovery forecast failed current v3 verification."
+                )
+            self._authority_guard.assert_current()
+            return facts
+
     def write_and_read_back(
         self,
         candidates: tuple[FinancialE1FactWriteCandidate, ...],
@@ -196,6 +242,19 @@ class FinancialE1V3FactWriterReadback:
         )
         with self._sync_unit_of_work.atomic():
             with financial_v3_current_operation_uow(using=self._using):
+                if run.trigger == RECOVERY_TRIGGER:
+                    originals = {
+                        audit.request_params["endpoint"]: reference_from_audit(audit)
+                        for audit in (main_raw_audit, balance_raw_audit)
+                    }
+                    if any(
+                        originals.get(c.row.endpoint) != c.row.artifact_reference
+                        for c in candidates
+                    ):
+                        raise DataValidationError(
+                            "Recovery fact is not bound to its source endpoint capture."
+                        )
+                    _require_empty_recovery_target(candidates)
                 facts = [
                     self._build_fact(
                         candidate,
@@ -205,6 +264,8 @@ class FinancialE1V3FactWriterReadback:
                     for candidate in candidates
                 ]
                 self._authority_guard.assert_current()
+                if run.trigger == RECOVERY_TRIGGER:
+                    validate_recovery_commit(run, main_raw_audit, balance_raw_audit, tuple(facts))
                 self._repository.bulk_upsert(
                     facts,
                     ingested_run_id=run_uuid,
@@ -245,11 +306,23 @@ class FinancialE1V3FactWriterReadback:
                     )
                 occurred_at = max(main_raw_audit.fetched_at, balance_raw_audit.fetched_at)
                 primary_reference = main_raw_audit.exact_reference()
+                secondary = balance_raw_audit.exact_reference()
                 observation = DataFetchAuditObservation(
+                    secondary_raw_audit=(
+                        AuditEvidenceRef(
+                            "data_center",
+                            "raw_audit",
+                            secondary.raw_audit_id,
+                            secondary.version,
+                            secondary.content_hash,
+                        )
+                        if run.trigger == RECOVERY_TRIGGER
+                        else None
+                    ),
                     provider_key=run.provider_name,
                     capability="financial",
                     dataset_key=run.dataset_key,
-                    run_id=str(run_uuid),
+                    run_id=primary_reference.run_id,
                     ingested_run_id=str(run_uuid),
                     raw_audit_id=primary_reference.raw_audit_id,
                     raw_audit_version=primary_reference.version,
@@ -266,7 +339,7 @@ class FinancialE1V3FactWriterReadback:
                     run,
                     status=SyncRunStatus.STORED,
                     outcome="success",
-                    fetched=2,
+                    fetched=0 if run.trigger == RECOVERY_TRIGGER else 2,
                     validated=len(candidates),
                     succeeded=len(readbacks),
                     failed=0,
@@ -423,6 +496,7 @@ def _validated_run_and_audits(
 
     main_reference = main_raw_audit.exact_reference()
     balance_reference = balance_raw_audit.exact_reference()
+    source_id = main_raw_audit.run_id if run.trigger == RECOVERY_TRIGGER else run.run_id
     if (
         main_raw_audit.status != "ok"
         or balance_raw_audit.status != "ok"
@@ -432,10 +506,10 @@ def _validated_run_and_audits(
         or balance_raw_audit.provider_name != run.provider_name
         or main_raw_audit.row_count <= 0
         or balance_raw_audit.row_count <= 0
-        or main_reference.run_id != run.run_id
-        or main_reference.ingested_run_id != run.run_id
-        or balance_reference.run_id != run.run_id
-        or balance_reference.ingested_run_id != run.run_id
+        or main_reference.run_id != source_id
+        or main_reference.ingested_run_id != source_id
+        or balance_reference.run_id != source_id
+        or balance_reference.ingested_run_id != source_id
         or main_reference.raw_audit_id == balance_reference.raw_audit_id
         or main_reference.content_hash == balance_reference.content_hash
         or main_raw_audit.request_params.get("endpoint") != AKSHARE_MAIN_FINANCIAL_DATA_ENDPOINT
@@ -450,6 +524,38 @@ def _validated_run_and_audits(
     ):
         raise ValueError("E1 native candidates differ from the persisted run dataset/provider")
     return run_uuid
+
+
+def _require_empty_recovery_target(candidates: tuple[FinancialE1FactWriteCandidate, ...]) -> None:
+    """Serialize the forecast natural keys and reject an already populated target."""
+
+    first = candidates[0].row
+    metrics = [item.qualification.contract.metric_code for item in candidates]
+    tokens = [
+        ":".join(
+            (
+                item.row.asset_code,
+                item.row.period_end.isoformat(),
+                item.row.period_type.value,
+                item.qualification.contract.metric_code,
+                item.qualification.contract.provider,
+            )
+        )
+        for item in candidates
+    ]
+    with publication_fact_write_lock(FinancialFactModel, natural_key_tokens=tokens):
+        if CanonicalPublicationPointerModel.objects.filter(dataset_key=first.dataset_key).exists():
+            raise DataValidationError("Recovery forecast requires inactive financial Publication.")
+        if FinancialFactModel.objects.filter(
+            asset_code=first.asset_code,
+            period_end=first.period_end,
+            period_type=first.period_type.value,
+            source=first.provider_name,
+            metric_code__in=metrics,
+        ).exists():
+            raise DataValidationError(
+                "Retained recovery forecast requires zero existing financial facts."
+            )
 
 
 def _same_fact_revision(

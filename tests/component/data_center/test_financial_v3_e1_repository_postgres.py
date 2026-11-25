@@ -122,8 +122,14 @@ class _AcceptSyntheticV3:
 def _synthetic_v3_fact() -> FinancialFact:
     """Build one locally valid synthetic date-only v3 fact without external fixtures."""
 
+    from apps.data_center.infrastructure.financial_response_body_store import _location_for
+
     witness = _witness()
-    row = witness.financial_row
+    original = witness.financial_row
+    artifact = replace(
+        original.artifact_reference, location=_location_for(original.artifact_reference.capture_id)
+    )
+    row = replace(original, artifact_reference=artifact)
     unique_metric = f"e1.synthetic.{uuid4().hex}"
     unique_row_id = f"synthetic-row-{uuid4().hex}"
     row = replace(row, metric_code=unique_metric, native_row_id=unique_row_id)
@@ -495,7 +501,7 @@ def _build_setup() -> _WriterSetup:
         outcome="blocked",
         requested=1,
         provider_name=contract.provider,
-        contract_version="synthetic-e1-writer-mechanics.v1",
+        contract_version="financial-e1-discovery.v2",
         config_snapshot_hash="c" * 64,
         started_at=now - timedelta(minutes=1),
     )
@@ -525,6 +531,9 @@ def _build_setup() -> _WriterSetup:
             ingested_run_id=run_id,
         )
     )
+    from apps.data_center.infrastructure.financial_response_body_store import _location_for
+
+    balance_capture = uuid4()
     balance_audit = raw_audit_repository.log(
         RawAudit(
             provider_name=contract.provider,
@@ -536,6 +545,18 @@ def _build_setup() -> _WriterSetup:
             status="ok",
             row_count=1,
             fetched_at=now - timedelta(seconds=15),
+            extra={
+                "financial_response_artifact": {
+                    "schema": "financial-response-artifact-link.v1",
+                    **replace(
+                        row.artifact_reference,
+                        capture_id=balance_capture,
+                        location=_location_for(balance_capture),
+                        evidence=replace(row.artifact_reference.evidence, body_sha256="d" * 64),
+                    ).to_dict(),
+                    "provider_id": 77,
+                }
+            },
             response_payload_hash="d" * 64,
             parser_version="synthetic-e1-mechanics.v1",
             payload_size_bytes=80,
@@ -712,4 +733,72 @@ def test_e1_audit_outbox_failure_rolls_back_fact_and_success_run_but_keeps_raw_a
         not SystemAuditOutboxModel._default_manager.using(DEFAULT_DB_ALIAS)
         .filter(idempotency_key__contains=setup.run.run_id)
         .exists()
+    )
+
+
+@pytest.mark.django_db(transaction=True, available_apps=["apps.data_center", "apps.audit"])
+@pytest.mark.parametrize("fail_outbox", [False, True])
+def test_retained_recovery_preserves_failed_parent_and_binds_both_audits(
+    fail_outbox: bool, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A distinct single-use recovery either commits its linked evidence or rolls back."""
+    from apps.data_center.infrastructure.financial_e1_recovery_binding import (
+        claim_recovery,
+        forecast_digest,
+    )
+    from core.exceptions import DataValidationError
+
+    _require_postgres()
+    setup = _build_setup()
+    parent = SyncRunRepository().save(
+        replace(
+            setup.run,
+            status=SyncRunStatus.FAILED,
+            outcome="failed",
+            fetched=2,
+            failed=1,
+            finished_at=timezone.now(),
+            error_code="FINANCIAL_FACT_PROVENANCE_CONFLICT",
+        )
+    )
+    predicted = setup.writer.preview_recovery(
+        (setup.candidate,), exchange="SZSE", calendar_dataset_key="equity.trading_calendar"
+    )
+    args = (
+        UUID(parent.run_id),
+        parent.config_snapshot_hash,
+        setup.main_audit,
+        setup.balance_audit,
+        forecast_digest(predicted),
+    )
+    child = claim_recovery(*args)
+    assert child.run_id != parent.run_id
+    with pytest.raises(DataValidationError, match="already has"):
+        claim_recovery(*args)
+    if fail_outbox:
+
+        def fail(*args: object, **kwargs: object) -> NoReturn:
+            raise RuntimeError("injected recovery outbox failure")
+
+        monkeypatch.setattr(DjangoSystemAuditOutboxRepository, "enqueue", fail)
+        with pytest.raises(RuntimeError, match="injected recovery outbox failure"):
+            _write(replace(setup, run=child))
+        assert not FinancialFactModel.objects.filter(ingested_run_id=child.run_id).exists()
+        assert SyncRunRepository().get(child.run_id) == child
+    else:
+        facts = _write(replace(setup, run=child))
+        assert len(facts) == 1
+        assert FinancialFactModel.objects.filter(ingested_run_id=child.run_id).count() == 1
+        saved = SyncRunRepository().get(child.run_id)
+        assert saved and saved.fetched == 0 and saved.stored == 1
+        event = SystemAuditEventModel.objects.get(
+            correlations__run_id=parent.run_id, correlations__ingested_run_id=child.run_id
+        )
+        assert {ref["artifact_id"] for ref in event.evidence_refs} == {
+            setup.main_audit_id,
+            setup.balance_audit_id,
+        }
+    assert SyncRunRepository().get(parent.run_id) == parent
+    assert {audit.content_hash for audit in (setup.main_audit, setup.balance_audit)} == set(
+        RawAuditModel.objects.filter(run_id=parent.run_id).values_list("content_hash", flat=True)
     )

@@ -88,6 +88,7 @@ class DataFetchAuditObservation:
     observed_at: datetime | None = None
     error_class: str | None = None
     scope: AuditScopeRef | None = None
+    secondary_raw_audit: AuditEvidenceRef | None = None
 
     def __post_init__(self) -> None:
         for name in (
@@ -101,6 +102,15 @@ class DataFetchAuditObservation:
         ):
             _require_identifier(getattr(self, name), name)
         _require_digest(self.raw_audit_content_hash, "raw_audit_content_hash")
+        if self.secondary_raw_audit is not None:
+            extra = self.secondary_raw_audit
+            if (
+                type(extra) is not AuditEvidenceRef
+                or extra.owner != "data_center"
+                or extra.artifact_type != "raw_audit"
+                or extra.artifact_id == self.raw_audit_id
+            ):
+                raise ValueError("secondary raw audit must identify a distinct exact RawAudit")
         if self.outcome not in _SCHEMA_BY_OUTCOME:
             raise ValueError("data fetch audit outcome must be success, noop or failed")
         if not isinstance(self.row_count, int) or isinstance(self.row_count, bool):
@@ -240,6 +250,11 @@ def build_data_fetch_audit_event(
                 observation.raw_audit_version,
                 observation.raw_audit_content_hash,
             ),
+        )
+        + (
+            (observation.secondary_raw_audit,)
+            if observation.secondary_raw_audit is not None
+            else ()
         ),
         detail_schema=_SCHEMA_BY_OUTCOME[outcome],
         detail=detail,
