@@ -4,6 +4,7 @@ import os
 from datetime import UTC, date, datetime
 from types import SimpleNamespace
 from typing import Any
+from unittest import TestCase
 from unittest.mock import Mock
 from uuid import UUID
 
@@ -626,7 +627,7 @@ def test_stock_basic_accepts_exact_count_and_legacy_no_count(
 
 @pytest.mark.parametrize("mode", ["sdk_path", "rest_path", "unified_relay"])
 def test_stock_basic_accepts_zero_count_only_with_explicit_complete_marker(
-    monkeypatch: pytest.MonkeyPatch, mode: str, caplog: pytest.LogCaptureFixture
+    monkeypatch: pytest.MonkeyPatch, mode: str
 ) -> None:
     data: dict[str, object] = {
         "fields": ["ts_code", "name"],
@@ -634,15 +635,16 @@ def test_stock_basic_accepts_zero_count_only_with_explicit_complete_marker(
         "count": 0,
         "has_more": False,
     }
-    caplog.set_level("WARNING", logger="apps.data_center.infrastructure.tushare_client")
-    result = _count_envelope_client(monkeypatch, mode, data).stock_basic(
-        exchange="SSE", list_status="L"
-    )
+    with TestCase().assertLogs(tushare_client.__name__, level="WARNING") as captured:
+        result = _count_envelope_client(monkeypatch, mode, data).stock_basic(
+            exchange="SSE", list_status="L"
+        )
     assert result.iloc[0]["ts_code"] == "600000.SH"
     assert data["count"] == 0
-    assert caplog.text.count("TUSHARE_COUNT_UNSPECIFIED returned_rows=1") == 1
-    assert "Ping An" not in caplog.text
-    assert "test-token" not in caplog.text
+    output = "\n".join(captured.output)
+    assert output.count("TUSHARE_COUNT_UNSPECIFIED returned_rows=1") == 1
+    assert "Ping An" not in output
+    assert "test-token" not in output
 
 
 @pytest.mark.parametrize("mode", ["sdk_path", "rest_path", "unified_relay"])
