@@ -4782,7 +4782,8 @@
           "FinancialResponseFailureRetention",
           "RetainFinancialResponseArtifactUseCase",
           "RetainFinancialResponseFailureUseCase",
-          "RetainedFinancialResponsePayload"
+          "RetainedFinancialResponsePayload",
+          "matches_financial_response_body_digest"
         ],
         "application/financial_response_attempt_budget.py": [
           "FinancialResponseAttemptBudget"
@@ -5867,9 +5868,9 @@
       "layers": {
         "application": 203,
         "domain": 70,
-        "infrastructure": 289,
+        "infrastructure": 290,
         "interface": 35,
-        "management": 46,
+        "management": 47,
         "root": 51
       },
       "orm_models": {

@@ -6864,7 +6864,9 @@
         "apps/data_center/infrastructure/financial_e1_discovery_composition.py",
         "apps/data_center/infrastructure/financial_e1_governed_execution.py",
         "core/integration/financial_e1_simulated_account_owner.py",
-        "apps/data_center/management/commands/run_financial_e1_discovery.py"
+        "apps/data_center/management/commands/run_financial_e1_discovery.py",
+        "apps/data_center/management/commands/recover_financial_e1_retained.py",
+        "apps/data_center/infrastructure/financial_e1_recovery_binding.py"
       ],
       "required_markers": {
         "apps/data_center/application/current_fact_remediation.py": [
@@ -7857,6 +7859,19 @@
           "--plan-sha256",
           "pinned.simulated_account_id",
           "--execute"
+        ],
+        "apps/data_center/management/commands/recover_financial_e1_retained.py": [
+          "validate_recovery_source",
+          "forecast_digest(predicted)",
+          "claim_recovery",
+          "store_retained_recovery",
+          "physical_attempts=0"
+        ],
+        "apps/data_center/infrastructure/financial_e1_recovery_binding.py": [
+          "financial_e1_retained_recovery",
+          "uuid5(source_id, RECOVERY_TRIGGER)",
+          "select_for_update",
+          "FINANCIAL_FACT_PROVENANCE_CONFLICT"
         ]
       },
       "required_tests": [
@@ -9334,6 +9349,11 @@
           "case": "e1_audit_failure_rolls_back_fact_and_success_run",
           "test_file": "tests/component/data_center/test_financial_v3_e1_repository_postgres.py",
           "test_function": "test_e1_audit_outbox_failure_rolls_back_fact_and_success_run_but_keeps_raw_audits"
+        },
+        {
+          "case": "retained_recovery_preserves_parent_and_atomic_evidence",
+          "test_file": "tests/component/data_center/test_financial_v3_e1_repository_postgres.py",
+          "test_function": "test_retained_recovery_preserves_failed_parent_and_binds_both_audits"
         }
       ],
       "notes": " C2 current reads retain one PostgreSQL RC scope fence, recheck real session/permission and independent source/rule clocks, and preserve the original historical calendar reference. Local Owner events and matching statutory/numeric captures remain reference-only; exact v3 source, numeric qualification and publication gates are independently required. E1 uses a shared two-send budget without implicit retry or pagination; missing qualification blocks before transport. The finite E1 runner pins a real simulated-account namespace and independently hashed execution/profile configuration, revalidates DATA02 authority per boundary, persists one actual Run and both RawAudits, then commits facts, exact readback, one primary-Main-referenced aggregate Fetch Audit and terminal Run in one default-PG RC UOW. This does not waive release or full-universe Publication gates."

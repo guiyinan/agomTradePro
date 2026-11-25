@@ -1276,3 +1276,10 @@ production publication, approval and acceptance remain EVID-01/02 production wor
 ### ConfigCenter 配置草稿建档
 
 `python manage.py create_runtime_profile_draft --draft-file <draft.json> --actor <operator> --reason <reason>` 默认只预览；追加 `--execute` 才原子创建 DRAFT profile、typed values 与 revision，不生成 runtime snapshot 或切换 active。相同 key/version/content 幂等，同版本差异拒绝；修改参数创建新版本。输入是通用 profile_key/environment/version/values JSON；金融值来自输入和数据库，不由 CLI 默认。通用类型校验不代表 Risk 完整 schema、来源或执行资格通过；激活前必须完成对应 consumer 验证，并保留其他现行配置。
+
+
+### DATA-02 单证券 E1 留存原件恢复
+
+`recover_financial_e1_retained` 默认只读预检。输入固定计划及其 SHA-256、操作人、原失败运行 UUID、Main 和 Balance 各自的捕获 UUID 和 RawAudit 内容摘要。预检从加密原件重新解析，以当前权限、来源资格和日历证明核对预测事实，返回 `forecast_sha256`。读取 v1 财务原件时，运行身份、完整版本化审计引用、原始字节和 SHA-256 必须一致。
+
+一次写入使用相同的输入，并传入 `--execute --forecast-sha256 <预检摘要>`。每个原运行最多创建一个恢复运行。恢复运行沿用原件的采集时间，独立记录入库身份和两条审计引用。事务同时提交事实、成功审计和恢复终态。检查外呼数、失败原运行、两条原审计以及恢复运行的写后读回和投递回执。扩大到第二只证券仍须完成 S6。

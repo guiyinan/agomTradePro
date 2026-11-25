@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 7668,
+    "current_surface_references": 7672,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -9964,6 +9964,10 @@
     },
     {
       "path": "apps/data_center/application/financial_e1_discovery_runner.py",
+      "text": "\"\"\"Write one claimed recovery with current evidence and both original audit rows.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/financial_e1_discovery_runner.py",
       "text": "document bytes, provider identity, and current clocks. This metadata is a"
     },
     {
@@ -13041,6 +13045,18 @@
     {
       "path": "apps/data_center/infrastructure/financial_e1_discovery_v3_writer.py",
       "text": "\"E1 exact fact revision failed current verified readback.\","
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_e1_discovery_v3_writer.py",
+      "text": "\"Retained recovery forecast failed current v3 verification.\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_e1_discovery_v3_writer.py",
+      "text": "\"\"\"Build and verify each forecast row with current authorities before accepting a write.\"\"\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_e1_discovery_v3_writer.py",
+      "text": "\"\"\"Check the proposed v3 fact using the same verifier as a current write.\"\"\""
     },
     {
       "path": "apps/data_center/infrastructure/financial_e1_discovery_v3_writer.py",

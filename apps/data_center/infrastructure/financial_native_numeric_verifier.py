@@ -16,6 +16,9 @@ from apps.data_center.application.financial_numeric_verification import (
     FinancialProviderIdentity,
     FinancialRetainedFinancialBodyPort,
 )
+from apps.data_center.application.financial_response_artifact import (
+    matches_financial_response_body_digest,
+)
 from apps.data_center.domain.entities import (
     FinancialFact,
     RawAudit,
@@ -157,7 +160,7 @@ class FinancialNativeRawBodyReader:
             or audit.provider_name != request_scope.provider_name
             or not isinstance(request_params, Mapping)
             or request_params.get("endpoint") != AKSHARE_MAIN_FINANCIAL_DATA_ENDPOINT
-            or audit.response_payload_hash != reference.body_sha256
+            or not matches_financial_response_body_digest(audit, reference)
             or audit.payload_size_bytes != reference.body_size_bytes
             or audit.row_count != response_scope.row_count
             or not audit.content_hash

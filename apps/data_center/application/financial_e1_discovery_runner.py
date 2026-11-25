@@ -206,6 +206,16 @@ class FinancialE1FactWriteCandidate:
 class FinancialE1FactWriteReadbackPort(Protocol):
     """Build date-only v3 witnesses, write, and verify exact rows in one UOW."""
 
+    def preview_recovery(
+        self,
+        candidates: tuple[FinancialE1FactWriteCandidate, ...],
+        *,
+        exchange: str,
+        calendar_dataset_key: str,
+    ) -> tuple[FinancialFact, ...]:
+        """Return verified forecast rows without changing facts or run state."""
+        ...
+
     def write_and_read_back(
         self,
         candidates: tuple[FinancialE1FactWriteCandidate, ...],
@@ -332,6 +342,95 @@ class CaptureFinancialE1DiscoveryUseCase:
         self._authority_guard = authority_guard
         self._capture_id_factory = capture_id_factory
 
+    def prepare_retained_candidates(
+        self,
+        plan: FinancialE1DiscoveryPlanV2,
+        main: FinancialE1RetainedResponse,
+        balance: FinancialE1RetainedResponse,
+    ) -> tuple[FinancialE1FactWriteCandidate, ...]:
+        """Requalify both captured responses without constructing or sending a request."""
+
+        self._authority_guard.assert_current()
+        snapshot = self._preflight.load_exact_current_selection(
+            plan, known_at=self._clock.now_utc()
+        )
+        qualifications = _validate_preflight(plan, snapshot)
+        if (
+            main.request != plan.main_request
+            or balance.request != plan.balance_request
+            or main.retention.reference.capture_id == balance.retention.reference.capture_id
+        ):
+            raise ValueError("Recovery requires two distinct captures matching the pinned plan")
+        main_replay = self._replay_retained_role(
+            plan, main, qualifications, FinancialE1ResponseRole.MAIN_NATIVE_NUMERIC
+        )
+        balance_replay = self._replay_retained_role(
+            plan, balance, qualifications, FinancialE1ResponseRole.BALANCE_NATIVE_NUMERIC
+        )
+        return _resolve_candidates(
+            qualifications=qualifications,
+            main=main_replay,
+            balance=balance_replay,
+            resolver=self._qualification_resolver,
+            known_at=self._clock.now_utc(),
+        )
+
+    def _replay_retained_role(
+        self,
+        plan: FinancialE1DiscoveryPlanV2,
+        response: FinancialE1RetainedResponse,
+        qualifications: tuple[FinancialNumericSourceQualification, ...],
+        role: FinancialE1ResponseRole,
+    ) -> FinancialE1EndpointReplay:
+        selected = tuple(
+            item for item in qualifications if item.endpoint == response.request.endpoint
+        )
+        replay = (
+            self._role_replayer.replay_main
+            if role is FinancialE1ResponseRole.MAIN_NATIVE_NUMERIC
+            else self._role_replayer.replay_balance
+        )
+        result = replay(plan, response, qualifications=selected)
+        _validate_replay(
+            result,
+            response=response,
+            expected_role=role,
+            expected_qualifications=selected,
+            plan=plan,
+        )
+        return result
+
+    def preview_retained_recovery(
+        self,
+        plan: FinancialE1DiscoveryPlanV2,
+        main: FinancialE1RetainedResponse,
+        balance: FinancialE1RetainedResponse,
+    ) -> tuple[FinancialFact, ...]:
+        """Fully verify source, calendar, scope and numeric evidence with no new capture or write."""
+        candidates = self.prepare_retained_candidates(plan, main, balance)
+        return self._fact_writer.preview_recovery(
+            candidates, exchange=plan.exchange, calendar_dataset_key=plan.calendar_dataset_key
+        )
+
+    def store_retained_recovery(
+        self,
+        plan: FinancialE1DiscoveryPlanV2,
+        run: SyncRun,
+        main: FinancialE1RetainedResponse,
+        balance: FinancialE1RetainedResponse,
+    ) -> tuple[FinancialFact, ...]:
+        """Write one claimed recovery with current evidence and both original audit rows."""
+
+        candidates = self.prepare_retained_candidates(plan, main, balance)
+        return self._fact_writer.write_and_read_back(
+            candidates,
+            exchange=plan.exchange,
+            calendar_dataset_key=plan.calendar_dataset_key,
+            run=run,
+            main_raw_audit=main.retention.audit,
+            balance_raw_audit=balance.retention.audit,
+        )
+
     def execute(
         self,
         plan: FinancialE1DiscoveryPlanV2,
@@ -420,21 +519,9 @@ class CaptureFinancialE1DiscoveryUseCase:
                 failure_code="FINANCIAL_E1_MAIN_CAPTURE_FAILED",
             )
 
-        main_qualifications = tuple(
-            item for item in qualifications if item.endpoint == plan.main_request.endpoint
-        )
         try:
-            main_replay = self._role_replayer.replay_main(
-                plan,
-                main_response,
-                qualifications=main_qualifications,
-            )
-            _validate_replay(
-                main_replay,
-                response=main_response,
-                expected_role=FinancialE1ResponseRole.MAIN_NATIVE_NUMERIC,
-                expected_qualifications=main_qualifications,
-                plan=plan,
+            main_replay = self._replay_retained_role(
+                plan, main_response, qualifications, FinancialE1ResponseRole.MAIN_NATIVE_NUMERIC
             )
         except (
             DataFetchError,
@@ -491,21 +578,12 @@ class CaptureFinancialE1DiscoveryUseCase:
                 failure_code="FINANCIAL_E1_RESPONSE_IDENTITY_REUSED",
             )
 
-        balance_qualifications = tuple(
-            item for item in qualifications if item.endpoint == plan.balance_request.endpoint
-        )
         try:
-            balance_replay = self._role_replayer.replay_balance(
+            balance_replay = self._replay_retained_role(
                 plan,
                 balance_response,
-                qualifications=balance_qualifications,
-            )
-            _validate_replay(
-                balance_replay,
-                response=balance_response,
-                expected_role=FinancialE1ResponseRole.BALANCE_NATIVE_NUMERIC,
-                expected_qualifications=balance_qualifications,
-                plan=plan,
+                qualifications,
+                FinancialE1ResponseRole.BALANCE_NATIVE_NUMERIC,
             )
         except (
             DataFetchError,

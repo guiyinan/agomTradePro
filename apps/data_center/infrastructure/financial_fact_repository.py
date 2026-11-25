@@ -355,6 +355,15 @@ class FinancialFactRepository(FinancialAvailabilityRepositoryMixin):
                 )
         return None
 
+    def verify_recovery_fact(
+        self, fact: FinancialFact, request: FinancialV3FactVerificationRequest
+    ) -> bool:
+        """Run the configured v3 verifier for a no-write recovery forecast."""
+
+        return self._v3_evidence_verifier is not None and self._v3_evidence_verifier.verify(
+            fact, request
+        )
+
     def bulk_upsert(
         self,
         facts: list[FinancialFact],
