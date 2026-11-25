@@ -71,6 +71,9 @@ jobs:
         run: |
           python scripts/run_current_data_contract_tests.py \
             --pytest-arg=-q \
+            --pytest-arg=--deselect=tests/component/data_center/test_financial_numeric_origin_snapshot_pg.py \
+            --pytest-arg=--deselect=tests/component/data_center/test_financial_v3_current_uow_postgres.py \
+            --pytest-arg=--deselect=tests/component/data_center/test_financial_v3_e1_repository_postgres.py \
             --pytest-arg=--reuse-db \
             --pytest-arg=--timeout=300
 

@@ -192,6 +192,29 @@ def test_nightly_component_step_keeps_full_suite_and_fixed_two_worker_contract()
     assert "--dist=loadfile" not in run
 
 
+def test_financial_postgres_contracts_run_on_the_native_nightly_job() -> None:
+    """SQLite's explicit nodeid selection delegates three native suites to PostgreSQL."""
+    workflow = yaml.load(WORKFLOW_PATH.read_text(encoding="utf-8"), Loader=yaml.BaseLoader)
+    sqlite = {step.get("name"): step for step in workflow["jobs"]["nightly"]["steps"]}
+    native = {step.get("name"): step for step in workflow["jobs"]["critical-postgres"]["steps"]}
+    sqlite_manifest = sqlite["Run registered current-data contract nodeids"]["run"].split()
+    native_suite = native["Run C2 financial availability PostgreSQL contracts"]["run"].split()
+    delegated = {
+        arg.removeprefix("--pytest-arg=--deselect=")
+        for arg in sqlite_manifest
+        if arg.startswith("--pytest-arg=--deselect=")
+    }
+    assert delegated == {
+        "tests/component/data_center/test_financial_numeric_origin_snapshot_pg.py",
+        "tests/component/data_center/test_financial_v3_current_uow_postgres.py",
+        "tests/component/data_center/test_financial_v3_e1_repository_postgres.py",
+    }
+    assert delegated.issubset(native_suite)
+    native_manifest = native["Run current-data contract manifest on PostgreSQL"]["run"]
+    assert "scripts/run_current_data_contract_tests.py" in native_manifest
+    assert "--deselect" not in native_manifest
+
+
 def test_nightly_api_migrations_keep_bounded_xdist_and_junit_contract() -> None:
     """API/migration parallelism stays inside its current budget and quality artifact."""
     workflow = yaml.load(WORKFLOW_PATH.read_text(encoding="utf-8"), Loader=yaml.BaseLoader)
