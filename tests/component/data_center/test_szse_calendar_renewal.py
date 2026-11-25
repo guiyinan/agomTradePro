@@ -33,6 +33,9 @@ from tests.component.data_center import test_calendar_operations_http as http
 from tests.support.isolated_schema import isolated_schema
 
 GRANTS = "/api/data-center/exchange-calendars/renewals/"
+native_postgres_only = pytest.mark.skipif(
+    connection.vendor != "postgresql", reason="native calendar publication requires PostgreSQL"
+)
 
 
 def _deliver(grant_id, delivery_id=None):
@@ -54,8 +57,6 @@ def test_invalid_input():
 
 @pytest.fixture
 def world(transactional_db, monkeypatch):
-    if connection.vendor != "postgresql":
-        pytest.skip("native calendar publication requires PostgreSQL")
     monkeypatch.setenv("AGOMTRADEPRO_DISABLE_USER_PROVISIONING_SIGNALS", "1")
     with (
         override_settings(
@@ -127,6 +128,7 @@ def _await_due(grant, ttl):
     time.sleep(max(0, delay))
 
 
+@native_postgres_only
 def test_renewal_is_noop_while_valid(world, monkeypatch):
     _, _, _, grant, sessions, _ = _seed(monkeypatch, ttl=900)
     assert _deliver(str(grant.pk))["reason_code"] == "still_valid"
@@ -134,6 +136,7 @@ def test_renewal_is_noop_while_valid(world, monkeypatch):
     assert not CalendarRenewalReceipt.objects.exists()
 
 
+@native_postgres_only
 def test_revocation_blocks_replayed_task(world, monkeypatch):
     client, _, csrf, grant, sessions, _ = _seed(monkeypatch, ttl=900)
     http._json(http._post(client, f"{GRANTS}{grant.pk}/revoke/", {}, csrf), 200)
@@ -142,6 +145,7 @@ def test_revocation_blocks_replayed_task(world, monkeypatch):
     assert len(sessions) == 1
 
 
+@native_postgres_only
 def test_removed_and_recreated_owner_grant_blocks(world, monkeypatch):
     _, owner, _, grant, sessions, perm = _seed(monkeypatch, ttl=900)
     owner.user_permissions.remove(perm)
@@ -150,6 +154,7 @@ def test_removed_and_recreated_owner_grant_blocks(world, monkeypatch):
     assert len(sessions) == 1
 
 
+@native_postgres_only
 def test_expired_source_failure_preserves_original_pointer(world, monkeypatch):
     _, _, _, grant, sessions, _ = _seed(monkeypatch, b"{}")
     before = http._formal_counts()
@@ -166,6 +171,7 @@ def test_expired_source_failure_preserves_original_pointer(world, monkeypatch):
     assert not CalendarRenewalReceipt.objects.exists()
 
 
+@native_postgres_only
 def test_receipt_write_failure_rolls_back_confirm_and_capture(world, monkeypatch):
     _, _, _, grant, sessions, _ = _seed(monkeypatch, http._calendar_body().replace(b"SSE", b"SZSE"))
     originals = http._source_counts(), http._formal_counts()
@@ -193,6 +199,7 @@ def test_receipt_write_failure_rolls_back_confirm_and_capture(world, monkeypatch
     assert not CalendarRenewalReceipt.objects.exists()
 
 
+@native_postgres_only
 def test_concurrent_due_deliveries_publish_one_audited_successor(world, monkeypatch):
     _, owner, _, grant, sessions, _ = _seed(
         monkeypatch, http._calendar_body().replace(b"SSE", b"SZSE")
@@ -232,6 +239,7 @@ def test_concurrent_due_deliveries_publish_one_audited_successor(world, monkeypa
 @pytest.mark.skipif(
     not os.getenv("AGOM_SZSE_TEST_REDIS"), reason="dedicated loopback Redis required"
 )
+@native_postgres_only
 def test_beat_delivers_due_renewal_to_isolated_worker(world, monkeypatch):
     from urllib.parse import urlsplit
 
