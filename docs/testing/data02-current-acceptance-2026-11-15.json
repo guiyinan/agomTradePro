@@ -11340,6 +11340,116 @@
               "publication": 0
             },
             "production_changed": false
+          },
+          "minimal_ci_successor": {
+            "sha": "29262138e0a17c47cbce5a1626d6f65d9ef035d4",
+            "parent": "11a755e4a3cba1affbd9169a3b4031861d513196",
+            "ci_comparison_base": "4149a9cf4a3738f38d0ca62979fa9bfed56a6a07",
+            "authorization": "call_b242b8166c7e4fe097cb796d906ac821",
+            "status": "ci_failed_before_release",
+            "files": [
+              "apps/data_center/management/commands/repair_decision_data_reliability.py",
+              "core/settings/base.py",
+              "tests/component/data_center/test_m1_reference_price_publication_activation.py"
+            ],
+            "local_tests_passed": 15,
+            "local_junit": {
+              "path": ".tmp/data02-guard-20261122/e1-8eaba967a-20261125/legacy-compat/ci-successor/local.xml",
+              "sha256": "82c1a2ff39e2e94ff2084e25d0bff3d794daa6a6b43024bf43797fc72f668b96"
+            },
+            "incremental_mypy": {
+              "path": ".tmp/data02-guard-20261122/e1-8eaba967a-20261125/legacy-compat/ci-successor/mypy.log",
+              "sha256": "e722c17ba060e78a4349915f9d68ecc53b4d424f49749f28101049fb0f7df748"
+            },
+            "full_mypy_debt": {
+              "path": ".tmp/data02-guard-20261122/e1-8eaba967a-20261125/legacy-compat/ci-successor/debt.log",
+              "sha256": "def6c561b37227470bcda90c8450d9837ca85dd34af34d05e7d6af2afdf85ab1"
+            },
+            "official_runs": {
+              "CI Fast Feedback (workflow_dispatch)": {
+                "id": 45523443869,
+                "conclusion": "failure"
+              },
+              "CI Fast Feedback (push)": {
+                "id": 45523435646,
+                "conclusion": "failure"
+              },
+              "Engineering progress dashboard (push)": {
+                "id": 45523435800,
+                "conclusion": "success"
+              },
+              "Architecture Layer Guard (push)": {
+                "id": 45523435681,
+                "conclusion": "success"
+              },
+              "Security Scan (push)": {
+                "id": 45523435578,
+                "conclusion": "success"
+              },
+              "Consistency Check (push)": {
+                "id": 45523435593,
+                "conclusion": "failure"
+              },
+              "Quote Metric PostgreSQL contracts (push)": {
+                "id": 45523435750,
+                "conclusion": "success"
+              },
+              "Publication PostgreSQL contracts (push)": {
+                "id": 45523435574,
+                "conclusion": "success"
+              }
+            },
+            "verified_ci_originals": {
+              "path": ".tmp/data02-guard-20261122/e1-8eaba967a-20261125/legacy-compat/ci-successor/verified-ci.json",
+              "sha256": "674d09086b3a7da9b8dea8d803b567e99c109ceb50c0cfbf7b2b8ed9474ac8f1"
+            },
+            "manual_dispatches": {
+              "fast": 1,
+              "quote": 0,
+              "publication": 0
+            },
+            "production_release": false,
+            "e1_candidate": "8eaba967a047d1f7e22c6084ca613a36cf371588",
+            "production_e1_requests": 0,
+            "production_e1_writes": 0,
+            "projection_diagnosis": {
+              "missing_record": "dynamic import of kombu.exceptions by repair_decision_data_reliability",
+              "counts": {
+                "dynamic_python_imports": [
+                  14,
+                  15
+                ],
+                "adjacent_operational": [
+                  343,
+                  344
+                ],
+                "total": [
+                  1420,
+                  1421
+                ]
+              },
+              "generated_proposal": {
+                "path": ".tmp/data02-guard-20261122/e1-8eaba967a-20261125/legacy-compat/ci-successor/candidate-entrypoints.json",
+                "sha256": "b3ae3afc79bf357f535efa789bdf83956193578b1cd0843abe61d18002e78574"
+              },
+              "isolated_full_projection_check": {
+                "path": ".tmp/data02-guard-20261122/e1-8eaba967a-20261125/legacy-compat/ci-successor/full-projections.log",
+                "sha256": "034648c414e5cb40cdb3c6fca8de79778739b5acf407cc7bb0e48aef2b5351cf"
+              },
+              "isolated_inventory_tests": {
+                "path": ".tmp/data02-guard-20261122/e1-8eaba967a-20261125/legacy-compat/ci-successor/inventory-r2.xml",
+                "sha256": "1c27e8debc0bdc853de82d22b33e03b12c2263157ba6015b557c0567955fb88c"
+              },
+              "first_inventory_test_setup_missing_temp_parent": {
+                "path": ".tmp/data02-guard-20261122/e1-8eaba967a-20261125/legacy-compat/ci-successor/inventory-tests.xml",
+                "sha256": "25f2e4d0e2830ef27191144d8dfff048a2a163679fcaf9cb9431a6b9a18c2dfa"
+              },
+              "fast_python_matrices": "3.11 and 3.13 passed on both events",
+              "official_incremental_quality_gate_failure": "Enforce generated Data Center governance projections",
+              "quote_tests": 57,
+              "publication_tests": 115,
+              "projection_committed_to_candidate": false
+            }
           }
         }
       }
