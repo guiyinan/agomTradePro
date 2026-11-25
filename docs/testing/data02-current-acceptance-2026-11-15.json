@@ -12048,6 +12048,59 @@
                 "sha256": "a6c30aeb63649bf13bc84f413f123ad4197acb5f6131f9015fb7dacf2f3838d4"
               }
             ]
+          },
+          "integrated_writer_candidate": {
+            "revision": "c6c2437d4f59cd37110d4ecf3e3326da1d694bb7",
+            "original_writer": "8eaba967a047d1f7e22c6084ca613a36cf371588",
+            "intermediate_numeric_candidate": "b4003f3e2ced57f941c390e8048f57838d740f6f",
+            "plan_sha256": "e708a0fcaa501b15c3741463f3b69f82308d6c6b47c02c6359ab5a4809c34e21",
+            "source_changes": [
+              "Exact issuer decimal conditions in numeric qualifications",
+              "Calendar lookup digest validation preserving retained source keys"
+            ],
+            "isolated_real_calendar": {
+              "publication": "31193ad4-0d2f-44e5-b01c-be87650cd374",
+              "as_of": "2026-11-25T10:04:48.323843+00:00",
+              "later_block": "FIN_AVAILABILITY_CURRENT_CALENDAR_EXPIRED"
+            },
+            "local_targeted_tests": 129,
+            "financial_requests": 0,
+            "production_fact_writes": 0,
+            "production_authority_checked_at": "2026-11-25T10:21:26.580859+00:00",
+            "account": 631,
+            "authority_user": 1,
+            "financial_store_max_bytes": 8388608,
+            "calendar_maintenance_ci": 10,
+            "receipts": [
+              {
+                "path": ".tmp/data02-e1-admission-20261125/issuer-calendar-ci/candidate.json",
+                "sha256": "9526f854cb0d159074ba1dd800560dda09c09857a09af6651968dc4db746c59a"
+              },
+              {
+                "path": ".tmp/data02-e1-admission-20261125/issuer-calendar-cross-reader.json",
+                "sha256": "9f826a2d26f152e418ef5ed4cd1f84a16da9b3175a0d04513609f02f5c706135"
+              },
+              {
+                "path": ".tmp/data02-e1-admission-20261125/issuer-calendar-e1-plan-pin.json",
+                "sha256": "b135d8394eedc0e2fa707fb6819f9645b2b1d4149127174848c749d957044e73"
+              },
+              {
+                "path": ".tmp/data02-e1-admission-20261125/issuer-calendar-exact.xml",
+                "sha256": "66cffcdfbdd191ae97d4ef192aa9b62f9238c92c1abb56f48a68e565ac395456"
+              },
+              {
+                "path": ".tmp/data02-e1-admission-20261125/financial-original-and-account.json",
+                "sha256": "113f86a4a2063e4b4e754b895313d274fb29e45e0b1a3c2cc52e6fb5ee02298e"
+              },
+              {
+                "path": ".tmp/data02-e1-admission-20261125/calendar-digest-ci/verified.json",
+                "sha256": "54456f41cea7ce85265d5adcaf2d9f011e53a7a6537198e9f74c3eb734cbda06"
+              },
+              {
+                "path": ".tmp/data02-e1-admission-20261125/calendar-digest-ci/junit-totals.json",
+                "sha256": "b2a57170014193cb2b24341f7e7c86e6f42738c31f6c250507bb280e9446b825"
+              }
+            ]
           }
         }
       }
