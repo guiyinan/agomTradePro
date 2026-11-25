@@ -11213,9 +11213,9 @@
           "sha256": "ed472ae943036ae9260d33d418d9326f35a22ed1beb67ebd2a3149741c4e905f"
         },
         "production_revision": "4149a9cf4a3738f38d0ca62979fa9bfed56a6a07",
-        "runtime_and_storage": "Five maintenance services run ce9164e34 on schema 0118. The separately pinned E1 writer is 8eaba967a. Source archive profile v23 retains the official documents.",
+        "runtime_and_storage": "Five maintenance services run 27d25afaf85909aed26272b98c026a9e7fd4a81e on schema 0118. The original E1 Owner decision names 8eaba967a. The separately tested successor is c6c2437d4f59cd37110d4ecf3e3326da1d694bb7.",
         "source_evidence": "Four native numeric-source captures and statutory evidence are retained. The two AKShare documentation tables match the reviewed originals field by field. Issuer comparison limits remain in the precision review.",
-        "remaining": "Publish the scoped SZSE calendar, satisfy the native numeric qualification and availability inputs, execute within the two-call E1 limit and reconcile the actual facts against retained originals.",
+        "remaining": "The live SZSE calendar is published. The successor E1 runtime still needs its exact image, three bounded Balance entries, fresh forecast, native financial acquisition and independent reconciliation.",
         "expansion_gate": "Full same-candidate S6, full coverage, capacity and four-Publication reconciliation before security two. Release 10, 100 and full universe separately. Stop on the second consecutive failure at the same stage.",
         "s6_prepare_only": "d2843f4552a641d5903476ab9d3f0d60",
         "historical_backup_rehearsal": {
@@ -11627,7 +11627,7 @@
         },
         "admission_20261125": {
           "writer": "8eaba967a047d1f7e22c6084ca613a36cf371588",
-          "serving_release": "ce9164e34b1bcfefe6471fff0d7bef29988c172a",
+          "serving_release": "27d25afaf85909aed26272b98c026a9e7fd4a81e",
           "financial_send_count": 0,
           "e1_fact_writes": 0,
           "e1_reconciled": false,
@@ -11691,13 +11691,47 @@
               ]
             },
             "explicit_user_or_group_grant_at_probe": false,
-            "publication_activated": false,
+            "publication_activated": true,
             "catalog_apply": "CALENDAR_CATALOG_CREATED",
             "catalog_readback": "CALENDAR_CATALOG_EXACT_REPLAY",
             "capture_configuration_ready": true,
             "prepare_http": 403,
             "prepare_reason": "CALENDAR_PUBLISHER_PERMISSION_REQUIRED",
-            "final_pointers": []
+            "final_pointers": [],
+            "live_scoped_publication": {
+              "published": "d2ecb8d6-470b-4d22-aec9-0fa8058e7b95",
+              "snapshot": "aecc1cef-f33b-4fe7-a960-5b32deb8ab91",
+              "first_seen": "2026-11-25T11:40:36.930703+00:00",
+              "dates": [
+                "2026-10-27",
+                "2026-10-28",
+                "2026-10-29",
+                "2026-10-30"
+              ],
+              "source_sha256": "ee19a9a7be83ccafc619e1c3443797a82b02cb902d1c312993c39e27458bb99f",
+              "member_key": "sha256:f9d66d17fce0cd2bd2577ba3ffdf96d2190e6d760256bda978e87bf683dead04",
+              "direct_grant_restored": true,
+              "restore_facts": 487624,
+              "maintenance_image": "sha256:5b4d356e3681f225de97d9fbe2332af2850c333f684cbf762718094344743d8f",
+              "receipts": [
+                {
+                  "path": ".tmp/data02-e1-admission-20261125/calendar-digest-cycle/host-deployed.json",
+                  "sha256": "7eb584ec8f91ab9c2eca5d0ba9e1effed61ae8d697762ee834f03c591499d43e"
+                },
+                {
+                  "path": ".tmp/data02-e1-admission-20261125/calendar-digest-cycle/host-qa-cycle.json",
+                  "sha256": "c03efd709704eae029bd00acc9554c1cdbba2a18b4e3016dff9a6323d7a1fa4d"
+                },
+                {
+                  "path": ".tmp/data02-e1-admission-20261125/calendar-admin-20261125T114048.json",
+                  "sha256": "17dd5a5c53a8d3b5f5f0c62741c31ca73f20d21b679a9ce5f89415b76d742e10"
+                },
+                {
+                  "path": ".tmp/data02-e1-admission-20261125/calendar-digest-live-member.json",
+                  "sha256": "4a0a2f56ff0c13b7f8684ccc97a29b981363a3e7ea5bfe9d47f9567a46f0c118"
+                }
+              ]
+            }
           },
           "receipts": {
             "live-before.json": {
@@ -11804,7 +11838,7 @@
               "sha256": "7a4114cb27243e46844b97a9cf6f2eb73d8dd97d175c023a4be429ede87d299c"
             }
           },
-          "as_of": "2026-11-25 09:35:08.524329+00",
+          "as_of": "2026-11-25T11:41:45.091878+00:00",
           "live_schema": {
             "scoped_forward_count": 11,
             "highest": "0118_financial_numeric_origin_snapshot",
@@ -11812,8 +11846,8 @@
             "financial_total": 487624
           },
           "remaining": {
-            "calendar": "Real calendar source and full authenticated publish/readback verified in an isolated restore. Production calendar maintenance candidate 27d25afaf awaits rollout.",
-            "numeric": "Seven original Main entries and Owner events verified. Three Balance entries await exact source-context qualification. The newer decimal comparison contract has only been exercised locally.",
+            "calendar": "The dedicated SZSE pointer, member and source bytes were independently read on the live database. Recheck calendar freshness at E1 execution.",
+            "numeric": "Seven Main entries are registered. Three issuer-bounded Balance entries await the exact successor runtime. Actual provider rows remain unobserved.",
             "financial": "No E1 requests or facts. Independent write/readback awaits authentic qualification and calendar publication."
           },
           "recovery_after_storage_failure": {
@@ -12100,7 +12134,28 @@
                 "path": ".tmp/data02-e1-admission-20261125/calendar-digest-ci/junit-totals.json",
                 "sha256": "b2a57170014193cb2b24341f7e7c86e6f42738c31f6c250507bb280e9446b825"
               }
-            ]
+            ],
+            "official_ci": {
+              "passed": 10,
+              "postgres_artifacts": [
+                {
+                  "run": 45601131758,
+                  "name": "publication-postgres-evidence",
+                  "digest": "sha256:ce73ae2ec34435849d13931158ffe31608c1826b00dd5ee3127405c1dabbe0d7",
+                  "tests": 303
+                },
+                {
+                  "run": 45597041005,
+                  "name": "quote-metric-postgres-45597041005",
+                  "digest": "sha256:7079ba455c3ac096bf214b807fa4c003be5c2ab37cd2cc1285a8fa7cf7f963fd",
+                  "tests": 57
+                }
+              ],
+              "receipt": {
+                "path": ".tmp/data02-e1-admission-20261125/issuer-calendar-ci/verified.json",
+                "sha256": "f1ae5639624d075647946c19b00bc38dfb1887db33f73144aa33a9153044e50c"
+              }
+            }
           }
         }
       }
