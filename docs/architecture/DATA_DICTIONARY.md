@@ -7,8 +7,8 @@
 ## 概览
 
 - App 数：42
-- 模型数：630
-- 字段数：9740
+- 模型数：632
+- 字段数：9760
 
 口径说明：仅覆盖 `apps/*/infrastructure/` 下的 `models.py`、`models/` 包与 `*_models.py`；字段为类体内显式赋值的 Django 字段，继承字段不展开，动态字段与隐式自增主键不在投影内。
 
@@ -4627,6 +4627,42 @@
 | `started_at` | `DateTimeField` |  |  |  |  |  |
 | `finished_at` | `DateTimeField` |  |  |  |  |  |
 | `reason` | `TextField` |  |  |  |  |  |
+
+### CalendarRenewalGrant
+
+- 来源文件：`apps/data_center/infrastructure/calendar_renewal_models.py`
+- 说明：One owner's bounded delegation over an existing SZSE publication chain.
+
+| 字段 | 类型 | null | unique | 默认值 | 说明 | 关系目标 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `id` | `UUIDField` |  |  | uuid4 |  |  |
+| `owner_user_id` | `PositiveBigIntegerField` |  |  |  |  |  |
+| `publish_grant_id` | `PositiveBigIntegerField` |  |  |  |  |  |
+| `delegate_grant_id` | `PositiveBigIntegerField` |  |  |  |  |  |
+| `dataset_key` | `CharField` |  |  |  |  |  |
+| `coverage_start` | `DateField` |  |  |  |  |  |
+| `coverage_end` | `DateField` |  |  |  |  |  |
+| `issued_at` | `DateTimeField` |  |  |  |  |  |
+| `expires_at` | `DateTimeField` |  |  |  |  |  |
+| `revoked_at` | `DateTimeField` | 是 |  |  |  |  |
+| `activation_id` | `CharField` |  |  |  |  |  |
+| `verified_at` | `DateTimeField` |  |  |  |  |  |
+
+### CalendarRenewalReceipt
+
+- 来源文件：`apps/data_center/infrastructure/calendar_renewal_models.py`
+- 说明：Link an automated confirmation to its owner's decision and exact audit pair.
+
+| 字段 | 类型 | null | unique | 默认值 | 说明 | 关系目标 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `grant` | `ForeignKey` |  |  |  |  | CalendarRenewalGrant |
+| `delivery_id` | `UUIDField` |  |  |  |  |  |
+| `previous_activation_id` | `CharField` |  |  |  |  |  |
+| `activation_id` | `CharField` |  | 是 |  |  |  |
+| `event_id` | `CharField` |  |  |  |  |  |
+| `event_content_hash` | `CharField` |  |  |  |  |  |
+| `outbox_id` | `UUIDField` |  |  |  |  |  |
+| `checked_at` | `DateTimeField` |  |  |  |  |  |
 
 ### CandidateRawAuditManifestMemberModel
 

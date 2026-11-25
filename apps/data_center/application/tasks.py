@@ -59,6 +59,7 @@ from . import market_publication_refresh as market_publication_services
 from . import public as public_services
 from .archive_tasks import verify_archive_manifest_task  # noqa: F401
 from .backfill_control_plane import BackfillAuthorityBinding, backfill_control_plane_ids
+from .calendar_renewal_task import renew_szse_calendar as renew_szse_calendar
 from .core_data_backfill import (
     CoreDataBackfillServices,
     run_active_a_share_core_data_backfill_batch,

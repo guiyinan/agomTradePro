@@ -6,6 +6,12 @@ from apps.data_center.infrastructure.archive_models import (  # noqa: F401
 from apps.data_center.infrastructure.archive_models import (
     ArchiveRestoreAuditModel as ArchiveRestoreAuditModel,
 )
+from apps.data_center.infrastructure.calendar_renewal_models import (
+    CalendarRenewalGrant as CalendarRenewalGrant,
+)
+from apps.data_center.infrastructure.calendar_renewal_models import (
+    CalendarRenewalReceipt as CalendarRenewalReceipt,
+)
 from apps.data_center.infrastructure.catalog_models import (  # noqa: F401
     DataOwnerRegistrationModel as DataOwnerRegistrationModel,
 )

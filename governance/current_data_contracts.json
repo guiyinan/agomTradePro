@@ -2,6 +2,28 @@
   "schema_version": 1,
   "contracts": [
     {
+      "id": "data_center.szse_calendar_renewal",
+      "surface": "Derive renewal eligibility from the verified formal SZSE chain and its original response-age window",
+      "source_files": [
+        "apps/data_center/calendar_renewal_composition.py"
+      ],
+      "required_markers": {
+        "apps/data_center/calendar_renewal_composition.py": [
+          "read_current_exchange_calendar_reference",
+          "current.record.is_effective_at",
+          "preview.expected_pointer != current.pointer",
+          "commit.post_audit_checked_at"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "same_scope_clock_and_concurrent_replay",
+          "test_file": "tests/component/data_center/test_szse_calendar_renewal.py",
+          "test_function": "test_concurrent_due_deliveries_publish_one_audited_successor"
+        }
+      ]
+    },
+    {
       "id": "broker_execution.signed_order_checkpoints",
       "surface": "Current order-specific operator and Risk approvals at creation, approval, lease and submission",
       "source_files": [

@@ -131,6 +131,16 @@ jobs:
           python -m pytest
           tests/unit/ci/test_publication_postgres_workflow.py
           -c /dev/null --confcutdir=tests/unit/ci -p no:cacheprovider -q
+      - name: Verify delegated SZSE calendar renewal
+        env:
+          DATABASE_URL: postgresql://contract_test:disposable_ci_only@127.0.0.1:5432/agom_release_rehearsal_ci
+          DJANGO_SETTINGS_MODULE: core.settings.critical_postgres_test
+          AGOM_CRITICAL_TEST_DB_NAME: szse_calendar_renewal_test
+          REDIS_URL: redis://127.0.0.1:6379/11
+          CELERY_BROKER_URL: redis://127.0.0.1:6379/12
+          CELERY_RESULT_BACKEND: redis://127.0.0.1:6379/13
+          AGOM_SZSE_TEST_REDIS: redis://127.0.0.1:6379/14
+        run: python -m pytest tests/component/data_center/test_szse_calendar_renewal.py -q
       - name: Run native financial numeric catalog PostgreSQL contracts
         env:
           DATABASE_URL: postgresql://contract_test:disposable_ci_only@127.0.0.1:5432/agom_release_rehearsal_ci

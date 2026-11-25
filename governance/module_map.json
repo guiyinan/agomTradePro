@@ -4323,6 +4323,9 @@
           "ReadCurrentCalendarIntent",
           "ReadCurrentCalendarUseCase"
         ],
+        "application/calendar_renewal_task.py": [
+          "renew_szse_calendar"
+        ],
         "application/calendar_workbench.py": [
           "CalendarPublicationWorkbench",
           "CalendarWorkbenchCapturePort",
@@ -5825,6 +5828,8 @@
           "price-limits/publication/current/",
           "price-limits/publication/history/",
           "price-limits/publication/<uuid:publication_id>/",
+          "exchange-calendars/renewals/",
+          "exchange-calendars/renewals/<uuid:grant_id>/revoke/",
           "exchange-calendars/workbench/scope/",
           "exchange-calendars/workbench/current/",
           "exchange-calendars/workbench/prepare/",
@@ -5902,12 +5907,12 @@
         ]
       },
       "layers": {
-        "application": 204,
+        "application": 205,
         "domain": 72,
-        "infrastructure": 293,
-        "interface": 35,
+        "infrastructure": 294,
+        "interface": 36,
         "management": 48,
-        "root": 54
+        "root": 55
       },
       "orm_models": {
         "infrastructure/models.py": [

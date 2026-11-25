@@ -62,6 +62,10 @@ from apps.data_center.interface.calendar_publication_api_views import (
     CaptureCalendarSnapshotView,
     CurrentCalendarView,
 )
+from apps.data_center.interface.calendar_renewal_api import (
+    CalendarRenewalGrantView,
+    CalendarRenewalRevokeView,
+)
 from apps.data_center.interface.calendar_workbench_api_views import (
     CalendarWorkbenchConfirmView,
     CalendarWorkbenchCurrentView,
@@ -186,6 +190,16 @@ urlpatterns = [
         "price-limits/publication/<uuid:publication_id>/",
         ExactPriceLimitPublicationView.as_view(),
         name="price-limit-publication-exact",
+    ),
+    path(
+        "exchange-calendars/renewals/",
+        CalendarRenewalGrantView.as_view(),
+        name="dc-calendar-renewal-grant",
+    ),
+    path(
+        "exchange-calendars/renewals/<uuid:grant_id>/revoke/",
+        CalendarRenewalRevokeView.as_view(),
+        name="dc-calendar-renewal-revoke",
     ),
     path(
         "exchange-calendars/workbench/scope/",

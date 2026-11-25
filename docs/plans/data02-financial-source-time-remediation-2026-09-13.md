@@ -1621,3 +1621,10 @@ Owner 批准在同一 intent 恢复一次标签后，只创建原标签、首次
 ### SZSE 日历续期隔离窗口（2026-11-25）
 
 B 负责 data_center 的日历委托、到期任务、正式准备与确认组合，以及相应测试、契约与生成投影。整合负责人为 B，共享提交窗口与 DATA-18 串行。首个可交付事项为独立库、Redis、队列、模拟来源下的续期及审计验收。A 独占本轮生产 E1 及两次财务传输。完整 CI 等 A 终态后排期，生产发布、调度及自然周期观察另依维护窗口执行。
+
+| base_sha | identity | change_kind | rationale | consumer_audit | compatibility_or_rollback |
+| --- | --- | --- | --- | --- | --- |
+| d9009e84539f68ff7a82ded96b84d2463de487df | data_center.CalendarRenewalGrant | added_concrete | Persist the explicit Owner decision and exact successor chain. | Session issue/revoke and the SZSE worker check the direct witnesses, dates and pinned activation. | Disable its Beat entry and revoke the grant. Existing manual publication continues. |
+| d9009e84539f68ff7a82ded96b84d2463de487df | data_center.CalendarRenewalReceipt | added_concrete | Bind each successful delivery to its exact formal publication audit pair. | The worker reads the delivery identity before capture and writes the receipt inside the publication transaction. | Retain committed receipts with the formal audit history when disabling renewal. |
+
+B 的本地开发窗口随本批整合关闭。最终候选基于 d9009e845，源码、测试与工作流输入指纹为 6697238f311d78e68d1fbf89d41ea76a4015f301014ecd620f9ef1e4d65821ad。独立 PostgreSQL 16.15、Redis、专用队列与模拟日历响应共验收 65 项，零失败、零跳过，包含 8 项续期，6 项原 HTTP，12 项原生撤权并发，39 项 CI 工作流合同。续期测试覆盖同一成功投递跨周期重投、来源失败、确认后回执写入失败及正式 Audit/outbox 读回。操作入口与授权边界见 [日历操作合同](../api/a-share-calendar-operations.md)。本机原件位于隔离工作副本 .tmp/b 的 candidate-inputs.json、final-native.xml 与分项日志。完整 CI 排在 A 的 E1 终态之后；部署、启用任务和至少两个自然周期观察仍属于后续维护窗口。

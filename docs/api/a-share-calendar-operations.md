@@ -51,3 +51,12 @@
 缺current仅在既有稳定missing错误时返回空；缺时区配置/精确exchange为ExecutionCalendarUnavailable；错scope/cutoff、坏map/zone/hash/window或其他已知owner错误为SimulatedTradeExecutionBlocked并保留cause。两owner读共享逻辑cutoff，不宣称共同数据库快照；不触发供应商采集、账本或broker写入，也不增加嵌套事务。
 
 该adapter仅供组合日期端口，不自动选择生产dataset/environment、不配置实际timezone、不接线真实用户caller，也不授证券/订单执行资格。来源must_not_execute保持true。81项本地验证与限制见[适配器记录](../testing/a-share-usability-published-calendar-adapter-2026-10-18.json)；当前身份和手工模拟交易接线见实施计划§19.74。
+
+
+## SZSE 自动续期与 Owner 委托
+
+Owner 在已有 SZSE 正式发布有效时，用同库 Django Session 和 CSRF 向 `POST /api/data-center/exchange-calendars/renewals/` 提交 `dataset_key` 与显式 UTC `expires_at`。请求者须直接持有 `data_center.publish_exchange_calendar` 和 `data_center.delegate_szse_calendar_renewal`。返回的 `grant_id` 绑定签发人、两条实际授权记录、当时的发布链及其覆盖起止日。每一数据集同时只容纳一条未撤销的委托。续期沿用该日期范围，年度扩围需要重新签发。通过 `POST /api/data-center/exchange-calendars/renewals/<grant_id>/revoke/` 提交空对象可撤销自己的委托并关闭其调度。权限被移除再重新赋予时，旧委托仍会阻断。
+
+签发会创建默认关闭的数据库 Beat 条目，每分钟检查一次，任务名为 `data_center.renew_szse_calendar`，队列为 `szse-calendar-renewal`。后续维护窗口需要配置消费该队列的 worker。已启用的任务重新锁定用户、原始授权与委托，核验当前指针及其配对审计，在服务器时钟下计算正式响应的半开有效期。仍有效返回 `noop/still_valid`。到期时锁定并检查调度启用状态，按原范围执行采集、预览和确认。手工发布替换委托所绑定的链头时需要重新委托。
+
+每个成功回执关联 Celery 投递 ID、前后 activation、正式 Audit 事件 ID 和哈希、outbox ID。同一成功投递再次到达会返回 `noop/already_renewed`。不同投递并发时以 PostgreSQL 行锁串行重验；采集、指针、审计、outbox、续期回执和委托链头在同一事务内提交。停止生产续期可先停用调度，再撤销委托；正式日历继续遵循其原有效期。

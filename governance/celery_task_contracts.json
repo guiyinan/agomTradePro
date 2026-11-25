@@ -1,6 +1,7 @@
 {
   "schema_version": 1,
   "governed_source_files": [
+    "apps/data_center/application/calendar_renewal_task.py",
     "apps/config_center/application/tasks.py",
     "apps/data_center/application/archive_tasks.py",
     "apps/data_center/application/tasks.py",
@@ -27,6 +28,33 @@
     "apps/task_monitor/application/tasks.py"
   ],
   "tasks": [
+    {
+      "task_path": "apps.data_center.application.calendar_renewal_task.renew_szse_calendar",
+      "source_file": "apps/data_center/application/calendar_renewal_task.py",
+      "criticality": "freshness_critical",
+      "required_cases": {
+        "all_success": {
+          "test_file": "tests/component/data_center/test_szse_calendar_renewal.py",
+          "test_function": "test_concurrent_due_deliveries_publish_one_audited_successor"
+        },
+        "zero_output": {
+          "test_file": "tests/component/data_center/test_szse_calendar_renewal.py",
+          "test_function": "test_renewal_is_noop_while_valid"
+        },
+        "blocked": {
+          "test_file": "tests/component/data_center/test_szse_calendar_renewal.py",
+          "test_function": "test_revocation_blocks_replayed_task"
+        },
+        "invalid_input": {
+          "test_file": "tests/component/data_center/test_szse_calendar_renewal.py",
+          "test_function": "test_invalid_input"
+        },
+        "complete_failure": {
+          "test_file": "tests/component/data_center/test_szse_calendar_renewal.py",
+          "test_function": "test_expired_source_failure_preserves_original_pointer"
+        }
+      }
+    },
     {
       "task_path": "apps.agent_runtime.application.tasks.execute_terminal_agent_run",
       "source_file": "apps/agent_runtime/application/tasks.py",

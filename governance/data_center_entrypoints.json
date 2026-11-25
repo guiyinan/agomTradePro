@@ -7,9 +7,9 @@
       "beat_schedule": 61,
       "capability_runtime": 25,
       "celery_dispatch_edge": 18,
-      "celery_task": 130,
+      "celery_task": 131,
       "compatibility_facade": 95,
-      "current_data_surface": 123,
+      "current_data_surface": 124,
       "dynamic_import_edge": 15,
       "management_command": 56,
       "management_command_edge": 66,
@@ -19,7 +19,7 @@
       "operational_script": 41,
       "orchestration_entry": 22,
       "public_port": 99,
-      "rest_url": 93,
+      "rest_url": 95,
       "runbook": 7,
       "runtime_config_key": 52,
       "scheduler_writer": 18,
@@ -30,13 +30,13 @@
       "workflow_step": 11
     },
     "by_status": {
-      "active_public": 949,
+      "active_public": 953,
       "adjacent_operational": 349,
       "candidate-review": 86,
       "compatibility": 139,
       "retired_blocked": 0
     },
-    "total": 1523
+    "total": 1527
   },
   "entries": [
     {
@@ -3351,6 +3351,16 @@
     },
     {
       "category": "celery_task",
+      "evidence": "governance/celery_task_contracts.json",
+      "id": "celery_task:apps/data_center/application/calendar_renewal_task.py:renew_szse_calendar:apps.data_center.application.calendar_renewal_task.renew_szse_calendar",
+      "locator": "apps.data_center.application.calendar_renewal_task.renew_szse_calendar",
+      "path": "apps/data_center/application/calendar_renewal_task.py",
+      "status": "active_public",
+      "symbol": "renew_szse_calendar",
+      "target": "apps.data_center.application.calendar_renewal_task.renew_szse_calendar"
+    },
+    {
+      "category": "celery_task",
       "evidence": "legacy retention preview task; canonical writes use plan_retention_task and enforce_retention_task",
       "id": "celery_task:apps/data_center/application/retention_tasks.py:cleanup_expired_raw_payloads_task:apps.data_center.application.tasks.cleanup_expired_raw_payloads_task",
       "locator": "apps.data_center.application.tasks.cleanup_expired_raw_payloads_task",
@@ -5697,6 +5707,16 @@
       "path": "governance/current_data_contracts.json",
       "status": "active_public",
       "symbol": "data_center.retained_historical_price",
+      "target": ""
+    },
+    {
+      "category": "current_data_surface",
+      "evidence": "governed current-data contract; source_files=1",
+      "id": "current_data_surface:governance/current_data_contracts.json:data_center.szse_calendar_renewal:Derive renewal eligibility from the verified formal SZSE chain and its original response-age window",
+      "locator": "Derive renewal eligibility from the verified formal SZSE chain and its original response-age window",
+      "path": "governance/current_data_contracts.json",
+      "status": "active_public",
+      "symbol": "data_center.szse_calendar_renewal",
       "target": ""
     },
     {
@@ -10732,6 +10752,26 @@
     {
       "category": "rest_url",
       "evidence": "Data Center-owned URLconf",
+      "id": "rest_url:apps/data_center/interface/api_urls.py:dc-calendar-renewal-grant:exchange-calendars/renewals/",
+      "locator": "exchange-calendars/renewals/",
+      "path": "apps/data_center/interface/api_urls.py",
+      "status": "active_public",
+      "symbol": "dc-calendar-renewal-grant",
+      "target": "CalendarRenewalGrantView.as_view()"
+    },
+    {
+      "category": "rest_url",
+      "evidence": "Data Center-owned URLconf",
+      "id": "rest_url:apps/data_center/interface/api_urls.py:dc-calendar-renewal-revoke:exchange-calendars/renewals/<uuid:grant_id>/revoke/",
+      "locator": "exchange-calendars/renewals/<uuid:grant_id>/revoke/",
+      "path": "apps/data_center/interface/api_urls.py",
+      "status": "active_public",
+      "symbol": "dc-calendar-renewal-revoke",
+      "target": "CalendarRenewalRevokeView.as_view()"
+    },
+    {
+      "category": "rest_url",
+      "evidence": "Data Center-owned URLconf",
       "id": "rest_url:apps/data_center/interface/api_urls.py:dc-calendar-workbench-confirm:exchange-calendars/workbench/confirm/",
       "locator": "exchange-calendars/workbench/confirm/",
       "path": "apps/data_center/interface/api_urls.py",
@@ -11272,11 +11312,11 @@
     {
       "category": "rest_url",
       "evidence": "Data Center-owned URLconf",
-      "id": "rest_url:apps/data_center/interface/api_urls.py:path@240:egress/",
+      "id": "rest_url:apps/data_center/interface/api_urls.py:path@254:egress/",
       "locator": "egress/",
       "path": "apps/data_center/interface/api_urls.py",
       "status": "active_public",
-      "symbol": "path@240",
+      "symbol": "path@254",
       "target": "include('apps.data_center.interface.egress_api_urls')"
     },
     {
@@ -15280,8 +15320,8 @@
     "retired_blocked": "known unsafe or obsolete operational path retained only as blocked evidence"
   },
   "source_contract_counts": {
-    "celery_tasks": 95,
-    "current_data_contracts": 123,
+    "celery_tasks": 96,
+    "current_data_contracts": 124,
     "legacy_entrypoints_and_wrappers": 0,
     "operational_governance_rules": 45,
     "runtime_config_keys": 52

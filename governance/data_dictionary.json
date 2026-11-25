@@ -29947,6 +29947,172 @@
         },
         {
           "bases": [
+            "models.Model"
+          ],
+          "class_name": "CalendarRenewalGrant",
+          "docstring": "One owner's bounded delegation over an existing SZSE publication chain.",
+          "fields": [
+            {
+              "field_type": "UUIDField",
+              "kwargs": {
+                "default": "uuid4",
+                "editable": false,
+                "primary_key": true
+              },
+              "name": "id",
+              "positional_args": []
+            },
+            {
+              "field_type": "PositiveBigIntegerField",
+              "name": "owner_user_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "PositiveBigIntegerField",
+              "name": "publish_grant_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "PositiveBigIntegerField",
+              "name": "delegate_grant_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 160
+              },
+              "name": "dataset_key",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateField",
+              "name": "coverage_start",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateField",
+              "name": "coverage_end",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "name": "issued_at",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "name": "expires_at",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "kwargs": {
+                "null": true
+              },
+              "name": "revoked_at",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 300
+              },
+              "name": "activation_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "name": "verified_at",
+              "positional_args": []
+            }
+          ],
+          "meta": {
+            "constraints": "[models.UniqueConstraint(fields=['dataset_key'], condition=models.Q(revoked_at__isnull=True), name='dc_szse_one_renewal_grant')]",
+            "permissions": [
+              [
+                "delegate_szse_calendar_renewal",
+                "Delegate renewal of the SZSE calendar"
+              ]
+            ]
+          },
+          "source_file": "infrastructure/calendar_renewal_models.py"
+        },
+        {
+          "bases": [
+            "models.Model"
+          ],
+          "class_name": "CalendarRenewalReceipt",
+          "docstring": "Link an automated confirmation to its owner's decision and exact audit pair.",
+          "fields": [
+            {
+              "field_type": "ForeignKey",
+              "kwargs": {
+                "on_delete": "models.PROTECT"
+              },
+              "name": "grant",
+              "positional_args": [
+                "CalendarRenewalGrant"
+              ]
+            },
+            {
+              "field_type": "UUIDField",
+              "name": "delivery_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 300
+              },
+              "name": "previous_activation_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 300,
+                "unique": true
+              },
+              "name": "activation_id",
+              "positional_args": [],
+              "unique": true
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 300
+              },
+              "name": "event_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "event_content_hash",
+              "positional_args": []
+            },
+            {
+              "field_type": "UUIDField",
+              "name": "outbox_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "name": "checked_at",
+              "positional_args": []
+            }
+          ],
+          "meta": {
+            "constraints": "[models.UniqueConstraint(fields=['grant', 'delivery_id'], name='dc_szse_renewal_delivery')]"
+          },
+          "source_file": "infrastructure/calendar_renewal_models.py"
+        },
+        {
+          "bases": [
             "_CandidateManifestAppendOnlyModel"
           ],
           "class_name": "CandidateRawAuditManifestMemberModel",

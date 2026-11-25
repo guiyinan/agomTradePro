@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 7786,
+    "current_surface_references": 7796,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -11747,6 +11747,42 @@
       "text": "the typed current-publication reader with the same Core Audit bridge used by"
     },
     {
+      "path": "apps/data_center/calendar_renewal_composition.py",
+      "text": "activation_id=current.record.activation_id,"
+    },
+    {
+      "path": "apps/data_center/calendar_renewal_composition.py",
+      "text": "current = read_current_exchange_calendar_reference("
+    },
+    {
+      "path": "apps/data_center/calendar_renewal_composition.py",
+      "text": "current = read_current_exchange_calendar_reference("
+    },
+    {
+      "path": "apps/data_center/calendar_renewal_composition.py",
+      "text": "current.record.activation_id != grant.activation_id"
+    },
+    {
+      "path": "apps/data_center/calendar_renewal_composition.py",
+      "text": "if current.record.is_effective_at(due_check_at):"
+    },
+    {
+      "path": "apps/data_center/calendar_renewal_composition.py",
+      "text": "if preview.expected_pointer != current.pointer:"
+    },
+    {
+      "path": "apps/data_center/calendar_renewal_composition.py",
+      "text": "reference = current.record.seal.snapshot_reference"
+    },
+    {
+      "path": "apps/data_center/calendar_renewal_composition.py",
+      "text": "reference = current.record.seal.snapshot_reference"
+    },
+    {
+      "path": "apps/data_center/calendar_renewal_composition.py",
+      "text": "verified_at=current.as_of,"
+    },
+    {
       "path": "apps/data_center/calendar_workbench_composition.py",
       "text": "\"\"\"Return Django's current timezone-aware instant.\"\"\""
     },
@@ -14825,6 +14861,10 @@
     {
       "path": "apps/data_center/interface/calendar_publication_serializers.py",
       "text": "\"\"\"Validate the complete current-pointer compare-and-swap identity.\"\"\""
+    },
+    {
+      "path": "apps/data_center/interface/calendar_renewal_api.py",
+      "text": "\"\"\"Create a disabled schedule bound to the verified current head.\"\"\""
     },
     {
       "path": "apps/data_center/interface/calendar_workbench_api_presenters.py",
