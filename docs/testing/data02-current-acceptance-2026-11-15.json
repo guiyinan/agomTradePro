@@ -11217,7 +11217,7 @@
         "production_revision": "4149a9cf4a3738f38d0ca62979fa9bfed56a6a07",
         "runtime_and_storage": "Serving maintenance SHA 27d25afaf85909aed26272b98c026a9e7fd4a81e; the one-shot E1 ran in its separately verified successor image c6c2437d4f59cd37110d4ecf3e3326da1d694bb7.",
         "source_evidence": "Four native numeric-source captures and statutory evidence are retained. The two AKShare documentation tables match the reviewed originals field by field. Issuer comparison limits remain in the precision review.",
-        "remaining": "Resolve the verified raw-audit contract before a governed financial write. Both new originals are retained. Independent readback found zero target facts and zero successful-write audit receipts.",
+        "remaining": "The retained E1 reader and atomic recovery writer are integrated. All ten pinned qualifications expired before a production claim. Current source eligibility, exact candidate CI, current calendar, one governed write and independent production reconciliation remain outstanding.",
         "expansion_gate": "Full same-candidate S6, full coverage, capacity and four-Publication reconciliation before security two. Release 10, 100 and full universe separately. Stop on the second consecutive failure at the same stage.",
         "s6_prepare_only": "d2843f4552a641d5903476ab9d3f0d60",
         "historical_backup_rehearsal": {
@@ -11855,8 +11855,8 @@
             "financial_total": 487624
           },
           "remaining": {
-            "write": "Reconcile the v1 capture and verified-reader audit contracts. Preserve both original links and the terminal SyncRun.",
-            "readback": "No financial fact exists for a stored-value comparison. The two authorized transmissions are exhausted.",
+            "write": "Re-establish current source eligibility for the unchanged original pair, complete the release gates, and verify a zero-transport recovery forecast before claiming the single write.",
+            "readback": "Two original source audits are verified. The production recovery has not been claimed. Zero target facts were independently read after source expiry.",
             "expansion": "Full S6 before a second security."
           },
           "recovery_after_storage_failure": {
@@ -12404,7 +12404,53 @@
               ],
               "stored_value_comparisons": 0
             },
-            "root_cause": "Both immutable v1 retention links carry the verified raw body SHA-256. Their separate response_payload_hash fields are empty. The native endpoint verifier rejects the audit before financial facts or the success outbox event can commit."
+            "root_cause": "Both immutable v1 retention links carry the verified raw body SHA-256. Their separate response_payload_hash fields are empty. The native endpoint verifier rejects the audit before financial facts or the success outbox event can commit.",
+            "retained_recovery": {
+              "as_of": "2026-11-25T16:20:55.851957+00:00",
+              "stage": "source_qualification_window_closed_before_production_recovery",
+              "writer_candidate": "0b58ea78500c1a3e5025d01e7d833342a8625cd8",
+              "source_audits": [
+                75738,
+                75739
+              ],
+              "recovery_claimed": false,
+              "new_financial_requests": 0,
+              "target_facts": 0,
+              "production_write_readback_completed": false,
+              "source_gate": {
+                "before": "2026-11-25 15:58:34.871864+00:00",
+                "selected_before": 10,
+                "expires": "2026-11-25T23:59:59+08:00",
+                "after": "2026-11-25 16:02:24.568077+00:00",
+                "selected_after": 0,
+                "available_current_catalog_rows": 0,
+                "code": "FinancialE1PreflightError:FINANCIAL_E1_SELECTION_EVIDENCE_BLOCKED"
+              },
+              "local_validation": {
+                "unit_tests": {
+                  "tests": 140,
+                  "failures": 0,
+                  "errors": 0,
+                  "skipped": 0
+                },
+                "postgres_tests": {
+                  "tests": 7,
+                  "failures": 0,
+                  "errors": 0,
+                  "skipped": 0
+                },
+                "atomic_audit_failure_rollback": true,
+                "immutable_originals_verified": 2,
+                "mypy_regressions": 0,
+                "mypy_debt": 0,
+                "tested_writer_commit": "61f237bca0e5e89349515aefeba94e6abc121a5a",
+                "candidate_delta": "generated source inventory only"
+              },
+              "evidence_index": {
+                "path": ".tmp/data02-e1-admission-20261125/e1-independent-02/retained-recovery-status.json",
+                "sha256": "4b7507c898dd9650f97d662b3d5e7bada782823a6fcdd9cea6de53a69b6ba138"
+              }
+            }
           }
         },
         "charged_transport_attempts": 4
