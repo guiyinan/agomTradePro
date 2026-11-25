@@ -11525,7 +11525,105 @@
             "e1_candidate": "8eaba967a047d1f7e22c6084ca613a36cf371588",
             "production_e1_requests": 0,
             "production_e1_writes": 0
+          },
+          "maintenance_release_preparation": {
+            "owner_release_approved": true,
+            "candidate": "6a292b8bf981fa292f926b52725403b93ff2877d",
+            "observed_production_revision": "4149a9cf4a3738f38d0ca62979fa9bfed56a6a07",
+            "live_application_services": 5,
+            "staged_image_id": "sha256:658ec8b87451f5968967e4ddcfab80fb1c4e95e70cda4ecf43db5acbf3563b60",
+            "staged_image_verification": {
+              "path": ".tmp/data02-guard-20261122/e1-8eaba967a-20261125/legacy-compat/production-6a292b8bf/staged-image-verified.json",
+              "sha256": "93413aef345397e324680086e4514000e75ff718cdcc05e3cabe93cbb8af4800"
+            },
+            "build_report": {
+              "path": ".tmp/data02-guard-20261122/e1-8eaba967a-20261125/legacy-compat/production-6a292b8bf/build-report/remote-build-report-20261125102323-dcb975fdd52db0cff591f69c872a2bc7.json",
+              "sha256": "e415030c7379a41e771af0e81e903ab2b6d6a7e79baf711e65d3c5ce4e85bcc4"
+            },
+            "backup_archive": "/opt/agomtradepro/backups/database/postgres-20261125T021553Z.dump",
+            "backup_sha256": "60c004b990e1b87ab3da8c05788733b7b8559f5a813854cac765dbed6079ddee",
+            "backup_bytes": 285428569,
+            "backup_verification": {
+              "path": ".tmp/data02-guard-20261122/e1-8eaba967a-20261125/legacy-compat/production-6a292b8bf/backup-verification.json",
+              "sha256": "a3a5d7ab34ef431b84e2cf6cc0c49d674b1d45e9d1313eec456a8722c2a78205"
+            },
+            "isolated_restore": {
+              "path": ".tmp/data02-guard-20261122/e1-8eaba967a-20261125/legacy-compat/production-6a292b8bf/restore-rehearsal.json",
+              "sha256": "f94b2cfbeef636ba0750dea66efb07067860d7207cdd98df18a766f905622c33"
+            },
+            "unchanged_full_financial_rows": 487624,
+            "empty_legacy_manifest_observed": true,
+            "standard_entrypoint_requires_candidate_bound_rehearsal": true,
+            "standard_entrypoint_preflight_log": {
+              "path": ".tmp/data02-guard-20261122/e1-8eaba967a-20261125/legacy-compat/production-6a292b8bf/standard-preflight.log",
+              "sha256": "70f3d519a0545802599767c02876deaef2cfb131e4ad981787e5f8ae242138c4"
+            },
+            "legacy_anchor_validator_negative_controls": {
+              "path": ".tmp/data02-guard-20261122/e1-8eaba967a-20261125/legacy-compat/production-6a292b8bf/release-preflight.json",
+              "sha256": "9ea2a70543eacd3cae034d1a27068770c941454469c4e80ee3c9ab04ccd60d45"
+            },
+            "topology": {
+              "path": ".tmp/data02-guard-20261122/e1-8eaba967a-20261125/legacy-compat/production-6a292b8bf/topology.json",
+              "sha256": "83f67f483a4206051485434ee0bbdf6292a81bb021333b9e6c5d06f0eec8b072"
+            },
+            "status": "code_only_maintenance_deployed",
+            "deployment_or_service_restart": true,
+            "e1_provider_requests": 0,
+            "e1_business_writes": 0,
+            "owner_limited_handoff_approval": "call_a5b24050caed40e8b8cb32d14bec5236",
+            "corrected_only_in_qa": [
+              "Serialized initialization of QA volumes",
+              "Matched actual service health, runtime role, legacy directory permissions and worker resource limits"
+            ],
+            "operator_script": {
+              "path": ".tmp/data02-guard-20261122/e1-8eaba967a-20261125/legacy-compat/production-6a292b8bf/cutover.py",
+              "sha256": "f84b8a73aaccdd93e484bf78fc1347385d6c23c74a24cdff0465e03e5f0b31de"
+            },
+            "role_checks": {
+              "path": ".tmp/data02-guard-20261122/e1-8eaba967a-20261125/legacy-compat/production-6a292b8bf/service_gate_v3.py",
+              "sha256": "308f4168c778450f24f9001d789772a7d6e2e7da24757a93e19b943b9f45558f"
+            },
+            "five_role_cutover_and_rollback_rehearsal": {
+              "path": ".tmp/data02-guard-20261122/e1-8eaba967a-20261125/legacy-compat/production-6a292b8bf/host-qa-cycle.json",
+              "sha256": "fc9033cf0f49cec077867aa22d595f849e89db965825e27882646b450ad52478"
+            },
+            "actual_cutover": {
+              "path": ".tmp/data02-guard-20261122/e1-8eaba967a-20261125/legacy-compat/production-6a292b8bf/host-deployed.json",
+              "sha256": "c6762886afe7d1791610cf99c5234ece17f248189efd721a11996ad56ce12c89"
+            },
+            "five_roles_verified": true,
+            "migrations_changed": false,
+            "financial_facts_changed": false,
+            "publication_pointers_changed": false,
+            "unchanged_infrastructure": 6,
+            "independent_service_readback": {
+              "path": ".tmp/data02-guard-20261122/e1-8eaba967a-20261125/legacy-compat/production-6a292b8bf/production-readback.json",
+              "sha256": "464df5d74a8492897a89ddd507a4320bfef8b105668d1a0e70ce7411391ffccc"
+            },
+            "e1_readiness": {
+              "runtime_command_available": false,
+              "exact_storage_columns": [],
+              "active_document_providers": 0,
+              "current_calendar_pointers": 0,
+              "audit_outbox_periodic_rows_observed": 0,
+              "source_precision_review": "followups[14].d1_e1_report_field_precision_review",
+              "physical_requests": 0,
+              "business_writes": 0
+            },
+            "reclaimed_isolated_qa_bytes": 3927257200,
+            "retired_clone": {
+              "path": ".tmp/data02-guard-20261122/e1-8eaba967a-20261125/legacy-compat/production-6a292b8bf/host-qa-retired-clone.json",
+              "sha256": "d1700feff68c401578706c59fdbdd3ff439a3ff7b245c3f401a856daac9680e4"
+            }
           }
+        },
+        "current_runtime_after_maintenance": {
+          "revision": "6a292b8bf981fa292f926b52725403b93ff2877d",
+          "image": "sha256:658ec8b87451f5968967e4ddcfab80fb1c4e95e70cda4ecf43db5acbf3563b60",
+          "release_dir": "/opt/agomtradepro/releases/source-20261125102323",
+          "status": "deployed_and_read_back",
+          "e1_writer": "8eaba967a047d1f7e22c6084ca613a36cf371588",
+          "production_e1_status": "blocked_before_first_request"
         }
       }
     }
