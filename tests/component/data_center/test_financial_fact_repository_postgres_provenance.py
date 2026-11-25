@@ -387,14 +387,15 @@ def test_legacy_service_skips_exact_only_rows_and_protects_the_key() -> None:
     legacy = _direct_model_row(metric_code="protected", value=12.3456)
     native = _direct_model_row(metric_code="native_fixture", value=1)
     with transaction.atomic(), connections["default"].cursor() as cursor:
-        # The old model can use the same query before and after migration 0114.
-        cursor.execute("ALTER TABLE data_center_financial_fact ALTER COLUMN value DROP NOT NULL")
-        cursor.execute("ALTER TABLE data_center_financial_fact ADD COLUMN exact_value_text text")
-        cursor.execute(
-            "UPDATE data_center_financial_fact SET metric_code = %s, revision_number = 2, "
-            "value = NULL, exact_value_text = %s WHERE id = %s",
-            [legacy.metric_code, "12.3456789012345678901", native.pk],
+        changed = FinancialFactModel.objects.filter(pk=native.pk).update(
+            metric_code=legacy.metric_code,
+            revision_number=2,
+            value=None,
+            numeric_schema="native-decimal-v2",
+            exact_value_text="12.3456789012345678901",
+            numeric_evidence={"fixture": "exact-only legacy visibility"},
         )
+        assert changed == 1
         assert repository.get_facts(_ASSET_CODE, fact_pks=[str(native.pk)]) == []
         assert repository.get_latest(_ASSET_CODE).value == 12.3456
         assert [fact.value for fact in repository.get_facts(_ASSET_CODE)] == [12.3456]

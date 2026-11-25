@@ -48,6 +48,10 @@ class FinancialFactRepository(FinancialAvailabilityRepositoryMixin):
 
     @staticmethod
     def _from_model(m: FinancialFactModel) -> FinancialFact:
+        if m.value is None:
+            raise FinancialFactProvenanceConflictError(
+                "The legacy reader cannot represent an exact-only financial revision."
+            )
         return FinancialFact(
             asset_code=m.asset_code,
             period_end=m.period_end,

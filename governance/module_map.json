@@ -4547,6 +4547,23 @@
           "QuerySectorConstituentsUseCase",
           "QueryValuationsUseCase"
         ],
+        "application/financial_availability_governance.py": [
+          "FinancialAvailabilityGovernanceReadResult",
+          "append_and_apply_financial_availability_governance",
+          "append_financial_availability_revoke",
+          "materialize_financial_availability_record",
+          "read_financial_availability_governance"
+        ],
+        "application/financial_availability_governance_ports.py": [
+          "FinancialAvailabilityGovernanceRepositoryPort",
+          "FinancialAvailabilityOwnerEventRepositoryPort",
+          "FinancialAvailabilityPermissionAuthorizerPort",
+          "FinancialAvailabilitySessionRequestProof",
+          "FinancialAvailabilitySourceRead",
+          "FinancialAvailabilitySourceReaderPort",
+          "GetFinancialAvailabilityGovernanceQuery",
+          "LockedFinancialAvailabilityPrincipal"
+        ],
         "application/financial_capacity_formal_publication.py": [
           "FinancialCapacityFormalPublicationWorkflow"
         ],
@@ -5431,6 +5448,19 @@
           "project_market_graph_task_result",
           "validate_market_graph_task_result"
         ],
+        "application/statutory_source_documents.py": [
+          "AppendStatutorySourceDocumentBundleUseCase",
+          "QueryStatutorySourceDocumentBundleUseCase",
+          "QueryStatutorySourceDocumentUseCase",
+          "ReadStatutorySourceDocumentBodyUseCase",
+          "RetainStatutorySourceDocumentUseCase",
+          "StatutorySourceBundleConflictError",
+          "StatutorySourceCaptureConflictError",
+          "StatutorySourceDocumentBodyStorePort",
+          "StatutorySourceDocumentBundleRepositoryPort",
+          "StatutorySourceDocumentRepositoryPort",
+          "StatutorySourceRevisionConflictError"
+        ],
         "application/sync_identity.py": [
           "IssueSyncExecutionIdentityCommand",
           "IssueSyncExecutionIdentityUseCase",
@@ -5509,6 +5539,8 @@
       },
       "http_routes": {
         "interface/api_urls.py": [
+          "financial-availability/governance/apply/",
+          "financial-availability/governance/revoke/",
           "price-limits/publication/preview/",
           "price-limits/publication/confirm/",
           "price-limits/publication/rollback/",
@@ -5590,12 +5622,12 @@
         ]
       },
       "layers": {
-        "application": 177,
-        "domain": 51,
-        "infrastructure": 233,
-        "interface": 32,
+        "application": 180,
+        "domain": 59,
+        "infrastructure": 247,
+        "interface": 33,
         "management": 42,
-        "root": 40
+        "root": 42
       },
       "orm_models": {
         "infrastructure/models.py": [
@@ -5610,7 +5642,6 @@
           "MacroFactModel",
           "PriceBarModel",
           "FundNavFactModel",
-          "FinancialFactModel",
           "FinancialPublicationCapacityWorkflowModel",
           "FinancialPublicationCapacityManifestItemModel",
           "FinancialPublicationCapacityEvidenceModel",

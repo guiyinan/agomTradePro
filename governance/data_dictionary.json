@@ -33623,6 +33623,1105 @@
         },
         {
           "bases": [
+            "_FinancialAvailabilityAppendOnlyModel"
+          ],
+          "class_name": "FinancialAvailabilityGovernanceRecordModel",
+          "docstring": "One immutable explicit opening-rule or disclosure-policy version.",
+          "fields": [
+            {
+              "field_type": "UUIDField",
+              "kwargs": {
+                "default": "uuid4",
+                "editable": false,
+                "primary_key": true
+              },
+              "name": "row_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 200
+              },
+              "name": "record_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 200
+              },
+              "name": "record_version",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 32
+              },
+              "name": "exchange",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "choices": "KIND_CHOICES",
+                "max_length": 32
+              },
+              "name": "kind",
+              "positional_args": []
+            },
+            {
+              "field_type": "JSONField",
+              "name": "payload",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "content_sha256",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "name": "recorded_at",
+              "positional_args": []
+            },
+            {
+              "field_type": "ForeignKey",
+              "kwargs": {
+                "blank": true,
+                "null": true,
+                "on_delete": "models.PROTECT",
+                "related_name": "financial_availability_governance_records"
+              },
+              "name": "source_capture",
+              "null": true,
+              "positional_args": [
+                "StatutorySourceDocumentCaptureModel"
+              ]
+            }
+          ],
+          "meta": {
+            "app_label": "data_center",
+            "constraints": "[models.UniqueConstraint(fields=('record_id', 'record_version'), name='dc_fin_avail_record_version_uniq'), models.CheckConstraint(condition=models.Q(kind='opening_rule', source_capture__isnull=False) | models.Q(kind='disclosure_policy', source_capture__isnull=True), name='dc_fin_avail_record_source_shape_ck'), models.CheckConstraint(condition=models.Q(content_sha256__regex='^[0-9a-f]{64}$'), name='dc_fin_avail_record_hash_ck')]",
+            "db_table": "data_center_financial_availability_governance_record",
+            "ordering": [
+              "record_id",
+              "record_version"
+            ],
+            "permissions": [
+              [
+                "manage_financial_availability_governance",
+                "Can manage financial availability governance"
+              ]
+            ]
+          },
+          "source_file": "infrastructure/financial_availability_governance_models.py"
+        },
+        {
+          "bases": [
+            "_FinancialAvailabilityAppendOnlyModel"
+          ],
+          "class_name": "FinancialAvailabilityOwnerEventModel",
+          "docstring": "One authenticated Django User apply/revoke event for an exact record.",
+          "fields": [
+            {
+              "field_type": "UUIDField",
+              "kwargs": {
+                "editable": false,
+                "primary_key": true
+              },
+              "name": "event_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "ForeignKey",
+              "kwargs": {
+                "on_delete": "models.PROTECT",
+                "related_name": "owner_events"
+              },
+              "name": "governance_record",
+              "positional_args": [
+                "FinancialAvailabilityGovernanceRecordModel"
+              ]
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "choices": "ACTION_CHOICES",
+                "max_length": 16
+              },
+              "name": "action",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "event_sha256",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "record_content_sha256",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "resulting_content_sha256",
+              "positional_args": []
+            },
+            {
+              "field_type": "ForeignKey",
+              "kwargs": {
+                "on_delete": "models.PROTECT",
+                "related_name": "financial_availability_owner_events"
+              },
+              "name": "actor",
+              "positional_args": [
+                "settings.AUTH_USER_MODEL"
+              ]
+            },
+            {
+              "field_type": "ForeignKey",
+              "kwargs": {
+                "on_delete": "models.PROTECT",
+                "related_name": "financial_availability_owner_events"
+              },
+              "name": "permission",
+              "positional_args": [
+                "Permission"
+              ]
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 100
+              },
+              "name": "permission_app_label",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 100
+              },
+              "name": "permission_codename",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "name": "permission_verified_at",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "name": "occurred_at",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "name": "recorded_at",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 1000
+              },
+              "name": "reason",
+              "positional_args": []
+            },
+            {
+              "field_type": "OneToOneField",
+              "kwargs": {
+                "blank": true,
+                "null": true,
+                "on_delete": "models.PROTECT",
+                "related_name": "revoke_event"
+              },
+              "name": "predecessor_apply_event",
+              "null": true,
+              "positional_args": [
+                "'self'"
+              ]
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 64,
+                "null": true
+              },
+              "name": "predecessor_apply_event_sha256",
+              "null": true,
+              "positional_args": []
+            }
+          ],
+          "meta": {
+            "app_label": "data_center",
+            "constraints": "[models.UniqueConstraint(fields=('governance_record', 'action'), name='dc_fin_avail_record_action_uniq'), models.CheckConstraint(condition=models.Q(action='apply', predecessor_apply_event__isnull=True, predecessor_apply_event_sha256__isnull=True) | models.Q(action='revoke', predecessor_apply_event__isnull=False, predecessor_apply_event_sha256__isnull=False), name='dc_fin_avail_event_predecessor_ck'), models.CheckConstraint(condition=models.Q(permission_app_label='data_center', permission_codename='manage_financial_availability_governance'), name='dc_fin_avail_event_permission_ck'), models.CheckConstraint(condition=models.Q(event_sha256__regex='^[0-9a-f]{64}$', record_content_sha256__regex='^[0-9a-f]{64}$', resulting_content_sha256__regex='^[0-9a-f]{64}$'), name='dc_fin_avail_event_hashes_ck'), models.CheckConstraint(condition=models.Q(occurred_at__gte=models.F('permission_verified_at')), name='dc_fin_avail_event_verified_clock_ck'), models.CheckConstraint(condition=models.Q(recorded_at__gte=models.F('occurred_at')), name='dc_fin_avail_event_record_clock_ck')]",
+            "db_table": "data_center_financial_availability_owner_event",
+            "ordering": [
+              "governance_record_id",
+              "recorded_at",
+              "event_id"
+            ]
+          },
+          "source_file": "infrastructure/financial_availability_governance_models.py"
+        },
+        {
+          "abstract": true,
+          "bases": [
+            "models.Model"
+          ],
+          "class_name": "_FinancialAvailabilityAppendOnlyModel",
+          "docstring": "Protect model-level writes while database triggers remain the final guard.",
+          "meta": {
+            "abstract": true
+          },
+          "source_file": "infrastructure/financial_availability_governance_models.py"
+        },
+        {
+          "bases": [
+            "models.Model"
+          ],
+          "class_name": "FinancialFactModel",
+          "docstring": "Financial statement fact (single line-item per row).",
+          "fields": [
+            {
+              "db_index": true,
+              "field_type": "CharField",
+              "kwargs": {
+                "db_index": true,
+                "max_length": 20
+              },
+              "name": "asset_code",
+              "positional_args": []
+            },
+            {
+              "db_index": true,
+              "field_type": "DateField",
+              "kwargs": {
+                "db_index": true,
+                "help_text": "Period end date (e.g. 2024-12-31)"
+              },
+              "name": "period_end",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "choices": "PERIOD_TYPE_CHOICES",
+                "max_length": 15
+              },
+              "name": "period_type",
+              "positional_args": []
+            },
+            {
+              "db_index": true,
+              "field_type": "CharField",
+              "kwargs": {
+                "db_index": true,
+                "help_text": "Metric identifier (e.g. revenue, net_profit, total_assets)",
+                "max_length": 60
+              },
+              "name": "metric_code",
+              "positional_args": []
+            },
+            {
+              "field_type": "DecimalField",
+              "kwargs": {
+                "blank": true,
+                "decimal_places": 4,
+                "max_digits": 28,
+                "null": true
+              },
+              "name": "value",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "db_default": "legacy-decimal-v1",
+                "default": "legacy-decimal-v1",
+                "max_length": 40
+              },
+              "name": "numeric_schema",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 128,
+                "null": true
+              },
+              "name": "exact_value_text",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "JSONField",
+              "kwargs": {
+                "blank": true,
+                "null": true
+              },
+              "name": "numeric_evidence",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 20
+              },
+              "name": "unit",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 50
+              },
+              "name": "source",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateField",
+              "kwargs": {
+                "blank": true,
+                "help_text": "Date report was published",
+                "null": true
+              },
+              "name": "report_date",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "kwargs": {
+                "auto_now_add": true
+              },
+              "name": "fetched_at",
+              "positional_args": []
+            },
+            {
+              "field_type": "JSONField",
+              "kwargs": {
+                "blank": true,
+                "default": "dict"
+              },
+              "name": "extra",
+              "positional_args": []
+            },
+            {
+              "field_type": "JSONField",
+              "kwargs": {
+                "blank": true,
+                "default": "dict"
+              },
+              "name": "decision_evidence",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "default": "1.0",
+                "max_length": 40
+              },
+              "name": "contract_version",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "default": "1.0",
+                "max_length": 40
+              },
+              "name": "schema_version",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 200
+              },
+              "name": "source_record_id",
+              "positional_args": []
+            },
+            {
+              "db_index": true,
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "db_index": true,
+                "max_length": 128
+              },
+              "name": "raw_payload_hash",
+              "positional_args": []
+            },
+            {
+              "db_index": true,
+              "field_type": "CharField",
+              "kwargs": {
+                "db_index": true,
+                "default": "accepted",
+                "max_length": 40
+              },
+              "name": "quality_status",
+              "positional_args": []
+            },
+            {
+              "field_type": "PositiveSmallIntegerField",
+              "kwargs": {
+                "default": 1
+              },
+              "name": "revision_number",
+              "positional_args": []
+            },
+            {
+              "db_index": true,
+              "field_type": "UUIDField",
+              "kwargs": {
+                "blank": true,
+                "db_index": true,
+                "null": true
+              },
+              "name": "ingested_run_id",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "db_index": true,
+              "field_type": "DateTimeField",
+              "kwargs": {
+                "blank": true,
+                "db_index": true,
+                "null": true
+              },
+              "name": "announced_at",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "db_index": true,
+              "field_type": "DateTimeField",
+              "kwargs": {
+                "blank": true,
+                "db_index": true,
+                "null": true
+              },
+              "name": "available_at",
+              "null": true,
+              "positional_args": []
+            }
+          ],
+          "meta": {
+            "constraints": "[models.CheckConstraint(condition=models.Q(numeric_schema='legacy-decimal-v1', value__isnull=False, exact_value_text__isnull=True, numeric_evidence__isnull=True) | models.Q(numeric_schema='native-decimal-v2', value__isnull=True, exact_value_text__isnull=False, numeric_evidence__isnull=False) & ~models.Q(exact_value_text='') & ~models.Q(numeric_evidence={}) & models.Q(_IsFinancialNumericJSONObject(models.F('numeric_evidence'))), name='dc_financial_numeric_state_valid')]",
+            "db_table": "data_center_financial_fact",
+            "indexes": "[models.Index(fields=['asset_code', 'period_end']), models.Index(fields=['metric_code'])]",
+            "ordering": [
+              "-period_end"
+            ],
+            "unique_together": [
+              [
+                "asset_code",
+                "period_end",
+                "period_type",
+                "metric_code",
+                "source",
+                "revision_number"
+              ]
+            ],
+            "verbose_name": "Financial Fact",
+            "verbose_name_plural": "Financial Facts"
+          },
+          "source_file": "infrastructure/financial_fact_models.py"
+        },
+        {
+          "bases": [
+            "_StatutorySourceImmutableModel"
+          ],
+          "class_name": "FinancialMetricSourceCatalogEntryModel",
+          "docstring": "One immutable exact qualification revision tied to a retained document capture.",
+          "fields": [
+            {
+              "field_type": "UUIDField",
+              "kwargs": {
+                "default": "uuid4",
+                "editable": false,
+                "primary_key": true
+              },
+              "name": "entry_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 256,
+                "unique": true
+              },
+              "name": "qualification_identity",
+              "positional_args": [],
+              "unique": true
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "qualification_sha256",
+              "positional_args": []
+            },
+            {
+              "db_index": true,
+              "field_type": "CharField",
+              "kwargs": {
+                "db_index": true,
+                "max_length": 160
+              },
+              "name": "contract_identity",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "contract_sha256",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 128
+              },
+              "name": "contract_provider",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 160
+              },
+              "name": "dataset_key",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 128
+              },
+              "name": "metric_code",
+              "positional_args": []
+            },
+            {
+              "field_type": "JSONField",
+              "name": "qualification",
+              "positional_args": []
+            },
+            {
+              "field_type": "ForeignKey",
+              "kwargs": {
+                "on_delete": "models.PROTECT",
+                "related_name": "catalog_entries"
+              },
+              "name": "document_capture",
+              "positional_args": [
+                "FinancialNumericSourceDocumentCaptureModel"
+              ]
+            },
+            {
+              "field_type": "DateTimeField",
+              "name": "effective_from",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "kwargs": {
+                "blank": true,
+                "null": true
+              },
+              "name": "effective_until",
+              "null": true,
+              "positional_args": []
+            }
+          ],
+          "meta": {
+            "base_manager_name": "objects",
+            "constraints": "[models.CheckConstraint(condition=models.Q(qualification_sha256__regex='^[0-9a-f]{64}$', contract_sha256__regex='^[0-9a-f]{64}$'), name='dc_fin_metric_hashes_ck'), models.CheckConstraint(condition=models.Q(effective_until__isnull=True) | models.Q(effective_until__gt=models.F('effective_from')), name='dc_fin_metric_effective_ck')]",
+            "db_table": "data_center_fin_metric_source_entry",
+            "default_manager_name": "objects",
+            "indexes": "[models.Index(fields=('contract_identity', 'effective_from', 'effective_until'), name='dc_fin_metric_scope_idx'), models.Index(fields=('dataset_key', 'metric_code'), name='dc_fin_metric_code_idx')]",
+            "ordering": [
+              "recorded_at",
+              "entry_id"
+            ]
+          },
+          "source_file": "infrastructure/financial_numeric_catalog_models.py"
+        },
+        {
+          "bases": [
+            "_StatutorySourceImmutableModel"
+          ],
+          "class_name": "FinancialMetricSourceCatalogOwnerEventModel",
+          "docstring": "One append-only authenticated Owner apply or revoke for an exact entry hash.",
+          "fields": [
+            {
+              "field_type": "UUIDField",
+              "kwargs": {
+                "default": "uuid4",
+                "editable": false,
+                "primary_key": true
+              },
+              "name": "event_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "ForeignKey",
+              "kwargs": {
+                "on_delete": "models.PROTECT",
+                "related_name": "owner_events"
+              },
+              "name": "entry",
+              "positional_args": [
+                "FinancialMetricSourceCatalogEntryModel"
+              ]
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "choices": [
+                  [
+                    "apply",
+                    "Apply"
+                  ],
+                  [
+                    "revoke",
+                    "Revoke"
+                  ]
+                ],
+                "max_length": 8
+              },
+              "name": "action",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 256
+              },
+              "name": "qualification_identity",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "qualification_sha256",
+              "positional_args": []
+            },
+            {
+              "field_type": "ForeignKey",
+              "kwargs": {
+                "on_delete": "models.PROTECT",
+                "related_name": "financial_metric_source_catalog_events"
+              },
+              "name": "actor",
+              "positional_args": [
+                "settings.AUTH_USER_MODEL"
+              ]
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 150
+              },
+              "name": "actor_username_snapshot",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "name": "event_at",
+              "positional_args": []
+            }
+          ],
+          "meta": {
+            "base_manager_name": "objects",
+            "constraints": "[models.UniqueConstraint(fields=('entry', 'action'), name='dc_fin_metric_event_once_uniq'), models.CheckConstraint(condition=models.Q(action__in=('apply', 'revoke')), name='dc_fin_metric_action_ck'), models.CheckConstraint(condition=models.Q(recorded_at__gte=models.F('event_at'), qualification_sha256__regex='^[0-9a-f]{64}$'), name='dc_fin_metric_event_clock_ck')]",
+            "db_table": "data_center_fin_metric_source_owner_event",
+            "default_manager_name": "objects",
+            "indexes": "[models.Index(fields=('entry', 'recorded_at'), name='dc_fin_metric_event_idx')]",
+            "ordering": [
+              "recorded_at",
+              "event_id"
+            ]
+          },
+          "source_file": "infrastructure/financial_numeric_catalog_models.py"
+        },
+        {
+          "bases": [
+            "_StatutorySourceImmutableModel"
+          ],
+          "class_name": "FinancialNumericSourceDocumentCaptureModel",
+          "docstring": "One exact raw public-document body capture with controlled-egress metadata.",
+          "fields": [
+            {
+              "field_type": "UUIDField",
+              "kwargs": {
+                "editable": false,
+                "primary_key": true
+              },
+              "name": "capture_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "ForeignKey",
+              "kwargs": {
+                "on_delete": "models.PROTECT",
+                "related_name": "financial_numeric_source_document_captures"
+              },
+              "name": "provider",
+              "positional_args": [
+                "'data_center.ProviderConfigModel'"
+              ]
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 100
+              },
+              "name": "provider_name_snapshot",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 20
+              },
+              "name": "provider_source_type_snapshot",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 120
+              },
+              "name": "dataset_key",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 40
+              },
+              "name": "deployment_region",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 240
+              },
+              "name": "issuer",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 240
+              },
+              "name": "document_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "TextField",
+              "name": "canonical_url",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "target_url_sha256",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 253
+              },
+              "name": "target_host",
+              "positional_args": []
+            },
+            {
+              "field_type": "PositiveSmallIntegerField",
+              "name": "request_attempt",
+              "positional_args": []
+            },
+            {
+              "field_type": "PositiveBigIntegerField",
+              "kwargs": {
+                "blank": true,
+                "null": true
+              },
+              "name": "egress_id",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 16
+              },
+              "name": "transport",
+              "positional_args": []
+            },
+            {
+              "field_type": "PositiveSmallIntegerField",
+              "name": "status_code",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 200
+              },
+              "name": "content_type",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "name": "response_completed_at",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "body_sha256",
+              "positional_args": []
+            },
+            {
+              "field_type": "PositiveBigIntegerField",
+              "name": "body_size_bytes",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 1024
+              },
+              "name": "body_reference",
+              "positional_args": []
+            },
+            {
+              "field_type": "JSONField",
+              "kwargs": {
+                "blank": true,
+                "null": true
+              },
+              "name": "origin_snapshot",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 64,
+                "null": true
+              },
+              "name": "origin_snapshot_sha256",
+              "null": true,
+              "positional_args": []
+            }
+          ],
+          "meta": {
+            "base_manager_name": "objects",
+            "constraints": "[models.CheckConstraint(condition=models.Q(provider_source_type_snapshot=PUBLIC_DOCUMENT_SOURCE_TYPE), name='dc_fin_num_doc_provider_ck'), models.CheckConstraint(condition=models.Q(transport='egress'), name='dc_fin_num_doc_transport_ck'), models.CheckConstraint(condition=models.Q(status_code__gte=200, status_code__lt=300), name='dc_fin_num_doc_status_ck'), models.CheckConstraint(condition=models.Q(request_attempt__gte=1, body_size_bytes__gt=0), name='dc_fin_num_doc_size_ck'), models.CheckConstraint(condition=models.Q(recorded_at__gte=models.F('response_completed_at'), target_url_sha256__regex='^[0-9a-f]{64}$', body_sha256__regex='^[0-9a-f]{64}$'), name='dc_fin_num_doc_integrity_ck'), models.CheckConstraint(condition=models.Q(origin_snapshot__isnull=True, origin_snapshot_sha256__isnull=True) | models.Q(origin_snapshot__isnull=False, origin_snapshot_sha256__isnull=False, origin_snapshot_sha256__regex='^[0-9a-f]{64}$'), name='dc_fin_num_origin_snapshot_pair_ck')]",
+            "db_table": "data_center_fin_numeric_doc_capture",
+            "default_manager_name": "objects",
+            "indexes": "[models.Index(fields=('provider', 'dataset_key', 'response_completed_at'), name='dc_fin_num_doc_scope_idx'), models.Index(fields=('body_sha256',), name='dc_fin_num_doc_body_idx')]",
+            "ordering": [
+              "response_completed_at",
+              "capture_id"
+            ]
+          },
+          "source_file": "infrastructure/financial_numeric_catalog_models.py"
+        },
+        {
+          "bases": [
+            "models.Model"
+          ],
+          "class_name": "InstitutionalCalendarEventModel",
+          "docstring": "One immutable institutional event revision with source and system clocks.",
+          "fields": [
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 240
+              },
+              "name": "event_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 240
+              },
+              "name": "source_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 240
+              },
+              "name": "source_event_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 240
+              },
+              "name": "event_type",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 240
+              },
+              "name": "title",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "choices": "EVIDENCE_CHOICES",
+                "max_length": 16
+              },
+              "name": "evidence",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "choices": "LIFECYCLE_CHOICES",
+                "max_length": 16
+              },
+              "name": "lifecycle",
+              "positional_args": []
+            },
+            {
+              "field_type": "PositiveIntegerField",
+              "name": "revision",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "kwargs": {
+                "null": true
+              },
+              "name": "scheduled_at",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "DateField",
+              "kwargs": {
+                "null": true
+              },
+              "name": "effective_on",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "kwargs": {
+                "null": true
+              },
+              "name": "source_published_at",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "DateField",
+              "kwargs": {
+                "null": true
+              },
+              "name": "source_published_on",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "name": "available_at",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "name": "first_seen_at",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "name": "recorded_at",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "original_sha256",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 240,
+                "null": true
+              },
+              "name": "supersedes_event_id",
+              "null": true,
+              "positional_args": []
+            }
+          ],
+          "meta": {
+            "base_manager_name": "objects",
+            "constraints": "[models.UniqueConstraint(fields=('event_id', 'revision'), name='dc_inst_cal_rev_uniq'), models.CheckConstraint(condition=models.Q(revision__gte=1), name='dc_inst_cal_revision_ck'), models.CheckConstraint(condition=models.Q(original_sha256__regex='^[0-9a-f]{64}$'), name='dc_inst_cal_hash_ck'), models.CheckConstraint(condition=models.Q(source_published_at__isnull=False, source_published_on__isnull=True) | models.Q(source_published_at__isnull=True, source_published_on__isnull=False), name='dc_inst_cal_source_ck'), models.CheckConstraint(condition=models.Q(source_published_at__isnull=True) | models.Q(available_at__gte=models.F('source_published_at')), name='dc_inst_cal_available_ck'), models.CheckConstraint(condition=models.Q(recorded_at__gte=models.F('first_seen_at')), name='dc_inst_cal_recorded_ck'), models.CheckConstraint(condition=models.Q(revision=1, supersedes_event_id__isnull=True) | models.Q(revision__gt=1, supersedes_event_id__isnull=False), name='dc_inst_cal_supersedes_ck'), models.CheckConstraint(condition=~models.Q(lifecycle__in=(EventLifecycle.OCCURRED.value, EventLifecycle.CANCELLED.value)) | models.Q(evidence=EvidenceGrade.CONFIRMED.value, source_published_at__isnull=False), name='dc_inst_cal_occurrence_ck')]",
+            "db_table": "data_center_institutional_calendar_event",
+            "default_manager_name": "objects",
+            "indexes": "[models.Index(fields=('available_at',), name='dc_inst_cal_avail_ix'), models.Index(fields=('recorded_at',), name='dc_inst_cal_recorded_ix'), models.Index(fields=('event_type', 'lifecycle'), name='dc_inst_cal_type_state_ix')]",
+            "ordering": [
+              "event_id",
+              "revision"
+            ]
+          },
+          "source_file": "infrastructure/institutional_calendar_models.py"
+        },
+        {
+          "bases": [
             "MacroFactorSourceAppendOnlyModel"
           ],
           "class_name": "MacroFactorResearchCalendarPeriodModel",
@@ -34896,231 +35995,6 @@
           ],
           "meta": {
             "db_table": "data_center_financial_capacity_owner_approval_event"
-          },
-          "source_file": "infrastructure/models.py"
-        },
-        {
-          "bases": [
-            "models.Model"
-          ],
-          "class_name": "FinancialFactModel",
-          "docstring": "Financial statement fact (single line-item per row).",
-          "fields": [
-            {
-              "db_index": true,
-              "field_type": "CharField",
-              "kwargs": {
-                "db_index": true,
-                "max_length": 20
-              },
-              "name": "asset_code",
-              "positional_args": []
-            },
-            {
-              "db_index": true,
-              "field_type": "DateField",
-              "kwargs": {
-                "db_index": true,
-                "help_text": "Period end date (e.g. 2024-12-31)"
-              },
-              "name": "period_end",
-              "positional_args": []
-            },
-            {
-              "field_type": "CharField",
-              "kwargs": {
-                "choices": "PERIOD_TYPE_CHOICES",
-                "max_length": 15
-              },
-              "name": "period_type",
-              "positional_args": []
-            },
-            {
-              "db_index": true,
-              "field_type": "CharField",
-              "kwargs": {
-                "db_index": true,
-                "help_text": "Metric identifier (e.g. revenue, net_profit, total_assets)",
-                "max_length": 60
-              },
-              "name": "metric_code",
-              "positional_args": []
-            },
-            {
-              "field_type": "DecimalField",
-              "kwargs": {
-                "decimal_places": 4,
-                "max_digits": 28
-              },
-              "name": "value",
-              "positional_args": []
-            },
-            {
-              "field_type": "CharField",
-              "kwargs": {
-                "blank": true,
-                "max_length": 20
-              },
-              "name": "unit",
-              "positional_args": []
-            },
-            {
-              "field_type": "CharField",
-              "kwargs": {
-                "max_length": 50
-              },
-              "name": "source",
-              "positional_args": []
-            },
-            {
-              "field_type": "DateField",
-              "kwargs": {
-                "blank": true,
-                "help_text": "Date report was published",
-                "null": true
-              },
-              "name": "report_date",
-              "null": true,
-              "positional_args": []
-            },
-            {
-              "field_type": "DateTimeField",
-              "kwargs": {
-                "auto_now_add": true
-              },
-              "name": "fetched_at",
-              "positional_args": []
-            },
-            {
-              "field_type": "JSONField",
-              "kwargs": {
-                "blank": true,
-                "default": "dict"
-              },
-              "name": "extra",
-              "positional_args": []
-            },
-            {
-              "field_type": "JSONField",
-              "kwargs": {
-                "blank": true,
-                "default": "dict"
-              },
-              "name": "decision_evidence",
-              "positional_args": []
-            },
-            {
-              "field_type": "CharField",
-              "kwargs": {
-                "default": "1.0",
-                "max_length": 40
-              },
-              "name": "contract_version",
-              "positional_args": []
-            },
-            {
-              "field_type": "CharField",
-              "kwargs": {
-                "default": "1.0",
-                "max_length": 40
-              },
-              "name": "schema_version",
-              "positional_args": []
-            },
-            {
-              "field_type": "CharField",
-              "kwargs": {
-                "blank": true,
-                "max_length": 200
-              },
-              "name": "source_record_id",
-              "positional_args": []
-            },
-            {
-              "db_index": true,
-              "field_type": "CharField",
-              "kwargs": {
-                "blank": true,
-                "db_index": true,
-                "max_length": 128
-              },
-              "name": "raw_payload_hash",
-              "positional_args": []
-            },
-            {
-              "db_index": true,
-              "field_type": "CharField",
-              "kwargs": {
-                "db_index": true,
-                "default": "accepted",
-                "max_length": 40
-              },
-              "name": "quality_status",
-              "positional_args": []
-            },
-            {
-              "field_type": "PositiveSmallIntegerField",
-              "kwargs": {
-                "default": 1
-              },
-              "name": "revision_number",
-              "positional_args": []
-            },
-            {
-              "db_index": true,
-              "field_type": "UUIDField",
-              "kwargs": {
-                "blank": true,
-                "db_index": true,
-                "null": true
-              },
-              "name": "ingested_run_id",
-              "null": true,
-              "positional_args": []
-            },
-            {
-              "db_index": true,
-              "field_type": "DateTimeField",
-              "kwargs": {
-                "blank": true,
-                "db_index": true,
-                "null": true
-              },
-              "name": "announced_at",
-              "null": true,
-              "positional_args": []
-            },
-            {
-              "db_index": true,
-              "field_type": "DateTimeField",
-              "kwargs": {
-                "blank": true,
-                "db_index": true,
-                "null": true
-              },
-              "name": "available_at",
-              "null": true,
-              "positional_args": []
-            }
-          ],
-          "meta": {
-            "db_table": "data_center_financial_fact",
-            "indexes": "[models.Index(fields=['asset_code', 'period_end']), models.Index(fields=['metric_code'])]",
-            "ordering": [
-              "-period_end"
-            ],
-            "unique_together": [
-              [
-                "asset_code",
-                "period_end",
-                "period_type",
-                "metric_code",
-                "source",
-                "revision_number"
-              ]
-            ],
-            "verbose_name": "Financial Fact",
-            "verbose_name_plural": "Financial Facts"
           },
           "source_file": "infrastructure/models.py"
         },
@@ -39360,6 +40234,648 @@
             ]
           },
           "source_file": "infrastructure/retention_models.py"
+        },
+        {
+          "bases": [
+            "models.Model"
+          ],
+          "class_name": "SecurityDisclosureEventModel",
+          "docstring": "One source disclosure revision, retained independently from event dispatch.",
+          "fields": [
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "choices": "SOURCE_CHOICES",
+                "max_length": 32
+              },
+              "name": "source",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "choices": "EXCHANGE_CHOICES",
+                "max_length": 8
+              },
+              "name": "exchange",
+              "positional_args": []
+            },
+            {
+              "db_index": true,
+              "field_type": "CharField",
+              "kwargs": {
+                "db_index": true,
+                "max_length": 20
+              },
+              "name": "asset_code",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 40
+              },
+              "name": "source_security_code",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 200
+              },
+              "name": "source_event_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 200
+              },
+              "name": "source_revision_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 120
+              },
+              "name": "raw_event_type",
+              "positional_args": []
+            },
+            {
+              "db_index": true,
+              "field_type": "CharField",
+              "kwargs": {
+                "choices": "EVENT_TYPE_CHOICES",
+                "db_index": true,
+                "max_length": 32
+              },
+              "name": "event_type",
+              "positional_args": []
+            },
+            {
+              "field_type": "URLField",
+              "kwargs": {
+                "max_length": 2048
+              },
+              "name": "source_url",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "source_body_sha256",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "content_hash",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "kwargs": {
+                "blank": true,
+                "null": true
+              },
+              "name": "announced_at",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "DateField",
+              "kwargs": {
+                "blank": true,
+                "null": true
+              },
+              "name": "announced_on",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "kwargs": {
+                "blank": true,
+                "null": true
+              },
+              "name": "source_available_at",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "DateField",
+              "kwargs": {
+                "blank": true,
+                "null": true
+              },
+              "name": "source_available_on",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "db_index": true,
+              "field_type": "DateTimeField",
+              "kwargs": {
+                "db_index": true
+              },
+              "name": "available_at",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "name": "first_seen_at",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "kwargs": {
+                "blank": true,
+                "null": true
+              },
+              "name": "effective_at",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "DateField",
+              "kwargs": {
+                "blank": true,
+                "null": true
+              },
+              "name": "effective_on",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 200
+              },
+              "name": "supersedes_source_event_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 200
+              },
+              "name": "supersedes_source_revision_id",
+              "positional_args": []
+            },
+            {
+              "db_index": true,
+              "field_type": "DateTimeField",
+              "kwargs": {
+                "db_index": true
+              },
+              "name": "recorded_at",
+              "positional_args": []
+            }
+          ],
+          "meta": {
+            "base_manager_name": "objects",
+            "constraints": "[models.UniqueConstraint(fields=('source', 'exchange', 'asset_code', 'source_event_id', 'source_revision_id'), name='dc_sec_disc_native_rev_uniq'), models.CheckConstraint(condition=models.Q(announced_at__isnull=True, announced_on__isnull=True) | models.Q(announced_at__isnull=False, announced_on__isnull=True) | models.Q(announced_at__isnull=True, announced_on__isnull=False), name='dc_sec_disc_announce_clock_ck'), models.CheckConstraint(condition=models.Q(source_available_at__isnull=True, source_available_on__isnull=True) | models.Q(source_available_at__isnull=False, source_available_on__isnull=True) | models.Q(source_available_at__isnull=True, source_available_on__isnull=False), name='dc_sec_disc_source_clock_ck'), models.CheckConstraint(condition=models.Q(effective_at__isnull=True, effective_on__isnull=True) | models.Q(effective_at__isnull=False, effective_on__isnull=True) | models.Q(effective_at__isnull=True, effective_on__isnull=False), name='dc_sec_disc_effect_clock_ck'), models.CheckConstraint(condition=models.Q(supersedes_source_event_id='', supersedes_source_revision_id='') | ~models.Q(supersedes_source_event_id='') & ~models.Q(supersedes_source_revision_id=''), name='dc_sec_disc_supersedes_ck'), models.CheckConstraint(condition=models.Q(recorded_at__gte=models.F('first_seen_at')) & models.Q(available_at=models.F('first_seen_at')), name='dc_sec_disc_recorded_clock_ck')]",
+            "db_table": "data_center_security_disclosure_event",
+            "default_manager_name": "objects",
+            "indexes": "[models.Index(fields=('exchange', 'asset_code', 'available_at'), name='dc_sec_disc_security_avail_ix'), models.Index(fields=('source_event_id', 'source_revision_id'), name='dc_sec_disc_revision_ix')]",
+            "ordering": [
+              "available_at",
+              "exchange",
+              "asset_code",
+              "source_event_id",
+              "source_revision_id"
+            ]
+          },
+          "source_file": "infrastructure/security_disclosure_event_models.py"
+        },
+        {
+          "bases": [
+            "models.Model"
+          ],
+          "class_name": "SecurityDisclosureListingCoverageModel",
+          "docstring": "Append-only proof of one stable, fully paged official SZSE date window.",
+          "fields": [
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "choices": "SOURCE_CHOICES",
+                "default": "SecurityDisclosureSource.SZSE_OFFICIAL.value",
+                "max_length": 32
+              },
+              "name": "source",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "choices": "EXCHANGE_CHOICES",
+                "default": "SecurityDisclosureExchange.SZSE.value",
+                "max_length": 8
+              },
+              "name": "exchange",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 20
+              },
+              "name": "asset_code",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateField",
+              "name": "start_on",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateField",
+              "name": "end_on",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "name": "first_observed_at",
+              "positional_args": []
+            },
+            {
+              "db_index": true,
+              "field_type": "DateTimeField",
+              "kwargs": {
+                "db_index": true
+              },
+              "name": "verified_at",
+              "positional_args": []
+            },
+            {
+              "field_type": "PositiveIntegerField",
+              "name": "announcement_count",
+              "positional_args": []
+            },
+            {
+              "field_type": "JSONField",
+              "name": "listing_entries",
+              "positional_args": []
+            },
+            {
+              "field_type": "JSONField",
+              "name": "first_pass_page_body_sha256",
+              "positional_args": []
+            },
+            {
+              "field_type": "JSONField",
+              "name": "second_pass_page_body_sha256",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "manifest_sha256",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "coverage_manifest_sha256",
+              "positional_args": []
+            },
+            {
+              "db_index": true,
+              "field_type": "DateTimeField",
+              "kwargs": {
+                "db_index": true
+              },
+              "name": "recorded_at",
+              "positional_args": []
+            }
+          ],
+          "meta": {
+            "base_manager_name": "objects",
+            "constraints": "[models.UniqueConstraint(fields=('source', 'exchange', 'asset_code', 'start_on', 'end_on', 'coverage_manifest_sha256', 'verified_at'), name='dc_sec_list_cov_identity_uq'), models.CheckConstraint(condition=models.Q(start_on__lte=models.F('end_on')), name='dc_sec_list_cov_window_ck'), models.CheckConstraint(condition=models.Q(first_observed_at__lte=models.F('verified_at')) & models.Q(verified_at__lte=models.F('recorded_at')), name='dc_sec_list_cov_clock_ck')]",
+            "db_table": "data_center_security_disclosure_listing_coverage",
+            "default_manager_name": "objects",
+            "indexes": "[models.Index(fields=('asset_code', 'start_on', 'end_on', 'verified_at'), name='dc_sec_list_cov_scope_ix')]",
+            "ordering": [
+              "verified_at",
+              "coverage_manifest_sha256"
+            ]
+          },
+          "source_file": "infrastructure/security_disclosure_event_models.py"
+        },
+        {
+          "bases": [
+            "_StatutorySourceImmutableModel"
+          ],
+          "class_name": "StatutorySourceDocumentBundleMemberModel",
+          "docstring": "A protected ordered reference to one exact retained capture in a source set.",
+          "fields": [
+            {
+              "field_type": "ForeignKey",
+              "kwargs": {
+                "on_delete": "models.PROTECT",
+                "related_name": "members"
+              },
+              "name": "bundle",
+              "positional_args": [
+                "StatutorySourceDocumentBundleModel"
+              ]
+            },
+            {
+              "field_type": "ForeignKey",
+              "kwargs": {
+                "on_delete": "models.PROTECT",
+                "related_name": "bundle_members"
+              },
+              "name": "capture",
+              "positional_args": [
+                "StatutorySourceDocumentCaptureModel"
+              ]
+            },
+            {
+              "field_type": "PositiveIntegerField",
+              "name": "ordinal",
+              "positional_args": []
+            }
+          ],
+          "meta": {
+            "base_manager_name": "objects",
+            "constraints": "[models.UniqueConstraint(fields=('bundle', 'capture'), name='dc_stat_member_capture_uniq'), models.UniqueConstraint(fields=('bundle', 'ordinal'), name='dc_stat_member_order_uniq')]",
+            "db_table": "dc_statutory_source_bundle_member",
+            "default_manager_name": "objects"
+          },
+          "source_file": "infrastructure/statutory_source_models.py"
+        },
+        {
+          "bases": [
+            "_StatutorySourceImmutableModel"
+          ],
+          "class_name": "StatutorySourceDocumentBundleModel",
+          "docstring": "An immutable selected source set with separately bound capture provenance.",
+          "fields": [
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 240
+              },
+              "name": "bundle_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 120
+              },
+              "name": "version",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "source_bundle_sha256",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "capture_manifest_sha256",
+              "positional_args": []
+            }
+          ],
+          "meta": {
+            "base_manager_name": "objects",
+            "constraints": "[models.UniqueConstraint(fields=('bundle_id', 'version'), name='dc_stat_bundle_native_uniq'), models.CheckConstraint(condition=models.Q(source_bundle_sha256__regex='^[0-9a-f]{64}$', capture_manifest_sha256__regex='^[0-9a-f]{64}$'), name='dc_stat_bundle_hashes_ck')]",
+            "db_table": "dc_statutory_source_bundle",
+            "default_manager_name": "objects"
+          },
+          "source_file": "infrastructure/statutory_source_models.py"
+        },
+        {
+          "bases": [
+            "_StatutorySourceImmutableModel"
+          ],
+          "class_name": "StatutorySourceDocumentCaptureModel",
+          "docstring": "One server capture of an exact retained revision and body location.",
+          "fields": [
+            {
+              "field_type": "UUIDField",
+              "kwargs": {
+                "editable": false,
+                "primary_key": true
+              },
+              "name": "capture_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "ForeignKey",
+              "kwargs": {
+                "on_delete": "models.PROTECT",
+                "related_name": "captures"
+              },
+              "name": "revision",
+              "positional_args": [
+                "StatutorySourceDocumentRevisionModel"
+              ]
+            },
+            {
+              "field_type": "DateTimeField",
+              "name": "captured_at",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 200
+              },
+              "name": "content_type",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 1024
+              },
+              "name": "body_reference",
+              "positional_args": []
+            }
+          ],
+          "meta": {
+            "base_manager_name": "objects",
+            "constraints": "[models.CheckConstraint(condition=models.Q(recorded_at__gte=models.F('captured_at')), name='dc_stat_cap_record_clock_ck')]",
+            "db_table": "dc_statutory_source_capture",
+            "default_manager_name": "objects"
+          },
+          "source_file": "infrastructure/statutory_source_models.py"
+        },
+        {
+          "bases": [
+            "_StatutorySourceImmutableModel"
+          ],
+          "class_name": "StatutorySourceDocumentRevisionModel",
+          "docstring": "One immutable publisher-native revision; this is not source qualification.",
+          "fields": [
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 240
+              },
+              "name": "issuer",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 240
+              },
+              "name": "document_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 120
+              },
+              "name": "source_version",
+              "positional_args": []
+            },
+            {
+              "field_type": "URLField",
+              "kwargs": {
+                "max_length": 4096
+              },
+              "name": "canonical_url",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 1000
+              },
+              "name": "title",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 240
+              },
+              "name": "legal_number",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 8
+              },
+              "name": "publication_precision",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateField",
+              "kwargs": {
+                "null": true
+              },
+              "name": "publication_date",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "kwargs": {
+                "null": true
+              },
+              "name": "publication_instant",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 8
+              },
+              "name": "effective_precision",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateField",
+              "kwargs": {
+                "null": true
+              },
+              "name": "effective_date",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "kwargs": {
+                "null": true
+              },
+              "name": "effective_instant",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "body_sha256",
+              "positional_args": []
+            },
+            {
+              "field_type": "PositiveBigIntegerField",
+              "name": "body_size_bytes",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "source_revision_sha256",
+              "positional_args": []
+            }
+          ],
+          "meta": {
+            "base_manager_name": "objects",
+            "constraints": "[models.UniqueConstraint(fields=('issuer', 'document_id', 'source_version'), name='dc_stat_src_native_uniq'), models.CheckConstraint(condition=_date_shape('publication'), name='dc_stat_src_pub_clock_ck'), models.CheckConstraint(condition=_date_shape('effective'), name='dc_stat_src_eff_clock_ck'), models.CheckConstraint(condition=models.Q(body_size_bytes__gt=0), name='dc_stat_src_body_size_ck'), models.CheckConstraint(condition=models.Q(body_sha256__regex='^[0-9a-f]{64}$', source_revision_sha256__regex='^[0-9a-f]{64}$'), name='dc_stat_src_hashes_ck')]",
+            "db_table": "dc_statutory_source_revision",
+            "default_manager_name": "objects"
+          },
+          "source_file": "infrastructure/statutory_source_models.py"
+        },
+        {
+          "abstract": true,
+          "bases": [
+            "models.Model"
+          ],
+          "class_name": "_StatutorySourceImmutableModel",
+          "docstring": "Require an exact repository insert claim and reject all row mutation.",
+          "fields": [
+            {
+              "field_type": "DateTimeField",
+              "name": "recorded_at",
+              "positional_args": []
+            }
+          ],
+          "meta": {
+            "abstract": true
+          },
+          "source_file": "infrastructure/statutory_source_models.py"
         },
         {
           "bases": [

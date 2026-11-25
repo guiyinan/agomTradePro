@@ -24,6 +24,21 @@ from apps.data_center.infrastructure.egress_models import (  # noqa: F401
 from apps.data_center.infrastructure.egress_models import (
     EgressRoutingRuleModel as EgressRoutingRuleModel,
 )
+from apps.data_center.infrastructure.financial_availability_governance_models import (
+    FinancialAvailabilityGovernanceRecordModel as FinancialAvailabilityGovernanceRecordModel,
+)
+from apps.data_center.infrastructure.financial_availability_governance_models import (
+    FinancialAvailabilityOwnerEventModel as FinancialAvailabilityOwnerEventModel,
+)
+from apps.data_center.infrastructure.financial_numeric_catalog_models import (
+    FinancialMetricSourceCatalogEntryModel as FinancialMetricSourceCatalogEntryModel,
+)
+from apps.data_center.infrastructure.financial_numeric_catalog_models import (
+    FinancialMetricSourceCatalogOwnerEventModel as FinancialMetricSourceCatalogOwnerEventModel,
+)
+from apps.data_center.infrastructure.financial_numeric_catalog_models import (
+    FinancialNumericSourceDocumentCaptureModel as FinancialNumericSourceDocumentCaptureModel,
+)
 from apps.data_center.infrastructure.market_structure_models import (
     InvestorActorDefinitionModel as InvestorActorDefinitionModel,
 )

@@ -19,6 +19,9 @@ from apps.data_center.domain.entities import (
     ProviderConfig,
     PublisherCatalog,
 )
+from apps.data_center.domain.provider_document_response import (
+    PUBLIC_DOCUMENT_SOURCE_TYPE as _PUBLIC_DOCUMENT_SOURCE_TYPE,
+)
 from shared.numeric import safe_float
 
 from .candidate_raw_audit_manifest_models import (
@@ -26,6 +29,11 @@ from .candidate_raw_audit_manifest_models import (
 )
 from .candidate_raw_audit_manifest_models import (
     CandidateRawAuditManifestModel as CandidateRawAuditManifestModel,
+)
+from .financial_fact_models import FinancialFactModel as FinancialFactModel
+from .financial_fact_models import LegacyFinancialFactManager as LegacyFinancialFactManager
+from .institutional_calendar_models import (
+    InstitutionalCalendarEventModel as InstitutionalCalendarEventModel,
 )
 from .pit_models import PITDatasetManifestModel, PITFactVersionModel  # noqa: F401
 from .price_limit_snapshot_models import PriceLimitSnapshotFactModel as PriceLimitSnapshotFactModel
@@ -42,6 +50,24 @@ from .research_data_foundation_models import (
 )
 from .research_data_foundation_models import (
     OperatingMetricDefinitionModel as OperatingMetricDefinitionModel,
+)
+from .security_disclosure_event_models import (  # noqa: F401
+    SecurityDisclosureEventModel as SecurityDisclosureEventModel,
+)
+from .security_disclosure_event_models import (  # noqa: F401
+    SecurityDisclosureListingCoverageModel as SecurityDisclosureListingCoverageModel,
+)
+from .statutory_source_models import (
+    StatutorySourceDocumentBundleMemberModel as StatutorySourceDocumentBundleMemberModel,
+)
+from .statutory_source_models import (
+    StatutorySourceDocumentBundleModel as StatutorySourceDocumentBundleModel,
+)
+from .statutory_source_models import (
+    StatutorySourceDocumentCaptureModel as StatutorySourceDocumentCaptureModel,
+)
+from .statutory_source_models import (
+    StatutorySourceDocumentRevisionModel as StatutorySourceDocumentRevisionModel,
 )
 
 
@@ -101,6 +127,7 @@ class ProviderConfigModel(models.Model):
         ("fred", "FRED"),
         ("wind", "Wind"),
         ("choice", "Choice"),
+        (_PUBLIC_DOCUMENT_SOURCE_TYPE, "Public documents"),
     ]
 
     name = models.CharField(
@@ -781,71 +808,6 @@ class FundNavFactModel(models.Model):
 
         self.validate_constraints()
         super().save(*args, **kwargs)
-
-
-class LegacyFinancialFactManager(models.Manager["FinancialFactModel"]):
-    """Keep exact-only facts out of callers using the four-place legacy schema."""
-
-    def get_queryset(self) -> models.QuerySet["FinancialFactModel"]:
-        """Select only revisions readable on both the old and expanded schemas."""
-        return super().get_queryset().filter(value__isnull=False)
-
-
-class FinancialFactModel(models.Model):
-    """Financial statement fact (single line-item per row).
-
-    Natural key: (asset_code, period_end, period_type, metric_code, source).
-    """
-
-    objects = LegacyFinancialFactManager()
-
-    PERIOD_TYPE_CHOICES = [
-        ("annual", "Annual"),
-        ("semi_annual", "Semi-Annual"),
-        ("quarterly", "Quarterly"),
-        ("ttm", "TTM"),
-    ]
-
-    asset_code = models.CharField(max_length=20, db_index=True)
-    period_end = models.DateField(db_index=True, help_text="Period end date (e.g. 2024-12-31)")
-    period_type = models.CharField(max_length=15, choices=PERIOD_TYPE_CHOICES)
-    metric_code = models.CharField(
-        max_length=60,
-        db_index=True,
-        help_text="Metric identifier (e.g. revenue, net_profit, total_assets)",
-    )
-    value = models.DecimalField(max_digits=28, decimal_places=4)
-    unit = models.CharField(max_length=20, blank=True)
-    source = models.CharField(max_length=50)
-    report_date = models.DateField(null=True, blank=True, help_text="Date report was published")
-    fetched_at = models.DateTimeField(auto_now_add=True)
-    extra = models.JSONField(default=dict, blank=True)
-    decision_evidence = models.JSONField(default=dict, blank=True)
-    contract_version = models.CharField(max_length=40, default="1.0")
-    schema_version = models.CharField(max_length=40, default="1.0")
-    source_record_id = models.CharField(max_length=200, blank=True)
-    raw_payload_hash = models.CharField(max_length=128, blank=True, db_index=True)
-    quality_status = models.CharField(max_length=40, default="accepted", db_index=True)
-    revision_number = models.PositiveSmallIntegerField(default=1)
-    ingested_run_id = models.UUIDField(null=True, blank=True, db_index=True)
-    announced_at = models.DateTimeField(null=True, blank=True, db_index=True)
-    available_at = models.DateTimeField(null=True, blank=True, db_index=True)
-
-    class Meta:
-        db_table = "data_center_financial_fact"
-        unique_together = [
-            ("asset_code", "period_end", "period_type", "metric_code", "source", "revision_number")
-        ]
-        indexes = [
-            models.Index(fields=["asset_code", "period_end"]),
-            models.Index(fields=["metric_code"]),
-        ]
-        ordering = ["-period_end"]
-        verbose_name = "Financial Fact"
-        verbose_name_plural = "Financial Facts"
-
-    def __str__(self) -> str:
-        return f"{self.asset_code} {self.period_end} {self.metric_code}={self.value}"
 
 
 from . import fact_and_operational_models as _split_models  # noqa: E402

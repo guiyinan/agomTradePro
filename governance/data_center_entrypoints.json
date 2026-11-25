@@ -19,7 +19,7 @@
       "operational_script": 40,
       "orchestration_entry": 18,
       "public_port": 97,
-      "rest_url": 90,
+      "rest_url": 92,
       "runbook": 7,
       "runtime_config_key": 48,
       "scheduler_writer": 18,
@@ -30,13 +30,13 @@
       "workflow_step": 11
     },
     "by_status": {
-      "active_public": 900,
+      "active_public": 902,
       "adjacent_operational": 344,
       "candidate-review": 39,
       "compatibility": 138,
       "retired_blocked": 0
     },
-    "total": 1421
+    "total": 1423
   },
   "entries": [
     {
@@ -10342,6 +10342,26 @@
     {
       "category": "rest_url",
       "evidence": "Data Center-owned URLconf",
+      "id": "rest_url:apps/data_center/interface/api_urls.py:dc-financial-availability-owner-apply:financial-availability/governance/apply/",
+      "locator": "financial-availability/governance/apply/",
+      "path": "apps/data_center/interface/api_urls.py",
+      "status": "active_public",
+      "symbol": "dc-financial-availability-owner-apply",
+      "target": "ApplyFinancialAvailabilityOwnerView.as_view()"
+    },
+    {
+      "category": "rest_url",
+      "evidence": "Data Center-owned URLconf",
+      "id": "rest_url:apps/data_center/interface/api_urls.py:dc-financial-availability-owner-revoke:financial-availability/governance/revoke/",
+      "locator": "financial-availability/governance/revoke/",
+      "path": "apps/data_center/interface/api_urls.py",
+      "status": "active_public",
+      "symbol": "dc-financial-availability-owner-revoke",
+      "target": "RevokeFinancialAvailabilityOwnerView.as_view()"
+    },
+    {
+      "category": "rest_url",
+      "evidence": "Data Center-owned URLconf",
       "id": "rest_url:apps/data_center/interface/api_urls.py:dc-financials:financials/",
       "locator": "financials/",
       "path": "apps/data_center/interface/api_urls.py",
@@ -10792,11 +10812,11 @@
     {
       "category": "rest_url",
       "evidence": "Data Center-owned URLconf",
-      "id": "rest_url:apps/data_center/interface/api_urls.py:path@220:egress/",
+      "id": "rest_url:apps/data_center/interface/api_urls.py:path@234:egress/",
       "locator": "egress/",
       "path": "apps/data_center/interface/api_urls.py",
       "status": "active_public",
-      "symbol": "path@220",
+      "symbol": "path@234",
       "target": "include('apps.data_center.interface.egress_api_urls')"
     },
     {

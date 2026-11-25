@@ -68,6 +68,10 @@ from apps.data_center.interface.calendar_workbench_api_views import (
     CalendarWorkbenchPrepareView,
     CalendarWorkbenchScopeView,
 )
+from apps.data_center.interface.financial_availability_governance_api import (
+    ApplyFinancialAvailabilityOwnerView,
+    RevokeFinancialAvailabilityOwnerView,
+)
 from apps.data_center.interface.price_limit_publication_api_views import (
     CurrentPriceLimitPublicationView,
     ExactPriceLimitPublicationView,
@@ -147,6 +151,16 @@ class DataCenterApiRootView(APIView):
 
 
 urlpatterns = [
+    path(
+        "financial-availability/governance/apply/",
+        ApplyFinancialAvailabilityOwnerView.as_view(),
+        name="dc-financial-availability-owner-apply",
+    ),
+    path(
+        "financial-availability/governance/revoke/",
+        RevokeFinancialAvailabilityOwnerView.as_view(),
+        name="dc-financial-availability-owner-revoke",
+    ),
     path(
         "price-limits/publication/preview/",
         PriceLimitPublicationPreviewView.as_view(),

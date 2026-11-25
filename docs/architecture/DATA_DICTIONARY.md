@@ -7,8 +7,8 @@
 ## 概览
 
 - App 数：42
-- 模型数：598
-- 字段数：9322
+- 模型数：612
+- 字段数：9473
 
 口径说明：仅覆盖 `apps/*/infrastructure/` 下的 `models.py`、`models/` 包与 `*_models.py`；字段为类体内显式赋值的 Django 字段，继承字段不展开，动态字段与隐式自增主键不在投影内。
 
@@ -5204,6 +5204,182 @@
 | `ingested_run_id` | `UUIDField` | 是 |  |  |  |  |
 | `available_at` | `DateTimeField` | 是 |  |  |  |  |
 
+### FinancialAvailabilityGovernanceRecordModel
+
+- 来源文件：`apps/data_center/infrastructure/financial_availability_governance_models.py`
+- 数据表：`data_center_financial_availability_governance_record`
+- 说明：One immutable explicit opening-rule or disclosure-policy version.
+
+| 字段 | 类型 | null | unique | 默认值 | 说明 | 关系目标 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `row_id` | `UUIDField` |  |  | uuid4 |  |  |
+| `record_id` | `CharField` |  |  |  |  |  |
+| `record_version` | `CharField` |  |  |  |  |  |
+| `exchange` | `CharField` |  |  |  |  |  |
+| `kind` | `CharField` |  |  |  |  |  |
+| `payload` | `JSONField` |  |  |  |  |  |
+| `content_sha256` | `CharField` |  |  |  |  |  |
+| `recorded_at` | `DateTimeField` |  |  |  |  |  |
+| `source_capture` | `ForeignKey` | 是 |  |  |  | StatutorySourceDocumentCaptureModel |
+
+### FinancialAvailabilityOwnerEventModel
+
+- 来源文件：`apps/data_center/infrastructure/financial_availability_governance_models.py`
+- 数据表：`data_center_financial_availability_owner_event`
+- 说明：One authenticated Django User apply/revoke event for an exact record.
+
+| 字段 | 类型 | null | unique | 默认值 | 说明 | 关系目标 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `event_id` | `UUIDField` |  |  |  |  |  |
+| `governance_record` | `ForeignKey` |  |  |  |  | FinancialAvailabilityGovernanceRecordModel |
+| `action` | `CharField` |  |  |  |  |  |
+| `event_sha256` | `CharField` |  |  |  |  |  |
+| `record_content_sha256` | `CharField` |  |  |  |  |  |
+| `resulting_content_sha256` | `CharField` |  |  |  |  |  |
+| `actor` | `ForeignKey` |  |  |  |  | settings.AUTH_USER_MODEL |
+| `permission` | `ForeignKey` |  |  |  |  | Permission |
+| `permission_app_label` | `CharField` |  |  |  |  |  |
+| `permission_codename` | `CharField` |  |  |  |  |  |
+| `permission_verified_at` | `DateTimeField` |  |  |  |  |  |
+| `occurred_at` | `DateTimeField` |  |  |  |  |  |
+| `recorded_at` | `DateTimeField` |  |  |  |  |  |
+| `reason` | `CharField` |  |  |  |  |  |
+| `predecessor_apply_event` | `OneToOneField` | 是 |  |  | self | self |
+| `predecessor_apply_event_sha256` | `CharField` | 是 |  |  |  |  |
+
+### _FinancialAvailabilityAppendOnlyModel
+
+- 来源文件：`apps/data_center/infrastructure/financial_availability_governance_models.py`
+- 抽象模型：是
+- 说明：Protect model-level writes while database triggers remain the final guard.
+
+### FinancialFactModel
+
+- 来源文件：`apps/data_center/infrastructure/financial_fact_models.py`
+- 数据表：`data_center_financial_fact`
+- 说明：Financial statement fact (single line-item per row).
+
+| 字段 | 类型 | null | unique | 默认值 | 说明 | 关系目标 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `asset_code` | `CharField` |  |  |  |  |  |
+| `period_end` | `DateField` |  |  |  | Period end date (e.g. 2024-12-31) |  |
+| `period_type` | `CharField` |  |  |  |  |  |
+| `metric_code` | `CharField` |  |  |  | Metric identifier (e.g. revenue, net_profit, total_assets) |  |
+| `value` | `DecimalField` | 是 |  |  |  |  |
+| `numeric_schema` | `CharField` |  |  | legacy-decimal-v1 |  |  |
+| `exact_value_text` | `CharField` | 是 |  |  |  |  |
+| `numeric_evidence` | `JSONField` | 是 |  |  |  |  |
+| `unit` | `CharField` |  |  |  |  |  |
+| `source` | `CharField` |  |  |  |  |  |
+| `report_date` | `DateField` | 是 |  |  | Date report was published |  |
+| `fetched_at` | `DateTimeField` |  |  |  |  |  |
+| `extra` | `JSONField` |  |  | dict |  |  |
+| `decision_evidence` | `JSONField` |  |  | dict |  |  |
+| `contract_version` | `CharField` |  |  | 1.0 |  |  |
+| `schema_version` | `CharField` |  |  | 1.0 |  |  |
+| `source_record_id` | `CharField` |  |  |  |  |  |
+| `raw_payload_hash` | `CharField` |  |  |  |  |  |
+| `quality_status` | `CharField` |  |  | accepted |  |  |
+| `revision_number` | `PositiveSmallIntegerField` |  |  | 1 |  |  |
+| `ingested_run_id` | `UUIDField` | 是 |  |  |  |  |
+| `announced_at` | `DateTimeField` | 是 |  |  |  |  |
+| `available_at` | `DateTimeField` | 是 |  |  |  |  |
+
+### FinancialMetricSourceCatalogEntryModel
+
+- 来源文件：`apps/data_center/infrastructure/financial_numeric_catalog_models.py`
+- 数据表：`data_center_fin_metric_source_entry`
+- 说明：One immutable exact qualification revision tied to a retained document capture.
+
+| 字段 | 类型 | null | unique | 默认值 | 说明 | 关系目标 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `entry_id` | `UUIDField` |  |  | uuid4 |  |  |
+| `qualification_identity` | `CharField` |  | 是 |  |  |  |
+| `qualification_sha256` | `CharField` |  |  |  |  |  |
+| `contract_identity` | `CharField` |  |  |  |  |  |
+| `contract_sha256` | `CharField` |  |  |  |  |  |
+| `contract_provider` | `CharField` |  |  |  |  |  |
+| `dataset_key` | `CharField` |  |  |  |  |  |
+| `metric_code` | `CharField` |  |  |  |  |  |
+| `qualification` | `JSONField` |  |  |  |  |  |
+| `document_capture` | `ForeignKey` |  |  |  |  | FinancialNumericSourceDocumentCaptureModel |
+| `effective_from` | `DateTimeField` |  |  |  |  |  |
+| `effective_until` | `DateTimeField` | 是 |  |  |  |  |
+
+### FinancialMetricSourceCatalogOwnerEventModel
+
+- 来源文件：`apps/data_center/infrastructure/financial_numeric_catalog_models.py`
+- 数据表：`data_center_fin_metric_source_owner_event`
+- 说明：One append-only authenticated Owner apply or revoke for an exact entry hash.
+
+| 字段 | 类型 | null | unique | 默认值 | 说明 | 关系目标 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `event_id` | `UUIDField` |  |  | uuid4 |  |  |
+| `entry` | `ForeignKey` |  |  |  |  | FinancialMetricSourceCatalogEntryModel |
+| `action` | `CharField` |  |  |  |  |  |
+| `qualification_identity` | `CharField` |  |  |  |  |  |
+| `qualification_sha256` | `CharField` |  |  |  |  |  |
+| `actor` | `ForeignKey` |  |  |  |  | settings.AUTH_USER_MODEL |
+| `actor_username_snapshot` | `CharField` |  |  |  |  |  |
+| `event_at` | `DateTimeField` |  |  |  |  |  |
+
+### FinancialNumericSourceDocumentCaptureModel
+
+- 来源文件：`apps/data_center/infrastructure/financial_numeric_catalog_models.py`
+- 数据表：`data_center_fin_numeric_doc_capture`
+- 说明：One exact raw public-document body capture with controlled-egress metadata.
+
+| 字段 | 类型 | null | unique | 默认值 | 说明 | 关系目标 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `capture_id` | `UUIDField` |  |  |  |  |  |
+| `provider` | `ForeignKey` |  |  |  | data_center.ProviderConfigModel | data_center.ProviderConfigModel |
+| `provider_name_snapshot` | `CharField` |  |  |  |  |  |
+| `provider_source_type_snapshot` | `CharField` |  |  |  |  |  |
+| `dataset_key` | `CharField` |  |  |  |  |  |
+| `deployment_region` | `CharField` |  |  |  |  |  |
+| `issuer` | `CharField` |  |  |  |  |  |
+| `document_id` | `CharField` |  |  |  |  |  |
+| `canonical_url` | `TextField` |  |  |  |  |  |
+| `target_url_sha256` | `CharField` |  |  |  |  |  |
+| `target_host` | `CharField` |  |  |  |  |  |
+| `request_attempt` | `PositiveSmallIntegerField` |  |  |  |  |  |
+| `egress_id` | `PositiveBigIntegerField` | 是 |  |  |  |  |
+| `transport` | `CharField` |  |  |  |  |  |
+| `status_code` | `PositiveSmallIntegerField` |  |  |  |  |  |
+| `content_type` | `CharField` |  |  |  |  |  |
+| `response_completed_at` | `DateTimeField` |  |  |  |  |  |
+| `body_sha256` | `CharField` |  |  |  |  |  |
+| `body_size_bytes` | `PositiveBigIntegerField` |  |  |  |  |  |
+| `body_reference` | `CharField` |  |  |  |  |  |
+| `origin_snapshot` | `JSONField` | 是 |  |  |  |  |
+| `origin_snapshot_sha256` | `CharField` | 是 |  |  |  |  |
+
+### InstitutionalCalendarEventModel
+
+- 来源文件：`apps/data_center/infrastructure/institutional_calendar_models.py`
+- 数据表：`data_center_institutional_calendar_event`
+- 说明：One immutable institutional event revision with source and system clocks.
+
+| 字段 | 类型 | null | unique | 默认值 | 说明 | 关系目标 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `event_id` | `CharField` |  |  |  |  |  |
+| `source_id` | `CharField` |  |  |  |  |  |
+| `source_event_id` | `CharField` |  |  |  |  |  |
+| `event_type` | `CharField` |  |  |  |  |  |
+| `title` | `CharField` |  |  |  |  |  |
+| `evidence` | `CharField` |  |  |  |  |  |
+| `lifecycle` | `CharField` |  |  |  |  |  |
+| `revision` | `PositiveIntegerField` |  |  |  |  |  |
+| `scheduled_at` | `DateTimeField` | 是 |  |  |  |  |
+| `effective_on` | `DateField` | 是 |  |  |  |  |
+| `source_published_at` | `DateTimeField` | 是 |  |  |  |  |
+| `source_published_on` | `DateField` | 是 |  |  |  |  |
+| `available_at` | `DateTimeField` |  |  |  |  |  |
+| `first_seen_at` | `DateTimeField` |  |  |  |  |  |
+| `recorded_at` | `DateTimeField` |  |  |  |  |  |
+| `original_sha256` | `CharField` |  |  |  |  |  |
+| `supersedes_event_id` | `CharField` | 是 |  |  |  |  |
+
 ### MacroFactorResearchCalendarPeriodModel
 
 - 来源文件：`apps/data_center/infrastructure/macro_factor_research_source_models.py`
@@ -5446,35 +5622,6 @@
 | `approval_receipt_sha256` | `CharField` |  |  |  |  |  |
 | `record_sha256` | `CharField` |  |  |  |  |  |
 | `created_at` | `DateTimeField` |  |  |  |  |  |
-
-### FinancialFactModel
-
-- 来源文件：`apps/data_center/infrastructure/models.py`
-- 数据表：`data_center_financial_fact`
-- 说明：Financial statement fact (single line-item per row).
-
-| 字段 | 类型 | null | unique | 默认值 | 说明 | 关系目标 |
-| --- | --- | --- | --- | --- | --- | --- |
-| `asset_code` | `CharField` |  |  |  |  |  |
-| `period_end` | `DateField` |  |  |  | Period end date (e.g. 2024-12-31) |  |
-| `period_type` | `CharField` |  |  |  |  |  |
-| `metric_code` | `CharField` |  |  |  | Metric identifier (e.g. revenue, net_profit, total_assets) |  |
-| `value` | `DecimalField` |  |  |  |  |  |
-| `unit` | `CharField` |  |  |  |  |  |
-| `source` | `CharField` |  |  |  |  |  |
-| `report_date` | `DateField` | 是 |  |  | Date report was published |  |
-| `fetched_at` | `DateTimeField` |  |  |  |  |  |
-| `extra` | `JSONField` |  |  | dict |  |  |
-| `decision_evidence` | `JSONField` |  |  | dict |  |  |
-| `contract_version` | `CharField` |  |  | 1.0 |  |  |
-| `schema_version` | `CharField` |  |  | 1.0 |  |  |
-| `source_record_id` | `CharField` |  |  |  |  |  |
-| `raw_payload_hash` | `CharField` |  |  |  |  |  |
-| `quality_status` | `CharField` |  |  | accepted |  |  |
-| `revision_number` | `PositiveSmallIntegerField` |  |  | 1 |  |  |
-| `ingested_run_id` | `UUIDField` | 是 |  |  |  |  |
-| `announced_at` | `DateTimeField` | 是 |  |  |  |  |
-| `available_at` | `DateTimeField` | 是 |  |  |  |  |
 
 ### FinancialPublicationCapacityEvidenceModel
 
@@ -6166,6 +6313,133 @@
 | `started_at` | `DateTimeField` |  |  |  |  |  |
 | `finished_at` | `DateTimeField` |  |  |  |  |  |
 | `reason` | `TextField` |  |  |  |  |  |
+
+### SecurityDisclosureEventModel
+
+- 来源文件：`apps/data_center/infrastructure/security_disclosure_event_models.py`
+- 数据表：`data_center_security_disclosure_event`
+- 说明：One source disclosure revision, retained independently from event dispatch.
+
+| 字段 | 类型 | null | unique | 默认值 | 说明 | 关系目标 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `source` | `CharField` |  |  |  |  |  |
+| `exchange` | `CharField` |  |  |  |  |  |
+| `asset_code` | `CharField` |  |  |  |  |  |
+| `source_security_code` | `CharField` |  |  |  |  |  |
+| `source_event_id` | `CharField` |  |  |  |  |  |
+| `source_revision_id` | `CharField` |  |  |  |  |  |
+| `raw_event_type` | `CharField` |  |  |  |  |  |
+| `event_type` | `CharField` |  |  |  |  |  |
+| `source_url` | `URLField` |  |  |  |  |  |
+| `source_body_sha256` | `CharField` |  |  |  |  |  |
+| `content_hash` | `CharField` |  |  |  |  |  |
+| `announced_at` | `DateTimeField` | 是 |  |  |  |  |
+| `announced_on` | `DateField` | 是 |  |  |  |  |
+| `source_available_at` | `DateTimeField` | 是 |  |  |  |  |
+| `source_available_on` | `DateField` | 是 |  |  |  |  |
+| `available_at` | `DateTimeField` |  |  |  |  |  |
+| `first_seen_at` | `DateTimeField` |  |  |  |  |  |
+| `effective_at` | `DateTimeField` | 是 |  |  |  |  |
+| `effective_on` | `DateField` | 是 |  |  |  |  |
+| `supersedes_source_event_id` | `CharField` |  |  |  |  |  |
+| `supersedes_source_revision_id` | `CharField` |  |  |  |  |  |
+| `recorded_at` | `DateTimeField` |  |  |  |  |  |
+
+### SecurityDisclosureListingCoverageModel
+
+- 来源文件：`apps/data_center/infrastructure/security_disclosure_event_models.py`
+- 数据表：`data_center_security_disclosure_listing_coverage`
+- 说明：Append-only proof of one stable, fully paged official SZSE date window.
+
+| 字段 | 类型 | null | unique | 默认值 | 说明 | 关系目标 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `source` | `CharField` |  |  | SecurityDisclosureSource.SZSE_OFFICIAL.value |  |  |
+| `exchange` | `CharField` |  |  | SecurityDisclosureExchange.SZSE.value |  |  |
+| `asset_code` | `CharField` |  |  |  |  |  |
+| `start_on` | `DateField` |  |  |  |  |  |
+| `end_on` | `DateField` |  |  |  |  |  |
+| `first_observed_at` | `DateTimeField` |  |  |  |  |  |
+| `verified_at` | `DateTimeField` |  |  |  |  |  |
+| `announcement_count` | `PositiveIntegerField` |  |  |  |  |  |
+| `listing_entries` | `JSONField` |  |  |  |  |  |
+| `first_pass_page_body_sha256` | `JSONField` |  |  |  |  |  |
+| `second_pass_page_body_sha256` | `JSONField` |  |  |  |  |  |
+| `manifest_sha256` | `CharField` |  |  |  |  |  |
+| `coverage_manifest_sha256` | `CharField` |  |  |  |  |  |
+| `recorded_at` | `DateTimeField` |  |  |  |  |  |
+
+### StatutorySourceDocumentBundleMemberModel
+
+- 来源文件：`apps/data_center/infrastructure/statutory_source_models.py`
+- 数据表：`dc_statutory_source_bundle_member`
+- 说明：A protected ordered reference to one exact retained capture in a source set.
+
+| 字段 | 类型 | null | unique | 默认值 | 说明 | 关系目标 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `bundle` | `ForeignKey` |  |  |  |  | StatutorySourceDocumentBundleModel |
+| `capture` | `ForeignKey` |  |  |  |  | StatutorySourceDocumentCaptureModel |
+| `ordinal` | `PositiveIntegerField` |  |  |  |  |  |
+
+### StatutorySourceDocumentBundleModel
+
+- 来源文件：`apps/data_center/infrastructure/statutory_source_models.py`
+- 数据表：`dc_statutory_source_bundle`
+- 说明：An immutable selected source set with separately bound capture provenance.
+
+| 字段 | 类型 | null | unique | 默认值 | 说明 | 关系目标 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `bundle_id` | `CharField` |  |  |  |  |  |
+| `version` | `CharField` |  |  |  |  |  |
+| `source_bundle_sha256` | `CharField` |  |  |  |  |  |
+| `capture_manifest_sha256` | `CharField` |  |  |  |  |  |
+
+### StatutorySourceDocumentCaptureModel
+
+- 来源文件：`apps/data_center/infrastructure/statutory_source_models.py`
+- 数据表：`dc_statutory_source_capture`
+- 说明：One server capture of an exact retained revision and body location.
+
+| 字段 | 类型 | null | unique | 默认值 | 说明 | 关系目标 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `capture_id` | `UUIDField` |  |  |  |  |  |
+| `revision` | `ForeignKey` |  |  |  |  | StatutorySourceDocumentRevisionModel |
+| `captured_at` | `DateTimeField` |  |  |  |  |  |
+| `content_type` | `CharField` |  |  |  |  |  |
+| `body_reference` | `CharField` |  |  |  |  |  |
+
+### StatutorySourceDocumentRevisionModel
+
+- 来源文件：`apps/data_center/infrastructure/statutory_source_models.py`
+- 数据表：`dc_statutory_source_revision`
+- 说明：One immutable publisher-native revision; this is not source qualification.
+
+| 字段 | 类型 | null | unique | 默认值 | 说明 | 关系目标 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `issuer` | `CharField` |  |  |  |  |  |
+| `document_id` | `CharField` |  |  |  |  |  |
+| `source_version` | `CharField` |  |  |  |  |  |
+| `canonical_url` | `URLField` |  |  |  |  |  |
+| `title` | `CharField` |  |  |  |  |  |
+| `legal_number` | `CharField` |  |  |  |  |  |
+| `publication_precision` | `CharField` |  |  |  |  |  |
+| `publication_date` | `DateField` | 是 |  |  |  |  |
+| `publication_instant` | `DateTimeField` | 是 |  |  |  |  |
+| `effective_precision` | `CharField` |  |  |  |  |  |
+| `effective_date` | `DateField` | 是 |  |  |  |  |
+| `effective_instant` | `DateTimeField` | 是 |  |  |  |  |
+| `body_sha256` | `CharField` |  |  |  |  |  |
+| `body_size_bytes` | `PositiveBigIntegerField` |  |  |  |  |  |
+| `source_revision_sha256` | `CharField` |  |  |  |  |  |
+
+### _StatutorySourceImmutableModel
+
+- 来源文件：`apps/data_center/infrastructure/statutory_source_models.py`
+- 抽象模型：是
+- 说明：Require an exact repository insert claim and reject all row mutation.
+
+| 字段 | 类型 | null | unique | 默认值 | 说明 | 关系目标 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `recorded_at` | `DateTimeField` |  |  |  |  |  |
 
 ### SyncItemAttemptModel
 

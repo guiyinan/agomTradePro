@@ -6,6 +6,12 @@
 
 ---
 
+## 单证券 E1 财务可用性规则
+
+本维护发行版沿用写入候选的 `data_center` 迁移历史至 `0118_financial_numeric_origin_snapshot`。在已有目标库切换服务前核对该迁移已应用。旧财务读取器继续筛选有四位小数值的事实，旧写入器继续保护含原生精确值的修订。
+
+通过正式站点登录后，使用会话及 CSRF 向 `/api/data-center/financial-availability/governance/apply/` 提交治理记录和理由。服务从登录会话核验独立权限 `data_center.manage_financial_availability_governance`，并返回记录和事件的 SHA-256。撤销时向同一路径下的 `revoke/` 提交原记录和采纳事件的精确标识、哈希及理由。核对数据库持久化事件后，再将其用于 E1 时点验证。
+
 ## 项目信息
 
 | 项目 | AgomTradePro (Agom Strategic Asset Allocation Framework) |
