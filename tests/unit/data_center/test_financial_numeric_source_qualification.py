@@ -5,6 +5,7 @@ from __future__ import annotations
 import sys
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta, timezone
+from decimal import Decimal
 from uuid import UUID
 
 import pytest
@@ -72,6 +73,42 @@ def _qualification(**changes: object) -> FinancialNumericSourceQualification:
     }
     values.update(changes)
     return FinancialNumericSourceQualification(**values)  # type: ignore[arg-type]
+
+
+def test_decimal_requirement_checks_exact_decoded_amount_and_binds_all_siblings() -> None:
+    fields = {"ASSETS": "275.32", "LIABILITIES": "101.21", "EQUITY": "174.11"}
+    requirements = tuple(
+        FinancialNumericSourceContextRequirement.from_payload(
+            {"field_name": field, "value_type": "decimal", "expected_value": value}
+        )
+        for field, value in fields.items()
+    )
+    qualification = _qualification(context_requirements=requirements)
+    restored = FinancialNumericSourceQualification.from_payload(qualification.to_dict())
+    row = {key: Decimal(value) for key, value in fields.items()}
+    assert restored == qualification
+    assert restored.matches_source_context(row)
+    for key in fields:
+        for changed in (row[key] + Decimal("0.01"), str(row[key]), 1, False, None, Decimal("sNaN")):
+            assert not restored.matches_source_context({**row, key: changed})
+        assert not restored.matches_source_context({k: v for k, v in row.items() if k != key})
+    assert (
+        _qualification(
+            context_requirements=tuple(
+                FinancialNumericSourceContextRequirement(key, value)
+                for key, value in fields.items()
+            )
+        ).content_hash
+        != restored.content_hash
+    )
+
+
+@pytest.mark.parametrize("value", [None, True, 23, 23.25, "2E1", "1.00", "NaN", "２", "9" * 129])
+def test_decimal_requirement_rejects_noncanonical_or_untyped_comparators(value: object) -> None:
+    with pytest.raises((TypeError, ValueError)):
+        FinancialNumericSourceContextRequirement.from_payload(
+            {"field_name": "TOTAL", "value_type": "decimal", "expected_value": value}
+        )
 
 
 def test_qualification_hash_binds_metric_endpoint_context_capture_and_effective_window() -> None:
