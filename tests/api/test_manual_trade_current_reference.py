@@ -61,6 +61,7 @@ from tests.component.simulated_trading.test_execution_settlement_uow import (
     _RuleReader,
     _seed_fee_policy,
 )
+from tests.support.synthetic_trade_tax_coverage import SyntheticTradeTaxCoverage
 
 # HTTP wiring uses rollback isolation; lock/concurrent-commit cases live in
 # the native repository component suite, which owns its isolated schema.
@@ -202,7 +203,9 @@ class _CapturingExecutionUseCase:
 
 class _CallerState:
     def __init__(self, *, source_available: bool) -> None:
-        self.repository = DjangoSimulatedTradeExecutionRepository(using="default")
+        self.repository = DjangoSimulatedTradeExecutionRepository(
+            using="default", tax_cash_coverage_reader=SyntheticTradeTaxCoverage()
+        )
         self.identity_reader = _SyntheticCurrentIdentityReader(available=source_available)
         self.calendar_reader = _SyntheticCalendarReader()
         self.clock = _FixedClock()
