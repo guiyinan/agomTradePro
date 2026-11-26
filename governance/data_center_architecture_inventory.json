@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 7812,
+    "current_surface_references": 7813,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -13379,6 +13379,10 @@
       "text": "raise ValueError(\"Current review must cover exactly the retained metrics.\")"
     },
     {
+      "path": "apps/data_center/infrastructure/financial_fact_publication_evidence.py",
+      "text": "\"v3 financial publication requires current exact-body and temporal verification\""
+    },
+    {
       "path": "apps/data_center/infrastructure/financial_fact_publication_helpers.py",
       "text": "\"\"\"Resolve input facts to latest persisted rows with source availability.\"\"\""
     },
@@ -13387,52 +13391,44 @@
       "text": "\"\"\"Select current metrics from each asset's latest evidence-safe period.\"\"\""
     },
     {
-      "path": "apps/data_center/infrastructure/financial_fact_repository.py",
-      "text": "The current repository uses Django's default manager for financial-fact"
+      "path": "apps/data_center/infrastructure/financial_fact_reads.py",
+      "text": "\"\"\"Current and point-in-time financial statement queries.\"\"\""
     },
     {
-      "path": "apps/data_center/infrastructure/financial_fact_repository.py",
+      "path": "apps/data_center/infrastructure/financial_fact_reads.py",
       "text": "\"\"\"Return the latest source period with current v3 verification when requested.\"\"\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_fact_reads.py",
+      "text": "\"\"\"Select latest revisions and independently verify explicit v3 reads.\"\"\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_fact_reads.py",
+      "text": "\"\"\"Select one latest row and verify it before returning it.\"\"\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_fact_reads.py",
+      "text": "\"financial fact read request must match its current or exact PIT scope\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_fact_reads.py",
+      "text": "\"latest financial reads require CURRENT_READ verification purpose\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_fact_reads.py",
+      "text": "latest = ("
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_fact_reads.py",
+      "text": "qs = qs.filter(pk=Subquery(latest))"
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_fact_reads.py",
+      "text": "raise AssertionError(\"current reads with a qualified verifier must use the outer UOW\")"
     },
     {
       "path": "apps/data_center/infrastructure/financial_fact_repository.py",
       "text": "\"\"\"Select every metric from each asset's latest evidence-safe period.\"\"\""
-    },
-    {
-      "path": "apps/data_center/infrastructure/financial_fact_repository.py",
-      "text": "\"\"\"Select latest revisions and independently verify explicit v3 reads.\"\"\""
-    },
-    {
-      "path": "apps/data_center/infrastructure/financial_fact_repository.py",
-      "text": "\"\"\"Select one latest row and verify it before returning it.\"\"\""
-    },
-    {
-      "path": "apps/data_center/infrastructure/financial_fact_repository.py",
-      "text": "\"financial fact read request must match its current or exact PIT scope\""
-    },
-    {
-      "path": "apps/data_center/infrastructure/financial_fact_repository.py",
-      "text": "\"latest financial reads require CURRENT_READ verification purpose\""
-    },
-    {
-      "path": "apps/data_center/infrastructure/financial_fact_repository.py",
-      "text": "\"v3 financial publication requires current exact-body and temporal verification\""
-    },
-    {
-      "path": "apps/data_center/infrastructure/financial_fact_repository.py",
-      "text": "alias; its catalog adapter must use the same alias. Current write/read"
-    },
-    {
-      "path": "apps/data_center/infrastructure/financial_fact_repository.py",
-      "text": "latest = ("
-    },
-    {
-      "path": "apps/data_center/infrastructure/financial_fact_repository.py",
-      "text": "qs = qs.filter(pk=Subquery(latest))"
-    },
-    {
-      "path": "apps/data_center/infrastructure/financial_fact_repository.py",
-      "text": "raise AssertionError(\"current reads with a qualified verifier must use the outer UOW\")"
     },
     {
       "path": "apps/data_center/infrastructure/financial_fact_v3_e1_verifier.py",
@@ -13473,6 +13469,14 @@
     {
       "path": "apps/data_center/infrastructure/financial_fact_v3_e1_verifier.py",
       "text": "raise ValueError(\"current temporal gate requires an explicit current purpose\")"
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_fact_verification.py",
+      "text": "The current repository uses Django's default manager for financial-fact"
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_fact_verification.py",
+      "text": "alias; its catalog adapter must use the same alias. Current write/read"
     },
     {
       "path": "apps/data_center/infrastructure/financial_fact_write_guard.py",
@@ -27855,11 +27859,11 @@
       "text": "lock, the repository reads current positions and recalculates only"
     },
     {
-      "path": "apps/simulated_trading/infrastructure/position_repository.py",
+      "path": "apps/simulated_trading/infrastructure/position_repository_guard.py",
       "text": "observation.freshness == \"realtime\""
     },
     {
-      "path": "apps/simulated_trading/infrastructure/position_repository.py",
+      "path": "apps/simulated_trading/infrastructure/position_repository_guard.py",
       "text": "or observation.freshness not in {\"realtime\", \"close_fallback\", \"historical\"}"
     },
     {

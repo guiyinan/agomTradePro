@@ -5411,7 +5411,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=177",
+      "evidence": "governed current-data contract; source_files=179",
       "id": "current_data_surface:governance/current_data_contracts.json:data_center.core_current_publication_rebuild:Active A-share quote/price/valuation/financial full-universe current publication rebuild and fact remediation",
       "locator": "Active A-share quote/price/valuation/financial full-universe current publication rebuild and fact remediation",
       "path": "governance/current_data_contracts.json",
@@ -5461,7 +5461,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=20",
+      "evidence": "governed current-data contract; source_files=22",
       "id": "current_data_surface:governance/current_data_contracts.json:data_center.financial_as_of_reads:Financial decisions preserve legacy China-market-day-start boundaries and explicit aware decision instants without widening Publication eligibility",
       "locator": "Financial decisions preserve legacy China-market-day-start boundaries and explicit aware decision instants without widening Publication eligibility",
       "path": "governance/current_data_contracts.json",
@@ -5661,7 +5661,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=46",
+      "evidence": "governed current-data contract; source_files=48",
       "id": "current_data_surface:governance/current_data_contracts.json:data_center.publication_writer_atomicity:Canonical publication writer and member snapshot commit",
       "locator": "Canonical publication writer and member snapshot commit",
       "path": "governance/current_data_contracts.json",
