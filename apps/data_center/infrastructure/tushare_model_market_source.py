@@ -280,11 +280,29 @@ class TushareModelMarketSource:
                 len(codes),
             )
 
+    def prepare_target_session_history(
+        self, asset_codes: tuple[str, ...], target_date: date
+    ) -> None:
+        """Use the same date-only provider request for full scopes and small quote gaps."""
+        if any(_normalize_tushare_code(code) != code for code in asset_codes):
+            raise ValueError("Invalid target-session history scope")
+        self._prepared.clear()
+        self._preparation_fetches.clear()
+        if asset_codes:
+            self._prepare_by_session(
+                tuple(sorted(set(asset_codes))), target_date, target_date, (target_date,)
+            )
+
     def _prepare_by_session(
-        self, asset_codes: tuple[str, ...], start_date: date, end_date: date
+        self,
+        asset_codes: tuple[str, ...],
+        start_date: date,
+        end_date: date,
+        days: tuple[date, ...] | None = None,
     ) -> bool:
-        """Use bounded daily market snapshots when a scope is wider than its time window."""
-        days = self.trade_days(start_date, end_date)
+        """Prepare exact session snapshots and filter rows to the frozen member scope."""
+        if days is None:
+            days = self.trade_days(start_date, end_date)
         if not days:
             return False
         client = self._pro
@@ -369,32 +387,18 @@ class TushareModelMarketSource:
                         ),
                     )
                     continue
-                if daily.empty:
-                    requested_daily = pd.DataFrame(columns=["ts_code", "trade_date"])
-                else:
-                    daily_frame = daily.copy()
-                    daily_frame["ts_code"] = daily_frame["ts_code"].map(_normalize_tushare_code)
-                    requested_daily = daily_frame.loc[daily_frame["ts_code"].isin(asset_codes)]
-                if factors.empty:
-                    requested_factors = pd.DataFrame(
-                        columns=["ts_code", "trade_date", "adj_factor"]
-                    )
-                else:
-                    factor_frame = factors.copy()
-                    factor_frame["ts_code"] = factor_frame["ts_code"].map(_normalize_tushare_code)
-                    requested_factors = factor_frame.loc[factor_frame["ts_code"].isin(asset_codes)]
-                daily_frames = [requested_daily] if not requested_daily.empty else []
-                factor_frames = [requested_factors] if not requested_factors.empty else []
                 daily_frame = (
-                    pd.concat(daily_frames, ignore_index=True)
-                    if daily_frames
+                    daily.copy()
+                    if not daily.empty
                     else pd.DataFrame(columns=["ts_code", "trade_date"])
                 )
-                factor_frame = (
-                    pd.concat(factor_frames, ignore_index=True)
-                    if factor_frames
-                    else pd.DataFrame(columns=["ts_code", "trade_date", "adj_factor"])
-                )
+                daily_frame["ts_code"] = daily_frame["ts_code"].map(_normalize_tushare_code)
+                daily_frame = daily_frame.loc[daily_frame["ts_code"].isin(asset_codes)]
+                factor_frame = factors.reindex(
+                    columns=["ts_code", "trade_date", "adj_factor"]
+                ).copy()
+                factor_frame["ts_code"] = factor_frame["ts_code"].map(_normalize_tushare_code)
+                factor_frame = factor_frame.loc[factor_frame["ts_code"].isin(asset_codes)].copy()
                 factor_frame["trade_date"] = pd.to_datetime(
                     factor_frame["trade_date"], format="%Y%m%d", errors="coerce"
                 )
@@ -641,7 +645,6 @@ class TushareModelMarketSource:
             ts_code=asset_code,
             start_date=start_date.strftime("%Y%m%d"),
             end_date=end_date.strftime("%Y%m%d"),
-            suspend_type="S",
         )
         if frame is None or frame.empty:
             return ()
@@ -649,16 +652,23 @@ class TushareModelMarketSource:
         if not required.issubset(frame.columns):
             return ()
         days: set[date] = set()
+        ambiguous: set[date] = set()
         for row in frame.to_dict("records"):
-            if row["ts_code"] != asset_code or row["suspend_type"] != "S":
-                continue
-            timing = row["suspend_timing"]
-            if timing is not None and not pd.isna(timing) and str(timing).strip():
+            if row["ts_code"] != asset_code:
                 continue
             observed = pd.to_datetime(row["trade_date"], format="%Y%m%d", errors="coerce")
-            if pd.notna(observed) and start_date <= observed.date() <= end_date:
-                days.add(observed.date())
-        return tuple(sorted(days))
+            if pd.isna(observed) or not start_date <= observed.date() <= end_date:
+                continue
+            day = observed.date()
+            timing = row["suspend_timing"]
+            if (
+                day in days
+                or row["suspend_type"] != "S"
+                or not (pd.isna(timing) or isinstance(timing, str) and not timing.strip())
+            ):
+                ambiguous.add(day)
+            days.add(day)
+        return tuple(sorted(days - ambiguous))
 
     def index_members(self, index_code: str, target_date: date) -> tuple[str, ...]:
         """Read the latest effective snapshot, never a future constituent list."""

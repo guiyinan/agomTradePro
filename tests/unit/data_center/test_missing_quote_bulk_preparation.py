@@ -39,7 +39,7 @@ class MissingQuoteClient:
         """Return no target-day rows, then either prior-day rows or a batch failure."""
 
         self.calls.append(("daily", dict(kwargs)))
-        if kwargs.get("start_date") == TARGET.strftime("%Y%m%d"):
+        if kwargs.get("trade_date") == TARGET.strftime("%Y%m%d"):
             return pd.DataFrame(
                 columns=[
                     "ts_code",
@@ -81,7 +81,7 @@ class MissingQuoteClient:
         """Return no target factors and matching factors for historical rows."""
 
         self.calls.append(("adj_factor", dict(kwargs)))
-        if kwargs.get("start_date") == TARGET.strftime("%Y%m%d"):
+        if kwargs.get("trade_date") == TARGET.strftime("%Y%m%d"):
             return pd.DataFrame(columns=["ts_code", "trade_date", "adj_factor"])
         prior_date = (TARGET - timedelta(days=1)).strftime("%Y%m%d")
         codes = tuple(str(kwargs["ts_code"]).split(","))
@@ -278,7 +278,7 @@ def test_target_success_audit_bindings_survive_exact_missing_quote_batch():
             self.history_requested = False
 
         def daily(self, **kwargs: object) -> pd.DataFrame:
-            if kwargs.get("start_date") != TARGET.strftime("%Y%m%d"):
+            if kwargs.get("trade_date") != TARGET.strftime("%Y%m%d"):
                 self.history_requested = True
                 return super().daily(**kwargs)
             self.calls.append(("daily", dict(kwargs)))
@@ -299,7 +299,7 @@ def test_target_success_audit_bindings_survive_exact_missing_quote_batch():
             )
 
         def adj_factor(self, **kwargs: object) -> pd.DataFrame:
-            if kwargs.get("start_date") != TARGET.strftime("%Y%m%d"):
+            if kwargs.get("trade_date") != TARGET.strftime("%Y%m%d"):
                 return super().adj_factor(**kwargs)
             self.calls.append(("adj_factor", dict(kwargs)))
             return pd.DataFrame(
@@ -359,3 +359,50 @@ def test_target_success_audit_bindings_survive_exact_missing_quote_batch():
         "batch-2",
     )
     assert fallback.reads == 0
+
+
+def test_target_session_verifies_small_gaps_without_a_multi_symbol_history_request():
+    class Suspensions(MissingQuoteClient):
+        def suspend_d(self, **kwargs: object) -> pd.DataFrame:
+            self.calls.append(("suspend_d", dict(kwargs)))
+            assert "suspend_type" not in kwargs
+            return pd.DataFrame(
+                [
+                    {
+                        "ts_code": kwargs["ts_code"],
+                        "trade_date": "20260918",
+                        "suspend_type": "S",
+                        "suspend_timing": None,
+                    }
+                ]
+            )
+
+    client = Suspensions()
+    service, fallback = _service(client)
+    result = refresh_market_price_inputs(service, list(MISSING_CODES), TARGET)
+    assert result.suspended_codes == MISSING_CODES
+    assert tuple(e.target_trade_date for e in result.suspension_evidence) == (TARGET, TARGET)
+    assert [(name, params) for name, params in client.calls if name in {"daily", "adj_factor"}] == [
+        ("daily", {"trade_date": "20260918"}),
+        ("adj_factor", {"trade_date": "20260918"}),
+    ]
+    assert [params["ts_code"] for name, params in client.calls if name == "suspend_d"] == list(
+        MISSING_CODES
+    )
+    assert fallback.reads == 0
+
+
+@pytest.mark.parametrize("conflict", ["R", "S"])
+def test_duplicate_or_resumed_session_does_not_prove_full_day_suspension(conflict: str):
+    class Conflicting(MissingQuoteClient):
+        def suspend_d(self, **kwargs: object) -> pd.DataFrame:
+            row = {
+                "ts_code": kwargs["ts_code"],
+                "trade_date": "20260918",
+                "suspend_type": "S",
+                "suspend_timing": None,
+            }
+            return pd.DataFrame([row, {**row, "suspend_type": conflict}])
+
+    source = TushareModelMarketSource(Conflicting())
+    assert source.suspended_days(MISSING_CODES[0], TARGET, TARGET) == ()

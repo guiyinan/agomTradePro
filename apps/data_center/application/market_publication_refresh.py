@@ -18,6 +18,7 @@ from apps.data_center.domain.model_market_data import (
     ModelDailyBar,
     ModelHistoryPreparationPort,
     ModelMarketDataPort,
+    TargetSessionHistoryPreparationPort,
 )
 from core.exceptions import DataFetchError
 
@@ -177,7 +178,9 @@ def refresh_market_price_inputs(
     audit_evidence = port if isinstance(port, ModelHistoryAuditEvidencePort) else None
     if audit_evidence is not None:
         audit_evidence.take_model_history_audit_bindings()
-    if isinstance(port, ModelHistoryPreparationPort):
+    if isinstance(port, TargetSessionHistoryPreparationPort):
+        port.prepare_target_session_history(tuple(asset_codes), target_date)
+    elif isinstance(port, ModelHistoryPreparationPort):
         port.prepare_stock_history(tuple(asset_codes), target_date, target_date)
     suspended: list[str] = []
     suspension_evidence: dict[str, MarketPriceSuspensionEvidence] = {}

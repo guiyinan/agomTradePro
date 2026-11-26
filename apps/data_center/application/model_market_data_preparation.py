@@ -20,6 +20,7 @@ from apps.data_center.domain.entities import RawAuditReference
 from apps.data_center.domain.model_market_data import (
     ModelDailyBar,
     ModelHistoryPreparationPort,
+    TargetSessionHistoryPreparationPort,
 )
 from core.exceptions import DataFetchError
 
@@ -153,10 +154,26 @@ class ModelMarketDataPreparation(ModelMarketDataServiceState):
             return prepared
         return self._history(asset_code, start_date, end_date, is_index=False)
 
+    def prepare_target_session_history(
+        self, asset_codes: tuple[str, ...], target_date: date
+    ) -> None:
+        """Use a session-scoped source when preparing current publication members."""
+        self._prepare_history(asset_codes, target_date, target_date, target_session=True)
+
     def prepare_stock_history(
         self, asset_codes: tuple[str, ...], start_date: date, end_date: date
     ) -> None:
         """Prepare explicitly requested prices with audited batches and bounded fallback."""
+        self._prepare_history(asset_codes, start_date, end_date, target_session=False)
+
+    def _prepare_history(
+        self,
+        asset_codes: tuple[str, ...],
+        start_date: date,
+        end_date: date,
+        *,
+        target_session: bool,
+    ) -> None:
         normalized_asset_codes = tuple(sorted(set(asset_codes)))
         if not normalized_asset_codes:
             return
@@ -223,7 +240,10 @@ class ModelMarketDataPreparation(ModelMarketDataServiceState):
             route_error: DataFetchError | None = None
             prepared_fetches: tuple[ModelHistoryPreparedFetch, ...] = ()
             try:
-                route.port.prepare_stock_history(route_codes, start_date, end_date)
+                if target_session and isinstance(route.port, TargetSessionHistoryPreparationPort):
+                    route.port.prepare_target_session_history(route_codes, end_date)
+                else:
+                    route.port.prepare_stock_history(route_codes, start_date, end_date)
             except DataFetchError as exc:
                 route_error = exc
                 self._disable_quota(route, exc)
