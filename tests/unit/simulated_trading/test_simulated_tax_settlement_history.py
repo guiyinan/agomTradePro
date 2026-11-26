@@ -608,6 +608,36 @@ def test_history_request_rejects_missing_or_untyped_explicit_inputs(
 
 
 @pytest.mark.parametrize(
+    "changes,reason",
+    (
+        ({"physical_account_id": _ACCOUNT_ID + 1}, "ownership proof"),
+        ({"owner_user_id": _OWNER_ID + 1}, "ownership proof"),
+        ({"asset_code": "SYNTHETIC.OTHER"}, "ownership proof"),
+        ({"security_id": "SYNTHETIC.OTHER"}, "ownership proof"),
+        ({"record_date": _RECORD_DATE - timedelta(days=1)}, "ownership proof"),
+        ({"canonical_account_id": "synthetic-account-8"}, "account or exchange scope"),
+        ({"as_of": _AS_OF + timedelta(seconds=1)}, "Config Center runtime observation"),
+    ),
+)
+def test_history_request_rejects_evidence_from_another_scope_or_observation(
+    changes: dict[str, object], reason: str
+) -> None:
+    with pytest.raises(DeferredDividendTaxValidationError, match=reason):
+        replace(_request(), **changes)
+
+
+def test_history_request_rejects_entitlement_that_exceeds_proven_ownership() -> None:
+    request = _request()
+    entitlement = replace(
+        request.record_date_entitlement,
+        qualified_total_quantity=request.record_date_ownership_proof.eligible_quantity + 1,
+    )
+
+    with pytest.raises(DeferredDividendTaxValidationError, match="independent ownership proof"):
+        replace(request, record_date_entitlement=entitlement)
+
+
+@pytest.mark.parametrize(
     "provenance_changes",
     (
         {"definition_key": "config_center.other"},
