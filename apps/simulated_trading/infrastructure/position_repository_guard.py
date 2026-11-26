@@ -1,5 +1,6 @@
 """Parent-lock, held-resource, and update-identity guards from G1."""
 
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Any
 
@@ -9,6 +10,7 @@ from django.db.models import Q
 from apps.simulated_trading.application.execution_settlement_uow import (
     SimulatedTradeExecutionBlocked,
 )
+from apps.simulated_trading.application.ports import PositionPriceRefreshInput
 from apps.simulated_trading.infrastructure.models import (
     PositionModel,
     SimulatedAccountModel,
@@ -241,3 +243,59 @@ def _validate_position_record_defaults(defaults: dict[str, Any]) -> None:
         raise BusinessLogicError("持仓身份不可通过默认字段改写", code="POSITION_IDENTITY_IMMUTABLE")
     if not field_names <= _POSITION_RECORD_DEFAULT_FIELDS:
         raise BusinessLogicError("持仓写入字段无效", code="POSITION_WRITE_FIELDS_INVALID")
+
+
+def validate_position_price_refresh(
+    account_id: int, price_by_code: dict[str, PositionPriceRefreshInput]
+) -> None:
+    """Validate the account scope and every price observation before taking locks."""
+    if type(account_id) is not int or account_id <= 0:
+        raise BusinessLogicError(
+            "价格刷新账户范围无效",
+            code="POSITION_PRICE_REFRESH_SCOPE_INVALID",
+        )
+    for asset_code, observation in price_by_code.items():
+        if (
+            type(observation) is PositionPriceRefreshInput
+            and observation.price_adjustment != "none"
+        ):
+            raise BusinessLogicError(
+                "持仓价格缺少不复权基准证明",
+                code="POSITION_PRICE_BASIS_UNVERIFIED",
+                details={"asset_code": asset_code},
+            )
+        if (
+            type(asset_code) is not str
+            or not asset_code
+            or type(observation) is not PositionPriceRefreshInput
+            or observation.asset_code != asset_code
+            or type(observation.asset_type) is not str
+            or not observation.asset_type
+            or type(observation.price) is not float
+            or not Decimal(str(observation.price)).is_finite()
+            or observation.price <= 0
+            or observation.freshness not in {"realtime", "close_fallback", "historical"}
+            or (
+                observation.freshness == "realtime"
+                and (
+                    type(observation.source) is not str
+                    or not observation.source.strip()
+                    or not isinstance(observation.observed_at, datetime)
+                    or observation.observed_at.tzinfo is None
+                    or observation.observed_at.utcoffset() is None
+                )
+            )
+            or (
+                observation.freshness in {"close_fallback", "historical"}
+                and (
+                    type(observation.source) is not str
+                    or not observation.source.strip()
+                    or not isinstance(observation.as_of, date)
+                    or isinstance(observation.as_of, datetime)
+                )
+            )
+        ):
+            raise BusinessLogicError(
+                "持仓价格刷新证据无效",
+                code="POSITION_PRICE_REFRESH_INPUT_INVALID",
+            )

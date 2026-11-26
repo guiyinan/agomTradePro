@@ -1,6 +1,5 @@
 """模拟盘持仓查询与兼容读写仓储。"""
 
-from datetime import date, datetime
 from decimal import Decimal
 from typing import Any
 
@@ -38,6 +37,7 @@ from .position_repository_guard import (
     _position_order_resources_changed,
     _validate_position_record_defaults,
     require_no_retained_v4_fill_history,
+    validate_position_price_refresh,
 )
 
 
@@ -91,56 +91,7 @@ class DjangoPositionRepository(_PositionInvalidationRepositoryMixin):
         valuation fields, so a concurrent correction's cash and cost basis
         cannot be overwritten by the caller's earlier snapshots.
         """
-        if type(account_id) is not int or account_id <= 0:
-            raise BusinessLogicError(
-                "价格刷新账户范围无效",
-                code="POSITION_PRICE_REFRESH_SCOPE_INVALID",
-            )
-        for asset_code, observation in price_by_code.items():
-            if (
-                type(observation) is PositionPriceRefreshInput
-                and observation.price_adjustment != "none"
-            ):
-                raise BusinessLogicError(
-                    "持仓价格缺少不复权基准证明",
-                    code="POSITION_PRICE_BASIS_UNVERIFIED",
-                    details={"asset_code": asset_code},
-                )
-            if (
-                type(asset_code) is not str
-                or not asset_code
-                or type(observation) is not PositionPriceRefreshInput
-                or observation.asset_code != asset_code
-                or type(observation.asset_type) is not str
-                or not observation.asset_type
-                or type(observation.price) is not float
-                or not Decimal(str(observation.price)).is_finite()
-                or observation.price <= 0
-                or observation.freshness not in {"realtime", "close_fallback", "historical"}
-                or (
-                    observation.freshness == "realtime"
-                    and (
-                        type(observation.source) is not str
-                        or not observation.source.strip()
-                        or not isinstance(observation.observed_at, datetime)
-                        or observation.observed_at.tzinfo is None
-                        or observation.observed_at.utcoffset() is None
-                    )
-                )
-                or (
-                    observation.freshness in {"close_fallback", "historical"}
-                    and (
-                        type(observation.source) is not str
-                        or not observation.source.strip()
-                        or not isinstance(observation.as_of, date)
-                        or isinstance(observation.as_of, datetime)
-                    )
-                )
-            ):
-                raise BusinessLogicError(
-                    "持仓价格刷新证据无效",
-                    code="POSITION_PRICE_REFRESH_INPUT_INVALID",
-                )
+        validate_position_price_refresh(account_id, price_by_code)
         updates = self._update_position_prices_for_accounts(
             account_ids=[account_id],
             price_by_code=price_by_code,
