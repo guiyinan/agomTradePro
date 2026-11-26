@@ -559,6 +559,9 @@ mypy apps/ --strict
 gh workflow run security-scan.yml --ref dev/next-development
 gh workflow run nightly-tests.yml --ref dev/next-development
 
+# PostgreSQL 专项。current-data 清单使用作业内的 Redis 对合成法规采集执行共享限流。
+gh workflow run nightly-tests.yml --ref dev/next-development -f suite=critical-pg-only
+
 # ci-fast-feedback 可选传 base_ref（完整祖先 SHA）做累计候选验证
 gh workflow run ci-fast-feedback.yml --ref dev/next-development -f base_ref=<full-sha>
 

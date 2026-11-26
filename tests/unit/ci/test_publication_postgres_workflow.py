@@ -724,21 +724,35 @@ def test_ash05_corporate_action_ledger_runs_on_isolated_migrated_postgres() -> N
     assert "ash05-cash-posting-postgres.xml" in artifact_files
 
 
-def test_ash05_full_qualifier_uses_a_bounded_real_redis_limiter() -> None:
-    """The real egress qualifier retains its Redis dependency in native CI."""
-    workflow = yaml.load(WORKFLOW_PATH.read_text(encoding="utf-8"), Loader=yaml.BaseLoader)
-    job = workflow["jobs"]["publication-postgres"]
+@pytest.mark.parametrize(
+    ("workflow_file", "job_name", "step_name"),
+    [
+        (
+            "ci-publication-postgres.yml",
+            "publication-postgres",
+            "Exercise ASH-05 native corporate-action ledger",
+        ),
+        (
+            "nightly-tests.yml",
+            "critical-postgres",
+            "Run current-data contract manifest on PostgreSQL",
+        ),
+    ],
+)
+def test_ash05_full_qualifier_uses_a_bounded_real_redis_limiter(
+    workflow_file: str, job_name: str, step_name: str
+) -> None:
+    """Every native CI entry that exercises the tax qualifier supplies its own Redis."""
+    path = ROOT / ".github/workflows" / workflow_file
+    workflow = yaml.load(path.read_text(encoding="utf-8"), Loader=yaml.BaseLoader)
+    job = workflow["jobs"][job_name]
     redis = job["services"]["redis"]
     assert re.fullmatch(r"redis@sha256:[0-9a-f]{64}", redis["image"])
     assert redis["ports"] == ["6379:6379"]
     assert "--cpus 0.25" in redis["options"]
     assert "--memory 64m" in redis["options"]
     assert "redis-cli ping" in redis["options"]
-    step = next(
-        step
-        for step in job["steps"]
-        if step.get("name") == "Exercise ASH-05 native corporate-action ledger"
-    )
+    step = next(step for step in job["steps"] if step.get("name") == step_name)
     endpoint = urlsplit(step["env"]["REDIS_URL"])
     assert endpoint.scheme == "redis"
     assert endpoint.hostname in {"127.0.0.1", "localhost", "::1"}

@@ -686,6 +686,13 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+      redis:
+        image: redis@sha256:8b81dd37ff027bec4e516d41acfbe9fe2460070dc6d4a4570a2ac5b9d59df065
+        ports: ['6379:6379']
+        options: >-
+          --cpus 0.25 --memory 64m
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 5s --health-retries 12
     env:
       DATABASE_URL: postgresql://agomtradepro:critical-test-password@127.0.0.1:5432/agomtradepro_critical
       DJANGO_SETTINGS_MODULE: core.settings.development
@@ -1097,6 +1104,7 @@ jobs:
 
       - name: Run current-data contract manifest on PostgreSQL
         env:
+          REDIS_URL: redis://127.0.0.1:6379/0
           DJANGO_SETTINGS_MODULE: core.settings.critical_postgres_test
           AGOM_CRITICAL_TEST_DB_NAME: test_agomtradepro_critical_aud05
           AGOM_AUD05_PG_CONCURRENCY_EVIDENCE: "1"
