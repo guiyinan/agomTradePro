@@ -185,6 +185,7 @@ def test_dispatch_task_redacts_unexpected_composition_failure(
         raise RuntimeError("postgres://audit:secret@example.test/audit")
 
     monkeypatch.setattr(tasks, "get_system_audit_outbox_dispatcher", failed_composition)
+    monkeypatch.setattr(tasks.logger, "handlers", [*tasks.logger.handlers, caplog.handler])
 
     result = tasks.dispatch_system_audit_outbox_task.run(
         limit=3,

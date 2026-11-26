@@ -105,6 +105,10 @@ def test_critical_step_binds_the_precreated_database() -> None:
             "test_agomtradepro_critical_aud05",
         ),
         (
+            "Run Celery task contract manifest on PostgreSQL",
+            "test_agomtradepro_critical_celery",
+        ),
+        (
             "Run backfill coverage and retention control-plane evidence on PostgreSQL",
             test_name,
         ),
@@ -116,6 +120,14 @@ def test_critical_step_binds_the_precreated_database() -> None:
         if "aud05" in expected_name:
             assert step["env"]["AGOM_AUD05_PG_CONCURRENCY_EVIDENCE"] == "1"
             assert "--create-db" in step["run"]
+
+    celery = next(
+        step
+        for step in steps
+        if step.get("name") == "Run Celery task contract manifest on PostgreSQL"
+    )
+    assert celery["env"]["REDIS_URL"] == "redis://127.0.0.1:6379/11"
+    assert "--no-migrations" not in celery["run"]
 
     browser_install_index = next(
         index
