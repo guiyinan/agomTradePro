@@ -8011,7 +8011,8 @@
         ],
         "apps/data_center/management/commands/recover_financial_e1_retained.py": [
           "validate_recovery_source",
-          "forecast_digest(predicted)",
+          "review.verify_material_forecast",
+          "forecast_digest(predicted, review.digest if review else None)",
           "claim_recovery",
           "store_retained_recovery",
           "physical_attempts=0"
