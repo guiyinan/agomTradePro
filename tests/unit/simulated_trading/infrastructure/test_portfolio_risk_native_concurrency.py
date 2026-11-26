@@ -13,11 +13,11 @@ from uuid import uuid4
 from zoneinfo import ZoneInfo
 
 import pytest
-from django.contrib.auth import get_user_model
+from cryptography.fernet import Fernet
 from django.db import DEFAULT_DB_ALIAS, connection
+from django.test import override_settings
 from django.utils import timezone
 
-from apps.account.infrastructure.identity_models import AccountProfileModel
 from apps.config_center.application.runtime_value_evidence import ActiveRuntimeValueEvidence
 from apps.risk_center.application.portfolio_baseline_risk import (
     PortfolioBaselinePolicyReader,
@@ -82,9 +82,11 @@ from apps.simulated_trading.domain.execution_settlement_uow import (
     SimulatedTradeIntent,
     SimulatedTradeSide,
 )
+from apps.simulated_trading.execution_settlement_composition import (
+    build_configured_tax_cash_coverage_reader,
+)
 from apps.simulated_trading.infrastructure.models import (
     FeeConfigModel,
-    PositionModel,
     SimulatedAccountModel,
     SimulatedTradeModel,
 )
@@ -100,6 +102,7 @@ from apps.simulated_trading.infrastructure.performance_repositories import (
 from apps.simulated_trading.infrastructure.portfolio_risk_resource_repository import (
     DjangoPortfolioRiskResourceRepository,
 )
+from shared.config.secrets import get_secrets
 from tests.component.simulated_trading.test_execution_settlement_uow import (
     _bundle,
     _calendar,
@@ -111,20 +114,20 @@ from tests.component.simulated_trading.test_order_reservation_concurrency import
     _submit_worker,
     _wait_for_account_parent_lock,
 )
-from tests.support.isolated_schema import isolated_schema
+from tests.support.account_authority_generation_flush import (
+    preserve_account_authority_generation as preserve_account_authority_generation,
+)
+from tests.support.ash07_owner_account_authority import ASH07_OWNER_ACCEPTANCE_AVAILABLE_APPS
 from tests.support.native_postgres_database import assert_native_postgres_test_database
+from tests.support.runtime_config import configure_critical_runtime
+from tests.support.simulated_tax_model_native_account import create_public_nonstaff_tax_owner_seed
+from tests.support.simulated_tax_model_native_sources import isolated_task_channels
 from tests.unit.simulated_trading import test_portfolio_risk_service as risk_fixtures
 
-pytestmark = pytest.mark.django_db(
-    transaction=True,
-    available_apps=[
-        "apps.account",
-        "apps.risk_center",
-        "apps.simulated_trading",
-        "django.contrib.auth",
-        "django.contrib.contenttypes",
-    ],
-)
+pytestmark = [
+    pytest.mark.skipif(connection.vendor != "postgresql", reason="row locks require PostgreSQL"),
+    pytest.mark.django_db(transaction=True, available_apps=ASH07_OWNER_ACCEPTANCE_AVAILABLE_APPS),
+]
 
 
 @pytest.fixture(autouse=True)
@@ -133,8 +136,6 @@ def _require_migrated_native_postgres(django_db_use_migrations: bool) -> None:
 
     if not django_db_use_migrations:
         pytest.skip("portfolio-risk row-lock acceptance requires migrated test tables")
-    if connection.vendor != "postgresql":
-        pytest.skip("portfolio-risk row-lock acceptance requires PostgreSQL")
     assert_native_postgres_test_database()
 
 
@@ -153,37 +154,27 @@ class _NativeLedger:
 def native_ledger(monkeypatch: pytest.MonkeyPatch) -> Iterator[_NativeLedger]:
     """Create one real account and one current, source-backed FeeV2 row."""
 
-    cutoff = timezone.now().astimezone(UTC)
-    session = cutoff.astimezone(ZoneInfo("Asia/Shanghai")).date()
     import tests.component.simulated_trading.test_execution_settlement_uow as uow_fixtures
 
-    monkeypatch.setattr(uow_fixtures, "AS_OF", cutoff)
-    user_model = get_user_model()
-    model_types = (
-        user_model,
-        AccountProfileModel,
-        SimulatedAccountModel,
-        PositionModel,
-        SimulatedTradeModel,
-        FeeConfigModel,
-        SimulatedOrderReservationModel,
-        RiskPolicyAuditModel,
-    )
-    with isolated_schema(model_types):
-        user = user_model._default_manager.create_user(
-            username=f"risk-native-{uuid4().hex}",
-            password="unused",
-        )
-        account = SimulatedAccountModel._default_manager.create(
-            user=user,
-            account_name=f"risk-native-account-{uuid4().hex}",
-            account_type="simulated",
-            initial_capital=Decimal("100000.00"),
-            current_cash=Decimal("100000.00"),
-            current_market_value=Decimal("0.00"),
-            total_value=Decimal("100000.00"),
-            is_active=True,
-        )
+    with isolated_task_channels():
+        with (
+            monkeypatch.context() as setup,
+            override_settings(ROOT_URLCONF="tests.support.ash07_owner_source_test_urls"),
+        ):
+            created_at = timezone.now().astimezone(UTC)
+            setup.setattr(timezone, "now", lambda: created_at)
+            setup.setenv("AGOMTRADEPRO_ENCRYPTION_KEY", Fernet.generate_key().decode("ascii"))
+            get_secrets.cache_clear()
+            try:
+                configure_critical_runtime()
+                seed = create_public_nonstaff_tax_owner_seed(as_of=created_at)
+            finally:
+                get_secrets.cache_clear()
+
+        account = seed.account
+        cutoff = timezone.now().astimezone(UTC)
+        session = cutoff.astimezone(ZoneInfo("Asia/Shanghai")).date()
+        monkeypatch.setattr(uow_fixtures, "AS_OF", cutoff)
         fee_row = FeeConfigModel._default_manager.create(
             config_name=f"risk-native-fee-{uuid4().hex}",
             asset_type="equity",
@@ -199,11 +190,11 @@ def native_ledger(monkeypatch: pytest.MonkeyPatch) -> Iterator[_NativeLedger]:
         )
         _seed_fee_policy(fee_row)
         assert type(account.pk) is int
-        assert type(user.pk) is int
+        assert type(seed.owner.pk) is int
         yield _NativeLedger(
             account=account,
             account_id=account.pk,
-            owner_user_id=user.pk,
+            owner_user_id=seed.owner.pk,
             cutoff=cutoff,
             session=session,
         )
@@ -515,6 +506,7 @@ def _compose_reserver(
     repository = DjangoSimulatedOrderReservationRepository(
         using=DEFAULT_DB_ALIAS,
         portfolio_risk_guard=ConfiguredPortfolioRiskLockedOrderGuard(using=DEFAULT_DB_ALIAS),
+        tax_cash_coverage_reader=build_configured_tax_cash_coverage_reader(using=DEFAULT_DB_ALIAS),
     )
     return ReserveSimulatedOrderUseCase(
         preparer=preparer,
@@ -564,14 +556,15 @@ def test_native_postgres_serializes_risk_qualified_reservations_and_counts_first
         monkeypatch=monkeypatch,
         writer=writer,
     )
-    reserve = _compose_reserver(ledger=native_ledger, clock=_LiveClock())
+    first_reserver = _compose_reserver(ledger=native_ledger, clock=_LiveClock())
+    second_reserver = _compose_reserver(ledger=native_ledger, clock=_LiveClock())
     first_intent = _intent(native_ledger, key=first_key)
     second_intent = _intent(native_ledger, key="pg-risk-second-buy")
 
     with ThreadPoolExecutor(max_workers=2, thread_name_prefix="portfolio-risk-reserve") as pool:
         first_worker = _submit_worker(
             pool,
-            lambda: _reservation_attempt(reserve, first_intent, as_of=native_ledger.cutoff),
+            lambda: _reservation_attempt(first_reserver, first_intent, as_of=native_ledger.cutoff),
         )
         if not audit_written.wait(timeout=15):
             if first_worker.future.done():
@@ -597,7 +590,9 @@ def test_native_postgres_serializes_risk_qualified_reservations_and_counts_first
         try:
             second_worker = _submit_worker(
                 pool,
-                lambda: _reservation_attempt(reserve, second_intent, as_of=native_ledger.cutoff),
+                lambda: _reservation_attempt(
+                    second_reserver, second_intent, as_of=native_ledger.cutoff
+                ),
             )
             wait = _wait_for_account_parent_lock(
                 waiter_pid=second_worker.backend_pids[0],
