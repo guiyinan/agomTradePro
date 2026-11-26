@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from hashlib import sha256
@@ -257,6 +258,85 @@ def test_partial_fill_and_active_reservation_remain_in_flight() -> None:
     assert progress.can_cancel is True
     assert progress.can_preview is False
     assert progress.outcome == "in_flight"
+
+
+@pytest.mark.parametrize(
+    ("status", "quantity_reason"),
+    [
+        (OrderReservationStatus.ACTIVE, "TRANSITION_PLAN_ACTIVE_HOLD_EXCEEDS_REMAINDER"),
+        (OrderReservationStatus.COMPLETED, "TRANSITION_PLAN_ORDER_OVERFILLED"),
+    ],
+)
+def test_duplicate_reservation_cannot_authorize_replay_or_another_preview(
+    status: OrderReservationStatus, quantity_reason: str
+) -> None:
+    identity = _identity()
+    order = _order(identity)
+    binding = _binding(identity, order)
+    row = _reservation(identity, order, binding, status=status)
+    progress = _progress(
+        identity=identity, order=order, rows=(row, row), expected_action_attempt_key="attempt-1"
+    )
+    assert progress.outcome == "unknown"
+    assert progress.replay_order_id is None
+    assert not progress.can_preview
+    assert set(progress.reason_codes) >= {
+        "TRANSITION_PLAN_DUPLICATE_RESERVATION_ID",
+        "TRANSITION_PLAN_DUPLICATE_ACTION_ATTEMPT",
+        "TRANSITION_PLAN_MULTIPLE_ATTEMPTS_FOR_ORDER",
+        quantity_reason,
+    }
+
+
+@pytest.mark.parametrize(
+    ("changes", "reason"),
+    [
+        ({"receipt_id": False}, "receipt_id must be positive"),
+        ({"quantity": Decimal(0)}, "fill quantity must be positive"),
+        ({"quantity": Decimal("NaN")}, "finite nonnegative Decimal"),
+        ({"gross_amount": Decimal(0)}, "positive Decimal"),
+        ({"actual_fee": Decimal(-1)}, "finite nonnegative Decimal"),
+    ],
+)
+def test_plan_fill_requires_a_real_receipt_and_exact_economics(changes, reason) -> None:
+    fill = VerifiedPlanFill(1, 2, Decimal(1), Decimal(10), None)
+    with pytest.raises(ValueError, match=reason):
+        replace(fill, **changes)
+
+
+@pytest.mark.parametrize(
+    ("changes", "reason"),
+    [
+        ({"reservation_id": 0}, "reservation_id"),
+        ({"binding": {}}, "exact Portfolio"),
+        ({"revision_recorded_at": datetime(2026, 11, 5)}, "aware datetime"),
+        ({"revision_recorded_at": AS_OF + timedelta(days=1)}, "before its expiry"),
+        ({"intent": {}}, "exact persisted trade intent"),
+        ({"reservation": {}}, "reservation"),
+        ({"fills": (None,)}, "verified fill facts"),
+        ({"fills": ()}, "differs from reservation cumulative fills"),
+    ],
+)
+def test_reservation_readback_requires_matching_typed_ledger_facts(changes, reason) -> None:
+    identity = _identity()
+    order = _order(identity)
+    row = _reservation(identity, order, _binding(identity, order))
+    with pytest.raises(ValueError, match=reason):
+        replace(row, **changes)
+
+
+@pytest.mark.parametrize(
+    ("changes", "reason"),
+    [
+        ({"history_complete": 1}, "must be booleans"),
+        ({"predecessor_sells_settled": 1}, "bool or None"),
+        ({"expected_action_attempt_key": " "}, "absent or nonempty"),
+        ({"related": (None,)}, "unknown typed row"),
+    ],
+)
+def test_plan_reconciliation_rejects_unqualified_history_inputs(changes, reason) -> None:
+    with pytest.raises(ValueError, match=reason):
+        _progress(**changes)
 
 
 def test_idempotent_attempt_readback_requires_its_real_attempt_key() -> None:

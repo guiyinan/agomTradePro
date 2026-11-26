@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 
 import pytest
@@ -28,7 +28,7 @@ from apps.risk_center.domain.portfolio_risk_sources import (
     SourceObservationPrecision,
 )
 
-_AS_OF = datetime(2026, 10, 30, 8, 0, tzinfo=timezone.utc)
+_AS_OF = datetime(2026, 10, 30, 8, 0, tzinfo=UTC)
 _WINDOW_START = date(2026, 10, 23)
 _WINDOW_END = date(2026, 10, 29)
 _BUSINESS_DATE = date(2026, 10, 30)
@@ -284,6 +284,87 @@ def _evaluate(
         business_date=_BUSINESS_DATE,
         as_of=_AS_OF,
     )
+
+
+@pytest.mark.parametrize(
+    ("value", "unit", "reason"),
+    [
+        (None, "share", "both be absent"),
+        (Decimal("NaN"), "share", "exact nonnegative"),
+        (Decimal("-1"), "share", "exact nonnegative"),
+        (Decimal(1), "", "canonical token"),
+        (Decimal(1), "shares traded", "cannot contain whitespace"),
+    ],
+)
+def test_capacity_measure_requires_an_exact_amount_and_canonical_unit(value, unit, reason) -> None:
+    with pytest.raises(ValueError, match=reason):
+        CapacityValue(value, unit)
+
+
+@pytest.mark.parametrize(
+    ("changes", "reason"),
+    [
+        ({"content_hash": "x" * 64}, "content_hash"),
+        ({"measure": "price"}, "measure"),
+        ({"capacity_basis": "gross_total"}, "capacity_basis"),
+        ({"usage_scope": "all_accounts"}, "usage_scope"),
+        ({"usage_date_basis": "order_entry"}, "usage_date_basis"),
+        ({"window_kind": "lifetime"}, "window_kind"),
+        ({"window_sessions": True}, "exact integer"),
+        ({"window_kind": "session_cumulative"}, "declare one session"),
+        ({"window_sessions": 1}, "at least two sessions"),
+        ({"window_kind": "session_cumulative", "window_sessions": 1}, "session_total"),
+        ({"capacity_basis": "session_total"}, "average_per_session"),
+        ({"effective_until": _AS_OF - timedelta(days=2)}, "precede effective_from"),
+        ({"allowed_observation_precisions": ()}, "nonempty tuple"),
+        ({"allowed_observation_precisions": ("minute",)}, "invalid precision"),
+        ({"date_precision_purposes": "valuation"}, "must be a tuple"),
+        ({"date_precision_purposes": ("valuation", "valuation")}, "duplicate tokens"),
+        ({"allowed_source_restrictions": "simulation"}, "must be a tuple"),
+        ({"allowed_source_restrictions": ("simulation", "simulation")}, "duplicate tokens"),
+        ({"max_participation": Decimal("1.01")}, "exact Decimal fraction"),
+        ({"known_at": datetime(2026, 10, 30)}, "timezone-aware"),
+    ],
+)
+def test_policy_cannot_change_the_basis_window_or_scope_of_consumed_capacity(changes, reason):
+    with pytest.raises((TypeError, ValueError), match=reason):
+        replace(_policy(), **changes)
+
+
+@pytest.mark.parametrize(
+    ("changes", "reason"),
+    [
+        ({"window_start": _EXECUTION_DATE}, "end cannot precede start"),
+        ({"window_end": _AS_OF}, "must be a date"),
+        ({"window_sessions": 0}, "exact integer"),
+        ({"window_kind": "session_cumulative"}, "exactly one session date"),
+        ({"window_sessions": 1}, "at least two sessions"),
+        ({"window_kind": "monthly"}, "supported capacity window"),
+        ({"amount": Decimal(1)}, "CapacityValue"),
+        ({"execution_session_suspended": 0}, "must be a boolean"),
+        ({"execution_session_state_evidence": {}}, "state_evidence"),
+        ({"source_evidence": {}}, "source_evidence"),
+    ],
+)
+def test_window_observation_rejects_unqualified_session_or_measure(changes, reason):
+    with pytest.raises((TypeError, ValueError), match=reason):
+        replace(_observation(), **changes)
+
+
+@pytest.mark.parametrize(
+    ("changes", "reason"),
+    [
+        ({"account_id": False}, "account_id"),
+        ({"volume": 1}, "CapacityValue"),
+        ({"executed_usage_complete": 1}, "executed_usage_complete"),
+        ({"active_orders_complete": 0}, "active_orders_complete"),
+        ({"active_orders": []}, "must be tuples"),
+        ({"proposed_orders": (None,)}, "CapacityOrderUsage"),
+    ],
+)
+def test_usage_requires_a_typed_account_snapshot_before_counting_orders(changes, reason):
+    with pytest.raises((TypeError, ValueError), match=reason):
+        replace(_usage(), **changes)
 
 
 def test_capacity_divides_rolling_window_by_sessions_and_counts_both_sides_gross() -> None:

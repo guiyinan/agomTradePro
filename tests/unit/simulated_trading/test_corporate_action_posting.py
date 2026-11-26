@@ -266,6 +266,85 @@ def _tax_withholding_request() -> CorporateActionStageRequest:
     )
 
 
+@pytest.mark.parametrize(
+    ("changes", "reason"),
+    [
+        ({"account_id": False}, "account identity"),
+        ({"source_record_id": ""}, "stable identifier"),
+        ({"source_namespace": "unverified"}, "official exchange disclosure"),
+        ({"qualified_at": _POSTED_AT, "posted_at": _OBSERVED_AT}, "clocks are not ordered"),
+        ({"qualified_at": datetime(2026, 11, 10)}, "timezone-aware"),
+        ({"record_date": _POSTED_AT}, "explicit dates"),
+        ({"action_kind": "dividend"}, "unknown corporate-action type"),
+        ({"action_kind": CorporateActionKind.UNKNOWN}, "unknown corporate-action type"),
+        ({"stage": "cash"}, "unknown corporate-action stage"),
+        ({"entry_kind": "initial"}, "unknown corporate-action entry kind"),
+        ({"stage": CorporateActionStage.SHARE_DELIVERY}, "incompatible"),
+        ({"supersedes_revision_id": "sha256:notice-v1"}, "supersede itself"),
+        ({"supersedes_revision_id": "prior"}, "initial posting"),
+        ({"entry_kind": CorporateActionEntryKind.SUCCESSOR}, "predecessor source revision"),
+        ({"entry_kind": CorporateActionEntryKind.NO_EFFECT}, "unexercised rights"),
+        ({"reversal_of_entry_id": 1}, "only a reversal"),
+    ],
+)
+def test_posting_requires_qualified_identity_ordered_clocks_and_exact_lineage(
+    changes, reason
+) -> None:
+    with pytest.raises(CorporateActionInputValidationError, match=reason):
+        _request(**changes)
+
+
+@pytest.mark.parametrize(
+    ("stage_request", "changes", "reason"),
+    [
+        (_request, {"cash_amount": Decimal("1.001")}, "exact to cents"),
+        (_request, {"cash_amount": Decimal("NaN")}, "exact to cents"),
+        (_request, {"share_amount": Decimal(1)}, "cash stages cannot carry share"),
+        (_request, {"stage_date": date(2026, 9, 22)}, "cash entitlement predates"),
+        (_request, {"payment_date": _EFFECTIVE_DATE}, "recorded as a cash payment"),
+        (_request, {"eligible_quantity": 1}, "ownership snapshot is required"),
+        (_request, {"eligible_quantity": Decimal("1.0000001")}, "ownership snapshot is required"),
+        (_request, {"sellable_date": _EFFECTIVE_DATE}, "unrelated share or rights terms"),
+        (_request, {"rights_election": "exercised"}, "only valid for a no-effect rights stage"),
+        (_request, {"tax_basis_record_id": "other"}, "only valid for a withholding stage"),
+        (_payment_request, {"payment_date": None}, "explicit payment date"),
+        (_payment_request, {"payment_date": date(2027, 1, 1)}, "qualified payment date"),
+        (_payment_request, {"eligible_quantity": Decimal(1)}, "reference their ledger entitlement"),
+        (_share_entitlement_request, {"share_amount": Decimal("0.0000001")}, "six decimals"),
+        (_share_entitlement_request, {"cash_amount": Decimal(1)}, "cannot carry cash amounts"),
+        (
+            _share_entitlement_request,
+            {"stage_date": date(2026, 9, 22)},
+            "share entitlement predates",
+        ),
+        (_share_entitlement_request, {"payment_date": _EFFECTIVE_DATE}, "cash payment date"),
+        (_share_entitlement_request, {"sellable_date": _EFFECTIVE_DATE}, "delivery date"),
+        (_share_entitlement_request, {"odd_lot_policy": "invented"}, "odd-lot allocation"),
+        (_share_entitlement_request, {"odd_lot_confirmation_sha256": "a" * 64}, "unexpected"),
+        (_share_delivery_request, {"payment_date": _EFFECTIVE_DATE}, "cash payment date"),
+        (_tax_withholding_request, {"stage_date": _RECORD_DATE}, "withholding predates"),
+        (_tax_withholding_request, {"sellable_date": _EFFECTIVE_DATE}, "unrelated stage terms"),
+        (_rights_no_effect_request, {"cash_amount": Decimal(1)}, "zero-effect election"),
+        (_rights_no_effect_request, {"stage_date": date(2026, 9, 22)}, "rights election predates"),
+        (
+            _share_entitlement_reversal_request,
+            {"reversal_of_entry_id": None},
+            "immediate predecessor",
+        ),
+        (
+            _share_entitlement_reversal_request,
+            {"share_amount": Decimal(1)},
+            "immutable target entry",
+        ),
+    ],
+)
+def test_stage_economics_cannot_change_the_qualified_entitlement_or_ledger_effect(
+    stage_request, changes, reason
+) -> None:
+    with pytest.raises(CorporateActionInputValidationError, match=reason):
+        replace(stage_request(), **changes)
+
+
 def _ownership_request_for_family(family: str) -> CorporateActionStageRequest:
     """Return a request family accepted by the record-date proof reader contract."""
 

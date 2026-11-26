@@ -158,6 +158,93 @@ def _query(
     )
 
 
+@pytest.mark.parametrize(
+    ("changes", "reason"),
+    [
+        ({"account_id": False}, "account identity"),
+        ({"anchor_id": "synthetic origin"}, "stable ownership-history locator"),
+        ({"anchor_kind": "zero_origin"}, "kind is unsupported"),
+        ({"quantity": Decimal("1")}, "exactly zero shares"),
+        ({"quantity": Decimal("-1")}, "nonnegative"),
+        ({"effective_at": _EVIDENCE_CUTOFF}, "predates its effective time"),
+        ({"observed_at": datetime(2026, 9, 1)}, "timezone-aware"),
+        ({"evidence_sha256": "F" * 64}, "lowercase SHA-256"),
+    ],
+)
+def test_zero_origin_cannot_be_reconstructed_from_invalid_anchor(changes, reason) -> None:
+    with pytest.raises(OwnershipEvidenceError, match=reason):
+        replace(_anchor(), **changes)
+
+
+@pytest.mark.parametrize(
+    ("changes", "reason"),
+    [
+        ({"fill_sequence": 0}, "fill identity"),
+        ({"side": "sell"}, "fill side"),
+        ({"quantity": Decimal("NaN")}, "exact Decimal"),
+        ({"quantity": Decimal("1.0000001")}, "six decimal places"),
+        ({"quantity": Decimal(0)}, "positive"),
+        ({"execution_date": _EVIDENCE_CUTOFF}, "exact date"),
+        ({"recorded_at": _ANCHOR_AT}, "before it occurred"),
+        ({"binding_version": True}, "binding version"),
+        ({"receipt_version": 0}, "receipt version"),
+    ],
+)
+def test_receipt_backed_fill_requires_exact_versions_quantity_and_clocks(changes, reason) -> None:
+    fill = _fill(trade_id=1, side=OwnershipFillSide.BUY, quantity=Decimal("1"))
+    with pytest.raises(OwnershipEvidenceError, match=reason):
+        replace(fill, **changes)
+
+
+@pytest.mark.parametrize(
+    ("changes", "reason"),
+    [
+        ({"account_revision": 0}, "entry identity"),
+        ({"supersedes_revision_id": "r1"}, "supersede itself"),
+        ({"stage": "share_delivery"}, "ownership type"),
+        ({"entry_kind": "posting"}, "entry kind"),
+        ({"stage_key": "posting:share_entitlement"}, "immutable identity"),
+        ({"stage_date": _EVIDENCE_CUTOFF}, "exact date"),
+        ({"recorded_at": _ANCHOR_AT}, "predates its posted time"),
+        ({"share_delta": Decimal("NaN")}, "exact Decimal"),
+        ({"share_receivable_delta": Decimal("-1.0000001")}, "six decimal places"),
+        ({"share_delta": Decimal("-1")}, "cannot reduce owned shares"),
+        ({"share_receivable_delta": Decimal("1")}, "only an entitlement"),
+        ({"share_receivable_delta": Decimal("0")}, "offset exactly"),
+        ({"reversal_of_entry_id": 1}, "non-reversal"),
+        ({"supersedes_revision_id": "r0"}, "initial action posting"),
+        ({"action_kind": CorporateActionKind.CASH_DIVIDEND}, "non-share action"),
+    ],
+)
+def test_share_delivery_rejects_inconsistent_ledger_identity_and_effects(changes, reason) -> None:
+    delivery = _action(
+        entry_id=2,
+        event_id="synthetic-distribution",
+        revision_id="r1",
+        stage=CorporateActionStage.SHARE_DELIVERY,
+        share_delta=Decimal("1"),
+    )
+    with pytest.raises(OwnershipEvidenceError, match=reason):
+        replace(delivery, **changes)
+
+
+@pytest.mark.parametrize(
+    ("changes", "reason"),
+    [
+        ({"owner_user_id": False}, "replay account identity"),
+        ({"record_date": _EVIDENCE_CUTOFF}, "exact date"),
+        ({"exchange_timezone_name": "Unknown/Exchange"}, "timezone is not qualified"),
+        ({"record_date_end_exclusive": _EVIDENCE_CUTOFF}, "exchange-local boundary"),
+        ({"opening_anchor": "zero"}, "unsupported type"),
+        ({"fills": (None,)}, "fill evidence must be an exact tuple"),
+        ({"corporate_actions": (None,)}, "company-action evidence must be an exact tuple"),
+    ],
+)
+def test_replay_requires_an_exchange_cutoff_and_typed_owner_evidence(changes, reason) -> None:
+    with pytest.raises(OwnershipEvidenceError, match=reason):
+        replace(_query(), **changes)
+
+
 def test_replays_anchor_complete_receipt_prefix_and_company_action_delta() -> None:
     """Use exact identity and stable evidence references for the closing quantity."""
 
