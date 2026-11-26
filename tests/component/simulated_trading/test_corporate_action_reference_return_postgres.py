@@ -565,8 +565,11 @@ def test_owner_cash_reference_return_brackets_ex_date_and_keeps_late_payment_lat
         )
         calendar, sessions, latest_closed = _calendar_and_recent_sessions(world)
         owner_model_calendar(calendar)
-        opening_date, ex_date = sessions[-2:]
-        assert world.settlement_date < opening_date
+        # Keep a closed session after ex-date so the tax reader can verify
+        # post-record history even when today's closing price is already available.
+        assert len(sessions) >= 3
+        opening_date, ex_date = sessions[-3:-1]
+        assert world.settlement_date < opening_date < ex_date < latest_closed
         _extend_synthetic_tax_candidate_through_record_date(
             world=world,
             record_date=opening_date,
@@ -579,7 +582,7 @@ def test_owner_cash_reference_return_brackets_ex_date_and_keeps_late_payment_lat
             latest_closed=latest_closed,
             opening_price=Decimal("10.00"),
             ex_price=Decimal("9.80"),
-            latest_price=Decimal("9.80"),
+            latest_price=Decimal("10.10"),
         )
 
         initial = owner_workflow._refresh(world)
