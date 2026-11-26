@@ -62,6 +62,17 @@ class TradingCalendarEvidencePort(Protocol):
 
 
 @runtime_checkable
+class TargetSessionHistoryPreparationPort(Protocol):
+    """Prepare an exact market session for the requested members, including genuine gaps."""
+
+    def prepare_target_session_history(
+        self, asset_codes: tuple[str, ...], target_date: date
+    ) -> None:
+        """Read and audit the requested trading session without expanding the date range."""
+        ...
+
+
+@runtime_checkable
 class ModelHistoryPreparationPort(Protocol):
     """Optional bounded prefetch that preserves the per-asset history contract."""
 
