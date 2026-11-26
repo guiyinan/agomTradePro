@@ -754,9 +754,10 @@ class TestPriceUpdateTask(TestCase):
         self.assertEqual(result["errors"][0]["asset_code"], "510300.SH")
         self.assertEqual(result["errors"][0]["details"]["asset_type"], "etf")
 
-    def test_update_position_prices_task_uses_cached_price_when_latest_price_missing(self):
+    def test_missing_price_keeps_cached_position_unchanged_without_reporting_a_refresh(self):
         position = self.position_repo.get_position(self.account.account_id, "510300.SH")
         assert position is not None
+        self.assertGreater(position.current_price, 0)
 
         with patch(
             "apps.simulated_trading.application.position_price_refresh."
@@ -769,13 +770,12 @@ class TestPriceUpdateTask(TestCase):
         ):
             result = update_position_prices_task.__wrapped__(account_id=self.account.account_id)
 
-        self.assertTrue(result["success"])
-        self.assertEqual(result["updated_count"], 1)
-        self.assertEqual(result["stored"], 2)
-        self.assertEqual(result["warning_count"], 1)
-        self.assertEqual(result["error_count"], 0)
-        self.assertEqual(result["warnings"][0]["asset_code"], "510300.SH")
-        self.assertEqual(result["warnings"][0]["fallback"], "cached_position_price")
+        self.assertFalse(result["success"])
+        self.assertEqual(result["outcome"], "failed")
+        self.assertEqual(result["updated_count"], 0)
+        self.assertEqual(result["stored"], 0)
+        self.assertEqual(result["error_count"], 1)
+        self.assertEqual(result["errors"][0]["asset_code"], "510300.SH")
 
         refreshed = self.position_repo.get_position(self.account.account_id, "510300.SH")
         assert refreshed is not None

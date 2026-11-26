@@ -135,6 +135,7 @@ from tests.component.simulated_trading.test_order_reservation_repository import 
 from tests.component.simulated_trading.test_order_reservation_repository import (
     reservation_harness as reservation_harness,
 )
+from tests.support.synthetic_trade_tax_coverage import SyntheticTradeTaxCoverage
 
 # These route/resource tests use one synchronous Django connection and do not
 # assert cross-connection visibility of committed data. Rollback-backed TestCase
@@ -916,7 +917,9 @@ def _create_active_order_reservation(
         repository=execution_repository,
         clock=ReservationClock(now),
     )
-    reservation_repository = DjangoSimulatedOrderReservationRepository(using=DEFAULT_DB_ALIAS)
+    reservation_repository = DjangoSimulatedOrderReservationRepository(
+        using=DEFAULT_DB_ALIAS, tax_cash_coverage_reader=SyntheticTradeTaxCoverage()
+    )
     reserve = ReserveSimulatedOrderUseCase(
         preparer=preparer,
         repository=reservation_repository,
