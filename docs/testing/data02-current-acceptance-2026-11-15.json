@@ -11202,9 +11202,9 @@
         "scope_ref": "followups[14].selected_e1_scope",
         "main_metrics": 7,
         "balance_metrics": 3,
-        "status": "second_e1_terminal_both_originals_retained_zero_facts",
+        "status": "single_security_e1_reconciled_audit_delivered",
         "physical_e1_requests": 3,
-        "production_e1_business_writes": 0,
+        "production_e1_business_writes": 10,
         "publication_activated": false,
         "preflight": {
           "path": ".tmp/data02-guard-20261122/e1-8eaba967a-20261125/production-preflight.json",
@@ -11217,7 +11217,7 @@
         "production_revision": "4149a9cf4a3738f38d0ca62979fa9bfed56a6a07",
         "runtime_and_storage": "Serving maintenance SHA 27d25afaf85909aed26272b98c026a9e7fd4a81e; the one-shot E1 ran in its separately verified successor image c6c2437d4f59cd37110d4ecf3e3326da1d694bb7.",
         "source_evidence": "Four native numeric-source captures and statutory evidence are retained. The two AKShare documentation tables match the reviewed originals field by field. Issuer comparison limits remain in the precision review.",
-        "remaining": "The retained E1 reader and atomic recovery writer are integrated. All ten pinned qualifications expired before a production claim. Current source eligibility, exact candidate CI, current calendar, one governed write and independent production reconciliation remain outstanding.",
+        "remaining": "Full same-candidate S6, full coverage, capacity and four-Publication reconciliation before security two. Release 10, 100 and full universe separately. Stop on the second consecutive failure at the same stage.",
         "expansion_gate": "Full same-candidate S6, full coverage, capacity and four-Publication reconciliation before security two. Release 10, 100 and full universe separately. Stop on the second consecutive failure at the same stage.",
         "s6_prepare_only": "d2843f4552a641d5903476ab9d3f0d60",
         "historical_backup_rehearsal": {
@@ -11631,8 +11631,8 @@
           "writer": "c6c2437d4f59cd37110d4ecf3e3326da1d694bb7",
           "serving_release": "27d25afaf85909aed26272b98c026a9e7fd4a81e",
           "financial_send_count": 3,
-          "e1_fact_writes": 0,
-          "e1_reconciled": false,
+          "e1_fact_writes": 10,
+          "e1_reconciled": true,
           "production_financial_publication_activated": false,
           "security": "000858.SZ",
           "report_period": "2026-09-30",
@@ -11847,7 +11847,7 @@
             },
             "serving_deployment": false
           },
-          "as_of": "2026-11-25 14:37:23.366653+00:00",
+          "as_of": "2026-11-26T01:29:46.938733+00:00",
           "live_schema": {
             "scoped_forward_count": 11,
             "highest": "0118_financial_numeric_origin_snapshot",
@@ -11855,8 +11855,8 @@
             "financial_total": 487624
           },
           "remaining": {
-            "write": "Re-establish current source eligibility for the unchanged original pair, complete the release gates, and verify a zero-transport recovery forecast before claiming the single write.",
-            "readback": "Two original source audits are verified. The production recovery has not been claimed. Zero target facts were independently read after source expiry.",
+            "write": "Single-security retained recovery stored the ten forecast rows.",
+            "readback": "Independent raw-to-database reconciliation and system audit delivery verified.",
             "expansion": "Full S6 before a second security."
           },
           "recovery_after_storage_failure": {
@@ -12450,6 +12450,94 @@
                 "path": ".tmp/data02-e1-admission-20261125/e1-independent-02/retained-recovery-status.json",
                 "sha256": "4b7507c898dd9650f97d662b3d5e7bada782823a6fcdd9cea6de53a69b6ba138"
               }
+            },
+            "completed_recovery": {
+              "as_of": "2026-11-26T01:29:46.938733+00:00",
+              "scope": "000858.SZ | 2026-09-30 | account 631 | AKShare Main 7 + Balance 3",
+              "writer_candidate": "f4cad6f5b9527021ca2f56d01f2e5377f856ce84",
+              "image_id": "sha256:f882a1876072dfc6089fb77e3c67d284ba57c0a9fde69e6c45c997808783a4a5",
+              "source_run": "7df2a51c-6e89-493d-8e60-3ceb9398bd28",
+              "recovery_run": "f720d181-cce7-59c2-831b-6a8ac09d93e0",
+              "capture_eligibility": "verified separately at each original response completion time",
+              "write_eligibility": "10 current Owner-signed field qualifications",
+              "parent_outcome": "failed",
+              "parent_stored": 0,
+              "raw_audit_ids": [
+                "75738",
+                "75739"
+              ],
+              "new_financial_requests": 0,
+              "stored": 10,
+              "independently_reconciled": 10,
+              "issuer_comparison": {
+                "exact_amounts": 5,
+                "rounded_percentages": 3,
+                "debt_ratio": "derived from disclosed liabilities and assets",
+                "roa": "no direct disclosed figure"
+              },
+              "calendar_publication": "c5b3d78a-ed98-4a47-9ddc-45303e98fd92",
+              "calendar_dates": [
+                "2026-10-27",
+                "2026-10-28",
+                "2026-10-29",
+                "2026-10-30"
+              ],
+              "forecast_sha256": "c271136b581296f29c254257d0f84a00e6446ff9fa8378627e2f18b3e491941c",
+              "restore_tested_backup_sha256": "c631d1764d35408340d4216cf958126063add0ec2a7257414093c604fc2dc826",
+              "audit_event": "data-fetch-92f7ea00f4a31f438eb9618e866261d551e8b45e0da390c2",
+              "audit_delivery_hash": "91cc0f99d156603eb61788137c515444eea8076ef254c4bf556011254fc3fff6",
+              "financial_publications": 0,
+              "ci_run_ids": [
+                45730247945,
+                45729122177,
+                45729117966,
+                45729033083,
+                45729033075,
+                45729033140,
+                45729033079,
+                45729033069
+              ],
+              "evidence": [
+                {
+                  "path": ".tmp/data02-e1-admission-20261125/split-20261126/final-ci/verified.json",
+                  "sha256": "6ddfe8973d193ffacf043c48e8ae08785a6e79a9735ac4c0cce510acf56889a5"
+                },
+                {
+                  "path": ".tmp/data02-e1-admission-20261125/split-20261126/official-field-review.json",
+                  "sha256": "f3626f265acc35bdb8697df55f9ec346bca08f7e497d82c0d4faba05c06d2e9f"
+                },
+                {
+                  "path": ".tmp/data02-e1-admission-20261125/split-20261126/independent-signed-source.json",
+                  "sha256": "54fcd2e8bdb9256b6ee482e4cc8cc070294044356ff3f5e9d87f857d8c049ed1"
+                },
+                {
+                  "path": ".tmp/data02-e1-admission-20261125/split-20261126/restore-tested.json",
+                  "sha256": "4f3cd1e3d7c30fc29e8139defbe9956ebd30ecede2b0977fe13292205359910a"
+                },
+                {
+                  "path": ".tmp/data02-e1-admission-20261125/split-20261126/write-once-intent.json",
+                  "sha256": "dd0ec8378e6e8a329b53f8846ede42fe7e157c29cf197c5f51fc5071ca6250c0"
+                },
+                {
+                  "path": ".tmp/data02-e1-admission-20261125/split-20261126/reconciled.json",
+                  "sha256": "7f2aa5948a4aaee074e0fcdeeaa9352174e2a3e3a5d6a7c9fcee0d498edb3e2f"
+                },
+                {
+                  "path": ".tmp/data02-e1-admission-20261125/split-20261126/one-audit-tested.json",
+                  "sha256": "cff5f50ef1ddd09049b93b57748c05819da59efcaaffa43b7b05fbff17fd86a8"
+                },
+                {
+                  "path": ".tmp/data02-e1-admission-20261125/split-20261126/audit-dispatch-20261126T012910915189Z.json",
+                  "sha256": "15d623b5dbc0f80522a67010bc6ba782ce19574ab1a7eb8b8567ee5466a063c1"
+                },
+                {
+                  "path": ".tmp/data02-e1-admission-20261125/split_one_audit_adapter.py",
+                  "sha256": "69e074eb9e24c67148bb0e2c1eb22c3e2c30c8a54808845af7c1e6fad229bc5f"
+                }
+              ],
+              "source_time": "Both retained response completion clocks equal the original raw audits. The financial fact fetched_at column records the later insert time in the recovery run.",
+              "audit_receipt_id": "audit-delivery:1e6ee8aef7645cfdafbc916b8a4979b3b3f4098b51d181b6bbdc903c4f8266d4",
+              "audit_delivered_at": "2026-11-26T01:29:05.872372+00:00"
             }
           }
         },
