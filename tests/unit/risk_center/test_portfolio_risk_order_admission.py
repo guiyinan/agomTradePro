@@ -6,8 +6,55 @@ import pytest
 
 from apps.risk_center.domain.portfolio_risk_order_admission import (
     PortfolioRiskAdmissionCheck,
+    PortfolioRiskOrderAdmission,
     assess_portfolio_risk_order_admission,
 )
+
+
+@pytest.mark.parametrize(
+    ("dimension", "status", "reasons", "error"),
+    [
+        (" ", "allowed", (), "dimension"),
+        ("account", "unchecked", (), "check status"),
+        ("account", "unknown", ("missing source",), "canonical"),
+        ("account", "unknown", ("missing", "missing"), "duplicate"),
+    ],
+)
+def test_admission_requires_a_named_check_and_canonical_reasons(dimension, status, reasons, error):
+    with pytest.raises(ValueError, match=error):
+        PortfolioRiskAdmissionCheck(dimension, status, reasons)
+
+
+@pytest.mark.parametrize(
+    ("side", "outcome", "blocked", "waived", "reason"),
+    [
+        ("none", "allowed", (), (), "side"),
+        ("sell", "unchecked", (), (), "outcome"),
+        ("sell", "blocked", ("missing source",), (), "canonical"),
+        ("sell", "blocked", ("limit", "limit"), (), "duplicate"),
+        ("sell", "blocked", ("limit",), ("limit",), "both blocking and waived"),
+        ("buy", "allowed", (), ("limit",), "only SELL"),
+        ("sell", "allowed", ("limit",), (), "blocking reasons"),
+        ("buy", "unknown", (), (), "explain its blocking reason"),
+    ],
+)
+def test_retained_admission_cannot_waive_or_erase_a_blocker(side, outcome, blocked, waived, reason):
+    with pytest.raises(ValueError, match=reason):
+        PortfolioRiskOrderAdmission(side, outcome, blocked, waived)
+
+
+@pytest.mark.parametrize(
+    ("changes", "reason"),
+    [
+        ({"side": "unknown"}, "side"),
+        ({"checks": (None,)}, "tuple of PortfolioRiskAdmissionCheck"),
+        ({"must_not_use_for_decision": 0}, "explicit boolean"),
+    ],
+)
+def test_admission_cannot_infer_the_direction_or_decision_grade(changes, reason):
+    inputs = {"side": "sell", "checks": (), "must_not_use_for_decision": False}
+    with pytest.raises((TypeError, ValueError), match=reason):
+        assess_portfolio_risk_order_admission(**(inputs | changes))
 
 
 def test_sell_waives_only_known_existing_buy_position_and_cash_limits() -> None:

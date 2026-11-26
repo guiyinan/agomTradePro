@@ -347,6 +347,44 @@ def test_v2_plan_separates_rule_market_from_calendar_exchange_and_round_trips() 
     assert binding.identity_evidence.source_code == "SYNTHETIC:600000"
 
 
+def test_v2_keeps_identity_and_calendar_bound_through_the_execution_instant() -> None:
+    executed_at = AS_OF + timedelta(minutes=1)
+    binding = bind_settlement_execution_plan_v2(_execution_plan_v2(), executed_at=executed_at)
+    with pytest.raises(SettlementPlanBindingValidationError, match="source exchange differs"):
+        replace(
+            binding, identity_evidence=replace(binding.identity_evidence, source_exchange="SZSE")
+        )
+    with pytest.raises(SettlementPlanBindingValidationError, match="OUTSIDE_VALIDITY_WINDOW"):
+        replace(
+            binding,
+            identity_evidence=replace(binding.identity_evidence, identity_valid_until=executed_at),
+        )
+    with pytest.raises(SettlementPlanBindingValidationError, match="execution cutoff"):
+        replace(binding.common_binding, bundle_valid_until=executed_at)
+    publication = binding.common_binding.calendar_publication
+    with pytest.raises(SettlementPlanBindingValidationError, match="reference window"):
+        replace(publication, reference_valid_until=publication.reference_valid_from)
+
+
+@pytest.mark.parametrize(
+    ("field", "reason"),
+    [("common_binding", "must be SimulatedSettlement"), ("identity_evidence", "must be Execution")],
+)
+def test_v2_rejects_untyped_nested_settlement_evidence(field, reason) -> None:
+    binding = bind_settlement_execution_plan_v2(_execution_plan_v2(), executed_at=AS_OF)
+    with pytest.raises(SettlementPlanBindingValidationError, match=reason):
+        replace(binding, **{field: {}})
+
+
+def test_v1_decoder_rejects_numeric_dates_and_nontext_publication_identity() -> None:
+    binding = bind_settlement_execution_plan(_execution_plan(), executed_at=AS_OF)
+    for key in ("market_session", "settlement_bundle_id"):
+        payload = binding.to_payload()
+        payload[key] = 20261016
+        with pytest.raises(SettlementPlanBindingValidationError, match=f"{key} must be text"):
+            SimulatedSettlementPlanBindingV1.from_payload(payload)
+
+
 def test_v2_binding_has_a_stable_independent_canonical_golden_hash() -> None:
     binding = bind_settlement_execution_plan_v2(
         _execution_plan_v2(),

@@ -254,6 +254,68 @@ def test_current_sell_hold_reduces_supported_sellable_without_rewriting_position
     assert proof.supported_sellable_quantity == Decimal("60.000000")
 
 
+@pytest.mark.parametrize(
+    ("changes", "reason"),
+    [
+        ({"initial_position_mark_hash": "not-sealed"}, "LEDGER_INITIAL_MARK_INVALID"),
+        (
+            {"initial_position_mark_hash": "e" * 64, "receipt_version": 2},
+            "LEDGER_POSITION_CYCLE_MISMATCH",
+        ),
+        ({"receipt_version": 2}, "LEDGER_INITIAL_MARK_MISSING"),
+        ({"settlement_status": None}, "LEDGER_BUY_SETTLEMENT_UNKNOWN"),
+        ({"release_proof_hash": "e" * 64}, "LEDGER_PENDING_RELEASE_CONFLICT"),
+        (
+            {"settlement_status": "released", "release_proof_hash": "missing"},
+            "LEDGER_RELEASE_PROOF_INVALID",
+        ),
+        ({"side": "sell"}, "LEDGER_SELL_SETTLEMENT_INVALID"),
+    ],
+)
+def test_a_later_receipt_cannot_open_a_second_cycle_or_invent_a_release(changes, reason):
+    first, second = _base_fills()
+    proof = prove_historical_ledger_sellability(
+        _evidence(fills=(first, replace(second, **changes)))
+    )
+    assert reason in proof.reason_codes
+    assert proof.available_quantity is None
+    assert proof.supported_sellable_quantity is None
+    assert proof.proof_hash is None
+
+
+@pytest.mark.parametrize(
+    ("changes", "reason"),
+    [
+        ({"owner_user_id": False}, "LEDGER_SCOPE_INVALID"),
+        ({"source_scope": "simulated_position"}, "LEDGER_SCOPE_INVALID"),
+        ({"fills": []}, "LEDGER_HISTORY_INVALID"),
+        ({"fills": (None,)}, "LEDGER_HISTORY_INVALID"),
+        ({"active_holds": (None,)}, "LEDGER_HISTORY_INVALID"),
+    ],
+)
+def test_sellability_cannot_be_proved_from_a_mixed_scope_or_untyped_chain(changes, reason):
+    evidence = replace(_evidence(fills=_base_fills()), **changes)
+    proof = prove_historical_ledger_sellability(evidence)
+    assert reason in proof.reason_codes
+    assert proof.supported_sellable_quantity is None
+    assert proof.proof_hash is None
+
+
+def test_duplicate_active_hold_cannot_be_subtracted_twice():
+    hold = HistoricalLedgerHoldFact(71, "XSHG:600000", "600000.SH", "sell", Decimal(10), "a" * 64)
+    proof = prove_historical_ledger_sellability(_evidence(fills=_base_fills(), holds=(hold, hold)))
+    assert "LEDGER_ACTIVE_HOLD_INVALID" in proof.reason_codes
+    assert proof.supported_sellable_quantity is None
+
+
+def test_zero_lag_does_not_release_a_fill_still_marked_pending():
+    released, pending = _base_fills()
+    evidence = _evidence(fills=(released, replace(pending, settlement_lag_sessions=0)))
+    proof = prove_historical_ledger_sellability(evidence)
+    assert proof.total_quantity == Decimal("300")
+    assert proof.supported_sellable_quantity == Decimal("100")
+
+
 def test_new_position_after_a_complete_sell_zero_does_not_reset_the_original_history() -> None:
     """A later marked BUY after clearing zero is a new cycle within the same chain."""
 

@@ -538,10 +538,18 @@ def test_policy_constructor_rejects_unqualified_scope_clocks_and_boundary_rules(
         ("purpose", "local_simulation_only"),
         ("account_id", True),
         ("trading_date", "2026-11-2"),
+        ("trading_date", 20261102),
+        ("trading_date", "20261102"),
         ("source_name", None),
         ("trusted_vendor_status_codes", "00"),
         ("available_from", "2026-11-02T15:00:00+08:00"),
+        ("available_from", "invalidZ"),
+        ("available_from", "2026-11-02T07:00:00Z"),
         ("lower_boundary_factor", "1e0"),
+        ("lower_boundary_factor", 0.9),
+        ("lower_boundary_factor", "unpriced"),
+        ("lower_boundary_factor", "0"),
+        ("upper_boundary_factor", "1e10000"),
         ("price_boundary_mode", "UNKNOWN_FUTURE_MODE"),
         ("boundary_rule_source_hash", "not-a-sha256"),
     ],
@@ -720,6 +728,43 @@ def test_close_evaluator_blocks_market_scope_availability_and_freshness_failures
         CloseSnapshotSimulationReason.PREVIOUS_CLOSE_MISSING
         in _evaluate(capture=_capture(previous_close="")).decision.reason_codes
     )
+
+
+@pytest.mark.parametrize(
+    ("part", "changes", "reason"),
+    [
+        ("market", {"market_evidence_v1": None}, "market evidence"),
+        ("market", {"price_boundary_basis": "daily_close"}, "price boundary basis"),
+        ("market", {"security_state_basis": "confirmed"}, "security state basis"),
+        ("market", {"latest": Decimal(1)}, "latest quote"),
+        ("bundle", {"capture": None}, "capture"),
+        ("bundle", {"policy": None}, "policy"),
+        ("bundle", {"calendar": None}, "calendar"),
+        ("bundle", {"market": None}, "market"),
+        ("decision", {"status": "ALLOWED"}, "decision status"),
+        ("decision", {"reason_codes": ("UNVERIFIED",)}, "reason codes"),
+        (
+            "decision",
+            {"reason_codes": (CloseSnapshotSimulationReason.PRICE_MISSING,)},
+            "qualified decision",
+        ),
+        ("decision", {"account_id": False}, "account_id"),
+        ("decision", {"trading_date": AS_OF}, "trading_date"),
+        ("decision", {"order_id": "synthetic-order", "order_content_hash": None}, "order"),
+    ],
+)
+def test_stored_close_components_must_preserve_the_qualified_scope_and_decision(
+    part, changes, reason
+):
+    qualified = _evaluate()
+    assert qualified.bundle is not None
+    components = {
+        "bundle": qualified.bundle,
+        "market": qualified.bundle.market,
+        "decision": qualified.decision,
+    }
+    with pytest.raises(CloseSnapshotSimulationValidationError, match=reason):
+        replace(components[part], **changes)
 
 
 def test_close_snapshot_market_bundle_decision_and_evaluation_reject_inconsistent_states() -> None:
