@@ -344,21 +344,22 @@ def test_xtdata_daily_history_keeps_missing_flag_unknown_and_empty_result_empty(
 @pytest.mark.parametrize(
     ("start", "end"),
     [
-        (date.today().isoformat(), date.today().isoformat()),
-        (
-            (date.today() - timedelta(days=34)).isoformat(),
-            (date.today() - timedelta(days=2)).isoformat(),
-        ),
-        (
-            (date.today() - timedelta(days=2)).isoformat(),
-            (date.today() - timedelta(days=3)).isoformat(),
-        ),
+        ("2026-03-10", "2026-03-10"),
+        ("2026-02-04", "2026-03-08"),
+        ("2026-03-08", "2026-03-07"),
     ],
 )
 def test_xtdata_daily_history_rejects_uncompleted_or_invalid_range_without_sdk_read(
     monkeypatch, start, end
 ):
+    class FrozenDateTime(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            instant = datetime(2026, 3, 9, 16, 30, tzinfo=UTC)
+            return instant.astimezone(tz) if tz is not None else instant.replace(tzinfo=None)
+
     sdk = HistorySdk({})
+    monkeypatch.setattr(bridge_worker_module, "datetime", FrozenDateTime)
     monkeypatch.setattr("qmt_agent.bridge_worker.importlib.import_module", lambda name: sdk)
     source = XtDataSource()
 

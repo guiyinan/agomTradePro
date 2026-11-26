@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+from datetime import date
 from decimal import Decimal
 from types import SimpleNamespace
 from unittest.mock import MagicMock
@@ -384,13 +384,20 @@ def test_sync_use_case_rejects_explicit_empty_universe_without_expanding() -> No
             start_date=date(2026, 3, 11),
             end_date=date(2026, 3, 10),
         ),
-        SyncEquityValuationRequest(end_date=date.today() + timedelta(days=1)),
+        SyncEquityValuationRequest(end_date=date(2026, 3, 11)),
         SyncEquityValuationRequest(primary_source="akshare", fallback_source="akshare"),
     ],
 )
 def test_sync_use_case_rejects_invalid_request_before_repository_access(
     sync_request: SyncEquityValuationRequest,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    class FixedDate(date):
+        @classmethod
+        def today(cls) -> date:
+            return cls(2026, 3, 10)
+
+    monkeypatch.setattr(valuation_sync_module, "date", FixedDate)
     repo = DummyRepo()
     use_case = _use_case(
         repo,
