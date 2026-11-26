@@ -17,7 +17,6 @@ def _provider(**overrides):
         "scope": "system",
         "provider_type": "custom",
         "base_url": "https://example.invalid/v1",
-        "api_key": "sk-test",
         "default_model": "gpt-4o-mini",
     }
     values.update(overrides)
