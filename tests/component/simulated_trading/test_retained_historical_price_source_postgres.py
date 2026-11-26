@@ -7,12 +7,11 @@ verification all use their real production compositions.
 
 from __future__ import annotations
 
-from collections.abc import Iterator
 from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
-from typing import Literal, Protocol, cast
+from typing import Protocol, cast
 
 import pytest
 from django.db import connection, models
@@ -77,7 +76,9 @@ from tests.support.ash05_owner_workflow_native_world import (
     OwnerWorkflowNativeWorld,
     build_owner_workflow_native_world,
 )
-from tests.support.ash07_native_runtime_role import isolated_ash07_runtime_role
+from tests.support.ash07_native_runtime_role import (
+    ash05_runtime_role_fixture as ash05_runtime_role_fixture,
+)
 from tests.support.ash07_owner_account_authority import ASH07_OWNER_ACCEPTANCE_AVAILABLE_APPS
 from tests.support.simulated_tax_model_native_context import _TIMEZONE
 from tests.support.simulated_tax_model_native_sources import isolated_task_channels
@@ -88,26 +89,6 @@ pytestmark = pytest.mark.django_db(
 )
 
 _WORKFLOW_URLCONF = "tests.support.ash05_owner_workflow_test_urls"
-
-
-@pytest.fixture
-def actual_runtime_role(transactional_db: None, tmp_path: Path) -> Iterator[dict[str, object]]:
-    """Run publication replacement under the real restricted PostgreSQL runtime login."""
-    del transactional_db
-    if connection.vendor != "postgresql":
-        yield {}
-        return
-    database_name = connection.settings_dict.get("NAME")
-    if database_name == "ash05_tax_payment_basis_qa":
-        target_profile: Literal["ash05_local", "ash05_ci"] = "ash05_local"
-    elif database_name == "ash05_owner_goldens_test_ci":
-        target_profile = "ash05_ci"
-    else:
-        raise RuntimeError("runtime-role fixture refuses an unassigned PostgreSQL test database")
-    with isolated_ash07_runtime_role(
-        tmp_path / "runtime-role", target_profile=target_profile
-    ) as report:
-        yield report
 
 
 class _RawClosePublication(Protocol):

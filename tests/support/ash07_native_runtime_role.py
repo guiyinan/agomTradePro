@@ -1,4 +1,4 @@
-"""Reversible runtime-role setup for the one owned ASH07 Native test database."""
+"""Reversible restricted-role setup for explicitly assigned native test databases."""
 
 from __future__ import annotations
 
@@ -11,6 +11,7 @@ from typing import Literal
 from uuid import uuid4
 
 import psycopg
+import pytest
 from django.db import DatabaseError, connections
 from psycopg import sql
 
@@ -22,6 +23,13 @@ from tests.support.native_postgres_database import assert_native_postgres_test_d
 
 _TEST_DATABASE = "test_ash03_close_20261102"
 _PORT = 59513
+_Ash05Profile = Literal["ash05_local", "ash05_ci", "ash05_nightly"]
+_ASH05_TARGETS: dict[_Ash05Profile, tuple[str, int, int]] = {
+    # Database, configured port, server port (the local container has a port mapping).
+    "ash05_local": ("ash05_tax_payment_basis_qa", 56405, 5432),
+    "ash05_ci": ("ash05_owner_goldens_test_ci", 5432, 5432),
+    "ash05_nightly": ("test_agomtradepro_critical_aud05", 5432, 5432),
+}
 _FUNCTIONS = ("account_authority_generation_bump", "account_authority_generation_lock")
 _GENERATION_TABLE = "account_authority_generation"
 
@@ -89,11 +97,32 @@ def _identity(admin: psycopg.Connection[tuple[object, ...]]) -> tuple[object, ..
     )[0]
 
 
+def _ash05_runtime_profile(database_name: object) -> _Ash05Profile:
+    for profile, (name, _, _) in _ASH05_TARGETS.items():
+        if database_name == name:
+            return profile
+    raise RuntimeError("runtime-role fixture refuses an unassigned PostgreSQL test database")
+
+
+@pytest.fixture(name="actual_runtime_role")
+def ash05_runtime_role_fixture(
+    transactional_db: None, tmp_path: Path
+) -> Iterator[dict[str, object]]:
+    """Use the restricted login assigned to this ASH05 transaction-test database."""
+    database = connections["default"]
+    if database.vendor != "postgresql":
+        yield {}
+        return
+    profile = _ash05_runtime_profile(database.settings_dict.get("NAME"))
+    with isolated_ash07_runtime_role(tmp_path / "runtime-role", target_profile=profile) as report:
+        yield report
+
+
 @contextmanager
 def isolated_ash07_runtime_role(
     evidence_directory: Path,
     *,
-    target_profile: Literal["ash07_local", "ash05_local", "ash05_ci"] = "ash07_local",
+    target_profile: _Ash05Profile | Literal["ash07_local"] = "ash07_local",
 ) -> Iterator[dict[str, object]]:
     """Use a real restricted default login, restoring every touched owner and ACL.
 
@@ -103,14 +132,12 @@ def isolated_ash07_runtime_role(
     temporary runtime credential; the original ASH07 trust profile is unchanged.
     """
 
-    profiles = {
-        "ash07_local": (_TEST_DATABASE, _PORT, _PORT),
-        "ash05_local": ("ash05_tax_payment_basis_qa", 56405, 5432),
-        "ash05_ci": ("ash05_owner_goldens_test_ci", 5432, 5432),
-    }
-    if target_profile not in profiles:
+    if target_profile == "ash07_local":
+        expected_database, configured_port, physical_port = _TEST_DATABASE, _PORT, _PORT
+    elif target_profile in _ASH05_TARGETS:
+        expected_database, configured_port, physical_port = _ASH05_TARGETS[target_profile]
+    else:
         raise RuntimeError("runtime-role setup refuses an unknown target profile")
-    expected_database, configured_port, physical_port = profiles[target_profile]
     database = connections["default"]
     if str(database.settings_dict.get("PORT")) != str(configured_port):
         raise RuntimeError("runtime-role setup refuses an unapproved configured port")
