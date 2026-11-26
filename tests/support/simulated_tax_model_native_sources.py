@@ -46,7 +46,7 @@ from apps.data_center.domain.instrument_reference_source import (
 from apps.data_center.domain.statutory_source_documents import (
     StatutorySourceDocumentBundle,
 )
-from apps.data_center.infrastructure import tushare_client
+from apps.data_center.infrastructure import egress_target, tushare_client
 from apps.data_center.infrastructure.egress_models import EgressRoutingRuleModel
 from apps.data_center.infrastructure.instrument_reference_snapshot_repository import (
     DjangoInstrumentReferenceSnapshotRepository,
@@ -195,9 +195,18 @@ def synthetic_szse_distribution_pdf(*, security_code: str, lines: tuple[str, ...
 def install_synthetic_document_transport(
     monkeypatch: pytest.MonkeyPatch,
 ) -> dict[str, bytes]:
-    """Stub only Session.send while retaining the real egress planning and audit path."""
+    """Supply fixture DNS and document bytes to the real egress and audit path."""
 
     bodies = synthetic_statutory_bodies()
+    fixture_address = ipaddress.IPv4Address("93.184.216.34")
+    original_lookup = egress_target._lookup_addresses
+
+    def lookup(hostname: str, port: int) -> tuple[str, ...]:
+        if hostname == "example.com" and port == 443:
+            return (str(fixture_address),)
+        return original_lookup(hostname, port)
+
+    monkeypatch.setattr(egress_target, "_lookup_addresses", lookup)
 
     def send(
         session: Session,
@@ -223,7 +232,7 @@ def install_synthetic_document_transport(
             or prepared.fragment
             or prepared.username is not None
             or prepared.password is not None
-            or not pinned_address.is_global
+            or pinned_address != fixture_address
             or request.headers.get("Host") != "example.com"
             or len(matching_bodies) != 1
         ):
