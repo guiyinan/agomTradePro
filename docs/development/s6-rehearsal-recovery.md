@@ -14,6 +14,7 @@
 开始的完整 fresh S6。已封存的历史全量回填属于独立验收，不随本诊断重跑。
 
 目标日价格准备在同一交易日分别读取一次 TuShare 日线和复权因子，再按冻结的证券清单筛选并绑定审计。报价缺口也使用这条路径。全天停牌须逐只核对目标日期，重复、复牌或盘中停牌记录均保留为缺口。预算分别计算这两次请求、日历读取及逐证券停牌核验，并计入已失败 attempt 的实际派发；prepare 和 runner 各阶段继续执行物理请求上限。
+若目标日日线或复权因子读取失败，隔离库 RawAudit 的 `provider_fetch_kind` 标识失败接口，图谱日志记录该接口、交易日和公开错误码。供应商错误正文不进入日志。
 
 每次全新 S6 先由仓库内规划器分配独立 attempt。省略 `--attempt-id` 时生成 UUID4；输出的 root、evidence、
 PostgreSQL/Redis/network/volume/database 和 provider export 临时路径必须作为本次 prepare 与 launcher 的唯一输入，
