@@ -35,6 +35,16 @@ QUOTE_SNAPSHOT_MODELS_PATH = Path("apps/data_center/infrastructure/quote_snapsho
 OTHER_FACT_MODELS_PATH = Path("apps/data_center/infrastructure/fact_and_operational_models.py")
 VERSION_WRITER_PATH = Path("apps/data_center/infrastructure/published_fact_versions.py")
 FINANCIAL_WRITER_PATH = Path("apps/data_center/infrastructure/financial_fact_write_guard.py")
+FINANCIAL_FACT_MODELS_PATH = Path("apps/data_center/infrastructure/financial_fact_models.py")
+COMPATIBILITY_SOURCE_PATHS = (
+    MIGRATION_PATH,
+    MODELS_PATH,
+    QUOTE_SNAPSHOT_MODELS_PATH,
+    FINANCIAL_FACT_MODELS_PATH,
+    OTHER_FACT_MODELS_PATH,
+    VERSION_WRITER_PATH,
+    FINANCIAL_WRITER_PATH,
+)
 SCOPE_BLOCKS_MODEL_PATH = Path("apps/data_center/infrastructure/publication_rollback_models.py")
 CURRENT_RELEASE_ROOT = Path(__file__).resolve().parents[1]
 RELEASE_MANIFEST_PATH = Path(".agom-release-manifest.json")
@@ -86,17 +96,9 @@ def compatibility_source_digest(
 ) -> str:
     """Hash the available source files used to identify the previous release."""
     digest = hashlib.sha256()
-    candidate_paths = (
-        MIGRATION_PATH,
-        MODELS_PATH,
-        QUOTE_SNAPSHOT_MODELS_PATH,
-        OTHER_FACT_MODELS_PATH,
-        VERSION_WRITER_PATH,
-        FINANCIAL_WRITER_PATH,
-    )
     paths = source_paths or tuple(
         relative_path
-        for relative_path in candidate_paths
+        for relative_path in COMPATIBILITY_SOURCE_PATHS
         if (release_root / relative_path).is_file()
     )
     for relative_path in paths:
@@ -222,14 +224,7 @@ def _verify_image_identity(
         return
     source_paths = tuple(
         relative_path
-        for relative_path in (
-            MIGRATION_PATH,
-            MODELS_PATH,
-            QUOTE_SNAPSHOT_MODELS_PATH,
-            OTHER_FACT_MODELS_PATH,
-            VERSION_WRITER_PATH,
-            FINANCIAL_WRITER_PATH,
-        )
+        for relative_path in COMPATIBILITY_SOURCE_PATHS
         if (release_root / relative_path).is_file()
     )
     if not source_paths:
@@ -397,9 +392,8 @@ def _check_migration(module: ast.Module, errors: list[str]) -> None:
         errors.append("0085 migration lacks publication-member fact lookup index")
 
 
-def _statement_binds_quote_snapshot_model(statement: ast.stmt) -> bool:
-    """Detect a module-scope binding that shadows the imported quote model name."""
-    name = "QuoteSnapshotModel"
+def _statement_binds_name(statement: ast.stmt, name: str) -> bool:
+    """Detect a module-scope binding that shadows the imported model name."""
     if isinstance(statement, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
         return statement.name == name
 
@@ -433,9 +427,8 @@ def _statement_binds_quote_snapshot_model(statement: ast.stmt) -> bool:
     return False
 
 
-def _has_explicit_quote_snapshot_reexport(module: ast.Module) -> bool:
+def _has_explicit_model_reexport(module: ast.Module, name: str, owner: str) -> bool:
     """Require a final, unshadowed explicit re-export from the split model module."""
-    name = "QuoteSnapshotModel"
     visible = False
     for statement in module.body:
         if isinstance(statement, ast.ImportFrom):
@@ -443,13 +436,13 @@ def _has_explicit_quote_snapshot_reexport(module: ast.Module) -> bool:
             if bindings:
                 visible = (
                     statement.level == 1
-                    and statement.module == "quote_snapshot_models"
+                    and statement.module == owner
                     and len(bindings) == 1
                     and bindings[0].name == name
                     and bindings[0].asname in (None, name)
                 )
                 continue
-        if _statement_binds_quote_snapshot_model(statement):
+        if _statement_binds_name(statement, name):
             visible = False
     return visible
 
@@ -458,18 +451,23 @@ def _check_models(
     module: ast.Module,
     other_fact_models: ast.Module,
     errors: list[str],
-    quote_snapshot_models: ast.Module | None = None,
+    release_root: Path,
 ) -> None:
     """Verify the previous release model state matches the 0085 database schema."""
     for migration_model_name, model_name in MODEL_NAMES.items():
         model = _find_class(module, model_name) or _find_class(other_fact_models, model_name)
+        split_path = {
+            "QuoteSnapshotModel": QUOTE_SNAPSHOT_MODELS_PATH,
+            "FinancialFactModel": FINANCIAL_FACT_MODELS_PATH,
+        }.get(model_name)
         if (
             model is None
-            and model_name == "QuoteSnapshotModel"
-            and _has_explicit_quote_snapshot_reexport(module)
-            and quote_snapshot_models is not None
+            and split_path
+            and _has_explicit_model_reexport(module, model_name, split_path.stem)
         ):
-            model = _find_class(quote_snapshot_models, model_name)
+            owner = _read_module(release_root, split_path, errors)
+            if owner is not None:
+                model = _find_class(owner, model_name)
         if model is None:
             errors.append(f"models.py is missing {model_name}")
             continue
@@ -559,6 +557,28 @@ def _check_financial_writer(module: ast.Module, errors: list[str]) -> None:
     if upsert is None:
         errors.append("financial_fact_write_guard.py is missing bulk_upsert_financial_facts")
         return
+    impl_name = "_bulk_upsert_financial_facts_impl"
+    returns = [node.value for node in ast.walk(upsert) if isinstance(node, ast.Return)]
+    if isinstance(upsert.body[-1], ast.Return) and all(
+        isinstance(value, ast.Call)
+        and isinstance(value.func, ast.Name)
+        and value.func.id == impl_name
+        and value.args
+        and isinstance(value.args[0], ast.Name)
+        and value.args[0].id == "facts"
+        for value in returns
+    ):
+        impl = _find_function(module, impl_name)
+        if (
+            impl is None
+            or any(
+                node is not impl and _statement_binds_name(node, impl_name) for node in module.body
+            )
+            or any(_statement_binds_name(node, impl_name) for node in upsert.body)
+        ):
+            errors.append("financial_fact_write_guard.py has no unambiguous delegated writer")
+            return
+        upsert = impl
     has_revision_increment = any(
         isinstance(node, ast.AugAssign)
         and isinstance(node.target, ast.Attribute)
@@ -741,19 +761,7 @@ def verify_previous_release(
         if migration is not None:
             _check_migration(migration, errors)
         if models is not None and other_fact_models is not None:
-            quote_snapshot_models = None
-            quote_model_in_legacy_module = _find_class(models, "QuoteSnapshotModel") or _find_class(
-                other_fact_models, "QuoteSnapshotModel"
-            )
-            if quote_model_in_legacy_module is None and _has_explicit_quote_snapshot_reexport(
-                models
-            ):
-                quote_snapshot_models = _read_module(
-                    release_root,
-                    QUOTE_SNAPSHOT_MODELS_PATH,
-                    errors,
-                )
-            _check_models(models, other_fact_models, errors, quote_snapshot_models)
+            _check_models(models, other_fact_models, errors, release_root)
         if version_writer is not None:
             _check_version_writer(version_writer, errors)
         if financial_writer is not None:

@@ -17,6 +17,7 @@ COMPATIBILITY_SOURCES = (
     Path("apps/data_center/migrations/0085_published_market_fact_revisions.py"),
     Path("apps/data_center/infrastructure/models.py"),
     QUOTE_SNAPSHOT_MODELS_PATH,
+    Path("apps/data_center/infrastructure/financial_fact_models.py"),
     Path("apps/data_center/infrastructure/fact_and_operational_models.py"),
     Path("apps/data_center/infrastructure/published_fact_versions.py"),
     Path("apps/data_center/infrastructure/financial_fact_write_guard.py"),
@@ -604,6 +605,39 @@ def test_unapplied_0085_does_not_require_a_legacy_migration_file(
 
     assert return_code == 0, stderr
     assert "database_migration_0085=not_applied" in stdout
+
+
+@pytest.mark.parametrize("defect", ["changed-image-source", "shadowed-model", "unused-writer"])
+def test_split_financial_sources_must_match_the_image_and_active_bindings(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    defect: str,
+) -> None:
+    previous_release = _make_previous_release(tmp_path)
+    infra = previous_release / "apps/data_center/infrastructure"
+    image_digest = None
+    if defect == "changed-image-source":
+        image_digest = CHECKER.compatibility_source_digest(previous_release)
+        with (infra / "financial_fact_models.py").open("a", encoding="utf-8") as source:
+            source.write("\n# Changed after building the image.\n")
+        expected = "Docker image"
+    elif defect == "shadowed-model":
+        with (infra / "models.py").open("a", encoding="utf-8") as source:
+            source.write("\nFinancialFactModel = None\n")
+        expected = "missing FinancialFactModel"
+    else:
+        writer = infra / "financial_fact_write_guard.py"
+        source = writer.read_text(encoding="utf-8")
+        fallback = "\n    return _bulk_upsert_financial_facts_impl("
+        assert source.count(fallback) == 1
+        writer.write_text(source.replace(fallback, "\n    return other_writer("), encoding="utf-8")
+        expected = "successor revisions"
+    result, _, stderr = _run_checker(
+        previous_release, monkeypatch, capsys, image_source_digest=image_digest
+    )
+    assert result == 42
+    assert expected in stderr
 
 
 def test_financial_writer_without_successor_revision_fails_closed(
