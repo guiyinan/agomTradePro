@@ -16,6 +16,7 @@ from apps.data_center.infrastructure._repository_helpers import (
 )
 from apps.data_center.infrastructure.models import PriceBarModel
 
+from .market_fact_writers import upsert_price_bars
 from .price_bar_query_helpers import (
     _NATURAL_KEY,
     _TARGET_SESSION_PRICE_FREQUENCIES,
@@ -27,7 +28,6 @@ from .publication_fact_evidence import publication_fact_reference_for_dataset
 from .published_fact_versions import (
     latest_fact_revisions,
     latest_versioned_rows_for_assets,
-    upsert_publication_safe_facts,
 )
 
 
@@ -133,39 +133,7 @@ class PriceBarRepository:
 
     def bulk_upsert(self, bars: list[PriceBar]) -> int:
         """Persist daily corrections without rewriting publication-referenced bars."""
-        if not bars:
-            return 0
-        models = [
-            PriceBarModel(
-                asset_code=bar.asset_code,
-                bar_date=bar.bar_date,
-                freq=bar.freq,
-                adjustment=bar.adjustment.value,
-                open=bar.open,
-                high=bar.high,
-                low=bar.low,
-                close=bar.close,
-                volume=bar.volume,
-                amount=bar.amount,
-                source=bar.source,
-                ingested_run_id=bar.ingested_run_id or None,
-            )
-            for bar in bars
-        ]
-        return upsert_publication_safe_facts(
-            PriceBarModel,
-            models,
-            natural_key=_NATURAL_KEY,
-            update_fields=(
-                "open",
-                "high",
-                "low",
-                "close",
-                "volume",
-                "amount",
-                "ingested_run_id",
-            ),
-        )
+        return upsert_price_bars(bars, _NATURAL_KEY)
 
     def list_publication_candidates(
         self, bars: Sequence[PriceBar]

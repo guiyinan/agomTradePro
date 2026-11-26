@@ -30,6 +30,8 @@ INSERT/TRUNCATE 属可信运维边界。这些端口尚未接入八处生产事�
 
 ## 2026-11-16 已发布财务数值 schema 边界
 
+财务事实的时点筛选由 `financial_fact_reads.py` 执行，读取数值前的资格检查由 `financial_fact_verification.py` 执行，发布引用由 `financial_fact_publication_evidence.py` 校验。三处通过原有的 `FinancialFactRepository` 入口调用，清单按实际实现位置检查时点条件和数值资格。
+
 已发布财务响应带 `numeric_evidence` 或 `exact_value_text` 时，即使字段值为 null，
 也不能以缺失 schema 或显式 `legacy-decimal-v1` 进入旧版浮点解析。原生 v2 继续要求
 公开 canonical value 字符串与精确 typed evidence 一致，并拒绝存储专用字段

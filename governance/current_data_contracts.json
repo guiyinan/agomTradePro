@@ -805,11 +805,11 @@
           "case": "failed_missing_batch_remains_blocked_without_per_asset_fetch",
           "test_file": "tests/unit/data_center/test_missing_quote_bulk_preparation.py",
           "test_function": "test_failed_group_history_batch_never_excludes_missing_quotes"
-      },
-      {
-        "case": "missing_batch_retains_successful_target_member_audit",
-        "test_file": "tests/unit/data_center/test_missing_quote_bulk_preparation.py",
-        "test_function": "test_target_success_audit_bindings_survive_exact_missing_quote_batch"
+        },
+        {
+          "case": "missing_batch_retains_successful_target_member_audit",
+          "test_file": "tests/unit/data_center/test_missing_quote_bulk_preparation.py",
+          "test_function": "test_target_success_audit_bindings_survive_exact_missing_quote_batch"
         }
       ]
     },
@@ -4895,6 +4895,8 @@
         "apps/data_center/domain/market_time.py",
         "apps/data_center/domain/protocols.py",
         "apps/data_center/infrastructure/financial_fact_repository.py",
+        "apps/data_center/infrastructure/financial_fact_verification.py",
+        "apps/data_center/infrastructure/financial_fact_reads.py",
         "apps/alpha/infrastructure/adapters/simple_adapter.py",
         "apps/factor/infrastructure/adapters/__init__.py",
         "apps/data_center/domain/entities.py",
@@ -4937,15 +4939,6 @@
         ],
         "apps/data_center/domain/protocols.py": [
           "knowledge_cutoff: datetime | None = None"
-        ],
-        "apps/data_center/infrastructure/financial_fact_repository.py": [
-          "financial knowledge cutoff must be timezone-aware",
-          "announced_at__isnull=False",
-          "announced_at__lte=knowledge_cutoff",
-          "available_at__isnull=False",
-          "available_at__lte=knowledge_cutoff",
-          "fetched_at__lte=knowledge_cutoff",
-          "native financial read requires independent catalog and body verification"
         ],
         "apps/alpha/infrastructure/adapters/simple_adapter.py": [
           "get_published_financial_facts_for_decision(",
@@ -5003,6 +4996,17 @@
           "atomic = True",
           "ACCESS EXCLUSIVE MODE",
           "ENABLE ALWAYS TRIGGER"
+        ],
+        "apps/data_center/infrastructure/financial_fact_reads.py": [
+          "financial knowledge cutoff must be timezone-aware",
+          "announced_at__isnull=False",
+          "announced_at__lte=knowledge_cutoff",
+          "available_at__isnull=False",
+          "available_at__lte=knowledge_cutoff",
+          "fetched_at__lte=knowledge_cutoff"
+        ],
+        "apps/data_center/infrastructure/financial_fact_verification.py": [
+          "native financial read requires independent catalog and body verification"
         ]
       },
       "required_tests": [
@@ -5847,6 +5851,7 @@
         "apps/data_center/infrastructure/market_breadth_repositories.py",
         "apps/data_center/infrastructure/macro_fact_storage_repository.py",
         "apps/data_center/infrastructure/financial_fact_repository.py",
+        "apps/data_center/infrastructure/financial_fact_verification.py",
         "apps/data_center/infrastructure/financial_fact_publication_helpers.py",
         "apps/data_center/infrastructure/fund_nav_repository.py",
         "apps/data_center/infrastructure/valuation_fact_repository.py",
@@ -5871,7 +5876,8 @@
         "apps/data_center/application/price_response_capture.py",
         "apps/data_center/infrastructure/tushare_exact_price_capture.py",
         "apps/data_center/infrastructure/tushare_replay_parser.py",
-        "apps/data_center/infrastructure/financial_fact_hydration.py"
+        "apps/data_center/infrastructure/financial_fact_hydration.py",
+        "apps/data_center/infrastructure/market_fact_writers.py"
       ],
       "required_markers": {
         "apps/data_center/domain/entities.py": [
@@ -5968,8 +5974,7 @@
           "publication_fact_reference_for_dataset"
         ],
         "apps/data_center/infrastructure/financial_fact_repository.py": [
-          "def list_publication_candidates(",
-          "return financial_fact_from_model(m)"
+          "def list_publication_candidates("
         ],
         "apps/data_center/infrastructure/fund_nav_repository.py": [
           "def list_publication_candidates(",
@@ -6113,6 +6118,14 @@
         ],
         "apps/data_center/infrastructure/financial_fact_hydration.py": [
           "available_at=row.available_at"
+        ],
+        "apps/data_center/infrastructure/financial_fact_verification.py": [
+          "return financial_fact_from_model(m)"
+        ],
+        "apps/data_center/infrastructure/market_fact_writers.py": [
+          "def upsert_price_bars(",
+          "def upsert_valuation_facts(",
+          "upsert_publication_safe_facts("
         ]
       },
       "required_tests": [
@@ -6868,6 +6881,8 @@
         "apps/data_center/infrastructure/valuation_fact_repository.py",
         "apps/data_center/infrastructure/financial_availability_repository.py",
         "apps/data_center/infrastructure/financial_fact_repository.py",
+        "apps/data_center/infrastructure/financial_fact_verification.py",
+        "apps/data_center/infrastructure/financial_fact_reads.py",
         "apps/data_center/infrastructure/financial_fact_publication_helpers.py",
         "apps/data_center/domain/financial_source_evidence.py",
         "apps/data_center/domain/financial_source_time_evidence.py",
@@ -7206,9 +7221,7 @@
         ],
         "apps/data_center/infrastructure/financial_fact_repository.py": [
           "def list_current_publication_candidates(",
-          "available_at__isnull=False",
-          "source_time_evidence_verifier=self._source_time_evidence_verifier",
-          "return financial_fact_from_model(m)"
+          "source_time_evidence_verifier=self._source_time_evidence_verifier"
         ],
         "apps/data_center/domain/financial_source_evidence.py": [
           "class FinancialFactSourceEvidence:",
@@ -8022,6 +8035,12 @@
           "uuid5(source_id, RECOVERY_TRIGGER)",
           "select_for_update",
           "FINANCIAL_FACT_PROVENANCE_CONFLICT"
+        ],
+        "apps/data_center/infrastructure/financial_fact_reads.py": [
+          "available_at__isnull=False"
+        ],
+        "apps/data_center/infrastructure/financial_fact_verification.py": [
+          "return financial_fact_from_model(m)"
         ]
       },
       "required_tests": [
@@ -9586,9 +9605,22 @@
         "apps/policy/interface/event_api_views.py"
       ],
       "required_markers": {
-        "apps/policy/application/event_use_cases.py": ["def current_gear(", "policy_unclassified_manual_review"],
-        "apps/policy/application/query_services.py": ["status.current_gear", "status.requires_manual_approval", "observed_at", "blocked_reason", "must_not_use_for_decision"],
-        "apps/policy/interface/event_api_views.py": ["output.current_gear", "output.observed_at", "output.blocked_reason"],
+        "apps/policy/application/event_use_cases.py": [
+          "def current_gear(",
+          "policy_unclassified_manual_review"
+        ],
+        "apps/policy/application/query_services.py": [
+          "status.current_gear",
+          "status.requires_manual_approval",
+          "observed_at",
+          "blocked_reason",
+          "must_not_use_for_decision"
+        ],
+        "apps/policy/interface/event_api_views.py": [
+          "output.current_gear",
+          "output.observed_at",
+          "output.blocked_reason"
+        ],
         "apps/agent_runtime/infrastructure/context_snapshot_repository.py": [
           "resolve_current_regime",
           "get_policy_status_payload",

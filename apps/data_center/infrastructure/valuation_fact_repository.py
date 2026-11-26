@@ -13,11 +13,11 @@ from apps.data_center.domain.entities import ValuationFact
 from apps.data_center.infrastructure._repository_helpers import _resolve_asset_code_candidates
 from apps.data_center.infrastructure.models import ValuationFactModel
 
+from .market_fact_writers import upsert_valuation_facts
 from .publication_fact_evidence import publication_fact_reference_for_dataset
 from .published_fact_versions import (
     latest_fact_revisions,
     latest_versioned_rows_for_assets,
-    upsert_publication_safe_facts,
 )
 
 _NATURAL_KEY = ("asset_code", "val_date", "source")
@@ -125,52 +125,7 @@ class ValuationFactRepository:
 
     def bulk_upsert(self, facts: list[ValuationFact]) -> int:
         """Upsert facts by natural key while refreshing values and provenance."""
-
-        if not facts:
-            return 0
-        models = [
-            ValuationFactModel(
-                asset_code=fact.asset_code,
-                val_date=fact.val_date,
-                pe_ttm=fact.pe_ttm,
-                pe_static=fact.pe_static,
-                pb=fact.pb,
-                ps_ttm=fact.ps_ttm,
-                market_cap=fact.market_cap,
-                float_market_cap=fact.float_market_cap,
-                dv_ratio=fact.dv_ratio,
-                source=fact.source,
-                observed_at=fact.observed_at,
-                available_at=fact.available_at,
-                fetched_at=fact.fetched_at,
-                extra=fact.extra,
-                source_record_id=fact.source_record_id,
-                raw_payload_hash=fact.raw_payload_hash,
-                ingested_run_id=fact.ingested_run_id or None,
-            )
-            for fact in facts
-        ]
-        return upsert_publication_safe_facts(
-            ValuationFactModel,
-            models,
-            natural_key=_NATURAL_KEY,
-            update_fields=(
-                "pe_ttm",
-                "pe_static",
-                "pb",
-                "ps_ttm",
-                "market_cap",
-                "float_market_cap",
-                "dv_ratio",
-                "observed_at",
-                "available_at",
-                "fetched_at",
-                "extra",
-                "source_record_id",
-                "raw_payload_hash",
-                "ingested_run_id",
-            ),
-        )
+        return upsert_valuation_facts(facts, _NATURAL_KEY)
 
     def list_publication_candidates(
         self, facts: Sequence[ValuationFact]

@@ -25,6 +25,14 @@ from .catalog_models import (
 from .publication_policy_repository import PublicationPolicyRepository
 
 
+def _check_contract_version_limits(row: DatasetContractModel, contract: DatasetContract) -> None:
+    """Reject changes to timing limits within an existing contract version."""
+    if row.execution_freshness_seconds != contract.execution_freshness_seconds:
+        raise ValueError("execution_freshness_seconds requires a new contract version")
+    if row.calendar_response_max_age_seconds != contract.calendar_response_max_age_seconds:
+        raise ValueError("calendar_response_max_age_seconds requires a new contract version")
+
+
 class DatasetContractRepository:
     """Read/write repository for active Dataset Contract versions."""
 
@@ -82,20 +90,8 @@ class DatasetContractRepository:
                 )
                 .first()
             )
-            if (
-                existing_version is not None
-                and existing_version.execution_freshness_seconds
-                != contract.execution_freshness_seconds
-            ):
-                raise ValueError("execution_freshness_seconds requires a new contract version")
-            if (
-                existing_version is not None
-                and existing_version.calendar_response_max_age_seconds
-                != contract.calendar_response_max_age_seconds
-            ):
-                raise ValueError(
-                    "calendar_response_max_age_seconds requires a new contract version"
-                )
+            if existing_version is not None:
+                _check_contract_version_limits(existing_version, contract)
             if (
                 existing_version is not None
                 and contract.key.value == "equity.quote.snapshot"
@@ -158,15 +154,7 @@ class DatasetContractRepository:
                     },
                 )
                 row = DatasetContractModel._default_manager.select_for_update().get(pk=row.pk)
-                if row.execution_freshness_seconds != contract.execution_freshness_seconds:
-                    raise ValueError("execution_freshness_seconds requires a new contract version")
-                if (
-                    row.calendar_response_max_age_seconds
-                    != contract.calendar_response_max_age_seconds
-                ):
-                    raise ValueError(
-                        "calendar_response_max_age_seconds requires a new contract version"
-                    )
+                _check_contract_version_limits(row, contract)
                 if row.to_domain() != contract:
                     raise ValueError(
                         "quote dataset contract semantics require a new contract version"
@@ -186,15 +174,7 @@ class DatasetContractRepository:
                         ),
                     },
                 )
-                if row.execution_freshness_seconds != contract.execution_freshness_seconds:
-                    raise ValueError("execution_freshness_seconds requires a new contract version")
-                if (
-                    row.calendar_response_max_age_seconds
-                    != contract.calendar_response_max_age_seconds
-                ):
-                    raise ValueError(
-                        "calendar_response_max_age_seconds requires a new contract version"
-                    )
+                _check_contract_version_limits(row, contract)
         return row.to_domain()
 
 
