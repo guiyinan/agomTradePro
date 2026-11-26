@@ -21,11 +21,58 @@ from apps.data_center.domain.model_market_data import ModelDailyBar
 from apps.data_center.infrastructure.tushare_model_market_source import (
     TushareModelMarketSource,
 )
-from core.exceptions import DataFetchError
+from core.exceptions import DataFetchError, TushareError
 
 TARGET = date(2026, 9, 18)
 HISTORY_START = TARGET - timedelta(days=120)
 MISSING_CODES = ("000016.SZ", "002731.SZ")
+
+
+@pytest.mark.parametrize("endpoint", ["daily", "adj_factor"])
+@pytest.mark.parametrize("raw_code", ["TUSHARE_PROVIDER_REJECTED", "PRIVATE_PROVIDER_DETAIL"])
+def test_session_failure_identifies_endpoint_and_only_logs_public_codes(
+    endpoint, raw_code, caplog, monkeypatch
+):
+    client = MissingQuoteClient()
+    called = []
+    failures = []
+
+    def fetch(name):
+        def query(**params):
+            called.append((name, params))
+            if name == endpoint:
+                raise TushareError("private upstream response", code=raw_code)
+            return pd.DataFrame()
+
+        return query
+
+    for name in ("daily", "adj_factor"):
+        monkeypatch.setattr(client, name, fetch(name))
+    audit = RecordingFetchAudit()
+    monkeypatch.setattr(
+        audit, "record_model_history_fetch_failure", lambda **row: failures.append(row)
+    )
+    source = TushareModelMarketSource(client, provider_id=1, history_fetch_audit=audit)
+    with pytest.raises(DataFetchError) as caught:
+        source.prepare_target_session_history(MISSING_CODES, TARGET)
+    assert caught.value.code == "MODEL_MARKET_SESSION_INCOMPLETE"
+    expected_calls = ["daily"] if endpoint == "daily" else ["daily", "adj_factor"]
+    assert called == [(name, {"trade_date": TARGET.strftime("%Y%m%d")}) for name in expected_calls]
+    (failure,) = failures
+    assert failure["request_details"] == {
+        "provider_fetch_kind": f"tushare_{endpoint}_session_batch",
+        "provider_trade_date": TARGET.isoformat(),
+    }
+    public_code = (
+        raw_code
+        if raw_code == "TUSHARE_PROVIDER_REJECTED"
+        else "MODEL_MARKET_PROVIDER_FETCH_FAILED"
+    )
+    assert f"endpoint={endpoint} trade_date={TARGET} code={public_code}" in caplog.text
+    assert (
+        "private upstream response" not in caplog.text
+        and "PRIVATE_PROVIDER_DETAIL" not in caplog.text
+    )
 
 
 class MissingQuoteClient:

@@ -9,6 +9,7 @@ import time
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, date, datetime, timedelta
+from functools import partial
 from threading import Event
 from typing import Any, Protocol, TypeVar, cast
 
@@ -20,6 +21,7 @@ from apps.data_center.application.model_market_data import (
     ModelHistoryPreparedFetch,
 )
 from apps.data_center.domain.model_market_data import ModelDailyBar, TradingCalendarEvidence
+from apps.data_center.infrastructure.tushare_price_session import fetch_tushare_price_session
 from core.exceptions import DataFetchError, TushareError
 from shared.numeric import safe_float
 
@@ -307,27 +309,23 @@ class TushareModelMarketSource:
             return False
         client = self._pro
 
-        def fetch(
-            day: date,
-        ) -> tuple[date, PandasDataFrame | None, PandasDataFrame | None, BaseException | None]:
-            try:
-                daily = self._call_with_retry(client.daily, trade_date=day.strftime("%Y%m%d"))
-                factors = self._call_with_retry(
-                    client.adj_factor, trade_date=day.strftime("%Y%m%d")
-                )
-                return day, daily, factors, None
-            except Exception as error:
-                return day, None, None, error
+        fetch = partial(
+            fetch_tushare_price_session,
+            daily=partial(self._call_with_retry, client.daily),
+            adj_factor=partial(self._call_with_retry, client.adj_factor),
+        )
 
         session_rows: dict[tuple[str, date, date], list[ModelDailyBar]] = {}
         successful_sessions = 0
         with ThreadPoolExecutor(max_workers=4) as executor:
-            for day, daily, factors, error in executor.map(fetch, days):
+            for day, daily, factors, failure in executor.map(fetch, days):
                 request_details: dict[str, object] = {
                     "provider_fetch_kind": "tushare_daily_adj_factor_session_batch",
                     "provider_trade_date": day.isoformat(),
                 }
-                if error is not None:
+                if failure is not None:
+                    endpoint, error = failure
+                    request_details["provider_fetch_kind"] = f"tushare_{endpoint}_session_batch"
                     self._record_preparation_failure(
                         asset_codes,
                         day,
