@@ -33,6 +33,7 @@ from apps.data_center.infrastructure.financial_e1_governed_execution import (
     preflight_django_financial_e1_actor_simulated_account,
 )
 from apps.data_center.infrastructure.financial_e1_recovery_binding import (
+    RetainedWriteReview,
     claim_recovery,
     forecast_digest,
     validate_recovery_source,
@@ -108,6 +109,9 @@ class Command(BaseCommand):
             parser.add_argument("--" + key, required=True)
         for key in ("source-run", "main-capture", "balance-capture"):
             parser.add_argument("--" + key, required=True, type=UUID)
+        parser.add_argument("--write-review-file")
+        parser.add_argument("--write-review-material-file")
+        parser.add_argument("--write-review-sha256")
         parser.add_argument("--forecast-sha256")
         parser.add_argument("--execute", action="store_true")
 
@@ -131,9 +135,6 @@ class Command(BaseCommand):
                 publisher_code=pin.publisher_code,
                 publisher_class=pin.publisher_class,
                 profile_content_sha256=pin.profile_content_sha256,
-            )
-            use_case = build_django_financial_e1_discovery_use_case(
-                plan, official_source_profile_expectation=expectation, authority_guard=guard
             )
             config = resolve_financial_response_artifact_config(environment="production")
             if config is None:
@@ -162,8 +163,39 @@ class Command(BaseCommand):
             validate_recovery_source(
                 source, pinned.plan_file_sha256, main.retention.audit, balance.retention.audit
             )
+            review_file = options.get("write_review_file")
+            review_sha = options.get("write_review_sha256")
+            material = options.get("write_review_material_file")
+            if len({bool(review_file), bool(review_sha), bool(material)}) != 1:
+                raise ValueError("Provide both the separate write review and its digest.")
+            review = (
+                RetainedWriteReview.load(
+                    Path(str(review_file)),
+                    str(review_sha),
+                    source=source,
+                    plan_hash=pinned.plan_file_sha256,
+                    operator=str(options["operator"]),
+                    main=main.retention.audit,
+                    balance=balance.retention.audit,
+                )
+                if review_file
+                else None
+            )
+            use_case = build_django_financial_e1_discovery_use_case(
+                plan,
+                official_source_profile_expectation=expectation,
+                authority_guard=guard,
+                retained_review=review,
+            )
             predicted = use_case.preview_retained_recovery(plan, main, balance)
-            digest = forecast_digest(predicted)
+            if review is not None:
+                review.verify_material_forecast(
+                    Path(str(material)),
+                    facts=predicted,
+                    plan_hash=pinned.plan_file_sha256,
+                    source=source,
+                )
+            digest = forecast_digest(predicted, review.digest if review else None)
             if not options.get("execute"):
                 return f"outcome=preview source_run={source} forecast={len(predicted)} forecast_sha256={digest} physical_attempts=0 stored=0"
             guard.assert_current()

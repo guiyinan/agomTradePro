@@ -145,6 +145,7 @@ class FinancialE1V3FactWriterReadback:
         run_repository: FinancialE1RunRepositoryPort,
         authority_guard: FinancialE1ExecutionAuthorityPort,
         using: str = DEFAULT_DB_ALIAS,
+        review_sha256: str | None = None,
     ) -> None:
         """Require the real repositories and all C2 builders to share default DB."""
 
@@ -173,6 +174,7 @@ class FinancialE1V3FactWriterReadback:
         self._data_fetch_audit_writer = data_fetch_audit_writer
         self._run_repository = run_repository
         self._authority_guard = authority_guard
+        self._review_sha256 = review_sha256
         self._using = using
 
     def preview_recovery(
@@ -265,7 +267,9 @@ class FinancialE1V3FactWriterReadback:
                 ]
                 self._authority_guard.assert_current()
                 if run.trigger == RECOVERY_TRIGGER:
-                    validate_recovery_commit(run, main_raw_audit, balance_raw_audit, tuple(facts))
+                    validate_recovery_commit(
+                        run, main_raw_audit, balance_raw_audit, tuple(facts), self._review_sha256
+                    )
                 self._repository.bulk_upsert(
                     facts,
                     ingested_run_id=run_uuid,

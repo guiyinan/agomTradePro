@@ -70,6 +70,10 @@ from apps.data_center.infrastructure.financial_e1_discovery_runtime import (
 from apps.data_center.infrastructure.financial_e1_discovery_v3_writer import (
     FinancialE1V3FactWriterReadback,
 )
+from apps.data_center.infrastructure.financial_e1_recovery_binding import (
+    RetainedWriteReview,
+    RetainedWriteReviewGuard,
+)
 from apps.data_center.infrastructure.financial_fact_repository import FinancialFactRepository
 from apps.data_center.infrastructure.financial_fact_v3_e1_verifier import (
     FinancialFactV3E1EvidenceVerifier,
@@ -235,6 +239,7 @@ def build_django_financial_e1_discovery_use_case(
     official_source_profile_expectation: FinancialV3OfficialSourceProfileExpectation,
     authority_guard: FinancialE1ExecutionAuthorityPort,
     environment: str | None = None,
+    retained_review: RetainedWriteReview | None = None,
 ) -> CaptureFinancialE1DiscoveryUseCase:
     """Build one preflighted Main+Balance writer/readback use case.
 
@@ -307,7 +312,12 @@ def build_django_financial_e1_discovery_use_case(
     loader: DjangoFinancialE1SelectionLoader = build_financial_e1_preflight_loader(
         capture_repository=numeric_capture_repository
     )
-    prepared = loader.load(plan, known_at=clock.now_utc())
+    cutoff = clock.now_utc()
+    if retained_review is not None:
+        authority_guard = RetainedWriteReviewGuard(authority_guard, retained_review, plan, loader)
+        authority_guard.assert_current()
+        cutoff = min(retained_review.completed)
+    prepared = loader.load(plan, known_at=cutoff)
     preflight = DjangoFinancialE1PinnedPreflight(loader=loader, expected=prepared)
     projector = DjangoFinancialE1RequestProjector(
         plan=plan,
@@ -412,6 +422,7 @@ def build_django_financial_e1_discovery_use_case(
         sync_unit_of_work=sync_unit_of_work,
         data_fetch_audit_writer=fetch_audit_writer,
         run_repository=SyncRunRepository(),
+        review_sha256=retained_review.digest if retained_review else None,
         authority_guard=authority_guard,
     )
     qualification_resolver = build_financial_e1_resolver(
@@ -424,6 +435,7 @@ def build_django_financial_e1_discovery_use_case(
     )
     return CaptureFinancialE1DiscoveryUseCase(
         preflight=preflight,
+        retained_captures=retained_review.captures if retained_review else None,
         capture_gateway=capture_gateway,
         role_replayer=role_replayer,
         qualification_resolver=qualification_resolver,

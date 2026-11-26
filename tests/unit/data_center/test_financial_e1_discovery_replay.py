@@ -815,3 +815,31 @@ def test_pinned_plan_file_rejects_duplicate_json_names(tmp_path: Path) -> None:
             path,
             expected_sha256=hashlib.sha256(document).hexdigest(),
         )
+
+
+def test_separate_write_review_preserves_native_fields_and_capture_interval() -> None:
+    from dataclasses import replace
+    from datetime import timedelta
+
+    from apps.data_center.infrastructure.financial_e1_recovery_binding import verify_reviewed_fields
+
+    original = _qualification(
+        metric_code="revenue", source_field="AMOUNT", endpoint=_plan().main_request.endpoint
+    )
+    completed = original.effective_from + timedelta(seconds=1)
+    current = replace(
+        original,
+        effective_from=completed + timedelta(days=1),
+        effective_until=completed + timedelta(days=2),
+        source_applicability="bound-review",
+    )
+    verify_reviewed_fields(original, current, marker="bound-review", completed=completed)
+    for changed in (
+        replace(current, source_applicability="other-review"),
+        replace(current, effective_from=completed),
+        replace(current, effective_until=None),
+        replace(current, contract=replace(current.contract, source_field="OTHER")),
+        replace(current, document_capture=replace(current.document_capture, body_sha256="8" * 64)),
+    ):
+        with pytest.raises(ValueError, match="differ"):
+            verify_reviewed_fields(original, changed, marker="bound-review", completed=completed)

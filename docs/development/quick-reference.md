@@ -1283,3 +1283,9 @@ production publication, approval and acceptance remain EVID-01/02 production wor
 `recover_financial_e1_retained` 默认只读预检。输入固定计划及其 SHA-256、操作人、原失败运行 UUID、Main 和 Balance 各自的捕获 UUID 和 RawAudit 内容摘要。预检从加密原件重新解析，以当前权限、来源资格和日历证明核对预测事实，返回 `forecast_sha256`。读取 v1 财务原件时，运行身份、完整版本化审计引用、原始字节和 SHA-256 必须一致。
 
 一次写入使用相同的输入，并传入 `--execute --forecast-sha256 <预检摘要>`。每个原运行最多创建一个恢复运行。恢复运行沿用原件的采集时间，独立记录入库身份和两条审计引用。事务同时提交事实、成功审计和恢复终态。检查外呼数、失败原运行、两条原审计以及恢复运行的写后读回和投递回执。扩大到第二只证券仍须完成 S6。
+
+
+同一对封存原件取得单次分时审定时，恢复命令同时接收
+`--write-review-file`、`--write-review-sha256` 和 `--write-review-material-file`。
+原始采集资格按两个响应各自的完成时间核验，当前 Owner 签署的资格按数据库实时时钟复查。
+独立材料中的逐项原值、单位和凭据须与预测一致。审核摘要进入恢复运行的配置摘要。
