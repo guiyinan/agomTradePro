@@ -27,6 +27,90 @@ EFFECTIVE_FROM = datetime(2026, 10, 26, 0, 0, tzinfo=UTC)
 EFFECTIVE_UNTIL = datetime(2026, 12, 31, 0, 0, tzinfo=UTC)
 
 
+@pytest.mark.parametrize(
+    ("state", "limit", "reason", "error"),
+    [
+        ("applicable", Decimal(1), None, "exact RiskApplicability"),
+        (RiskApplicability.APPLICABLE, Decimal("NaN"), None, "finite Decimal"),
+        (RiskApplicability.APPLICABLE, Decimal("101"), None, "0..100"),
+        (RiskApplicability.APPLICABLE, Decimal(1), "off", "cannot carry"),
+        (RiskApplicability.NOT_APPLICABLE, Decimal(0), "off", "numeric limit"),
+        (RiskApplicability.NOT_APPLICABLE, None, " ", "owner-supplied reason"),
+        (RiskApplicability.UNKNOWN, Decimal(0), None, "inferred numeric limit"),
+        (RiskApplicability.UNKNOWN, None, "off", "cannot claim not-applicability"),
+    ],
+)
+def test_owner_conditions_distinguish_unknown_exempt_and_numeric_limits(
+    state, limit, reason, error
+):
+    with pytest.raises((TypeError, ValueError), match=error):
+        M1RiskCondition(state, limit, reason)
+
+
+@pytest.mark.parametrize(
+    ("changes", "reason"),
+    [
+        ({"account_id": False}, "account_id"),
+        ({"account_owner_user_id": 0}, "account_owner_user_id"),
+        ({"account_type": "paper"}, "account_type"),
+        ({"account_is_active": 1}, "account_is_active"),
+        ({"strategy_selection_state": "default"}, "unsupported strategy selection"),
+        ({"strategy_version": False}, "strategy_version"),
+        ({"account_stop_loss_pct": "5"}, "account_stop_loss_pct"),
+        ({"strategy_max_single_position_pct": Decimal(101)}, "0..100"),
+        ({"account_invalid_limit_fields": [1]}, "exact tuple"),
+        ({"account_invalid_limit_fields": ("stop_loss_pct",) * 2}, "duplicate"),
+        ({"position_rule_source_json": {}}, "must be str"),
+        ({"strategy_id": 7}, "confirmed_unconfigured"),
+        ({"strategy_selection_state": "configured"}, "requires an exact strategy_id"),
+    ],
+)
+def test_source_snapshot_rejects_malformed_account_strategy_or_limit(changes, reason) -> None:
+    with pytest.raises((TypeError, ValueError), match=reason):
+        replace(_source_snapshot(), **changes)
+
+
+@pytest.mark.parametrize(
+    ("changes", "reason"),
+    [
+        ({"risk_policy_version": " "}, "version is required"),
+        ({"account_id": False}, "account_id"),
+        ({"actor_user_id": 0}, "actor_user_id"),
+        ({"reason": ""}, "owner reason"),
+        ({"account_id": 702}, "identities differ"),
+        ({"effective_from": EFFECTIVE_UNTIL}, "must precede"),
+        ({"known_at": EFFECTIVE_UNTIL}, "real known_at"),
+        ({"known_at": datetime(2026, 10, 25)}, "timezone-aware"),
+        ({"revocation_state": "pending"}, "revocation_state"),
+        ({"revocation_reason": "unverified"}, "cannot carry audit event"),
+        ({"revocation_state": "revoked"}, "audit effective_at"),
+        ({"revocation_state": "revoked", "revoked_at": EFFECTIVE_FROM}, "real audit actor"),
+        (
+            {"revocation_state": "revoked", "revoked_at": EFFECTIVE_FROM, "revoked_by_user_id": 77},
+            "non-empty audit reason",
+        ),
+        ({"revocation_state": "unknown", "revoked_by_user_id": False}, "positive or None"),
+        ({"revocation_state": "unknown", "revocation_reason": " "}, "non-empty when present"),
+    ],
+)
+def test_persisted_revision_requires_consistent_owner_window_and_revocation_audit(changes, reason):
+    with pytest.raises(ValueError, match=reason):
+        replace(_revision(), **changes)
+
+
+@pytest.mark.parametrize(
+    ("changes", "reason"),
+    [
+        ({"account_id": 702}, "RISK_SOURCE_ACCOUNT_MISMATCH"),
+        ({"actor_user_id": 78}, "RISK_SOURCE_ACTOR_MISMATCH"),
+        ({"effective_until": EFFECTIVE_FROM}, "RISK_POLICY_EFFECTIVE_WINDOW_INVALID"),
+        ({"reason": " "}, "RISK_POLICY_OWNER_REASON_REQUIRED"),
+    ],
+)
+def test_publish_command_rejects_missing_authority_or_validity(changes, reason) -> None:
+    assert validate_publish_command(replace(_publish_command(), **changes)) == (reason,)
+
+
 def _source_snapshot(
     *, account_stop_loss_pct: Decimal | None = Decimal("8")
 ) -> M1RiskSourceSnapshot:

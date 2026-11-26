@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 
@@ -10,6 +11,7 @@ import pytest
 from apps.risk_center.domain.portfolio_baseline_risk import (
     BaselineRiskException,
     BaselineRiskParameters,
+    PortfolioBaselineAssessment,
     PortfolioBaselinePolicy,
     PortfolioBaselineRiskError,
     assess_portfolio_baseline,
@@ -35,6 +37,98 @@ from apps.risk_center.domain.portfolio_risk_snapshot import (
 
 _AS_OF = datetime(2026, 11, 3, 8, 0, tzinfo=UTC)
 _DATE = date(2026, 11, 3)
+
+
+@pytest.mark.parametrize(
+    ("field", "weight", "exclusions", "code"),
+    [
+        ("turnover", Decimal("0.5"), None, "PORTFOLIO_BASELINE_EXCEPTION_FIELD_INVALID"),
+        ("hard_exclusions", Decimal(0), (), "PORTFOLIO_BASELINE_EXCEPTION_VALUE_INVALID"),
+        ("min_cash_weight", Decimal("0.1"), (), "PORTFOLIO_BASELINE_EXCEPTION_VALUE_INVALID"),
+        ("max_total_weight", None, None, "PORTFOLIO_BASELINE_EXCEPTION_VALUE_INVALID"),
+    ],
+)
+def test_exceptions_cannot_replace_a_numeric_limit_with_a_list_or_an_absent_value(
+    field, weight, exclusions, code
+) -> None:
+    with pytest.raises(PortfolioBaselineRiskError) as exc:
+        BaselineRiskException(field, weight, exclusions)
+    assert exc.value.reason_code == code
+
+
+@pytest.mark.parametrize(
+    ("changes", "reason"),
+    [
+        ({"account_id": False}, "account_id"),
+        ({"account_policy_id": 0}, "account_policy_id"),
+        ({"content_sha256": "not-sealed"}, "content_sha256"),
+        ({"known_at": datetime(2026, 11, 3)}, "timezone-aware"),
+    ],
+)
+def test_baseline_policy_requires_account_identity_and_a_sealed_dated_revision(changes, reason):
+    with pytest.raises(ValueError, match=reason):
+        replace(_policy(), **changes)
+
+
+@pytest.mark.parametrize(
+    ("changes", "reason"),
+    [
+        ({"snapshot": None}, "PORTFOLIO_BASELINE_SNAPSHOT_INVALID"),
+        ({"proposals": (None,)}, "PORTFOLIO_BASELINE_PROPOSALS_INVALID"),
+        ({"as_of": datetime(2026, 11, 3)}, "PORTFOLIO_BASELINE_CUTOFF_INVALID"),
+        ({"policy": {}}, "PORTFOLIO_BASELINE_POLICY_INVALID"),
+        ({"projection": None}, "PORTFOLIO_BASELINE_PROJECTION_UNAVAILABLE"),
+        ({"projection": {}}, "PORTFOLIO_BASELINE_PROJECTION_INVALID"),
+    ],
+)
+def test_baseline_assessment_reports_unknown_without_qualified_inputs(changes, reason) -> None:
+    inputs = {
+        "policy": _policy(),
+        "snapshot": _snapshot(),
+        "projection": _projection(),
+        "proposals": (),
+        "as_of": _AS_OF,
+    }
+    result = assess_portfolio_baseline(**(inputs | changes))
+    assert result.outcome == "unknown"
+    assert result.reason_codes == (reason,)
+    assert result.projected_total_value is None
+    assert result.cash_after_committed_demands is None
+
+
+@pytest.mark.parametrize(
+    ("changes", "reason"),
+    [
+        ({"outcome": "approved"}, "outcome"),
+        ({"reason_codes": ("",)}, "stable nonempty"),
+        ({"reason_codes": ("missing", "missing")}, "duplicates"),
+        ({"reason_codes": ()}, "no reasons"),
+        ({"projected_total_value": Decimal("NaN")}, "finite Decimal"),
+        ({"projected_total_value": Decimal("-1")}, "nonnegative"),
+    ],
+)
+def test_baseline_assessment_preserves_status_reasons_and_an_exact_total(changes, reason):
+    assessment = PortfolioBaselineAssessment("unknown", ("source_missing",), None, None)
+    with pytest.raises((TypeError, ValueError), match=reason):
+        replace(assessment, **changes)
+
+
+@pytest.mark.parametrize(
+    ("changes", "reason"),
+    [
+        ({"account_id": False}, "account_id"),
+        ({"owner_user_id": 0}, "owner_user_id"),
+        ({"holdings": ({},)}, "HeldPosition"),
+        ({"active_orders": ({},)}, "OpenOrder"),
+        ({"executed_usage": (None,)}, "ExecutedUsage"),
+        ({"active_orders_complete": 0}, "must be a boolean"),
+        ({"executed_usage_complete": 1}, "must be a boolean"),
+        ({"execution_session": _AS_OF}, "must be a date"),
+    ],
+)
+def test_baseline_cannot_read_an_untyped_or_incomplete_account_snapshot(changes, reason):
+    with pytest.raises((TypeError, ValueError), match=reason):
+        replace(_snapshot(), **changes)
 
 
 def _parameters(

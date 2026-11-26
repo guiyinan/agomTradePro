@@ -308,6 +308,51 @@ def test_audit_rejects_tampered_envelope_hashes(
         subject.LocalSimulatedExecutionMarketAuditV1.from_payload(payload)
 
 
+@pytest.mark.parametrize(
+    ("field", "value", "reason"),
+    [
+        ("side", "buy", "header"),
+        ("source_version", None, "text fields"),
+        ("account_id", True, "account scope"),
+        ("account_id", 0, "account_id"),
+        ("user_id", -1, "user_id"),
+        ("execution_price", "unknown", "payload values"),
+        ("execution_price", "NaN", "execution price"),
+        ("execution_price", "0", "execution price"),
+        ("source_observed_at", "no clock", "source_observed_at"),
+    ],
+)
+def test_persisted_market_audit_requires_a_priced_sale_with_exact_owner_and_clock(
+    subject: ModuleType, field: str, value: object, reason: str
+) -> None:
+    _, binding = _base_binding(subject)
+    audit = _market_audit_for_binding(subject, binding)
+    payload = audit.to_payload()
+    payload[field] = value
+    with pytest.raises(SettlementPlanBindingValidationError, match=reason):
+        type(audit).from_payload(payload)
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "reason"),
+    [
+        ("purpose", "live", "purpose or clock"),
+        ("retained_source", None, "source payload"),
+        ("risk_decision", [], "Risk payload"),
+    ],
+)
+def test_persisted_market_audit_rechecks_the_retained_source_and_risk_evidence(
+    subject: ModuleType, field: str, value: object, reason: str
+) -> None:
+    _, binding = _base_binding(subject)
+    audit = _market_audit_for_binding(subject, binding)
+    payload = audit.to_payload()
+    payload["evidence"][field] = value
+    _reseal_audit_payload(payload)
+    with pytest.raises(SettlementPlanBindingValidationError, match=reason):
+        type(audit).from_payload(payload)
+
+
 def test_audit_rejects_unknown_wire_and_nested_evidence_keys(subject: ModuleType) -> None:
     _, binding = _base_binding(subject)
     audit_type = subject.LocalSimulatedExecutionMarketAuditV1

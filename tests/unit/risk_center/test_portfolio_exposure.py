@@ -211,6 +211,86 @@ def _projection(*assets: PortfolioRiskAsset) -> PortfolioExposureProjection:
     )
 
 
+@pytest.mark.parametrize(
+    ("changes", "reason"),
+    [
+        ({"content_sha256": "f" * 63}, "content_sha256"),
+        ({"taxonomy_kind": "benchmark"}, "industry risk policy"),
+        ({"effective_until": CUTOFF - timedelta(days=31)}, "effective window"),
+        ({"date_precision_purposes": (None,)}, "purpose tokens"),
+        ({"date_precision_purposes": ("some purpose",)}, "canonical tokens"),
+        ({"date_precision_purposes": (PURPOSE, PURPOSE)}, "duplicates"),
+        ({"allowed_observation_precisions": ()}, "nonempty tuple"),
+        ({"allowed_observation_precisions": ("minute",)}, "unsupported value"),
+        ({"allowed_observation_precisions": (SourceObservationPrecision.DATE,) * 2}, "duplicates"),
+        ({"allowed_source_restrictions": ("not valid",)}, "canonical restriction"),
+        ({"allowed_source_restrictions": ("simulation", "simulation")}, "duplicates"),
+        ({"max_security_weight": Decimal(0)}, "max_security_weight"),
+        ({"minimum_industry_coverage": Decimal("1.01")}, "minimum_industry_coverage"),
+    ],
+)
+def test_industry_limits_require_an_exact_taxonomy_time_window_and_scope(changes, reason) -> None:
+    with pytest.raises((TypeError, ValueError), match=reason):
+        replace(_policy(), **changes)
+
+
+@pytest.mark.parametrize(
+    ("changes", "reason"),
+    [
+        ({"effective_from": CUTOFF}, "effective_from must be a date"),
+        ({"effective_until": CUTOFF}, "effective_until must be a date"),
+        ({"effective_end_state": "closed"}, "must be EffectiveEndState"),
+        ({"effective_end_state": EffectiveEndState.BOUNDED}, "requires a valid effective_until"),
+        ({"effective_until": BUSINESS_DATE}, "open or unknown membership"),
+        ({"source_evidence": None}, "source_evidence must be"),
+        ({"effective_from": BUSINESS_DATE}, "differs from source evidence"),
+    ],
+)
+def test_membership_dates_must_be_supported_by_the_original_source(changes, reason) -> None:
+    membership = _membership("industry-a", source_id="synthetic-membership")
+    with pytest.raises((TypeError, ValueError), match=reason):
+        replace(membership, **changes)
+
+
+@pytest.mark.parametrize(
+    ("changes", "reason"),
+    [
+        ({"original_payload_sha256": "unsealed"}, "lowercase SHA-256"),
+        ({"observation_precision": "daily"}, "must be SourceObservationPrecision"),
+        ({"effective_on": CUTOFF}, "effective_on must be a date"),
+        ({"observed_on": CUTOFF}, "observed_on must be a date"),
+        ({"decision_date_cutoff": CUTOFF}, "decision_date_cutoff must be a date"),
+        ({"effective_until": CUTOFF}, "effective_until must be a date"),
+        ({"effective_on": BUSINESS_DATE, "effective_until": date(2026, 1, 1)}, "cannot precede"),
+        ({"observation_precision": SourceObservationPrecision.TIMESTAMP}, "original observed_at"),
+        ({"observation_precision": SourceObservationPrecision.UNKNOWN}, "observation clock"),
+        ({"decision_date_cutoff": None}, "explicit decision_date_cutoff"),
+        ({"must_not_use_for_decision": 0}, "must be a boolean"),
+        ({"coverage": {}}, "must be PortfolioRiskCoverage"),
+        ({"policy_clock_proof": {}}, "typed source-clock proof"),
+    ],
+)
+def test_exposure_source_cannot_invent_precision_clocks_or_coverage(changes, reason) -> None:
+    with pytest.raises((TypeError, ValueError), match=reason):
+        replace(_source("synthetic-exposure"), **changes)
+
+
+@pytest.mark.parametrize(
+    ("changes", "reason"),
+    [
+        ({"kind": "stock"}, "must be PortfolioAssetKind"),
+        ({"projected_market_value": Decimal("-1")}, "finite nonnegative"),
+        ({"valuation_evidence": {}}, "valuation_evidence must be"),
+        ({"industry_membership": {}}, "industry_membership must be"),
+        ({"etf_report": {}}, "etf_report must be"),
+        ({"kind": PortfolioAssetKind.ETF}, "cannot replace look-through"),
+    ],
+)
+def test_direct_equity_and_etf_must_retain_their_own_valuation_and_classification(changes, reason):
+    with pytest.raises((TypeError, ValueError), match=reason):
+        replace(_equity("A", "10", "industry-a"), **changes)
+
+
 def test_complete_coverage_rejects_inconsistent_explicit_item_counts() -> None:
     with pytest.raises(ValueError, match="complete coverage item counts must match"):
         PortfolioRiskCoverage(
