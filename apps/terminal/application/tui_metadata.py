@@ -201,6 +201,9 @@ def validate_tui_metadata(payload: dict[str, Any]) -> dict[str, Any]:
             raise TuiMetadataValidationError(f"Action has unsupported risk: {action['key']}")
         if str(action["view_type"]) not in ALLOWED_TUI_VIEW_TYPES:
             raise TuiMetadataValidationError(f"Action has unsupported view_type: {action['key']}")
+        action.setdefault("confirmation_required", _default_confirmation_required(action))
+        action.setdefault("audit_required", _default_audit_required(action))
+        action.setdefault("session_auth_required", False)
         fields = action.setdefault("fields", [])
         if not isinstance(fields, list):
             raise TuiMetadataValidationError(f"Action fields must be a list: {action['key']}")
@@ -277,10 +280,7 @@ def validate_tui_metadata(payload: dict[str, Any]) -> dict[str, Any]:
         action.setdefault("description", "")
         action.setdefault("source", "published")
         action.setdefault("raw_debug", True)
-        action.setdefault("confirmation_required", _default_confirmation_required(action))
         action.setdefault("requires_password", False)
-        action.setdefault("audit_required", _default_audit_required(action))
-        action.setdefault("session_auth_required", False)
         action.setdefault("sensitive_level", _default_sensitive_level(action))
         action.setdefault("executor", "")
         action.setdefault("task_group", "")

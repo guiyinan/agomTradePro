@@ -10,6 +10,7 @@ import pytest
 
 from apps.terminal.application.tui_metadata import (
     TuiMetadataValidationError,
+    compact_tui_metadata_payload,
     validate_tui_metadata,
 )
 from apps.terminal.application.tui_portfolio_risk_result import project_portfolio_risk_result
@@ -364,6 +365,16 @@ def test_pressure_scenario_selector_metadata_compiles_as_account_scoped_lookup()
     assert scenario_field["placeholder"] == "先选择模拟账户，再选择情景名称和业务版本"
     assert fields["account_id"]["binding"] == "path"
     assert compiled_action["endpoint"].endswith("/pressure-run/")
+
+    stored = compact_tui_metadata_payload(metadata)
+    assert "confirmation_required" not in stored["actions"][0]
+    assert "audit_required" not in stored["actions"][0]
+    assert validate_tui_metadata(deepcopy(stored))["actions"][0] == compiled_action
+    for guard in ("confirmation_required", "audit_required", "session_auth_required"):
+        unsafe = deepcopy(stored)
+        unsafe["actions"][0][guard] = False
+        with pytest.raises(TuiMetadataValidationError, match="pressure Scenario lookup contract"):
+            validate_tui_metadata(unsafe)
 
 
 def test_pressure_scenario_lookup_metadata_cannot_point_to_another_endpoint_or_default() -> None:

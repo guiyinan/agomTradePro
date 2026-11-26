@@ -463,6 +463,9 @@ Changing the account clears the selection and rejects late responses. Empty or
 failed directories explain the next step and keep execution unavailable. The user
 selects a named approved revision; no option is selected automatically. Confirmation
 rechecks the account-bound selection and never creates or approves a scenario.
+When loading compact published metadata, restore the action defaults before
+validating the selector. Confirmation, auditing and session authentication must
+all be enabled for this action.
 
 ## Self-Service Pattern
 
