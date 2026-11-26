@@ -12541,7 +12541,128 @@
             }
           }
         },
-        "charged_transport_attempts": 4
+        "charged_transport_attempts": 4,
+        "post_e1_full_s6_20261126": {
+          "candidate": "f4cad6f5b9527021ca2f56d01f2e5377f856ce84",
+          "trade_date": "2026-11-26",
+          "outcome": "blocked_before_capacity",
+          "data02_exit_met": false,
+          "publication_ci": {
+            "id": 45784312963,
+            "url": "https://github.com/guiyinan/agomTradePro/actions/runs/45784312963",
+            "cases": 303,
+            "required_cases": 69,
+            "artifact_sha256": "5a4ac4e13978ec3a4a931308f72a791701b4c1aede9eea0d5f2d1dc0af83e252",
+            "expires": "2026-11-27T08:34:28+00:00"
+          },
+          "prepare_attempts": [
+            {
+              "id": "5844c3aaa50d4637923f9a19ba7f5150",
+              "terminal": "2026-11-26T13:41:43.458911+00:00",
+              "error": "S6_PREPARE_NETWORK_CREATE_FAILED",
+              "market_requests": 0,
+              "remediation": "Archived restored QA database and recovered two verified unused prepare bridges. Two simultaneous bridge allocations passed."
+            },
+            {
+              "id": "560abfcb7c3440f69df52784a9f2c599",
+              "terminal": "2026-11-26T14:08:29.456159+00:00",
+              "error": "S6_GRAPH_REFRESH_COMMAND_FAILED",
+              "graph_error": "S6_GRAPH_REFRESH_GRAPH_INVALID",
+              "business_outcome": "partial",
+              "provider_error": "TUSHARE_PROVIDER_REJECTED",
+              "market_requests": 7,
+              "guard_rejections": 0,
+              "free_bytes_before_prepare": 31203516416
+            }
+          ],
+          "graph": {
+            "configured_before": 5568,
+            "configured_after": 5581,
+            "added": 13,
+            "accepted_tushare_valuations": 5578,
+            "valuation_gap_codes": [
+              "002717.SZ",
+              "688121.SH",
+              "688496.SH"
+            ],
+            "accepted_target_quotes": 0,
+            "accepted_target_daily_bars": 0,
+            "publication_members_written": 0,
+            "failed_capabilities": [
+              "historical_price",
+              "realtime_quote"
+            ],
+            "upstream_rejection_detail": "The retained failed audits record TushareError without a response body or a provider status code. Suspension is unverified."
+          },
+          "capacity": {
+            "standard_runner_started": false,
+            "financial_requests": 0,
+            "workload_capacity_measured": false,
+            "publication_reconciliation_passed": false
+          },
+          "production": {
+            "current_publication_verified_member_hashes": {
+              "equity.quote.snapshot": 5572,
+              "equity.price.bar": 5561,
+              "equity.valuation.fact": 5572
+            },
+            "publication_as_of_date": "2026-09-30",
+            "numeric_policy_registry_sha256": "f917b8985833de6b1a1102abeeb641702b90cf8edf5b21c8ebe621b039cf09ee",
+            "active_numeric_policies": 0,
+            "current_financial_publication": false,
+            "quarter_end": "2026-09-30",
+            "configured_at_readback": 5568,
+            "securities_with_native_facts": [
+              "000858.SZ"
+            ],
+            "native_rows": 10,
+            "new_e1_requests": 0,
+            "new_e1_writes": 0
+          },
+          "remaining": "TuShare quote prefetch and historical reads must succeed or yield attributable rejection evidence. Full workload capacity, current financial Publication and all four source-to-Publication numeric comparisons remain open.",
+          "receipts": [
+            {
+              "path": ".tmp/data02-s6-f4cad6f5b/prepare-terminal-index.json",
+              "sha256": "e47a826d81f8e24b7edd5a22f3e305ae9461006b4b7ba5b07d72e7dcc4655390"
+            },
+            {
+              "path": ".tmp/data02-s6-f4cad6f5b/network-recovered.json",
+              "sha256": "0547874f08f73006cff4222407c488b0448b49d38a8fc6605314af9d18375fee"
+            },
+            {
+              "path": ".tmp/data02-s6-f4cad6f5b-network-retry/prepare-terminal-index.json",
+              "sha256": "85c1f53a4ee46434ffdc36df5b849b18a610679cedfadcd377dd63629f3a5103"
+            },
+            {
+              "path": ".tmp/data02-s6-f4cad6f5b-network-retry/prepare-terminal/current-market-graph-refresh.log",
+              "sha256": "6d8b6b00dd36faf0f1e22fa7e6425238b81dd8b43aefc62eae5f6f1b8dc8ab96"
+            },
+            {
+              "path": ".tmp/data02-s6-f4cad6f5b-network-retry/target-session-coverage.json",
+              "sha256": "53ec46d28e8e85cc5e4ab36e0d098acfece95b8366d0fc468130e4879e7eca8a"
+            },
+            {
+              "path": ".tmp/data02-s6-f4cad6f5b-network-retry/scope-comparison.json",
+              "sha256": "b287b11eb6b9d956ea6850838f4a080cbbdb795820a07560dba1bd84f1ef7d78"
+            },
+            {
+              "path": ".tmp/data02-s6-f4cad6f5b-network-retry/tushare-failure-audits.json",
+              "sha256": "692f583d2c6d0bce4a3daa1a422a21755791f5a085c3df8a39e738e5472986cf"
+            },
+            {
+              "path": ".tmp/data02-s6-f4cad6f5b/four-publication-admission.json",
+              "sha256": "e53b7589deda5a07fe11ab96d9c69cbe25d1a4c42931930cb39ad819f1b2faf8"
+            },
+            {
+              "path": ".tmp/data02-s6-f4cad6f5b/financial-coverage.json",
+              "sha256": "fa8c93437ed23f13d07ae44cb7abf6fe37fd8e5d534f6c60f04f20c46fafdf7a"
+            },
+            {
+              "path": ".tmp/data02-s6-f4cad6f5b-network-retry/terminal-network-cleanup.json",
+              "sha256": "cab7840b7c953d96492b945a8782a7f9ffb5441a3e8c3ec096604a96d9ac20d5"
+            }
+          ]
+        }
       }
     }
   ],
