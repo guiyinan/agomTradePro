@@ -33,6 +33,33 @@ from tests.support.portfolio_benchmark_valuation import (
 )
 
 
+@pytest.mark.parametrize(
+    ("statement_fields", "reason"),
+    [
+        ({"starting_equity": "invalid"}, "invalid decimal"),
+        ({"available_cash": "Infinity"}, "outside its supported range"),
+        ({"deposit": "0"}, "cash flow must have a positive magnitude"),
+        ({"available_cash": "9999"}, "unbalanced custody close"),
+        ({"positions": (("600000.SH", "1", "2", "0"),)}, "invalid custody position"),
+        ({"positions": (("600000.SH", "-1", "0", "0"),)}, "negative quantity"),
+        ({"split": "0"}, "invalid constituent economics"),
+    ],
+)
+def test_custody_statement_rejects_invalid_balances_and_constituent_terms(
+    statement_fields, reason
+) -> None:
+    cutoff = datetime(2026, 11, 24, 7, 30, tzinfo=UTC)
+    packet = original_broker_day(
+        broker_ref="isolated-custody",
+        asset="600000.SH",
+        opening=cutoff,
+        closing=cutoff,
+        **statement_fields,
+    )
+    with pytest.raises(BenchmarkDayUnavailable, match=reason):
+        read_day_ledger(packet)
+
+
 @pytest.mark.django_db
 def test_session_owner_publishes_and_rechecks_real_configuration_and_broker_run(monkeypatch):
     day = date(2026, 11, 24)

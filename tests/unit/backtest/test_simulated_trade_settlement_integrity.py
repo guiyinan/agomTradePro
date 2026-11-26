@@ -96,6 +96,41 @@ def test_session_must_match_the_requested_exchange_date() -> None:
         )
 
 
+@pytest.mark.parametrize(
+    ("changes", "reason"),
+    [
+        ({"stock_code": "600 000.SH"}, "canonical token"),
+        ({"quantity": True}, "positive exact integer"),
+        ({"price": Decimal("Infinity")}, "finite positive Decimal"),
+    ],
+)
+def test_invalid_order_terms_cannot_authorize_a_settlement(changes, reason) -> None:
+    with pytest.raises(StockTradeSettlementContractError, match=reason):
+        validate_settlement_quote(
+            request=replace(_request(), **changes),
+            quote=_quote(),
+            slippage_policy=SettlementSlippagePolicy.FEE_COMPONENT,
+        )
+
+
+@pytest.mark.parametrize(
+    ("changes", "reason"),
+    [
+        ({"side": StockTradeSide.SELL}, "side differs"),
+        ({"trade_date": MONDAY}, "trade_date differs"),
+        ({"cash_delta": Decimal("NaN")}, "cash_delta must be a finite Decimal"),
+        ({"release_session": date(2026, 10, 15)}, "precedes its market session"),
+    ],
+)
+def test_quote_must_preserve_trade_identity_and_release_order(changes, reason) -> None:
+    with pytest.raises(StockTradeSettlementContractError, match=reason):
+        validate_settlement_quote(
+            request=_request(),
+            quote=replace(_quote(), **changes),
+            slippage_policy=SettlementSlippagePolicy.FEE_COMPONENT,
+        )
+
+
 def test_valid_quote_checks_ignore_ambient_decimal_precision() -> None:
     """The exact ordinary-plan cents remain valid under a caller's small context."""
     with localcontext() as context:
