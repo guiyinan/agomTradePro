@@ -12662,6 +12662,110 @@
               "sha256": "cab7840b7c953d96492b945a8782a7f9ffb5441a3e8c3ec096604a96d9ac20d5"
             }
           ]
+        },
+        "post_e1_full_s6_target_session_20261127": {
+          "candidate": "f7170e918a7c5cbef68eed4ef104de2ab22306a4",
+          "development_fix": "89f5e080e1edc317af475152e1d23f2a55e630d8",
+          "target": "2026-11-26",
+          "ci": {
+            "successful_runs": 10,
+            "publication_run": "https://github.com/guiyinan/agomTradePro/actions/runs/45848897084",
+            "artifact_sha256": "bd1420de0ea95da54db4dc1f1e360b569bb91ec76644f6dbba8e4f4dee5fea29",
+            "cases": 303,
+            "required_cases": 69,
+            "expires": "2026-11-27T15:25:10+00:00"
+          },
+          "attempt": "f461cff7a7e4472280412e380bf67373",
+          "isolated_database": "agom_release_rehearsal_04b159e2ab8b30b3a838a9e183d24148",
+          "attempt_plan_sha256": "a283a299bed9bc41fbc7f084c11a642480e80a6afd1aa5e725ec82355221f479",
+          "prepare": {
+            "outcome": "failed",
+            "phase": "candidate_exports",
+            "exit_code": 60,
+            "terminal_at": "2026-11-26T16:24:31.536827+00:00",
+            "graph_error": "S6_GRAPH_REFRESH_GRAPH_INVALID",
+            "business_error": "MODEL_MARKET_SESSION_INCOMPLETE"
+          },
+          "target_session": {
+            "configured": 5581,
+            "tushare_valuations": 5578,
+            "valuation_gaps": [
+              "002717.SZ",
+              "688121.SH",
+              "688496.SH"
+            ],
+            "accepted_quote_securities": 0,
+            "accepted_daily_securities": 0,
+            "history_audit": 76282,
+            "request_kind": "tushare_daily_adj_factor_session_batch",
+            "error_class": "TushareError",
+            "upstream_endpoint_and_reason": "unattributed",
+            "failed_response_body_available": false
+          },
+          "market": {
+            "prior_upper": 436,
+            "graph_dispatches": 8,
+            "rejected_dispatches": 0,
+            "cumulative_upper": 444,
+            "ceiling": 646
+          },
+          "formal": {
+            "runner_started": false,
+            "required_reports_issued": 0,
+            "required_total": 10,
+            "validator_ran": false,
+            "workload_capacity_measured": false,
+            "four_publications_reconciled": false,
+            "production_e1_repeated": false
+          },
+          "local_followup": {
+            "commit": "e9dff0af4d6da2d7575a5174f1682b325c6226f6",
+            "tests": 47,
+            "scope": "Attribute each failed daily/adj_factor session read in RawAudit and emit an allowlisted reason to the graph log. Offline verification only."
+          },
+          "data02_exit_met": false,
+          "receipts": [
+            {
+              "path": ".tmp/data02-target-session-20261126/ci/verified.json",
+              "sha256": "6d2e9c2e52f592bbb1686883fa49605e122b347428611a8a38da097400645694"
+            },
+            {
+              "path": ".tmp/data02-target-session-20261126/publication-window/verified.json",
+              "sha256": "fe7bde51c6e3373ec02b759d9739e502185820cb6e92bd6f9ae70c7de4365500"
+            },
+            {
+              "path": ".tmp/data02-target-session-20261126/native-plan.json",
+              "sha256": "926551867b9ee65ce0e7193cca70e7dde18bb7a8cc993b30c3b556a6aab71f15"
+            },
+            {
+              "path": ".tmp/data02-target-session-20261126/prepare-terminal-index.json",
+              "sha256": "1b94285e08ea07e75dab4e2e1f97cd9041b4c74923956e7e9ff371448fd64a33"
+            },
+            {
+              "path": ".tmp/data02-target-session-20261126/prepare-terminal/current-market-graph-refresh.log",
+              "sha256": "926c26e4bf09122fd0a05e4d7ffa0cb3690fc9bf434ccc883b55ac47b5c04df3"
+            },
+            {
+              "path": ".tmp/data02-target-session-20261126/target-session-coverage.json",
+              "sha256": "303056148b92c5d91449dc37aee0dc105e24b7d99d1d42791c7b29b286d89d92"
+            },
+            {
+              "path": ".tmp/data02-target-session-20261126/terminal-request-audits.json",
+              "sha256": "c4760c760ef42455c3aeddce70587162581e1ce9f34d98865e7373c347192a0f"
+            },
+            {
+              "path": ".tmp/data02-target-session-20261126/terminal-raw-links.json",
+              "sha256": "7c39342fbb70dbd8fe2ae90b98bdb5a736589785aff1705792c1e38971498c39"
+            },
+            {
+              "path": ".tmp/data02-target-session-20261126/terminal-network-cleanup.json",
+              "sha256": "7f5160232c4c14d700e3fc1ded049c4e3b31d12e48498c287b2de91852f8bab5"
+            },
+            {
+              "path": ".tmp/data02-target-session-20261126/attribution-final.xml",
+              "sha256": "2726979953c10cc6f916171bfeb68bfd3a29d18d7e96844516681f7356009d37"
+            }
+          ]
         }
       }
     }
