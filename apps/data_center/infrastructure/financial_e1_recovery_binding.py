@@ -4,9 +4,30 @@ from __future__ import annotations
 
 import hashlib
 import json
+from dataclasses import dataclass, replace
+from datetime import datetime
+from decimal import Decimal
+from pathlib import Path
+from typing import TYPE_CHECKING
 from uuid import UUID, uuid5
 
-from django.db import transaction
+from django.db import connection, transaction
+
+from apps.data_center.application.financial_e1_discovery_runner import (
+    FinancialE1ExecutionAuthorityPort,
+)
+from apps.data_center.domain.financial_e1_discovery_plan import FinancialE1DiscoveryPlanV2
+from apps.data_center.domain.financial_numeric_source_qualification import (
+    FinancialNumericSourceQualification,
+)
+from apps.data_center.infrastructure.financial_numeric_catalog_models import (
+    FinancialMetricSourceCatalogEntryModel,
+)
+
+if TYPE_CHECKING:
+    from apps.data_center.infrastructure.financial_e1_discovery_runtime import (
+        DjangoFinancialE1SelectionLoader,
+    )
 
 from apps.data_center.domain.control_plane import SyncRun, SyncRunStatus
 from apps.data_center.domain.entities import FinancialFact, RawAudit
@@ -20,7 +41,7 @@ from core.exceptions import DataValidationError
 RECOVERY_TRIGGER = "financial_e1_retained_recovery"
 
 
-def forecast_digest(facts: tuple[FinancialFact, ...]) -> str:
+def forecast_digest(facts: tuple[FinancialFact, ...], review_sha256: str | None = None) -> str:
     """Pin every predicted value, raw identity, unit and financial availability time."""
 
     rows = []
@@ -44,7 +65,12 @@ def forecast_digest(facts: tuple[FinancialFact, ...]) -> str:
                 fact.available_at.isoformat(),
             )
         )
-    return hashlib.sha256(json.dumps(sorted(rows), separators=(",", ":")).encode()).hexdigest()
+    return hashlib.sha256(
+        json.dumps(
+            sorted(rows) if review_sha256 is None else [review_sha256, sorted(rows)],
+            separators=(",", ":"),
+        ).encode()
+    ).hexdigest()
 
 
 def _forecast_binding(inputs: str, forecast: str) -> str:
@@ -141,7 +167,11 @@ def claim_recovery(
 
 
 def validate_recovery_commit(
-    run: SyncRun, main: RawAudit, balance: RawAudit, facts: tuple[FinancialFact, ...]
+    run: SyncRun,
+    main: RawAudit,
+    balance: RawAudit,
+    facts: tuple[FinancialFact, ...],
+    review_sha256: str | None = None,
 ) -> None:
     """Lock the real source, claim, and both immutable rows again inside the fact transaction."""
 
@@ -159,6 +189,191 @@ def validate_recovery_commit(
         or run.provider_name != source.provider_name
         or run.requested != source.requested
         or run.config_snapshot_hash
-        != _forecast_binding(_binding(source, main, balance), forecast_digest(facts))
+        != _forecast_binding(_binding(source, main, balance), forecast_digest(facts, review_sha256))
     ):
         raise DataValidationError("Recovery claim does not match its locked source and captures.")
+
+
+@dataclass(frozen=True, slots=True)
+class RetainedWriteReview:
+    """Bind a separately approved current review to one sealed pair and source plan."""
+
+    digest: str
+    marker: str
+    owner_id: int
+    qualification_ids: tuple[str, ...]
+    captures: tuple[UUID, UUID]
+    completed: tuple[datetime, datetime]
+
+    def verify_material_forecast(
+        self, path: Path, *, facts: tuple[FinancialFact, ...], plan_hash: str, source: UUID
+    ) -> None:
+        """Compare the actual predicted rows to the independently reviewed original values."""
+        body = path.read_bytes()
+        if self.marker != f"retained-e1:{source}:{hashlib.sha256(body).hexdigest()}":
+            raise ValueError("Official material bytes differ from the separate signed review.")
+        review = json.loads(body)
+        if (
+            review["schema"] != "retained-e1-material-review.v1"
+            or review["plan_sha256"] != plan_hash
+            or review["source_run"] != str(source)
+            or len(facts) != len(review["fields"])
+            or set(review["fields"]) != {f.metric_code for f in facts}
+        ):
+            raise ValueError("Official material scope differs from the recovery forecast.")
+        for fact in facts:
+            row = review["fields"][fact.metric_code]
+            if (
+                fact.decision_evidence is None
+                or str(fact.decision_evidence.artifact_reference.capture_id) != row["capture"]
+                or Decimal(row["raw"]) != fact.value
+                or row["unit"] != fact.unit
+                or review["asset"] != fact.asset_code
+                or review["period"] != fact.period_end.isoformat()
+            ):
+                raise ValueError("Forecast does not match an independently reviewed source value.")
+
+    @classmethod
+    def load(
+        cls,
+        path: Path,
+        digest: str,
+        *,
+        source: UUID,
+        plan_hash: str,
+        operator: str,
+        main: RawAudit,
+        balance: RawAudit,
+    ) -> RetainedWriteReview:
+        """Require exact file bytes, original audit identities and the authenticated actor."""
+        body = path.read_bytes()
+        if hashlib.sha256(body).hexdigest() != digest:
+            raise ValueError("Retained write review digest mismatch.")
+        data = json.loads(body)
+        if not isinstance(data, dict) or set(data) != {
+            "schema",
+            "plan_sha256",
+            "source_run",
+            "owner_id",
+            "material_sha256",
+            "qualifications",
+        }:
+            raise ValueError("Invalid retained write review fields.")
+        owner, material, ids = data["owner_id"], data["material_sha256"], data["qualifications"]
+        if (
+            data["schema"] != "retained-e1-split-review.v1"
+            or data["plan_sha256"] != plan_hash
+            or data["source_run"] != str(source)
+            or main.run_id != str(source)
+            or balance.run_id != str(source)
+            or type(owner) is not int
+            or owner <= 0
+            or operator != f"django-user:{owner}"
+            or not isinstance(material, str)
+            or len(material) != 64
+            or any(c not in "0123456789abcdef" for c in material)
+            or not isinstance(ids, list)
+            or not ids
+            or not all(isinstance(i, str) for i in ids)
+            or ids != sorted(set(ids))
+        ):
+            raise ValueError("Retained write review identity or scope mismatch.")
+        a, b = reference_from_audit(main), reference_from_audit(balance)
+        if a.capture_id == b.capture_id:
+            raise ValueError("Retained write review requires two distinct originals.")
+        return cls(
+            digest,
+            f"retained-e1:{source}:{material}",
+            owner,
+            tuple(ids),
+            (a.capture_id, b.capture_id),
+            (a.evidence.response_completed_at, b.evidence.response_completed_at),
+        )
+
+
+def verify_reviewed_fields(
+    original: FinancialNumericSourceQualification,
+    current: FinancialNumericSourceQualification,
+    *,
+    marker: str,
+    completed: datetime,
+) -> None:
+    """Compare the whole typed source contract, context, endpoint and official capture."""
+    if (
+        current.effective_from <= completed
+        or current.effective_until is None
+        or current
+        != replace(
+            original,
+            source_applicability=marker,
+            effective_from=current.effective_from,
+            effective_until=current.effective_until,
+        )
+    ):
+        raise ValueError(
+            "Currently signed financial fields differ from their capture qualification."
+        )
+
+
+class RetainedWriteReviewGuard:
+    """Verify the original eligibility clocks and lock the separate current Owner review."""
+
+    def __init__(
+        self,
+        authority: FinancialE1ExecutionAuthorityPort,
+        review: RetainedWriteReview,
+        plan: FinancialE1DiscoveryPlanV2,
+        loader: DjangoFinancialE1SelectionLoader,
+    ) -> None:
+        self.authority = authority
+        self.review = review
+        self.loader = loader
+        self.current_plan = replace(plan, qualification_identities=review.qualification_ids)
+        historical: dict[str, FinancialNumericSourceQualification] = {}
+        for endpoint, stamp in zip(
+            (plan.main_request.endpoint, plan.balance_request.endpoint),
+            review.completed,
+            strict=True,
+        ):
+            snapshot = loader.load(plan, known_at=stamp)
+            for q in snapshot.qualifications:
+                if q.endpoint == endpoint:
+                    if q.contract.metric_code in historical:
+                        raise ValueError("Duplicate metric in retained source selection.")
+                    historical[q.contract.metric_code] = q
+        if len(historical) != len(plan.qualification_identities):
+            raise ValueError("Incomplete retained source selection.")
+        self.historical = historical
+
+    def assert_current(self) -> None:
+        """Validate the signed write interval on the real clock, including inside the fact UOW."""
+        self.authority.assert_current()
+        if connection.in_atomic_block:
+            # The catalog revoke command locks this same parent row before appending an event.
+            list(
+                FinancialMetricSourceCatalogEntryModel._default_manager.using("default")
+                .select_for_update()
+                .filter(qualification_identity__in=self.review.qualification_ids)
+                .order_by("qualification_identity")
+                .values_list("pk", flat=True)
+            )
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT clock_timestamp()")
+            checked_at = cursor.fetchone()[0]
+        current = self.loader.load(self.current_plan, known_at=checked_at)
+        codes = [q.contract.metric_code for q in current.qualifications]
+        if set(codes) != set(self.historical) or len(codes) != len(self.historical):
+            raise ValueError("Current review must cover exactly the retained metrics.")
+        for entry in current.entries:
+            if (
+                len(entry.owner_events) != 1
+                or entry.owner_events[0].actor_id != self.review.owner_id
+            ):
+                raise ValueError("Retained write review is not signed by the bound Owner.")
+            q = entry.qualification
+            verify_reviewed_fields(
+                self.historical[q.contract.metric_code],
+                q,
+                marker=self.review.marker,
+                completed=max(self.review.completed),
+            )

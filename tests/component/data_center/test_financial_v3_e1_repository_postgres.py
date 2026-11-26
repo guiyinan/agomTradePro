@@ -434,7 +434,7 @@ class _WriterSetup:
     balance_audit_id: str
 
 
-def _build_setup() -> _WriterSetup:
+def _build_setup(review_sha256: str | None = None) -> _WriterSetup:
     """Persist run/capture metadata before constructing the transaction writer."""
 
     base_fact = _synthetic_v3_fact()
@@ -583,6 +583,7 @@ def _build_setup() -> _WriterSetup:
         data_fetch_audit_writer=data_fetch_writer,
         run_repository=run_repository,
         authority_guard=_SyntheticAuthorityGuard(),
+        review_sha256=review_sha256,
         using=DEFAULT_DB_ALIAS,
     )
     return _WriterSetup(
@@ -749,7 +750,8 @@ def test_retained_recovery_preserves_failed_parent_and_binds_both_audits(
     from core.exceptions import DataValidationError
 
     _require_postgres()
-    setup = _build_setup()
+    review_digest = "c" * 64
+    setup = _build_setup(review_digest)
     parent = SyncRunRepository().save(
         replace(
             setup.run,
@@ -769,8 +771,9 @@ def test_retained_recovery_preserves_failed_parent_and_binds_both_audits(
         parent.config_snapshot_hash,
         setup.main_audit,
         setup.balance_audit,
-        forecast_digest(predicted),
+        forecast_digest(predicted, review_digest),
     )
+    assert forecast_digest(predicted) != args[-1]
     child = claim_recovery(*args)
     assert child.run_id != parent.run_id
     with pytest.raises(DataValidationError, match="already has"):

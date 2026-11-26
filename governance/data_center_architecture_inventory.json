@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 7672,
+    "current_surface_references": 7684,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -13089,6 +13089,54 @@
     {
       "path": "apps/data_center/infrastructure/financial_e1_governed_execution.py",
       "text": "raise ValueError(\"operator must be the exact current server actor identity\")"
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_e1_recovery_binding.py",
+      "text": "\"\"\"Bind a separately approved current review to one sealed pair and source plan.\"\"\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_e1_recovery_binding.py",
+      "text": "\"\"\"Verify the original eligibility clocks and lock the separate current Owner review.\"\"\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_e1_recovery_binding.py",
+      "text": "codes = [q.contract.metric_code for q in current.qualifications]"
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_e1_recovery_binding.py",
+      "text": "current = self.loader.load(self.current_plan, known_at=checked_at)"
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_e1_recovery_binding.py",
+      "text": "current.effective_from <= completed"
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_e1_recovery_binding.py",
+      "text": "current: FinancialNumericSourceQualification,"
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_e1_recovery_binding.py",
+      "text": "effective_from=current.effective_from,"
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_e1_recovery_binding.py",
+      "text": "effective_until=current.effective_until,"
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_e1_recovery_binding.py",
+      "text": "for entry in current.entries:"
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_e1_recovery_binding.py",
+      "text": "or current"
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_e1_recovery_binding.py",
+      "text": "or current.effective_until is None"
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_e1_recovery_binding.py",
+      "text": "raise ValueError(\"Current review must cover exactly the retained metrics.\")"
     },
     {
       "path": "apps/data_center/infrastructure/financial_fact_publication_helpers.py",

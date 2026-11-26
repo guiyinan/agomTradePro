@@ -315,6 +315,7 @@ class CaptureFinancialE1DiscoveryUseCase:
         clock: FinancialE1DiscoveryClockPort,
         authority_guard: FinancialE1ExecutionAuthorityPort,
         capture_id_factory: FinancialE1DiscoveryCaptureIdFactory = uuid4,
+        retained_captures: tuple[UUID, UUID] | None = None,
     ) -> None:
         """Require real preflight, egress, replay, qualification, and writer ports."""
 
@@ -341,6 +342,7 @@ class CaptureFinancialE1DiscoveryUseCase:
         self._clock = clock
         self._authority_guard = authority_guard
         self._capture_id_factory = capture_id_factory
+        self._retained_captures = retained_captures
 
     def prepare_retained_candidates(
         self,
@@ -351,9 +353,13 @@ class CaptureFinancialE1DiscoveryUseCase:
         """Requalify both captured responses without constructing or sending a request."""
 
         self._authority_guard.assert_current()
-        snapshot = self._preflight.load_exact_current_selection(
-            plan, known_at=self._clock.now_utc()
-        )
+        cutoff = self._clock.now_utc()
+        if self._retained_captures is not None:
+            refs = (main.retention.reference, balance.retention.reference)
+            if tuple(ref.capture_id for ref in refs) != self._retained_captures:
+                raise ValueError("This review is bound to a different pair of captures.")
+            cutoff = min(ref.evidence.response_completed_at for ref in refs)
+        snapshot = self._preflight.load_exact_current_selection(plan, known_at=cutoff)
         qualifications = _validate_preflight(plan, snapshot)
         if (
             main.request != plan.main_request
@@ -441,6 +447,8 @@ class CaptureFinancialE1DiscoveryUseCase:
 
         if type(plan) is not FinancialE1DiscoveryPlanV2:
             raise TypeError("plan must be FinancialE1DiscoveryPlanV2")
+        if self._retained_captures is not None:
+            raise ValueError("This retained write review cannot perform a capture.")
         requested = len(plan.qualification_identities)
         if type(run) is not SyncRun:
             raise TypeError("run must be a persisted SyncRun returned by the owner repository")
