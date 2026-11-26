@@ -26,3 +26,10 @@ if not isinstance(_source_database_name, str) or _source_database_name == _test_
     )
 _test_database = _default_database.setdefault("TEST", {})
 _test_database["NAME"] = _test_database_name
+if os.environ.get("AGOM_CRITICAL_USE_MIGRATED_TEMPLATE") == "1":
+    _template_name = "agomtradepro_critical_migrated_template"
+    if _template_name in {_test_database_name, _source_database_name}:
+        raise ImproperlyConfigured(
+            "The migrated template must differ from the source and test databases"
+        )
+    _test_database["TEMPLATE"] = _template_name

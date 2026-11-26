@@ -40,6 +40,7 @@ def test_explicit_postgres_test_identity_keeps_source_database(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """The adapter identifies the disposable test target without switching NAME."""
+    monkeypatch.delenv("AGOM_CRITICAL_USE_MIGRATED_TEMPLATE", raising=False)
     values = _load_settings(monkeypatch, name="test_critical_source")
 
     assert values["DATABASES"]["default"] == {
@@ -47,6 +48,20 @@ def test_explicit_postgres_test_identity_keeps_source_database(
         "NAME": "critical_source",
         "TEST": {"NAME": "test_critical_source"},
     }
+
+
+def test_migrated_template_only_seeds_a_distinct_disposable_database(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("AGOM_CRITICAL_USE_MIGRATED_TEMPLATE", "1")
+    template = "agomtradepro_critical_migrated_template"
+    database = _load_settings(monkeypatch, name="test_critical_source")["DATABASES"]["default"]
+    assert database["NAME"] == "critical_source"
+    assert database["TEST"] == {"NAME": "test_critical_source", "TEMPLATE": template}
+    with pytest.raises(ImproperlyConfigured, match="template must differ"):
+        _load_settings(monkeypatch, name=template)
+    with pytest.raises(ImproperlyConfigured, match="template must differ"):
+        _load_settings(monkeypatch, name="test_critical_source", source=template)
 
 
 @pytest.mark.parametrize("name", [None, "", " ", " test_critical_source", "test_critical_source "])
@@ -119,7 +134,17 @@ def test_critical_step_binds_the_precreated_database() -> None:
         assert step["env"]["AGOM_CRITICAL_TEST_DB_NAME"] == expected_name
         if "aud05" in expected_name:
             assert step["env"]["AGOM_AUD05_PG_CONCURRENCY_EVIDENCE"] == "1"
+            assert step["env"]["AGOM_CRITICAL_USE_MIGRATED_TEMPLATE"] == "1"
             assert "--create-db" in step["run"]
+
+    names = [step.get("name") for step in steps]
+    freeze = names.index("Freeze the migrated schema before seeding the CI catalog")
+    assert names.index("Apply full migration graph to empty PostgreSQL database") < freeze
+    assert freeze < names.index("Initialize and verify runtime Data Center catalog")
+    assert (
+        "CREATE DATABASE agomtradepro_critical_migrated_template TEMPLATE agomtradepro_critical ALLOW_CONNECTIONS false"
+        in steps[freeze]["run"]
+    )
 
     celery = next(
         step
