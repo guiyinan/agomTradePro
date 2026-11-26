@@ -26,6 +26,9 @@ from apps.data_center.infrastructure.models import FinancialFactModel, MarketThe
 from apps.decision_rhythm.infrastructure.models import UnifiedRecommendationModel
 from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
 from core.exceptions import DataFetchError
+from tests.component.equity.test_research_snapshot_tui_browser import (
+    loopback_only_python_network as loopback_only_python_network,
+)
 from tests.playwright.runtime_compatibility import ensure_subprocess_event_loop_policy
 from tests.support.account_authority_generation_flush import (  # noqa: F401
     preserve_account_authority_generation,
@@ -108,7 +111,7 @@ def _submit(page, value: str, *, keyboard: bool = False):
 
 @pytest.mark.django_db(transaction=True, serialized_rollback=True)
 def test_workspace_candidate_opens_owned_research_without_creating_config(
-    live_server, django_user_model, subprocess_policy, monkeypatch
+    live_server, django_user_model, subprocess_policy, monkeypatch, loopback_only_python_network
 ) -> None:
     """An ordinary investor can read the selected account's candidate and follow its detail."""
     source_health = DataFetchError("private provider detail", code="MARKET_CALENDAR_UNAVAILABLE")
@@ -330,13 +333,22 @@ def test_workspace_candidate_opens_owned_research_without_creating_config(
             link = page.locator("#workspace-bridge-research-entry").get_by_role("link")
             target = f"/equity/detail/600547.SH/?account_id={account.pk}"
             expect(link).to_have_attribute("href", target)
-            link.click()
+            # The detail header renders before its quote request completes.
+            # Keep the browser and its isolated providers alive for that response.
+            with page.expect_response(
+                lambda response: urlsplit(response.url).path == "/api/data-center/prices/quotes/"
+                and parse_qs(urlsplit(response.url).query).get("asset_code") == ["600547.SH"]
+            ) as quote:
+                link.click()
             expect(page).to_have_url(live_server.url + target)
             expect(page.locator("#stockCode")).to_have_text("600547.SH")
+            assert quote.value.status == 404
+            assert quote.value.json() == {"detail": "No quote found."}
         finally:
             browser.close()
     assert not MarketThermometerConfigModel.objects.exists()
     assert set(methods) == {"GET"}
+    assert loopback_only_python_network == []
 
 
 @pytest.mark.django_db(transaction=True)
