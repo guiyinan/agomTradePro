@@ -11,10 +11,6 @@ from apps.account.infrastructure.owner_tenant_authority_v2_models import (
     OwnerTenantAuthorityV2RevocationModel,
 )
 
-pytest_plugins = [
-    "tests.component.account.test_account_owner_assignment_evidence_v4_repository",
-]
-
 
 def test_migration_0059_roundtrip_constraints_and_protected_parent_foreign_keys(assignment_alias):
     module = import_module("apps.account.migrations.0059_owner_tenant_authority_v2")

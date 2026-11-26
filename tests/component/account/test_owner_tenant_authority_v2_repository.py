@@ -41,10 +41,6 @@ from tests.component.account.test_account_owner_assignment_evidence_v4_repositor
     _seed,
 )
 
-pytest_plugins = [
-    "tests.component.account.test_account_owner_assignment_evidence_v4_repository",
-]
-
 
 @pytest.fixture
 def owner_alias(assignment_alias: str) -> Iterator[str]:

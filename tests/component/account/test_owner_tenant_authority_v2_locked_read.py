@@ -18,8 +18,6 @@ from tests.component.account.test_owner_tenant_authority_v2_composition import (
     _seed_live_compatible,
 )
 
-pytest_plugins = ["tests.component.account.test_owner_tenant_authority_v2_composition"]
-
 
 def test_callback_keeps_actual_owner_locks_until_materialized_read_returns(
     owner_physical_alias, monkeypatch

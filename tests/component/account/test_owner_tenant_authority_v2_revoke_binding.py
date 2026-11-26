@@ -31,8 +31,6 @@ from tests.component.account.test_owner_tenant_authority_v2_repository import (
     _revocation,
 )
 
-pytest_plugins = ["tests.component.account.test_owner_tenant_authority_v2_repository"]
-
 
 def test_other_real_admin_cannot_leave_invalid_revocation_when_error_is_caught(
     owner_alias, monkeypatch

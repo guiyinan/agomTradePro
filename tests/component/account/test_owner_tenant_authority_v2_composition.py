@@ -42,8 +42,6 @@ from tests.component.account.test_owner_tenant_authority_v2_repository import _o
 from tests.unit.account import test_allocated_physical_account_row_observation_v3 as root_fixtures
 from tests.unit.account import test_canonical_account_creation as creation_fixtures
 
-pytest_plugins = ["tests.component.account.test_owner_tenant_authority_v2_repository"]
-
 
 @pytest.fixture
 def owner_physical_alias(owner_alias):
