@@ -11,11 +11,13 @@ from typing import Any, cast
 from uuid import UUID, uuid4
 
 import pytest
+from cryptography.fernet import Fernet
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.base_user import AbstractBaseUser
-from django.db import DatabaseError, connection, models
+from django.db import DatabaseError, connection, models, transaction
 from django.db.models import Model
+from django.test import override_settings
 from django.urls import reverse
 from rest_framework.test import APIClient
 
@@ -69,6 +71,9 @@ from apps.simulated_trading import (
     execution_current_reference_composition as current_reference_module,
 )
 from apps.simulated_trading import owner_order_submission_composition as order_submission_module
+from apps.simulated_trading.application.corporate_action_tax_cash_coverage import (
+    TaxCashCoverageStatus,
+)
 from apps.simulated_trading.application.fee_policy_v2 import (
     CreateFeePolicyVersionUseCase,
     FeePolicyVersionCommand,
@@ -86,6 +91,9 @@ from apps.simulated_trading.domain.execution_fee_policy_v2 import (
     SimulatedFeePolicyV2,
 )
 from apps.simulated_trading.domain.execution_settlement_uow import SimulatedTradeSide
+from apps.simulated_trading.execution_settlement_composition import (
+    build_configured_tax_cash_coverage_reader,
+)
 from apps.simulated_trading.infrastructure.automatic_trading_invocation_models import (
     AutomaticTradingInvocationModel,
 )
@@ -106,6 +114,7 @@ from apps.simulated_trading.owner_order_submission_composition import (
 )
 from apps.strategy.application import execution_gateway
 from apps.strategy.application.execution_gateway import ExecutionResult, SignalInfo
+from shared.config.secrets import get_secrets
 from tests.component.data_center.test_instrument_reference_snapshot_repository import (
     persisted_source_snapshot as persisted_source_snapshot,
 )
@@ -130,6 +139,8 @@ from tests.support.ash07_synthetic_auto_risk import (
     install_synthetic_auto_risk_service,
 )
 from tests.support.native_postgres_database import assert_native_postgres_test_database
+from tests.support.simulated_tax_model_native_account import create_public_nonstaff_tax_owner_seed
+from tests.support.simulated_tax_model_native_sources import isolated_task_channels
 from tests.unit.risk_center.test_local_simulated_market_provider import (
     _body,
     _policy,
@@ -365,11 +376,6 @@ def qualified_caller_context(
     assert classification.rule_market is not None
     assert classification.board is not None
 
-    account = _create_account()
-    owner_id = account.user_id
-    assert type(account.pk) is int
-    assert type(owner_id) is int
-
     calendar = persist_auto_uow_formal_calendar(
         as_of=AS_OF,
         exchange=classification.source_exchange,
@@ -378,6 +384,22 @@ def qualified_caller_context(
     )
     assert calendar.market_session == TRADE_DATE
     assert calendar.next_open_session == date(2026, 10, 19)
+
+    with (
+        isolated_task_channels(),
+        override_settings(ROOT_URLCONF="tests.support.ash07_owner_source_test_urls"),
+        monkeypatch.context() as account_setup,
+    ):
+        account_setup.setenv("AGOMTRADEPRO_ENCRYPTION_KEY", Fernet.generate_key().decode("ascii"))
+        get_secrets.cache_clear()
+        try:
+            owner_seed = create_public_nonstaff_tax_owner_seed(as_of=AS_OF)
+        finally:
+            get_secrets.cache_clear()
+    account = owner_seed.account
+    owner_id = owner_seed.owner.pk
+    assert type(account.pk) is int
+    assert type(owner_id) is int
 
     bundle = _seed_rule_bundle(
         security_id=SECURITY_ID,
@@ -1901,6 +1923,14 @@ def test_auto_caller_new_buy_uses_real_uow_and_keeps_t1_shares_unavailable(
     account = qualified_caller_context.account
     account_id = account.pk
     assert type(account_id) is int
+    with transaction.atomic(using="default"):
+        coverage = build_configured_tax_cash_coverage_reader(using="default").read_locked(
+            physical_account_id=account_id,
+            owner_user_id=qualified_caller_context.owner_id,
+            using="default",
+        )
+    assert coverage.coverage_status is TaxCashCoverageStatus.COMPLETE
+    assert coverage.tax_cash_unavailable == Decimal("0")
     _build_real_auto_caller(
         monkeypatch,
         include_buy_candidate=True,

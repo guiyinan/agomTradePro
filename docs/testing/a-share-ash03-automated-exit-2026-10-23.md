@@ -57,3 +57,11 @@ CI 兼容补记：开发提交 `f62f1c9d137b66d7cb54f983e9383b2924839b1d` 的双
 原生数据库 SQL 身份与 TEST.NAME 均为本轮独立测试库，567 项迁移完成。最终测试输入哈希前后一致，Black/isort/Ruff 通过，独立 Luna max 复核的正向 outcome 缺口已在首次运行前补强。生产 Python、模型、迁移、来源和路由完全未改，因此复用 `08fa2eeab` 已有生产门禁，不重跑全库 mypy、统一投影或浏览器。早期准备脚本缺 PYTHONPATH 的失败及成功重试原件保留；本轮 PostgreSQL 已正常停止，自有数据库/cluster 留作本机证据，其他实例未动。
 
 唯一精简索引为 `.tmp/ash03-auto-sell-readback-20261031/native-pg-20261101/verification-index.json`，SHA-256 `f07884f16314510407631401f42091cdaf6922d2e8586e3e1047b36a0e4fe099`；正式提交/推送另记同目录 `delivery.json`。原件仅本机可用。回滚仅撤回本次测试和相关退出说明；本次证明真实 Engine/UoW 的本地正向 SELL 与去重，不证明合成上游风险/行情的生产资格。普通用户端流程、真实来源和账户 613 验收仍开放，ASH-03 第 7 组及整单元不关闭。
+
+## 2026-11-26 隔离 PostgreSQL 自动买入与 T+1
+
+旧夹具直接写入模拟账户表，税款覆盖读取器查到的正式账户映射为 0 条，自动买入返回 `BUY_EXECUTION_OUTCOME_UNKNOWN`。本次验收先通过带 Session 和 CSRF 的公开建账接口创建普通用户的模拟账户，按固定的执行时点重读正式建账绑定，再用实际税款覆盖读取器核对该新账户的覆盖状态为 `COMPLETE`、税款占用金额为 0。
+
+在 2026-10-16 的测试交易日，真实自动执行入口确认一笔 200 股买入。成交记录为待结算，持仓 200 股，当日可卖 0 股，记录的解禁日为 2026-10-19。用例验证解禁日的计算；跨日释放属于另一项验收。行情、风险输入和资金均来自隔离测试场景。
+
+原始失败见 [Nightly PostgreSQL 作业](https://github.com/guiyinan/agomTradePro/actions/runs/45670383021/job/139403758144)。本机复现记录与验收原件保存在 `.tmp/szse-renewal-b/` 下的 `auto-map-count.txt`、`auto-map-check.log` 和 `ash03-public-complete.xml`。
