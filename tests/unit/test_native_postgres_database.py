@@ -341,6 +341,8 @@ def test_schema_cleanup_guard_failure_prevents_clearing_and_dropping_owned_table
             self.deleted.append(model)
 
     class _SchemaConnection:
+        vendor = "postgresql"
+
         def __init__(self) -> None:
             self.introspection = _Introspection()
             self.editor = _SchemaEditor()

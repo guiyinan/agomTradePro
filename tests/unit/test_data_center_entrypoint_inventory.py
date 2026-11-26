@@ -190,6 +190,8 @@ def test_data_center_script_imports_remain_candidate_review_after_registration(
         "scripts/prepare_s6_candidate_source_snapshot.py",
         "scripts/refresh_s6_isolated_market_graph.py",
         "scripts/replay_ref05_public_evidence.py",
+        "scripts/run_cal03_snapshot_walk_forward.py",
+        "scripts/run_cal03_synthetic_walk_forward.py",
         "scripts/s6_isolated_market_graph_receipt.py",
         "scripts/validate_release_rehearsal.py",
     ]
