@@ -5,6 +5,17 @@ from django.db import migrations, models
 from django.db.backends.base.schema import BaseDatabaseSchemaEditor
 
 
+def restore_binding_guards(apps: Apps, schema_editor: BaseDatabaseSchemaEditor) -> None:
+    """Restore the 0030 binding triggers after SQLite remakes the table in either direction."""
+    if schema_editor.connection.vendor == "sqlite":
+        for action in ("UPDATE", "DELETE"):
+            schema_editor.execute(
+                f"CREATE TRIGGER IF NOT EXISTS research_event_study_binding_immutable_{action.lower()} "
+                f"BEFORE {action} ON research_event_study_binding "
+                "BEGIN SELECT RAISE(ABORT, 'Event-study evidence is immutable'); END"
+            )
+
+
 def install_attempt_guards(apps: Apps, schema_editor: BaseDatabaseSchemaEditor) -> None:
     """Prevent deleting or moving an attempt out of the committed family count."""
     vendor = schema_editor.connection.vendor
@@ -30,13 +41,7 @@ def install_attempt_guards(apps: Apps, schema_editor: BaseDatabaseSchemaEditor) 
             FOR EACH ROW EXECUTE FUNCTION research_event_study_protect_attempt();
         """)
     elif vendor == "sqlite":
-        # AddConstraint remakes this SQLite table; restore its immutable guards.
-        for action in ("UPDATE", "DELETE"):
-            schema_editor.execute(
-                f"CREATE TRIGGER IF NOT EXISTS research_event_study_binding_immutable_{action.lower()} "
-                f"BEFORE {action} ON research_event_study_binding "
-                "BEGIN SELECT RAISE(ABORT, 'Event-study evidence is immutable'); END"
-            )
+        restore_binding_guards(apps, schema_editor)
         schema_editor.execute("""
             CREATE TRIGGER research_event_study_attempt_delete BEFORE DELETE ON research_experiment_trial
             WHEN EXISTS (SELECT 1 FROM research_event_study_binding WHERE family_id=OLD.family_id)
@@ -68,6 +73,8 @@ def remove_attempt_guards(apps: Apps, schema_editor: BaseDatabaseSchemaEditor) -
 class Migration(migrations.Migration):
     dependencies = [("research", "0030_event_study_final_oos_control")]
     operations = [
+        # On reversal this runs after RemoveConstraint has remade the SQLite table.
+        migrations.RunPython(migrations.RunPython.noop, restore_binding_guards),
         migrations.AddConstraint(
             model_name="eventstudybindingmodel",
             constraint=models.UniqueConstraint(
