@@ -568,7 +568,7 @@ gh workflow run ci-fast-feedback.yml --ref dev/next-development -f base_ref=<ful
 # 网页：仓库 → Actions → 左侧选 workflow → 右上 "Run workflow" → 选分支
 ```
 
-Nightly 的公司行动参考收益、账户净值和历史价格用例在 `test_agomtradepro_critical_aud05` 上使用临时受限登录。夹具核对实际库名和回环端口，退出时验证原对象所有者、权限和临时角色的清理结果。
+Nightly 的公司行动参考收益、账户净值和历史价格用例在 `test_agomtradepro_critical_aud05` 上使用临时受限登录。夹具核对实际库名和回环端口，退出时验证原对象所有者、权限和临时角色的清理结果。现金分红用例分别留存登记日、除息日和最新收盘价。账户净值长流程在各阶段重新采集合成证券资料，仍按每份快照自身的 10 分钟有效期校验。
 
 ### 架构治理命令
 

@@ -658,6 +658,33 @@ def _synthetic_tax_policy(revision_set_sha256: str) -> dict[str, object]:
     }
 
 
+def synthetic_current_reference_selection(
+    snapshot: InstrumentReferenceSnapshotRecord, *, security_id: str
+) -> dict[str, object]:
+    """Bind the ten-minute test selector to one retained CNY source and mapping."""
+    mapping = snapshot.mapping_record
+    return ExecutionCurrentReferenceSelectorV2(
+        purpose="normal_simulated_current_reference",
+        max_local_reference_age_seconds=600,
+        items=(
+            ExecutionCurrentReferenceSelectorItemV2(
+                security_id=security_id,
+                asset_code=_ASSET_CODE,
+                source_code=_INSTRUMENT_SOURCE_CODE,
+                snapshot_id=snapshot.snapshot_id,
+                snapshot_content_hash=snapshot.content_hash,
+                snapshot_record_digest=snapshot.record_digest,
+                mapping_record_id=mapping.mapping_record_id,
+                mapping_id=mapping.content.mapping_id,
+                mapping_version=mapping.content.mapping_version,
+                mapping_content_hash=mapping.content_hash,
+                mapping_record_digest=mapping.record_digest,
+                simulated_asset_type="equity",
+            ),
+        ),
+    ).to_payload()
+
+
 def _activate_tax_runtime(
     *,
     account: SimulatedAccountModel,
@@ -673,31 +700,12 @@ def _activate_tax_runtime(
 ) -> None:
     """Activate fully explicit test-only instrument, tax, and date candidates."""
 
-    mapping = snapshot.mapping_record
-    selector = ExecutionCurrentReferenceSelectorV2(
-        purpose="normal_simulated_current_reference",
-        max_local_reference_age_seconds=600,
-        items=(
-            ExecutionCurrentReferenceSelectorItemV2(
-                security_id=_SECURITY_ID,
-                asset_code=_ASSET_CODE,
-                source_code=_INSTRUMENT_SOURCE_CODE,
-                snapshot_id=snapshot.snapshot_id,
-                snapshot_content_hash=snapshot.content_hash,
-                snapshot_record_digest=snapshot.record_digest,
-                mapping_record_id=mapping.mapping_record_id,
-                mapping_id=mapping.content.mapping_id,
-                mapping_version=mapping.content.mapping_version,
-                mapping_content_hash=mapping.content_hash,
-                mapping_record_digest=mapping.record_digest,
-                simulated_asset_type="equity",
-            ),
-        ),
-    ).to_payload()
     activate_runtime_profile_patch(
         environment="development",
         patch={
-            "config_center.market.simulated_current_reference_selection": selector,
+            "config_center.market.simulated_current_reference_selection": synthetic_current_reference_selection(
+                snapshot, security_id=_SECURITY_ID
+            ),
             "config_center.market.exchange_timezone_map": {_EXCHANGE: _TIMEZONE},
             SIMULATED_TAX_DATE_CONVENTION_KEY: {
                 "schema_version": "simulated-dividend-tax-date-conventions.v1",
