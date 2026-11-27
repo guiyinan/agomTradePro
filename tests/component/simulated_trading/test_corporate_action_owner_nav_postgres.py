@@ -23,6 +23,9 @@ from django.utils import timezone
 from apps.account.domain.simulated_corporate_action_write_capabilities import (
     SimulatedCorporateActionWriteCapability as Capability,
 )
+from apps.audit.system_audit_runtime_readiness_composition import (
+    read_system_audit_runtime_readiness,
+)
 from apps.config_center.application.runtime_public import activate_runtime_profile_patch
 from apps.data_center.application.m1_reference_price_publication import (
     M1ReferencePricePublicationCommand,
@@ -62,9 +65,6 @@ from apps.simulated_trading.domain.corporate_action_nav_mark_policy import (
 )
 from apps.simulated_trading.execution_current_reference_composition import (
     build_current_reference_classification_reader,
-)
-from apps.simulated_trading.infrastructure.corporate_action_posting_models import (
-    CorporateActionPostingModel,
 )
 from apps.simulated_trading.infrastructure.models import PositionModel
 from tests.support.account_authority_generation_flush import (  # noqa: F401
@@ -254,7 +254,11 @@ def _read(world: OwnerWorkflowNativeWorld) -> dict[str, object]:
 def _refresh(world: OwnerWorkflowNativeWorld) -> dict[str, object]:
     """Refresh the synthetic instrument and owner evidence for the next NAV stage."""
     refresh_owner_workflow_instrument(world)
-    if CorporateActionPostingModel.objects.filter(account_id=world.account_id).exists():
+    lease = read_system_audit_runtime_readiness(
+        environment=world.audit_authority_seed.environment, using="default"
+    )
+    # Leave time for the separate prepare and confirm transactions to finish.
+    if lease.valid_until is None or lease.valid_until <= timezone.now() + timedelta(minutes=1):
         recover_owner_workflow_operator_authority(world)
     payload = _post(
         world,
