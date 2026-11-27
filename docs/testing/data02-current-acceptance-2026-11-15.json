@@ -12766,6 +12766,133 @@
               "sha256": "2726979953c10cc6f916171bfeb68bfd3a29d18d7e96844516681f7356009d37"
             }
           ]
+        },
+        "post_e1_full_s6_provider_attribution_20261127": {
+          "candidate_sha": "2825e23a56ab458ce20d7c72fb2b52851c056f90",
+          "attribution_source_commit": "e9dff0af4d6da2d7575a5174f1682b325c6226f6",
+          "target_trade_date": "2026-11-26",
+          "attempt_id": "2c77abad9aa7480094f9827e5732ac03",
+          "official_ci": {
+            "passed": 10,
+            "publication_run": "https://github.com/guiyinan/agomTradePro/actions/runs/45918697846",
+            "artifact_sha256": "e2ec604c4ab0d31af44a3e7b1ba674879a1ad491e7c74c882e0d31fcff8267ed",
+            "postgresql_cases": 303
+          },
+          "isolated_diagnostic": {
+            "outcome": "success",
+            "attempt": "68e458e919c54bc488e306f6204eda01",
+            "responses": [
+              {
+                "endpoint": "daily",
+                "http": 200,
+                "code": 0,
+                "rows": 5578,
+                "sha256": "11676b19dec26a37e94e474cd1fac287c8b0435572fbe1476389e0d0bf67edb1"
+              },
+              {
+                "endpoint": "adj_factor",
+                "http": 200,
+                "code": 0,
+                "rows": 5586,
+                "sha256": "2f6b5346321cca9a0f8576cab537752c3082fa93f3d045c68368553deb934e5b"
+              }
+            ],
+            "previous_rejection_reason": "unrecoverable from sealed original"
+          },
+          "prepare": {
+            "terminal": {
+              "attempt_id": "2c77abad9aa7480094f9827e5732ac03",
+              "candidate_sha": "2825e23a56ab458ce20d7c72fb2b52851c056f90",
+              "error_code": "S6_GRAPH_REFRESH_COMMAND_FAILED",
+              "execution_image_id": "sha256:5b4d356e3681f225de97d9fbe2332af2850c333f684cbf762718094344743d8f",
+              "exit_code": 60,
+              "phase": "candidate_exports",
+              "schema": "release.s6-prepare-status.v2",
+              "state": "failed",
+              "updated_at": "2026-11-27T01:55:56.980665+00:00"
+            },
+            "graph_result": "S6_GRAPH_REFRESH_GRAPH_INVALID",
+            "valuation_coverage": [
+              5578,
+              5581
+            ],
+            "missing_target_daily": [
+              "002717.SZ",
+              "688121.SH",
+              "688496.SH"
+            ],
+            "quote_phase_stored": 0,
+            "publication_phase_stored": 0,
+            "session_pair_succeeded": true,
+            "recorded_asset": "688496.SH",
+            "recorded_reason": "TUSHARE_PROVIDER_REJECTED",
+            "upstream_business_code": null,
+            "upstream_message": null,
+            "endpoint_attribution": "Frozen source and zero-network replay identify suspend_d after the successful session pair. Graph log directly records asset and rejection. No upstream rejection body survived.",
+            "halt_status": "unverified",
+            "failed_quote_audit": 76318
+          },
+          "market_budget": {
+            "before_probe": 444,
+            "isolated_probe": 2,
+            "graph": 12,
+            "rejected_by_local_guard": 0,
+            "cumulative_upper": 458,
+            "ceiling": 646,
+            "reserve": 60
+          },
+          "formal": {
+            "runner_started": false,
+            "reports_issued": 0,
+            "required": 10,
+            "validator_ran": false,
+            "four_publications_reconciled": false,
+            "capacity_measured": false,
+            "e1_repeated": false
+          },
+          "data02_exit_met": false,
+          "receipts": [
+            {
+              "path": ".tmp/data02-attribution-20261127/ci/verified.json",
+              "sha256": "2c50f4b4c9ac683b03db22b6a279ddf57ccaf3c61f1c0e65e70c2bbd7a2e5b2f"
+            },
+            {
+              "path": ".tmp/data02-attribution-20261127/publication-window/verified.json",
+              "sha256": "989b0baaeaf89db536c5c5e30f09d49bb9ce76d71ff652ad530c988d502936a1"
+            },
+            {
+              "path": ".tmp/data02-attribution-20261127/probe-verified.json",
+              "sha256": "1b5888be03d1dc295e7138d97a19142e234eb60b27ebff79cda1feaabce092c1"
+            },
+            {
+              "path": ".tmp/data02-attribution-20261127/native-plan.json",
+              "sha256": "aad20e6a56aa14b75b3ddf47ee1cef2f68823d32aed81b2fa14a08e7ef146336"
+            },
+            {
+              "path": ".tmp/data02-attribution-20261127/prepare-terminal-index.json",
+              "sha256": "a3cfd573f17e878b672eb6884fbb9698cc261077a5ea2c75c51c8ce0fb5d26ab"
+            },
+            {
+              "path": ".tmp/data02-attribution-20261127/prepare-terminal/current-market-graph-refresh.log",
+              "sha256": "6d816aeabdd316d64f6eb30081d47a79ae4b79071d8c7815118889c76251ec0b"
+            },
+            {
+              "path": ".tmp/data02-attribution-20261127/target-session-coverage.json",
+              "sha256": "f109e3b68566f69f890c3b1a7a5ce3f2c849809f2bc3d73aea987cdb62e12936"
+            },
+            {
+              "path": ".tmp/data02-attribution-20261127/attempt-raw-links.json",
+              "sha256": "a6de149ad2604b75b99c0b4bbe863a329363f0c31cf7189766838796b90cad96"
+            },
+            {
+              "path": ".tmp/data02-attribution-20261127/offline-route.json",
+              "sha256": "0342b8ceee3321ed54b673a05317ed28d9d102fa8a802321d8d589704ff12200"
+            },
+            {
+              "path": ".tmp/data02-attribution-20261127/terminal-network-cleanup.json",
+              "sha256": "00794e74b4b84e7728b786efdde0af264fda3b63da0563c7bbc2939f39b09022"
+            }
+          ]
         }
       }
     }
