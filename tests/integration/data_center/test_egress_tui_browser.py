@@ -10,7 +10,14 @@ from django.contrib.auth import get_user_model
 from django.contrib.staticfiles import finders
 from django.db import connections
 from django.test import Client
-from playwright.sync_api import sync_playwright
+from playwright.sync_api import Page, expect, sync_playwright
+
+
+def _confirm_egress_write(page: Page, action: str) -> None:
+    """Wait for the confirmed write before inspecting its persisted state."""
+    with page.expect_response(f"**/api/tui/actions/data-center.egress-{action}/run/") as response:
+        page.locator("[data-confirm-action]").click()
+    assert response.value.ok
 
 
 @pytest.mark.django_db(transaction=True)
@@ -70,7 +77,6 @@ def test_egress_configuration_browser(settings, monkeypatch, tmp_path):
             page.goto(
                 "http://testserver/tui/?screen=data-center.egress-config&action=data-center.egress-endpoint-create"
             )
-            page.wait_for_load_state("networkidle")
             screen = client.get("/api/tui/screens/data-center.egress-config/").json()
             ui_key = next(
                 a["ui_key"]
@@ -89,15 +95,13 @@ def test_egress_configuration_browser(settings, monkeypatch, tmp_path):
                 form.locator(f'[name="{key}"]').fill(value)
             form.locator('[name="protocol"]').select_option("http")
             form.locator(".tui-action-button").click()
-            page.locator("[data-confirm-action]").click()
-            page.wait_for_load_state("networkidle")
+            _confirm_egress_write(page, "endpoint-create")
             from apps.data_center.application import egress_service
 
             assert len(egress_service.list_endpoints()) == 1
             assert egress_service.list_endpoints()[0].name == "Browser mainland exit"
             assert egress_service.list_endpoints()[0].enabled is False
             page.goto("http://testserver/tui/?screen=data-center.egress-config")
-            page.wait_for_load_state("networkidle")
             page.get_by_role("button", name="修改 Browser mainland exit", exact=True).click()
             edit_key = next(
                 a["ui_key"]
@@ -115,11 +119,12 @@ def test_egress_configuration_browser(settings, monkeypatch, tmp_path):
             edit.locator('[name="name"]').fill("Browser edited exit")
             edit.locator('[name="enabled"]').check()
             edit.locator(".tui-action-button").click()
-            page.locator("[data-confirm-action]").click()
-            page.wait_for_load_state("networkidle")
+            _confirm_egress_write(page, "endpoint-update")
             assert egress_service.list_endpoints()[0].name == "Browser edited exit"
             assert egress_service.list_endpoints()[0].enabled is True
-            assert page.get_by_text("Browser edited exit", exact=True).count() > 0
+            expect(
+                page.get_by_role("button", name="修改 Browser edited exit", exact=True)
+            ).to_be_visible()
             page.get_by_role(
                 "button", name="为 Browser market provider 新增规则", exact=True
             ).click()
@@ -140,8 +145,7 @@ def test_egress_configuration_browser(settings, monkeypatch, tmp_path):
                 rule_form.locator(f'[name="{key}"]').fill(value)
             rule_form.locator('[name="strategy"]').select_option("fixed")
             rule_form.locator(".tui-action-button").click()
-            page.locator("[data-confirm-action]").click()
-            page.wait_for_load_state("networkidle")
+            _confirm_egress_write(page, "rule-create")
             rule = egress_service.list_rules()[0]
             assert rule.enabled is False
             page.get_by_role("button", name=f"修改规则 {rule.rule_id}", exact=True).click()
@@ -156,8 +160,7 @@ def test_egress_configuration_browser(settings, monkeypatch, tmp_path):
             assert not rule_edit.locator('[name="enabled"]').is_checked()
             rule_edit.locator('[name="enabled"]').check()
             rule_edit.locator(".tui-action-button").click()
-            page.locator("[data-confirm-action]").click()
-            page.wait_for_load_state("networkidle")
+            _confirm_egress_write(page, "rule-update")
             assert egress_service.list_rules()[0].enabled is True
             page.screenshot(path=str(tmp_path / "egress-config.png"), full_page=True)
             transport = Mock()
@@ -171,7 +174,6 @@ def test_egress_configuration_browser(settings, monkeypatch, tmp_path):
             page.goto(
                 "http://testserver/tui/?screen=data-center.egress-config&action=data-center.egress-diagnostics"
             )
-            page.wait_for_load_state("networkidle")
             diag_key = next(
                 a["ui_key"]
                 for a in screen["actions"]
@@ -188,11 +190,11 @@ def test_egress_configuration_browser(settings, monkeypatch, tmp_path):
                 diag.locator(f'[name="{key}"]').fill(value)
             diag.locator(".tui-action-button").click()
             page.locator("[data-confirm-action]").click()
-            page.wait_for_load_state("networkidle")
+            result_panel = page.locator("[data-main-panel]")
+            expect(result_panel).to_contain_text("测试连接失败")
+            expect(result_panel).to_contain_text("第 1 次")
+            expect(result_panel).to_contain_text("未完成")
             assert transport.request.call_count == 1
-            assert "测试连接失败" in page.locator("[data-main-panel]").inner_text()
-            assert "第 1 次" in page.locator("[data-main-panel]").inner_text()
-            assert "未完成" in page.locator("[data-main-panel]").inner_text()
             print("Screenshot:", tmp_path / "egress-config.png")
 
         finally:
