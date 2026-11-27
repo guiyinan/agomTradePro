@@ -337,3 +337,9 @@ PostgreSQL 专项通过。第五轮的六项缺口缩至三项：Data Center 行
 下一轮保留各测试步骤时限、JUnit 和覆盖率阈值，将重复的终端明细推迟到合并阶段；
 SQLite 的两项注册契约在独立运行器上执行，主作业逐项校验结果。
 [第七轮完整运行](https://github.com/guiyinan/agomTradePro/actions/runs/45939472831)
+
+第八轮 `18bc6d9cd` 的 PostgreSQL 专项和 SQLite 注册契约均通过。单元 pytest 在
+39 分 33 秒内完成，31,047 项通过、27 项跳过、119 项子测试通过；随后生成单元覆盖率
+报告时触发该步骤的 45 分钟时限。完整覆盖率门禁尚未执行。下一候选让单元测试使用
+独立 SQLite 运行器，将原始测量和 JUnit 交回同次运行的主作业生成报告，保留 45 分钟测试时限。
+[第八轮完整运行](https://github.com/guiyinan/agomTradePro/actions/runs/45962296550)

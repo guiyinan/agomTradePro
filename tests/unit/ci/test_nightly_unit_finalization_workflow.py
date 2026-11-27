@@ -39,7 +39,9 @@ UNIT_DIAGNOSTIC_ALLOWED_STEPS = {
     "Setup Node",
     "Install dependencies",
     "Prepare database",
-    "Run Unit Tests (full)",
+    "Verify full unit test result",
+    "Download unit measurements from this run",
+    "Restore unit coverage and render reports",
     "Generate Quality Report",
     "Upload Coverage Reports",
     "Upload Quality Report",
@@ -136,7 +138,11 @@ def test_manual_scope_defaults_full_and_other_triggers_remain_full() -> None:
     assert events["schedule"] == [{"cron": "0 2 * * *"}]
 
     jobs = workflow["jobs"]
-    assert set(jobs["nightly"]["needs"]) == {"critical-postgres", "sqlite-contracts"}
+    assert set(jobs["nightly"]["needs"]) == {
+        "critical-postgres",
+        "sqlite-contracts",
+        "nightly-unit",
+    }
     assert jobs["nightly"]["if"] == (
         "${{ !cancelled() && (needs.critical-postgres.result == 'success' || "
         "needs.critical-postgres.result == 'skipped') && "
@@ -159,7 +165,7 @@ def test_unit_only_keeps_only_unit_gates_and_skips_global_ratchet() -> None:
     for name in FULL_ONLY_STEPS:
         assert steps[name]["if"] == FULL_ONLY_IF
 
-    unit_step = steps["Run Unit Tests (full)"]
+    unit_step = _steps_by_name(workflow["jobs"]["nightly-unit"])["Run Unit Tests (full)"]
     assert unit_step["timeout-minutes"] == "45"
     assert unit_step.get("if") is None
     report_gate = steps["Build final coverage report and enforce ratchet"]
@@ -252,6 +258,15 @@ def test_workflow_conditions_default_to_full_except_explicit_standalone_unit_onl
         ) is (expected_nightly and expected_full), name
         assert (
             _evaluate_workflow_condition(
+                jobs["nightly-unit"]["if"],
+                event_name=event_name,
+                workflow_name=workflow_name,
+                suite=suite,
+            )
+            is expected_nightly
+        ), name
+        assert (
+            _evaluate_workflow_condition(
                 nightly_if,
                 event_name=event_name,
                 workflow_name=workflow_name,
@@ -321,7 +336,38 @@ def test_full_coverage_requires_both_inputs_from_the_same_run_and_commit() -> No
 def test_unit_coverage_collection_and_reports_use_separate_processes() -> None:
     """Pytest keeps coverage collection and JUnit; report CLIs remain blocking."""
 
-    unit_run = _steps_by_name(_load_workflow()["jobs"]["nightly"])["Run Unit Tests (full)"]["run"]
+    jobs = _load_workflow()["jobs"]
+    main = _steps_by_name(jobs["nightly"])
+    producer = _steps_by_name(jobs["nightly-unit"])
+    assert "needs" not in jobs["nightly-unit"]
+    unit_run = producer["Run Unit Tests (full)"]["run"]
+    upload = producer["Upload unit measurements for this run"]
+    download = main["Download unit measurements from this run"]["with"]
+    assert (
+        upload["with"]["name"]
+        == download["name"]
+        == "nightly-unit-${{ github.run_id }}-${{ github.sha }}"
+    )
+    assert upload["if"] == "always()"
+    assert upload["with"]["if-no-files-found"] == "error"
+    assert {"reports/quality/nightly-unit.xml", "reports/quality/nightly-unit.coverage"} <= set(
+        upload["with"]["path"].splitlines()
+    )
+    assert "run-id" not in download and "repository" not in download
+    assert download["path"] == "reports/quality"
+    verify = main["Verify full unit test result"]
+    assert (
+        verify["id"] == "unit"
+        and verify["env"]["UNIT_RESULT"] == "${{ needs.nightly-unit.result }}"
+    )
+    assert verify["run"] == 'test "$UNIT_RESULT" = success'
+    report_run = main["Restore unit coverage and render reports"]["run"]
+    step_names = list(main)
+    assert (
+        step_names.index("Download unit measurements from this run")
+        < step_names.index("Restore unit coverage and render reports")
+        < step_names.index("Run Component Tests")
+    )
     pytest_command = unit_run.split("; then", maxsplit=1)[0]
     assert "tests/unit/ -vv -ra" in pytest_command
     assert "--timeout=300" in pytest_command
@@ -337,11 +383,19 @@ def test_unit_coverage_collection_and_reports_use_separate_processes() -> None:
         "python -m coverage xml --rcfile=.coveragerc --data-file=reports/quality/nightly-unit.coverage -o coverage-unit.xml",
         "python -m coverage html --rcfile=.coveragerc --data-file=reports/quality/nightly-unit.coverage -d htmlcov-unit",
     )
-    offsets = [unit_run.index(command) for command in report_commands]
+    assert all(command not in unit_run for command in report_commands)
+    offsets = [report_run.index(command) for command in report_commands]
     assert offsets == sorted(offsets)
-    assert unit_run.index("if python -m pytest") < offsets[0]
-    assert unit_run.index("test -s .coverage") < offsets[0]
-    assert unit_run.index("cp -- .coverage reports/quality/nightly-unit.coverage") < offsets[0]
+    assert (
+        unit_run.index("if python -m pytest")
+        < unit_run.index("test -s .coverage")
+        < unit_run.index("cp -- .coverage reports/quality/nightly-unit.coverage")
+    )
+    assert (
+        report_run.index("test -s reports/quality/nightly-unit.coverage")
+        < report_run.index("cp -- reports/quality/nightly-unit.coverage .coverage")
+        < offsets[0]
+    )
     assert all(
         "--data-file=reports/quality/nightly-unit.coverage" in command
         for command in report_commands

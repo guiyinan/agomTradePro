@@ -17,15 +17,13 @@ on:
           - critical-pg-only
 
 jobs:
-  nightly:
-    needs: [critical-postgres, sqlite-contracts]
-    if: ${{ !cancelled() && (needs.critical-postgres.result == 'success' || needs.critical-postgres.result == 'skipped') && (github.event_name != 'workflow_dispatch' || github.workflow != 'Nightly Tests' || inputs.suite != 'critical-pg-only') }}
+  nightly-unit:
+    name: Full unit tests (SQLite)
+    if: ${{ github.event_name != 'workflow_dispatch' || github.workflow != 'Nightly Tests' || inputs.suite != 'critical-pg-only' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 180
     permissions:
       contents: read
-      issues: write
-
     steps:
       - &nightly_checkout
         name: Checkout
@@ -70,31 +68,6 @@ jobs:
 
       - name: Prepare database
         run: python manage.py migrate --noinput
-
-      - name: Verify registered current-data contract result
-        if: ${{ github.event_name != 'workflow_dispatch' || github.workflow != 'Nightly Tests' || inputs.suite != 'unit-only' }}
-        id: current_data
-        env:
-          CONTRACT_OUTCOME: ${{ needs.sqlite-contracts.outputs.current_data }}
-        run: test "$CONTRACT_OUTCOME" = success
-
-      - name: Verify registered Celery task contract result
-        if: ${{ github.event_name != 'workflow_dispatch' || github.workflow != 'Nightly Tests' || inputs.suite != 'unit-only' }}
-        id: celery
-        env:
-          CONTRACT_OUTCOME: ${{ needs.sqlite-contracts.outputs.celery }}
-        run: test "$CONTRACT_OUTCOME" = success
-
-      - name: Enforce full-production mypy debt ceiling
-        if: ${{ github.event_name != 'workflow_dispatch' || github.workflow != 'Nightly Tests' || inputs.suite != 'unit-only' }}
-        run: python scripts/check_mypy_debt_ceiling.py
-
-      - name: Run frontend Node contract tests
-        if: ${{ github.event_name != 'workflow_dispatch' || github.workflow != 'Nightly Tests' || inputs.suite != 'unit-only' }}
-        id: frontend
-        run: |
-          mkdir -p reports/quality
-          npm run test:tui-js:ci
 
       - name: Run Unit Tests (full)
         id: unit
@@ -348,13 +321,90 @@ jobs:
             --junitxml=reports/quality/nightly-unit.xml; then
             test -s .coverage
             cp -- .coverage reports/quality/nightly-unit.coverage
-            python -m coverage report --rcfile=.coveragerc --data-file=reports/quality/nightly-unit.coverage --show-missing
-            python -m coverage xml --rcfile=.coveragerc --data-file=reports/quality/nightly-unit.coverage -o coverage-unit.xml
-            python -m coverage html --rcfile=.coveragerc --data-file=reports/quality/nightly-unit.coverage -d htmlcov-unit
           else
             pytest_status=$?
             exit "$pytest_status"
           fi
+
+      - name: Upload unit measurements for this run
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: nightly-unit-${{ github.run_id }}-${{ github.sha }}
+          if-no-files-found: error
+          path: |
+            reports/quality/nightly-unit.xml
+            reports/quality/nightly-unit.coverage
+            reports/quality/nightly-coverage-debug.log
+            reports/quality/nightly-fullunit-lifecycle.jsonl
+            reports/quality/nightly-finalization-stack.log
+
+  nightly:
+    needs: [critical-postgres, sqlite-contracts, nightly-unit]
+    if: ${{ !cancelled() && (needs.critical-postgres.result == 'success' || needs.critical-postgres.result == 'skipped') && (github.event_name != 'workflow_dispatch' || github.workflow != 'Nightly Tests' || inputs.suite != 'critical-pg-only') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    permissions:
+      contents: read
+      issues: write
+
+    steps:
+      - *nightly_checkout
+      - *nightly_temp
+      - *nightly_python
+      - *nightly_node
+      - *nightly_install
+      - name: Prepare database
+        run: python manage.py migrate --noinput
+
+      - name: Verify registered current-data contract result
+        if: ${{ github.event_name != 'workflow_dispatch' || github.workflow != 'Nightly Tests' || inputs.suite != 'unit-only' }}
+        id: current_data
+        env:
+          CONTRACT_OUTCOME: ${{ needs.sqlite-contracts.outputs.current_data }}
+        run: test "$CONTRACT_OUTCOME" = success
+
+      - name: Verify registered Celery task contract result
+        if: ${{ github.event_name != 'workflow_dispatch' || github.workflow != 'Nightly Tests' || inputs.suite != 'unit-only' }}
+        id: celery
+        env:
+          CONTRACT_OUTCOME: ${{ needs.sqlite-contracts.outputs.celery }}
+        run: test "$CONTRACT_OUTCOME" = success
+
+      - name: Enforce full-production mypy debt ceiling
+        if: ${{ github.event_name != 'workflow_dispatch' || github.workflow != 'Nightly Tests' || inputs.suite != 'unit-only' }}
+        run: python scripts/check_mypy_debt_ceiling.py
+
+      - name: Run frontend Node contract tests
+        if: ${{ github.event_name != 'workflow_dispatch' || github.workflow != 'Nightly Tests' || inputs.suite != 'unit-only' }}
+        id: frontend
+        run: |
+          mkdir -p reports/quality
+          npm run test:tui-js:ci
+
+      - name: Verify full unit test result
+        id: unit
+        env:
+          UNIT_RESULT: ${{ needs.nightly-unit.result }}
+        run: test "$UNIT_RESULT" = success
+
+      - name: Download unit measurements from this run
+        uses: actions/download-artifact@v7
+        with:
+          name: nightly-unit-${{ github.run_id }}-${{ github.sha }}
+          path: reports/quality
+
+      - name: Restore unit coverage and render reports
+        timeout-minutes: 15
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test -s reports/quality/nightly-unit.xml
+          test -s reports/quality/nightly-unit.coverage
+          cp -- reports/quality/nightly-unit.coverage .coverage
+          python -m coverage report --rcfile=.coveragerc --data-file=reports/quality/nightly-unit.coverage --show-missing
+          python -m coverage xml --rcfile=.coveragerc --data-file=reports/quality/nightly-unit.coverage -o coverage-unit.xml
+          python -m coverage html --rcfile=.coveragerc --data-file=reports/quality/nightly-unit.coverage -d htmlcov-unit
 
       - name: Verify test-tier inventory
         if: ${{ github.event_name != 'workflow_dispatch' || github.workflow != 'Nightly Tests' || inputs.suite != 'unit-only' }}

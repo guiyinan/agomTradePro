@@ -26,6 +26,13 @@ PostgreSQL. The main quality report checks each manifest outcome. Covered pytest
 append raw measurements and defer cumulative terminal output to finalization. Integration
 and guardrail suites still produce their required XML reports.
 
+The full unit suite has its own SQLite runner and 45-minute pytest limit. It publishes
+its JUnit result, lifecycle diagnostics and raw branch measurements under a run- and
+commit-specific artifact name. After verifying the unit job passed, the main runner
+restores that raw file as the starting coverage database. A separate step renders the
+unit text, XML and HTML reports before the remaining suites append their measurements.
+The final gate still consumes the main database and the matching PostgreSQL database.
+
 The native financial suites cover retained statutory sources, publication locking,
 and snapshot provenance on disposable databases. The publication suite measures its
 5,001-member lock-latency case once with the tracer disabled. All other snapshot
