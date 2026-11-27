@@ -48,6 +48,7 @@ def _calendar(
     open_dates: tuple[date, ...] = (date(2026, 8, 17), date(2026, 8, 18)),
     first_seen_at: datetime = KNOWN_AT - timedelta(minutes=5),
     recorded_at: datetime = KNOWN_AT - timedelta(minutes=4),
+    published_at: datetime = KNOWN_AT - timedelta(minutes=3),
     ttl_seconds: int = 600,
 ) -> tuple[CalendarFormalPublicationRecord, CalendarPublicationPointerExpectation]:
     """Build one exact retained calendar publication spanning every requested day."""
@@ -139,7 +140,6 @@ def _calendar(
         snapshot=snapshot,
         member_reference=member_reference,
     )
-    published_at = KNOWN_AT - timedelta(minutes=3)
     record = CalendarFormalPublicationRecord(
         seal=seal,
         publication_id=str(uuid4()),

@@ -7,9 +7,11 @@ from datetime import date, datetime, timedelta
 
 import pytest
 
+from apps.data_center import calendar_publication_operations_composition as calendar_reads
 from apps.data_center import financial_availability_e1_composition as composition
 from apps.data_center.application.financial_availability_current import (
     CurrentFinancialAvailabilityGovernancePair,
+    validate_current_financial_next_session_temporal_binding,
 )
 from apps.data_center.application.financial_availability_governance import (
     FinancialAvailabilityGovernanceReadResult,
@@ -20,6 +22,10 @@ from apps.data_center.application.financial_availability_governance_ports import
 )
 from apps.data_center.application.formal_exchange_calendar_publication import (
     CurrentPublishedExchangeCalendar,
+)
+from apps.data_center.application.formal_exchange_calendar_publication_history import (
+    HistoricalCalendarPublicationRecord,
+    HistoricalPublishedExchangeCalendar,
 )
 from apps.data_center.domain.financial_availability_governance import (
     FinancialAvailabilityGovernanceRecord,
@@ -37,6 +43,7 @@ from apps.data_center.domain.financial_statutory_source_identity import (
     FinancialStatutorySourceIdentity,
 )
 from core.exceptions import DataValidationError
+from tests.unit.data_center.test_calendar_publication_history_application import _audit_pair
 from tests.unit.data_center.test_financial_availability_governance import BASE as SOURCE_BASE
 from tests.unit.data_center.test_financial_availability_governance import BODY as SOURCE_BODY
 from tests.unit.data_center.test_financial_availability_governance import (
@@ -192,13 +199,14 @@ def _prepare_mocks(
     )
 
 
-def test_builder_preserves_date_only_row_source_clocks_and_real_apply_identities(
+def _build_witness(
     monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    pair, calendar, row = _pair_and_calendar()
+    pair: CurrentFinancialAvailabilityGovernancePair,
+    calendar: CurrentPublishedExchangeCalendar,
+    row: FinancialNativeRowBinding,
+) -> FinancialNextSessionSourceTimeWitnessV3:
     _prepare_mocks(monkeypatch, pair=pair, calendar=calendar)
-
-    witness = composition.build_financial_next_session_witness_v3(
+    return composition.build_financial_next_session_witness_v3(
         row,
         exchange="SZSE",
         calendar_dataset_key=CALENDAR_DATASET.value,
@@ -207,6 +215,12 @@ def test_builder_preserves_date_only_row_source_clocks_and_real_apply_identities
         source_reader=_SourceReader(),
     )
 
+
+def test_builder_preserves_date_only_row_source_clocks_and_real_apply_identities(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    pair, calendar, row = _pair_and_calendar()
+    witness = _build_witness(monkeypatch, pair, calendar, row)
     assert type(witness) is FinancialNextSessionSourceTimeWitnessV3
     assert witness.financial_row.notice_date == _NOTICE_DATE
     assert witness.financial_row.period_end == date(2026, 6, 30)
@@ -224,6 +238,86 @@ def test_builder_preserves_date_only_row_source_clocks_and_real_apply_identities
     )
     assert witness.reference_only is True
     assert witness.must_not_use_for_decision is True
+
+
+def test_temporal_readback_requires_original_history_and_a_fresh_next_session_mapping(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    pair, original, row = _pair_and_calendar()
+    witness = _build_witness(monkeypatch, pair, original, row)
+    retained = HistoricalCalendarPublicationRecord(
+        seal=original.record.seal,
+        publication_id=original.record.publication_id,
+        lifecycle=original.record.lifecycle,
+        published_at=original.record.published_at,
+        superseded_at=None,
+    )
+    historical = HistoricalPublishedExchangeCalendar(
+        retained, _audit_pair(retained), witness.known_at
+    )
+    cutoff = witness.earliest_temporal_usability_at + timedelta(minutes=1)
+    next_day = witness.availability.next_session
+    record, pointer = _calendar(
+        start=_NOTICE_DATE,
+        end=next_day + timedelta(days=1),
+        open_dates=(next_day,),
+        first_seen_at=cutoff - timedelta(minutes=3),
+        recorded_at=cutoff - timedelta(minutes=2),
+        published_at=cutoff - timedelta(minutes=1),
+    )
+    current = CurrentPublishedExchangeCalendar(record=record, pointer=pointer, as_of=cutoff)
+    source = pair.opening_rule.source_read
+    assert source is not None
+    refreshed = replace(
+        pair,
+        known_at=cutoff,
+        checked_at=cutoff,
+        opening_rule=replace(
+            pair.opening_rule,
+            known_at=cutoff,
+            checked_at=cutoff,
+            source_read=replace(source, known_at=cutoff, checked_at=cutoff),
+        ),
+        disclosure_policy=replace(pair.disclosure_policy, known_at=cutoff, checked_at=cutoff),
+    )
+    _prepare_mocks(monkeypatch, pair=refreshed, calendar=current)
+
+    def read_current(query):
+        assert query.as_of == cutoff and query.dataset_key == CALENDAR_DATASET.value
+        return current
+
+    def read_historical(original_witness, *, records):
+        assert original_witness.known_at == historical.as_of
+        assert records.now() == cutoff
+        return historical
+
+    monkeypatch.setattr(calendar_reads, "read_current_exchange_calendar_reference", read_current)
+    monkeypatch.setattr(composition, "_read_historical_calendar", read_historical)
+    monkeypatch.setattr(_Records, "now", lambda self: cutoff)
+    evidence = composition.validate_financial_next_session_witness_current(
+        witness, records=_Records(), owner_events=_OwnerEvents(), source_reader=_SourceReader()
+    )
+    availability = evidence.current_availability
+    assert availability.next_session == next_day
+    assert availability.available_at == witness.availability.available_at
+    assert current.record.publication_id != historical.record.publication_id
+    assert (
+        evidence.reference_only and evidence.must_not_use_for_decision and evidence.must_not_execute
+    )
+
+    validate = validate_current_financial_next_session_temporal_binding
+    with pytest.raises(DataValidationError) as expired:
+        validate(witness, refreshed, historical, current, checked_at=cutoff + timedelta(minutes=11))
+    assert expired.value.code == "FIN_AVAILABILITY_CURRENT_CALENDAR_EXPIRED"
+    with pytest.raises(DataValidationError) as changed:
+        validate(
+            witness,
+            refreshed,
+            replace(historical, as_of=witness.known_at + timedelta(seconds=1)),
+            current,
+            checked_at=cutoff,
+        )
+    assert changed.value.code == "FIN_AVAILABILITY_HISTORICAL_CALENDAR_CHANGED"
 
 
 def test_builder_blocks_calendar_mapping_change_between_scope_reads(
