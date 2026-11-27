@@ -688,6 +688,25 @@ def test_fill_source_and_date_observation_reject_unknown_or_mismatched_evidence(
         replace(observation, source_event_id="different-event")
 
 
+@pytest.mark.parametrize(
+    "change,reason",
+    (
+        ({"quantity": Decimal("NaN")}, "finite exact Decimal"),
+        ({"quantity": Decimal("0.0000001")}, "six-place share precision"),
+        ({"observation_basis": "request_received"}, "observation basis is unknown"),
+        ({"source_recorded_at": _AS_OF.replace(tzinfo=None)}, "exact aware datetime"),
+    ),
+)
+def test_tax_observation_rejects_unverifiable_quantity_or_clock(
+    change: dict[str, object], reason: str
+) -> None:
+    observation = build_simulated_tax_settlement_history(_request()).observation.date_observations[
+        0
+    ]
+    with pytest.raises(DeferredDividendTaxValidationError, match=reason):
+        replace(observation, **change)
+
+
 def test_observation_and_build_envelopes_reject_malformed_independent_evidence() -> None:
     valid = build_simulated_tax_settlement_history(_request())
     observation = valid.observation
