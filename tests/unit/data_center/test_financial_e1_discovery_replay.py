@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Mapping
 from dataclasses import replace
 from datetime import UTC, date, datetime
 from decimal import Decimal
 from pathlib import Path
+from urllib.parse import urlsplit
 from uuid import UUID, uuid4
 
 import pytest
@@ -27,6 +29,7 @@ from apps.data_center.domain.financial_e1_capture_contract import (
 from apps.data_center.domain.financial_numeric_catalog import (
     FinancialNumericCatalogEntry,
     FinancialNumericCatalogOwnerEvent,
+    resolve_financial_numeric_source_qualification,
 )
 from apps.data_center.domain.financial_numeric_evidence import FinancialMetricSourceContract
 from apps.data_center.domain.financial_numeric_source_qualification import (
@@ -74,7 +77,7 @@ def _main_contract() -> object:
     return _replay_module.build_main_shared_response_contract()
 
 
-def _plan() -> object:
+def _plan() -> _plan_module.FinancialE1DiscoveryPlanV2:
     """Create an explicit finite two-endpoint plan without a caller NOTICE date."""
 
     main = FinancialE1EndpointRequest(
@@ -332,11 +335,11 @@ def _balance_body(notice: str = "2026-10-27 00:00:00") -> bytes:
     ).encode()
 
 
-def test_provider_config_decoder_rejects_missing_and_unknown_fields() -> None:
-    """The versioned Balance provider subtree is required and closed to extras."""
+def _balance_config_fields() -> dict[str, object]:
+    """Serialize the synthetic parser options as persisted provider fields."""
 
     config = _balance_config()
-    raw = {
+    return {
         "schema": "financial-e1-provider-capture-config.v2",
         "balance_contract_id": config.contract_id,
         "evidence_state": config.evidence_state,
@@ -358,6 +361,11 @@ def test_provider_config_decoder_rejects_missing_and_unknown_fields() -> None:
         "row_notice_date_key": config.row_notice_date_key,
     }
 
+
+def test_provider_config_decoder_rejects_missing_and_unknown_fields() -> None:
+    """The versioned Balance provider subtree is required and closed to extras."""
+    raw = _balance_config_fields()
+    config = _balance_config()
     restored = _replay_module.FinancialE1BalanceCaptureConfigV2.from_provider_extra_config(
         {"financial_e1_capture_v2": raw}
     )
@@ -543,11 +551,10 @@ def test_discovery_use_case_blocks_before_capture_when_preflight_fails() -> None
     assert guard.calls == 0
 
 
-def test_discovery_use_case_stops_after_two_sends_when_balance_fails(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """A successful Main response plus Balance failure never reaches fact DML."""
-
+def _selected_catalog() -> (
+    tuple[_plan_module.FinancialE1DiscoveryPlanV2, _app_module.FinancialE1PreflightSnapshot]
+):
+    """Freeze four applied metrics across the two synthetic response roles."""
     main = _qualification(
         metric_code="main_metric",
         source_field="MAIN_RAW",
@@ -588,6 +595,18 @@ def test_discovery_use_case_stops_after_two_sends_when_balance_fails(
         known_at=cutoff,
         entries=tuple(entries),
     )
+
+    return plan, snapshot
+
+
+def test_discovery_use_case_stops_after_two_sends_when_balance_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A successful Main response plus Balance failure never reaches fact DML."""
+
+    plan, snapshot = _selected_catalog()
+    cutoff = snapshot.known_at
+    balance = _balance_qualifications()
 
     class Preflight:
         def load_exact_current_selection(
@@ -673,6 +692,147 @@ def test_discovery_use_case_stops_after_two_sends_when_balance_fails(
     monkeypatch.setattr(SyncRunRepository, "save", lambda self, record: record)
     terminal = finish_django_financial_e1_non_success_run(run, result, authority_guard=guard)
     assert (terminal.outcome, terminal.fetched, terminal.stored) == ("partial", 1, 0)
+
+
+def test_retained_selection_replays_both_originals_without_another_capture() -> None:
+    """Resolve each native value from its own audited response and knowledge clock."""
+    from apps.data_center.infrastructure.financial_e1_discovery_runtime import (
+        DjangoFinancialE1ExactQualificationResolver,
+    )
+
+    plan, snapshot = _selected_catalog()
+    entries = {entry.qualification.identity: entry.qualification for entry in snapshot.entries}
+    contract = _balance_config().build_parser_contract(_balance_qualifications())
+    balance_query = build_balance_candidate_query(
+        BalanceCandidateRequest(ASSET, ASSET[:6], PERIOD), contract
+    )
+    main = _retained_response(request=plan.main_request, raw_body=_main_body(), request_params={})
+    balance = _retained_response(
+        request=plan.balance_request,
+        raw_body=_balance_body(),
+        request_params=dict(balance_query.parameters),
+    )
+
+    class Preflight:
+        def load_exact_current_selection(
+            self, selected_plan: _plan_module.FinancialE1DiscoveryPlanV2, *, known_at: datetime
+        ) -> _app_module.FinancialE1PreflightSnapshot:
+            assert selected_plan == plan and known_at == RESPONSE_AT
+            return replace(snapshot, known_at=known_at)
+
+    class Clock:
+        def now_utc(self) -> datetime:
+            return snapshot.known_at
+
+    class Catalog:
+        def resolve_exact(
+            self,
+            contract_identity: str,
+            *,
+            endpoint: str,
+            source_response_completed_at: datetime,
+            source_context: Mapping[str, object],
+            known_at: datetime,
+        ) -> FinancialNumericSourceQualification | None:
+            assert source_response_completed_at == RESPONSE_AT < known_at == snapshot.known_at
+            return resolve_financial_numeric_source_qualification(
+                snapshot.entries,
+                contract_identity=contract_identity,
+                endpoint=endpoint,
+                source_response_completed_at=source_response_completed_at,
+                source_context=source_context,
+                known_at=known_at,
+            )
+
+    captures = (main.retention.reference.capture_id, balance.retention.reference.capture_id)
+    use_case = _app_module.CaptureFinancialE1DiscoveryUseCase(
+        preflight=Preflight(),
+        capture_gateway=object(),
+        clock=Clock(),
+        authority_guard=_AllowAuthorityGuard(),
+        role_replayer=_replay_module.FinancialE1DiscoveryRoleReplayer(
+            main_notice_contract=plan.main_notice_contract, balance_parser_contract=contract
+        ),
+        qualification_resolver=DjangoFinancialE1ExactQualificationResolver(Catalog()),
+        fact_writer=object(),
+        retained_captures=captures,
+    )
+    candidates = use_case.prepare_retained_candidates(plan, main, balance)
+    assert {item.qualification.identity for item in candidates} == set(entries)
+    assert len(candidates) == len(entries)
+    for item in candidates:
+        expected = main if item.qualification.endpoint == plan.main_request.endpoint else balance
+        assert item.row.artifact_reference == expected.retention.reference
+        assert item.observation.body_sha256 == expected.retention.reference.body_sha256
+    with pytest.raises(ValueError, match="different pair"):
+        use_case.prepare_retained_candidates(plan, balance, main)
+    with pytest.raises(ValueError, match="cannot perform a capture"):
+        use_case.execute(plan, run=_run(plan))
+
+
+@pytest.mark.django_db
+def test_e1_projector_rechecks_persisted_provider_and_route_before_either_send() -> None:
+    """Build both finite queries and reject route withdrawal or parser configuration drift."""
+    from apps.data_center.infrastructure import financial_e1_discovery_runtime as runtime
+    from apps.data_center.infrastructure.egress_models import EgressRoutingRuleModel
+    from apps.data_center.infrastructure.models import ProviderConfigModel
+
+    plan, snapshot = _selected_catalog()
+    provider = ProviderConfigModel.objects.create(
+        name="synthetic-e1-projector",
+        source_type=PROVIDER,
+        extra_config={"financial_e1_capture_v2": _balance_config_fields()},
+    )
+    plan = replace(plan, provider_id=provider.pk)
+    region = "isolated-e1"
+    rule_query = EgressRoutingRuleModel.objects.filter(provider_id=provider.pk)
+    urls = (runtime.AKSHARE_MAIN_FINANCIAL_DATA_ENDPOINT_URL, AKSHARE_BALANCE_API_URL)
+    for host in {urlsplit(url).hostname for url in urls}:
+        rule_query.create(
+            provider_id=provider.pk,
+            dataset_key=plan.main_request.dataset_key,
+            domain_pattern=host,
+            deployment_region=region,
+            enabled=True,
+            strategy="direct",
+        )
+    config = _balance_config()
+    prepared = runtime.FinancialE1PreparedSelection(
+        plan_identity_sha256=plan.selection_sha256,
+        known_at=snapshot.known_at,
+        entries=snapshot.entries,
+        qualifications=tuple(entry.qualification for entry in snapshot.entries),
+        balance_config=config,
+        balance_parser_contract=config.build_parser_contract(_balance_qualifications()),
+        provider_config_sha256=runtime._provider_config_sha256(provider),
+    )
+    projector = runtime.DjangoFinancialE1RequestProjector(
+        plan=plan, prepared=prepared, deployment_region=region
+    )
+    for request, url in zip((plan.main_request, plan.balance_request), urls, strict=True):
+        projection = projector.project(request)
+        assert projection.context.target_url == url
+        assert projection.request == request and projection.method == "GET"
+        assert (
+            projection.request_scope.asset_code == ASSET
+            and projection.request_scope.period_limit == 1
+        )
+        assert (
+            ASSET[:6] in projection.params["filter"]
+            and PERIOD.isoformat() in projection.params["filter"]
+        )
+        assert "NOTICE" not in projection.params["filter"]
+
+    rule_query.update(enabled=False)
+    with pytest.raises(runtime.FinancialE1PreflightError) as absent:
+        projector.project(plan.balance_request)
+    assert absent.value.code == "FINANCIAL_E1_EGRESS_ROUTE_BLOCKED"
+    rule_query.update(enabled=True)
+    provider.name = "changed-e1-provider"
+    provider.save(update_fields=["name"])
+    with pytest.raises(runtime.FinancialE1PreflightError) as changed:
+        projector.project(plan.main_request)
+    assert changed.value.code == "FINANCIAL_E1_PROVIDER_CONFIG_CHANGED"
 
 
 def test_pinned_plan_file_requires_the_independent_raw_file_digest(tmp_path: Path) -> None:
