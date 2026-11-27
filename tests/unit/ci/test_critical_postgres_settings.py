@@ -141,6 +141,17 @@ def test_critical_step_binds_the_precreated_database() -> None:
     freeze = names.index("Freeze the migrated schema before seeding the CI catalog")
     assert names.index("Apply full migration graph to empty PostgreSQL database") < freeze
     assert freeze < names.index("Initialize and verify runtime Data Center catalog")
+    for suite in (
+        "Run financial numeric catalog native PostgreSQL contracts",
+        "Run C2 financial availability PostgreSQL contracts",
+        "Run native financial source and capture evidence",
+        "Run native calendar PostgreSQL safety and browser journeys",
+        "Run Celery task contract manifest on PostgreSQL",
+    ):
+        step = steps[names.index(suite)]
+        assert freeze < names.index(suite)
+        assert step["env"]["AGOM_CRITICAL_USE_MIGRATED_TEMPLATE"] == "1"
+        assert "--no-migrations" not in step["run"]
     assert (
         "CREATE DATABASE agomtradepro_critical_migrated_template TEMPLATE agomtradepro_critical ALLOW_CONNECTIONS false"
         in steps[freeze]["run"]
@@ -250,6 +261,23 @@ def test_financial_postgres_contracts_run_on_the_native_nightly_job() -> None:
     native_manifest = native["Run current-data contract manifest on PostgreSQL"]["run"]
     assert "scripts/run_current_data_contract_tests.py" in native_manifest
     assert "--deselect" not in native_manifest
+
+
+def test_native_publication_contracts_bind_the_empty_database_and_latency_case() -> None:
+    """Enforce native execution and run the latency assertion once without tracer overhead."""
+    workflow = yaml.load(WORKFLOW_PATH.read_text(encoding="utf-8"), Loader=yaml.BaseLoader)
+    steps = {step.get("name"): step for step in workflow["jobs"]["critical-postgres"]["steps"]}
+    step = steps["Run native financial publication and snapshot contracts"]
+    assert step["env"]["AGOM_EVID06_POSTGRES_TEST"] == "1"
+    run = step["run"]
+    assert "CREATE DATABASE agom_release_rehearsal_ci TEMPLATE template0" in run
+    assert (
+        'AGOM_EVID06_POSTGRES_TEST_DATABASE_URL="${DATABASE_URL%/*}/agom_release_rehearsal_ci"'
+        in run
+    )
+    assert 'python -m pytest "$latency_case" "${args[@]}" --no-cov' in run
+    assert '"--deselect=$latency_case" --cov --cov-config=.coveragerc --cov-append' in run
+    assert 'case.find("skipped")' in run
 
 
 def test_nightly_api_migrations_keep_bounded_xdist_and_junit_contract() -> None:

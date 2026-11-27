@@ -21,6 +21,12 @@ input digests in `reports/quality/coverage-inputs.sha256`, and combines executed
 and arcs before enforcing the repository thresholds. A missing input fails the full
 gate. Manual unit-only and PostgreSQL-only runs provide diagnostics independently.
 
+The native financial suites cover retained statutory sources, publication locking,
+and snapshot provenance on disposable databases. The publication suite measures its
+5,001-member lock-latency case once with the tracer disabled. All other snapshot
+cases append to the PostgreSQL coverage file. The financial JUnit reports must
+contain executed cases with zero skips.
+
 The combined Python coverage data is projected into these reports:
 
 | Scope | Included source | Report |

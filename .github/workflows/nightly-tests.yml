@@ -778,6 +778,7 @@ jobs:
           DATABASE_URL: postgresql://agomtradepro:critical-test-password@127.0.0.1:5432/agomtradepro_critical
           DJANGO_SETTINGS_MODULE: core.settings.critical_postgres_test
           AGOM_CRITICAL_TEST_DB_NAME: test_financial_numeric_catalog_nightly
+          AGOM_CRITICAL_USE_MIGRATED_TEMPLATE: "1"
         run: >-
           python -m pytest
           tests/component/data_center/test_financial_numeric_catalog_postgres.py
@@ -791,6 +792,7 @@ jobs:
           DATABASE_URL: postgresql://agomtradepro:critical-test-password@127.0.0.1:5432/agomtradepro_critical
           DJANGO_SETTINGS_MODULE: core.settings.critical_postgres_test
           AGOM_CRITICAL_TEST_DB_NAME: test_c2_financial_availability_nightly
+          AGOM_CRITICAL_USE_MIGRATED_TEMPLATE: "1"
         run: >-
           python -m pytest
           tests/component/data_center/test_financial_availability_governance_pg.py
@@ -803,6 +805,51 @@ jobs:
           --create-db
           --migrations
           --cov --cov-config=.coveragerc --cov-append --cov-report= -q -o addopts=''
+
+      - name: Run native financial source and capture evidence
+        env:
+          DJANGO_SETTINGS_MODULE: core.settings.critical_postgres_test
+          AGOM_CRITICAL_TEST_DB_NAME: test_nightly_financial_source_evidence
+          AGOM_CRITICAL_USE_MIGRATED_TEMPLATE: "1"
+        run: |
+          python -m pytest \
+            tests/component/data_center/test_statutory_source_repository.py \
+            tests/component/data_center/test_statutory_source_capture_composition.py \
+            tests/component/data_center/test_instrument_reference_capture_completion_repository.py \
+            --create-db --migrations -q --cov --cov-config=.coveragerc --cov-append --cov-report= \
+            --junitxml=reports/quality/postgres/financial-source-evidence.xml
+
+      - name: Run native financial publication and snapshot contracts
+        env:
+          DJANGO_SETTINGS_MODULE: tests.settings_data_center_sync_identity
+          AGOM_EVID06_POSTGRES_TEST: "1"
+        run: |
+          set -euo pipefail
+          psql "${DATABASE_URL%/*}/postgres" --set ON_ERROR_STOP=1 \
+            --command="CREATE DATABASE agom_release_rehearsal_ci TEMPLATE template0 OWNER agomtradepro"
+          export AGOM_EVID06_POSTGRES_TEST_DATABASE_URL="${DATABASE_URL%/*}/agom_release_rehearsal_ci"
+          args=(--ds=tests.settings_data_center_sync_identity --confcutdir=tests/component/data_center -q -o addopts=)
+          suite=tests/component/data_center/test_publication_read_snapshot_postgres.py
+          latency_case="$suite::test_activation_5001_members_has_fixed_queries_locks_and_retry"
+          # Measure the actual lock latency without the Python coverage tracer.
+          python -m pytest "$latency_case" "${args[@]}" --no-cov \
+            --junitxml=reports/quality/postgres/publication-activation-latency.xml
+          python -m pytest "$suite" \
+            tests/component/data_center/test_financial_fact_repository_postgres_provenance.py \
+            tests/component/data_center/test_publication_fact_lock_postgres.py \
+            "${args[@]}" "--deselect=$latency_case" --cov --cov-config=.coveragerc --cov-append --cov-report= \
+            --junitxml=reports/quality/postgres/financial-publication-snapshots.xml
+          python - <<'PY'
+          from pathlib import Path
+          from xml.etree import ElementTree
+
+          for suite in ("financial-source-evidence", "publication-activation-latency", "financial-publication-snapshots"):
+              cases = ElementTree.parse(Path("reports/quality/postgres") / f"{suite}.xml").findall(".//testcase")
+              if not cases or any(case.find("skipped") is not None for case in cases):
+                  raise SystemExit(f"{suite} requires executed native PostgreSQL cases")
+              print(f"{suite}: {len(cases)} executed")
+          PY
+
       - name: Record applied migration plan
         run: python manage.py showmigrations --plan > reports/quality/postgres/migration-plan.txt
 
@@ -1060,6 +1107,7 @@ jobs:
         env:
           DJANGO_SETTINGS_MODULE: core.settings.critical_postgres_test
           AGOM_CRITICAL_TEST_DB_NAME: cal02_institutional_calendar_qa
+          AGOM_CRITICAL_USE_MIGRATED_TEMPLATE: "1"
         run: >-
           python -m pytest -p django
           tests/component/data_center/test_institutional_calendar_browser.py
@@ -1153,6 +1201,7 @@ jobs:
         env:
           DJANGO_SETTINGS_MODULE: core.settings.critical_postgres_test
           AGOM_CRITICAL_TEST_DB_NAME: test_agomtradepro_critical_celery
+          AGOM_CRITICAL_USE_MIGRATED_TEMPLATE: "1"
           REDIS_URL: redis://127.0.0.1:6379/11
         run: |
           python scripts/run_celery_task_contract_tests.py \
