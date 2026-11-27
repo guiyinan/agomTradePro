@@ -21,6 +21,11 @@ input digests in `reports/quality/coverage-inputs.sha256`, and combines executed
 and arcs before enforcing the repository thresholds. A missing input fails the full
 gate. Manual unit-only and PostgreSQL-only runs provide diagnostics independently.
 
+Registered SQLite current-data and Celery checks run on their own hosted runner alongside
+PostgreSQL. The main quality report checks each manifest outcome. Covered pytest slices
+append raw measurements and defer cumulative terminal output to finalization. Integration
+and guardrail suites still produce their required XML reports.
+
 The native financial suites cover retained statutory sources, publication locking,
 and snapshot provenance on disposable databases. The publication suite measures its
 5,001-member lock-latency case once with the tracer disabled. All other snapshot

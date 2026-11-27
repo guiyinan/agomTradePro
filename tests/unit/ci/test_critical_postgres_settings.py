@@ -234,7 +234,7 @@ def test_nightly_component_step_keeps_full_suite_and_fixed_two_worker_contract()
     assert "--cov" in run
     assert "--cov-config=.coveragerc" in run
     assert "--cov-append" in run
-    assert "--cov-report=term-missing" in run
+    assert "--cov-report=" in run.split()
     assert "--junitxml=reports/quality/nightly-component.xml" in run
     assert "--no-migrations" not in run
     assert "--dist=loadfile" not in run
@@ -243,7 +243,7 @@ def test_nightly_component_step_keeps_full_suite_and_fixed_two_worker_contract()
 def test_financial_postgres_contracts_run_on_the_native_nightly_job() -> None:
     """SQLite's explicit nodeid selection delegates three native suites to PostgreSQL."""
     workflow = yaml.load(WORKFLOW_PATH.read_text(encoding="utf-8"), Loader=yaml.BaseLoader)
-    sqlite = {step.get("name"): step for step in workflow["jobs"]["nightly"]["steps"]}
+    sqlite = {step.get("name"): step for step in workflow["jobs"]["sqlite-contracts"]["steps"]}
     native = {step.get("name"): step for step in workflow["jobs"]["critical-postgres"]["steps"]}
     sqlite_manifest = sqlite["Run registered current-data contract nodeids"]["run"].split()
     native_suite = native["Run C2 financial availability PostgreSQL contracts"]["run"].split()
@@ -306,7 +306,7 @@ def test_nightly_api_migrations_keep_bounded_xdist_and_junit_contract() -> None:
     assert "--cov" in run
     assert "--cov-config=.coveragerc" in run
     assert "--cov-append" in run
-    assert "--cov-report=term-missing" in run
+    assert "--cov-report=" in run.split()
     assert "--junitxml=reports/quality/nightly-api-migrations.xml" in run
     assert "--no-migrations" not in run
     assert "--dist=loadfile" not in run

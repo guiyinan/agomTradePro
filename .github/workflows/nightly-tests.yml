@@ -3,7 +3,7 @@ name: Nightly Tests
 on:
   workflow_call:
   schedule:
-    - cron: '0 2 * * *'  # UTC 02:00 (北京时间 10:00)
+    - cron: '0 2 * * *'  # UTC 02:00 (鍖椾含鏃堕棿 10:00)
   workflow_dispatch:
     inputs:
       suite:
@@ -18,7 +18,7 @@ on:
 
 jobs:
   nightly:
-    needs: critical-postgres
+    needs: [critical-postgres, sqlite-contracts]
     if: ${{ !cancelled() && (needs.critical-postgres.result == 'success' || needs.critical-postgres.result == 'skipped') && (github.event_name != 'workflow_dispatch' || github.workflow != 'Nightly Tests' || inputs.suite != 'critical-pg-only') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 180
@@ -27,26 +27,31 @@ jobs:
       issues: write
 
     steps:
-      - name: Checkout
+      - &nightly_checkout
+        name: Checkout
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
-      - name: Prepare pytest temp parent
+      - &nightly_temp
+        name: Prepare pytest temp parent
         run: mkdir -p .tmp
 
-      - name: Setup Python
+      - &nightly_python
+        name: Setup Python
         uses: actions/setup-python@v6
         with:
           python-version: '3.11'
 
-      - name: Setup Node
+      - &nightly_node
+        name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: npm
 
-      - name: Install dependencies
+      - &nightly_install
+        name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           if [ -f requirements-dev.txt ]; then
@@ -66,27 +71,19 @@ jobs:
       - name: Prepare database
         run: python manage.py migrate --noinput
 
-      - name: Run registered current-data contract nodeids
+      - name: Verify registered current-data contract result
         if: ${{ github.event_name != 'workflow_dispatch' || github.workflow != 'Nightly Tests' || inputs.suite != 'unit-only' }}
         id: current_data
-        run: |
-          python scripts/run_current_data_contract_tests.py \
-            --pytest-arg=-q \
-            --pytest-arg=--deselect=tests/component/data_center/test_financial_numeric_origin_snapshot_pg.py \
-            --pytest-arg=--deselect=tests/component/data_center/test_financial_v3_current_uow_postgres.py \
-            --pytest-arg=--deselect=tests/component/data_center/test_financial_v3_e1_repository_postgres.py \
-            --pytest-arg=--reuse-db \
-            --pytest-arg=--timeout=300
+        env:
+          CONTRACT_OUTCOME: ${{ needs.sqlite-contracts.outputs.current_data }}
+        run: test "$CONTRACT_OUTCOME" = success
 
-      - name: Run registered Celery task contract nodeids
+      - name: Verify registered Celery task contract result
         if: ${{ github.event_name != 'workflow_dispatch' || github.workflow != 'Nightly Tests' || inputs.suite != 'unit-only' }}
         id: celery
-        run: |
-          python scripts/run_celery_task_contract_tests.py \
-            --pytest-arg=-q \
-            --pytest-arg=--reuse-db \
-            --pytest-arg=--no-migrations \
-            --pytest-arg=--timeout=300
+        env:
+          CONTRACT_OUTCOME: ${{ needs.sqlite-contracts.outputs.celery }}
+        run: test "$CONTRACT_OUTCOME" = success
 
       - name: Enforce full-production mypy debt ceiling
         if: ${{ github.event_name != 'workflow_dispatch' || github.workflow != 'Nightly Tests' || inputs.suite != 'unit-only' }}
@@ -393,7 +390,7 @@ jobs:
             --cov \
             --cov-config=.coveragerc \
             --cov-append \
-            --cov-report=term-missing \
+            --cov-report= \
             --junitxml=reports/quality/nightly-component.xml
 
       - name: Run API And Migration Tests
@@ -417,7 +414,7 @@ jobs:
             --cov \
             --cov-config=.coveragerc \
             --cov-append \
-            --cov-report=term-missing \
+            --cov-report= \
             --junitxml=reports/quality/nightly-api-migrations.xml
 
       - name: Run Critical Reliability (SQLite + Fake Agent)
@@ -434,7 +431,7 @@ jobs:
             --cov \
             --cov-config=.coveragerc \
             --cov-append \
-            --cov-report=term-missing
+            --cov-report=
 
       - name: Run Integration Tests (core)
         if: ${{ github.event_name != 'workflow_dispatch' || github.workflow != 'Nightly Tests' || inputs.suite != 'unit-only' }}
@@ -452,8 +449,7 @@ jobs:
             --cov \
             --cov-config=.coveragerc \
             --cov-append \
-            --cov-report=xml:coverage-integration.xml \
-            --cov-report=term-missing
+            --cov-report=xml:coverage-integration.xml
 
       - name: Run App-Local Module Tests
         if: ${{ github.event_name != 'workflow_dispatch' || github.workflow != 'Nightly Tests' || inputs.suite != 'unit-only' }}
@@ -464,7 +460,7 @@ jobs:
             --cov \
             --cov-config=.coveragerc \
             --cov-append \
-            --cov-report=term-missing
+            --cov-report=
 
       - name: Run SDK client tests
         if: ${{ github.event_name != 'workflow_dispatch' || github.workflow != 'Nightly Tests' || inputs.suite != 'unit-only' }}
@@ -479,7 +475,7 @@ jobs:
             --cov \
             --cov-config=.coveragerc \
             --cov-append \
-            --cov-report=term-missing
+            --cov-report=
 
       - name: Run MCP contract tests
         if: ${{ github.event_name != 'workflow_dispatch' || github.workflow != 'Nightly Tests' || inputs.suite != 'unit-only' }}
@@ -494,7 +490,7 @@ jobs:
             --cov \
             --cov-config=.coveragerc \
             --cov-append \
-            --cov-report=term-missing
+            --cov-report=
 
       - name: Run Django E2E tests
         if: ${{ github.event_name != 'workflow_dispatch' || github.workflow != 'Nightly Tests' || inputs.suite != 'unit-only' }}
@@ -508,7 +504,7 @@ jobs:
             --cov \
             --cov-config=.coveragerc \
             --cov-append \
-            --cov-report=term-missing
+            --cov-report=
 
       - name: Run Guardrail Tests
         if: ${{ github.event_name != 'workflow_dispatch' || github.workflow != 'Nightly Tests' || inputs.suite != 'unit-only' }}
@@ -682,6 +678,45 @@ jobs:
               });
               core.info('Created new nightly failure issue');
             }
+
+  sqlite-contracts:
+    name: Registered contracts (SQLite)
+    if: ${{ github.event_name != 'workflow_dispatch' || github.workflow != 'Nightly Tests' || (inputs.suite != 'unit-only' && inputs.suite != 'critical-pg-only') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    permissions:
+      contents: read
+    outputs:
+      current_data: ${{ steps.current_data.outcome }}
+      celery: ${{ steps.celery.outcome }}
+    steps:
+      - *nightly_checkout
+      - *nightly_temp
+      - *nightly_python
+      - *nightly_node
+      - *nightly_install
+      - name: Prepare database
+        run: python manage.py migrate --noinput
+
+      - name: Run registered current-data contract nodeids
+        id: current_data
+        run: |
+          python scripts/run_current_data_contract_tests.py \
+            --pytest-arg=-q \
+            --pytest-arg=--deselect=tests/component/data_center/test_financial_numeric_origin_snapshot_pg.py \
+            --pytest-arg=--deselect=tests/component/data_center/test_financial_v3_current_uow_postgres.py \
+            --pytest-arg=--deselect=tests/component/data_center/test_financial_v3_e1_repository_postgres.py \
+            --pytest-arg=--reuse-db \
+            --pytest-arg=--timeout=300
+
+      - name: Run registered Celery task contract nodeids
+        id: celery
+        run: |
+          python scripts/run_celery_task_contract_tests.py \
+            --pytest-arg=-q \
+            --pytest-arg=--reuse-db \
+            --pytest-arg=--no-migrations \
+            --pytest-arg=--timeout=300
 
   critical-postgres:
     if: ${{ github.event_name != 'workflow_dispatch' || github.workflow != 'Nightly Tests' || inputs.suite != 'unit-only' }}

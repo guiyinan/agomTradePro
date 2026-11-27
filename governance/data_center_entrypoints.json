@@ -27,16 +27,16 @@
       "sdk": 57,
       "terminal_tui": 32,
       "test_evidence": 168,
-      "workflow_step": 13
+      "workflow_step": 14
     },
     "by_status": {
-      "active_public": 956,
+      "active_public": 957,
       "adjacent_operational": 349,
       "candidate-review": 86,
       "compatibility": 139,
       "retired_blocked": 0
     },
-    "total": 1530
+    "total": 1531
   },
   "entries": [
     {
@@ -15284,6 +15284,16 @@
       "evidence": "CI-owned database setup or PostgreSQL migration/backup/restore verification step",
       "id": "workflow_step:.github/workflows/nightly-tests.yml:django:migrate:semantic:django:migrate:occurrence:3",
       "locator": "semantic:django:migrate:occurrence:3",
+      "path": ".github/workflows/nightly-tests.yml",
+      "status": "active_public",
+      "symbol": "django:migrate",
+      "target": "django:migrate"
+    },
+    {
+      "category": "workflow_step",
+      "evidence": "CI-owned database setup or PostgreSQL migration/backup/restore verification step",
+      "id": "workflow_step:.github/workflows/nightly-tests.yml:django:migrate:semantic:django:migrate:occurrence:4",
+      "locator": "semantic:django:migrate:occurrence:4",
       "path": ".github/workflows/nightly-tests.yml",
       "status": "active_public",
       "symbol": "django:migrate",

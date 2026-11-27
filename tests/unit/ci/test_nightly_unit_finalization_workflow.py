@@ -12,8 +12,8 @@ ROOT = Path(__file__).resolve().parents[3]
 WORKFLOW_PATH = ROOT / ".github/workflows/nightly-tests.yml"
 FULL_ONLY_IF = "${{ github.event_name != 'workflow_dispatch' || github.workflow != 'Nightly Tests' || inputs.suite != 'unit-only' }}"
 FULL_ONLY_STEPS = {
-    "Run registered current-data contract nodeids",
-    "Run registered Celery task contract nodeids",
+    "Verify registered current-data contract result",
+    "Verify registered Celery task contract result",
     "Enforce full-production mypy debt ceiling",
     "Run frontend Node contract tests",
     "Verify test-tier inventory",
@@ -136,7 +136,7 @@ def test_manual_scope_defaults_full_and_other_triggers_remain_full() -> None:
     assert events["schedule"] == [{"cron": "0 2 * * *"}]
 
     jobs = workflow["jobs"]
-    assert jobs["nightly"]["needs"] == "critical-postgres"
+    assert set(jobs["nightly"]["needs"]) == {"critical-postgres", "sqlite-contracts"}
     assert jobs["nightly"]["if"] == (
         "${{ !cancelled() && (needs.critical-postgres.result == 'success' || "
         "needs.critical-postgres.result == 'skipped') && "
@@ -244,6 +244,12 @@ def test_workflow_conditions_default_to_full_except_explicit_standalone_unit_onl
         expected_postgres,
         expected_full,
     ) in scenarios:
+        assert _evaluate_workflow_condition(
+            jobs["sqlite-contracts"]["if"],
+            event_name=event_name,
+            workflow_name=workflow_name,
+            suite=suite,
+        ) is (expected_nightly and expected_full), name
         assert (
             _evaluate_workflow_condition(
                 nightly_if,
@@ -352,3 +358,60 @@ def test_unit_coverage_collection_and_reports_use_separate_processes() -> None:
     )
     assert "set -euo pipefail" in unit_run
     assert 'exit "$pytest_status"' in unit_run
+
+
+def test_sqlite_contract_results_reach_main_quality_report() -> None:
+    """The independent runner returns each untraced manifest result to the main gate."""
+    jobs = _load_workflow()["jobs"]
+    runner = jobs["sqlite-contracts"]
+    assert "needs" not in runner
+    assert runner["runs-on"] == jobs["nightly"]["runs-on"]
+    steps = _steps_by_name(runner)
+    main = _steps_by_name(jobs["nightly"])
+    for name in (
+        "Checkout",
+        "Setup Python",
+        "Setup Node",
+        "Install dependencies",
+        "Prepare database",
+    ):
+        assert steps[name] == main[name]
+    for label, key in (("current-data", "current_data"), ("Celery task", "celery")):
+        producer = steps[f"Run registered {label} contract nodeids"]
+        gate = main[f"Verify registered {label} contract result"]
+        assert producer["id"] == gate["id"] == key
+        assert "--cov" not in producer["run"]
+        assert "--pytest-arg=--reuse-db" in producer["run"]
+        assert "--pytest-arg=--timeout=300" in producer["run"]
+        assert runner["outputs"][key] == "${{ steps." + key + ".outcome }}"
+        assert (
+            gate["env"]["CONTRACT_OUTCOME"] == "${{ needs.sqlite-contracts.outputs." + key + " }}"
+        )
+        assert gate["run"] == 'test "$CONTRACT_OUTCOME" = success'
+
+
+def test_main_suites_defer_cumulative_reports_and_keep_required_xml() -> None:
+    """Retain raw branch hits for the final ratchet and XML for its existing consumers."""
+    steps = _load_workflow()["jobs"]["nightly"]["steps"]
+    by_id = {step.get("id"): step for step in steps}
+    slices = (
+        "component",
+        "api_migrations",
+        "critical_sqlite",
+        "app_local",
+        "sdk",
+        "mcp",
+        "e2e",
+        "integration",
+        "guardrails",
+    )
+    xml_reports = {
+        "integration": "xml:coverage-integration.xml",
+        "guardrails": "xml:coverage-guardrail.xml",
+    }
+    for key in slices:
+        args = by_id[key]["run"].split()
+        assert {"--cov", "--cov-config=.coveragerc", "--cov-append"} <= set(args)
+        assert [arg for arg in args if arg.startswith("--cov-report=")] == [
+            "--cov-report=" + xml_reports.get(key, "")
+        ]
