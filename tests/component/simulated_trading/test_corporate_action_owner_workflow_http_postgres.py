@@ -73,6 +73,7 @@ from tests.support.ash05_owner_workflow_native_world import (
     OwnerWorkflowNativeWorld,
     build_owner_workflow_native_world,
     recover_owner_workflow_operator_authority,
+    refresh_owner_workflow_instrument,
 )
 from tests.support.ash05_sql_budget import record_ash05_blocked_origin, record_ash05_sql_budget
 from tests.support.ash07_owner_account_authority import ASH07_OWNER_ACCEPTANCE_AVAILABLE_APPS
@@ -189,6 +190,7 @@ def _refresh(world: OwnerWorkflowNativeWorld) -> dict[str, object]:
     """Maintain the separate test operator, then refresh through the actual owner endpoint."""
     if CorporateActionPostingModel.objects.filter(account_id=world.account_id).exists():
         recover_owner_workflow_operator_authority(world)
+    refresh_owner_workflow_instrument(world)
     return _post(
         world.owner.client,
         _API_ROOT.format(account_id=world.account_id) + "refresh/",

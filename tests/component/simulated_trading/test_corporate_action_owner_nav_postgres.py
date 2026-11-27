@@ -84,20 +84,15 @@ from tests.support.ash05_owner_workflow_native_world import (
     OwnerWorkflowNativeWorld,
     build_owner_workflow_native_world,
     recover_owner_workflow_operator_authority,
+    refresh_owner_workflow_instrument,
 )
 from tests.support.ash07_native_runtime_role import (
     ash05_runtime_role_fixture as ash05_runtime_role_fixture,
 )
 from tests.support.ash07_owner_account_authority import ASH07_OWNER_ACCEPTANCE_AVAILABLE_APPS
 from tests.support.ash07_owner_m1_price_batch import ensure_m1_price_publication_catalog
-from tests.support.simulated_tax_model_native_context import (
-    _TIMEZONE,
-    synthetic_current_reference_selection,
-)
-from tests.support.simulated_tax_model_native_sources import (
-    isolated_task_channels,
-    retain_synthetic_current_cny_instrument,
-)
+from tests.support.simulated_tax_model_native_context import _TIMEZONE
+from tests.support.simulated_tax_model_native_sources import isolated_task_channels
 
 pytestmark = pytest.mark.django_db(
     transaction=True,
@@ -258,19 +253,7 @@ def _read(world: OwnerWorkflowNativeWorld) -> dict[str, object]:
 
 def _refresh(world: OwnerWorkflowNativeWorld) -> dict[str, object]:
     """Refresh the synthetic instrument and owner evidence for the next NAV stage."""
-    # A long native run can outlive the source retained at account setup.
-    with pytest.MonkeyPatch.context() as capture:
-        snapshot = retain_synthetic_current_cny_instrument(monkeypatch=capture)
-    activate_runtime_profile_patch(
-        environment="development",
-        patch={
-            "config_center.market.simulated_current_reference_selection": synthetic_current_reference_selection(
-                snapshot, security_id=world.security_id
-            ),
-        },
-        actor="ash05-synthetic-owner-nav-instrument",
-        reason="select the newly observed synthetic source for the next owner NAV stage",
-    )
+    refresh_owner_workflow_instrument(world)
     if CorporateActionPostingModel.objects.filter(account_id=world.account_id).exists():
         recover_owner_workflow_operator_authority(world)
     payload = _post(

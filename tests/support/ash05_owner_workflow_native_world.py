@@ -107,6 +107,7 @@ from tests.support.simulated_tax_model_native_context import (
     _record_v4_fill,
     _refresh_public_owner_source_after_fills,
     _seed_sz_fee_policy,
+    synthetic_current_reference_selection,
 )
 from tests.support.simulated_tax_model_native_sources import (
     retain_synthetic_current_cny_instrument,
@@ -363,6 +364,22 @@ def _activate_audit_authority() -> OwnerAccountSeed:
         reason="actual isolated SystemAudit/Outbox authority for synthetic workflow sources",
     )
     return audit_seed
+
+
+def refresh_owner_workflow_instrument(world: OwnerWorkflowNativeWorld) -> None:
+    """Retain a fresh synthetic snapshot for the same security at the next owner stage."""
+    with pytest.MonkeyPatch.context() as capture:
+        snapshot = retain_synthetic_current_cny_instrument(monkeypatch=capture)
+    activate_runtime_profile_patch(
+        environment="development",
+        patch={
+            "config_center.market.simulated_current_reference_selection": synthetic_current_reference_selection(
+                snapshot, security_id=world.security_id
+            ),
+        },
+        actor="ash05-synthetic-owner-instrument",
+        reason="select the newly observed synthetic source for the next owner stage",
+    )
 
 
 def recover_owner_workflow_operator_authority(world: OwnerWorkflowNativeWorld) -> None:
