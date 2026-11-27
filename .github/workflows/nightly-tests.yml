@@ -18,7 +18,8 @@ on:
 
 jobs:
   nightly:
-    if: ${{ github.event_name != 'workflow_dispatch' || github.workflow != 'Nightly Tests' || inputs.suite != 'critical-pg-only' }}
+    needs: critical-postgres
+    if: ${{ !cancelled() && (needs.critical-postgres.result == 'success' || needs.critical-postgres.result == 'skipped') && (github.event_name != 'workflow_dispatch' || github.workflow != 'Nightly Tests' || inputs.suite != 'critical-pg-only') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 180
     permissions:
@@ -522,10 +523,24 @@ jobs:
             --cov-append \
             --cov-report=xml:coverage-guardrail.xml
 
+      - name: Download PostgreSQL coverage from this run
+        if: ${{ github.event_name != 'workflow_dispatch' || github.workflow != 'Nightly Tests' || inputs.suite != 'unit-only' }}
+        uses: actions/download-artifact@v7
+        with:
+          name: postgres-coverage-${{ github.run_id }}-${{ github.sha }}
+          path: ${{ runner.temp }}/postgres-coverage
+
       - name: Build final coverage report and enforce ratchet
         if: ${{ github.event_name != 'workflow_dispatch' || github.workflow != 'Nightly Tests' || inputs.suite != 'unit-only' }}
         id: coverage_gate
         run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test -s .coverage
+          native="$RUNNER_TEMP/postgres-coverage/nightly-postgres.coverage"
+          test -s "$native"
+          sha256sum .coverage "$native" > reports/quality/coverage-inputs.sha256
+          python -m coverage combine --append --keep "$native"
           python -m coverage report
           python scripts/generate_coverage_reports.py --check
 
@@ -599,6 +614,7 @@ jobs:
             reports/quality/coverage-*.xml
             reports/quality/coverage-*.json
             reports/quality/coverage-manifest.json
+            reports/quality/coverage-inputs.sha256
             reports/quality/frontend-node-tests.xml
 
       - name: Upload Quality Report
@@ -694,6 +710,7 @@ jobs:
           --health-cmd "redis-cli ping"
           --health-interval 5s --health-timeout 5s --health-retries 12
     env:
+      COVERAGE_FILE: .tmp/nightly-postgres.coverage
       DATABASE_URL: postgresql://agomtradepro:critical-test-password@127.0.0.1:5432/agomtradepro_critical
       DJANGO_SETTINGS_MODULE: core.settings.development
       SECRET_KEY: nightly-critical-postgres-secret-key-12345678901234567890
@@ -767,7 +784,7 @@ jobs:
           --ds=core.settings.critical_postgres_test
           --create-db
           --migrations
-          -q -o addopts=''
+          --cov --cov-config=.coveragerc --cov-append --cov-report= -q -o addopts=''
 
       - name: Run C2 financial availability PostgreSQL contracts
         env:
@@ -785,7 +802,7 @@ jobs:
           --ds=core.settings.critical_postgres_test
           --create-db
           --migrations
-          -q -o addopts=''
+          --cov --cov-config=.coveragerc --cov-append --cov-report= -q -o addopts=''
       - name: Record applied migration plan
         run: python manage.py showmigrations --plan > reports/quality/postgres/migration-plan.txt
 
@@ -850,6 +867,7 @@ jobs:
           python -m pytest tests/component/data_center/test_data02_postgres_closure.py \
             -s -q -ra \
             --timeout=300 --timeout-method=thread --durations=20 \
+            --cov --cov-config=.coveragerc --cov-append --cov-report= \
             --junitxml=reports/quality/postgres/data02-closure.xml
           python - <<'PY'
           import json
@@ -911,6 +929,7 @@ jobs:
             -v \
             --reuse-db \
             --migrations \
+            --cov --cov-config=.coveragerc --cov-append --cov-report= \
             --junitxml=reports/quality/postgres/critical.xml \
             --timeout=180 \
             --timeout-method=thread \
@@ -1018,6 +1037,7 @@ jobs:
             tests/migrations/test_config_center_runtime_retirement_materialization.py \
             -v \
             --reuse-db \
+            --cov --cov-config=.coveragerc --cov-append --cov-report= \
             --junitxml=reports/quality/postgres/research-migrations.xml \
             --timeout=900 \
             --timeout-method=thread \
@@ -1030,6 +1050,7 @@ jobs:
             tests/unit/data_center/test_reconciliation_and_query_budget.py \
             tests/unit/config_center/test_runtime_config_control_plane.py \
             -q --reuse-db --no-migrations --timeout=180 \
+            --cov --cov-config=.coveragerc --cov-append --cov-report= \
             --junitxml=reports/quality/postgres/publication-runtime.xml
 
       - name: Install Python browser runtime for current-data contracts
@@ -1045,7 +1066,7 @@ jobs:
           tests/component/data_center/test_formal_exchange_calendar_publication_history_pg.py
           tests/component/data_center/test_calendar_catalog_admin_pg.py
           tests/component/data_center/test_generic_calendar_catalog_pg.py
-          --create-db --migrations -q -o addopts=''
+          --create-db --migrations --cov --cov-config=.coveragerc --cov-append --cov-report= -q -o addopts=''
 
       - name: Run full-registry transaction cleanup regressions on PostgreSQL
         timeout-minutes: 10
@@ -1067,6 +1088,7 @@ jobs:
             -q --create-db --reuse-db --maxfail=1 \
             --timeout=300 --timeout-method=thread --durations=20 \
             -o faulthandler_timeout=0 \
+            --cov --cov-config=.coveragerc --cov-append --cov-report= \
             --junitxml=reports/quality/postgres/authority-generation-flush.xml
           python - <<'PY'
           import collections
@@ -1119,6 +1141,10 @@ jobs:
           python scripts/run_current_data_contract_tests.py \
             --pytest-arg=--create-db \
             --pytest-arg=--reuse-db \
+            --pytest-arg=--cov \
+            --pytest-arg=--cov-config=.coveragerc \
+            --pytest-arg=--cov-append \
+            --pytest-arg=--cov-report= \
             --pytest-arg=--disable-warnings \
             --pytest-arg=--junitxml=reports/quality/postgres/current-data.xml \
             --pytest-arg=--maxfail=1
@@ -1131,6 +1157,10 @@ jobs:
         run: |
           python scripts/run_celery_task_contract_tests.py \
             --pytest-arg=--reuse-db \
+            --pytest-arg=--cov \
+            --pytest-arg=--cov-config=.coveragerc \
+            --pytest-arg=--cov-append \
+            --pytest-arg=--cov-report= \
             --pytest-arg=--disable-warnings \
             --pytest-arg=--junitxml=reports/quality/postgres/celery-contracts.xml \
             --pytest-arg=--maxfail=1
@@ -1149,6 +1179,7 @@ jobs:
             tests/unit/data_center/test_retention_control_plane.py \
             -q -k "diagnostic or backfill or retention or raw_landing" \
             --reuse-db --no-migrations --timeout=240 \
+            --cov --cov-config=.coveragerc --cov-append --cov-report= \
             --junitxml=reports/quality/postgres/backfill-retention.xml
 
       - name: Run PostgreSQL retention and Qlib admission concurrency evidence
@@ -1160,7 +1191,30 @@ jobs:
             tests/component/data_center/test_retention_postgres_concurrency.py \
             tests/component/config_center/test_qlib_training_run_lock.py \
             -q --reuse-db --timeout=300 \
+            --cov --cov-config=.coveragerc --cov-append --cov-report= \
             --junitxml=reports/quality/postgres/retention-concurrency.xml
+
+      - name: Verify PostgreSQL coverage input
+        run: |
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test -s "$COVERAGE_FILE"
+          python - <<'PY'
+          import os
+          from coverage import CoverageData
+
+          data = CoverageData(basename=os.environ["COVERAGE_FILE"])
+          data.read()
+          assert data.has_arcs() and any(data.arcs(path) for path in data.measured_files())
+          PY
+
+      - name: Upload PostgreSQL coverage for this run
+        uses: actions/upload-artifact@v6
+        with:
+          name: postgres-coverage-${{ github.run_id }}-${{ github.sha }}
+          path: .tmp/nightly-postgres.coverage
+          if-no-files-found: error
+          include-hidden-files: true
+          overwrite: true
 
       - name: Upload PostgreSQL backup and restore evidence
         if: always()

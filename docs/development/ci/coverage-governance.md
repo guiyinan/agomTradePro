@@ -14,7 +14,14 @@ from test step outcomes: a coverage report alone never establishes a passing sui
 See [gate evidence boundaries](../../governance/ARCHITECTURE_GUARDRAILS.md#evidence-levels-and-rc-composition)
 for what CI, rehearsal and production acceptance each prove.
 
-Python coverage is collected once and then projected into independent reports:
+Full Nightly collects branch coverage in the main job and in the isolated PostgreSQL
+pytest suites. The PostgreSQL job appends its batches to a single raw coverage file.
+The main job downloads that input from the same workflow run and commit, records both
+input digests in `reports/quality/coverage-inputs.sha256`, and combines executed lines
+and arcs before enforcing the repository thresholds. A missing input fails the full
+gate. Manual unit-only and PostgreSQL-only runs provide diagnostics independently.
+
+The combined Python coverage data is projected into these reports:
 
 | Scope | Included source | Report |
 |---|---|---|

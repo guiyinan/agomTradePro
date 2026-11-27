@@ -26,6 +26,7 @@ FULL_ONLY_STEPS = {
     "Run MCP contract tests",
     "Run Django E2E tests",
     "Run Guardrail Tests",
+    "Download PostgreSQL coverage from this run",
     "Build final coverage report and enforce ratchet",
     "Generate Architecture Audit Report",
     "Run Playwright Smoke Tests",
@@ -73,6 +74,8 @@ def _evaluate_workflow_condition(
     event_name: str,
     workflow_name: str,
     suite: str | None,
+    postgres_result: str = "success",
+    cancelled: bool = False,
 ) -> bool:
     """Evaluate the literal workflow boolean subset for representative GitHub contexts."""
 
@@ -81,6 +84,8 @@ def _evaluate_workflow_condition(
         "github.event_name": event_name,
         "github.workflow": workflow_name,
         "inputs.suite": suite,
+        "needs.critical-postgres.result": postgres_result,
+        "!cancelled()": not cancelled,
     }
     for variable, value in values.items():
         body = body.replace(variable, repr(value))
@@ -131,9 +136,12 @@ def test_manual_scope_defaults_full_and_other_triggers_remain_full() -> None:
     assert events["schedule"] == [{"cron": "0 2 * * *"}]
 
     jobs = workflow["jobs"]
+    assert jobs["nightly"]["needs"] == "critical-postgres"
     assert jobs["nightly"]["if"] == (
-        "${{ github.event_name != 'workflow_dispatch' || github.workflow != 'Nightly Tests' "
-        "|| inputs.suite != 'critical-pg-only' }}"
+        "${{ !cancelled() && (needs.critical-postgres.result == 'success' || "
+        "needs.critical-postgres.result == 'skipped') && "
+        "(github.event_name != 'workflow_dispatch' || github.workflow != 'Nightly Tests' "
+        "|| inputs.suite != 'critical-pg-only') }}"
     )
     assert jobs["critical-postgres"]["if"] == (
         "${{ github.event_name != 'workflow_dispatch' || github.workflow != 'Nightly Tests' "
@@ -242,6 +250,7 @@ def test_workflow_conditions_default_to_full_except_explicit_standalone_unit_onl
                 event_name=event_name,
                 workflow_name=workflow_name,
                 suite=suite,
+                postgres_result="success" if expected_postgres else "skipped",
             )
             is expected_nightly
         ), name
@@ -263,6 +272,44 @@ def test_workflow_conditions_default_to_full_except_explicit_standalone_unit_onl
             )
             is expected_full
         ), name
+
+
+def test_full_coverage_requires_both_inputs_from_the_same_run_and_commit() -> None:
+    jobs = _load_workflow()["jobs"]
+    native = _steps_by_name(jobs["critical-postgres"])
+    main = _steps_by_name(jobs["nightly"])
+    upload = native["Upload PostgreSQL coverage for this run"]["with"]
+    download = main["Download PostgreSQL coverage from this run"]["with"]
+    assert (
+        upload["name"]
+        == download["name"]
+        == "postgres-coverage-${{ github.run_id }}-${{ github.sha }}"
+    )
+    assert "run-id" not in download and "repository" not in download
+    assert upload["path"] == jobs["critical-postgres"]["env"]["COVERAGE_FILE"]
+    assert upload["if-no-files-found"] == "error"
+    for name, step in native.items():
+        command = step.get("run", "")
+        if "python -m pytest" in command and not name.startswith(
+            "Check PostgreSQL test entrypoint"
+        ):
+            assert "--cov --cov-config=.coveragerc --cov-append --cov-report=" in command, name
+        if "contract manifest on PostgreSQL" in name:
+            for option in ("--cov", "--cov-config=.coveragerc", "--cov-append", "--cov-report="):
+                assert f"--pytest-arg={option} " in command, name
+    gate = main["Build final coverage report and enforce ratchet"]["run"]
+    assert gate.index("test -s .coverage") < gate.index(
+        'coverage combine --append --keep "$native"'
+    )
+    assert gate.index('test -s "$native"') < gate.index("coverage combine") < gate.index("--check")
+    for result in ("failure", "cancelled"):
+        assert not _evaluate_workflow_condition(
+            jobs["nightly"]["if"],
+            event_name="workflow_dispatch",
+            workflow_name="Nightly Tests",
+            suite="full",
+            postgres_result=result,
+        )
 
 
 def test_unit_coverage_collection_and_reports_use_separate_processes() -> None:
