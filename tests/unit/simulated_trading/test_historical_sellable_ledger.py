@@ -308,6 +308,33 @@ def test_duplicate_active_hold_cannot_be_subtracted_twice():
     assert proof.supported_sellable_quantity is None
 
 
+@pytest.mark.parametrize(
+    "released,reason",
+    ((True, "LEDGER_AVAILABLE_QUANTITY_INVALID"), (False, "LEDGER_TOTAL_QUANTITY_INVALID")),
+)
+def test_two_valid_buys_cannot_overflow_the_ledger_quantity(released: bool, reason: str) -> None:
+    first, second = _base_fills()
+    first = replace(first, quantity=Decimal("99999999999999.999999"))
+    if released:
+        second = replace(second, settlement_status="released", release_proof_hash="d" * 64)
+
+    proof = prove_historical_ledger_sellability(_evidence(fills=(first, second)))
+    assert reason in proof.reason_codes
+    assert proof.supported_sellable_quantity is None and proof.proof_hash is None
+
+
+def test_two_valid_active_holds_cannot_overflow_the_reserved_shares() -> None:
+    first = HistoricalLedgerHoldFact(
+        71, "XSHG:600000", "600000.SH", "sell", Decimal("99999999999999.999999"), "a" * 64
+    )
+    second = replace(first, reservation_id=72, remaining_shares=Decimal("0.000001"))
+    proof = prove_historical_ledger_sellability(
+        _evidence(fills=_base_fills(), holds=(first, second))
+    )
+    assert "LEDGER_ACTIVE_HOLD_INVALID" in proof.reason_codes
+    assert proof.supported_sellable_quantity is None and proof.proof_hash is None
+
+
 def test_zero_lag_does_not_release_a_fill_still_marked_pending():
     released, pending = _base_fills()
     evidence = _evidence(fills=(released, replace(pending, settlement_lag_sessions=0)))

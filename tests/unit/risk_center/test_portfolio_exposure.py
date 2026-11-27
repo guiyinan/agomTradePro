@@ -291,6 +291,55 @@ def test_direct_equity_and_etf_must_retain_their_own_valuation_and_classificatio
         replace(_equity("A", "10", "industry-a"), **changes)
 
 
+@pytest.mark.parametrize(
+    "changes,error,reason",
+    (
+        ({"portfolio_snapshot_id": " "}, ValueError, "portfolio_snapshot_id"),
+        ({"as_of": BUSINESS_DATE}, ValueError, "timezone-aware"),
+        ({"business_date": CUTOFF}, TypeError, "business_date"),
+        ({"portfolio_market_value": Decimal("NaN")}, ValueError, "portfolio_market_value"),
+        ({"portfolio_market_value": Decimal("0")}, ValueError, "portfolio_market_value"),
+        ({"assets": ("unresolved-holding",)}, TypeError, "PortfolioRiskAsset"),
+    ),
+)
+def test_exposure_projection_rejects_unusable_snapshot_inputs(changes, error, reason) -> None:
+    with pytest.raises(error, match=reason):
+        replace(_projection(), **changes)
+
+
+@pytest.mark.parametrize(
+    "changes,error,reason",
+    (
+        ({"report_date": CUTOFF}, TypeError, "report_date"),
+        ({"source_evidence": None}, TypeError, "source_evidence"),
+        ({"constituents": ("unresolved-holding",)}, TypeError, "constituents"),
+        ({"report_date": BUSINESS_DATE - timedelta(days=1)}, ValueError, "effective date"),
+    ),
+)
+def test_etf_disclosure_requires_dated_typed_source_rows(changes, error, reason) -> None:
+    disclosure = ETFConstituentReport(
+        report_date=BUSINESS_DATE,
+        source_evidence=_source("disclosure", effective_on=BUSINESS_DATE),
+        constituents=(),
+    )
+    with pytest.raises(error, match=reason):
+        replace(disclosure, **changes)
+
+
+def test_etf_disclosure_cannot_classify_cash_or_replace_direct_equity_evidence() -> None:
+    cash = ETFConstituent("CASH", Decimal("1"), ETFConstituentKind.CASH, None)
+    equity = _equity("EQUITY", "100", "INDUSTRY")
+    with pytest.raises(ValueError, match="only an equity constituent"):
+        replace(cash, industry_membership=equity.industry_membership)
+    with pytest.raises(TypeError, match="ETFConstituentKind"):
+        replace(cash, kind="equity")
+    with pytest.raises(TypeError, match="finite Decimal"):
+        replace(cash, weight_fraction=Decimal("NaN"))
+    disclosure = ETFConstituentReport(BUSINESS_DATE, _source("disclosure"), (cash,))
+    with pytest.raises(ValueError, match="equity asset cannot carry"):
+        replace(equity, etf_report=disclosure)
+
+
 def test_complete_coverage_rejects_inconsistent_explicit_item_counts() -> None:
     with pytest.raises(ValueError, match="complete coverage item counts must match"):
         PortfolioRiskCoverage(

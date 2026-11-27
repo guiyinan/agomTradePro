@@ -154,6 +154,23 @@ def test_exact_one_to_one_mapping_preserves_stored_available_knowledge(
     _assert_unqualified(row)
 
 
+@pytest.mark.parametrize("has_mapping", (False, True))
+def test_orphan_target_reports_invalid_quantities_without_a_repair_value(has_mapping: bool) -> None:
+    target = _target(quantity=Decimal("-1"), available_quantity=Decimal("NaN"))
+    mappings = (_mapping(),) if has_mapping else ()
+    (row,) = _assemble(targets=(target,), mappings=mappings)
+
+    missing = (
+        "POSITION_MAP_SOURCE_MISSING_OR_OUTSIDE_SCOPE" if has_mapping else "POSITION_SOURCE_MISSING"
+    )
+    assert {missing, "TARGET_QUANTITY_INVALID", "AVAILABLE_QUANTITY_INVALID"} <= set(
+        row.reason_codes
+    )
+    assert row.target_total_quantity is None and row.stored_available_quantity is None
+    assert not row.repair_ready and row.repair_available_quantity is None
+    _assert_unqualified(row)
+
+
 def test_missing_source_mapping_retains_source_but_has_no_target_values() -> None:
     """A source with no map is visible as a gap without an inferred target."""
 

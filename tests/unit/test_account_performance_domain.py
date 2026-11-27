@@ -45,6 +45,15 @@ def _make_values(amounts: list[float], start: date | None = None) -> list[tuple[
 
 
 class TestCalculateTWR:
+    def test_first_deposit_establishes_the_base_for_later_returns(self) -> None:
+        values = _make_values([0.0, 0.0, 100.0, 110.0, 99.0])
+        flows = [(values[2][0], 100.0)]
+        assert PerformanceCalculatorService.build_daily_returns(values, flows) == pytest.approx(
+            [0.10, -0.10]
+        )
+        assert PerformanceCalculatorService.calculate_twr(values, flows) == pytest.approx(-1.0)
+        assert PerformanceCalculatorService.calculate_max_drawdown(values) == pytest.approx(10.0)
+
     def test_simple_growth(self):
         """100 → 110: TWR = 10%"""
         values = _make_values([100.0, 110.0])
@@ -203,6 +212,10 @@ class TestVolatility:
 
 
 class TestRatios:
+    def test_flat_downside_or_unpaired_benchmark_cannot_support_a_ratio(self) -> None:
+        assert PerformanceCalculatorService.calculate_sortino(10.0, 0.0) is None
+        assert PerformanceCalculatorService.calculate_tracking_error([0.02, 0.01], [0.01]) is None
+
     RF = PerformanceCalculatorService.RISK_FREE_RATE * 100.0
 
     def test_sharpe_positive(self):
@@ -426,6 +439,9 @@ class TestDomainEntities:
 
 
 class TestBuildDailyReturns:
+    def test_one_valuation_cannot_form_a_return_period(self) -> None:
+        assert PerformanceCalculatorService.build_daily_returns(_make_values([100.0])) == []
+
     def test_simple(self):
         values = _make_values([100.0, 105.0, 100.0])
         returns = PerformanceCalculatorService.build_daily_returns(values)
