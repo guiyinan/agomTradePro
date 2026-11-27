@@ -8,9 +8,12 @@ verifier and independent capture evidence.
 
 from __future__ import annotations
 
+import hashlib
+import json
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
+from pathlib import Path
 from typing import NoReturn
 from uuid import UUID, uuid4
 
@@ -608,6 +611,78 @@ def _write(setup: _WriterSetup) -> tuple[FinancialFact, ...]:
         main_raw_audit=setup.main_audit,
         balance_raw_audit=setup.balance_audit,
     )
+
+
+@pytest.mark.django_db(transaction=True, available_apps=["apps.data_center", "apps.audit"])
+def test_retained_review_binds_operator_and_exact_material_to_native_forecast(
+    tmp_path: Path,
+) -> None:
+    """Read the independent review, compare the original capture and reject changed material."""
+    from apps.data_center.infrastructure.financial_e1_recovery_binding import RetainedWriteReview
+
+    _require_postgres()
+    setup = _build_setup()
+    source = UUID(setup.run.run_id)
+    plan_hash = setup.run.config_snapshot_hash
+    predicted = setup.writer.preview_recovery(
+        (setup.candidate,), exchange="SZSE", calendar_dataset_key="equity.trading_calendar"
+    )
+    (fact,) = predicted
+    artifact = setup.candidate.row.artifact_reference
+    material = {
+        "schema": "retained-e1-material-review.v1",
+        "source_run": str(source),
+        "plan_sha256": plan_hash,
+        "asset": setup.candidate.row.asset_code,
+        "period": setup.candidate.row.period_end.isoformat(),
+        "fields": {
+            setup.candidate.observation.contract.metric_code: {
+                "capture": str(artifact.capture_id),
+                "raw": setup.candidate.observation.canonical_value,
+                "unit": setup.candidate.observation.contract.canonical_unit,
+            }
+        },
+    }
+    material_path = tmp_path / "material.json"
+    material_path.write_text(json.dumps(material), encoding="utf-8")
+    review_path = tmp_path / "review.json"
+    review_path.write_text(
+        json.dumps(
+            {
+                "schema": "retained-e1-split-review.v1",
+                "source_run": str(source),
+                "plan_sha256": plan_hash,
+                "owner_id": 7,
+                "qualifications": [setup.candidate.qualification.identity],
+                "material_sha256": hashlib.sha256(material_path.read_bytes()).hexdigest(),
+            }
+        ),
+        encoding="utf-8",
+    )
+    digest = hashlib.sha256(review_path.read_bytes()).hexdigest()
+    inputs = {
+        "source": source,
+        "plan_hash": plan_hash,
+        "main": setup.main_audit,
+        "balance": setup.balance_audit,
+    }
+    review = RetainedWriteReview.load(review_path, digest, operator="django-user:7", **inputs)
+    assert review.owner_id == 7 and review.captures[0] == artifact.capture_id
+    assert review.qualification_ids == (setup.candidate.qualification.identity,)
+    assert fact.value == Decimal(setup.candidate.observation.canonical_value)
+    review.verify_material_forecast(
+        material_path, facts=predicted, plan_hash=plan_hash, source=source
+    )
+    with pytest.raises(ValueError, match="scope differs"):
+        review.verify_material_forecast(material_path, facts=(), plan_hash=plan_hash, source=source)
+    with pytest.raises(ValueError, match="identity or scope mismatch"):
+        RetainedWriteReview.load(review_path, digest, operator="django-user:8", **inputs)
+    material_path.write_text(json.dumps({**material, "asset": "000002.SZ"}), encoding="utf-8")
+    with pytest.raises(ValueError, match="material bytes differ"):
+        review.verify_material_forecast(
+            material_path, facts=predicted, plan_hash=plan_hash, source=source
+        )
+    assert not FinancialFactModel.objects.filter(ingested_run_id=source).exists()
 
 
 @pytest.mark.django_db(transaction=True, available_apps=["apps.data_center", "apps.audit"])
