@@ -576,11 +576,7 @@ class _UnifiedRelayClient:
                 "Tushare relay returned an invalid payload",
                 code="TUSHARE_INVALID_PAYLOAD",
             )
-        if _validated_provider_code(payload) != 0:
-            raise TushareError(
-                "Tushare relay rejected the request",
-                code="TUSHARE_PROVIDER_REJECTED",
-            )
+        _check_query_response_code(payload, api_name, "Tushare relay rejected the request")
         data = payload.get("data")
         if not isinstance(data, dict):
             raise TushareError(
@@ -825,11 +821,7 @@ class _RestPathClient(_UnifiedRelayClient):
                 "Tushare resource response is invalid",
                 code="TUSHARE_INVALID_PAYLOAD",
             )
-        if _validated_provider_code(payload) != 0:
-            raise TushareError(
-                "Tushare resource request rejected",
-                code="TUSHARE_PROVIDER_REJECTED",
-            )
+        _check_query_response_code(payload, api_name, "Tushare resource request rejected")
         data = payload.get("data")
         if not isinstance(data, dict):
             raise TushareError(
@@ -946,10 +938,7 @@ class _RoutedSdkClient(_UnifiedRelayClient):
             raise TushareError(
                 "Tushare response payload is invalid", code="TUSHARE_INVALID_PAYLOAD"
             )
-        if _validated_provider_code(payload) != 0:
-            raise TushareError(
-                "Tushare provider rejected the read", code="TUSHARE_PROVIDER_REJECTED"
-            )
+        _check_query_response_code(payload, api_name, "Tushare provider rejected the read")
         data = payload.get("data")
         if not isinstance(data, dict):
             raise TushareError("Tushare response is missing data", code="TUSHARE_INVALID_PAYLOAD")
@@ -977,6 +966,17 @@ class _RoutedSdkClient(_UnifiedRelayClient):
             artifact_reference,
             response_evidence=response_evidence,
         )
+
+
+def _check_query_response_code(payload: dict[str, object], api_name: str, message: str) -> None:
+    code = _validated_provider_code(payload)
+    if code == 0:
+        return
+    details = None
+    if api_name == "suspend_d":
+        details = {"api_name": api_name, "provider_code": code}
+        logging.getLogger(__name__).warning("Tushare rejected suspend_d provider_code=%d", code)
+    raise TushareError(message, code="TUSHARE_PROVIDER_REJECTED", details=details)
 
 
 def _validated_provider_code(payload: dict[str, object]) -> int:
