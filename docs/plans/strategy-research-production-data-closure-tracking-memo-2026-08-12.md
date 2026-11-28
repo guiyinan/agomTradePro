@@ -420,3 +420,12 @@ outcome=`zero_seed`，production/runtime claim 均为 false。
 本轮没有 registration、backfill、Promotion、approval 或 policy/definition 写入。STRAT-01 保持
 `awaiting_production`；下一门仍是唯一真人 owner 提供最小真实 definition/policy/calendar/scope/sample
 window/qualification/falsification 输入，先跑 canonical dry-run，再对 append-only registration 单独取证。
+
+## 2026-11-28 STRAT-01 登记准备与生产来源复核
+
+北京时间 14:01–14:02，生产 Web、镜像及部署 checkout 对应 `27d25afaf85909aed26272b98c026a9e7fd4a81e`，发布标签 `20261125181753`。宿主与容器挂载的发布清单 SHA-256 均为 `05a91ae94c75562dbf0b1ab24b065bb7d53759a7522e8ed43a1e88f3256258ae`。各 PostgreSQL 事务在 REPEATABLE READ / READ ONLY 下执行并回滚，分别在查询前后核验部署身份。
+
+- **批准与台账。** 开发提交 `3a13c840bb1cace27763ab14ca71e37743d5dc30` 上，八项定义、policy、qualification 引用及 Owner 收据通过签署字节、版本和有效期校验。[F1 决定](../reviews/owner-scope-freeze-2026-10-18/decision-f-strategy-registration.md)适用于八项登记。Research 65 张与 Portfolio 7 张目标表合计 0 行。盘点预演结果为 `nonzero_unverified`，摘要 `d2b9e72f2ae62f1877f5201bc7389dcaea02771aab498715bd54cdee2bfdcc65`。34 张限定来源表均存在，三类授权表的 9、4、9 行中直接匹配八项 scope ID 的各为 0。间接授权关系尚未核实。
+- **R2 首项登记。** 资产组修订、投资者资金流定义、市场结构期间日历、序列和证据五张表均无记录。五个通用 universe 配置均不匹配获批 scope ID。使用批准的 `strat.r2.explanatory-trial.policy / 1.0.0` 及此次生产来源观测时点，在本地走公开 Research 登记入口，返回 `R2 trial-policy canonical definition provider is unavailable`，入口执行期间 SQL 调用 0 次。部署提交与开发提交的该组装入口和登记用例文件一致。下一份业务输入为按形成时点冻结的资产组、分类修订、成员及其可知时间、同一 Publication 的引用。Data Center 已有 `ResearchDataFoundationFacade.register_asset_group` 和 `register_investor_flow` 承接版本化来源。Research 仍须接入可按 policy、版本和时点精确读取的权威定义，再按真实身份与当前台账做登记预演。
+- **R7 真实引用。** 将风险模块已批准的 2015 股灾、2018 贸易战、2020 疫情三个 revision UUID 和哈希逐项对齐后，三者在 Signal 预测台账和兑现回执中的匹配数均为 0。兑现来源定义、来源成员、来源清单、结果和校准样本定义五张表均为空。可复用三个不可变情景引用，仍缺策略选用记录、客观兑现规则与独立结果来源。
+- **验收范围。** 已核查来源中可供正式登记的完整范围为 0/8，生产登记写入 0。STRAT-01 继续等待生产登记。STRAT-02 仍依赖 STRAT-01 与 DATA-02 的完整退出。本地盘点与 R2 登记单测共 25 项通过。原件位于 `.tmp/strat01-preparation-20261128-135855/`，含 `approved-inputs.json`、`runtime-ledger-counts.json`、`current-recorder.json`、`source-facts.json`、`selected-source-references.json`、`r7-signal-links.json`、`r2-facade-02.log` 及 `unit.xml`。
