@@ -4170,7 +4170,7 @@
           "imports": 3
         },
         "research": {
-          "imports": 7
+          "imports": 10
         },
         "risk_center": {
           "imports": 17
@@ -9010,7 +9010,7 @@
     "research": {
       "depends_on": {
         "data_center": {
-          "imports": 7,
+          "imports": 10,
           "target_layers": [
             "application",
             "domain",

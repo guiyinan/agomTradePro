@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 from dataclasses import replace
 from datetime import datetime, timedelta
+from pathlib import Path
 
 import pytest
 from django.core.exceptions import ValidationError
@@ -19,6 +22,9 @@ from apps.research.application.r2_market_structure_trial_policy_registry import 
 from apps.research.domain.r2_market_structure_trial_monitoring import (
     R2MarketStructureTrialPolicy,
 )
+from apps.research.infrastructure.r2_market_structure_trial_monitoring_codec import (
+    encode_r2_trial_policy,
+)
 from apps.research.infrastructure.r2_market_structure_trial_policy_models import (
     R2MarketStructureTrialPolicyLedgerModel,
 )
@@ -26,6 +32,7 @@ from apps.research.infrastructure.r2_market_structure_trial_policy_repository im
     _record_values,
 )
 from apps.research.r2_market_structure_trial_policy_composition import (
+    R2RehearsalRelease,
     _build_django_r2_trial_policy_registry_test_runtime,
     _DjangoR2TrialPolicyRegistryTestRuntime,
     build_django_r2_trial_policy_registry_runtime,
@@ -206,6 +213,43 @@ def test_public_runtime_is_inert_and_empty_db_means_r2_blocked() -> None:
     )
     with pytest.raises(R2TrialPolicyRegistryUnavailable, match="provider"):
         runtime.register.execute(_command(policy))
+    assert R2MarketStructureTrialPolicyLedgerModel.objects.count() == 0
+
+
+def test_public_rehearsal_reads_release_and_rolls_back(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    policy = build_r2_scenario().policy
+    taxonomy = policy.taxonomy_projection_seal
+    calendar_ref = replace(
+        policy.calendar_publication_ref,
+        owner=taxonomy.reference.owner,
+        publication_version=taxonomy.reference.publication_version,
+        publication_id=taxonomy.reference.publication_id,
+        publication_hash=taxonomy.reference.publication_hash,
+    )
+    calendar = replace(policy.calendar_projection_seal, reference=calendar_ref)
+    policy = replace(
+        policy, calendar_publication_ref=calendar_ref, calendar_projection_seal=calendar
+    )
+    path = tmp_path / "definition.json"
+    raw = json.dumps(encode_r2_trial_policy(policy)).encode()
+    path.write_bytes(raw)
+    release = R2RehearsalRelease(path, hashlib.sha256(raw).hexdigest(), taxonomy, calendar)
+    monkeypatch.setattr(
+        "apps.research.r2_market_structure_trial_policy_composition.DjangoR2TrialPolicyRegistryClock.now",
+        lambda self: LEDGER_TIME,
+    )
+    runtime = build_django_r2_trial_policy_registry_runtime()
+    receipt = runtime.rehearse(_command(policy), release)
+    assert receipt.policy == policy
+    assert R2MarketStructureTrialPolicyLedgerModel.objects.count() == 0
+    wrong = replace(calendar, projection_hash="1" * 64)
+    with pytest.raises(R2TrialPolicyRegistryUnavailable, match="projection"):
+        runtime.rehearse(_command(policy), replace(release, calendar=wrong))
+    path.write_bytes(raw + b" ")
+    with pytest.raises(R2TrialPolicyRegistryUnavailable, match="digest"):
+        runtime.rehearse(_command(policy), release)
     assert R2MarketStructureTrialPolicyLedgerModel.objects.count() == 0
 
 

@@ -7,9 +7,19 @@ from contextlib import contextmanager
 from copy import deepcopy
 from dataclasses import replace
 from datetime import datetime, timedelta
+from pathlib import Path
+from unittest.mock import create_autospec
 
 import pytest
 
+from apps.data_center.application.control_plane import CanonicalPublicationRepositoryPort
+from apps.data_center.application.publication_utils import member_reference, publication_hash
+from apps.data_center.domain.control_plane import (
+    CanonicalPublication,
+    CoverageSnapshot,
+    PublicationMember,
+    PublicationState,
+)
 from apps.research.application.r2_market_structure_trial_policy_registry import (
     R2TrialPolicyRegistryUnavailable,
     RegisterR2MarketStructureTrialPolicy,
@@ -26,6 +36,7 @@ from apps.research.infrastructure.r2_market_structure_trial_policy_codec import 
     decode_r2_trial_policy_record,
     encode_r2_trial_policy_record,
 )
+from apps.research.r2_market_structure_trial_policy_composition import R2RehearsalRelease
 from tests.unit.research.r2_market_structure_trial_monitoring_factories import (
     NOW,
     build_r2_scenario,
@@ -33,6 +44,67 @@ from tests.unit.research.r2_market_structure_trial_monitoring_factories import (
 
 LEDGER_TIME = NOW - timedelta(days=30, hours=12)
 CUTOFF = NOW - timedelta(days=30, hours=18)
+
+
+@pytest.mark.parametrize("invalid", ["", "missing series", "other asset", "other release"])
+def test_rehearsal_requires_one_complete_candidate(tmp_path: Path, invalid: str) -> None:
+    dataset = "research.market_structure_rehearsal.v1"
+    facts = {
+        "asset_group:group": "data_center_asset_group_revision",
+        "member:asset": "data_center_pit_fact_version",
+        "actor:actor": "data_center_investor_actor_definition",
+        "flow:flow": "data_center_investor_flow_definition",
+        "series:series": "data_center_market_structure_series",
+        "observation:asset": "data_center_pit_fact_version",
+        "calendar:calendar": "data_center_market_structure_period_calendar",
+    }
+    if invalid == "missing series":
+        del facts["series:series"]
+    if invalid == "other asset":
+        facts["observation:another"] = facts.pop("observation:asset")
+    members = [
+        PublicationMember(key, "release", dataset, key, "source", key, table, str(i), NOW, "a" * 64)
+        for i, (key, table) in enumerate(sorted(facts.items()))
+    ]
+    if invalid == "other release":
+        members[-1] = replace(members[-1], publication_id="another")
+    digest = publication_hash([member_reference(row) for row in members])
+    count = len(members)
+    root = CanonicalPublication(
+        "release",
+        dataset,
+        "key",
+        "revision",
+        PublicationState.CANDIDATE,
+        "owner",
+        digest,
+        CoverageSnapshot("coverage", "release", count, count, count),
+        count,
+        as_of=NOW,
+        must_not_use_for_decision=True,
+    )
+    repository = create_autospec(CanonicalPublicationRepositoryPort, instance=True)
+    repository.get_by_id.return_value = root
+    repository.list_members.return_value = members
+
+    def read() -> R2RehearsalRelease:
+        return R2RehearsalRelease.from_candidate(
+            repository,
+            publication_id="release",
+            expected_hash=digest,
+            definition_path=tmp_path / "policy.json",
+            definition_sha256="b" * 64,
+        )
+
+    if invalid:
+        with pytest.raises(R2TrialPolicyRegistryUnavailable, match="member"):
+            read()
+    else:
+        release = read()
+        assert release.taxonomy.reference.publication_hash == digest
+        assert release.calendar.reference.publication_hash == digest
+        assert release.calendar.projection_hash != release.taxonomy.projection_hash
+        assert release.calendar.reference.publication_version == root.policy_version
 
 
 class _Clock:

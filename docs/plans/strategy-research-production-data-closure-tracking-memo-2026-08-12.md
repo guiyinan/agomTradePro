@@ -443,4 +443,13 @@ window/qualification/falsification 输入，先跑 canonical dry-run，再对 ap
 
 两组共 350 行逐项比对内容哈希，重复登记返回相同记录，回滚后组与成员记录均为 0。对批准的 `strat.r2.explanatory-trial.policy / 1.0.0` 再走公开 Research 登记入口，仍在 SQL 前返回 `R2 trial-policy canonical definition provider is unavailable`。下一步是绑定选定资产组、主体分类、序列与日历的同一 Publication，并接入可按批准版本和时点读取的 Research 定义。此次未建立 72 个月试验窗或两个市场周期，DATA-02 配额调用及生产写入均为 0。
 
+### R2 科创50同一候选发布与 Research 登记预演（2026-11-28）
+
+以 `SSE.000688` 修订 1 的 2020-07-23 收盘成分为范围，在独立 SQLite 内存库一次登记并逐条回读 110 条发布成员。资产组与 50 条成分、批准口径中的 6 类主体、融资余额指标与序列定义各 1 条、50 条融资余额观测以及 1 份月度日历共用一个发布 ID。Data Center 候选为 `1a35b517-1e3a-43e0-aa63-2e408c54d50d`，版本 `r2-local-rehearsal.v1`，成员哈希 `d53c6fa37ef8c2650a62afde2b1ef1f8f3df078673ab1a19564de245c2615911`。分类和日历分别计算投影哈希，两者绑定同一发布 ID、版本和成员哈希，知悉时间为本次构建时间。
+
+- **样本与时点。** 上交所 2020-07-23 融资融券明细有 1,006 条，首发成分匹配 50/50。`SSE_MARGIN_RZYE` 是融资主体的直接日频人民币余额。本次于 2026-11-28 取得该原件，无法据此证明 2020 年月度截止时已取得这些观测。两份现有 Qlib 日历与交易所休市安排交叉核对，7 月最后交易日为 7 月 31 日，下一月第 5 个交易日截止为 8 月 7 日 18:00（上海时间）。[首发名单公告](https://www.sse.com.cn/market/sseindex/diclosure/c/c_20200619_5130634.shtml) · [融资融券明细](https://www.sse.com.cn/market/othersdata/margin/detail/) · [2020 年休市安排](https://www.sse.com.cn/disclosure/announcement/general/c/c_20191220_4969627.shtml)
+- **登记结果。** Research 预演入口可按文件摘要读取规范策略定义、按策略 ID/版本/时点匹配、核对两个发布投影，并在同一事务内复读及尝试登记。实际使用 `APPROVE-STRAT-20260915-01` 与其固定摘要的 R2 业务规则。批准回执的规范内容哈希为空，且缺少带逐序列逐月观测引用和两个预定义市场周期的规范策略正文。实际登记返回 `canonical R2 policy body is unavailable`，策略账本 0 条。本批覆盖 1 类直接观测、1 个交易日；批准范围要求 72 个连续月、至少 4 类主体（含 2 类直接观测）及两个事前定义、各至少 24 个月的完整周期。[R2 批准业务规则](../business/strategy-research/strat-01/r2-market-structure.md)
+- **验收原件。** 本机 `.tmp/strat01-star50-release-20261128-193410/result.json` 含成员引用、投影、输入摘要和回滚结果，`run.py` 为本次重放程序。真实输入基础提交为 `97c996d9c`，运行时读取入口文件 SHA-256 为 `cc6f4b5724469a61924879a118327fc5323ed0c32143481a9d2da44f5141286f`。候选保留研究专用限制；回滚后候选、事实和策略账本新增均为 0，生产调用、生产写入、DATA-02 窗口使用均为 0。前两次尝试的限制状态冲突、时区序列化差异分别保留在 `run-01.log`、`run-02.log`，最终同一候选的回读结果见 `run-04.log`。
+
 原件、完整代码表与重放脚本保存在 `.tmp/strat01-r2-members-20261128-174438/`。`dry-run.json` 的 SHA-256 为 `48b56fc5e22a246088fcdad1e9662446fe59d22fbfb9864518c66392f93f3908`，含三份成员清单摘要、原件引用及 40 项主档缺口；`compare.log` 保存 Qlib 交叉核查。
+- **代码验证。** 最终改动在带完整迁移的私有 SQLite 环境通过 22 项 R2 登记测试（`r2-final.xml`）。规范策略样例可完成双读、写入并回滚；篡改摘要、拆换投影、混入其他发布、缺少序列或资产不匹配均遭拒绝。此前跳过迁移的运行因缺少权限代际种子导致测试清库失败（`green.log`）。增量 mypy、全量债务上限和模块投影校验均通过。
