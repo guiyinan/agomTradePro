@@ -584,13 +584,16 @@ def run_full_market_publication_refresh(
         """Prove provider-missing quote rows are full-day target-date suspensions."""
 
         missing = tuple(sorted(set(missing_asset_codes)))
-        if missing_target_date != target_date or not missing:
+        if missing_target_date != target_date or not missing or not all(missing):
             raise DataFetchError(
                 "Quote suspension verification scope is invalid",
                 code="CURRENT_QUOTE_SESSION_SUSPENSION_UNVERIFIED",
             )
         preparation = dependencies.refresh_market_price_inputs(
-            dependencies.model_market_data_port(), list(missing), missing_target_date
+            dependencies.model_market_data_port(),
+            list(missing),
+            missing_target_date,
+            target_session_only=True,
         )
         normalized_verified = tuple(
             sorted(str(code or "").strip().upper() for code in preparation.suspended_codes)
@@ -600,11 +603,8 @@ def run_full_market_publication_refresh(
             {reference.raw_audit_id: reference for reference in preparation.raw_audit_references}
         )
         if (
-            any(not code for code in normalized_verified)
-            or len(normalized_verified) != len(set(normalized_verified))
-            or set(normalized_verified) != set(missing)
-            or evidence_codes != tuple(sorted(set(evidence_codes)))
-            or set(evidence_codes) != set(missing)
+            normalized_verified != missing
+            or evidence_codes != missing
             or any(
                 item.target_trade_date != missing_target_date
                 for item in preparation.suspension_evidence

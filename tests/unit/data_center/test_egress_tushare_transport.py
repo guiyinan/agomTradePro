@@ -611,6 +611,25 @@ def _count_envelope_client(
 
 
 @pytest.mark.parametrize("mode", ["sdk_path", "rest_path", "unified_relay"])
+def test_suspension_rejection_records_only_the_numeric_provider_code(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture, mode: str
+) -> None:
+    client = _count_envelope_client(monkeypatch, mode, {})
+    rejected = Mock(return_value={"code": -2199, "msg": "private upstream text", "data": None})
+    monkeypatch.setattr(egress_service, "execute_provider_request", rejected)
+
+    with pytest.raises(TushareError) as caught:
+        client.suspend_d(ts_code="688496.SH", start_date="20261126", end_date="20261126")
+
+    rejected.assert_called_once()
+    assert caught.value.code == "TUSHARE_PROVIDER_REJECTED"
+    assert caught.value.details == {"api_name": "suspend_d", "provider_code": -2199}
+    assert "suspend_d provider_code=-2199" in caplog.text
+    assert "private upstream text" not in caplog.text + str(caught.value)
+    assert "test-token-" not in caplog.text
+
+
+@pytest.mark.parametrize("mode", ["sdk_path", "rest_path", "unified_relay"])
 @pytest.mark.parametrize("include_count", [False, True])
 def test_stock_basic_accepts_exact_count_and_legacy_no_count(
     monkeypatch: pytest.MonkeyPatch, mode: str, include_count: bool

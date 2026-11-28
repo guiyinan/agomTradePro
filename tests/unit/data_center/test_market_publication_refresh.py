@@ -2811,7 +2811,7 @@ def test_task_verifies_dynamic_quote_gap_and_publishes_full_scope_with_exclusion
     monkeypatch.setattr(
         market_publication_refresh,
         "refresh_market_price_inputs",
-        lambda _port, codes, _target: (
+        lambda _port, codes, _target, *, target_session_only=False: (
             MarketPricePreparationResult(
                 suspended_codes=(excluded,),
                 raw_audit_references=(),

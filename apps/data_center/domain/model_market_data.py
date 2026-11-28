@@ -84,6 +84,17 @@ class ModelHistoryPreparationPort(Protocol):
 
 
 @runtime_checkable
+class TargetSessionSuspensionPort(Protocol):
+    """Identify proven full-day halts among an exact set of target-session quote gaps."""
+
+    def target_session_suspensions(
+        self, asset_codes: tuple[str, ...], target_date: date
+    ) -> tuple[str, ...]:
+        """Return the sorted subset with complete proof for the requested day."""
+        ...
+
+
+@runtime_checkable
 class ModelSuspensionPort(Protocol):
     """Optional evidence for full-day suspensions, never inferred from missing bars."""
 

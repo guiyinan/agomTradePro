@@ -65,6 +65,10 @@ python -m scripts.run_s6_prepare_preflight
 # 在可读取 provider 配置与目标日 universe 的 PostgreSQL 环境中执行零写诊断
 python -m scripts.run_s6_prepare_preflight --live --target-date <YYYY-MM-DD> \
   --sample-size 10 --timeout 120
+
+# 核对冻结范围内的当日行情，缺口数量受本次预算约束
+python -m scripts.run_s6_prepare_preflight --live --target-date <YYYY-MM-DD> \
+  --max-quote-gaps <本次缺口上限> --timeout 120
 ```
 
 live 模式仍先跑上述单测，通过后才启动独立 provider 进程。它复用 prepare 的 provider 选择、
@@ -76,6 +80,11 @@ provider 内部出口重试仍遵循原配置，并受该进程总时限约束�
 底层 session 接口可能仍下载全市场响应；这里减少的是写入、后续阶段和失败等待，不承诺缩小上游响应。
 JSON 保留实际来源时间与抽样覆盖率，始终标明 `release_approval=false`、
 `must_not_use_for_decision=true`；单测默认独立 SQLite 环境，live 进程使用调用方 Django 配置。
+
+`--max-quote-gaps` 模式读取目标日全范围报价，有缺口时调用正式 prepare 的同一批量停牌核验。
+冻结范围的只读事务结束后，配置的出口按实际派发记录审计，行情事实写入数为零。
+目标日、证券代码和全天停牌状态逐只核对。重复记录、复牌、盘中停牌或缺行均保留在
+`unverified_codes`；超过缺口上限即停止。上游拒绝时保留可用的整数业务码。
 
 诊断不 reserve attempt、不创建隔离库、不生成 receipt，也不重跑已封存的历史全量回填验收。
 抽样通过不能证明全市场覆盖率或完整 S6 已通过。正式候选仍需同 SHA 的五组 CI 和 official artifact，

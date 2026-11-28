@@ -138,6 +138,21 @@ class CurrentMarketPublicationBundleFactory(Protocol):
     ) -> CurrentMarketPublicationBundle: ...
 
 
+class MarketPriceInputRefresh(Protocol):
+    """Prepare full price inputs or restrict quote-gap proof to its target session."""
+
+    def __call__(
+        self,
+        port: ModelMarketDataPort,
+        asset_codes: list[str],
+        target_date: date,
+        *,
+        target_session_only: bool = False,
+    ) -> MarketPricePreparationResult:
+        """Return priced members and individually verified target-day exclusions."""
+        ...
+
+
 @dataclass(frozen=True, slots=True)
 class FullMarketRefreshDependencies:
     """Application-owned collaborators used by the Celery task adapter."""
@@ -157,9 +172,7 @@ class FullMarketRefreshDependencies:
     publication_policy_repository: Callable[[], PublicationPolicyRepositoryProtocol]
     record_progress: Callable[[TaskProgress], bool]
     model_market_data_port: Callable[[], ModelMarketDataPort]
-    refresh_market_price_inputs: Callable[
-        [ModelMarketDataPort, list[str], date], MarketPricePreparationResult
-    ]
+    refresh_market_price_inputs: MarketPriceInputRefresh
     refresh_market_publications: MarketPublicationsRefresh
 
 

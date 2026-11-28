@@ -171,7 +171,11 @@ class MarketPricePreparationResult:
 
 
 def refresh_market_price_inputs(
-    port: ModelMarketDataPort, asset_codes: list[str], target_date: date
+    port: ModelMarketDataPort,
+    asset_codes: list[str],
+    target_date: date,
+    *,
+    target_session_only: bool = False,
 ) -> MarketPricePreparationResult:
     """Verify target-session prices, expanding only missing assets for suspension proof."""
     history_start = target_date - timedelta(days=120)
@@ -248,6 +252,16 @@ def refresh_market_price_inputs(
     # Prepare only the members whose target-day read was unavailable or stale.
     # The Data Center service still enforces its explicit route, scope and audit gates.
     history_scope = tuple(sorted(set(history_candidates)))
+    if target_session_only and history_scope:
+        raise DataFetchError(
+            "Target-session suspension evidence is incomplete",
+            code="CURRENT_QUOTE_SESSION_SUSPENSION_UNVERIFIED",
+            details={
+                "target_trade_date": target_date.isoformat(),
+                "unverified_codes": list(history_scope),
+                "verified_codes": sorted(verified_suspension_errors),
+            },
+        )
     if history_scope:
         if isinstance(port, ModelHistoryPreparationPort):
             port.prepare_stock_history(history_scope, history_start, target_date)

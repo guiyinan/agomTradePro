@@ -51,6 +51,47 @@ def test_empty_universe_is_blocked() -> None:
         preflight.select_sample((), 10)
 
 
+def test_gap_preflight_calls_the_prepare_source_once_for_the_actual_missing_set():
+    import pandas as pd
+
+    from apps.data_center.infrastructure.tushare_model_market_source import TushareModelMarketSource
+    from core.exceptions import TushareError
+
+    provider = _provider()
+    extra = ("600001.SH", "600002.SH")
+    universe = CODES + extra
+    client = Mock()
+    provider.model_market_source.return_value = TushareModelMarketSource(client)
+    frame = pd.DataFrame(
+        [[extra[0], "20261014", "S", None], [extra[1], "20261014", "R", None]],
+        columns=["ts_code", "trade_date", "suspend_type", "suspend_timing"],
+    )
+    client.suspend_d.return_value = frame
+    result = preflight.probe_quote_gaps(provider, universe, TARGET, max_gaps=1)
+    assert result["outcome"] == "blocked"
+    client.suspend_d.assert_not_called()
+    result = preflight.probe_quote_gaps(provider, universe, TARGET, max_gaps=2)
+    assert result["verified_codes"] == [extra[0]]
+    assert result["unverified_codes"] == [extra[1]]
+    assert result["outcome"] == "blocked"
+    client.suspend_d.assert_called_once_with(
+        ts_code=",".join(extra),
+        start_date="20261014",
+        end_date="20261014",
+        fields="ts_code,trade_date,suspend_type,suspend_timing",
+    )
+    frame.loc[1, "suspend_type"] = "S"
+    assert preflight.probe_quote_gaps(provider, universe, TARGET, 2)["outcome"] == "success"
+    client.suspend_d.side_effect = TushareError(
+        "private text", code="TUSHARE_PROVIDER_REJECTED", details={"provider_code": 40203}
+    )
+    result = preflight.probe_quote_gaps(provider, universe, TARGET, 2)
+    assert result["provider_code"] == 40203
+    assert result["unverified_codes"] == list(extra)
+    assert "private text" not in str(result)
+    assert client.suspend_d.call_count == 3
+
+
 def test_live_probe_uses_explicit_session_batches_without_writers() -> None:
     provider = _provider()
     result = preflight.probe_sample(provider, CODES, TARGET)
@@ -113,11 +154,16 @@ def test_failed_focused_tests_prevent_provider_process(monkeypatch, capsys) -> N
     assert json.loads(capsys.readouterr().out)["error_code"] == "S6_PREFLIGHT_TESTS_FAILED"
 
 
-def test_tests_only_does_not_contact_provider(monkeypatch, capsys) -> None:
+def test_tests_only_does_not_contact_provider(monkeypatch, capsys, tmp_path) -> None:
     run = Mock(return_value=subprocess.CompletedProcess([], 0, "passed", ""))
+    monkeypatch.setattr(preflight, "ROOT", tmp_path)
     monkeypatch.setattr(preflight.subprocess, "run", run)
     assert preflight.main([]) == 0
     assert run.call_count == 1
+    base_arg = next(arg for arg in run.call_args.args[0] if arg.startswith("--basetemp="))
+    base = tmp_path / base_arg.removeprefix("--basetemp=")
+    assert base.parent.is_dir()
+    assert not base.exists()
     assert (
         run.call_args.kwargs["env"]["DJANGO_SETTINGS_MODULE"] == "core.settings.development_sqlite"
     )
@@ -210,6 +256,24 @@ def test_live_rejects_unsafe_transaction_before_calendar(live_runtime, vendor, i
     assert not provider.method_calls
 
 
+def test_full_quote_gap_probe_closes_scope_transaction_before_audited_transport(live_runtime):
+    from django.db import transaction
+
+    _, _, _, provider, scope = live_runtime
+    rows = provider.fetch_quote_snapshots_for_session.return_value
+
+    def quote(codes, target):
+        scope.assert_called_once_with(TARGET)
+        transaction.atomic.return_value.__exit__.assert_called_once()
+        assert codes == list(CODES) and target == TARGET
+        return rows
+
+    provider.fetch_quote_snapshots_for_session.side_effect = quote
+    result = preflight._live_probe(TARGET, 10, max_quote_gaps=2)
+    assert result["outcome"] == "success" and result["coverage_scope"] == "full_target_quote_gaps"
+    provider.fetch_current_valuations.assert_not_called()
+
+
 def test_target_mismatch_stops_before_provider_and_universe(live_runtime) -> None:
     connection, resolver, selection, provider, scope = live_runtime
     resolver.return_value = date(2026, 10, 13)
@@ -234,7 +298,9 @@ def test_worker_suppresses_provider_exception_secrets(monkeypatch) -> None:
     monkeypatch.setattr(
         preflight, "_live_probe", Mock(side_effect=DataFetchError("secret URL and token"))
     )
-    result = preflight._worker(SimpleNamespace(target_date=TARGET, sample_size=10))
+    result = preflight._worker(
+        SimpleNamespace(target_date=TARGET, sample_size=10, max_quote_gaps=None)
+    )
     assert result["error_code"] == "S6_PREFLIGHT_PROVIDER_FAILED"
     assert "secret" not in json.dumps(result)
 
