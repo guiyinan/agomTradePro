@@ -429,3 +429,18 @@ window/qualification/falsification 输入，先跑 canonical dry-run，再对 ap
 - **R2 首项登记。** 资产组修订、投资者资金流定义、市场结构期间日历、序列和证据五张表均无记录。五个通用 universe 配置均不匹配获批 scope ID。使用批准的 `strat.r2.explanatory-trial.policy / 1.0.0` 及此次生产来源观测时点，在本地走公开 Research 登记入口，返回 `R2 trial-policy canonical definition provider is unavailable`，入口执行期间 SQL 调用 0 次。部署提交与开发提交的该组装入口和登记用例文件一致。下一份业务输入为按形成时点冻结的资产组、分类修订、成员及其可知时间、同一 Publication 的引用。Data Center 已有 `ResearchDataFoundationFacade.register_asset_group` 和 `register_investor_flow` 承接版本化来源。Research 仍须接入可按 policy、版本和时点精确读取的权威定义，再按真实身份与当前台账做登记预演。
 - **R7 真实引用。** 将风险模块已批准的 2015 股灾、2018 贸易战、2020 疫情三个 revision UUID 和哈希逐项对齐后，三者在 Signal 预测台账和兑现回执中的匹配数均为 0。兑现来源定义、来源成员、来源清单、结果和校准样本定义五张表均为空。可复用三个不可变情景引用，仍缺策略选用记录、客观兑现规则与独立结果来源。
 - **验收范围。** 已核查来源中可供正式登记的完整范围为 0/8，生产登记写入 0。STRAT-01 继续等待生产登记。STRAT-02 仍依赖 STRAT-01 与 DATA-02 的完整退出。本地盘点与 R2 登记单测共 25 项通过。原件位于 `.tmp/strat01-preparation-20261128-135855/`，含 `approved-inputs.json`、`runtime-ledger-counts.json`、`current-recorder.json`、`source-facts.json`、`selected-source-references.json`、`r7-signal-links.json`、`r2-facade-02.log` 及 `unit.xml`。
+
+
+### R2 历史成分登记预演（2026-11-28）
+
+在开发提交 `444ac2e61630d935220f2e73ca93d9ea534bdaec` 上，以沪深300、科创50作为候选资产组。逐份保留来源日期、原文件 SHA-256、排序后的证券代码集 SHA-256。交易所和指数公司公开件仅由本地下载；资产主档仅读取本地 SQLite。原项目的 Data Center 登记用例在独立内存库执行，组修订号 1 仅用于该次预演。上述候选组与 R2 批准范围的正式绑定仍待核验。
+
+| 成分版本 | 来源和时点 | 预演结果 |
+| --- | --- | --- |
+| 沪深300，2005-07-01 | 上交所 7 月 12 日公布 300 只完整名单。6 月 22 日公告中的 14 只调入、14 只调出与完整名单全部吻合。[完整名单](https://www.sse.com.cn/market/sseindex/diclosure/c/c_20150911_3984900.shtml) · [调整公告](https://www.sse.com.cn/market/sseindex/diclosure/c/c_20150911_3984898.shtml) | 两份本地 Qlib 成分区间在该日各给出 302 只，各与官方名单重合 192 只。官方名单中有 40 个代码在本地主档找不到。保留完整名单，整组止于登记前检查。 |
+| 科创50，2020-07-23 首发 | 6 月 19 日的上交所公告附 50 只完整名单。预演仅取首发日收盘，按公告先于形成日确定可知性。[公告与附件](https://www.sse.com.cn/market/sseindex/diclosure/c/c_20200619_5130634.shtml) | 本地主档匹配 50/50，逐项登记和回读通过。按公共可知时间查询，首日收盘可见 50 只。将观察范围限定于首日，不推算之后的成分。 |
+| 沪深300，2026-11-27 | 指数公司文件内 300 行均标识 000300 和 20261127。服务器最后修改时间为北京时间 11 月 28 日 17:35，17:45 获取，按获取时点保守处理。滚动下载地址按原件哈希固定。[中证指数成分文件](https://oss-ch.csindex.com.cn/static/html/csindex/public/uploads/file/autofile/cons/000300cons.xls) | 本地主档匹配 300/300，逐项登记和回读通过。回查 11 月 27 日收盘可见 0 只；本次原件无法证明当时已发布。 |
+
+两组共 350 行逐项比对内容哈希，重复登记返回相同记录，回滚后组与成员记录均为 0。对批准的 `strat.r2.explanatory-trial.policy / 1.0.0` 再走公开 Research 登记入口，仍在 SQL 前返回 `R2 trial-policy canonical definition provider is unavailable`。下一步是绑定选定资产组、主体分类、序列与日历的同一 Publication，并接入可按批准版本和时点读取的 Research 定义。此次未建立 72 个月试验窗或两个市场周期，DATA-02 配额调用及生产写入均为 0。
+
+原件、完整代码表与重放脚本保存在 `.tmp/strat01-r2-members-20261128-174438/`。`dry-run.json` 的 SHA-256 为 `48b56fc5e22a246088fcdad1e9662446fe59d22fbfb9864518c66392f93f3908`，含三份成员清单摘要、原件引用及 40 项主档缺口；`compare.log` 保存 Qlib 交叉核查。
