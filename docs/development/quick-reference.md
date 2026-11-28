@@ -153,7 +153,7 @@ exec 3<&-
   `--graph-target-date YYYY-MM-DD --graph-max-assets N`，分别取已核定的交易日和本次授权的证券数量上限。
   v4 plan 把两者绑定到同一 attempt。若 fresh prepare 的隔离快照 current graph 已过时，
   或不满足正常 producer 的 activation identity 门时，可在已批准请求预算内于 reserve 显式启用；它会在隔离库
-  执行真实全市场 provider refresh，不修写生产 graph。固定硬上限为 50 次 `requests.Session.send` dispatch、3600 秒；
+  执行真实全市场 provider refresh，不修写生产 graph。可用 `--graph-max-dispatches N` 在计划中收紧实际 HTTP 发送上限。默认 50 次，最多 50 次，时限 3600 秒。
   隐藏重试、不可观测 adapter、重定向、超额或 task 吞掉的 transport guard 均阻断，v2 receipt 保留安全计数。
   新 stage 的调用必须计入该次总预算，不能在原两个 stage 上限外静默加额。该选择进入不可变 attempt plan 和
   prepare receipt，不改变日期、新鲜度、15:00、正常 activation UUID 或 provider-probe 门槛；失败 attempt 不续跑。
@@ -175,8 +175,9 @@ exec 3<&-
   未过期且全部绑定不变，失败时不得进入 provider stage；发布证据 validator 还会把授权数据库身份与迁移、财报切片及 scope discovery
   报告交叉核对。该授权不替代生产 financial publication 需要的独立 owner/reviewer 双事件和有效 ceiling。
 - 全新 S6 还会执行 `akshare_financial_slice`：它要求隔离 PostgreSQL/Redis 和 provider identities
-  快照中的唯一 `akshare_financial_route`，从隔离快照的 AKShare `announced_at` 或 `available_at`
-  动态选取一个请求 asset/date。旧日期只是不可信请求种子；只有这次精确 asset/date 的双原件、
+  快照中的唯一 `akshare_financial_route`。隔离库的旧精度写入器只从未存有原生精确值的证券和报告期组合中选取样本。
+  有已绑定的来源凭据时，请求使用原始公告日，v3 的下一交易日开盘时间仅表示可用时间。
+  旧记录的 `announced_at` 或 `available_at` 只提供待核实的请求日期。只有这次精确 asset/date 的双原件、
   两个同 provider RawAudit、typed source-time contract 和单次 atomic fact write 才构成新证据。
   该 stage 的逻辑 provider 请求固定为 `N=1, 2N=2`；零写故障反例绑定到候选 CI 的 JUnit SHA，
   不会额外产生真实 provider 请求。

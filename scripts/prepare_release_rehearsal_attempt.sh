@@ -70,6 +70,7 @@ try:
         advance_isolated_market_graph=advance,
         graph_target_date=plan.get("graph_target_date"),
         graph_max_assets=plan.get("graph_max_assets"),
+        graph_max_dispatches=plan.get("graph_max_dispatches"),
     )
     canonical = (json.dumps(expected, ensure_ascii=False, sort_keys=True, indent=2) + "\n").encode("utf-8")
     if plan != expected or raw != canonical:
@@ -106,6 +107,7 @@ try:
         blocked("S6_ATTEMPT_PLAN_INVALID")
     print("\n".join(values))
     print("1" if expected["advance_isolated_market_graph"] else "0")
+    print(expected.get("graph_max_dispatches", 50))
 except SystemExit:
     raise
 except Exception:
@@ -114,7 +116,7 @@ PY
 )" || exit 60
 plan_values=()
 mapfile -t plan_values <<< "$plan_payload"
-test "${#plan_values[@]}" -eq 15 || fail S6_ATTEMPT_PLAN_INVALID
+test "${#plan_values[@]}" -eq 16 || fail S6_ATTEMPT_PLAN_INVALID
 sha="${plan_values[0]}"
 attempt_id="${plan_values[1]}"
 namespace="${plan_values[2]}"
@@ -132,6 +134,7 @@ provider_identities_export_path="${plan_values[11]}"
 candidate_source="${plan_values[12]}"
 candidate_source_receipt="${plan_values[13]}"
 advance_isolated_market_graph="${plan_values[14]}"
+graph_max_dispatches="${plan_values[15]}"
 attempt_plan_sha256="$(sha256sum -- "$2" 2>/dev/null | cut -d ' ' -f 1)"
 [[ "$attempt_plan_sha256" =~ ^[0-9a-f]{64}$ ]] || fail S6_ATTEMPT_PLAN_INVALID
 [[ "$advance_isolated_market_graph" == 0 || "$advance_isolated_market_graph" == 1 ]] \
@@ -809,7 +812,7 @@ run_candidate_market_graph_refresh() {
     --network-id "$isolated_network_id"
     --execution-image-id "$execution_image"
     --task-id "s6-market-refresh-$attempt_id"
-    --max-dispatches 50
+    --max-dispatches "$graph_max_dispatches"
     --max-seconds 3600
   )
   helper_argv=(
@@ -818,7 +821,7 @@ run_candidate_market_graph_refresh() {
     --container-uid "$candidate_uid" --execution-image "$execution_image"
     --input-directory "$candidate_input_staging" --output-directory "$export_root"
     --execution-env-file "$inputs/isolated-postgres.env" --docker-network "$net"
-    --run-market-graph-refresh --attempt-id "$attempt_id"
+    --run-market-graph-refresh --attempt-id "$attempt_id" --graph-max-dispatches "$graph_max_dispatches"
     --attempt-plan-sha256 "$attempt_plan_sha256" --database "$db"
     --postgres-container "$pg" --redis-container "$redis"
     --postgres-container-id "$isolated_pg_id" --redis-container-id "$isolated_redis_id"

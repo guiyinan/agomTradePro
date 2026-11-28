@@ -42,6 +42,9 @@ from apps.data_center.domain.financial_source_time_evidence import (
     FinancialSourceTimeWitness,
 )
 from apps.data_center.infrastructure import akshare_financial_slice_rehearsal as rehearsal
+from apps.data_center.infrastructure.financial_decision_evidence_codec import (
+    encode_financial_decision_evidence,
+)
 from apps.data_center.infrastructure.financial_source_time_matchers import (
     akshare_notice_date_match_contract,
 )
@@ -52,6 +55,7 @@ from apps.data_center.infrastructure.rehearsal_identity import (
 )
 from core.exceptions import DataFetchError
 from scripts import validate_release_rehearsal as release_validator
+from tests.unit.data_center.test_financial_decision_evidence_v3_codec import _v3_evidence
 
 
 def _identities() -> tuple[RehearsalProviderIdentity, ...]:
@@ -216,6 +220,71 @@ def test_seed_uses_available_at_as_untrusted_date_and_ignores_report_date(
 
     assert announcement_date == available_at.date()
     assert basis == "legacy_available_at_date_untrusted"
+
+
+@pytest.mark.parametrize(
+    "mismatch", [None, "asset_code", "source_record_id", "metric_code", "raw_payload_hash"]
+)
+def test_v3_seed_uses_the_bound_notice_date_or_keeps_the_gap(mismatch: str | None) -> None:
+    evidence = _v3_evidence()
+    witness = evidence.source_time_witness_v3
+    assert witness is not None
+    native = witness.financial_row
+    row = rehearsal.FinancialFactModel(
+        asset_code=native.asset_code,
+        period_end=native.period_end,
+        period_type=native.period_type.value,
+        metric_code=native.metric_code,
+        source_record_id=native.native_row_id,
+        raw_payload_hash=evidence.artifact_reference.body_sha256,
+        available_at=witness.available_at,
+        decision_evidence=encode_financial_decision_evidence(evidence),
+    )
+    assert row.available_at.date() != native.notice_date
+    if mismatch is None:
+        assert rehearsal._seed_date(row) == (
+            native.notice_date,
+            "typed_source_time_announcement_date_untrusted",
+        )
+    else:
+        setattr(row, mismatch, "different")
+        assert rehearsal._seed_date(row) == (None, "unavailable")
+
+
+@pytest.mark.django_db
+def test_slice_seed_skips_periods_containing_protected_native_values() -> None:
+    asset = "688266.SH"
+    rehearsal.AssetMasterModel.objects.create(
+        code=asset, name="Seed", asset_type="stock", exchange="SSE"
+    )
+    old = datetime(2026, 8, 1, tzinfo=UTC)
+    recent = datetime(2026, 10, 29, tzinfo=UTC)
+    base = {"asset_code": asset, "source": "akshare", "period_type": "quarterly"}
+    older = rehearsal.FinancialFactModel.objects.create(
+        **base, period_end=date(2026, 6, 30), metric_code="revenue", available_at=old, value="1"
+    )
+    rehearsal.FinancialFactModel.objects.create(
+        **base, period_end=date(2026, 9, 30), metric_code="roe", available_at=recent, value="2"
+    )
+    rehearsal.FinancialFactModel.objects.create(
+        **base,
+        period_end=date(2026, 9, 30),
+        metric_code="revenue",
+        available_at=recent,
+        numeric_schema="native-decimal-v2",
+        exact_value_text="3",
+        numeric_evidence={"source_field": "TOTALOPERATEREVE"},
+    )
+    args = {
+        "target_trade_date": date(2026, 11, 27),
+        "provider_id": 3,
+        "provider_identities_sha256": "1" * 64,
+        "database_identity_sha256": "2" * 64,
+    }
+    assert rehearsal._select_request_seed(**args).announcement_date == old.date()
+    older.delete()
+    with pytest.raises(ValueError, match="REHEARSAL_FINANCIAL_SLICE_SEED_UNAVAILABLE"):
+        rehearsal._select_request_seed(**args)
 
 
 def test_provider_selection_uses_only_the_frozen_akshare_financial_identity(

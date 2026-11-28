@@ -1090,7 +1090,7 @@ class AkshareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
 
         gateway = TencentGateway()
         snapshots = []
-        batch_size = 200
+        batch_size = 500
         for offset in range(0, len(asset_codes), batch_size):
             snapshots.extend(
                 gateway.get_valuation_snapshots(asset_codes[offset : offset + batch_size])

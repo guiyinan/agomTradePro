@@ -257,6 +257,7 @@ def _check_restored_graph_scope(args: argparse.Namespace, now: datetime) -> date
         or plan.get("postgres_container") != args.postgres_container
         or plan.get("redis_container") != args.redis_container
         or plan.get("network") != args.network
+        or plan.get("graph_max_dispatches", _MAX_HTTP_DISPATCHES) != args.max_dispatches
     ):
         raise ValueError("S6_GRAPH_REFRESH_PLAN_MISMATCH")
     target, ceiling = parse_graph_scope(plan.get("graph_target_date"), plan.get("graph_max_assets"))

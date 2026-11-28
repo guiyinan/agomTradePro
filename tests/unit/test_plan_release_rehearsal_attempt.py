@@ -96,6 +96,7 @@ def test_isolated_market_graph_refresh_requires_explicit_plan_opt_in(
         advance_isolated_market_graph=True,
         graph_target_date="2026-11-20",
         graph_max_assets=5585,
+        graph_max_dispatches=16,
     )
 
     assert default_plan["advance_isolated_market_graph"] is False
@@ -104,6 +105,8 @@ def test_isolated_market_graph_refresh_requires_explicit_plan_opt_in(
     assert opted_in_plan["schema"] == "release.s6-attempt-plan.v4"
     assert opted_in_plan["graph_target_date"] == "2026-11-20"
     assert opted_in_plan["graph_max_assets"] == 5585
+    assert opted_in_plan["graph_max_dispatches"] == 16
+    assert "graph_max_dispatches" not in default_plan
 
     reserved_path = reserve_attempt(opted_in_plan)
     assert json.loads(reserved_path.read_text(encoding="utf-8")) == opted_in_plan
@@ -131,6 +134,19 @@ def test_invalid_graph_scope_cannot_be_planned(tmp_path: Path, target, maximum) 
             advance_isolated_market_graph=True,
             graph_target_date=target,
             graph_max_assets=maximum,
+        )
+
+
+@pytest.mark.parametrize("maximum", [True, 0, 51, "16"])
+def test_invalid_graph_dispatch_limit_cannot_be_reserved(tmp_path: Path, maximum) -> None:
+    with pytest.raises(AttemptPlanError, match="S6_GRAPH_REFRESH_HTTP_BUDGET_INVALID"):
+        build_attempt_plan(
+            candidate_sha=CANDIDATE_SHA,
+            attempts_dir=tmp_path,
+            advance_isolated_market_graph=True,
+            graph_target_date="2026-11-20",
+            graph_max_assets=5585,
+            graph_max_dispatches=maximum,
         )
 
 

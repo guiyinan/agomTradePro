@@ -230,6 +230,8 @@ class _DjangoFinancialCapacityManifestReader(FinancialCapacityManifestSource):
                 "id",
                 "asset_code",
                 "period_end",
+                "period_type",
+                "metric_code",
                 "report_date",
                 "announced_at",
                 "available_at",

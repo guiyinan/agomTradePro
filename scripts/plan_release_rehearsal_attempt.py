@@ -58,6 +58,7 @@ class AttemptPlan(TypedDict):
     advance_isolated_market_graph: bool
     graph_target_date: NotRequired[str]
     graph_max_assets: NotRequired[int]
+    graph_max_dispatches: NotRequired[int]
 
 
 class AttemptPlanError(ValueError):
@@ -87,6 +88,7 @@ def build_attempt_plan(
     advance_isolated_market_graph: bool = False,
     graph_target_date: str | None = None,
     graph_max_assets: int | None = None,
+    graph_max_dispatches: int | None = None,
 ) -> AttemptPlan:
     """Build a deterministic local resource plan without creating any files."""
     if _CANDIDATE_SHA_RE.fullmatch(candidate_sha) is None:
@@ -127,7 +129,13 @@ def build_attempt_plan(
         plan["schema"] = "release.s6-attempt-plan.v4"
         plan["graph_target_date"] = target.isoformat()
         plan["graph_max_assets"] = ceiling
-    elif graph_target_date is not None or graph_max_assets is not None:
+        if graph_max_dispatches is not None:
+            if type(graph_max_dispatches) is not int or not 1 <= graph_max_dispatches <= 50:
+                raise AttemptPlanError("S6_GRAPH_REFRESH_HTTP_BUDGET_INVALID")
+            plan["graph_max_dispatches"] = graph_max_dispatches
+    elif any(
+        value is not None for value in (graph_target_date, graph_max_assets, graph_max_dispatches)
+    ):
         raise AttemptPlanError("S6_GRAPH_SCOPE_INVALID")
     return plan
 
@@ -157,6 +165,7 @@ def _canonical_plan(plan: AttemptPlan) -> tuple[AttemptPlan, bytes]:
             advance_isolated_market_graph=plan["advance_isolated_market_graph"],
             graph_target_date=plan.get("graph_target_date"),
             graph_max_assets=plan.get("graph_max_assets"),
+            graph_max_dispatches=plan.get("graph_max_dispatches"),
         )
     except (KeyError, TypeError, ValueError, OSError) as exc:
         raise AttemptPlanError("S6_ATTEMPT_PLAN_INVALID") from exc
@@ -276,6 +285,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--graph-target-date", help="Qualified session in YYYY-MM-DD format")
     parser.add_argument("--graph-max-assets", type=int, help="Authorized market universe ceiling")
     parser.add_argument(
+        "--graph-max-dispatches", type=int, help="Graph HTTP request ceiling (1 to 50)"
+    )
+    parser.add_argument(
         "--advance-isolated-market-graph",
         action="store_true",
         help="Refresh the isolated current market publication graph using real providers.",
@@ -295,6 +307,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             advance_isolated_market_graph=args.advance_isolated_market_graph,
             graph_target_date=args.graph_target_date,
             graph_max_assets=args.graph_max_assets,
+            graph_max_dispatches=args.graph_max_dispatches,
         )
         plan_file: Path | None = None
         if args.reserve:

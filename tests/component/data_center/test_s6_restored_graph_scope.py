@@ -25,6 +25,7 @@ from scripts.plan_release_rehearsal_attempt import build_attempt_plan
         ("empty", "SCOPE_OUT_OF_BOUNDS", 0, 0),
         ("oversize", "SCOPE_OUT_OF_BOUNDS", 0, 0),
         ("tampered", "PLAN_MISMATCH", 0, 0),
+        ("widened", "PLAN_MISMATCH", 0, 0),
         ("too_early", "SESSION_MISMATCH", 0, 0),
         ("calendar_disagrees", "SESSION_MISMATCH", 1, 0),
         ("eligible", "TASK_EXECUTION_FAILED", 1, 1),
@@ -106,6 +107,7 @@ def test_normal_worker_checks_restored_facts_before_calendar_and_task(
         advance_isolated_market_graph=True,
         graph_target_date=target.isoformat(),
         graph_max_assets=1,
+        graph_max_dispatches=16,
     )
     raw = (json.dumps(plan, ensure_ascii=False, indent=2, sort_keys=True) + "\n").encode()
     path = tmp_path / "attempt-plan.json"
@@ -119,7 +121,7 @@ def test_normal_worker_checks_restored_facts_before_calendar_and_task(
         postgres_container=plan["postgres_container"],
         redis_container=plan["redis_container"],
         network=plan["network"],
-        max_dispatches=50,
+        max_dispatches=50 if case == "widened" else 16,
         max_seconds=3600,
         task_id="test",
     )

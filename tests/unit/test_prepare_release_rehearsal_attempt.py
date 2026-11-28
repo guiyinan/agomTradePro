@@ -387,6 +387,8 @@ def _final_validation_context(
     *,
     advance_graph: bool = False,
     graph_target_date: str = "2026-10-09",
+    graph_max_dispatches: int | None = None,
+    observed_max_dispatches: int = 50,
     task_result_run_id: str | None = None,
 ) -> _FinalPrepareValidation:
     """Create one canonical private S6 attempt tree for helper-level validation."""
@@ -399,6 +401,7 @@ def _final_validation_context(
         advance_isolated_market_graph=advance_graph,
         graph_target_date=graph_target_date if advance_graph else None,
         graph_max_assets=1 if advance_graph else None,
+        graph_max_dispatches=graph_max_dispatches,
     )
     attempt_root = Path(plan["root"])
     attempt_root.mkdir(parents=True)
@@ -644,7 +647,7 @@ def _final_validation_context(
                 "dispatch_count": 2,
                 "rejected_dispatch_count": 0,
                 "guard_failure_code": None,
-                "max_dispatches": 50,
+                "max_dispatches": observed_max_dispatches,
                 "max_seconds": 3600.0,
                 "elapsed_seconds": 4.5,
             },
@@ -689,7 +692,9 @@ def test_final_validation_helper_writes_plan_bound_v3_receipt(tmp_path: Path) ->
 
     from scripts import prepare_s6_candidate_source_snapshot as snapshot_helper
 
-    context = _final_validation_context(tmp_path, advance_graph=True)
+    context = _final_validation_context(
+        tmp_path, advance_graph=True, graph_max_dispatches=16, observed_max_dispatches=16
+    )
     try:
         result = snapshot_helper.main(
             [
@@ -732,6 +737,17 @@ def test_final_validation_helper_writes_plan_bound_v3_receipt(tmp_path: Path) ->
         )
         assert json.loads(receipt_path.read_text(encoding="utf-8")) == receipt
         assert stat.S_IMODE(receipt_path.stat().st_mode) == 0o600
+    finally:
+        shutil.rmtree(context.exports, ignore_errors=True)
+
+
+@pytest.mark.skipif(os.name != "posix", reason="final validation requires POSIX file modes")
+def test_final_receipt_rejects_widened_graph_budget(tmp_path: Path) -> None:
+    context = _final_validation_context(tmp_path, advance_graph=True, graph_max_dispatches=16)
+    try:
+        with pytest.raises(CandidateSourceSnapshotError, match="S6_GRAPH_REFRESH_RECEIPT_INVALID"):
+            validate_final_prepare_receipt(context)
+        assert not (context.inputs.parent / "prepare-receipt.json").exists()
     finally:
         shutil.rmtree(context.exports, ignore_errors=True)
 

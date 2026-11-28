@@ -958,14 +958,14 @@ def test_akshare_current_valuation_batch_chunks_tencent_requests(monkeypatch):
         "TencentGateway.get_valuation_snapshots",
         _fetch,
     )
-    asset_codes = [f"{index:06d}.SZ" for index in range(401)]
+    asset_codes = [f"{index:06d}.SZ" for index in range(1001)]
 
     facts = AkshareUnifiedProviderAdapter(
         _config("akshare", "AKShare Public")
     ).fetch_current_valuations(asset_codes, date(2026, 7, 31))
 
-    assert [len(batch) for batch in batches] == [200, 200, 1]
-    assert len(facts) == 401
+    assert [len(batch) for batch in batches] == [500, 500, 1]
+    assert [fact.asset_code for fact in facts] == asset_codes
 
 
 def test_akshare_unified_provider_adapter_fetches_financial_facts(monkeypatch):

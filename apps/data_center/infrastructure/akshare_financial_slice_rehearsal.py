@@ -18,6 +18,7 @@ from zoneinfo import ZoneInfo
 
 import redis
 from django.conf import settings
+from django.db.models import Exists, OuterRef
 
 from apps.data_center.akshare_financial_capture_composition import (
     AKSHARE_MAIN_FINANCIAL_DATA_ENDPOINT_URL,
@@ -446,6 +447,15 @@ def _select_request_seed(
         time.min,
         tzinfo=ZoneInfo(AKSHARE_SOURCE_TIMEZONE),
     ).astimezone(UTC)
+    # The slice writer produces legacy decimals. Its atomic batch cannot replace a
+    # native decimal, even when the seed itself is a legacy metric in that period.
+    protected_period = FinancialFactModel.objects.filter(
+        asset_code=OuterRef("asset_code"),
+        period_end=OuterRef("period_end"),
+        period_type=OuterRef("period_type"),
+        source="akshare",
+        numeric_schema="native-decimal-v2",
+    )
     rows = (
         FinancialFactModel.objects.filter(
             asset_code__in=assets,
@@ -453,10 +463,13 @@ def _select_request_seed(
             available_at__isnull=False,
             available_at__lte=cutoff,
         )
+        .exclude(Exists(protected_period))
         .only(
             "id",
             "asset_code",
             "period_end",
+            "period_type",
+            "metric_code",
             "source",
             "announced_at",
             "available_at",
@@ -499,6 +512,18 @@ def _seed_date(row: FinancialFactModel) -> tuple[date | None, str]:
     """Extract a request-only notice date, preferring typed source evidence."""
 
     decision = decode_financial_decision_evidence(row.decision_evidence)
+    if decision is not None and decision.source_time_witness_v3 is not None:
+        native = decision.source_time_witness_v3.financial_row
+        if (
+            native.asset_code != row.asset_code
+            or native.period_end != row.period_end
+            or native.period_type.value != row.period_type
+            or native.metric_code != row.metric_code
+            or native.native_row_id != row.source_record_id
+            or decision.artifact_reference.body_sha256 != row.raw_payload_hash
+        ):
+            return None, "unavailable"
+        return native.notice_date, "typed_source_time_announcement_date_untrusted"
     if (
         isinstance(decision, FinancialFactDecisionEvidence)
         and decision.source_time_witness is not None

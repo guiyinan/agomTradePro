@@ -478,6 +478,9 @@ def validate_final_prepare_receipt(context: _FinalPrepareValidation) -> dict[str
             attempt_plan_sha256=attempt_plan_sha256,
             database=expected_database,
             task_id=f"s6-market-refresh-{plan['attempt_id']}",
+            max_dispatches=cast(
+                int, plan.get("graph_max_dispatches", _GRAPH_REFRESH_MAX_DISPATCHES)
+            ),
         )
         _validation_require(
             graph_receipt.get("schema") == "release.s6-isolated-market-graph-refresh.v2"
@@ -1350,6 +1353,7 @@ def _validate_market_graph_refresh_report(
     attempt_plan_sha256: str,
     database: str,
     task_id: str,
+    max_dispatches: int,
 ) -> None:
     """Require the expected graph receipt and the exact bounded transport summary."""
     http_capture = value.get("http_capture") if isinstance(value, dict) else None
@@ -1379,11 +1383,13 @@ def _validate_market_graph_refresh_report(
         or type(http_capture.get("rejected_dispatch_count")) is not int
         or http_capture["rejected_dispatch_count"] != 0
         or http_capture.get("guard_failure_code") is not None
-        or http_capture.get("max_dispatches") != _GRAPH_REFRESH_MAX_DISPATCHES
+        or type(http_capture.get("max_dispatches")) is not int
+        or not 1 <= http_capture["max_dispatches"] <= _GRAPH_REFRESH_MAX_DISPATCHES
+        or http_capture["max_dispatches"] != max_dispatches
         or isinstance(http_capture.get("max_seconds"), bool)
         or not isinstance(http_capture.get("max_seconds"), (int, float))
         or http_capture["max_seconds"] != _GRAPH_REFRESH_MAX_SECONDS
-        or http_capture["dispatch_count"] > _GRAPH_REFRESH_MAX_DISPATCHES
+        or http_capture["dispatch_count"] > max_dispatches
         or isinstance(http_capture.get("elapsed_seconds"), bool)
         or not isinstance(http_capture.get("elapsed_seconds"), (int, float))
         or not math.isfinite(http_capture["elapsed_seconds"])
@@ -1414,8 +1420,11 @@ def run_candidate_market_graph_refresh(
     redis_container_id: str,
     network_id: str,
     log_path: Path,
+    max_dispatches: int = _GRAPH_REFRESH_MAX_DISPATCHES,
 ) -> None:
     """Run the fixed plan-bound refresh command against the disposable S6 runtime."""
+    if type(max_dispatches) is not int or not 1 <= max_dispatches <= _GRAPH_REFRESH_MAX_DISPATCHES:
+        raise CandidateSourceSnapshotError("S6_GRAPH_REFRESH_HTTP_BUDGET_INVALID")
 
     if isinstance(container_uid, bool) or not isinstance(container_uid, int) or container_uid <= 0:
         raise CandidateSourceSnapshotError("S6_CANDIDATE_EXPORT_CONTAINER_IDENTITY_INVALID")
@@ -1525,7 +1534,7 @@ def run_candidate_market_graph_refresh(
         "--task-id",
         task_id,
         "--max-dispatches",
-        str(_GRAPH_REFRESH_MAX_DISPATCHES),
+        str(max_dispatches),
         "--max-seconds",
         "3600",
     ]
@@ -1573,6 +1582,7 @@ def run_candidate_market_graph_refresh(
             attempt_plan_sha256=attempt_plan_sha256,
             database=database,
             task_id=task_id,
+            max_dispatches=max_dispatches,
         )
     except CandidateSourceSnapshotError:
         raise
@@ -1676,6 +1686,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--verify-only", action="store_true")
     parser.add_argument("--run-export", action="store_true")
     parser.add_argument("--run-market-graph-refresh", action="store_true")
+    parser.add_argument("--graph-max-dispatches", type=int, default=_GRAPH_REFRESH_MAX_DISPATCHES)
     parser.add_argument("--validate-final-receipt", action="store_true")
     parser.add_argument("--export-mode")
     parser.add_argument("--docker-arg", action="append", default=[])
@@ -1763,6 +1774,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             ):
                 raise CandidateSourceSnapshotError("S6_GRAPH_REFRESH_COMMAND_INVALID")
             run_candidate_market_graph_refresh(
+                max_dispatches=args.graph_max_dispatches,
                 docker_argv=args.docker_arg,
                 destination=args.destination,
                 receipt_path=args.receipt,
