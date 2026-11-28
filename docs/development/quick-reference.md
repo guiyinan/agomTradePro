@@ -80,6 +80,7 @@ provider 内部出口重试仍遵循原配置，并受该进程总时限约束�
 底层 session 接口可能仍下载全市场响应；这里减少的是写入、后续阶段和失败等待，不承诺缩小上游响应。
 JSON 保留实际来源时间与抽样覆盖率，始终标明 `release_approval=false`、
 `must_not_use_for_decision=true`；单测默认独立 SQLite 环境，live 进程使用调用方 Django 配置。
+冷启动时，单测最多使用 10 分钟建立并迁移独立 SQLite 测试库。真实请求的时限单独由 `--timeout` 控制。
 
 `--max-quote-gaps` 模式读取目标日全范围报价，有缺口时调用正式 prepare 的同一批量停牌核验。
 冻结范围的只读事务结束后，配置的出口按实际派发记录审计，行情事实写入数为零。

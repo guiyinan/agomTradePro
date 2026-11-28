@@ -23,7 +23,6 @@ from apps.data_center.domain.entities import QuoteSnapshot, ValuationFact
 from apps.data_center.domain.market_time import cn_market_session_close_utc
 from apps.data_center.domain.model_market_data import TargetSessionSuspensionPort
 from apps.data_center.domain.protocols import SessionQuoteBatchProviderProtocol
-from core.exceptions import DataFetchError
 
 ROOT = Path(__file__).resolve().parents[1]
 FOCUSED_TESTS = (
@@ -147,25 +146,40 @@ def probe_sample(
     return _report("success", **fields)
 
 
+def _provider_failure(
+    code: str, provider_code: object, fields: dict[str, object]
+) -> dict[str, object]:
+    if code == "TUSHARE_PROVIDER_REJECTED" and type(provider_code) is int:
+        fields["provider_code"] = provider_code
+    return _report("blocked", error_code=code, **fields)
+
+
 def probe_quote_gaps(
     provider: SessionQuoteBatchProviderProtocol, codes: tuple[str, ...], target: date, max_gaps: int
 ) -> dict[str, object]:
     """Check the full dated quote scope and use prepare's batch verifier for actual absences."""
+    from core.exceptions import DataFetchError
+
     if not codes or codes != tuple(sorted(set(codes))) or type(max_gaps) is not int or max_gaps < 0:
         raise ValueError("S6_PREFLIGHT_QUOTE_SCOPE_INVALID")
     close = cn_market_session_close_utc(target)
-    quotes = provider.fetch_quote_snapshots_for_session(list(codes), target)
-    returned = [row.asset_code for row in quotes]
-    gaps = tuple(sorted(set(codes).difference(returned)))
     fields: dict[str, object] = {
         "target_trade_date": target.isoformat(),
         "coverage_scope": "full_target_quote_gaps",
         "universe_count": len(codes),
-        "returned_count": len(returned),
-        "missing_asset_codes": list(gaps),
-        "verified_codes": [],
-        "unverified_codes": list(gaps),
     }
+    try:
+        quotes = provider.fetch_quote_snapshots_for_session(list(codes), target)
+    except DataFetchError as exc:
+        return _provider_failure(exc.code, exc.details.get("provider_code"), fields)
+    returned = [row.asset_code for row in quotes]
+    gaps = tuple(sorted(set(codes).difference(returned)))
+    fields.update(
+        returned_count=len(returned),
+        missing_asset_codes=list(gaps),
+        verified_codes=[],
+        unverified_codes=list(gaps),
+    )
     if (
         not quotes
         or len(returned) != len(set(returned))
@@ -184,9 +198,7 @@ def probe_quote_gaps(
         try:
             proven = source.target_session_suspensions(gaps, target)
         except DataFetchError as exc:
-            if type(exc.details.get("provider_code")) is int:
-                fields["provider_code"] = exc.details["provider_code"]
-            return _report("blocked", error_code=exc.code, **fields)
+            return _provider_failure(exc.code, exc.details.get("provider_code"), fields)
         if proven != tuple(sorted(set(proven))) or set(proven).difference(gaps):
             return _report("blocked", error_code="S6_PREFLIGHT_SUSPENSION_SCOPE_INVALID", **fields)
         fields.update(
@@ -220,13 +232,22 @@ def _live_probe(
 
     if connection.vendor != "postgresql" or connection.in_atomic_block:
         return _report("blocked", error_code="S6_PREFLIGHT_READ_ONLY_POSTGRES_REQUIRED")
+
+    def target_matches_calendar() -> bool:
+        return (
+            latest_cn_market_session_ready_after(
+                datetime.now(UTC), ready_after=FULL_MARKET_PROVIDER_READY_AFTER
+            )
+            == target
+        )
+
+    # The calendar provider may persist its own egress receipt before the scope read.
+    if max_quote_gaps is not None and not target_matches_calendar():
+        return _report("blocked", error_code="S6_PREFLIGHT_TARGET_SESSION_MISMATCH")
     with transaction.atomic():
         with connection.cursor() as cursor:
             cursor.execute("SET TRANSACTION READ ONLY")
-        resolved = latest_cn_market_session_ready_after(
-            datetime.now(UTC), ready_after=FULL_MARKET_PROVIDER_READY_AFTER
-        )
-        if resolved != target:
+        if max_quote_gaps is None and not target_matches_calendar():
             return _report("blocked", error_code="S6_PREFLIGHT_TARGET_SESSION_MISMATCH")
         provider_id = get_active_provider_id_by_source(_isolated_task_kwargs()["source"])
         if provider_id is None:
@@ -330,7 +351,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             env={**os.environ, "DJANGO_SETTINGS_MODULE": "core.settings.development_sqlite"},
             capture_output=True,
             text=True,
-            timeout=180,
+            # The focused contracts create and migrate a fresh SQLite database on cold starts.
+            timeout=600,
             check=False,
         )
     except (OSError, subprocess.TimeoutExpired):

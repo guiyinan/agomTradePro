@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
+import sys
 from dataclasses import replace
 from datetime import UTC, date, datetime
 from types import SimpleNamespace
@@ -49,6 +51,46 @@ def test_sample_rejects_unbounded_or_invalid_requests(size: int) -> None:
 def test_empty_universe_is_blocked() -> None:
     with pytest.raises(ValueError, match="S6_PREFLIGHT_UNIVERSE_EMPTY"):
         preflight.select_sample((), 10)
+
+
+def test_fresh_worker_reaches_the_postgres_guard_without_provider_access() -> None:
+    run = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "scripts.run_s6_prepare_preflight",
+            "--worker",
+            "--target-date",
+            TARGET.isoformat(),
+            "--max-quote-gaps",
+            "11",
+        ],
+        cwd=preflight.ROOT,
+        env={**os.environ, "DJANGO_SETTINGS_MODULE": "core.settings.development_sqlite"},
+        capture_output=True,
+        text=True,
+        timeout=60,
+        check=False,
+    )
+    assert run.returncode == 2, run.stderr
+    assert (
+        json.loads(run.stdout.splitlines()[-1])["error_code"]
+        == "S6_PREFLIGHT_READ_ONLY_POSTGRES_REQUIRED"
+    )
+
+
+def test_daily_rejection_records_business_code_before_suspension_lookup() -> None:
+    from core.exceptions import TushareError
+
+    provider = _provider()
+    provider.fetch_quote_snapshots_for_session.side_effect = TushareError(
+        "private daily response", code="TUSHARE_PROVIDER_REJECTED", details={"provider_code": 40203}
+    )
+    report = preflight.probe_quote_gaps(provider, CODES, TARGET, 11)
+    assert report["outcome"] == "blocked" and report["provider_code"] == 40203
+    assert report["error_code"] == "TUSHARE_PROVIDER_REJECTED" and report["universe_count"] == 2
+    assert "private daily response" not in str(report)
+    provider.model_market_source.assert_not_called()
 
 
 def test_gap_preflight_calls_the_prepare_source_once_for_the_actual_missing_set():
@@ -160,6 +202,7 @@ def test_tests_only_does_not_contact_provider(monkeypatch, capsys, tmp_path) -> 
     monkeypatch.setattr(preflight.subprocess, "run", run)
     assert preflight.main([]) == 0
     assert run.call_count == 1
+    assert run.call_args.kwargs["timeout"] == 600
     base_arg = next(arg for arg in run.call_args.args[0] if arg.startswith("--basetemp="))
     base = tmp_path / base_arg.removeprefix("--basetemp=")
     assert base.parent.is_dir()
@@ -259,8 +302,15 @@ def test_live_rejects_unsafe_transaction_before_calendar(live_runtime, vendor, i
 def test_full_quote_gap_probe_closes_scope_transaction_before_audited_transport(live_runtime):
     from django.db import transaction
 
-    _, _, _, provider, scope = live_runtime
+    connection, resolver, _, provider, scope = live_runtime
     rows = provider.fetch_quote_snapshots_for_session.return_value
+
+    def calendar(*args, **kwargs):
+        connection.cursor.assert_not_called()
+        provider.fetch_quote_snapshots_for_session.assert_not_called()
+        return TARGET
+
+    resolver.side_effect = calendar
 
     def quote(codes, target):
         scope.assert_called_once_with(TARGET)
@@ -271,6 +321,7 @@ def test_full_quote_gap_probe_closes_scope_transaction_before_audited_transport(
     provider.fetch_quote_snapshots_for_session.side_effect = quote
     result = preflight._live_probe(TARGET, 10, max_quote_gaps=2)
     assert result["outcome"] == "success" and result["coverage_scope"] == "full_target_quote_gaps"
+    resolver.assert_called_once()
     provider.fetch_current_valuations.assert_not_called()
 
 
