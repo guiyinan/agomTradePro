@@ -12893,6 +12893,194 @@
               "sha256": "00794e74b4b84e7728b786efdde0af264fda3b63da0563c7bbc2939f39b09022"
             }
           ]
+        },
+        "post_e1_s6_target_suspension_batch_20261128": {
+          "candidate_sha": "43b8da75dd57f25723a7ba968188dce74553e4ff",
+          "previous_candidate": "4f360f597761636ff96fc08ce411c3ab1386b746",
+          "development_commit": "955e2007fb487d3d45a4d91a596c4f534f6a7959",
+          "target_trade_date": "2026-11-27",
+          "official_ci": {
+            "success": 8,
+            "publication_run": "https://github.com/guiyinan/agomTradePro/actions/runs/46096812723",
+            "artifact_sha256": "20fbcb439e6ede5e9c1c0917d80e429cbd83c3ec338d2279b3bcf237a7c0e527",
+            "postgresql_cases": 303
+          },
+          "real_preflight": {
+            "probe": "4f4af8579aee4825962a51bf8895c6b6",
+            "scope": 5581,
+            "target": "2026-11-27",
+            "outcome": "blocked",
+            "error": "TUSHARE_HTTP_502",
+            "failed_endpoints": [
+              "daily"
+            ],
+            "provider_code": null,
+            "native_provider_code": null,
+            "missing": null,
+            "excluded": [],
+            "unverified": null,
+            "audit_inserts": 0,
+            "originals": [
+              {
+                "endpoint": "daily",
+                "http_status": 502,
+                "provider_code": null,
+                "rows": null,
+                "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+              }
+            ]
+          },
+          "budget": {
+            "before": 458,
+            "diagnostic": 2,
+            "graph": 0,
+            "cumulative_upper": 460,
+            "ceiling": 646,
+            "reserve": 60,
+            "remaining": 186,
+            "unreserved": 126
+          },
+          "formal": {
+            "attempt": null,
+            "runner_started": false,
+            "required_reports": 10,
+            "report_count": 0,
+            "validator_passed": false,
+            "capacity_measured": false,
+            "four_publications_reconciled": false,
+            "next_condition": "Restore connectivity from the configured VPS gateway to its registered upstream and obtain accepted target-session evidence in the isolated path before a fresh attempt."
+          },
+          "e1_repeated": false,
+          "receipts": [
+            {
+              "path": ".tmp/data02-s6-haltgate-20261128/ci/verified.json",
+              "sha256": "48766f7a3b072e050c5ad96f324c1c6ed1a3a0b17d62bd02e0196336a402ae2e"
+            },
+            {
+              "path": ".tmp/data02-s6-haltgate-20261128/publication-window/verified.json",
+              "sha256": "d7a355a7eb1cc08baddc3621f2a0f3aaaaf139016720cf102a85a08d4748030b"
+            },
+            {
+              "path": ".tmp/data02-s6-haltgate-20261128/probe-binding.json",
+              "sha256": "46617c518c71dbedfb7ca4a7a6d5fbdb34cf34667e93d07ace59b821760be2b7"
+            },
+            {
+              "path": ".tmp/data02-s6-haltgate-20261128/probe-session-source.json",
+              "sha256": "74a3c209220ebac1fa57cf9848ef36b0704230d680e9093d9c965ec897a2e005"
+            },
+            {
+              "path": ".tmp/data02-s6-haltgate-20261128/probe-verified.json",
+              "sha256": "4f4923a2833a18379a38de2402a010168ccc72d21a40871b9ad4232e204ef3f1"
+            },
+            {
+              "path": ".tmp/data02-s6-haltgate-20261128/probe-originals/result.json",
+              "sha256": "6fa9abdf31c02c395b913e34b2d12d61ea8390cb42fd923e17e93950101cfbe4"
+            },
+            {
+              "path": ".tmp/data02-s6-haltgate-20261128/posix-receipt-validation.xml",
+              "sha256": "059543679b9b4db8fb3ca3bc06fc46359c7f67625a5c9d432de8c2794451f350"
+            },
+            {
+              "path": ".tmp/data02-s6-haltgate-20261128/historical-verified.json",
+              "sha256": "5139d8204922c9293f7b4c1e896ed1df85aaee6d5557c763238a64b8582d507b"
+            },
+            {
+              "path": ".tmp/data02-s6-haltgate-20261128/formal-callback-replay.json",
+              "sha256": "d443c0f544ceb7e732c8292c7cbb27fe2cbebf74ad082d9ae56dc9953530d346"
+            },
+            {
+              "path": ".tmp/data02-s6-haltgate-20261128/dated-native-source-inventory.json",
+              "sha256": "6a7a204c20908e465c94c00f1470ff767cff1d4be2546f9ea6cfec5c12c86ad8"
+            },
+            {
+              "path": ".tmp/data02-s6-haltgate-20261128/dated-file-inventory.json",
+              "sha256": "b9d9c2920c2005cda2b40ced44439f2da02a9cca74b3cadf84a3e36e6d5193c0"
+            },
+            {
+              "path": ".tmp/data02-s6-haltgate-20261128/configured-route-inventory.json",
+              "sha256": "9364a18455a0905ba4b0ebf87880e81df5631f3f3d8654479d68e9f0a057e2d7"
+            },
+            {
+              "path": ".tmp/data02-s6-haltgate-20261128/transport-comparison.json",
+              "sha256": "734011506b722312c7fe7d081fcba480dd263048ed906bbffbcf9a679de09dca"
+            },
+            {
+              "path": ".tmp/data02-s6-haltgate-20261128/caddy-transport-origin.json",
+              "sha256": "01311b84137c6834fde673689119e00f394d2342985cf29341a9ad06d36ece82"
+            },
+            {
+              "path": ".tmp/data02-s6-haltgate-20261128/tcp-health.json",
+              "sha256": "51a52a8d57d200e2b453f117a322f3cc50e80684c4deac9c350cb05aea5df1d2"
+            },
+            {
+              "path": ".tmp/data02-s6-haltgate-20261128/active-market-egress.json",
+              "sha256": "9219b915dca1aa929dfe3b7a2d1276e0fb63c42db523d1e4b1e5bf3d21c2ae06"
+            }
+          ],
+          "historical_failed_session_verification": {
+            "target": "2026-11-26",
+            "scope": 5581,
+            "covered_daily": 5578,
+            "retained_daily_sha256": "11676b19dec26a37e94e474cd1fac287c8b0435572fbe1476389e0d0bf67edb1",
+            "missing": [
+              "002717.SZ",
+              "688121.SH",
+              "688496.SH"
+            ],
+            "verified": [],
+            "unverified": [
+              "002717.SZ",
+              "688121.SH",
+              "688496.SH"
+            ],
+            "outcome": "blocked",
+            "http_status": 502,
+            "provider_code": null,
+            "response_bytes": 0,
+            "response_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "charged": 1
+          },
+          "formal_callback_replay": {
+            "mode": "formal prepare callback replay",
+            "target": "2026-11-26",
+            "scope": 5581,
+            "wire_replay": [
+              "daily",
+              "adj_factor",
+              "suspend_d"
+            ],
+            "suspension_batches": 1,
+            "code": "TUSHARE_HTTP_502",
+            "external_calls": 0,
+            "database_writes": 0
+          },
+          "dated_originals_available_for_current_target": false,
+          "transport_findings": {
+            "physical_daily_http": 502,
+            "physical_suspension_http": 502,
+            "both_response_bodies_empty": true,
+            "active_tushare_providers": [
+              2
+            ],
+            "same_origin_as_previous_success": true,
+            "diagnosis": "The running Caddy gateway generated both 502s on TCP connect timeout to the configured external relay. The peer returned no HTTP response or business code.",
+            "gateway_dial_seconds": [
+              3.004,
+              3.006
+            ],
+            "zero_payload_tcp_check": {
+              "peer_port": 8020,
+              "vps_host": "10-second timeout",
+              "caddy_network": "10-second timeout",
+              "vps_outbound_syn": 14,
+              "vps_inbound_syn_ack": 0,
+              "vps_inbound_reset": 0,
+              "development_workstation": "TCP connected",
+              "registered_fixed_egress_count": 0,
+              "market_requests": 0
+            }
+          },
+          "terminal": "preflight-blocked"
         }
       }
     }
