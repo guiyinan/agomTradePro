@@ -608,14 +608,16 @@ def test_empty_session_raw_audit_is_request_scoped_and_transported_to_full_marke
 
         def suspend_d(self, **kwargs):
             self.suspension_calls += 1
+            assert kwargs["ts_code"] == ",".join(asset_codes)
             return pd.DataFrame(
                 [
                     {
-                        "ts_code": kwargs["ts_code"],
+                        "ts_code": code,
                         "trade_date": "20260918",
                         "suspend_type": "S",
                         "suspend_timing": None,
                     }
+                    for code in asset_codes
                 ]
             )
 
@@ -650,7 +652,7 @@ def test_empty_session_raw_audit_is_request_scoped_and_transported_to_full_marke
     assert audit.failures == []
     assert len([call for call in client.calls if call[0] == "daily"]) == 1
     assert len([call for call in client.calls if call[0] == "factor"]) == 1
-    assert client.suspension_calls == len(asset_codes)
+    assert client.suspension_calls == 1
 
 
 @pytest.mark.parametrize(

@@ -997,6 +997,34 @@ def test_collector_accepts_only_quote_gaps_with_explicit_full_day_suspension_evi
     assert provider_calls == ["valuation", "quote"]
 
 
+def test_capacity_keeps_the_batch_subset_and_propagates_vendor_rejection():
+    from types import SimpleNamespace
+    from unittest.mock import Mock
+
+    from core.exceptions import TushareError
+
+    target = date(2026, 9, 24)
+    codes = ["000001.SZ", "600000.SH"]
+    provider = Mock()
+    source = SimpleNamespace(
+        target_session_suspensions=Mock(return_value=(codes[0],)), suspended_days=Mock()
+    )
+    provider.model_market_source.return_value = source
+    proven, _, gaps = runner._quote_suspension_evidence(provider, codes, target)
+    assert proven == (codes[0],) and gaps == (
+        {"asset_code": codes[1], "reason_code": "quote_target_session_unverified"},
+    )
+    source.target_session_suspensions.assert_called_once_with(tuple(codes), target)
+    error = TushareError(
+        "rejected", code="TUSHARE_PROVIDER_REJECTED", details={"provider_code": 40203}
+    )
+    source.target_session_suspensions.side_effect = error
+    with pytest.raises(TushareError) as caught:
+        runner._quote_suspension_evidence(provider, codes, target)
+    assert caught.value is error
+    source.suspended_days.assert_not_called()
+
+
 @pytest.mark.parametrize(
     ("dataset", "returned_codes"),
     [

@@ -737,6 +737,36 @@ def test_provider_failure_commits_sanitized_failed_fetch_then_reraises() -> None
     assert events[-1] == "commit"
 
 
+@pytest.mark.parametrize("business_code", [-209, False, "sensitive"])
+def test_suspension_rejection_audit_commits_only_the_integer_business_code(business_code):
+    from core.exceptions import TushareError
+
+    use_case, _, writer, facts, raw, _ = _build([])
+    target = date(2026, 8, 26)
+    error = TushareError(
+        "private vendor text",
+        code="TUSHARE_PROVIDER_REJECTED",
+        details={"provider_code": business_code},
+    )
+    reference = use_case.record_model_history_fetch_failure(
+        provider_id=1,
+        asset_codes=("000001.SZ", "000002.SZ"),
+        start_date=target,
+        end_date=target,
+        error=error,
+        request_details={
+            "provider_fetch_kind": "tushare_suspend_d_session_batch",
+            "provider_trade_date": target.isoformat(),
+        },
+    )
+    (audit,) = raw.rows
+    assert reference == audit.exact_reference() and audit.status == "error"
+    assert audit.extra.get("provider_code") == (-209 if type(business_code) is int else None)
+    assert audit.request_params["asset_count"] == 2
+    assert not facts.saved and writer.fetch[0].outcome is AuditOutcome.FAILED
+    assert "private vendor text" not in str(audit)
+
+
 def test_model_history_batch_shares_one_exact_identity_and_raw_audit_in_one_uow(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

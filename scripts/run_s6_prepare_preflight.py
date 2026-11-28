@@ -21,6 +21,8 @@ from uuid import uuid4
 
 from apps.data_center.domain.entities import QuoteSnapshot, ValuationFact
 from apps.data_center.domain.market_time import cn_market_session_close_utc
+from apps.data_center.domain.model_market_data import TargetSessionSuspensionPort
+from apps.data_center.domain.protocols import SessionQuoteBatchProviderProtocol
 
 ROOT = Path(__file__).resolve().parents[1]
 FOCUSED_TESTS = (
@@ -29,6 +31,7 @@ FOCUSED_TESTS = (
     "tests/unit/data_center/test_phase3_provider_adapters.py"
     "::test_tushare_current_valuations_use_one_session_batch",
     "tests/unit/data_center/test_egress_tushare_transport.py",
+    "tests/unit/data_center/test_missing_quote_bulk_preparation.py",
 )
 
 
@@ -143,8 +146,75 @@ def probe_sample(
     return _report("success", **fields)
 
 
-def _live_probe(target: date, sample_size: int) -> dict[str, object]:
-    """Probe canonical configured routes inside a PostgreSQL read-only transaction."""
+def _provider_failure(
+    code: str, provider_code: object, fields: dict[str, object]
+) -> dict[str, object]:
+    if code == "TUSHARE_PROVIDER_REJECTED" and type(provider_code) is int:
+        fields["provider_code"] = provider_code
+    return _report("blocked", error_code=code, **fields)
+
+
+def probe_quote_gaps(
+    provider: SessionQuoteBatchProviderProtocol, codes: tuple[str, ...], target: date, max_gaps: int
+) -> dict[str, object]:
+    """Check the full dated quote scope and use prepare's batch verifier for actual absences."""
+    from core.exceptions import DataFetchError
+
+    if not codes or codes != tuple(sorted(set(codes))) or type(max_gaps) is not int or max_gaps < 0:
+        raise ValueError("S6_PREFLIGHT_QUOTE_SCOPE_INVALID")
+    close = cn_market_session_close_utc(target)
+    fields: dict[str, object] = {
+        "target_trade_date": target.isoformat(),
+        "coverage_scope": "full_target_quote_gaps",
+        "universe_count": len(codes),
+    }
+    try:
+        quotes = provider.fetch_quote_snapshots_for_session(list(codes), target)
+    except DataFetchError as exc:
+        return _provider_failure(exc.code, exc.details.get("provider_code"), fields)
+    returned = [row.asset_code for row in quotes]
+    gaps = tuple(sorted(set(codes).difference(returned)))
+    fields.update(
+        returned_count=len(returned),
+        missing_asset_codes=list(gaps),
+        verified_codes=[],
+        unverified_codes=list(gaps),
+    )
+    if (
+        not quotes
+        or len(returned) != len(set(returned))
+        or set(returned).difference(codes)
+        or any(row.snapshot_at != close or not row.source.strip() for row in quotes)
+        or len(gaps) > max_gaps
+    ):
+        return _report("blocked", error_code="S6_PREFLIGHT_QUOTE_SCOPE_INVALID", **fields)
+    if gaps:
+        factory = getattr(provider, "model_market_source", None)
+        source = factory(tolerance=0.01) if callable(factory) else None
+        if not isinstance(source, TargetSessionSuspensionPort):
+            return _report(
+                "blocked", error_code="S6_PREFLIGHT_SUSPENSION_BATCH_UNAVAILABLE", **fields
+            )
+        try:
+            proven = source.target_session_suspensions(gaps, target)
+        except DataFetchError as exc:
+            return _provider_failure(exc.code, exc.details.get("provider_code"), fields)
+        if proven != tuple(sorted(set(proven))) or set(proven).difference(gaps):
+            return _report("blocked", error_code="S6_PREFLIGHT_SUSPENSION_SCOPE_INVALID", **fields)
+        fields.update(
+            verified_codes=list(proven), unverified_codes=sorted(set(gaps).difference(proven))
+        )
+        if proven != gaps:
+            return _report(
+                "blocked", error_code="CURRENT_QUOTE_SESSION_SUSPENSION_UNVERIFIED", **fields
+            )
+    return _report("success", **fields)
+
+
+def _live_probe(
+    target: date, sample_size: int, max_quote_gaps: int | None = None
+) -> dict[str, object]:
+    """Resolve the session and frozen universe in a PostgreSQL read-only transaction."""
 
     from django.db import connection, transaction
 
@@ -154,10 +224,7 @@ def _live_probe(target: date, sample_size: int) -> dict[str, object]:
     )
     from apps.data_center.application.public import get_active_provider_id_by_source
     from apps.data_center.composition import get_provider_registry
-    from apps.data_center.domain.protocols import (
-        CurrentValuationBatchProviderProtocol,
-        SessionQuoteBatchProviderProtocol,
-    )
+    from apps.data_center.domain.protocols import CurrentValuationBatchProviderProtocol
     from apps.data_center.target_date_universe_composition import (
         build_target_date_a_share_universe_scope,
     )
@@ -165,30 +232,44 @@ def _live_probe(target: date, sample_size: int) -> dict[str, object]:
 
     if connection.vendor != "postgresql" or connection.in_atomic_block:
         return _report("blocked", error_code="S6_PREFLIGHT_READ_ONLY_POSTGRES_REQUIRED")
+
+    def target_matches_calendar() -> bool:
+        return (
+            latest_cn_market_session_ready_after(
+                datetime.now(UTC), ready_after=FULL_MARKET_PROVIDER_READY_AFTER
+            )
+            == target
+        )
+
+    # The calendar provider may persist its own egress receipt before the scope read.
+    if max_quote_gaps is not None and not target_matches_calendar():
+        return _report("blocked", error_code="S6_PREFLIGHT_TARGET_SESSION_MISMATCH")
     with transaction.atomic():
         with connection.cursor() as cursor:
             cursor.execute("SET TRANSACTION READ ONLY")
-        resolved = latest_cn_market_session_ready_after(
-            datetime.now(UTC), ready_after=FULL_MARKET_PROVIDER_READY_AFTER
-        )
-        if resolved != target:
+        if max_quote_gaps is None and not target_matches_calendar():
             return _report("blocked", error_code="S6_PREFLIGHT_TARGET_SESSION_MISMATCH")
         provider_id = get_active_provider_id_by_source(_isolated_task_kwargs()["source"])
         if provider_id is None:
             return _report("blocked", error_code="S6_PREFLIGHT_PROVIDER_UNAVAILABLE")
         provider = get_provider_registry().get_by_id(provider_id)
-        if not isinstance(provider, CurrentValuationBatchProviderProtocol) or not isinstance(
-            provider, SessionQuoteBatchProviderProtocol
-        ):
+        if not isinstance(provider, SessionQuoteBatchProviderProtocol):
             return _report("blocked", error_code="S6_PREFLIGHT_SESSION_BATCH_UNAVAILABLE")
         scope = build_target_date_a_share_universe_scope(target)
-        sample = select_sample(scope.requested_codes, sample_size)
-        result = probe_sample(provider, sample, target)
-        result["provider_id"] = provider_id
-        result["source"] = _isolated_task_kwargs()["source"]
-        result["universe_count"] = len(scope.requested_codes)
-        result["coverage_scope"] = "sample_only"
-        return result
+        if max_quote_gaps is None:
+            if not isinstance(provider, CurrentValuationBatchProviderProtocol):
+                return _report("blocked", error_code="S6_PREFLIGHT_SESSION_BATCH_UNAVAILABLE")
+            sample = select_sample(scope.requested_codes, sample_size)
+            result = probe_sample(provider, sample, target)
+            result.update(
+                provider_id=provider_id,
+                source=_isolated_task_kwargs()["source"],
+                universe_count=len(scope.requested_codes),
+                coverage_scope="sample_only",
+            )
+            return result
+    # The routed transport commits its own egress audit after the scope read ends.
+    return probe_quote_gaps(provider, scope.requested_codes, target, max_quote_gaps)
 
 
 def _worker(args: argparse.Namespace) -> dict[str, object]:
@@ -206,7 +287,7 @@ def _worker(args: argparse.Namespace) -> dict[str, object]:
     from core.exceptions import AgomTradeProException
 
     try:
-        return _live_probe(args.target_date, args.sample_size)
+        return _live_probe(args.target_date, args.sample_size, args.max_quote_gaps)
     except (
         AgomTradeProException,
         DatabaseError,
@@ -234,10 +315,19 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--target-date", type=date.fromisoformat)
     parser.add_argument("--sample-size", type=int, choices=range(1, 51), default=10)
     parser.add_argument(
+        "--max-quote-gaps",
+        type=int,
+        help="Verify actual gaps in the full target session up to this count",
+    )
+    parser.add_argument(
         "--timeout", type=int, default=120, help="Provider process budget in seconds"
     )
     parser.add_argument("--worker", action="store_true", help=argparse.SUPPRESS)
     args = parser.parse_args(argv)
+    if args.max_quote_gaps is not None and (
+        args.max_quote_gaps < 0 or not (args.live or args.worker)
+    ):
+        parser.error("--max-quote-gaps requires provider access and a non-negative count")
     if (args.live or args.worker) and args.target_date is None:
         parser.error("--target-date is required for provider access")
     if not 1 <= args.timeout <= 300:
@@ -261,7 +351,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             env={**os.environ, "DJANGO_SETTINGS_MODULE": "core.settings.development_sqlite"},
             capture_output=True,
             text=True,
-            timeout=180,
+            # The focused contracts create and migrate a fresh SQLite database on cold starts.
+            timeout=600,
             check=False,
         )
     except (OSError, subprocess.TimeoutExpired):
@@ -283,6 +374,11 @@ def main(argv: Sequence[str] | None = None) -> int:
                 args.target_date.isoformat(),
                 "--sample-size",
                 str(args.sample_size),
+                *(
+                    ["--max-quote-gaps", str(args.max_quote_gaps)]
+                    if args.max_quote_gaps is not None
+                    else []
+                ),
             ],
             cwd=ROOT,
             capture_output=True,

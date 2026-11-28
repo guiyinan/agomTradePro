@@ -416,11 +416,12 @@ def test_target_session_verifies_small_gaps_without_a_multi_symbol_history_reque
             return pd.DataFrame(
                 [
                     {
-                        "ts_code": kwargs["ts_code"],
+                        "ts_code": code,
                         "trade_date": "20260918",
                         "suspend_type": "S",
                         "suspend_timing": None,
                     }
+                    for code in str(kwargs["ts_code"]).split(",")
                 ]
             )
 
@@ -433,8 +434,49 @@ def test_target_session_verifies_small_gaps_without_a_multi_symbol_history_reque
         ("daily", {"trade_date": "20260918"}),
         ("adj_factor", {"trade_date": "20260918"}),
     ]
-    assert [params["ts_code"] for name, params in client.calls if name == "suspend_d"] == list(
-        MISSING_CODES
+    assert [params for name, params in client.calls if name == "suspend_d"] == [
+        {
+            "ts_code": ",".join(MISSING_CODES),
+            "start_date": "20260918",
+            "end_date": "20260918",
+            "fields": "ts_code,trade_date,suspend_type,suspend_timing",
+        }
+    ]
+    assert fallback.reads == 0
+
+
+@pytest.mark.parametrize("gap", ["absent", "resumption", "intraday", "duplicate", "wrong_day"])
+def test_target_quote_verification_keeps_the_unproven_member_without_expanding_history(gap):
+    class Mixed(MissingQuoteClient):
+        def suspend_d(self, **params):
+            self.calls.append(("suspend_d", params))
+            rows = [[MISSING_CODES[0], "20260918", "S", None]]
+            second = [MISSING_CODES[1], "20260918", "S", None]
+            if gap != "absent":
+                rows.append(second)
+            if gap == "duplicate":
+                rows.append(second)
+            elif gap == "resumption":
+                second[2] = "R"
+            elif gap == "intraday":
+                second[3] = "10:00-11:00"
+            elif gap == "wrong_day":
+                rows.append(second.copy())
+                second[1] = "20260917"
+            return pd.DataFrame(
+                rows, columns=["ts_code", "trade_date", "suspend_type", "suspend_timing"]
+            )
+
+    client = Mixed()
+    service, fallback = _service(client)
+    with pytest.raises(DataFetchError) as caught:
+        refresh_market_price_inputs(service, list(MISSING_CODES), TARGET, target_session_only=True)
+    assert caught.value.code == "CURRENT_QUOTE_SESSION_SUSPENSION_UNVERIFIED"
+    assert caught.value.details["unverified_codes"] == [MISSING_CODES[1]]
+    assert caught.value.details["verified_codes"] == [MISSING_CODES[0]]
+    assert [name for name, _ in client.calls].count("suspend_d") == 1
+    assert all(
+        "trade_date" in params for name, params in client.calls if name in {"daily", "adj_factor"}
     )
     assert fallback.reads == 0
 
@@ -453,3 +495,38 @@ def test_duplicate_or_resumed_session_does_not_prove_full_day_suspension(conflic
 
     source = TushareModelMarketSource(Conflicting())
     assert source.suspended_days(MISSING_CODES[0], TARGET, TARGET) == ()
+
+
+def test_rejected_batch_records_the_integer_business_code_and_stops_without_a_second_call(
+    monkeypatch,
+):
+    client = MissingQuoteClient()
+    failure = TushareError(
+        "private provider message",
+        code="TUSHARE_PROVIDER_REJECTED",
+        details={"provider_code": -209},
+    )
+    calls = []
+
+    def rejected(**params):
+        calls.append(params)
+        raise failure
+
+    monkeypatch.setattr(client, "suspend_d", rejected)
+    audit = RecordingFetchAudit()
+    errors = []
+    monkeypatch.setattr(
+        audit, "record_model_history_fetch_failure", lambda **row: errors.append(row)
+    )
+    source = TushareModelMarketSource(client, provider_id=17, history_fetch_audit=audit)
+    with pytest.raises(TushareError) as caught:
+        source.prepare_target_session_history(MISSING_CODES, TARGET)
+    assert caught.value is failure
+    assert not source.has_prepared_model_history(MISSING_CODES[0], TARGET, TARGET)
+    assert len(calls) == len(errors) == 1
+    assert errors[0]["asset_codes"] == MISSING_CODES
+    assert errors[0]["error"].details["provider_code"] == -209
+    assert errors[0]["request_details"] == {
+        "provider_fetch_kind": "tushare_suspend_d_session_batch",
+        "provider_trade_date": TARGET.isoformat(),
+    }

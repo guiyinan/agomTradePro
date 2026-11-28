@@ -21,7 +21,11 @@ from apps.data_center.application.model_market_data import (
     ModelHistoryPreparedFetch,
 )
 from apps.data_center.domain.model_market_data import ModelDailyBar, TradingCalendarEvidence
-from apps.data_center.infrastructure.tushare_price_session import fetch_tushare_price_session
+from apps.data_center.infrastructure.tushare_price_session import (
+    fetch_tushare_price_session,
+    full_day_suspensions,
+    join_daily_factor_rows,
+)
 from core.exceptions import DataFetchError, TushareError
 from shared.numeric import safe_float
 
@@ -61,6 +65,7 @@ class TushareModelMarketSource:
         self._fetch_workers = 1
         self._source = source
         self._prepared: dict[tuple[str, date, date], tuple[ModelDailyBar, ...]] = {}
+        self._target_halts: dict[tuple[str, date], bool] = {}
         self._provider_id = provider_id
         self._history_fetch_audit = history_fetch_audit
         self._preparation_fetches: list[ModelHistoryPreparedFetch] = []
@@ -84,7 +89,7 @@ class TushareModelMarketSource:
         if daily.empty:
             return ()
         factors = self._fetch_stock_adj_factor([asset_code], start_date, end_date)
-        frame = self._join_daily_factor_rows(
+        frame = join_daily_factor_rows(
             daily,
             factors,
             duplicate_code="MODEL_MARKET_PROVIDER_DUPLICATE_FACTOR",
@@ -115,6 +120,7 @@ class TushareModelMarketSource:
         ):
             raise ValueError("Invalid history preparation scope")
         self._prepared.clear()
+        self._target_halts.clear()
         self._preparation_fetches.clear()
         codes = tuple(sorted(set(asset_codes)))
         if len(codes) > max(200, (end_date - start_date).days):
@@ -249,7 +255,7 @@ class TushareModelMarketSource:
                 if normalized.empty:
                     continue
                 try:
-                    joined = self._join_daily_factor_rows(
+                    joined = join_daily_factor_rows(
                         normalized,
                         factor_frame.loc[factor_frame["ts_code"] == code, list(required)],
                         duplicate_code="MODEL_MARKET_BATCH_DUPLICATE_FACTOR",
@@ -289,11 +295,20 @@ class TushareModelMarketSource:
         if any(_normalize_tushare_code(code) != code for code in asset_codes):
             raise ValueError("Invalid target-session history scope")
         self._prepared.clear()
+        self._target_halts.clear()
         self._preparation_fetches.clear()
         if asset_codes:
             self._prepare_by_session(
                 tuple(sorted(set(asset_codes))), target_date, target_date, (target_date,)
             )
+            gaps = tuple(code for (code, _, _), rows in self._prepared.items() if not rows)
+            if gaps:
+                try:
+                    proven = set(self.target_session_suspensions(gaps, target_date))
+                except (DataFetchError, OSError, RuntimeError, TypeError, ValueError):
+                    self._prepared.clear()
+                    raise
+                self._target_halts = {(code, target_date): code in proven for code in gaps}
 
     def _prepare_by_session(
         self,
@@ -303,6 +318,7 @@ class TushareModelMarketSource:
         days: tuple[date, ...] | None = None,
     ) -> bool:
         """Prepare exact session snapshots and filter rows to the frozen member scope."""
+        exact_session = days is not None
         if days is None:
             days = self.trade_days(start_date, end_date)
         if not days:
@@ -405,7 +421,7 @@ class TushareModelMarketSource:
                 )
                 factor_groups = dict(iter(factor_frame.groupby("ts_code")))
                 current_rows: list[ModelDailyBar] = []
-                factor_error: DataFetchError | None = None
+                session_error: DataFetchError | None = None
                 for code, frame in daily_frame.groupby("ts_code"):
                     normalized = self._normalize_daily_frame(
                         frame,
@@ -413,6 +429,12 @@ class TushareModelMarketSource:
                         start_date=day,
                         end_date=day,
                     )
+                    if exact_session and (len(frame) != 1 or len(normalized) != 1):
+                        session_error = DataFetchError(
+                            "Invalid or duplicate target price cannot be classified as a suspension",
+                            code="MODEL_MARKET_SESSION_INVALID",
+                        )
+                        break
                     if normalized.empty:
                         continue
                     factors_for_code = factor_groups.get(
@@ -420,23 +442,23 @@ class TushareModelMarketSource:
                         pd.DataFrame(columns=["ts_code", "trade_date", "adj_factor"]),
                     )
                     try:
-                        joined = self._join_daily_factor_rows(
+                        joined = join_daily_factor_rows(
                             normalized,
                             factors_for_code[["ts_code", "trade_date", "adj_factor"]],
                             duplicate_code="MODEL_MARKET_SESSION_DUPLICATE_FACTOR",
                             missing_code="MODEL_MARKET_SESSION_FACTORS_MISSING",
                         )
                     except DataFetchError as error:
-                        factor_error = error
+                        session_error = error
                         break
                     current_rows.extend(self._rows(joined, volume_multiplier=100.0))
-                if factor_error is not None:
+                if session_error is not None:
                     self._record_preparation_failure(
                         asset_codes,
                         day,
                         day,
                         request_details=request_details,
-                        error=factor_error,
+                        error=session_error,
                     )
                     continue
                 self._record_preparation_success(
@@ -538,37 +560,6 @@ class TushareModelMarketSource:
         """Read the exchange calendar without manufacturing weekdays."""
         return tuple(sorted(set(self._fetch_trade_days(start_date, end_date))))
 
-    @staticmethod
-    def _join_daily_factor_rows(
-        daily_rows: PandasDataFrame,
-        factor_rows: PandasDataFrame,
-        *,
-        duplicate_code: str,
-        missing_code: str,
-    ) -> PandasDataFrame:
-        """Join only daily keys and require one finite, positive factor for each."""
-        keys = ["ts_code", "trade_date"]
-        daily_keys = daily_rows.loc[:, keys].drop_duplicates()
-        matching_factors = factor_rows.merge(daily_keys, on=keys, how="inner")
-        if matching_factors.duplicated(keys).any():
-            raise DataFetchError(
-                "Provider returned duplicate adjustment factors for a price row",
-                code=duplicate_code,
-            )
-        joined = daily_rows.merge(
-            matching_factors.loc[:, [*keys, "adj_factor"]],
-            on=keys,
-            how="left",
-            validate="many_to_one",
-        )
-        factor_values = pd.to_numeric(joined["adj_factor"], errors="coerce")
-        if not np.isfinite(factor_values).all() or (factor_values <= 0).any():
-            raise DataFetchError(
-                "Provider price row lacks one finite, positive adjustment factor",
-                code=missing_code,
-            )
-        return joined
-
     def trading_calendar_evidence(
         self, start_date: date, end_date: date
     ) -> TradingCalendarEvidence:
@@ -636,37 +627,49 @@ class TushareModelMarketSource:
             observed_at=datetime.now(UTC),
         )
 
+    def target_session_suspensions(
+        self, asset_codes: tuple[str, ...], target_date: date
+    ) -> tuple[str, ...]:
+        """Read one unfiltered suspension batch and retain only exact full-day evidence."""
+        if not asset_codes:
+            return ()
+        if asset_codes != tuple(sorted(set(asset_codes))) or any(
+            _normalize_tushare_code(code) != code for code in asset_codes
+        ):
+            raise ValueError("Invalid target-session suspension scope")
+        day = target_date.strftime("%Y%m%d")
+        try:
+            frame = self._pro.suspend_d(
+                ts_code=",".join(asset_codes),
+                start_date=day,
+                end_date=day,
+                fields="ts_code,trade_date,suspend_type,suspend_timing",
+            )
+            proven = full_day_suspensions(
+                frame, asset_codes, target_date, target_date, target_batch=True
+            )
+            return tuple(sorted(proven))
+        except DataFetchError as error:
+            details: dict[str, object] = {
+                "provider_fetch_kind": "tushare_suspend_d_session_batch",
+                "provider_trade_date": target_date.isoformat(),
+            }
+            self._record_preparation_failure(
+                asset_codes, target_date, target_date, request_details=details, error=error
+            )
+            raise
+
     def suspended_days(self, asset_code: str, start_date: date, end_date: date) -> tuple[date, ...]:
-        """Accept only explicit full-day S records; intraday halts do not explain gaps."""
+        """Read exact-session evidence from the prepared batch or fetch historical dates."""
+        if start_date == end_date and (asset_code, end_date) in self._target_halts:
+            return (end_date,) if self._target_halts[(asset_code, end_date)] else ()
         frame = self._call_with_retry(
             self._pro.suspend_d,
             ts_code=asset_code,
             start_date=start_date.strftime("%Y%m%d"),
             end_date=end_date.strftime("%Y%m%d"),
         )
-        if frame is None or frame.empty:
-            return ()
-        required = {"ts_code", "trade_date", "suspend_type", "suspend_timing"}
-        if not required.issubset(frame.columns):
-            return ()
-        days: set[date] = set()
-        ambiguous: set[date] = set()
-        for row in frame.to_dict("records"):
-            if row["ts_code"] != asset_code:
-                continue
-            observed = pd.to_datetime(row["trade_date"], format="%Y%m%d", errors="coerce")
-            if pd.isna(observed) or not start_date <= observed.date() <= end_date:
-                continue
-            day = observed.date()
-            timing = row["suspend_timing"]
-            if (
-                day in days
-                or row["suspend_type"] != "S"
-                or not (pd.isna(timing) or isinstance(timing, str) and not timing.strip())
-            ):
-                ambiguous.add(day)
-            days.add(day)
-        return tuple(sorted(days - ambiguous))
+        return full_day_suspensions(frame, (asset_code,), start_date, end_date).get(asset_code, ())
 
     def index_members(self, index_code: str, target_date: date) -> tuple[str, ...]:
         """Read the latest effective snapshot, never a future constituent list."""

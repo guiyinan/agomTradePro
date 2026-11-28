@@ -25,7 +25,10 @@ from apps.data_center.domain.market_time import (
     cn_market_date_from_observation,
     cn_market_session_close_utc,
 )
-from apps.data_center.domain.model_market_data import ModelSuspensionPort
+from apps.data_center.domain.model_market_data import (
+    ModelSuspensionPort,
+    TargetSessionSuspensionPort,
+)
 from apps.data_center.domain.protocols import (
     CurrentValuationBatchProviderProtocol,
     SessionQuoteBatchProviderProtocol,
@@ -302,37 +305,37 @@ def _quote_suspension_evidence(
                 for code in missing_codes
             ),
         )
-    if not isinstance(source, ModelSuspensionPort):
-        return (
-            (),
-            (),
-            tuple(
-                {"asset_code": code, "reason_code": _QUOTE_UNVERIFIED_REASON}
-                for code in missing_codes
-            ),
-        )
     suspended: list[str] = []
-    unverified: list[dict[str, str]] = []
-    for code in missing_codes:
-        try:
-            observed_days = source.suspended_days(code, target_trade_date, target_trade_date)
-            if not isinstance(observed_days, tuple) or any(
-                type(observed_day) is not date for observed_day in observed_days
-            ):
-                raise TypeError("suspension evidence must be a tuple of dates")
-            is_suspended = target_trade_date in observed_days
-        except (DataFetchError, OSError, RuntimeError, TypeError, ValueError):
-            unverified.append({"asset_code": code, "reason_code": _QUOTE_UNVERIFIED_REASON})
-            continue
-        if is_suspended:
-            suspended.append(code)
-        else:
-            unverified.append({"asset_code": code, "reason_code": _QUOTE_UNVERIFIED_REASON})
+    if isinstance(source, TargetSessionSuspensionPort):
+        codes = tuple(sorted(missing_codes))
+        proven = source.target_session_suspensions(codes, target_trade_date)
+        if proven != tuple(sorted(set(proven))) or set(proven).difference(codes):
+            raise DataFetchError(
+                "Suspension proof exceeds the requested scope",
+                code="REHEARSAL_CAPACITY_QUOTE_SCOPE_INCOMPLETE",
+            )
+        suspended.extend(proven)
+    elif isinstance(source, ModelSuspensionPort):
+        for code in missing_codes:
+            try:
+                days = source.suspended_days(code, target_trade_date, target_trade_date)
+                if (
+                    isinstance(days, tuple)
+                    and all(type(day) is date for day in days)
+                    and target_trade_date in days
+                ):
+                    suspended.append(code)
+            except (DataFetchError, OSError, RuntimeError, TypeError, ValueError):
+                continue
     suspended.sort()
+    missing = set(missing_codes).difference(suspended)
     return (
         tuple(suspended),
         tuple({"asset_code": code, "reason_code": _QUOTE_SUSPENSION_REASON} for code in suspended),
-        tuple(unverified),
+        tuple(
+            {"asset_code": code, "reason_code": _QUOTE_UNVERIFIED_REASON}
+            for code in sorted(missing)
+        ),
     )
 
 

@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
+import sys
 from dataclasses import replace
 from datetime import UTC, date, datetime
 from types import SimpleNamespace
@@ -49,6 +51,87 @@ def test_sample_rejects_unbounded_or_invalid_requests(size: int) -> None:
 def test_empty_universe_is_blocked() -> None:
     with pytest.raises(ValueError, match="S6_PREFLIGHT_UNIVERSE_EMPTY"):
         preflight.select_sample((), 10)
+
+
+def test_fresh_worker_reaches_the_postgres_guard_without_provider_access() -> None:
+    run = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "scripts.run_s6_prepare_preflight",
+            "--worker",
+            "--target-date",
+            TARGET.isoformat(),
+            "--max-quote-gaps",
+            "11",
+        ],
+        cwd=preflight.ROOT,
+        env={**os.environ, "DJANGO_SETTINGS_MODULE": "core.settings.development_sqlite"},
+        capture_output=True,
+        text=True,
+        timeout=60,
+        check=False,
+    )
+    assert run.returncode == 2, run.stderr
+    assert (
+        json.loads(run.stdout.splitlines()[-1])["error_code"]
+        == "S6_PREFLIGHT_READ_ONLY_POSTGRES_REQUIRED"
+    )
+
+
+def test_daily_rejection_records_business_code_before_suspension_lookup() -> None:
+    from core.exceptions import TushareError
+
+    provider = _provider()
+    provider.fetch_quote_snapshots_for_session.side_effect = TushareError(
+        "private daily response", code="TUSHARE_PROVIDER_REJECTED", details={"provider_code": 40203}
+    )
+    report = preflight.probe_quote_gaps(provider, CODES, TARGET, 11)
+    assert report["outcome"] == "blocked" and report["provider_code"] == 40203
+    assert report["error_code"] == "TUSHARE_PROVIDER_REJECTED" and report["universe_count"] == 2
+    assert "private daily response" not in str(report)
+    provider.model_market_source.assert_not_called()
+
+
+def test_gap_preflight_calls_the_prepare_source_once_for_the_actual_missing_set():
+    import pandas as pd
+
+    from apps.data_center.infrastructure.tushare_model_market_source import TushareModelMarketSource
+    from core.exceptions import TushareError
+
+    provider = _provider()
+    extra = ("600001.SH", "600002.SH")
+    universe = CODES + extra
+    client = Mock()
+    provider.model_market_source.return_value = TushareModelMarketSource(client)
+    frame = pd.DataFrame(
+        [[extra[0], "20261014", "S", None], [extra[1], "20261014", "R", None]],
+        columns=["ts_code", "trade_date", "suspend_type", "suspend_timing"],
+    )
+    client.suspend_d.return_value = frame
+    result = preflight.probe_quote_gaps(provider, universe, TARGET, max_gaps=1)
+    assert result["outcome"] == "blocked"
+    client.suspend_d.assert_not_called()
+    result = preflight.probe_quote_gaps(provider, universe, TARGET, max_gaps=2)
+    assert result["verified_codes"] == [extra[0]]
+    assert result["unverified_codes"] == [extra[1]]
+    assert result["outcome"] == "blocked"
+    client.suspend_d.assert_called_once_with(
+        ts_code=",".join(extra),
+        start_date="20261014",
+        end_date="20261014",
+        fields="ts_code,trade_date,suspend_type,suspend_timing",
+    )
+    frame.loc[1, "suspend_type"] = "S"
+    assert preflight.probe_quote_gaps(provider, universe, TARGET, 2)["outcome"] == "success"
+    client.suspend_d.side_effect = TushareError(
+        "private text", code="TUSHARE_PROVIDER_REJECTED", details={"provider_code": 40203}
+    )
+    result = preflight.probe_quote_gaps(provider, universe, TARGET, 2)
+    assert result["provider_code"] == 40203
+    assert result["unverified_codes"] == list(extra)
+    assert "private text" not in str(result)
+    assert client.suspend_d.call_count == 3
 
 
 def test_live_probe_uses_explicit_session_batches_without_writers() -> None:
@@ -119,6 +202,7 @@ def test_tests_only_does_not_contact_provider(monkeypatch, capsys, tmp_path) -> 
     monkeypatch.setattr(preflight.subprocess, "run", run)
     assert preflight.main([]) == 0
     assert run.call_count == 1
+    assert run.call_args.kwargs["timeout"] == 600
     base_arg = next(arg for arg in run.call_args.args[0] if arg.startswith("--basetemp="))
     base = tmp_path / base_arg.removeprefix("--basetemp=")
     assert base.parent.is_dir()
@@ -215,6 +299,32 @@ def test_live_rejects_unsafe_transaction_before_calendar(live_runtime, vendor, i
     assert not provider.method_calls
 
 
+def test_full_quote_gap_probe_closes_scope_transaction_before_audited_transport(live_runtime):
+    from django.db import transaction
+
+    connection, resolver, _, provider, scope = live_runtime
+    rows = provider.fetch_quote_snapshots_for_session.return_value
+
+    def calendar(*args, **kwargs):
+        connection.cursor.assert_not_called()
+        provider.fetch_quote_snapshots_for_session.assert_not_called()
+        return TARGET
+
+    resolver.side_effect = calendar
+
+    def quote(codes, target):
+        scope.assert_called_once_with(TARGET)
+        transaction.atomic.return_value.__exit__.assert_called_once()
+        assert codes == list(CODES) and target == TARGET
+        return rows
+
+    provider.fetch_quote_snapshots_for_session.side_effect = quote
+    result = preflight._live_probe(TARGET, 10, max_quote_gaps=2)
+    assert result["outcome"] == "success" and result["coverage_scope"] == "full_target_quote_gaps"
+    resolver.assert_called_once()
+    provider.fetch_current_valuations.assert_not_called()
+
+
 def test_target_mismatch_stops_before_provider_and_universe(live_runtime) -> None:
     connection, resolver, selection, provider, scope = live_runtime
     resolver.return_value = date(2026, 10, 13)
@@ -239,7 +349,9 @@ def test_worker_suppresses_provider_exception_secrets(monkeypatch) -> None:
     monkeypatch.setattr(
         preflight, "_live_probe", Mock(side_effect=DataFetchError("secret URL and token"))
     )
-    result = preflight._worker(SimpleNamespace(target_date=TARGET, sample_size=10))
+    result = preflight._worker(
+        SimpleNamespace(target_date=TARGET, sample_size=10, max_quote_gaps=None)
+    )
     assert result["error_code"] == "S6_PREFLIGHT_PROVIDER_FAILED"
     assert "secret" not in json.dumps(result)
 

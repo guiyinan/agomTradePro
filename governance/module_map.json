@@ -4403,6 +4403,7 @@
           "CurrentTaskAttemptIdentityGetter",
           "FullMarketData02AuthorityPreflight",
           "FullMarketRefreshDependencies",
+          "MarketPriceInputRefresh",
           "MarketPublicationsRefresh",
           "TargetDateUniverseScopeResolver",
           "current_market_publication_blocked",

@@ -802,6 +802,11 @@
           "test_function": "test_target_session_verifies_small_gaps_without_a_multi_symbol_history_request"
         },
         {
+          "case": "target_quote_verification_preserves_unproven_batch_members",
+          "test_file": "tests/unit/data_center/test_missing_quote_bulk_preparation.py",
+          "test_function": "test_target_quote_verification_keeps_the_unproven_member_without_expanding_history"
+        },
+        {
           "case": "ambiguous_suspension_rows_preserve_price_gaps",
           "test_file": "tests/unit/data_center/test_missing_quote_bulk_preparation.py",
           "test_function": "test_duplicate_or_resumed_session_does_not_prove_full_day_suspension"

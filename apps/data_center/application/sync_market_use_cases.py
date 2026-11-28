@@ -561,13 +561,21 @@ class SyncPriceUseCase(_BaseSyncUseCase):
             end_date=end_date,
             request_details=request_details,
         )
+        failure_extra: dict[str, object] = {"source_type": config.source_type}
+        if (
+            request_details.get("provider_fetch_kind") == "tushare_suspend_d_session_batch"
+            and isinstance(error, DataFetchError)
+            and error.code == "TUSHARE_PROVIDER_REJECTED"
+            and type(error.details.get("provider_code")) is int
+        ):
+            failure_extra["provider_code"] = error.details["provider_code"]
         return self._commit_price_fetch_failure(
             config=config,
             provider_name=provider.provider_name(),
             request_params=request_params,
             started_at=self._clock.now(),
             error=error,
-            extra={"source_type": config.source_type},
+            extra=failure_extra,
         )
 
     @staticmethod
